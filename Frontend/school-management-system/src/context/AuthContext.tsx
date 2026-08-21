@@ -24,7 +24,7 @@ interface AuthContextType {
 const defaultAdminUser: User = {
   id: 'USR-001',
   name: 'Dr. Eleanor Vance',
-  email: 'admin@stxaviers.edu',
+  email: 'admin@pirnavschools.edu',
   role: 'Admin',
   avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
   phone: '+1 555-888-001',

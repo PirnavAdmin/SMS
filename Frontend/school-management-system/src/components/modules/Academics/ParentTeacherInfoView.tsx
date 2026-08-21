@@ -25,12 +25,12 @@ export const ParentTeacherInfoView: React.FC = () => {
 
   // Default teachers list matching school directory & screenshot
   const staticTeachers: TeacherItem[] = [
-    { id: 't1', firstName: 'Eleanor', lastName: 'Vance', subject: 'Mathematics', subjectCode: 'MAT-101', phone: '+1 555-888-001', email: 'eleanor.vance@stxaviers.edu', isClassTeacher: true },
-    { id: 't2', firstName: 'Robert', lastName: 'Chen', subject: 'Physics', subjectCode: 'PHY-102', phone: '+1 555-888-002', email: 'robert.chen@stxaviers.edu', isClassTeacher: false },
-    { id: 't3', firstName: 'Sarah', lastName: 'Jenkins', subject: 'English Literature', subjectCode: 'ENG-103', phone: '+1 555-888-003', email: 'sarah.jenkins@stxaviers.edu', isClassTeacher: false },
-    { id: 't4', firstName: 'Michael', lastName: 'Chang', subject: 'Chemistry', subjectCode: 'CHE-104', phone: '+1 555-888-004', email: 'michael.chang@stxaviers.edu', isClassTeacher: false },
-    { id: 't5', firstName: 'Anita', lastName: 'Patel', subject: 'Computer Science', subjectCode: 'CS-105', phone: '+1 555-888-005', email: 'anita.patel@stxaviers.edu', isClassTeacher: false },
-    { id: 't6', firstName: 'David', lastName: 'Miller', subject: 'Physical Education', subjectCode: 'PE-106', phone: '+1 555-888-006', email: 'david.miller@stxaviers.edu', isClassTeacher: false },
+    { id: 't1', firstName: 'Eleanor', lastName: 'Vance', subject: 'Mathematics', subjectCode: 'MAT-101', phone: '+1 555-888-001', email: 'eleanor.vance@pirnavschools.edu', isClassTeacher: true },
+    { id: 't2', firstName: 'Robert', lastName: 'Chen', subject: 'Physics', subjectCode: 'PHY-102', phone: '+1 555-888-002', email: 'robert.chen@pirnavschools.edu', isClassTeacher: false },
+    { id: 't3', firstName: 'Sarah', lastName: 'Jenkins', subject: 'English Literature', subjectCode: 'ENG-103', phone: '+1 555-888-003', email: 'sarah.jenkins@pirnavschools.edu', isClassTeacher: false },
+    { id: 't4', firstName: 'Michael', lastName: 'Chang', subject: 'Chemistry', subjectCode: 'CHE-104', phone: '+1 555-888-004', email: 'michael.chang@pirnavschools.edu', isClassTeacher: false },
+    { id: 't5', firstName: 'Anita', lastName: 'Patel', subject: 'Computer Science', subjectCode: 'CS-105', phone: '+1 555-888-005', email: 'anita.patel@pirnavschools.edu', isClassTeacher: false },
+    { id: 't6', firstName: 'David', lastName: 'Miller', subject: 'Physical Education', subjectCode: 'PE-106', phone: '+1 555-888-006', email: 'david.miller@pirnavschools.edu', isClassTeacher: false },
   ];
 
   useEffect(() => {

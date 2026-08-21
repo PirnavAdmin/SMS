@@ -59,6 +59,20 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
   useEffect(() => {
     fetchData();
+
+    const handleRoomTypesUpdated = async () => {
+      try {
+        const rtsData = await getRoomTypes();
+        setRoomTypes(rtsData);
+      } catch (e) {}
+    };
+
+    window.addEventListener('room_types_updated', handleRoomTypesUpdated);
+    window.addEventListener('storage', handleRoomTypesUpdated);
+    return () => {
+      window.removeEventListener('room_types_updated', handleRoomTypesUpdated);
+      window.removeEventListener('storage', handleRoomTypesUpdated);
+    };
   }, [fetchData]);
 
   const handleOpenAdd = async () => {
@@ -70,9 +84,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     setFormStatus('Active');
 
     try {
-      const blocksData = await getHostelBlocks();
+      const [blocksData, rtsData] = await Promise.all([
+        getHostelBlocks(),
+        getRoomTypes()
+      ]);
       if (Array.isArray(blocksData) && blocksData.length > 0) {
         setBlocks(blocksData);
+      }
+      if (Array.isArray(rtsData) && rtsData.length > 0) {
+        setRoomTypes(rtsData);
       }
     } catch (e) {
       // Ignored
@@ -362,18 +382,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                     required
                   >
                     <option value="" disabled>Select room sharing...</option>
-                    {Array.from(
-                      new Map(
-                        (roomTypes || []).map(rt => [
-                          `${(rt.roomTypeSpecification || '').toLowerCase().trim()}-${rt.acType}-${rt.bedCapacity}`,
-                          rt
-                        ])
-                      ).values()
-                    ).map(rt => (
-                      <option key={rt.roomTypeId} value={rt.roomTypeId.toString()}>
-                        {rt.roomTypeSpecification} (Cap: {rt.bedCapacity})
-                      </option>
-                    ))}
+                    {(roomTypes || []).map(rt => {
+                      const hasAcInSpec = (rt.roomTypeSpecification || '').toLowerCase().includes('ac');
+                      const acLabel = rt.acType && !hasAcInSpec ? ` (${rt.acType})` : '';
+                      return (
+                        <option key={rt.roomTypeId} value={rt.roomTypeId.toString()}>
+                          {rt.roomTypeSpecification}{acLabel} • (Cap: {rt.bedCapacity} {rt.bedCapacity === 1 ? 'Bed' : 'Beds'})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

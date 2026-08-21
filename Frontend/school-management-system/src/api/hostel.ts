@@ -343,10 +343,14 @@ export const deleteHostelBlock = async (id: number | string, code?: string, name
 const ROOM_TYPES_STORE_KEY = 'edu_db_room_types';
 
 const DEFAULT_INITIAL_ROOM_TYPES: RoomType[] = [
-  { roomTypeId: 1, roomTypeSpecification: 'Single Deluxe AC', bedCapacity: 1, acType: 'AC', status: 'Active', description: 'Single bed air-conditioned room with study desk', createdAt: '2026-01-01' },
-  { roomTypeId: 2, roomTypeSpecification: 'Double Sharing Non-AC', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed sharing ventilated room', createdAt: '2026-01-01' },
-  { roomTypeId: 3, roomTypeSpecification: 'Triple Sharing Non-AC', bedCapacity: 3, acType: 'Non-AC', status: 'Active', description: 'Three bed standard room', createdAt: '2026-01-01' },
-  { roomTypeId: 4, roomTypeSpecification: 'Four Bedded Standard', bedCapacity: 4, acType: 'Non-AC', status: 'Active', description: 'Four bed dormitory style room', createdAt: '2026-01-01' }
+  { roomTypeId: 1, roomTypeSpecification: '1-Share (1 Bed) - AC', bedCapacity: 1, acType: 'AC', status: 'Active', description: 'Single bed air-conditioned room with study desk', createdAt: '2026-01-01' },
+  { roomTypeId: 2, roomTypeSpecification: '1-Share (1 Bed) - Non-AC', bedCapacity: 1, acType: 'Non-AC', status: 'Active', description: 'Single bed standard ventilated room', createdAt: '2026-01-01' },
+  { roomTypeId: 3, roomTypeSpecification: '2-Share (2 Beds) - AC', bedCapacity: 2, acType: 'AC', status: 'Active', description: 'Two bed sharing air-conditioned room', createdAt: '2026-01-01' },
+  { roomTypeId: 4, roomTypeSpecification: '2-Share (2 Beds) - Non-AC', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed sharing ventilated room', createdAt: '2026-01-01' },
+  { roomTypeId: 5, roomTypeSpecification: '3-Share (3 Beds) - AC', bedCapacity: 3, acType: 'AC', status: 'Active', description: 'Three bed air-conditioned room', createdAt: '2026-01-01' },
+  { roomTypeId: 6, roomTypeSpecification: '3-Share (3 Beds) - Non-AC', bedCapacity: 3, acType: 'Non-AC', status: 'Active', description: 'Three bed standard room', createdAt: '2026-01-01' },
+  { roomTypeId: 7, roomTypeSpecification: '4-Share (4 Beds) - AC', bedCapacity: 4, acType: 'AC', status: 'Active', description: 'Four bed air-conditioned room', createdAt: '2026-01-01' },
+  { roomTypeId: 8, roomTypeSpecification: '4-Share (4 Beds) - Non-AC', bedCapacity: 4, acType: 'Non-AC', status: 'Active', description: 'Four bed dormitory style room', createdAt: '2026-01-01' }
 ];
 
 const getStoredRoomTypes = (): RoomType[] => {
@@ -364,6 +368,7 @@ const getStoredRoomTypes = (): RoomType[] => {
 const saveStoredRoomTypes = (data: RoomType[]) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(ROOM_TYPES_STORE_KEY, JSON.stringify(data));
+    window.dispatchEvent(new Event('room_types_updated'));
   }
 };
 

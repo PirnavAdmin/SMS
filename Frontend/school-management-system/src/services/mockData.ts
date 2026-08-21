@@ -4306,7 +4306,7 @@ export const initialStaff: Staff[] = [
     lastName: "Vance",
     designation: "Principal",
     department: "Academics",
-    email: "eleanor.vance@stxaviers.edu",
+    email: "eleanor.vance@pirnavschools.edu",
     phone: "+1 555-888-001",
     gender: "Female",
     dob: "15/03/1975",
@@ -4347,7 +4347,7 @@ export const initialStaff: Staff[] = [
     lastName: "Miller",
     designation: "Class Teacher",
     department: "Mathematics",
-    email: "j.miller@stxaviers.edu",
+    email: "j.miller@pirnavschools.edu",
     phone: "+1 555-888-002",
     gender: "Male",
     dob: "20/06/1984",
@@ -4387,7 +4387,7 @@ export const initialStaff: Staff[] = [
     lastName: "Jenkins",
     designation: "Head of Department (HOD)",
     department: "Science",
-    email: "s.jenkins@stxaviers.edu",
+    email: "s.jenkins@pirnavschools.edu",
     phone: "+1 555-888-003",
     gender: "Female",
     dob: "12/11/1986",
@@ -4427,7 +4427,7 @@ export const initialStaff: Staff[] = [
     lastName: "Langdon",
     designation: "Subject Teacher",
     department: "Computer Science",
-    email: "r.langdon@stxaviers.edu",
+    email: "r.langdon@pirnavschools.edu",
     phone: "+1 555-888-004",
     gender: "Male",
     dob: "05/04/1988",
@@ -4465,7 +4465,7 @@ export const initialStaff: Staff[] = [
     lastName: "Brody",
     designation: "Physical Education Teacher",
     department: "Physical Education",
-    email: "m.brody@stxaviers.edu",
+    email: "m.brody@pirnavschools.edu",
     phone: "+1 555-888-005",
     gender: "Male",
     dob: "18/09/1985",
@@ -4502,7 +4502,7 @@ export const initialStaff: Staff[] = [
     lastName: "Miller",
     designation: "Accountant",
     department: "Finance & Accounts",
-    email: "d.miller@stxaviers.edu",
+    email: "d.miller@pirnavschools.edu",
     phone: "+1 555-888-006",
     gender: "Male",
     dob: "24/01/1982",
@@ -4533,7 +4533,7 @@ export const initialStaff: Staff[] = [
     lastName: "Green",
     designation: "HR Executive",
     department: "Human Resources",
-    email: "r.green@stxaviers.edu",
+    email: "r.green@pirnavschools.edu",
     phone: "+1 555-888-007",
     gender: "Female",
     dob: "14/07/1990",
@@ -4564,7 +4564,7 @@ export const initialStaff: Staff[] = [
     lastName: "Scott",
     designation: "Transport Manager",
     department: "Logistics & Transport",
-    email: "m.scott@stxaviers.edu",
+    email: "m.scott@pirnavschools.edu",
     phone: "+1 555-888-008",
     gender: "Male",
     dob: "15/03/1978",
@@ -4595,7 +4595,7 @@ export const initialStaff: Staff[] = [
     lastName: "Pendelton",
     designation: "Hostel Warden",
     department: "Hostel Management",
-    email: "a.pendelton@stxaviers.edu",
+    email: "a.pendelton@pirnavschools.edu",
     phone: "+1 555-888-009",
     gender: "Male",
     dob: "08/10/1980",
@@ -4626,7 +4626,7 @@ export const initialStaff: Staff[] = [
     lastName: "Wilson",
     designation: "IT Administrator",
     department: "IT Support",
-    email: "j.wilson@stxaviers.edu",
+    email: "j.wilson@pirnavschools.edu",
     phone: "+1 555-888-010",
     gender: "Male",
     dob: "22/08/1991",
@@ -11074,7 +11074,65 @@ export const initialTimetable: TimetableSlot[] = [
   { id: "TT-20", day: "Thursday", timeSlot: "12:30 PM - 01:15 PM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "12:30", endTime: "13:15" },
   
   { id: "TT-21", day: "Friday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "09:15", endTime: "10:00" },
-  { id: "TT-22", day: "Friday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "11:00", endTime: "11:45" }
+  { id: "TT-22", day: "Friday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "11:00", endTime: "11:45" },
+
+  // Library & Reading Period Slots (Synced with Admin Timetable)
+  // Monday
+  { id: "TT-LIB-M1", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 5", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-LIB-M2", day: "Monday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 3", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-LIB-M3", day: "Monday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 9", section: "A", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-LIB-M4", day: "Monday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 10", section: "A", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-LIB-M5", day: "Monday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 6", section: "B", subject: "Library & Storytelling", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "11:45", endTime: "12:30" },
+  { id: "TT-LIB-M6", day: "Monday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 8", section: "A", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "13:15", endTime: "14:00" },
+  { id: "TT-LIB-M7", day: "Monday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 11", section: "B", subject: "Library & Reference", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "14:00", endTime: "14:45" },
+  { id: "TT-LIB-M8", day: "Monday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 7", section: "A", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:45", endTime: "15:30" },
+
+  // Tuesday
+  { id: "TT-LIB-T1", day: "Tuesday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 4", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-LIB-T2", day: "Tuesday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 6", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Reading Deck", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-LIB-T3", day: "Tuesday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 11", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-LIB-T4", day: "Tuesday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 9", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-LIB-T5", day: "Tuesday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 10", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "11:45", endTime: "12:30" },
+  { id: "TT-LIB-T6", day: "Tuesday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 5", section: "B", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "13:15", endTime: "14:00" },
+  { id: "TT-LIB-T7", day: "Tuesday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 12", section: "A", subject: "Library & Journal Study", teacherName: "Rachel Green", roomNo: "Digital Library Deck", startTime: "14:00", endTime: "14:45" },
+  { id: "TT-LIB-T8", day: "Tuesday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 8", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:45", endTime: "15:30" },
+
+  // Wednesday
+  { id: "TT-LIB-W1", day: "Wednesday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 7", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-LIB-W2", day: "Wednesday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 10", section: "A", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-LIB-W3", day: "Wednesday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 5", section: "A", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-LIB-W4", day: "Wednesday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 3", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-LIB-W5", day: "Wednesday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 8", section: "A", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "11:45", endTime: "12:30" },
+  { id: "TT-LIB-W6", day: "Wednesday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 12", section: "B", subject: "Library & Reference", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "13:15", endTime: "14:00" },
+  { id: "TT-LIB-W7", day: "Wednesday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 9", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:00", endTime: "14:45" },
+  { id: "TT-LIB-W8", day: "Wednesday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 6", section: "A", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "14:45", endTime: "15:30" },
+
+  // Thursday
+  { id: "TT-LIB-TH1", day: "Thursday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 11", section: "B", subject: "Library & Reference", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-LIB-TH2", day: "Thursday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 8", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-LIB-TH3", day: "Thursday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 6", section: "B", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-LIB-TH4", day: "Thursday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 4", section: "B", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-LIB-TH5", day: "Thursday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 7", section: "A", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "11:45", endTime: "12:30" },
+  { id: "TT-LIB-TH6", day: "Thursday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 10", section: "A", subject: "Library & Research", teacherName: "Rachel Green", roomNo: "Digital Library Deck", startTime: "13:15", endTime: "14:00" },
+  { id: "TT-LIB-TH7", day: "Thursday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 11", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:00", endTime: "14:45" },
+  { id: "TT-LIB-TH8", day: "Thursday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 9", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "14:45", endTime: "15:30" },
+
+  // Friday
+  { id: "TT-LIB-F1", day: "Friday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 9", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-LIB-F2", day: "Friday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 5", section: "B", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-LIB-F3", day: "Friday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 12", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-LIB-F4", day: "Friday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 10", section: "B", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-LIB-F5", day: "Friday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 3", section: "A", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "11:45", endTime: "12:30" },
+  { id: "TT-LIB-F6", day: "Friday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 7", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "13:15", endTime: "14:00" },
+  { id: "TT-LIB-F7", day: "Friday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 8", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:00", endTime: "14:45" },
+  { id: "TT-LIB-F8", day: "Friday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 6", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "14:45", endTime: "15:30" },
+
+  // Saturday
+  { id: "TT-LIB-S1", day: "Saturday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 6", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Reading Deck", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-LIB-S2", day: "Saturday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 7", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-LIB-S3", day: "Saturday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 8", section: "B", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-LIB-S4", day: "Saturday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 9", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-LIB-S5", day: "Saturday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 10", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "11:45", endTime: "12:30" }
 ];
 
 export const initialHomework: Homework[] = [
@@ -11124,11 +11182,21 @@ export const initialUniforms: UniformItem[] = [
 ];
 
 export const initialBooks: BookItem[] = [
-  { id: "BK-01", isbn: "978-0134685991", title: "Fundamentals of Physics", author: "Halliday & Resnick", category: "Science", totalCopies: 15, availableCopies: 11, rackNo: "Rack S-04" }
+  { id: "BK-01", isbn: "978-0134685991", title: "Fundamentals of Physics", author: "Halliday & Resnick", category: "Science & Physics", totalCopies: 15, availableCopies: 11, rackNo: "Rack A-01 (Shelf 1)" },
+  { id: "BK-02", isbn: "978-8121903425", title: "Advanced Mathematics Vol 1", author: "R.D. Sharma", category: "Mathematics", totalCopies: 30, availableCopies: 25, rackNo: "Rack B-02 (Shelf 1)" },
+  { id: "BK-03", isbn: "978-0070141698", title: "Computer Science Principles & AI", author: "E. Balagurusamy", category: "Computer Science", totalCopies: 25, availableCopies: 20, rackNo: "Rack C-03 (Shelf 1)" },
+  { id: "BK-04", isbn: "978-0141395852", title: "Complete Works of Shakespeare", author: "William Shakespeare", category: "Literature & Fiction", totalCopies: 40, availableCopies: 35, rackNo: "Rack D-04 (Shelf 1)" },
+  { id: "BK-05", isbn: "978-8177091976", title: "Concepts of Physics Part 1", author: "H.C. Verma", category: "Science & Physics", totalCopies: 20, availableCopies: 18, rackNo: "Rack A-01 (Shelf 2)" },
+  { id: "BK-06", isbn: "978-8121906273", title: "Quantitative Aptitude & Logic", author: "R.S. Aggarwal", category: "Mathematics", totalCopies: 35, availableCopies: 30, rackNo: "Rack B-02 (Shelf 2)" },
+  { id: "BK-07", isbn: "978-0262033848", title: "Introduction to Algorithms", author: "Cormen & Leiserson", category: "Computer Science", totalCopies: 15, availableCopies: 12, rackNo: "Rack C-03 (Shelf 2)" },
+  { id: "BK-08", isbn: "978-0140449136", title: "History of Ancient & Medieval World", author: "NCERT & Oxford", category: "History & Civics", totalCopies: 20, availableCopies: 16, rackNo: "Rack E-05 (Shelf 1)" }
 ];
 
 export const initialBookIssues: BookIssue[] = [
-  { id: "ISS-501", bookId: "BK-01", bookTitle: "Fundamentals of Physics", borrowerId: "STU-001", borrowerName: "Alexander Wright", borrowerRole: "Student", issueDate: "2026-07-05", dueDate: "2026-07-19", fineAmount: 2.00, status: "Overdue" }
+  { id: "ISS-501", bookId: "BK-01", bookTitle: "Fundamentals of Physics", borrowerId: "ADM2024-001", borrowerName: "Alexander Wright", borrowerRole: "Student", issueDate: "2026-08-01", dueDate: "2026-08-15", fineAmount: 25, status: "Overdue" },
+  { id: "ISS-502", bookId: "BK-02", bookTitle: "Advanced Mathematics Vol 1", borrowerId: "EMP001", borrowerName: "Sarah Jenkins", borrowerRole: "Teacher", issueDate: "2026-08-10", dueDate: "2026-09-09", fineAmount: 0, status: "Issued" },
+  { id: "ISS-503", bookId: "BK-03", bookTitle: "Computer Science Principles & AI", borrowerId: "ADM2024-002", borrowerName: "Emily Davis", borrowerRole: "Student", issueDate: "2026-08-05", dueDate: "2026-08-19", fineAmount: 10, status: "Overdue" },
+  { id: "ISS-504", bookId: "BK-04", bookTitle: "Complete Works of Shakespeare", borrowerId: "EMP007", borrowerName: "Rachel Green", borrowerRole: "Staff", issueDate: "2026-08-12", dueDate: "2026-09-11", fineAmount: 0, status: "Issued" }
 ];
 
 export const initialTransportRoutes: TransportRoute[] = [
@@ -11549,7 +11617,7 @@ export const initialRouteMasters: RouteMaster[] = [
     routeCode: 'R-NORTH-101',
     routeName: 'Route A - North Suburbs Express',
     routeStart: 'North Suburbs Stop 1',
-    routeEnd: 'St. Xavier Main Gate',
+    routeEnd: 'Pirnav Main Gate',
     totalDistanceKm: 18.5,
     estimatedTimeMinutes: 45,
     minDistanceKm: 5,
@@ -11564,7 +11632,7 @@ export const initialRouteMasters: RouteMaster[] = [
     routeCode: 'R-EAST-102',
     routeName: 'Route B - East Downtown Loop',
     routeStart: 'Downtown Central Square',
-    routeEnd: 'St. Xavier Main Gate',
+    routeEnd: 'Pirnav Main Gate',
     totalDistanceKm: 12.0,
     estimatedTimeMinutes: 30,
     minDistanceKm: 5,
@@ -11678,7 +11746,7 @@ export const initialDriverMasters: DriverMaster[] = [
     employeeId: 'EMP-DRV-101',
     driverName: 'Michael Scott',
     mobileNumber: '+1 555-333-111',
-    email: 'm.scott@stxaviers.edu',
+    email: 'm.scott@pirnavschools.edu',
     licenseNumber: 'DL-NY-2020-99123',
     licenseExpiryDate: '2028-05-20',
     address: '42 Scranton Way, NY',
@@ -11691,7 +11759,7 @@ export const initialDriverMasters: DriverMaster[] = [
     employeeId: 'EMP-DRV-102',
     driverName: 'Jim Halpert',
     mobileNumber: '+1 555-333-222',
-    email: 'j.halpert@stxaviers.edu',
+    email: 'j.halpert@pirnavschools.edu',
     licenseNumber: 'DL-NY-2021-88412',
     licenseExpiryDate: '2029-08-15',
     address: '88 Park Avenue, NY',

@@ -3,7 +3,7 @@ import {
   Library, BookOpen, Plus, Search, Edit, Trash2, Users, Layers, Bookmark,
   FileText, CheckCircle2, XCircle, AlertTriangle, Clock, RotateCcw,
   ShieldAlert, DollarSign, Sliders, Printer, Download, ChevronDown,
-  RefreshCw, AlertOctagon, FileSpreadsheet, Sparkles, Home, UserCheck, Calendar
+  RefreshCw, AlertOctagon, FileSpreadsheet, Sparkles, Home, UserCheck, Calendar, CalendarCheck
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -26,6 +26,30 @@ const RESERVATIONS_KEY = 'edu_db_library_reservations';
 const FINES_KEY = 'edu_db_library_fines';
 const LOST_DAMAGED_KEY = 'edu_db_library_lost_damaged';
 const RULES_KEY = 'edu_db_library_rules';
+const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
+
+export interface LibrarianAttendanceRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  role: string;
+  date: string;
+  checkInTime: string;
+  checkOutTime?: string;
+  workingHours?: string;
+  shift: string;
+  status: 'Present' | 'Late' | 'Half Day' | 'On Leave';
+  remarks?: string;
+}
+
+const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [
+  { id: 'ATT-LIB-101', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-20', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Catalog audit & inventory completed' },
+  { id: 'ATT-LIB-102', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-20', checkInTime: '08:45 AM', checkOutTime: '05:15 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Circulation desk duty' },
+  { id: 'ATT-LIB-103', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-19', checkInTime: '08:28 AM', checkOutTime: '05:05 PM', workingHours: '8.6 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Book issue renewals' },
+  { id: 'ATT-LIB-104', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-19', checkInTime: '09:15 AM', checkOutTime: '05:00 PM', workingHours: '7.75 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Late', remarks: 'Traffic delay' },
+  { id: 'ATT-LIB-105', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-18', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'New book arrivals cataloging' },
+  { id: 'ATT-LIB-106', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-18', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Fine collection reconciliation' }
+];
 
 // Initial Defaults
 const DEFAULT_CATEGORIES: BookCategory[] = [
@@ -60,13 +84,20 @@ const DEFAULT_RULES: LibraryRule[] = [
   { id: 'RUL-2', userRole: 'Staff', maxBooks: 6, issueDurationDays: 30, dailyFineRate: 2, maxRenewals: 3 },
 ];
 
-export const LibraryView: React.FC = () => {
-  const { role, user } = useAuth();
-  const isStudentOrParent = role.toLowerCase() === 'student' || role.toLowerCase() === 'parent';
-  const isAdmin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'school admin';
-  const isReadOnlyAccess = isStudentOrParent || isAdmin;
+interface LibraryViewProps {
+  initialPhase?: 'phase1' | 'phase2' | 'phase3' | 'phase4';
+  initialTab?: string;
+}
 
-  const { books, bookIssues, addBook, issueBook, returnBook, students, staff, admissions } = useData();
+export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1', initialTab = 'dashboard' }) => {
+  const { role, user } = useAuth();
+  const isAdmin = (role || '').toLowerCase().includes('admin');
+  const isLibrarian = (role || '').toLowerCase().includes('librarian');
+  const isStudentOrParent = (role || '').toLowerCase() === 'student' || (role || '').toLowerCase() === 'parent';
+  const canManageLibrary = isLibrarian || isAdmin || !isStudentOrParent;
+  const isReadOnlyAccess = !canManageLibrary;
+
+  const { books, bookIssues, addBook, deleteBook, issueBook, returnBook, students, staff, admissions } = useData();
   const { addToast } = useToast();
 
   // Unified candidate list from Enrolled Students and Admission Applications
@@ -126,6 +157,16 @@ export const LibraryView: React.FC = () => {
   });
   const [showMemberSuggestions, setShowMemberSuggestions] = useState(false);
 
+  // Book Form State for Add / Edit
+  const [bookForm, setBookForm] = useState({
+    title: '',
+    author: '',
+    category: 'Science & Physics',
+    isbn: '',
+    totalCopies: 10,
+    rackNo: 'Rack A-01 (Shelf 1)'
+  });
+
   const filteredMemberSuggestions = useMemo(() => {
     if (!memberFormState.name || memberFormState.name.trim().length < 1) return [];
     const q = memberFormState.name.toLowerCase().trim();
@@ -145,8 +186,14 @@ export const LibraryView: React.FC = () => {
   };
 
   // Active Phase & Sub-tab Navigation
-  const [activePhase, setActivePhase] = useState<'phase1' | 'phase2' | 'phase3' | 'phase4'>('phase1');
-  const [activeSubTab, setActiveSubTab] = useState<string>('dashboard');
+  const [activePhase, setActivePhase] = useState<'phase1' | 'phase2' | 'phase3' | 'phase4'>(initialPhase);
+  const [activeSubTab, setActiveSubTab] = useState<string>(initialTab);
+  const [issueMode, setIssueMode] = useState<'catalog' | 'manual'>('catalog');
+
+  useEffect(() => {
+    if (initialPhase) setActivePhase(initialPhase);
+    if (initialTab) setActiveSubTab(initialTab);
+  }, [initialPhase, initialTab]);
 
   // Search & Filter & Pagination state across views
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,25 +239,87 @@ export const LibraryView: React.FC = () => {
     return stMembers;
   });
 
+  // Dynamic Library Members merged from DataContext students & staff + local custom members
+  const mergedMembersList = useMemo(() => {
+    const map = new Map<string, LibraryMember>();
+
+    // 1. Add all staff (Teachers, Admins, Librarians, Non-teaching staff)
+    (staff || []).forEach(s => {
+      const name = `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Staff Member';
+      const memId = s.empId || s.id;
+      map.set(memId, {
+        id: `MEM-STF-${s.id}`,
+        memberId: memId,
+        name,
+        role: (s.employeeCategory === 'Teacher' || (s.designation || '').toLowerCase().includes('teacher')) ? 'Teacher' : 'Staff',
+        email: s.email || `${(s.firstName || 'staff').toLowerCase()}@school.edu`,
+        phone: s.phone || '9876543210',
+        className: s.department || s.designation || 'Staff',
+        maxLimit: 6,
+        issuedCount: (bookIssues || []).filter(bi => bi.borrowerId === memId && (bi.status === 'Issued' || bi.status === 'Overdue')).length,
+        fineBalance: 0,
+        joinedDate: s.joiningDate || '2026-06-01',
+        status: 'Active'
+      });
+    });
+
+    // 2. Add all enrolled students
+    (students || []).forEach(st => {
+      const name = `${st.firstName || ''} ${st.lastName || ''}`.trim() || 'Student';
+      const memId = st.admissionNo || st.rollNo || st.id;
+      map.set(memId, {
+        id: `MEM-STU-${st.id}`,
+        memberId: memId,
+        name,
+        role: 'Student',
+        email: st.email || `${(st.firstName || 'student').toLowerCase()}@school.edu`,
+        phone: st.phone || st.fatherPhone || '9876543210',
+        className: `${st.className || 'Class 10'}-${st.section || 'A'}`,
+        maxLimit: 3,
+        issuedCount: (bookIssues || []).filter(bi => bi.borrowerId === memId && (bi.status === 'Issued' || bi.status === 'Overdue')).length,
+        fineBalance: 0,
+        joinedDate: st.joiningDate || '2026-06-01',
+        status: 'Active'
+      });
+    });
+
+    // 3. Add saved custom members from local state
+    (members || []).forEach(m => {
+      if (!map.has(m.memberId)) {
+        map.set(m.memberId, m);
+      } else {
+        const existing = map.get(m.memberId)!;
+        map.set(m.memberId, {
+          ...existing,
+          fineBalance: m.fineBalance || existing.fineBalance,
+          status: m.status || existing.status
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [staff, students, members, bookIssues]);
+
   const [reservations, setReservations] = useState<BookReservation[]>(() => {
     const s = localStorage.getItem(RESERVATIONS_KEY);
     return s ? JSON.parse(s) : [
-      { id: 'RES-101', bookId: '1', bookTitle: 'Fundamentals of Physics', memberId: 'LIB-STU-102', memberName: 'Ananya Roy', memberRole: 'Student', requestDate: '2026-08-14', status: 'Pending' }
+      { id: 'RES-101', bookId: 'BK-01', bookTitle: 'Fundamentals of Physics', memberId: 'ADM2024-001', memberName: 'Alexander Wright', memberRole: 'Student', requestDate: '2026-08-14', status: 'Pending' },
+      { id: 'RES-102', bookId: 'BK-03', bookTitle: 'Computer Science Principles & AI', memberId: 'EMP001', memberName: 'Sarah Jenkins', memberRole: 'Teacher', requestDate: '2026-08-18', status: 'Pending' }
     ];
   });
 
   const [fineRecords, setFineRecords] = useState<LibraryFineRecord[]>(() => {
     const s = localStorage.getItem(FINES_KEY);
     return s ? JSON.parse(s) : [
-      { id: 'FIN-101', issueId: 'ISS-1', memberId: 'LIB-STU-101', memberName: 'Rajesh Kumar', memberRole: 'Student', bookTitle: 'Fundamentals of Physics', overdueDays: 5, fineAmount: 25, paidAmount: 25, paymentStatus: 'Paid', createdDate: '2026-08-10', paidDate: '2026-08-12', remarks: 'Late return fine paid at counter' },
-      { id: 'FIN-102', issueId: 'ISS-2', memberId: 'LIB-STU-102', memberName: 'Surya Teja', memberRole: 'Student', bookTitle: 'Higher Algebra', overdueDays: 10, fineAmount: 50, paidAmount: 0, paymentStatus: 'Unpaid', createdDate: '2026-08-16', remarks: 'Pending overdue fine' }
+      { id: 'FIN-101', issueId: 'ISS-501', memberId: 'ADM2024-001', memberName: 'Alexander Wright', memberRole: 'Student', bookTitle: 'Fundamentals of Physics', overdueDays: 5, fineAmount: 25, paidAmount: 25, paymentStatus: 'Paid', createdDate: '2026-08-10', paidDate: '2026-08-12', remarks: 'Late return fine paid at counter' },
+      { id: 'FIN-102', issueId: 'ISS-503', memberId: 'ADM2024-002', memberName: 'Emily Davis', memberRole: 'Student', bookTitle: 'Computer Science Principles & AI', overdueDays: 10, fineAmount: 50, paidAmount: 0, paymentStatus: 'Unpaid', createdDate: '2026-08-16', remarks: 'Pending overdue fine' }
     ];
   });
 
   const [lostDamagedList, setLostDamagedList] = useState<LostDamagedBook[]>(() => {
     const s = localStorage.getItem(LOST_DAMAGED_KEY);
     return s ? JSON.parse(s) : [
-      { id: 'LD-101', bookId: '1', bookTitle: 'Fundamentals of Physics', memberId: 'LIB-STU-103', memberName: 'Dhanush Y', memberRole: 'Student', issueType: 'Damaged', fineAmount: 100, replacementCost: 450, reportDate: '2026-08-11', status: 'Pending', notes: 'Torn back cover page' }
+      { id: 'LD-101', bookId: 'BK-01', bookTitle: 'Fundamentals of Physics', memberId: 'ADM2024-003', memberName: 'James Brown', memberRole: 'Student', issueType: 'Damaged', fineAmount: 100, replacementCost: 450, reportDate: '2026-08-11', status: 'Pending', notes: 'Torn back cover page' }
     ];
   });
 
@@ -219,12 +328,28 @@ export const LibraryView: React.FC = () => {
     return s ? JSON.parse(s) : DEFAULT_RULES;
   });
 
+  const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>(() => {
+    const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
+    return s ? JSON.parse(s) : DEFAULT_LIBRARIAN_ATTENDANCE;
+  });
+
+  const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [selectedAttendanceDate, setSelectedAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<string>('2026-08');
+
   // Sync helpers to localStorage & trigger Finance Module Integration event
   const saveCategories = (data: BookCategory[]) => { setCategories(data); localStorage.setItem(CATEGORIES_KEY, JSON.stringify(data)); };
   const saveAuthors = (data: BookAuthor[]) => { setAuthors(data); localStorage.setItem(AUTHORS_KEY, JSON.stringify(data)); };
   const saveRacks = (data: BookRack[]) => { setRacks(data); localStorage.setItem(RACKS_KEY, JSON.stringify(data)); };
   const saveMembers = (data: LibraryMember[]) => { setMembers(data); localStorage.setItem(MEMBERS_KEY, JSON.stringify(data)); };
   const saveReservations = (data: BookReservation[]) => { setReservations(data); localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(data)); };
+  const saveLibrarianAttendance = (data: LibrarianAttendanceRecord[]) => {
+    setLibrarianAttendance(data);
+    localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(data));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('librarian_attendance_updated'));
+    }
+  };
   const saveFines = (data: LibraryFineRecord[]) => {
     setFineRecords(data);
     localStorage.setItem(FINES_KEY, JSON.stringify(data));
@@ -241,11 +366,40 @@ export const LibraryView: React.FC = () => {
   const [modalData, setModalData] = useState<any>(null);
   const [deletingItem, setDeletingItem] = useState<{ type: string; id: string; title: string } | null>(null);
 
+  const handleOpenAddOrEditBook = (bookToEdit?: BookItem) => {
+    if (bookToEdit) {
+      setModalData(bookToEdit);
+      setBookForm({
+        title: bookToEdit.title || '',
+        author: bookToEdit.author || '',
+        category: bookToEdit.category || (categories[0]?.name || 'Science & Physics'),
+        isbn: bookToEdit.isbn || '',
+        totalCopies: bookToEdit.totalCopies || 1,
+        rackNo: bookToEdit.rackNo || (racks[0] ? `${racks[0].rackNo} (${racks[0].shelfNo})` : 'Rack A-01 (Shelf 1)')
+      });
+      setModalType('editBook');
+    } else {
+      setModalData(null);
+      setBookForm({
+        title: '',
+        author: '',
+        category: categories[0]?.name || 'Science & Physics',
+        isbn: '978-0134' + Math.floor(100000 + Math.random() * 900000),
+        totalCopies: 10,
+        rackNo: racks[0] ? `${racks[0].rackNo} (${racks[0].shelfNo})` : 'Rack A-01 (Shelf 1)'
+      });
+      setModalType('addBook');
+    }
+  };
+
   const confirmDelete = () => {
     if (!deletingItem) return;
     const { type, id, title } = deletingItem;
 
-    if (type === 'category') {
+    if (type === 'book') {
+      deleteBook(id);
+      addToast('success', 'Book Deleted', `Removed "${title}" from library catalog.`);
+    } else if (type === 'category') {
       saveCategories(categories.filter(c => c.id !== id));
       addToast('success', 'Category Deleted', `Removed category "${title}"`);
     } else if (type === 'author') {
@@ -371,7 +525,7 @@ export const LibraryView: React.FC = () => {
 
             <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
               <span className="text-[10px] font-extrabold uppercase text-purple-600">Active Members</span>
-              <p className="text-2xl font-black text-purple-600 font-mono">{members.length}</p>
+              <p className="text-2xl font-black text-purple-600 font-mono">{mergedMembersList.length}</p>
               <span className="text-[10px] text-purple-500 font-semibold">Students & Staff</span>
             </div>
 
@@ -397,7 +551,7 @@ export const LibraryView: React.FC = () => {
               <button onClick={() => switchTab('phase2', 'return')} className="px-4 py-2 rounded-xl bg-sky-950/40 text-white font-extrabold text-xs border border-white/30 hover:bg-sky-900/60 transition-all flex items-center gap-1.5">
                 <RotateCcw className="w-4 h-4" /> Return Book
               </button>
-              <button onClick={() => switchTab('phase3', 'fines')} className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs hover:bg-emerald-400 transition-all shadow-md flex items-center gap-1.5">
+              <button onClick={() => switchTab('phase3', 'fines')} className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs hover:bg-emerald-400 transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
                 <DollarSign className="w-4 h-4" /> Manage Fines
               </button>
             </div>
@@ -474,7 +628,7 @@ export const LibraryView: React.FC = () => {
               </select>
             </div>
             {!isReadOnlyAccess && (
-              <button onClick={() => { setModalType('addBook'); setModalData(null); }} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all">
+              <button onClick={() => handleOpenAddOrEditBook()} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add New Book
               </button>
             )}
@@ -483,37 +637,48 @@ export const LibraryView: React.FC = () => {
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] text-slate-500 border-b">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] text-slate-500 border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="py-3 px-4">ISBN</th>
-                    <th className="py-3 px-4">BOOK TITLE</th>
-                    <th className="py-3 px-4">AUTHOR</th>
-                    <th className="py-3 px-4">CATEGORY</th>
-                    <th className="py-3 px-4">RACK / LOCATION</th>
-                    <th className="py-3 px-4 text-center">TOTAL COPIES</th>
-                    <th className="py-3 px-4 text-center">AVAILABLE</th>
-                    <th className="py-3 px-4 text-right">ACTION</th>
+                    <th className="py-3.5 px-4">ISBN</th>
+                    <th className="py-3.5 px-4">BOOK TITLE</th>
+                    <th className="py-3.5 px-4">AUTHOR</th>
+                    <th className="py-3.5 px-4">CATEGORY</th>
+                    <th className="py-3.5 px-4">RACK / LOCATION</th>
+                    <th className="py-3.5 px-4 text-center">TOTAL COPIES</th>
+                    <th className="py-3.5 px-4 text-center">AVAILABLE</th>
+                    <th className="py-3.5 px-4 text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredBooks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(b => (
-                    <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-500">{b.isbn}</td>
-                      <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{b.title}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{b.author}</td>
-                      <td className="py-3 px-4"><span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-bold text-[10px]">{b.category}</span></td>
-                      <td className="py-3 px-4 font-medium text-slate-600 dark:text-slate-400">{b.rackNo}</td>
-                      <td className="py-3 px-4 text-center font-mono font-extrabold">{b.totalCopies}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2 py-0.5 rounded-md font-mono font-black ${b.availableCopies > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                    <tr key={b.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500">{b.isbn}</td>
+                      <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white leading-snug">{b.title}</td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300">{b.author}</td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold text-[10px] border border-sky-100 dark:border-sky-900/40">
+                          {b.category}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                        {b.rackNo || 'Rack A-01 (Shelf 1)'}
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono font-extrabold text-slate-900 dark:text-white">{b.totalCopies}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-lg font-mono font-black text-[11px] ${b.availableCopies > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'}`}>
                           {b.availableCopies} / {b.totalCopies}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right space-x-2">
+                      <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
                         {!isReadOnlyAccess ? (
                           <>
-                            <button onClick={() => { switchTab('phase2', 'issue'); }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px] shadow-sm hover:bg-sky-500">Issue</button>
-                            <button onClick={() => { saveCategories(categories); addToast('success', 'Book Removed', `Removed "${b.title}" from catalog.`); }} className="p-1 rounded-lg text-slate-400 hover:text-rose-600 transition-colors">
+                            <button onClick={() => { switchTab('phase2', 'issue'); }} className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px] shadow-xs transition-all cursor-pointer">
+                              Issue
+                            </button>
+                            <button onClick={() => handleOpenAddOrEditBook(b)} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-600 dark:text-slate-300 hover:text-sky-600 transition-all cursor-pointer" title="Edit Book">
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => setDeletingItem({ type: 'book', id: b.id, title: b.title })} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition-all cursor-pointer" title="Delete Book">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
@@ -546,7 +711,11 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Layers className="w-4 h-4 text-sky-500" /> Book Categories Master</h3>
-            {!isReadOnlyAccess && <button onClick={() => setModalType('addCategory')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Category</button>}
+            {!isReadOnlyAccess && (
+              <button onClick={() => setModalType('addCategory')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+                <Plus className="w-4 h-4" /> Add Category
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {categories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(c => (
@@ -584,7 +753,11 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Users className="w-4 h-4 text-sky-500" /> Authors Directory</h3>
-            {!isReadOnlyAccess && <button onClick={() => setModalType('addAuthor')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Author</button>}
+            {!isReadOnlyAccess && (
+              <button onClick={() => setModalType('addAuthor')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+                <Plus className="w-4 h-4" /> Add Author
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {authors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(a => (
@@ -620,30 +793,59 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Bookmark className="w-4 h-4 text-sky-500" /> Racks & Shelves Location Mapping</h3>
-            {!isReadOnlyAccess && <button onClick={() => setModalType('addRack')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Rack Location</button>}
+            {!isReadOnlyAccess && (
+              <button onClick={() => setModalType('addRack')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+                <Plus className="w-4 h-4" /> Add Rack Location
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {racks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => (
-              <div key={r.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-black text-sky-600 text-sm">{r.rackNo}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500">{r.shelfNo}</span>
-                    {!isReadOnlyAccess && (
-                      <button onClick={() => setDeletingItem({ type: 'rack', id: r.id, title: `${r.rackNo} (${r.shelfNo})` })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+            {racks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => {
+              const matchedBooks = books.filter(b => (b.rackNo || '').toLowerCase().includes(r.rackNo.toLowerCase()) || (r.rackNo || '').toLowerCase().includes((b.rackNo || '').toLowerCase()));
+              const totalOnShelf = matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
+              const availableOnShelf = matchedBooks.reduce((sum, b) => sum + (b.availableCopies || 0), 0);
+              const issuedFromShelf = Math.max(0, totalOnShelf - availableOnShelf);
+              const occupancyPct = totalOnShelf > 0 ? Math.round((availableOnShelf / totalOnShelf) * 100) : 100;
+
+              return (
+                <div key={r.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-black text-sky-600 text-sm">{r.rackNo}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500">{r.shelfNo}</span>
+                      {!isReadOnlyAccess && (
+                        <button onClick={() => setDeletingItem({ type: 'rack', id: r.id, title: `${r.rackNo} (${r.shelfNo})` })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{r.section}</p>
+                  <p className="text-[11px] text-slate-400">{r.floor}</p>
+
+                  <div className="space-y-1.5 pt-2 border-t text-[11px] font-bold">
+                    <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
+                      <span>Shelf Capacity:</span>
+                      <span className="font-mono">{r.capacity} Books</span>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
+                      <span>On Shelf (Available):</span>
+                      <span className="font-mono font-black">{availableOnShelf} Copies</span>
+                    </div>
+                    <div className="flex justify-between items-center text-amber-600 dark:text-amber-400">
+                      <span>Issued Out (Borrowed):</span>
+                      <span className="font-mono font-black">{issuedFromShelf} Copies</span>
+                    </div>
+
+                    {/* Visual Progress Bar */}
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-1 flex">
+                      <div style={{ width: `${occupancyPct}%` }} className="bg-emerald-500 h-full" title={`${availableOnShelf} Available on shelf`} />
+                      <div style={{ width: `${100 - occupancyPct}%` }} className="bg-amber-500 h-full" title={`${issuedFromShelf} Issued out`} />
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{r.section}</p>
-                <p className="text-[11px] text-slate-400">{r.floor}</p>
-                <div className="pt-2 border-t flex justify-between text-[11px] font-bold">
-                  <span>Capacity: {r.capacity}</span>
-                  <span className="text-emerald-600">Occupied: {r.occupiedCount || 20}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <Pagination
             currentPage={currentPage}
@@ -662,7 +864,11 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-sky-500" /> Library Membership Roster</h3>
-            {!isReadOnlyAccess && <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md flex items-center gap-1"><Plus className="w-4 h-4" /> Register Member</button>}
+            {!isReadOnlyAccess && (
+              <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+                <Plus className="w-4 h-4" /> Register Member
+              </button>
+            )}
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -680,7 +886,7 @@ export const LibraryView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {members.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(m => (
+                {mergedMembersList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(m => (
                   <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="py-3 px-4 font-mono font-bold text-slate-500">{m.memberId}</td>
                     <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{m.name}</td>
@@ -706,7 +912,7 @@ export const LibraryView: React.FC = () => {
             <div className="p-4 border-t">
               <Pagination
                 currentPage={currentPage}
-                totalItems={members.length}
+                totalItems={mergedMembersList.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={setItemsPerPage}
@@ -740,61 +946,156 @@ export const LibraryView: React.FC = () => {
 
       return (
         <div className="max-w-2xl mx-auto glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-4 animate-in fade-in">
-          <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Plus className="w-5 h-5 text-sky-500" /> Issue Book to Student / Staff
-          </h3>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3.5">
+            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Plus className="w-5 h-5 text-sky-500" /> Issue Book to Student / Staff
+            </h3>
+            <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIssueMode('catalog')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  issueMode === 'catalog' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Catalog Dropdown
+              </button>
+              <button
+                type="button"
+                onClick={() => setIssueMode('manual')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  issueMode === 'manual' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Manual Entry
+              </button>
+            </div>
+          </div>
+
           <form onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as any;
-            const bId = form.bookId.value;
-            const mId = form.memberId.value;
             const dDate = form.dueDate.value;
 
-            const targetBk = books.find(b => b.id === bId);
-            const targetMem = members.find(m => m.memberId === mId || m.id === mId) || { name: mId, role: 'Student' };
+            if (issueMode === 'catalog') {
+              const bId = form.bookId.value;
+              const mId = form.memberId.value;
 
-            if (!targetBk || targetBk.availableCopies <= 0) {
-              addToast('error', 'Book Unavailable', 'Selected book is out of stock.');
-              return;
+              const targetBk = books.find(b => String(b.id) === String(bId) || String(b.isbn) === String(bId) || b.title === bId);
+              const targetMem = mergedMembersList.find(m => String(m.memberId) === String(mId) || String(m.id) === String(mId)) || { name: mId, role: 'Student' };
+
+              if (!targetBk) {
+                addToast('error', 'Book Not Found', 'Selected book was not found in library catalog.');
+                return;
+              }
+
+              if (targetBk.availableCopies <= 0) {
+                addToast('error', 'Book Unavailable', `"${targetBk.title}" is out of stock (0 copies available).`);
+                return;
+              }
+
+              issueBook({
+                bookId: targetBk.id,
+                bookTitle: targetBk.title,
+                borrowerId: mId,
+                borrowerName: targetMem.name,
+                borrowerRole: targetMem.role as any,
+                issueDate: new Date().toISOString().split('T')[0],
+                dueDate: dDate,
+                fineAmount: 0,
+                status: 'Issued'
+              });
+              addToast('success', 'Book Issued Successfully', `Issued "${targetBk.title}" to ${targetMem.name}`);
+            } else {
+              // Manual Entry Mode
+              const manualMemId = form.manualMemberId.value;
+              const manualMemName = form.manualMemberName.value;
+              const manualMemRole = form.manualMemberRole.value;
+              const manualBookTitle = form.manualBookTitle.value;
+
+              const matchedBk = books.find(b => b.title.toLowerCase() === manualBookTitle.toLowerCase() || String(b.id) === manualBookTitle);
+              const bookIdToUse = matchedBk ? matchedBk.id : `BK-MAN-${Date.now()}`;
+
+              issueBook({
+                bookId: bookIdToUse,
+                bookTitle: manualBookTitle,
+                borrowerId: manualMemId,
+                borrowerName: manualMemName,
+                borrowerRole: manualMemRole as any,
+                issueDate: new Date().toISOString().split('T')[0],
+                dueDate: dDate,
+                fineAmount: 0,
+                status: 'Issued'
+              });
+              addToast('success', 'Book Issued (Manual Entry)', `Issued "${manualBookTitle}" to ${manualMemName} (${manualMemId})`);
             }
 
-            issueBook({
-              bookId: targetBk.id,
-              bookTitle: targetBk.title,
-              borrowerId: mId,
-              borrowerName: targetMem.name,
-              borrowerRole: targetMem.role as any,
-              issueDate: new Date().toISOString().split('T')[0],
-              dueDate: dDate,
-              fineAmount: 0,
-              status: 'Issued'
-            });
-            addToast('success', 'Book Issued Successfully', `Issued "${targetBk.title}" to ${targetMem.name}`);
             switchTab('phase1', 'dashboard');
           }} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-bold mb-1">Select Member (Student / Staff) *</label>
-              <select name="memberId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                <option value="">Select Member...</option>
-                {members.map(m => (
-                  <option key={m.id} value={m.memberId}>{m.name} ({m.memberId} - {m.role})</option>
-                ))}
-              </select>
-            </div>
+            {issueMode === 'catalog' ? (
+              <>
+                <div>
+                  <label className="block font-bold mb-1">Select Member (Student / Staff) *</label>
+                  <select name="memberId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                    <option value="">Select Member...</option>
+                    {mergedMembersList.map(m => (
+                      <option key={m.id} value={m.memberId}>{m.name} ({m.memberId} - {m.role})</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block font-bold mb-1">Select Book from Catalog *</label>
-              <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                <option value="">Select Book...</option>
-                {books.map(b => (
-                  <option key={b.id} value={b.id} disabled={b.availableCopies <= 0}>
-                    {b.title} (Author: {b.author} • Available: {b.availableCopies}/{b.totalCopies})
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block font-bold mb-1">Select Book from Catalog *</label>
+                  <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                    <option value="">Select Book...</option>
+                    {books.map(b => (
+                      <option key={b.id} value={b.id} disabled={b.availableCopies <= 0}>
+                        {b.title} (Author: {b.author} • Available: {b.availableCopies}/{b.totalCopies})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-bold space-y-1">
+                  <p className="flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-amber-500" /> Manual Issue Mode Enabled</p>
+                  <p className="text-[11px] font-medium text-slate-600 dark:text-slate-400">Type custom borrower details and book accession details directly if not selecting from predefined dropdowns.</p>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1">Member ID / Admission No *</label>
+                    <input type="text" name="manualMemberId" placeholder="e.g. ADM2024-001" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold mb-1">Member Full Name *</label>
+                    <input type="text" name="manualMemberName" placeholder="e.g. Alexander Wright" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold mb-1">Borrower Role *</label>
+                    <select name="manualMemberRole" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                      <option value="Student">Student</option>
+                      <option value="Teacher">Teacher</option>
+                      <option value="Staff">Staff</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1">Book Title / Accession Code *</label>
+                    <input type="text" name="manualBookTitle" placeholder="e.g. Fundamentals of Physics" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold mb-1">Author / ISBN (Optional)</label>
+                    <input type="text" name="manualBookAuthor" placeholder="e.g. Halliday & Resnick" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 pt-1">
               <div>
                 <label className="block font-bold mb-1">Issue Date</label>
                 <input type="date" defaultValue={new Date().toISOString().split('T')[0]} readOnly className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border font-mono font-bold" />
@@ -805,7 +1106,7 @@ export const LibraryView: React.FC = () => {
               </div>
             </div>
 
-            <button type="submit" className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-lg shadow-sky-500/20">
+            <button type="submit" className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-lg shadow-sky-500/20 cursor-pointer transition-all">
               Confirm & Dispatch Book Issue
             </button>
           </form>
@@ -840,7 +1141,9 @@ export const LibraryView: React.FC = () => {
                 {activeIssues.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(iss => {
                   const isOverdue = new Date(iss.dueDate) < new Date();
                   const lateDays = isOverdue ? Math.max(1, Math.floor((Date.now() - new Date(iss.dueDate).getTime()) / 86400000)) : 0;
-                  const calculatedFine = lateDays * 5;
+                  const ruleForRole = rules.find(r => r.userRole.toLowerCase() === (iss.borrowerRole || 'Student').toLowerCase()) || rules[0];
+                  const dailyRate = ruleForRole ? ruleForRole.dailyFineRate : 5;
+                  const calculatedFine = lateDays * dailyRate;
 
                   return (
                     <tr key={iss.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
@@ -966,7 +1269,11 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Clock className="w-4 h-4 text-amber-500" /> Book Reservation Queue</h3>
-            {!isReadOnlyAccess && <button onClick={() => setModalType('addReservation')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Reserve Book</button>}
+            {!isReadOnlyAccess && (
+              <button onClick={() => setModalType('addReservation')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+                <Plus className="w-4 h-4" /> Reserve Book
+              </button>
+            )}
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -1118,7 +1425,11 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Lost / Damaged Books Registry</h3>
-            {!isReadOnlyAccess && <button onClick={() => setModalType('addLostDamaged')} className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Report Issue</button>}
+            {!isReadOnlyAccess && (
+              <button onClick={() => setModalType('addLostDamaged')} className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+                <Plus className="w-4 h-4" /> Report Issue
+              </button>
+            )}
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -1322,18 +1633,20 @@ export const LibraryView: React.FC = () => {
           </div>
         </div>
 
-        {isAdmin && (
-          <div className="px-3.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center gap-2 text-amber-800 dark:text-amber-300 font-extrabold text-xs shadow-xs">
-            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Administrator Read-Only Mode (View Purpose Only)</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && isReadOnlyAccess && (
+            <div className="px-3.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center gap-2 text-amber-800 dark:text-amber-300 font-extrabold text-xs shadow-xs">
+              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Administrator Read-Only Mode (View Purpose Only)</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Phase & Sub-tab Navigation Bar */}
-      <div className="space-y-3">
-        {/* Top Phase Selector Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <div className="glass-card p-3 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2.5 shadow-xs">
+        {/* Main Phase Selector */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-slate-800 pb-2">
           {navigationStructure.map(phase => {
             const isActive = activePhase === phase.phaseId;
             return (
@@ -1343,10 +1656,10 @@ export const LibraryView: React.FC = () => {
                   setActivePhase(phase.phaseId);
                   setActiveSubTab(phase.tabs[0].id);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-sky-600 text-white shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900'
                 }`}
               >
                 {phase.title}
@@ -1356,7 +1669,7 @@ export const LibraryView: React.FC = () => {
         </div>
 
         {/* Sub-tab Selector Pills */}
-        <div className="glass-card p-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-0.5">
           {navigationStructure
             .find(p => p.phaseId === activePhase)
             ?.tabs.map(tab => {
@@ -1366,9 +1679,9 @@ export const LibraryView: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => switchTab(activePhase, tab.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap flex items-center gap-1.5 transition-all ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shadow-sm'
+                      ? 'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900'
                   }`}
                 >
@@ -1731,40 +2044,118 @@ export const LibraryView: React.FC = () => {
         </div>
       )}
 
-      {modalType === 'addBook' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-          <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add New Book to Catalog</h3>
+      {(modalType === 'addBook' || modalType === 'editBook') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+              {modalType === 'editBook' ? 'Edit Book Details' : 'Add New Book to Catalog'}
+            </h3>
             <form onSubmit={e => {
               e.preventDefault();
-              const f = e.target as any;
-              const newBk = {
-                isbn: f.isbn.value || ('978-0134' + Math.floor(100000 + Math.random() * 900000)),
-                title: f.title.value,
-                author: f.author.value,
-                category: f.category.value,
-                totalCopies: Number(f.totalCopies.value) || 1,
-                availableCopies: Number(f.totalCopies.value) || 1,
-                rackNo: f.rackNo.value || 'Rack A-01'
-              };
-              addBook(newBk);
-              addToast('success', 'Book Registered', `Added "${newBk.title}" to library catalog`);
+              if (!bookForm.title.trim() || !bookForm.author.trim()) {
+                addToast('warning', 'Validation Error', 'Please enter Book Title and Author Name.');
+                return;
+              }
+
+              if (modalType === 'editBook' && modalData) {
+                const updatedBk: BookItem = {
+                  ...modalData,
+                  title: bookForm.title.trim(),
+                  author: bookForm.author.trim(),
+                  category: bookForm.category,
+                  isbn: bookForm.isbn.trim(),
+                  totalCopies: Number(bookForm.totalCopies) || 1,
+                  availableCopies: Number(bookForm.totalCopies) || 1,
+                  rackNo: bookForm.rackNo
+                };
+                addBook(updatedBk);
+                addToast('success', 'Book Updated', `Updated "${updatedBk.title}" in library catalog`);
+              } else {
+                const newBk: BookItem = {
+                  id: `BK-${Date.now()}`,
+                  isbn: bookForm.isbn.trim() || ('978-0134' + Math.floor(100000 + Math.random() * 900000)),
+                  title: bookForm.title.trim(),
+                  author: bookForm.author.trim(),
+                  category: bookForm.category,
+                  totalCopies: Number(bookForm.totalCopies) || 1,
+                  availableCopies: Number(bookForm.totalCopies) || 1,
+                  rackNo: bookForm.rackNo
+                };
+                addBook(newBk);
+                addToast('success', 'Book Registered', `Added "${newBk.title}" to library catalog`);
+              }
               setModalType(null);
-            }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Book Title *</label><input type="text" name="title" required placeholder="e.g. Fundamentals of Physics" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Author Name *</label><input type="text" name="author" required placeholder="e.g. Halliday & Resnick" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Category *</label><select name="category" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold">{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
-              <div><label className="block font-bold mb-1">ISBN Number</label><input type="text" name="isbn" placeholder="978-0134891234" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
+            }} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Book Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={bookForm.title}
+                  onChange={e => setBookForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g. Fundamentals of Physics"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Author Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={bookForm.author}
+                  onChange={e => setBookForm(prev => ({ ...prev, author: e.target.value }))}
+                  placeholder="e.g. Halliday & Resnick"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category *</label>
+                <select
+                  value={bookForm.category}
+                  onChange={e => setBookForm(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                >
+                  {categories.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">ISBN Number</label>
+                <input
+                  type="text"
+                  value={bookForm.isbn}
+                  onChange={e => setBookForm(prev => ({ ...prev, isbn: e.target.value }))}
+                  placeholder="978-0134891234"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-bold mb-1">Total Copies</label><input type="number" name="totalCopies" defaultValue={10} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Total Copies</label>
+                  <input
+                    type="number"
+                    value={bookForm.totalCopies}
+                    onChange={e => setBookForm(prev => ({ ...prev, totalCopies: Number(e.target.value) || 1 }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                  />
+                </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block font-bold text-slate-700 dark:text-slate-300">Rack / Shelf *</label>
-                    <button type="button" onClick={() => setModalType('addRack')} className="text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline">
+                    <button type="button" onClick={() => setModalType('addRack')} className="text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
                       + Add New Shelf
                     </button>
                   </div>
-                  <select name="rackNo" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold">
+                  <select
+                    value={bookForm.rackNo}
+                    onChange={e => setBookForm(prev => ({ ...prev, rackNo: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                  >
                     {racks.map(r => (
                       <option key={r.id} value={`${r.rackNo} (${r.shelfNo})`}>
                         {r.rackNo} ({r.shelfNo}) {r.section ? `• ${r.section}` : ''}
@@ -1773,7 +2164,148 @@ export const LibraryView: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Book</button></div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold cursor-pointer shadow-md">
+                  {modalType === 'editBook' ? 'Update Book' : 'Save Book'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Punch Attendance Modal */}
+      {modalType === 'addAttendance' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-lg glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <CalendarCheck className="w-5 h-5 text-sky-500" /> Record Librarian Shift Attendance
+              </h3>
+              <button onClick={() => setModalType(null)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={e => {
+              e.preventDefault();
+              const newRec: LibrarianAttendanceRecord = {
+                id: `ATT-LIB-${Date.now()}`,
+                staffId: modalData?.staffId || 'EMP-LIB-01',
+                staffName: modalData?.staffName || 'Bhanu Prakash',
+                role: 'Librarian',
+                date: modalData?.date || new Date().toISOString().split('T')[0],
+                checkInTime: modalData?.checkInTime || '08:30 AM',
+                checkOutTime: modalData?.checkOutTime || '05:00 PM',
+                workingHours: modalData?.workingHours || '8.5 Hours',
+                shift: modalData?.shift || 'Morning Shift (08:30 - 17:00)',
+                status: modalData?.status || 'Present',
+                remarks: modalData?.remarks || 'Manual shift record entry'
+              };
+              saveLibrarianAttendance([newRec, ...librarianAttendance]);
+              addToast('success', 'Attendance Recorded', `Recorded attendance punch for ${newRec.staffName}`);
+              setModalType(null);
+            }} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Staff Member *</label>
+                  <select
+                    value={modalData?.staffId}
+                    onChange={e => {
+                      const selected = e.target.value;
+                      const name = selected === 'EMP-LIB-01' ? 'Bhanu Prakash' : selected === 'EMP-LIB-02' ? 'Rachel Green' : 'Sarah Jenkins';
+                      setModalData((prev: any) => ({ ...prev, staffId: selected, staffName: name }));
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                  >
+                    <option value="EMP-LIB-01">Bhanu Prakash (Librarian)</option>
+                    <option value="EMP-LIB-02">Rachel Green (Assistant Librarian)</option>
+                    <option value="EMP-LIB-03">Sarah Jenkins (Library Attendant)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Shift Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={modalData?.date}
+                    onChange={e => setModalData((prev: any) => ({ ...prev, date: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Check In Time *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 08:30 AM"
+                    value={modalData?.checkInTime}
+                    onChange={e => setModalData((prev: any) => ({ ...prev, checkInTime: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Check Out Time</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 05:00 PM"
+                    value={modalData?.checkOutTime}
+                    onChange={e => setModalData((prev: any) => ({ ...prev, checkOutTime: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Attendance Status *</label>
+                  <select
+                    value={modalData?.status}
+                    onChange={e => setModalData((prev: any) => ({ ...prev, status: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                  >
+                    <option value="Present">Present</option>
+                    <option value="Late">Late</option>
+                    <option value="Half Day">Half Day</option>
+                    <option value="On Leave">On Leave</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Shift Name</label>
+                  <input
+                    type="text"
+                    value={modalData?.shift}
+                    onChange={e => setModalData((prev: any) => ({ ...prev, shift: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Duty Remarks</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Catalog verification and desk duty"
+                  value={modalData?.remarks}
+                  onChange={e => setModalData((prev: any) => ({ ...prev, remarks: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold cursor-pointer shadow-md">
+                  Save Attendance Entry
+                </button>
+              </div>
             </form>
           </div>
         </div>

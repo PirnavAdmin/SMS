@@ -181,7 +181,7 @@ export const INITIAL_DYNAMIC_PLACEHOLDERS: DynamicPlaceholderItem[] = [
   { id: 'PH-14', placeholder: '{{conduct}}', description: 'Conduct & Character Remark', category: 'Student Info', sampleValue: 'Good & Exemplary', isSystem: true },
   { id: 'PH-14B', placeholder: '{{moleIdentification}}', description: 'Mole / Personal Identification Marks', category: 'Student Info', sampleValue: '1. Mole on right cheek  2. Mole on left shoulder', isSystem: true },
   { id: 'PH-14C', placeholder: '{{Moles}}', description: 'Mole Identification Marks', category: 'Student Info', sampleValue: '1. Mole on right cheek  2. Mole on left shoulder', isSystem: true },
-  { id: 'PH-15', placeholder: '{{schoolName}}', description: 'Name of Institution', category: 'School Details', sampleValue: "St. Xavier's International School", isSystem: true },
+  { id: 'PH-15', placeholder: '{{schoolName}}', description: 'Name of Institution', category: 'School Details', sampleValue: "Pirnav Educational Institutions", isSystem: true },
   { id: 'PH-16', placeholder: '{{schoolAddress}}', description: 'Address of Institution', category: 'School Details', sampleValue: 'Knowledge City, NY 10001', isSystem: true },
   { id: 'PH-17', placeholder: '{{certificateNumber}}', description: 'Unique Serial Number', category: 'Certificate Info', sampleValue: 'TC-2026-0001', isSystem: true },
   { id: 'PH-18', placeholder: '{{issueDate}}', description: 'Date of Certificate Issue', category: 'Certificate Info', sampleValue: '14/08/2026', isSystem: true },

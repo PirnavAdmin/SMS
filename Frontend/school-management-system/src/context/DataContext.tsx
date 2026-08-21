@@ -1127,7 +1127,8 @@ interface DataContextType {
 
   books: BookItem[];
   bookIssues: BookIssue[];
-  addBook: (book: Omit<BookItem, "id">) => void;
+  addBook: (book: Omit<BookItem, "id"> & { id?: string }) => void;
+  deleteBook: (id: string) => void;
   issueBook: (issue: Omit<BookIssue, "id">) => void;
   returnBook: (issueId: string) => void;
 
@@ -11456,6 +11457,26 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     };
   };
 
+  const getPendingLibraryFineDues = (stId: string): number => {
+    try {
+      const s = localStorage.getItem('edu_db_library_fines');
+      if (!s) return 0;
+      const fines = JSON.parse(s);
+      const stObj = students.find((st) => st.id === stId || st.admissionNo === stId);
+      const admNo = stObj?.admissionNo || stId;
+      const stName = stObj ? `${stObj.firstName} ${stObj.lastName}`.toLowerCase() : '';
+
+      return fines
+        .filter((f: any) =>
+          f.paymentStatus === 'Unpaid' &&
+          (f.memberId === stId || f.memberId === admNo || (stName && (f.memberName || '').toLowerCase() === stName))
+        )
+        .reduce((sum: number, f: any) => sum + (f.fineAmount || 0), 0);
+    } catch {
+      return 0;
+    }
+  };
+
   // DYNAMIC FEE CALCULATION ENGINE
   const calculateStudentPayableFee = (
     studentId: string,
@@ -11642,8 +11663,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       }
     }
 
-    // Include pending uniform extra purchase dues (added via Uniform Distribution module)
+    // Include pending uniform extra purchase dues & library overdue fines
     const pendingUniformExtras = getPendingUniformExtraDues(studentId);
+    const pendingLibraryFines = getPendingLibraryFineDues(studentId);
     const hasExtraInLedger = Boolean(
       ledger &&
       ledger.feeItems &&
@@ -11655,8 +11677,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
 
     const gross = ledger
-      ? ledger.grossAmount || ledger.totalOriginalAmount
-      : baseFee + transportFee + hostelFee + pendingUniformExtras;
+      ? (ledger.grossAmount || ledger.totalOriginalAmount) + pendingLibraryFines
+      : baseFee + transportFee + hostelFee + pendingUniformExtras + pendingLibraryFines;
     const sch = ledger ? ledger.scholarshipAmount || 0 : scholarshipDeduction;
     const disc = ledger ? ledger.discountAmount || 0 : discountDeduction;
     const totalPayable = Math.max(0, gross + fineAmount - sch - disc);
@@ -12735,11 +12757,21 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setHomework((prev) => prev.filter((h) => h.id !== id));
   };
 
-  const addBook = (bookData: Omit<BookItem, "id">) => {
-    const id = "BK-" + Math.floor(10 + Math.random() * 90);
-    const newBook: BookItem = { ...bookData, id };
-    setBooks((prev) => [...prev, newBook]);
-    logActivity("Cataloged Book", `Added ${newBook.title} to Library`);
+  const addBook = (bookData: Omit<BookItem, "id"> & { id?: string }) => {
+    setBooks((prev) => {
+      if (bookData.id && prev.some((b) => b.id === bookData.id)) {
+        return prev.map((b) => (b.id === bookData.id ? { ...b, ...bookData } : b));
+      }
+      const id = bookData.id || ("BK-" + Math.floor(100 + Math.random() * 900));
+      const newBook: BookItem = { ...bookData, id };
+      return [newBook, ...prev];
+    });
+    logActivity("Cataloged Book", `Added/Updated ${bookData.title} in Library`);
+  };
+
+  const deleteBook = (id: string) => {
+    setBooks((prev) => prev.filter((b) => b.id !== id && b.isbn !== id));
+    logActivity("Deleted Book", `Removed book ID ${id} from Library`);
   };
 
   const issueBook = (issueData: Omit<BookIssue, "id">) => {
@@ -15067,7 +15099,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         resetClassPeriods,
         teacherAssignments,
         addTeacherAssignment,
-        updateTeacherAssignment,
         deleteTeacherAssignment,
         homework: filteredHomework,
         addHomework,
@@ -15076,6 +15107,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         books,
         bookIssues: filteredBookIssues,
         addBook,
+        deleteBook,
         issueBook,
         returnBook,
         transportRoutes,

@@ -239,6 +239,39 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
 
+  // Teacher Portal Filter States
+  const [teacherSelectedClass, setTeacherSelectedClass] = useState('All');
+  const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
+
+  // Dynamic Class options for Teacher Filter
+  const teacherClassOptions = useMemo(() => {
+    const set = new Set<string>();
+    if (academicClasses && academicClasses.length > 0) {
+      academicClasses.forEach(c => set.add(c.name));
+    }
+    (teacher.assignedClasses || []).forEach(ac => {
+      const mainCls = ac.split('-')[0].trim();
+      set.add(mainCls);
+    });
+    displayStudents.forEach(s => {
+      if (s.className) set.add(s.className);
+    });
+    return Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
+  }, [academicClasses, teacher, displayStudents]);
+
+  // Dynamic Section options for Teacher Filter
+  const teacherSectionOptions = useMemo(() => {
+    const sectionsSet = new Set<string>();
+    ['A', 'B', 'C', 'D', 'E'].forEach(sec => sectionsSet.add(sec));
+    displayStudents.forEach(s => {
+      if (s.section) {
+        const cleanSec = s.section.replace(/^Section\s+/i, '').trim();
+        if (cleanSec) sectionsSet.add(cleanSec);
+      }
+    });
+    return Array.from(sectionsSet).sort();
+  }, [displayStudents]);
+
   // Roster View Filters
   const [searchName, setSearchName] = useState('');
   const [searchAdmNo, setSearchAdmNo] = useState('');
@@ -374,22 +407,195 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const totalPages = Math.ceil(filteredRoster.length / pageSize) || 1;
   const paginatedRoster = filteredRoster.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // Teacher portal view (preserved for teacher logins)
+  // Teacher portal view (full interactive student directory)
   if (isTeacherRole) {
+    // Filter students for teacher
+    const myStudents = (displayStudents || []).filter(s => {
+      const q = searchName.toLowerCase().trim();
+      const matchesQuery = !q || 
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) || 
+        (s.admissionNo || '').toLowerCase().includes(q) || 
+        (s.rollNo || '').toLowerCase().includes(q);
+
+      const matchesClass = teacherSelectedClass === 'All' || 
+        s.className.toLowerCase() === teacherSelectedClass.toLowerCase() ||
+        `${s.className}-${s.section}`.toLowerCase().includes(teacherSelectedClass.toLowerCase());
+
+      const cleanStudentSection = (s.section || '').replace(/^Section\s+/i, '').trim().toLowerCase();
+      const cleanFilterSection = teacherSelectedSection.replace(/^Section\s+/i, '').trim().toLowerCase();
+
+      const matchesSection = teacherSelectedSection === 'All' || 
+        cleanStudentSection === cleanFilterSection;
+
+      return matchesQuery && matchesClass && matchesSection;
+    });
+
     return (
       <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
-        <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        {/* Header Cockpit Card */}
+        <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
           <div className="space-y-1">
-            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <UserCheck className="w-6 h-6 text-sky-600 shrink-0" />
               Student Directory
             </h2>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 font-bold">
-              <span>🏫 Teacher Students: <strong className="text-slate-850 dark:text-slate-200">{teacherFullName}</strong></span>
-              <span>📅 Academic Year: <strong className="text-slate-850 dark:text-slate-200">2026-2027</strong></span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 font-bold text-xs">
+              <span>🏫 Teacher: <strong className="text-slate-800 dark:text-slate-200">{teacherFullName}</strong></span>
+              <span>📅 Academic Year: <strong className="text-slate-800 dark:text-slate-200">2026-2027</strong></span>
+              <span>👥 Total Students: <strong className="text-sky-600 dark:text-sky-400">{myStudents.length}</strong></span>
+            </div>
+          </div>
+
+          {/* Quick Filters - Two Separate Filters for Class and Section */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:w-56">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search student or roll no..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500"
+              />
+            </div>
+
+            {/* Select Class Filter */}
+            <div className="relative">
+              <select
+                value={teacherSelectedClass}
+                onChange={(e) => setTeacherSelectedClass(e.target.value)}
+                className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
+              >
+                <option value="All">All Classes</option>
+                {teacherClassOptions.map((cls) => (
+                  <option key={cls} value={cls}>{cls}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Select Section Filter */}
+            <div className="relative">
+              <select
+                value={teacherSelectedSection}
+                onChange={(e) => setTeacherSelectedSection(e.target.value)}
+                className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
+              >
+                <option value="All">All Sections</option>
+                {teacherSectionOptions.map((sec) => (
+                  <option key={sec} value={sec}>Section {sec}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
+
+        {/* Student Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {myStudents.length === 0 ? (
+            <div className="col-span-full text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
+              <Users className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
+              <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">No Students Found</p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">No student records match your current search query or class filter.</p>
+            </div>
+          ) : (
+            myStudents.map((st) => {
+              const fullName = `${st.firstName || ''} ${st.lastName || ''}`.trim() || 'Student Record';
+              return (
+                <div
+                  key={st.id}
+                  className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-sky-300 transition-all flex flex-col justify-between space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md shrink-0">
+                        {st.avatar ? (
+                          <img src={st.avatar} alt={fullName} className="w-full h-full object-cover rounded-2xl" />
+                        ) : (
+                          fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white leading-snug">
+                          {fullName}
+                        </h3>
+                        <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 font-mono mt-0.5">
+                          Adm No: {st.admissionNo || st.rollNo || 'REG-1008'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black text-[9.5px] border border-emerald-200 dark:border-emerald-800">
+                      ACTIVE
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl space-y-2 text-[11px]">
+                    <div className="flex justify-between items-center text-slate-600 dark:text-slate-300 font-medium">
+                      <span>Class & Section</span>
+                      <strong className="text-slate-900 dark:text-white font-extrabold">
+                        {st.className?.replace(/^Class\s*/i, '') || '10'} - {st.section || 'A'}
+                      </strong>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-600 dark:text-slate-300 font-medium">
+                      <span>Roll Number</span>
+                      <strong className="text-slate-900 dark:text-white font-bold font-mono">
+                        #{st.rollNo || '01'}
+                      </strong>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-600 dark:text-slate-300 font-medium">
+                      <span>Parent / Contact</span>
+                      <strong className="text-slate-900 dark:text-white font-medium truncate max-w-[140px]">
+                        {st.parentName || st.guardianName || 'Mr. Guardian'}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={() => setSelectedStudent(st)}
+                      className="flex-1 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px] shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Student Profile
+                    </button>
+                    <button
+                      onClick={() => onNavigate && onNavigate('attendance')}
+                      className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 font-bold text-[10.5px] transition-colors cursor-pointer"
+                      title="Attendance"
+                    >
+                      Attendance
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Student Profile Drawer */}
+        {selectedStudent && (
+          <StudentProfileDrawer
+            student={selectedStudent}
+            isOpen={!!selectedStudent}
+            onClose={() => setSelectedStudent(null)}
+            onEdit={() => {
+              setStudentToEdit(selectedStudent);
+              setIsEditOpen(true);
+            }}
+            onPromote={() => setStudentToPromote(selectedStudent)}
+            onTransfer={() => setStudentToTransfer(selectedStudent)}
+            onDelete={() => setStudentToDelete(selectedStudent)}
+            activeTab={activeProfileTab}
+            setActiveTab={setActiveProfileTab}
+            teacherView={true}
+            getAttendancePct={getAttendancePct}
+            getPerformance={getPerformance}
+            getBehaviourRemarks={getBehaviourRemarks}
+            getMedicalInfo={getMedicalInfo}
+            getDocumentsList={getDocumentsList}
+          />
+        )}
       </div>
     );
   }

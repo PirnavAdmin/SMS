@@ -15,9 +15,10 @@ interface HeaderProps {
   setCollapsed: (val: boolean) => void;
   onOpenSearch: () => void;
   onOpenChangePass: () => void;
+  onNavigate?: (module: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass }) => {
+export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass, onNavigate }) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, academicYears } = useData();
@@ -480,8 +481,16 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
               </div>
 
               <button
+                onClick={() => { setShowUserMenu(false); onNavigate?.('profile-completion'); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <Edit className="w-4 h-4 text-sky-500" />
+                <span>Edit Profile</span>
+              </button>
+
+              <button
                 onClick={() => { setShowUserMenu(false); onOpenChangePass(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
               >
                 <Key className="w-4 h-4 text-amber-500" />
                 <span>Change Password</span>

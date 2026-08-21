@@ -424,6 +424,38 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       });
     }
 
+    // Mark unpaid library fines as Paid in edu_db_library_fines if collected
+    try {
+      const s = localStorage.getItem("edu_db_library_fines");
+      if (s) {
+        const fines = JSON.parse(s);
+        const stAdm = selectedStudent.admissionNo || selectedStudent.id;
+        const stFullName = `${selectedStudent.firstName} ${selectedStudent.lastName}`.toLowerCase();
+        const updatedFines = fines.map((f: any) => {
+          if (
+            f.paymentStatus === "Unpaid" &&
+            (f.memberId === selectedStudent.id ||
+              f.memberId === stAdm ||
+              (f.memberName || "").toLowerCase() === stFullName)
+          ) {
+            return {
+              ...f,
+              paymentStatus: "Paid",
+              paidDate: new Date().toISOString().split("T")[0],
+              remarks: "Paid via Admin Fee Collection",
+            };
+          }
+          return f;
+        });
+        localStorage.setItem("edu_db_library_fines", JSON.stringify(updatedFines));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("library_fines_updated"));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     addToast(
       "success",
       "Payment Processed",

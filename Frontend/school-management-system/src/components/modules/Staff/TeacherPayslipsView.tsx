@@ -248,6 +248,10 @@ export const TeacherPayslipsView: React.FC = () => {
     printWin.document.close();
   };
 
+  const totalNetDisbursed = useMemo(() => {
+    return sortedPayslips.reduce((sum, p) => sum + (p.netSalary || p.totalSalary || 45000), 0);
+  }, [sortedPayslips]);
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
@@ -263,9 +267,9 @@ export const TeacherPayslipsView: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-950 text-brand-600 flex items-center justify-center font-bold shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 flex items-center justify-center font-bold shrink-0">
             <FileText className="w-6 h-6" />
           </div>
           <div>
@@ -274,41 +278,41 @@ export const TeacherPayslipsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+        <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center font-bold shrink-0">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-emerald-600">Latest Statement</span>
-            <p className="text-xl font-black text-emerald-600 mt-0.5">
+            <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">Latest Statement</span>
+            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
               {latestPayslip ? latestPayslip.month : 'N/A'}
             </p>
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-600 flex items-center justify-center font-bold shrink-0">
-            <ShieldCheck className="w-6 h-6" />
+        <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 flex items-center justify-center font-bold shrink-0">
+            <IndianRupee className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-sky-600">Disbursement Mode</span>
-            <p className="text-xl font-black text-sky-600 mt-0.5">
-              Direct Bank Transfer
+            <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400">Total Net Salary Paid</span>
+            <p className="text-xl font-black text-sky-600 dark:text-sky-400 mt-0.5">
+              {formatCurrency(totalNetDisbursed)}
             </p>
           </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search by pay month..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
+            className="w-full pl-9 pr-4 py-2 text-xs rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none focus:border-sky-500"
           />
         </div>
 

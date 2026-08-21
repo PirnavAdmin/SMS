@@ -29,7 +29,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
   const { addToast } = useToast();
   const activeAY = selectedAcademicYear || '2025-2026';
 
-  const schoolName = schoolProfile?.name || "St. Xavier's International School";
+  const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
   const schoolAddress = schoolProfile?.address || "Knowledge City, Main Campus, New York 10001";
   const schoolLogo = schoolProfile?.logoUrl;
 
