@@ -151,6 +151,12 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     require("firstName", !!form.firstName.trim(), "First name is required.");
     require("lastName", !!form.lastName.trim(), "Last name is required.");
     require("mobileNumber", !!form.mobileNumber.trim(), "Mobile number is required.");
+    if (form.mobileNumber.trim()) {
+      const localPart = form.mobileNumber.split("-").pop() || "";
+      if (!/^\d{10}$/.test(localPart.replace(/[^\d]/g, ""))) {
+        nextErrors.mobileNumber = "Mobile number must be exactly 10 digits.";
+      }
+    }
     require("branch", !!form.branch.trim(), "Branch is required.");
     require("department", !!form.department.trim(), "Department is required.");
     require("designation", !!form.designation.trim(), "Designation is required.");
