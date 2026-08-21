@@ -3,6 +3,9 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { HostelProvider } from './context/HostelContext';
+import { ExaminationProvider } from './context/ExaminationContext';
+import { HRProvider } from './context/HRContext';
 
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -341,10 +344,6 @@ const MainLayout: React.FC = () => {
     </div>
   );
 };
-
-import { HostelProvider } from './context/HostelContext';
-import { ExaminationProvider } from './context/ExaminationContext';
-import { HRProvider } from './context/HRContext';
 
 export function App() {
   return (

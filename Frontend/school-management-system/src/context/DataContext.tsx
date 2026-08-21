@@ -2725,13 +2725,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!s || !s.id) return false;
       if (s.createdAt) return true;
       if (!defaultMockIds.has(s.id)) return true;
-      const num = parseInt(s.id.replace(/\D/g, ''), 10) || 0;
+      const num = parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 0;
       return num > 20;
     };
     const userCreated = (stored || []).filter(isUserItem).sort((a: any, b: any) => {
       if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      const numA = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
+      const numA = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
       return numB - numA;
     });
     const defaultMock = (stored || []).filter((s: any) => !isUserItem(s));
@@ -5993,7 +5993,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const matchedClass = academicClasses.find(
         (c) => c.name?.toLowerCase().trim() === appData.appliedClass?.toLowerCase().trim()
       );
-      const appliedClassId = matchedClass ? Number(matchedClass.id.replace(/\D/g, "")) : 1;
+      const appliedClassId = matchedClass ? Number(String(matchedClass.id).replace(/\D/g, "")) : 1;
 
       const payload = {
         applicantFullName: appData.applicantName || "",
@@ -6161,7 +6161,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const matchedClass = academicClasses.find(
         (c) => c.name?.toLowerCase().trim() === appData.appliedClass?.toLowerCase().trim()
       );
-      const appliedClassId = matchedClass ? Number(matchedClass.id.replace(/\D/g, "")) : 1;
+      const appliedClassId = matchedClass ? Number(String(matchedClass.id).replace(/\D/g, "")) : 1;
 
       const payload = {
         applicantFullName: appData.applicantName || "",
