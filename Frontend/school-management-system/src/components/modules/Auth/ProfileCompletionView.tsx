@@ -5,6 +5,7 @@ import {
   ChevronRight,
   FileText,
   GraduationCap,
+  Home,
   LogOut,
   MapPin,
   Plus,
