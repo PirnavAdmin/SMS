@@ -83,7 +83,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       if (s.designation?.trim().toLowerCase() !== value.designation.trim().toLowerCase()) return false;
       
       const otherSubjects = s.assignedSubjects || [];
-      const hasCommonSubject = value.assignedSubjects.some((subj: string) => 
+      const hasCommonSubject = (value.assignedSubjects || []).some((subj: string) => 
         otherSubjects.some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
       );
       
@@ -91,7 +91,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     });
 
     if (match) {
-      const commonSubjects = value.assignedSubjects.filter((subj: string) =>
+      const commonSubjects = (value.assignedSubjects || []).filter((subj: string) =>
         (match.assignedSubjects || []).some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
       );
       return {

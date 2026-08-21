@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { Package, Plus, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 
 export const InventoryView: React.FC = () => {
-  const { inventory, addInventoryItem } = useData();
+  const { inventory, addInventoryItem, fetchInventoryData } = useData();
+  
+  useEffect(() => {
+    if (fetchInventoryData) {
+      fetchInventoryData();
+    }
+  }, [fetchInventoryData]);
   const { addToast } = useToast();
 
   const [isAddOpen, setIsAddOpen] = useState(false);

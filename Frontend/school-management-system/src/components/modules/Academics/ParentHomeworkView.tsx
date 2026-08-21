@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Download, Menu } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 
 export const ParentHomeworkView: React.FC = () => {
-  const { students, homework } = useData();
+  const { students, homework, fetchHomeworkData } = useData();
+  
+  useEffect(() => {
+    if (fetchHomeworkData) {
+      fetchHomeworkData();
+    }
+  }, [fetchHomeworkData]);
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
 

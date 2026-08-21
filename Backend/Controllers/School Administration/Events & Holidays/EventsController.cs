@@ -481,31 +481,8 @@ public class EventsController : ControllerBase
 
     private async Task SeedDefaultHolidaysAndEventsAsync()
     {
-        if (!await _context.HolidayCalendars.AnyAsync())
-        {
-            var seedHolidays = new List<HolidayCalendar>
-            {
-                new HolidayCalendar { Name = "Rakhi", Type = "NATIONAL", FromDate = new DateTime(2026, 08, 19), ToDate = new DateTime(2026, 08, 19), Description = "Government gazetted holiday", ApplicableBranch = "Main Campus" },
-                new HolidayCalendar { Name = "Home sick Holidays", Type = "OPTIONAL", FromDate = new DateTime(2026, 08, 25), ToDate = new DateTime(2026, 08, 31), Description = "Only for Hostellers", ApplicableBranch = "Main Campus" },
-                new HolidayCalendar { Name = "Independence Day", Type = "NATIONAL", FromDate = new DateTime(2026, 08, 15), ToDate = new DateTime(2026, 08, 15), Description = "National Holiday celebrating Indian Independence Day", ApplicableBranch = "Main Campus" },
-                new HolidayCalendar { Name = "Raksha Bandhan", Type = "FESTIVAL", FromDate = new DateTime(2026, 08, 28), ToDate = new DateTime(2026, 08, 28), Description = "Traditional Festival Holiday", ApplicableBranch = "Main Campus" },
-                new HolidayCalendar { Name = "Sri Krishna Janmashtami", Type = "FESTIVAL", FromDate = new DateTime(2026, 09, 04), ToDate = new DateTime(2026, 09, 04), Description = "Lord Krishna Jayanti Festival", ApplicableBranch = "Main Campus" }
-            };
-            await _context.HolidayCalendars.AddRangeAsync(seedHolidays);
-        }
-
-        if (!await _context.SchoolEvents.AnyAsync())
-        {
-            var seedEvents = new List<SchoolEvent>
-            {
-                new SchoolEvent { Title = "Annual Sports Day & Athletic Meet 2026", Category = "SPORTS DAY", Venue = "Main Campus Stadium Ground", StartDate = new DateTime(2026, 08, 15), EndDate = new DateTime(2026, 08, 15), Time = "08:30 AM", Organizer = "Physical Education Dept", Description = "Grand Annual Sports Day featuring track & field competitions.", Status = "Published", ApplicableBranch = "Main Campus" },
-                new SchoolEvent { Title = "[Workshop] Robotics and AIML", Category = "WORKSHOP & SEMINAR", Venue = "Main Auditorium", StartDate = new DateTime(2026, 08, 19), EndDate = new DateTime(2026, 08, 19), Time = "All Day", Organizer = "External Expert (Pirnav Schools Professional Cell)", Description = "Faculty Development Program (FDP)", Status = "Published", ApplicableBranch = "Main Campus" },
-                new SchoolEvent { Title = "Inter-House Science & Robotics Exhibition", Category = "SCIENCE EXHIBITION", Venue = "Auditorium & STEM Lab 1", StartDate = new DateTime(2026, 08, 22), EndDate = new DateTime(2026, 08, 22), Time = "10:00 AM", Organizer = "Department of Science & Tech", Description = "Student project showcases in AI and Robotics.", Status = "Published", ApplicableBranch = "Main Campus" }
-            };
-            await _context.SchoolEvents.AddRangeAsync(seedEvents);
-        }
-
-        await _context.SaveChangesAsync();
+        // Do not seed default holidays and events. Everything should come from the database.
+        await Task.CompletedTask;
     }
 
     // --- MAPPER HELPERS ---

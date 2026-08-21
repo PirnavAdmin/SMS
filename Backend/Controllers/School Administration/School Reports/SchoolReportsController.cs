@@ -170,10 +170,7 @@ public class SchoolReportsController : ControllerBase
             }
             catch { }
 
-            if (!staffList.Any() && string.IsNullOrWhiteSpace(search) && (string.IsNullOrWhiteSpace(departmentFilter) || departmentFilter.Equals("All Departments", StringComparison.OrdinalIgnoreCase)))
-            {
-                staffList = GetDefaultStaffSeedData();
-            }
+            // Do not use fallback mock staff data when DB is empty.
 
             return Ok(new { success = true, module = "staff", count = staffList.Count, data = staffList });
         }
@@ -207,10 +204,7 @@ public class SchoolReportsController : ControllerBase
             }
             catch { }
 
-            if (!feeList.Any() && string.IsNullOrWhiteSpace(search))
-            {
-                feeList = GetDefaultFeeSeedData();
-            }
+            // Do not use fallback mock fees data when DB is empty.
 
             return Ok(new { success = true, module = "fees", count = feeList.Count, data = feeList });
         }
@@ -268,10 +262,7 @@ public class SchoolReportsController : ControllerBase
         }
         catch { }
 
-        if (!studentsList.Any() && string.IsNullOrWhiteSpace(search) && (string.IsNullOrWhiteSpace(classFilter) || classFilter.Equals("All Academic Classes", StringComparison.OrdinalIgnoreCase)))
-        {
-            studentsList = GetDefaultStudentSeedData();
-        }
+        // Do not use fallback mock student data when DB is empty.
 
         return Ok(new { success = true, module = "students", count = studentsList.Count, data = studentsList });
     }
@@ -477,25 +468,4 @@ public class SchoolReportsController : ControllerBase
 
         return html.ToString();
     }
-
-    // --- SEED HELPERS ---
-    private static List<object> GetDefaultStudentSeedData() => new List<object>
-    {
-        new { admissionNo = "REG-1008", studentName = "Gokul Raj", classAndSection = "Class 10 - A", guardianDetails = "Raj Sr", phoneNumber = "9876543215", status = "Active" },
-        new { admissionNo = "REG-1022", studentName = "kiran kiriti", classAndSection = "Class 1 - A", guardianDetails = "Kiriti Sr", phoneNumber = "9876543216", status = "Active" },
-        new { admissionNo = "REG-1021", studentName = "Vishnu N", classAndSection = "Class 1 - A", guardianDetails = "Narayanan Sr", phoneNumber = "9876543217", status = "Active" }
-    };
-
-    private static List<object> GetDefaultStaffSeedData() => new List<object>
-    {
-        new { empId = "EMP001", employeeName = "Dr. Eleanor Vance", department = "Academics", designation = "Principal", roleType = "Teaching", contactPhone = "+1 555-888-001" },
-        new { empId = "EMP002", employeeName = "Jonathan Miller", department = "Mathematics", designation = "Class Teacher", roleType = "Teaching", contactPhone = "+1 555-888-002" },
-        new { empId = "EMP003", employeeName = "Sarah Jenkins", department = "Science", designation = "Head of Department (HOD)", roleType = "Teaching", contactPhone = "+1 555-888-003" }
-    };
-
-    private static List<object> GetDefaultFeeSeedData() => new List<object>
-    {
-        new { receiptNo = "REC-901", studentName = "Gokul Raj", feeCategory = "Tuition Fee", amountPaid = 25000, paymentMode = "Online UPI", date = "2026-08-10" },
-        new { receiptNo = "REC-902", studentName = "kiran kiriti", feeCategory = "Admission & Term Fee", amountPaid = 15000, paymentMode = "Bank Transfer", date = "2026-08-12" }
-    };
 }

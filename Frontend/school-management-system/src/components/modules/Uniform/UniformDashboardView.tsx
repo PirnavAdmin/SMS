@@ -4,6 +4,7 @@ import { useData } from '../../../context/DataContext';
 import { formatCurrency } from '../../../utils/currency';
 import { Badge } from '../../common/Badge';
 import { getItemPriceFromConfig, getStudentUniformFeeStatus } from '../../../utils/uniformUtils';
+import { StudentUniformIssue } from '../../../types';
 
 interface UniformDashboardViewProps {
   onNavigate?: (tab: string, subTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory', reportType?: string, statusFilter?: string) => void;

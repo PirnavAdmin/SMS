@@ -34,37 +34,7 @@ public class CommunicationsController : ControllerBase
     {
         var list = await _context.Circulars.AsNoTracking().OrderByDescending(c => c.CreatedDate).ToListAsync();
         
-        if (!list.Any())
-        {
-            var seedList = new List<CircularDto>
-            {
-                new CircularDto
-                {
-                    CircularId = 1,
-                    Title = "Annual Sports Meet Registration Open",
-                    Category = "SPORTS • ALL",
-                    Content = "Submit entries to PE department before August 5th.",
-                    TargetAudience = "ALL",
-                    CreatedDate = "2026-07-20",
-                    SmsSent = true,
-                    EmailSent = true,
-                    PushDelivered = true
-                },
-                new CircularDto
-                {
-                    CircularId = 2,
-                    Title = "Mid-Term Review & Pedagogical Standards Alignment",
-                    Category = "ACADEMIC • STAFF",
-                    Content = "All teachers are requested to update their lesson plans and student progress reports by this Friday.",
-                    TargetAudience = "STAFF",
-                    CreatedDate = "2026-07-30",
-                    SmsSent = true,
-                    EmailSent = true,
-                    PushDelivered = true
-                }
-            };
-            return Ok(new { success = true, data = seedList });
-        }
+        // Do not return fallback mock circulars. Everything should come from the database.
 
         var dtos = list.Select(c => new CircularDto
         {
@@ -221,35 +191,7 @@ public class CommunicationsController : ControllerBase
 
         var list = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
 
-        if (!list.Any())
-        {
-            var seedList = new List<MeetingResponseDto>
-            {
-                new MeetingResponseDto
-                {
-                    MeetingId = 1,
-                    MeetingAudience = "Individual Meeting",
-                    ParticipantType = "Parent",
-                    ParticipantName = "Robert Morgan",
-                    ParticipantPhone = "9876543210",
-                    WardStudentName = "Alex Morgan",
-                    WardAdmissionNo = "ADM-101",
-                    WardClass = "Class 10-A",
-                    MeetingTitle = "Parent-Teacher Performance Sync (Alex Morgan)",
-                    Agenda = "In-person discussion regarding Class 10 Mid-Term progress.",
-                    MeetingMode = "In-Person",
-                    Building = "Academic Block A",
-                    Floor = "2nd Floor",
-                    MeetingRoom = "Conference Room 204",
-                    RoomCapacity = 15,
-                    MeetingDate = "2026-08-10",
-                    StartTime = "14:00",
-                    EndTime = "14:30",
-                    MeetingStatus = "SCHEDULED"
-                }
-            };
-            return Ok(new { success = true, data = seedList });
-        }
+        // Do not return fallback mock meetings. Everything should come from the database.
 
         var result = list.Select(m => new MeetingResponseDto
         {

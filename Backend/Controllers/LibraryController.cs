@@ -469,28 +469,8 @@ public class LibraryController : ControllerBase
 
     private async Task SeedDefaultLibraryDataAsync()
     {
-        if (!await _context.LibraryBooks.AnyAsync())
-        {
-            var seedBooks = new List<LibraryBook>
-            {
-                new LibraryBook { Title = "Fundamentals of Physics", Author = "Halliday & Resnick", Category = "Science", RackLocation = "Rack S-04", TotalCopies = 15, AvailableCopies = 11, CreatedAt = DateTime.UtcNow },
-                new LibraryBook { Title = "Advanced Mathematics Vol 1", Author = "R.D. Sharma", Category = "Mathematics", RackLocation = "Rack M-02", TotalCopies = 30, AvailableCopies = 25, CreatedAt = DateTime.UtcNow },
-                new LibraryBook { Title = "Computer Science Principles & AI", Author = "E. Balagurusamy", Category = "Computer Science", RackLocation = "Rack CS-01", TotalCopies = 25, AvailableCopies = 20, CreatedAt = DateTime.UtcNow },
-                new LibraryBook { Title = "Complete Works of Shakespeare", Author = "William Shakespeare", Category = "Literature & Fiction", RackLocation = "Rack L-03", TotalCopies = 40, AvailableCopies = 35, CreatedAt = DateTime.UtcNow }
-            };
-            await _context.LibraryBooks.AddRangeAsync(seedBooks);
-        }
-
-        if (!await _context.LibraryIssueRecords.AnyAsync())
-        {
-            var seedIssues = new List<LibraryIssueRecord>
-            {
-                new LibraryIssueRecord { BookId = 1, BookTitle = "Fundamentals of Physics", BorrowerRole = "Student", BorrowerIdCode = "STU-001", BorrowerName = "Alexander Wright", IssueDate = DateTime.UtcNow.AddDays(-15), DueDate = DateTime.UtcNow.AddDays(-1), FineAmount = 50, Status = "Overdue", CreatedAt = DateTime.UtcNow }
-            };
-            await _context.LibraryIssueRecords.AddRangeAsync(seedIssues);
-        }
-
-        await _context.SaveChangesAsync();
+        // Do not seed default library data. Everything should come from the database.
+        await Task.CompletedTask;
     }
 
     // --- MAPPER HELPERS ---

@@ -66,7 +66,23 @@ export const LibraryView: React.FC = () => {
   const isAdmin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'school admin';
   const isReadOnlyAccess = isStudentOrParent || isAdmin;
 
-  const { books, bookIssues, addBook, issueBook, returnBook, students, staff, admissions } = useData();
+  const {
+    books,
+    bookIssues,
+    addBook,
+    issueBook,
+    returnBook,
+    students,
+    staff,
+    admissions,
+    fetchBooks,
+    fetchBookIssues,
+  } = useData();
+
+  useEffect(() => {
+    if (fetchBooks) fetchBooks();
+    if (fetchBookIssues) fetchBookIssues();
+  }, [fetchBooks, fetchBookIssues]);
   const { addToast } = useToast();
 
   // Unified candidate list from Enrolled Students and Admission Applications
@@ -1783,11 +1799,11 @@ export const LibraryView: React.FC = () => {
       {deletingItem && (
         <ConfirmModal
           isOpen={Boolean(deletingItem)}
-          onClose={() => setDeletingItem(null)}
+          onCancel={() => setDeletingItem(null)}
           onConfirm={confirmDelete}
           title="Confirm Deletion"
           message={`Are you sure you want to delete "${deletingItem.title}"? This action will permanently remove the record.`}
-          confirmText="Delete Record"
+          confirmLabel="Delete Record"
           variant="danger"
         />
       )}

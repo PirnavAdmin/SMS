@@ -216,6 +216,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     updateAdmission,
     deleteAdmission,
     updateAdmissionStatus,
+    fetchStudents,
     students,
     routeMasters,
     pickupPoints,
@@ -4060,6 +4061,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               confirmingApp.status,
             );
             if (confirmingApp.status === "Enrolled") {
+              await fetchStudents();
               if (studentId) {
                 setFeeSummaryStudentId(studentId);
               } else {

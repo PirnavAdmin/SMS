@@ -6,7 +6,7 @@ import {
 import { useData } from '../../../../context/DataContext';
 import { ExportButton } from '../../../common/ExportButton';
 import { SchoolPrintHeader } from '../../../common/SchoolPrintHeader';
-import { fetchReportDataApi } from '../../../../api/reports';
+import { fetchReportDataApi, fetchPrintReportTemplateApi } from '../../../../api/reports';
 
 export const ReportsView: React.FC = () => {
   const { students, staff, feePayments, attendance, examMarks, academicClasses } = useData();
@@ -176,7 +176,7 @@ export const ReportsView: React.FC = () => {
           </button>
 
           <ExportButton
-            data={currentDataset}
+            data={currentDataset as any[]}
             filename={`school_admin_report`}
             label="Export Filtered CSV"
           />
