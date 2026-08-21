@@ -154,44 +154,7 @@ public class CommunicationController : ControllerBase
 
         var list = await query.OrderByDescending(c => c.IsPinned).ThenByDescending(c => c.CreatedDate).ToListAsync();
 
-        // Seed DB if table is empty
-        if (!list.Any() && string.IsNullOrWhiteSpace(search) && (string.IsNullOrWhiteSpace(category) || category.Equals("All", StringComparison.OrdinalIgnoreCase)))
-        {
-            var seeds = new List<Circular>
-            {
-                new Circular
-                {
-                    Title = "🚨 EMERGENCY ALERT: Early School Dismissal Due to City Traffic Advisory",
-                    Category = "URGENT",
-                    Content = "Urgent notification regarding Early School Dismissal Due to City Traffic Advisory. All parents and staff members please note the immediate advisory.",
-                    TargetAudience = "ALL",
-                    CreatedDate = DateTime.UtcNow,
-                    Author = "Principal Office",
-                    DeliveredCount = 1420,
-                    IsPinned = true,
-                    SmsSent = true,
-                    EmailSent = true,
-                    PushDelivered = true
-                },
-                new Circular
-                {
-                    Title = "Annual Sports Meet Registration Open",
-                    Category = "SPORTS",
-                    Content = "Submit entries to PE department before August 5th. Inter-house selection trials will be conducted on August 8th in the main sports grounds.",
-                    TargetAudience = "ALL",
-                    CreatedDate = DateTime.UtcNow.AddDays(-5),
-                    Author = "PE Department",
-                    DeliveredCount = 1420,
-                    IsPinned = false,
-                    SmsSent = true,
-                    EmailSent = true,
-                    PushDelivered = true
-                }
-            };
-            await _context.Circulars.AddRangeAsync(seeds);
-            await _context.SaveChangesAsync();
-            list = await _context.Circulars.AsNoTracking().OrderByDescending(c => c.IsPinned).ThenByDescending(c => c.CreatedDate).ToListAsync();
-        }
+        // Do not seed default circulars. Everything should come from the database.
 
         var dtos = list.Select(c => new CircularDto
         {
@@ -372,77 +335,7 @@ public class CommunicationController : ControllerBase
 
         var list = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
 
-        // Seed DB if table is empty
-        if (!list.Any() && string.IsNullOrWhiteSpace(search) &&
-            (string.IsNullOrWhiteSpace(audience) || audience.Equals("All Audiences", StringComparison.OrdinalIgnoreCase)))
-        {
-            var seedList = new List<Meeting>
-            {
-                new Meeting
-                {
-                    MeetingAudience = "Individual Meeting",
-                    ParticipantType = "Parent",
-                    ParticipantName = "Robert Morgan",
-                    ParticipantPhone = "9876543210",
-                    WardStudentName = "Alex Morgan",
-                    WardAdmissionNo = "ADM-101",
-                    WardClass = "Class 10-A",
-                    MeetingTitle = "marks discussion",
-                    Agenda = "Discussion regarding Class 10 Mid-Term progress.",
-                    MeetingMode = "In-Person",
-                    Building = "Academic Block A",
-                    Floor = "1st Floor",
-                    MeetingRoom = "Conference Room 102 (Academic Block A)",
-                    RoomCapacity = 15,
-                    MeetingDate = new DateTime(2026, 08, 09),
-                    StartTime = "10:00",
-                    EndTime = "10:30",
-                    MeetingStatus = "SCHEDULED",
-                    CreatedAt = DateTime.UtcNow
-                },
-                new Meeting
-                {
-                    MeetingAudience = "Group Meeting",
-                    ParticipantType = "Staff",
-                    ParticipantName = "All Department Faculty",
-                    ParticipantPhone = "9876543211",
-                    MeetingTitle = "General meeting",
-                    Agenda = "General faculty sync meeting.",
-                    MeetingMode = "In-Person",
-                    Building = "Academic Block A",
-                    Floor = "1st Floor",
-                    MeetingRoom = "Staff Seminar Hall B (Academic Block A)",
-                    RoomCapacity = 25,
-                    MeetingDate = new DateTime(2026, 08, 09),
-                    StartTime = "10:00",
-                    EndTime = "10:30",
-                    MeetingStatus = "SCHEDULED",
-                    CreatedAt = DateTime.UtcNow
-                },
-                new Meeting
-                {
-                    MeetingAudience = "Group Meeting",
-                    ParticipantType = "Staff",
-                    ParticipantName = "All Department Faculty",
-                    ParticipantPhone = "9876543212",
-                    MeetingTitle = "Student growth",
-                    Agenda = "Faculty discussion on student performance and growth.",
-                    MeetingMode = "In-Person",
-                    Building = "Academic Block A",
-                    Floor = "1st Floor",
-                    MeetingRoom = "Principal Conference Hall (Academic Block A)",
-                    RoomCapacity = 30,
-                    MeetingDate = new DateTime(2026, 08, 09),
-                    StartTime = "10:00",
-                    EndTime = "10:30",
-                    MeetingStatus = "SCHEDULED",
-                    CreatedAt = DateTime.UtcNow
-                }
-            };
-            await _context.Meetings.AddRangeAsync(seedList);
-            await _context.SaveChangesAsync();
-            list = await _context.Meetings.AsNoTracking().OrderByDescending(m => m.CreatedAt).ToListAsync();
-        }
+        // Do not seed default meetings. Everything should come from the database.
 
         var items = list.Select(MapToDto).ToList();
         int totalCount = items.Count;

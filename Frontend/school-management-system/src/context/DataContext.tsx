@@ -666,6 +666,18 @@ interface DataContextType {
   fetchPeriods: (force?: boolean) => Promise<void>;
   fetchDepartments: (force?: boolean) => Promise<void>;
   fetchDesignations: (force?: boolean) => Promise<void>;
+  fetchBooks: () => Promise<void>;
+  fetchBookIssues: () => Promise<void>;
+  fetchHomeworkData: () => Promise<void>;
+  fetchInventoryData: () => Promise<void>;
+  fetchUniformData: () => Promise<void>;
+  fetchFinanceData: () => Promise<void>;
+  fetchFacultyTrainingData: () => Promise<void>;
+  fetchLeaveTypes: () => Promise<void>;
+  fetchLeaveApplications: () => Promise<void>;
+  fetchLeaveBalances: () => Promise<void>;
+  fetchSalaryStructures: () => Promise<void>;
+  fetchSalaryAssignments: () => Promise<void>;
 
   academicClasses: AcademicClass[];
   rawClasses: any[];
@@ -1140,6 +1152,7 @@ interface DataContextType {
 
   announcements: Announcement[];
   addAnnouncement: (ann: Omit<Announcement, "id">) => void;
+  saveAnnouncements?: (anns: Announcement[]) => void;
 
   holidays: Holiday[];
   birthdays: Birthday[];
@@ -2648,12 +2661,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() => {
     const stored = getStored("leave_types", initialLeaveTypes);
     return Array.isArray(stored) && stored.length > 0 ? stored : [
-      { id: 'LT-001', name: 'Casual Leave', code: 'CL', annualAllowance: 10, maxConsecutiveDays: 3, isPaid: true, carryForward: true, requiresDocument: false, status: 'Active' },
-      { id: 'LT-002', name: 'Sick Leave', code: 'SL', annualAllowance: 10, maxConsecutiveDays: 5, isPaid: true, carryForward: true, requiresDocument: true, status: 'Active' },
-      { id: 'LT-003', name: 'Paid / Earned Leave', code: 'PL', annualAllowance: 15, maxConsecutiveDays: 10, isPaid: true, carryForward: true, requiresDocument: false, status: 'Active' },
-      { id: 'LT-004', name: 'On Duty Leave', code: 'OD', annualAllowance: 12, maxConsecutiveDays: 4, isPaid: true, carryForward: false, requiresDocument: false, status: 'Active' },
-      { id: 'LT-005', name: 'Maternity / Paternity Leave', code: 'ML', annualAllowance: 90, maxConsecutiveDays: 90, isPaid: true, carryForward: false, requiresDocument: true, status: 'Active' },
-      { id: 'LT-006', name: 'Loss of Pay (Unpaid)', code: 'LOP', annualAllowance: 30, maxConsecutiveDays: 30, isPaid: false, carryForward: false, requiresDocument: false, status: 'Active' }
+      { id: 'LT-001', name: 'Casual Leave', code: 'CL', annualAllowance: 10, maxConsecutiveDays: 3, isPaid: true, carryForward: true, requiresAttachment: false, status: 'Active' },
+      { id: 'LT-002', name: 'Sick Leave', code: 'SL', annualAllowance: 10, maxConsecutiveDays: 5, isPaid: true, carryForward: true, requiresAttachment: true, status: 'Active' },
+      { id: 'LT-003', name: 'Paid / Earned Leave', code: 'PL', annualAllowance: 15, maxConsecutiveDays: 10, isPaid: true, carryForward: true, requiresAttachment: false, status: 'Active' },
+      { id: 'LT-004', name: 'On Duty Leave', code: 'OD', annualAllowance: 12, maxConsecutiveDays: 4, isPaid: true, carryForward: false, requiresAttachment: false, status: 'Active' },
+      { id: 'LT-005', name: 'Maternity / Paternity Leave', code: 'ML', annualAllowance: 90, maxConsecutiveDays: 90, isPaid: true, carryForward: false, requiresAttachment: true, status: 'Active' },
+      { id: 'LT-006', name: 'Loss of Pay (Unpaid)', code: 'LOP', annualAllowance: 30, maxConsecutiveDays: 30, isPaid: false, carryForward: false, requiresAttachment: false, status: 'Active' }
     ];
   });
   const [leaveApplications, setLeaveApplications] = useState<
@@ -2727,13 +2740,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!s || !s.id) return false;
       if (s.createdAt) return true;
       if (!defaultMockIds.has(s.id)) return true;
-      const num = parseInt(s.id.replace(/\D/g, ''), 10) || 0;
+      const num = parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 0;
       return num > 20;
     };
     const userCreated = (stored || []).filter(isUserItem).sort((a: any, b: any) => {
       if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      const numA = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
+      const numA = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
       return numB - numA;
     });
     const defaultMock = (stored || []).filter((s: any) => !isUserItem(s));
@@ -4272,44 +4285,53 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   }, [coScholasticAssessments]);
 
   const fetchAcademicClasses = async () => {
-    try {
-      const data = await fetchClassesApi();
-      if (data) {
-        // Handle array response or object wrapper response
-        const classList = Array.isArray(data)
-          ? data
-          : data.success && Array.isArray(data.data)
-            ? data.data
-            : null;
-        if (classList) {
-          const storedLocal = localStorage.getItem("edu_db_academic_classes");
-          const localClasses: AcademicClass[] = storedLocal
-            ? JSON.parse(storedLocal)
-            : [];
-
-          const mapped: AcademicClass[] = classList.map((c: any) => {
-            const classIdStr = c.classId?.toString() || c.id?.toString();
-            const localCls = localClasses.find((lc) => lc.id === classIdStr);
-
-            return {
-              id: classIdStr,
-              name: c.className || c.name,
-              sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-              sectionTeachers:
-                localCls?.sectionTeachers || c.sectionTeachers || {},
-              teacher: localCls?.teacher || c.teacher || "Unassigned",
-              subjects: Array.isArray(c.curriculumSubjects) ? c.curriculumSubjects.map((cs: any) => cs.subjectName || cs.name || "") : (c.subjects || []),
-              weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
-              sectionDetails:
-                localCls?.sectionDetails || c.sectionDetails || {},
-            };
-          });
-          setAcademicClasses(mapped);
-        }
-      }
-    } catch (err: any) {
-      console.warn("Error fetching classes", err);
+    if (activeRequests.current['classes']) {
+      return activeRequests.current['classes'];
     }
+    const promise = (async () => {
+      try {
+        const data = await fetchClassesApi();
+        if (data) {
+          // Handle array response or object wrapper response
+          const classList = Array.isArray(data)
+            ? data
+            : data.success && Array.isArray(data.data)
+              ? data.data
+              : null;
+          if (classList) {
+            const storedLocal = localStorage.getItem("edu_db_academic_classes");
+            const localClasses: AcademicClass[] = storedLocal
+              ? JSON.parse(storedLocal)
+              : [];
+
+            const mapped: AcademicClass[] = classList.map((c: any) => {
+              const classIdStr = c.classId?.toString() || c.id?.toString();
+              const localCls = localClasses.find((lc) => lc.id === classIdStr);
+
+              return {
+                id: classIdStr,
+                name: c.className || c.name,
+                sections: c.sections?.map((s: any) => s.sectionName || s) || [],
+                sectionTeachers:
+                  localCls?.sectionTeachers || c.sectionTeachers || {},
+                teacher: localCls?.teacher || c.teacher || "Unassigned",
+                subjects: Array.isArray(c.curriculumSubjects) ? c.curriculumSubjects.map((cs: any) => cs.subjectName || cs.name || "") : (c.subjects || []),
+                weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
+                sectionDetails:
+                  localCls?.sectionDetails || c.sectionDetails || {},
+              };
+            });
+            setAcademicClasses(mapped);
+          }
+        }
+      } catch (err: any) {
+        console.warn("Error fetching classes", err);
+      } finally {
+        delete activeRequests.current['classes'];
+      }
+    })();
+    activeRequests.current['classes'] = promise;
+    return promise;
   };
 
   const fetchSubjects = async () => {
@@ -4535,65 +4557,74 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const fetchStaff = async () => {
-    try {
-      const response = await fetchStaffApi();
-      if (response && response.success && response.data) {
-        console.log("DEBUG: fetchStaff response data:", response.data);
-        const mappedStaff: Staff[] = response.data.map((item: any) => {
-          const cat = (item.employeeCategory || "").toLowerCase();
-          const isTeaching =
-            (cat.includes("teaching") && !cat.includes("non-teaching")) ||
-            cat.includes("teacher") ||
-            cat.includes("faculty") ||
-            cat.includes("professor");
-          
-          const itemId = (item.staffId !== undefined && item.staffId !== null ? item.staffId : (item.id !== undefined && item.id !== null ? item.id : "")).toString();
-          const itemEmpId = item.employeeId || item.empId || "";
-
-          // Look up in current staff state to preserve local workload data
-          const existing = staff.find(s => s.id === itemId || s.empId === itemEmpId);
-
-          return {
-            id: itemId,
-            empId: itemEmpId,
-            employeeCategory: isTeaching ? "Teacher" : "Staff",
-            firstName: item.firstName,
-            middleName: item.middleName || "",
-            lastName: item.lastName,
-            email: item.email || "",
-            phone: item.phone || "",
-            gender: item.gender || "Male",
-            dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
-            bloodGroup: item.bloodGroup || "",
-            aadhaarNumber: item.aadhaarNumber || "",
-            panNumber: item.panNumber || "",
-            joiningDate: item.joiningDate ? item.joiningDate.split("T")[0] : "",
-            qualification: item.qualification || "",
-            experienceYears: item.experienceRecords ? item.experienceRecords.reduce((total: number, rec: any) => total + (rec.yearsOfExperience || 0), 0) : 0,
-            salary: item.monthlySalary || 0,
-            designation: item.designation || "",
-            department: item.department || "",
-            role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
-            profileStatus: "Completed",
-            status: item.isActive ? "Active" : "Inactive",
-            assignedClasses: existing?.assignedClasses || [],
-            assignedSubjects: existing?.assignedSubjects || [],
-            isClassTeacherEligible: existing?.isClassTeacherEligible || false,
-            bankDetails: {
-              accountHolderName: item.accountHolderName || "",
-              accountNumber: item.accountNumber || "",
-              bankName: item.bankName || "",
-              branch: item.branchName || "",
-              ifscCode: item.ifscCode || "",
-              upiId: item.upiId || "",
-            },
-          };
-        });
-        setStaff(mappedStaff);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch staff from API", err);
+    if (activeRequests.current['staff']) {
+      return activeRequests.current['staff'];
     }
+    const promise = (async () => {
+      try {
+        const response = await fetchStaffApi();
+        if (response && response.success && response.data) {
+          console.log("DEBUG: fetchStaff response data:", response.data);
+          const mappedStaff: Staff[] = response.data.map((item: any) => {
+            const cat = (item.employeeCategory || "").toLowerCase();
+            const isTeaching =
+              (cat.includes("teaching") && !cat.includes("non-teaching")) ||
+              cat.includes("teacher") ||
+              cat.includes("faculty") ||
+              cat.includes("professor");
+            
+            const itemId = (item.staffId !== undefined && item.staffId !== null ? item.staffId : (item.id !== undefined && item.id !== null ? item.id : "")).toString();
+            const itemEmpId = item.employeeId || item.empId || "";
+
+            // Look up in current staff state to preserve local workload data
+            const existing = staff.find(s => s.id === itemId || s.empId === itemEmpId);
+
+            return {
+              id: itemId,
+              empId: itemEmpId,
+              employeeCategory: isTeaching ? "Teacher" : "Staff",
+              firstName: item.firstName,
+              middleName: item.middleName || "",
+              lastName: item.lastName,
+              email: item.email || "",
+              phone: item.phone || "",
+              gender: item.gender || "Male",
+              dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
+              bloodGroup: item.bloodGroup || "",
+              aadhaarNumber: item.aadhaarNumber || "",
+              panNumber: item.panNumber || "",
+              joiningDate: item.joiningDate ? item.joiningDate.split("T")[0] : "",
+              qualification: item.qualification || "",
+              experienceYears: item.experienceRecords ? item.experienceRecords.reduce((total: number, rec: any) => total + (rec.yearsOfExperience || 0), 0) : 0,
+              salary: item.monthlySalary || 0,
+              designation: item.designation || "",
+              department: item.department || "",
+              role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
+              profileStatus: "Completed",
+              status: item.isActive ? "Active" : "Inactive",
+              assignedClasses: existing?.assignedClasses || [],
+              assignedSubjects: existing?.assignedSubjects || [],
+              isClassTeacherEligible: existing?.isClassTeacherEligible || false,
+              bankDetails: {
+                accountHolderName: item.accountHolderName || "",
+                accountNumber: item.accountNumber || "",
+                bankName: item.bankName || "",
+                branch: item.branchName || "",
+                ifscCode: item.ifscCode || "",
+                upiId: item.upiId || "",
+              },
+            };
+          });
+          setStaff(mappedStaff);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch staff from API", err);
+      } finally {
+        delete activeRequests.current['staff'];
+      }
+    })();
+    activeRequests.current['staff'] = promise;
+    return promise;
   };
 
   // =========================================================
@@ -4601,58 +4632,67 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   // =========================================================
 
   const fetchStudents = async () => {
-    try {
-      const response: any = await fetchStudentsApi();
-      const items = Array.isArray(response)
-        ? response
-        : response?.items || response?.data?.items || response?.data || [];
-      const totalRecs =
-        response?.totalRecords ??
-        response?.TotalRecords ??
-        response?.data?.totalRecords ??
-        response?.data?.TotalRecords ??
-        items.length;
-      setTotalStudentCount(totalRecs);
-      if (Array.isArray(items)) {
-        const mapped = items.map((s: any) => {
-          const nameParts = (s.studentName || s.name || "").trim().split(/\s+/);
-          const firstName = s.firstName || nameParts[0] || "";
-          const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
-          return {
-            id: s.studentId?.toString() || s.id?.toString() || "",
-            admissionNo: s.admissionNumber || s.admissionNo || "",
-            registrationNumber:
-              s.registrationNumber || s.admissionNumber || s.admissionNo || "",
-            firstName,
-            middleName: s.middleName || "",
-            lastName,
-            email: s.email || "",
-            phone: s.phone || s.mobileNumber || s.contactNumber || "",
-            gender: s.gender || "Male",
-            dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
-            className: s.className || s.class || "",
-            section: s.sectionName || s.section || "",
-            academicYear: s.academicYearName || s.academicYear || "",
-            branch: s.branchName || s.branch || "Main Campus",
-            status: s.status || "Active",
-            studentType: s.studentType || "Day Scholar",
-            parentName: s.parentName || s.fatherName || "",
-            parentPhone: s.parentPhone || s.fatherContact || "",
-            address: s.address || "",
-            promotionHistory: [],
-            rollNo: s.rollNumber || s.rollNo || "",
-            bloodGroup: s.bloodGroup || "O+",
-            category: s.category || "General",
-            avatar: s.avatar || "",
-            joiningDate:
-              s.joiningDate || new Date().toISOString().split("T")[0],
-          } as unknown as Student;
-        });
-        setStudents(mapped);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch students from API", err);
+    if (activeRequests.current['students']) {
+      return activeRequests.current['students'];
     }
+    const promise = (async () => {
+      try {
+        const response: any = await fetchStudentsApi();
+        const items = Array.isArray(response)
+          ? response
+          : response?.items || response?.data?.items || response?.data || [];
+        const totalRecs =
+          response?.totalRecords ??
+          response?.TotalRecords ??
+          response?.data?.totalRecords ??
+          response?.data?.TotalRecords ??
+          items.length;
+        setTotalStudentCount(totalRecs);
+        if (Array.isArray(items)) {
+          const mapped = items.map((s: any) => {
+            const nameParts = (s.studentName || s.name || "").trim().split(/\s+/);
+            const firstName = s.firstName || nameParts[0] || "";
+            const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
+            return {
+              id: s.studentId?.toString() || s.id?.toString() || "",
+              admissionNo: s.admissionNumber || s.admissionNo || "",
+              registrationNumber:
+                s.registrationNumber || s.admissionNumber || s.admissionNo || "",
+              firstName,
+              middleName: s.middleName || "",
+              lastName,
+              email: s.email || "",
+              phone: s.phone || s.mobileNumber || s.contactNumber || "",
+              gender: s.gender || "Male",
+              dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
+              className: s.className || s.class || "",
+              section: s.sectionName || s.section || "",
+              academicYear: s.academicYearName || s.academicYear || "",
+              branch: s.branchName || s.branch || "Main Campus",
+              status: s.status || "Active",
+              studentType: s.studentType || "Day Scholar",
+              parentName: s.parentName || s.fatherName || "",
+              parentPhone: s.parentPhone || s.fatherContact || "",
+              address: s.address || "",
+              promotionHistory: [],
+              rollNo: s.rollNumber || s.rollNo || "",
+              bloodGroup: s.bloodGroup || "O+",
+              category: s.category || "General",
+              avatar: s.avatar || "",
+              joiningDate:
+                s.joiningDate || new Date().toISOString().split("T")[0],
+            } as unknown as Student;
+          });
+          setStudents(mapped);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch students from API", err);
+      } finally {
+        delete activeRequests.current['students'];
+      }
+    })();
+    activeRequests.current['students'] = promise;
+    return promise;
   };
 
   const fetchBooks = async () => {
@@ -5053,28 +5093,21 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const userRole = role?.toLowerCase() || '';
       const isParentOrStudent = userRole === 'parent' || userRole === 'student';
 
-      // Always fetch events, holidays, announcements, meetings, and homework as these are relevant to parents/students
+      // Always fetch events, holidays, announcements, and meetings as these are relevant to parents/students
       fetchSchoolEventsData();
       fetchHolidaysData();
       fetchAnnouncementsData();
       fetchMeetingsData();
-      fetchHomeworkData();
       
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
 
       if (!isParentOrStudent) {
-        fetchFinanceData();
         fetchAcademicClasses();
         fetchSubjects();
         fetchPeriods();
         fetchDepartments();
         fetchDesignations();
-        fetchBooks();
-        fetchBookIssues();
-        fetchInventoryData();
-        fetchUniformData();
-        fetchFacultyTrainingData();
       }
     }
     const allowedAdmissionsRoles = [
@@ -5085,13 +5118,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     ];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
-      fetchStaff().then(() => {
-        fetchLeaveTypes();
-        fetchLeaveApplications();
-        fetchLeaveBalances();
-        fetchSalaryStructures();
-        fetchSalaryAssignments();
-      });
+      fetchStaff();
     }
   }, [isAuthenticated, role]);
 
@@ -12322,21 +12349,30 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   );
 
   const fetchTodayStudentAttendanceSummary = useCallback(async () => {
-    try {
-      const todayStr = new Date().toLocaleDateString("en-CA");
-      const response = await fetchStudentAttendanceRegisterApi({
-        filterType: "day",
-        date: todayStr
-      }).catch((e) => {
-        console.warn("Student attendance API offline/unavailable, using local summary fallback.");
-        return null;
-      });
-      if (response && response.success && response.data && response.data.summary) {
-        setTodayStudentAttendanceSummary(response.data.summary);
-      }
-    } catch (err) {
-      // Suppress unhandled rejection
+    if (activeRequests.current['today-attendance-summary']) {
+      return activeRequests.current['today-attendance-summary'];
     }
+    const promise = (async () => {
+      try {
+        const todayStr = new Date().toLocaleDateString("en-CA");
+        const response = await fetchStudentAttendanceRegisterApi({
+          filterType: "day",
+          date: todayStr
+        }).catch((e) => {
+          console.warn("Student attendance API offline/unavailable, using local summary fallback.");
+          return null;
+        });
+        if (response && response.success && response.data && response.data.summary) {
+          setTodayStudentAttendanceSummary(response.data.summary);
+        }
+      } catch (err) {
+        // Suppress unhandled rejection
+      } finally {
+        delete activeRequests.current['today-attendance-summary'];
+      }
+    })();
+    activeRequests.current['today-attendance-summary'] = promise;
+    return promise;
   }, []);
 
   const markAttendance = async (records: DailyAttendance[]) => {
@@ -13788,37 +13824,46 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const fetchLeaveApplications = async () => {
-    try {
-      const response = await fetchLeaveApplicationsApi();
-      if (response && response.success && response.data) {
-        const mapped: LeaveApplication[] = response.data.map((item: any) => ({
-          id: item.leaveApplicationId?.toString() || item.id?.toString() || "",
-          employeeId: item.staffId?.toString() || item.id?.toString() || "",
-          employeeName: item.staffName,
-          empId: item.empId || item.employeeId,
-          department: item.department || "Administration",
-          designation: item.designation || "Staff",
-          branch: item.branch || "Main Campus",
-          employeeCategory:
-            item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
-          leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
-          leaveTypeName: item.leaveTypeName,
-          fromDate: item.fromDate,
-          toDate: item.toDate,
-          isHalfDay: item.isHalfDay,
-          numberOfDays: item.requestedDays,
-          reason: item.reason,
-          attachments: [],
-          status: item.status,
-          appliedDate: item.appliedDate,
-          approverRemarks: item.approverRemarks || "",
-          approvedBy: item.approvedBy || "",
-        }));
-        setLeaveApplications(mapped);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch leave applications from API", err);
+    if (activeRequests.current['leave-applications']) {
+      return activeRequests.current['leave-applications'];
     }
+    const promise = (async () => {
+      try {
+        const response = await fetchLeaveApplicationsApi();
+        if (response && response.success && response.data) {
+          const mapped: LeaveApplication[] = response.data.map((item: any) => ({
+            id: item.leaveApplicationId?.toString() || item.id?.toString() || "",
+            employeeId: item.staffId?.toString() || item.id?.toString() || "",
+            employeeName: item.staffName,
+            empId: item.empId || item.employeeId,
+            department: item.department || "Administration",
+            designation: item.designation || "Staff",
+            branch: item.branch || "Main Campus",
+            employeeCategory:
+              item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
+            leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
+            leaveTypeName: item.leaveTypeName,
+            fromDate: item.fromDate,
+            toDate: item.toDate,
+            isHalfDay: item.isHalfDay,
+            numberOfDays: item.requestedDays,
+            reason: item.reason,
+            attachments: [],
+            status: item.status,
+            appliedDate: item.appliedDate,
+            approverRemarks: item.approverRemarks || "",
+            approvedBy: item.approvedBy || "",
+          }));
+          setLeaveApplications(mapped);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch leave applications from API", err);
+      } finally {
+        delete activeRequests.current['leave-applications'];
+      }
+    })();
+    activeRequests.current['leave-applications'] = promise;
+    return promise;
   };
 
   const fetchLeaveBalances = async () => {
@@ -15346,6 +15391,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         fetchPeriods,
         fetchDepartments,
         fetchDesignations,
+        fetchBooks,
+        fetchBookIssues,
+        fetchHomeworkData,
+        fetchInventoryData,
+        fetchUniformData,
+        fetchFinanceData,
+        fetchFacultyTrainingData,
+        fetchLeaveTypes,
+        fetchLeaveApplications,
+        fetchLeaveBalances,
+        fetchSalaryStructures,
+        fetchSalaryAssignments,
         academicClasses: filteredClasses,
         addAcademicClass,
         updateAcademicClass,
@@ -15578,6 +15635,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         addInventoryItem,
         announcements,
         addAnnouncement,
+        saveAnnouncements: setAnnouncements,
         holidays: filteredHolidays,
         birthdays,
         auditLogs,

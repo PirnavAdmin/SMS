@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FeePayment } from '../../../types';
+import { useData } from '../../../context/DataContext';
 
 import { FinanceDashboardView } from './FinanceDashboardView';
 import { FinanceMastersView } from './FinanceMastersView';
@@ -14,6 +15,14 @@ interface FinanceContainerViewProps {
 }
 
 export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard' }) => {
+  const { fetchFinanceData } = useData();
+
+  useEffect(() => {
+    if (fetchFinanceData) {
+      fetchFinanceData();
+    }
+  }, [fetchFinanceData]);
+
   const normalizedTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
   const [receiptToPrint, setReceiptToPrint] = useState<FeePayment | null>(null);

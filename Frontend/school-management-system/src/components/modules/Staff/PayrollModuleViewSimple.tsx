@@ -607,8 +607,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     cloneSalaryStructure,
     assignEmployeeSalaryStructure,
     disburseSalary,
-    designations
+    designations,
+    fetchSalaryStructures,
+    fetchSalaryAssignments
   } = useData();
+
+  useEffect(() => {
+    if (fetchSalaryStructures) fetchSalaryStructures();
+    if (fetchSalaryAssignments) fetchSalaryAssignments();
+  }, [fetchSalaryStructures, fetchSalaryAssignments]);
+
   const { addToast } = useToast();
 
   const getDesignationOptions = (category: CategoryValue | '') => {

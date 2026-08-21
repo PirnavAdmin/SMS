@@ -14,7 +14,7 @@ interface StudentUniformViewProps {
 }
 
 export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialStatusFilter }) => {
-  const { selectedAcademicYear, selectedCampus } = useAuth();
+  const { selectedAcademicYear, selectedBranch } = useAuth();
   const {
     students,
     uniforms,
@@ -588,7 +588,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         className: 'Class 1',
         section: 'A',
         gender: 'Male',
-        branch: selectedCampus || 'Main Campus'
+        branch: selectedBranch || 'Main Campus'
       } as unknown as Student;
     }
 
@@ -1733,7 +1733,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                       const activeExtraItems = (g.extraItems || []).filter(item => item.status !== 'Returned');
 
-                      const feeStatus = getStudentUniformFeeStatus(g.studentId, g.admissionNo, g.className, g.gender);
+                      const feeStatus = getStudentUniformFeeStatus(g.studentId, g.admissionNo, g.className, studentGender);
                       const isBasePaid = feeStatus.isPaid || feeStatus.isOptedAtAdmission || (g.basePackage && (g.basePackage.status as string) === 'Paid');
 
                       const checkExtraItemPaidRow = (item: StudentUniformIssue) => {
@@ -2387,7 +2387,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       : null;
 
                     const selUniform = uniforms.find(u => u.id === form.itemId);
-                    let targetCat = selUniform ? (selUniform.category || selUniform.name) : '';
+                    let targetCat = selUniform ? (selUniform.category || selUniform.name || '') : '';
                     if (!targetCat && form.itemId?.startsWith('cat_')) {
                       const catObj = (uniformCategories || []).find(c => c.id === form.itemId.replace('cat_', ''));
                       targetCat = catObj ? catObj.name : '';
@@ -2952,7 +2952,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 </div>
 
                 {(() => {
-                  const receiptFeeStatus = receiptStudent ? getStudentUniformFeeStatus(receiptStudent.studentId, receiptStudent.admissionNo, receiptStudent.className, receiptStudent.gender) : null;
+                  const receiptFeeStatus = receiptStudent ? getStudentUniformFeeStatus(receiptStudent.studentId, receiptStudent.admissionNo, receiptStudent.className, receiptStudent.gender || 'Male') : null;
                   const isCounterCollected = receiptFeeStatus?.source === 'Collected at Uniform Counter' || basePackageItems.some(i => i.notes?.toLowerCase().includes('counter') || i.notes?.toLowerCase().includes('mandatory'));
 
                   return (

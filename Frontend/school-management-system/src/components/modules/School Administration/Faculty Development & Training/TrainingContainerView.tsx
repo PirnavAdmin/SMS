@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   GraduationCap, Award, Calendar, BookOpen, CheckCircle2, AlertTriangle,
   Plus, Search, Filter, Download, Printer, UserCheck, Users, FileText,
@@ -18,8 +18,14 @@ export const TrainingContainerView: React.FC = () => {
   const {
     staff, workshops, addWorkshop, updateWorkshop, deleteWorkshop, markWorkshopAttendance, submitWorkshopFeedback,
     employeeAssessments, addAssessment, updateAssessment, deleteAssessment, saveAssessmentResults,
-    issuedCertificates, issueCertificate, reissueCertificate, logActivity
+    issuedCertificates, issueCertificate, reissueCertificate, logActivity, fetchFacultyTrainingData
   } = useData();
+
+  useEffect(() => {
+    if (fetchFacultyTrainingData) {
+      fetchFacultyTrainingData();
+    }
+  }, [fetchFacultyTrainingData]);
 
   const { addToast } = useToast();
   const { role, selectedBranch } = useAuth();
@@ -176,7 +182,7 @@ export const TrainingContainerView: React.FC = () => {
         (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty') ||
         !s.role;
 
-      const matchesRole = wizardStep2.targetEmployeeType === 'Both' || wizardStep2.targetEmployeeType === 'All Staff' ||
+      const matchesRole = (wizardStep2.targetEmployeeType as string) === 'Both' || (wizardStep2.targetEmployeeType as string) === 'All Staff' ||
         (wizardStep2.targetEmployeeType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
       const matchesBranch = wizardStep2.branch === 'All' || wizardStep2.branch === 'Main Campus' || !s.branch || s.branch === 'All Branches' ||
