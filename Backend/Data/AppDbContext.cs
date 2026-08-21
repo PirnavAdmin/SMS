@@ -41,13 +41,6 @@ namespace SMS.Api.Data
         public DbSet<StaffAttendance> StaffAttendances { get; set; } = null!;
         public DbSet<StaffQualification> StaffQualifications { get; set; } = null!;
         public DbSet<StaffExperience> StaffExperiences { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenPersonalRecord> TeacherScreenPersonalRecords { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenAddressRecord> TeacherScreenAddressRecords { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenEducationRecord> TeacherScreenEducationRecords { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenExperienceRecord> TeacherScreenExperienceRecords { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenBankRecord> TeacherScreenBankRecords { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenDocumentRecord> TeacherScreenDocumentRecords { get; set; } = null!;
-        public DbSet<SMS.Api.Models.TeacherScreens.TeacherScreenReviewRecord> TeacherScreenReviewRecords { get; set; } = null!;
         public DbSet<TeacherAttendanceCorrection> TeacherAttendanceCorrections { get; set; } = null!;
         public DbSet<LibraryBook> LibraryBooks { get; set; } = null!;
         public DbSet<LibraryIssueRecord> LibraryIssueRecords { get; set; } = null!;

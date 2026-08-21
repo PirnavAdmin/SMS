@@ -13,7 +13,6 @@ public class User
     public string Role { get; set; } = "Admin";
     public bool IsEmailVerified { get; set; } = false;
     public bool IsMobileVerified { get; set; } = false;
-    public bool IsFirstLogin { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     
     public int? SchoolId { get; set; }

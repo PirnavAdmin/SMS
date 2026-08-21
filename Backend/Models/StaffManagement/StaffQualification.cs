@@ -33,13 +33,4 @@ public class StaffQualification
 
     [MaxLength(20)]
     public string? PercentageCgpa { get; set; }
-
-    [MaxLength(100)]
-    public string? BEd { get; set; }
-
-    [MaxLength(100)]
-    public string? MEd { get; set; }
-
-    [MaxLength(100)]
-    public string? PhD { get; set; }
 }
