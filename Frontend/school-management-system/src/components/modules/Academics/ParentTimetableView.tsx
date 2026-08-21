@@ -75,7 +75,7 @@ export const ParentTimetableView: React.FC = () => {
   };
 
   return (
-    <div id="printable-content" className="space-y-6 animate-in fade-in">
+    <div id="printable-content" className="space-y-6 animate-in fade-in timetable-printable">
       
       {/* Page Header (No Print) */}
       <div className="flex justify-between items-center no-print">

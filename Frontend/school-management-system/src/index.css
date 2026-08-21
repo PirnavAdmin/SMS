@@ -77,6 +77,10 @@
     size: auto;
     margin: 5mm 6mm;
   }
+  @page landscape-layout {
+    size: landscape;
+    margin: 5mm 6mm;
+  }
   body * {
     visibility: hidden;
   }
@@ -132,6 +136,14 @@
   .printable-area th:first-child {
     text-align: center !important;
     width: 60% !important;
+  }
+  #printable-content.timetable-printable th:first-child,
+  .timetable-printable th:first-child {
+    width: 15% !important;
+  }
+  #printable-content.timetable-printable,
+  .timetable-printable {
+    page: landscape-layout !important;
   }
   #printable-content td,
   .printable-area td {

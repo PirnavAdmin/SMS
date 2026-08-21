@@ -234,6 +234,7 @@ import {
   fetchAcademicSubjectsApi,
   fetchAcademicPeriodsApi,
   fetchTimetableForClassSectionApi,
+  mapSubjectApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -4312,9 +4313,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
                 id: classIdStr,
                 name: c.className || c.name,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-                sectionTeachers:
-                  localCls?.sectionTeachers || c.sectionTeachers || {},
-                teacher: localCls?.teacher || c.teacher || "Unassigned",
+                sectionTeachers: c.sectionTeachers || {},
+                teacher: c.teacher || "Unassigned",
                 subjects: Array.isArray(c.curriculumSubjects) ? c.curriculumSubjects.map((cs: any) => cs.subjectName || cs.name || "") : (c.subjects || []),
                 weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
                 sectionDetails:
@@ -4602,9 +4602,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
               profileStatus: "Completed",
               status: item.isActive ? "Active" : "Inactive",
-              assignedClasses: existing?.assignedClasses || [],
-              assignedSubjects: existing?.assignedSubjects || [],
-              isClassTeacherEligible: existing?.isClassTeacherEligible || false,
+              employmentType: item.employmentType || existing?.employmentType || "",
+              assignedClasses: item.assignedClasses || existing?.assignedClasses || [],
+              assignedSubjects: item.assignedSubjects || existing?.assignedSubjects || [],
+              isClassTeacherEligible: item.isClassTeacherEligible !== undefined ? item.isClassTeacherEligible : (existing?.isClassTeacherEligible || false),
               bankDetails: {
                 accountHolderName: item.accountHolderName || "",
                 accountNumber: item.accountNumber || "",
@@ -5437,11 +5438,32 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
   };
 
+  const isTeachingStaff = (s: Staff) => {
+    const category = (s.employeeCategory || "").toLowerCase();
+    const role = (s.role || "").toLowerCase();
+    const designation = (s.designation || "").toLowerCase();
+    return (
+      category.includes("teach") ||
+      category.includes("teacher") ||
+      role.includes("teach") ||
+      role.includes("teacher") ||
+      designation.includes("teach") ||
+      designation.includes("teacher") ||
+      designation.includes("principal") ||
+      designation.includes("vice principal") ||
+      designation.includes("coordinator") ||
+      (s.assignedClasses && s.assignedClasses.length > 0) ||
+      (s.assignedSubjects && s.assignedSubjects.length > 0)
+    );
+  };
+
   // Staff CRUD
   const syncTeacherAssignments = (teacher: Staff) => {
     const classes = teacher.assignedClasses || [];
     const subjects = teacher.assignedSubjects || [];
     const teacherFullName = teacher.name || `${teacher.firstName} ${teacher.lastName}`;
+
+    const norm = (n: string) => n.toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
 
     setTeacherAssignments((prev) => {
       // 1. Filter out assignments for this teacher that are no longer in their workload lists
@@ -5493,6 +5515,38 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
       return next;
     });
+
+    // 3. Auto-map subjects to class curriculum
+    classes.forEach((classSec) => {
+      const parts = classSec.split("-");
+      const className = parts[0]?.trim();
+
+      const classObj = academicClasses.find(c => norm(c.name) === norm(className));
+      if (classObj) {
+        let subjectsUpdated = false;
+        const updatedSubjects = [...(classObj.subjects || [])];
+
+        subjects.forEach((subject) => {
+          if (!updatedSubjects.includes(subject)) {
+            updatedSubjects.push(subject);
+            subjectsUpdated = true;
+
+            mapSubjectApi(classObj.id, { subject_name: subject, weekly_periods: 5 })
+              .catch((err) => {
+                console.error(`Failed to map subject "${subject}" to class "${classObj.name}":`, err);
+              });
+          }
+        });
+
+        if (subjectsUpdated) {
+          setAcademicClasses((prev) => {
+            const next = prev.map((c) => c.id === classObj.id ? { ...c, subjects: updatedSubjects } : c);
+            localStorage.setItem("edu_db_academic_classes", JSON.stringify(next));
+            return next;
+          });
+        }
+      }
+    });
   };
 
   const addStaff = (staffData: Omit<Staff, "id">): Staff => {
@@ -5521,6 +5575,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       systemRole: staffData.role,
       joiningDate: staffData.joiningDate,
       qualification: staffData.qualification || "",
+      employmentType: staffData.employmentType,
       monthlySalary: staffData.salary || 0,
       dateOfBirth: staffData.dob,
       bloodGroup: staffData.bloodGroup,
@@ -5546,7 +5601,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             ),
           );
           // Sync actual ID as well if it changed from generated fake ID
-          if (newStaff.employeeCategory === "Teacher" || newStaff.role === "Teacher") {
+          if (isTeachingStaff(newStaff)) {
             syncTeacherAssignments({ ...newStaff, id: actualId });
           }
         }
@@ -5561,7 +5616,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       `Registered ${newStaff.firstName} ${newStaff.lastName}`,
     );
 
-    if (newStaff.employeeCategory === "Teacher" || newStaff.role === "Teacher") {
+    if (isTeachingStaff(newStaff)) {
       syncTeacherAssignments(newStaff);
     }
 
@@ -5591,6 +5646,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           systemRole: fullStaff.role,
           joiningDate: fullStaff.joiningDate,
           qualification: fullStaff.qualification || "",
+          employmentType: fullStaff.employmentType,
           monthlySalary: fullStaff.salary || 0,
           dateOfBirth: fullStaff.dob,
           bloodGroup: fullStaff.bloodGroup,
@@ -5613,7 +5669,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setStaff((prev) => {
       const nextStaff = prev.map((s) => (s.id === id ? { ...s, ...updates } : s));
       const updated = nextStaff.find((s) => s.id === id);
-      if (updated && (updated.employeeCategory === "Teacher" || updated.role === "Teacher")) {
+      if (updated && isTeachingStaff(updated)) {
         syncTeacherAssignments(updated);
       }
       return nextStaff;
