@@ -129,35 +129,49 @@ export const StudentFeeAssignmentView: React.FC = () => {
       return;
     }
 
-    let proRataFactor = 1.0;
-    if (policy === 'Pro-rata' && admDateStr) {
-      const admMonth = new Date(admDateStr).getMonth() + 1; // 1-12
-      const remainingMonths = Math.max(1, 12 - (admMonth >= 6 ? admMonth - 6 : admMonth + 6));
-      proRataFactor = remainingMonths / 12;
-    } else if (policy === 'Term-wise' && admDateStr) {
-      const admMonth = new Date(admDateStr).getMonth() + 1;
-      proRataFactor = admMonth <= 9 ? 0.67 : 0.33;
-    }
-
     const itemsList: FeeHeadAssignmentBreakdown[] = dfsObj.items.map((item: any) => {
       const orig = item.amount;
-      const hNameLower = item.feeHeadName.toLowerCase();
+      const hNameLower = (item.feeHeadName || '').toLowerCase();
       const categoryLower = (item.category || '').toLowerCase();
-      const isEligible =
-        hNameLower.includes('tuition') ||
-        hNameLower.includes('transport') ||
-        hNameLower.includes('mess') ||
-        hNameLower.includes('monthly') ||
-        categoryLower.includes('tuition') ||
-        categoryLower.includes('transport') ||
-        categoryLower.includes('mess');
+      const freq = item.frequency || item.feePlan || '';
+
+      const isFixedFullAmountHead =
+        freq === 'One Time' ||
+        freq === 'Annual' ||
+        freq === 'One Term' ||
+        freq === 'Single Term' ||
+        hNameLower.includes('admission') ||
+        categoryLower.includes('admission') ||
+        hNameLower.includes('caution') ||
+        categoryLower.includes('caution') ||
+        hNameLower.includes('annual');
 
       let assigned = orig;
-      if (policy === 'Pro-rata' || policy === 'Term-wise') {
-        assigned = isEligible ? Math.round(orig * proRataFactor) : orig;
-      } else if (policy === 'Custom') {
+
+      if (isFixedFullAmountHead || policy === 'Full Annual Fee') {
+        // One Time, Annual, One Term -> Full amount
         assigned = orig;
-      } else {
+      } else if (policy === 'Pro-rata' || (policy as string) === 'Monthly') {
+        // Late Admission = Monthly -> Apply remaining months
+        if (admDateStr) {
+          const admMonth = new Date(admDateStr).getMonth() + 1; // 1-12 (Jan=1, Apr=4, Jun=6)
+          const startMonthIdx = admMonth >= 4 ? admMonth - 4 : admMonth + 8;
+          const remainingMonths = Math.max(1, 12 - startMonthIdx);
+          assigned = Math.round((orig / 12) * remainingMonths);
+        }
+      } else if (policy === 'Term-wise') {
+        // Late Admission = Term-wise -> Apply remaining terms
+        if (admDateStr) {
+          const admMonth = new Date(admDateStr).getMonth() + 1;
+          let remainingTermsRatio = 1.0;
+          if (admMonth >= 4 && admMonth <= 6) remainingTermsRatio = 1.0;
+          else if (admMonth >= 7 && admMonth <= 9) remainingTermsRatio = 0.75;
+          else if (admMonth >= 10 && admMonth <= 12) remainingTermsRatio = 0.50;
+          else remainingTermsRatio = 0.25;
+
+          assigned = Math.round(orig * remainingTermsRatio);
+        }
+      } else if (policy === 'Custom') {
         assigned = orig;
       }
 
@@ -169,11 +183,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
           : item.feeHeadName.includes('Transport')
           ? 'Transport Fee'
           : 'Other Fee',
-        billingType: isEligible ? 'Monthly' : 'One-time',
+        billingType: isFixedFullAmountHead ? 'One-time' : 'Monthly',
         originalAmount: orig,
         assignedAmount: assigned,
         adjustmentAmount: assigned - orig,
-        isEligibleForProRata: isEligible
+        isEligibleForProRata: !isFixedFullAmountHead
       };
     });
 

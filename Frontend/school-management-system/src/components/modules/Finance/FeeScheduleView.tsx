@@ -4,6 +4,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { AcademicYearFeeSchedule, FeeScheduleTerm, MonthlyDueDateConfig, MonthDueDateItem } from '../../../types';
+import { DateInput } from '../../common/DateInput';
 
 export const MONTH_NAMES_ACADEMIC = [
   'April', 'May', 'June', 'July', 'August', 'September',
@@ -422,8 +423,7 @@ export const FeeScheduleView: React.FC = () => {
                   <div className="grid grid-cols-3 gap-2.5">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500">Start Date</label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={term.startDate}
                         onChange={e => handleTermFieldChange(index, 'startDate', e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-900 dark:text-white"
@@ -431,8 +431,7 @@ export const FeeScheduleView: React.FC = () => {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500">End Date</label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={term.endDate}
                         onChange={e => handleTermFieldChange(index, 'endDate', e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-900 dark:text-white"
@@ -440,8 +439,7 @@ export const FeeScheduleView: React.FC = () => {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-brand-600">Due Date</label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={term.dueDate}
                         onChange={e => handleTermFieldChange(index, 'dueDate', e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-brand-200 dark:border-brand-900/60 font-black text-[11px] text-slate-900 dark:text-white"
@@ -497,11 +495,10 @@ export const FeeScheduleView: React.FC = () => {
                   <span className="text-xs font-black text-slate-900 dark:text-white block">{item.monthName}</span>
                   <span className="text-[10px] text-slate-400 font-medium">Month #{index + 1}</span>
                 </div>
-                <input
-                  type="date"
+                <DateInput
                   value={item.dueDate}
                   onChange={e => handleMonthDateChange(index, e.target.value)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
+                  className="w-32 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
                 />
               </div>
             ))}
@@ -519,11 +516,10 @@ export const FeeScheduleView: React.FC = () => {
             </p>
             <div className="flex items-center gap-3 pt-2">
               <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Date:</label>
-              <input
-                type="date"
+              <DateInput
                 value={annualDueDate}
                 onChange={e => setAnnualDueDate(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
+                className="w-36 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
               />
             </div>
           </div>
@@ -537,11 +533,10 @@ export const FeeScheduleView: React.FC = () => {
             </p>
             <div className="flex items-center gap-3 pt-2">
               <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Date:</label>
-              <input
-                type="date"
+              <DateInput
                 value={oneTimeDueDate}
                 onChange={e => setOneTimeDueDate(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
+                className="w-36 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
               />
             </div>
           </div>

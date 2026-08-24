@@ -1,64 +1,96 @@
-import React, { useState } from 'react';
-import { formatCurrency } from '../../../utils/currency';
-import { Layers, Plus, Search, Edit, Trash2, Calculator, CheckCircle } from 'lucide-react';
-import { DynamicFeeStructure, FeeStructureItem } from '../../../types';
-import { useData } from '../../../context/DataContext';
-import { useAuth } from '../../../context/AuthContext';
-import { useToast } from '../../../context/ToastContext';
-import { ExportButton } from '../../common/ExportButton';
-import { ConfirmModal } from '../../common/ConfirmModal';
-import { compareClassesAscending } from '../../../utils/classSorter';
+import React, { useState } from "react";
+import { formatCurrency } from "../../../utils/currency";
+import {
+  Layers,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Calculator,
+  CheckCircle,
+} from "lucide-react";
+import { DynamicFeeStructure, FeeStructureItem } from "../../../types";
+import { useData } from "../../../context/DataContext";
+import { useAuth } from "../../../context/AuthContext";
+import { useToast } from "../../../context/ToastContext";
+import { ExportButton } from "../../common/ExportButton";
+import { ConfirmModal } from "../../common/ConfirmModal";
+import { compareClassesAscending } from "../../../utils/classSorter";
 
 export const FeeStructuresView: React.FC = () => {
-  const { feeHeads, dynamicFeeStructures, addDynamicFeeStructure, updateDynamicFeeStructure, deleteDynamicFeeStructure, academicClasses } = useData();
+  const {
+    feeHeads,
+    dynamicFeeStructures,
+    addDynamicFeeStructure,
+    updateDynamicFeeStructure,
+    deleteDynamicFeeStructure,
+    academicClasses,
+  } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
-  const [query, setQuery] = useState('');
-  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('All');
+  const [query, setQuery] = useState("");
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>("All");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStruct, setEditingStruct] = useState<DynamicFeeStructure | null>(null);
-  const [deletingStruct, setDeletingStruct] = useState<DynamicFeeStructure | null>(null);
+  const [editingStruct, setEditingStruct] =
+    useState<DynamicFeeStructure | null>(null);
+  const [deletingStruct, setDeletingStruct] =
+    useState<DynamicFeeStructure | null>(null);
 
-  const [className, setClassName] = useState('');
+  const [className, setClassName] = useState("");
   const [selectedHeadIds, setSelectedHeadIds] = useState<string[]>([]);
-  const [selectedHeadAmounts, setSelectedHeadAmounts] = useState<Record<string, string>>({});
+  const [selectedHeadAmounts, setSelectedHeadAmounts] = useState<
+    Record<string, string>
+  >({});
   const [isLoadingFeeTypes, setIsLoadingFeeTypes] = useState(false);
 
-  const activeFeeHeads = feeHeads.filter(h => h.status === 'Active');
+  const activeFeeHeads = feeHeads.filter((h) => h.status === "Active");
 
   const totalCalculated = selectedHeadIds.reduce((sum, id) => {
     const val = Number(selectedHeadAmounts[id]) || 0;
     return sum + val;
   }, 0);
 
-  // Sorted & Filtered Fee Structures (Displayed in ascending class order)
+  // Sorted & Filtered Fee Structures (Displayed in ascending class order and filtered by academic year)
   const filteredStructures = dynamicFeeStructures
-    .filter(s => {
-      const matchesQuery = s.className.toLowerCase().includes(query.toLowerCase());
-      const matchesClass = selectedClassFilter === 'All' || s.className === selectedClassFilter;
-      return matchesQuery && matchesClass;
+    .filter((s) => {
+      const matchesYear =
+        !selectedAcademicYear ||
+        !s.academicYear ||
+        s.academicYear === selectedAcademicYear;
+      const matchesQuery = s.className
+        .toLowerCase()
+        .includes(query.toLowerCase());
+      const matchesClass =
+        selectedClassFilter === "All" || s.className === selectedClassFilter;
+      return matchesYear && matchesQuery && matchesClass;
     })
     .sort((a, b) => compareClassesAscending(a.className, b.className));
 
   // Sorted Academic Classes for top-bar Filter
   const sortedClassesForFilter = [...academicClasses].sort((a, b) =>
-    compareClassesAscending(a.name, b.name)
+    compareClassesAscending(a.name, b.name),
   );
 
-  // Filter out classes that already have a fee structure created (unless editing current one) & sort in ascending order
+  // Filter out classes that already have a fee structure created for the current academic year (unless editing current one) & sort in ascending order
   const existingFeeStructClasses = dynamicFeeStructures
-    .filter(s => !editingStruct || s.id !== editingStruct.id)
-    .map(s => s.className);
+    .filter(
+      (s) =>
+        (!editingStruct || s.id !== editingStruct.id) &&
+        (!selectedAcademicYear ||
+          !s.academicYear ||
+          s.academicYear === selectedAcademicYear),
+    )
+    .map((s) => s.className);
 
   const availableClassesForModal = academicClasses
-    .filter(c => !existingFeeStructClasses.includes(c.name))
+    .filter((c) => !existingFeeStructClasses.includes(c.name))
     .sort((a, b) => compareClassesAscending(a.name, b.name));
 
   const handleOpenAdd = () => {
     setEditingStruct(null);
-    setClassName('');
+    setClassName("");
     setSelectedHeadIds([]);
     setSelectedHeadAmounts({});
     setIsLoadingFeeTypes(false);
@@ -70,10 +102,18 @@ export const FeeStructuresView: React.FC = () => {
     setClassName(s.className);
     const ids: string[] = [];
     const amounts: Record<string, string> = {};
-    s.items.forEach(item => {
-      const existsInFeeHeads = feeHeads.some(h => h.id === item.feeHeadId || h.name.toLowerCase() === item.feeHeadName.toLowerCase());
-      if (existsInFeeHeads && item.feeHeadName !== 'Fee Head') {
-        const head = feeHeads.find(h => h.id === item.feeHeadId || h.name.toLowerCase() === item.feeHeadName.toLowerCase());
+    s.items.forEach((item) => {
+      const existsInFeeHeads = feeHeads.some(
+        (h) =>
+          h.id === item.feeHeadId ||
+          h.name.toLowerCase() === item.feeHeadName.toLowerCase(),
+      );
+      if (existsInFeeHeads && item.feeHeadName !== "Fee Head") {
+        const head = feeHeads.find(
+          (h) =>
+            h.id === item.feeHeadId ||
+            h.name.toLowerCase() === item.feeHeadName.toLowerCase(),
+        );
         const realId = head ? head.id : item.feeHeadId;
         ids.push(realId);
         amounts[realId] = String(item.amount);
@@ -104,28 +144,28 @@ export const FeeStructuresView: React.FC = () => {
   const handleToggleHead = (headId: string) => {
     if (selectedHeadIds.includes(headId)) {
       // Unchecked: remove from selection and clear amount
-      setSelectedHeadIds(prev => prev.filter(id => id !== headId));
-      setSelectedHeadAmounts(prev => {
+      setSelectedHeadIds((prev) => prev.filter((id) => id !== headId));
+      setSelectedHeadAmounts((prev) => {
         const copy = { ...prev };
         delete copy[headId];
         return copy;
       });
     } else {
       // Checked: enable input, keep amount field empty ("") until user enters an amount
-      setSelectedHeadIds(prev => [...prev, headId]);
-      setSelectedHeadAmounts(prev => ({
+      setSelectedHeadIds((prev) => [...prev, headId]);
+      setSelectedHeadAmounts((prev) => ({
         ...prev,
-        [headId]: ''
+        [headId]: "",
       }));
     }
   };
 
   const handleAmountChange = (headId: string, valStr: string) => {
     // Only accept numeric inputs (digits and optional single decimal point)
-    if (valStr === '' || /^\d*\.?\d*$/.test(valStr)) {
-      setSelectedHeadAmounts(prev => ({
+    if (valStr === "" || /^\d*\.?\d*$/.test(valStr)) {
+      setSelectedHeadAmounts((prev) => ({
         ...prev,
-        [headId]: valStr
+        [headId]: valStr,
       }));
     }
   };
@@ -133,75 +173,103 @@ export const FeeStructuresView: React.FC = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!className) {
-      addToast('warning', 'Validation Error', 'Please select a Class Grade.');
+      addToast("warning", "Validation Error", "Please select a Class Grade.");
       return;
     }
 
     if (selectedHeadIds.length === 0) {
-      addToast('warning', 'Validation Error', 'Please select at least one applicable master fee type.');
+      addToast(
+        "warning",
+        "Validation Error",
+        "Please select at least one applicable master fee type.",
+      );
       return;
     }
 
     // Validate that every checked fee type has a valid amount > 0
     for (const headId of selectedHeadIds) {
-      const head = feeHeads.find(h => h.id === headId);
-      const headName = head ? head.name : 'Fee Type';
-      const amtStr = (selectedHeadAmounts[headId] || '').trim();
+      const head = feeHeads.find((h) => h.id === headId);
+      const headName = head ? head.name : "Fee Type";
+      const amtStr = (selectedHeadAmounts[headId] || "").trim();
 
-      if (amtStr === '') {
-        addToast('warning', 'Validation Error', `Please enter an amount for ${headName}.`);
+      if (amtStr === "") {
+        addToast(
+          "warning",
+          "Validation Error",
+          `Please enter an amount for ${headName}.`,
+        );
         return;
       }
 
       const amtNum = Number(amtStr);
       if (isNaN(amtNum) || amtNum <= 0) {
-        addToast('warning', 'Validation Error', `Please enter a valid amount greater than 0 for ${headName}.`);
+        addToast(
+          "warning",
+          "Validation Error",
+          `Please enter a valid amount greater than 0 for ${headName}.`,
+        );
         return;
       }
     }
 
     const itemsList: FeeStructureItem[] = selectedHeadIds
-      .map(headId => {
-        const head = feeHeads.find(h => h.id === headId);
+      .map((headId) => {
+        const head = feeHeads.find((h) => h.id === headId);
         if (!head) return null;
         return {
           feeHeadId: headId,
           feeHeadName: head.name,
           category: head.category,
-          amount: Number(selectedHeadAmounts[headId])
+          amount: Number(selectedHeadAmounts[headId]),
         };
       })
       .filter(Boolean) as FeeStructureItem[];
 
-    const payload: Omit<DynamicFeeStructure, 'id'> = {
-      academicYear: editingStruct ? editingStruct.academicYear : (selectedAcademicYear || '2026-2027'),
-      branch: editingStruct ? editingStruct.branch : (selectedBranch || 'Main Campus'),
+    const payload: Omit<DynamicFeeStructure, "id"> = {
+      academicYear: editingStruct
+        ? editingStruct.academicYear
+        : selectedAcademicYear || "2026-2027",
+      branch: editingStruct
+        ? editingStruct.branch
+        : selectedBranch || "Main Campus",
       className,
-      section: 'A',
-      studentCategory: 'General',
+      section: "A",
+      studentCategory: "General",
       items: itemsList,
       totalAmount: totalCalculated,
-      status: 'Active'
+      status: "Active",
     };
 
     if (editingStruct) {
       updateDynamicFeeStructure(editingStruct.id, payload);
-      addToast('success', 'Fee Structure Updated', `Updated structure for ${className}`);
+      addToast(
+        "success",
+        "Fee Structure Updated",
+        `Updated structure for ${className}`,
+      );
     } else {
       addDynamicFeeStructure(payload);
-      addToast('success', 'Fee Structure Configured', `Configured structure for ${className}`);
+      addToast(
+        "success",
+        "Fee Structure Configured",
+        `Configured structure for ${className}`,
+      );
     }
     setIsModalOpen(false);
   };
 
   // Filter applicable fee heads for selected class grade
-  const applicableFeeHeads = activeFeeHeads.filter(h => {
+  const applicableFeeHeads = activeFeeHeads.filter((h) => {
     if (!className) return false;
     if (!h.applicableClasses || h.applicableClasses.length === 0) return true;
-    return h.applicableClasses.includes(className) || h.applicableClasses.includes('All');
+    return (
+      h.applicableClasses.includes(className) ||
+      h.applicableClasses.includes("All")
+    );
   });
 
-  const displayFeeHeads = applicableFeeHeads.length > 0 ? applicableFeeHeads : activeFeeHeads;
+  const displayFeeHeads =
+    applicableFeeHeads.length > 0 ? applicableFeeHeads : activeFeeHeads;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -232,18 +300,22 @@ export const FeeStructuresView: React.FC = () => {
             type="text"
             placeholder="Search class or category..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
 
         <select
           value={selectedClassFilter}
-          onChange={e => setSelectedClassFilter(e.target.value)}
+          onChange={(e) => setSelectedClassFilter(e.target.value)}
           className="w-full sm:w-48 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
         >
           <option value="All">All Class Grades</option>
-          {sortedClassesForFilter.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          {sortedClassesForFilter.map((c) => (
+            <option key={c.id} value={c.name}>
+              {c.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -254,9 +326,12 @@ export const FeeStructuresView: React.FC = () => {
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">No Fee Structures Found</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">
+              No Fee Structures Found
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              No fee structures configured for the selected search filters. Click below to create a new class fee structure.
+              No fee structures configured for the selected search filters.
+              Click below to create a new class fee structure.
             </p>
           </div>
           <button
@@ -268,7 +343,7 @@ export const FeeStructuresView: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredStructures.map(s => (
+          {filteredStructures.map((s) => (
             <div key={s.id} className="glass-card p-5 rounded-2xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                 <div>
@@ -278,37 +353,72 @@ export const FeeStructuresView: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 text-sky-600 cursor-pointer" title="Edit"><Edit className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => setDeletingStruct(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600 cursor-pointer" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button
+                    onClick={() => handleOpenEdit(s)}
+                    className="p-1 rounded hover:bg-slate-100 text-sky-600 cursor-pointer"
+                    title="Edit"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeletingStruct(s)}
+                    className="p-1 rounded hover:bg-rose-50 text-rose-600 cursor-pointer"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
 
               <div className="space-y-1.5 text-xs">
-                {s.items.map(item => {
-                  const head = feeHeads.find(h => h.id === item.feeHeadId || h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim());
-                  const isMandatory = head && head.mandatory !== undefined ? head.mandatory : (
-                    item.feeHeadName.toLowerCase().includes("tuition") ||
-                    item.feeHeadName.toLowerCase().includes("admission") ||
-                    item.feeHeadName.toLowerCase().includes("book") ||
-                    item.feeHeadName.toLowerCase().includes("exam")
+                {s.items.map((item) => {
+                  const head = feeHeads.find(
+                    (h) =>
+                      h.id === item.feeHeadId ||
+                      h.name.toLowerCase().trim() ===
+                        item.feeHeadName.toLowerCase().trim(),
                   );
+                  const isMandatory =
+                    head && head.mandatory !== undefined
+                      ? head.mandatory
+                      : item.feeHeadName.toLowerCase().includes("tuition") ||
+                        item.feeHeadName.toLowerCase().includes("admission") ||
+                        item.feeHeadName.toLowerCase().includes("book") ||
+                        item.feeHeadName.toLowerCase().includes("exam");
                   const freq = head ? head.frequency : "Quarterly";
-                  const displayName = (item.feeHeadName || '').toLowerCase().includes('uniform') || (item.feeHeadName || '').toLowerCase().includes('package')
-                    ? 'Uniform & Accessories'
-                    : item.feeHeadName;
+                  const displayName =
+                    (item.feeHeadName || "")
+                      .toLowerCase()
+                      .includes("uniform") ||
+                    (item.feeHeadName || "").toLowerCase().includes("package")
+                      ? "Uniform & Accessories"
+                      : item.feeHeadName;
 
                   return (
-                    <div key={item.feeHeadId} className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-0.5">
+                    <div
+                      key={item.feeHeadId}
+                      className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-0.5"
+                    >
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-white">{displayName}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
-                          isMandatory ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
-                        }`}>
-                          {isMandatory ? 'Mandatory' : 'Optional'}
+                        <span className="font-semibold text-slate-900 dark:text-white">
+                          {displayName}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-medium">({freq})</span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
+                            isMandatory
+                              ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                              : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                          }`}
+                        >
+                          {isMandatory ? "Mandatory" : "Optional"}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          ({freq})
+                        </span>
                       </div>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white">{formatCurrency(item.amount)}</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   );
                 })}
@@ -316,7 +426,9 @@ export const FeeStructuresView: React.FC = () => {
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
                 <span>Total Standard Base Fee:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(s.totalAmount)}</span>
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(s.totalAmount)}
+                </span>
               </div>
             </div>
           ))}
@@ -329,26 +441,42 @@ export const FeeStructuresView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingStruct ? 'Edit Dynamic Fee Structure' : 'Configure Dynamic Fee Structure'}
+                {editingStruct
+                  ? "Edit Dynamic Fee Structure"
+                  : "Configure Dynamic Fee Structure"}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-4 text-xs overflow-y-auto pr-1 flex-1"
+            >
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class Grade *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Class Grade *
+                </label>
                 <select
                   value={className}
-                  onChange={e => handleClassChange(e.target.value)}
+                  onChange={(e) => handleClassChange(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
                 >
                   <option value="">Select Class</option>
-                  {availableClassesForModal.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {availableClassesForModal.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               {/* Dynamic Fee Heads Selection — Displayed ONLY after class grade is selected */}
-              {className !== '' && (
+              {className !== "" && (
                 <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-3">
                   <h4 className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px]">
                     SELECT APPLICABLE MASTER FEE TYPES
@@ -357,21 +485,23 @@ export const FeeStructuresView: React.FC = () => {
                   {isLoadingFeeTypes ? (
                     <div className="p-6 text-center text-slate-400 space-y-2">
                       <div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-medium italic">Loading applicable fee types...</p>
+                      <p className="text-xs font-medium italic">
+                        Loading applicable fee types...
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      {displayFeeHeads.map(head => {
+                      {displayFeeHeads.map((head) => {
                         const isChecked = selectedHeadIds.includes(head.id);
-                        const amountVal = selectedHeadAmounts[head.id] ?? '';
+                        const amountVal = selectedHeadAmounts[head.id] ?? "";
 
                         return (
                           <div
                             key={head.id}
                             className={`flex items-center justify-between p-3 rounded-2xl transition-all border ${
                               isChecked
-                                ? 'bg-sky-50/50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-850'
-                                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800'
+                                ? "bg-sky-50/50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-850"
+                                : "bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800"
                             }`}
                           >
                             <label className="flex items-center gap-3 cursor-pointer flex-1 select-none">
@@ -382,9 +512,29 @@ export const FeeStructuresView: React.FC = () => {
                                 className="w-4 h-4 rounded text-sky-600 border-slate-300 dark:border-slate-700 bg-white focus:ring-sky-500 cursor-pointer"
                               />
                               <div>
-                                <p className="font-bold text-slate-900 dark:text-white text-xs">
-                                  {(head.name || '').toLowerCase().includes('uniform') || (head.name || '').toLowerCase().includes('package') ? 'Uniform & Accessories' : head.name}
-                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-900 dark:text-white text-xs">
+                                    {(head.name || "")
+                                      .toLowerCase()
+                                      .includes("uniform") ||
+                                    (head.name || "")
+                                      .toLowerCase()
+                                      .includes("package")
+                                      ? "Uniform & Accessories"
+                                      : head.name}
+                                  </p>
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider ${
+                                      head.mandatory !== false
+                                        ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                        : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                                    }`}
+                                  >
+                                    {head.mandatory !== false
+                                      ? "Mandatory"
+                                      : "Optional"}
+                                  </span>
+                                </div>
                                 <p className="text-[10px] text-slate-400 font-medium">
                                   {head.category} • {head.frequency}
                                 </p>
@@ -392,17 +542,23 @@ export const FeeStructuresView: React.FC = () => {
                             </label>
 
                             <div className="flex items-center gap-1.5 ml-2">
-                              <span className={`font-bold text-xs ${isChecked ? 'text-slate-600 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>₹</span>
+                              <span
+                                className={`font-bold text-xs ${isChecked ? "text-slate-600 dark:text-slate-300" : "text-slate-300 dark:text-slate-600"}`}
+                              >
+                                ₹
+                              </span>
                               <input
                                 type="text"
                                 disabled={!isChecked}
-                                value={isChecked ? amountVal : ''}
+                                value={isChecked ? amountVal : ""}
                                 placeholder=""
-                                onChange={e => handleAmountChange(head.id, e.target.value)}
+                                onChange={(e) =>
+                                  handleAmountChange(head.id, e.target.value)
+                                }
                                 className={`w-28 px-3 py-1.5 rounded-xl border text-right font-mono font-bold text-xs outline-none transition-all ${
                                   isChecked
-                                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 focus:ring-2 focus:ring-sky-500/20'
-                                    : 'bg-slate-100 dark:bg-slate-800/20 border-slate-200/50 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                                    ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 focus:ring-2 focus:ring-sky-500/20"
+                                    : "bg-slate-100 dark:bg-slate-800/20 border-slate-200/50 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed"
                                 }`}
                               />
                             </div>
@@ -415,7 +571,8 @@ export const FeeStructuresView: React.FC = () => {
                   {/* Total Auto-Calculated Fee Box */}
                   <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between mt-3">
                     <span className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                      <Calculator className="w-4 h-4" /> Total Auto-Calculated Fee:
+                      <Calculator className="w-4 h-4" /> Total Auto-Calculated
+                      Fee:
                     </span>
                     <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 font-mono">
                       {formatCurrency(totalCalculated)}
@@ -451,7 +608,7 @@ export const FeeStructuresView: React.FC = () => {
         onConfirm={() => {
           if (deletingStruct) {
             deleteDynamicFeeStructure(deletingStruct.id);
-            addToast('success', 'Fee Structure Removed');
+            addToast("success", "Fee Structure Removed");
             setDeletingStruct(null);
           }
         }}

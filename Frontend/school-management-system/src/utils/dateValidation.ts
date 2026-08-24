@@ -39,8 +39,19 @@ export function validateDOB(dateStr: string): { isValid: boolean; error?: string
     return { isValid: false, error: 'Invalid month. Month must be between 01 and 12.' };
   }
 
-  if (year < 1900 || year > new Date().getFullYear()) {
-    return { isValid: false, error: `Year must be between 1900 and ${new Date().getFullYear()}.` };
+  // Check for past date restriction (cannot be today or future dates)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const selectedDate = new Date(year, month - 1, day);
+  selectedDate.setHours(0, 0, 0, 0);
+
+  if (selectedDate >= today) {
+    return { isValid: false, error: 'Date of birth must be a past date (today or future dates are not allowed).' };
+  }
+
+  if (year < 1900) {
+    return { isValid: false, error: 'Year must be 1900 or later.' };
   }
 
   // Days in each month

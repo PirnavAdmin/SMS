@@ -2627,6 +2627,17 @@ export interface CertificateSignatory {
   signatureUrl?: string;
 }
 
+export interface CertificateFieldConfig {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'date' | 'number' | 'dropdown' | 'radio' | 'checkbox';
+  required?: boolean;
+  displayOrder?: number;
+  placeholder?: string;
+  defaultValue?: any;
+  options?: string[];
+}
+
 export interface CertificateTypeConfig {
   id: string;
   name: string;
@@ -2635,6 +2646,7 @@ export interface CertificateTypeConfig {
   status: 'Active' | 'Inactive';
   displayOrder: number;
   requiredFields: string[];
+  fields?: CertificateFieldConfig[];
   numberingPrefix: string;
   numberingStart: number;
   numberingLength: number;
