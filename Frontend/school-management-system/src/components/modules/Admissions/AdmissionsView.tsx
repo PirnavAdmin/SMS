@@ -310,8 +310,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     [],
   );
   const [dynamicHostelRooms, setDynamicHostelRooms] = useState<HostelRoom[]>(
-[],
-  );  // Bulk Upload Modal State
+    [],
+  );
+  const [dynamicRoomTypes, setDynamicRoomTypes] = useState<RoomType[]>([]);
+  const [dynamicAllocations, setDynamicAllocations] = useState<BedAllocation[]>([]);
+  const [loadingHostels, setLoadingHostels] = useState(false);  // Bulk Upload Modal State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1771,6 +1774,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const currentSchedule = (academicYearFeeSchedules || []).find(
       (s) => s.academicYear === (selectedAcademicYear || "2026-2027"),
     );
+
+    const gnd = formData.gender || "Unisex";
+    const matchingConfig = (financeUniformConfigs || []).find(
+      (c) =>
+        c.className === clsName &&
+        c.status === "Active" &&
+        (gnd.toLowerCase().includes("female")
+          ? c.gender === "Female"
+          : gnd.toLowerCase().includes("male")
+            ? c.gender === "Male"
+            : c.gender === "Unisex" || !c.gender),
+    ) || (financeUniformConfigs || []).find(
+      (c) => c.className === clsName && c.status === "Active"
+    );
+    const uniFeeAmount = matchingConfig ? Number(matchingConfig.feeAmount) || 0 : 0;
 
     const feeInputs: FeeItemInput[] = baseItems.map((i) => {
       const isMandatory = isItemMandatory(i);
