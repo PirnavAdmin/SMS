@@ -5,6 +5,7 @@ import {
   ChevronRight,
   FileText,
   GraduationCap,
+  Home,
   LogOut,
   MapPin,
   Plus,
@@ -67,12 +68,13 @@ interface ProfileFormState {
     gender: '' | 'Male' | 'Female' | 'Other';
     dob: string;
     bloodGroup: string;
+    mobile: string;
+    alternateMobile: string;
     nationality: string;
     religion: string;
     maritalStatus: string;
     fatherName: string;
     motherName: string;
-    alternateMobile: string;
   };
   address: {
     currentAddress: string;
@@ -221,12 +223,13 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       gender: staff?.gender || '',
       dob: staff?.dob || '',
       bloodGroup: staff?.bloodGroup ? String(staff.bloodGroup) : '',
+      mobile: staff?.phone || staff?.mobile || '',
+      alternateMobile: staff?.alternateMobile || '',
       nationality: staff?.nationality || '',
       religion: staff?.religion || '',
       maritalStatus: staff?.maritalStatus || '',
       fatherName: staff?.fatherName || '',
-      motherName: staff?.motherName || '',
-      alternateMobile: staff?.alternateMobile || ''
+      motherName: staff?.motherName || ''
     },
     address: {
       currentAddress: staff?.currentAddress || staff?.address || '',
@@ -268,7 +271,11 @@ const FieldLabel: React.FC<{ label: string; required?: boolean }> = ({ label, re
   </label>
 );
 
-export const ProfileCompletionView: React.FC = () => {
+interface ProfileCompletionViewProps {
+  onComplete?: () => void;
+}
+
+export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ onComplete }) => {
   const { user, setUser, logout } = useAuth();
   const { staff, updateStaff } = useData();
   const { addToast } = useToast();
@@ -402,6 +409,7 @@ export const ProfileCompletionView: React.FC = () => {
       require('lastName', !!form.personal.lastName.trim(), 'Last name is required.');
       require('gender', !!form.personal.gender, 'Gender is required.');
       require('dob', !!form.personal.dob, 'Date of birth is required.');
+      require('mobile', !!form.personal.mobile.trim(), 'Mobile number is required.');
     }
 
     if (step === 1) {
@@ -579,7 +587,8 @@ export const ProfileCompletionView: React.FC = () => {
       name: fullName,
       gender: form.personal.gender || linkedStaff?.gender || 'Male',
       dob: form.personal.dob || linkedStaff?.dob || '',
-      phone: linkedStaff?.phone || user?.email || '',
+      phone: form.personal.mobile.trim() || linkedStaff?.phone || '',
+      mobile: form.personal.mobile.trim() || linkedStaff?.mobile || '',
       email: linkedStaff?.email || user?.email || ''
     };
 
@@ -596,6 +605,9 @@ export const ProfileCompletionView: React.FC = () => {
     setTimeout(() => {
       addToast('success', 'Profile completed', 'Your employee profile has been saved successfully.');
       setLoading(false);
+      if (onComplete) {
+        onComplete();
+      }
     }, 500);
   };
 
@@ -688,8 +700,13 @@ export const ProfileCompletionView: React.FC = () => {
                 <input value={form.personal.bloodGroup} onChange={e => updatePersonal('bloodGroup', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="A+, O+, AB- ..." />
               </div>
               <div>
+                <FieldLabel label="Mobile Number" required />
+                <input type="tel" value={form.personal.mobile} onChange={e => updatePersonal('mobile', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="10-digit mobile number" />
+                {errors.mobile && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.mobile}</p>}
+              </div>
+              <div>
                 <FieldLabel label="Alternate Mobile" />
-                <input value={form.personal.alternateMobile} onChange={e => updatePersonal('alternateMobile', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="Optional" />
+                <input type="tel" value={form.personal.alternateMobile} onChange={e => updatePersonal('alternateMobile', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="Optional" />
               </div>
               <div>
                 <FieldLabel label="Nationality" />
@@ -1067,10 +1084,19 @@ export const ProfileCompletionView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
+                {onComplete && (
+                  <button
+                    type="button"
+                    onClick={onComplete}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-sky-500 transition-all cursor-pointer"
+                  >
+                    <Home className="h-4 w-4" /> Go to Dashboard
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => logout()}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" /> Logout
                 </button>

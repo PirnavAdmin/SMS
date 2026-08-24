@@ -42,7 +42,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   'Teacher': [
     'dashboard', 'students', 'attendance', 'timetable', 'examination', 
-    'homework', 'communication', 'events', 'staff', 'certificates'
+    'homework', 'communication', 'events', 'staff'
   ],
   'HR': [
     'dashboard', 'staff', 'communication', 'events', 'training'
@@ -75,6 +75,8 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
 
 export const hasModuleAccess = (role: any, moduleId: ModuleId | string): boolean => {
   if (moduleId === 'transfer-certificates') moduleId = 'certificates';
+  if (moduleId === 'librarian-attendance') moduleId = 'library';
+  if (moduleId === 'library-timetable') moduleId = 'library';
   const baseModule = moduleId.split('-')[0] as ModuleId;
   let lookupRole = role;
   if (role === 'Class Teacher') {

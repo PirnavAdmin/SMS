@@ -771,7 +771,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
             {/* Certificate Print Area */}
             <div className="p-8 border-4 border-double border-brand-700 rounded-2xl bg-amber-50/30 dark:bg-slate-800/40 text-center space-y-6 font-serif">
               <div className="space-y-1">
-                <h2 className="text-xl font-bold uppercase text-brand-800 dark:text-brand-300">{schoolProfile?.name || 'ST. XAVIER HIGHER SECONDARY SCHOOL'}</h2>
+                <h2 className="text-xl font-bold uppercase text-brand-800 dark:text-brand-300">{schoolProfile?.name || 'PIRNAV EDUCATIONAL INSTITUTIONS'}</h2>
                 <p className="text-xs text-slate-500 font-sans">{schoolProfile?.address || '742 Evergreen Terrace, Knowledge City'}</p>
                 <p className="text-xs font-bold uppercase tracking-widest text-amber-700 pt-2 font-sans">
                   {certificateModal.type === 'completion' ? 'SCHOOL COMPLETION CERTIFICATE' :

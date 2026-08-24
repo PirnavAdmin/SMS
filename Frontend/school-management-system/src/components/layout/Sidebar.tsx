@@ -109,6 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isStaffActive =
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
+    activeModule === "teacher-profile" ||
     activeModule.startsWith("parent-teacher-");
   const isAcademicsActive =
     activeModule.startsWith("academic-") ||
@@ -455,6 +456,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       isFinanceSection: true,
       items: [
         { id: "library", label: "Library", icon: Library },
+        { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
+        { id: "library-timetable", label: "Library Timetable", icon: Clock },
         { id: "inventory", label: "Inventory", icon: Package },
       ],
     },
@@ -1033,8 +1036,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               role.toLowerCase() === "student"
                             ) {
                               setActiveModule("parent-teacher-info");
+                            } else if (role.toLowerCase() === "teacher") {
+                              setActiveModule("teacher-profile");
                             } else {
-                              setActiveModule("staff-teachers");
+                              setActiveModule("staff-directory");
                             }
                           }
                         }}
@@ -1075,11 +1080,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isPayroll = sub.id === "staff-payroll";
                             const isSubActive =
                               activeModule === sub.id ||
+                              (sub.id === "teacher-profile" &&
+                                [
+                                  "teacher-profile",
+                                  "staff-teachers",
+                                  "staff",
+                                ].includes(activeModule)) ||
                               (sub.id === "staff-directory" &&
                                 [
                                   "staff-add",
                                   "staff-teachers",
                                   "staff",
+                                  "staff-directory",
                                 ].includes(activeModule)) ||
                               (isPayroll &&
                                 (activeModule === "staff-payroll" ||

@@ -652,7 +652,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <body>
             <div class="header">
               <h2>MONTHLY SALARY PAYSLIP</h2>
-              <p>St. Xavier's International Academy - HR Department</p>
+              <p>Pirnav Educational Institutions - HR Department</p>
             </div>
             <div class="details">
               <div><strong>Employee Name:</strong> ${p.employeeName}</div>

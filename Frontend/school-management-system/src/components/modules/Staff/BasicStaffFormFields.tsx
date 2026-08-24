@@ -52,6 +52,51 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [] } = useData();
   const normalizedCategory = normalizeStaffType(value.employeeCategory);
 
+  const parsePhone = (phoneStr: string = '') => {
+    const clean = phoneStr.trim();
+    const codes = ['+91', '+971', '+44', '+61', '+1'];
+    for (const code of codes) {
+      if (clean.startsWith(code)) {
+        let local = clean.slice(code.length);
+        if (local.startsWith('-')) local = local.slice(1);
+        return { countryCode: code, localNumber: local.replace(/[^0-9]/g, '').slice(0, 10) };
+      }
+    }
+    return { countryCode: '+91', localNumber: clean.replace(/[^0-9]/g, '').slice(0, 10) };
+  };
+
+  const { countryCode: primaryCc, localNumber: primaryLocal } = parsePhone(value.mobileNumber);
+  const { countryCode: altCc, localNumber: altLocal } = parsePhone(value.alternateMobileNumber || '');
+
+  const handleMobileChange = (field: 'mobileNumber' | 'alternateMobileNumber', val: string) => {
+    const numericVal = val.replace(/[^0-9]/g, '').slice(0, 10);
+    const cc = field === 'mobileNumber' ? primaryCc : altCc;
+    onChange(field, `${cc}-${numericVal}`);
+  };
+
+  const handlePinCodeChange = async (val: string) => {
+    const cleanPin = val.replace(/[^0-9]/g, '').slice(0, 6);
+    onChange('pinCode', cleanPin);
+
+    if (cleanPin.length === 6) {
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData && resData[0] && resData[0].Status === "Success") {
+            const postOffice = resData[0].PostOffice[0];
+            if (postOffice) {
+              onChange('city', postOffice.District || postOffice.Name || '');
+              onChange('state', postOffice.State || '');
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching PIN code details:", err);
+      }
+    }
+  };
+
   const allClassSectionOptions = React.useMemo(() => {
     return academicClasses.flatMap(cls => 
       (cls.sections || []).map(sec => `${cls.name}-${sec}`)
@@ -151,8 +196,26 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   // Document preview modal state
   const [previewDoc, setPreviewDoc] = useState<StaffUploadedDocItem | null>(null);
 
-  const departmentSelectOptions = getDepartmentSelectOptions(normalizedCategory, departments);
-  const designationOptions = getDesignationOptions(normalizedCategory, value.department, designations);
+  const departmentSelectOptions = React.useMemo(() => {
+    const uniqueDeptsMap = new Map<string, string>();
+    
+    // Add all active departments from the database
+    (departments || []).forEach(d => {
+      if (d.status === 'Active' && d.departmentName) {
+        uniqueDeptsMap.set(d.departmentName.trim(), d.departmentCode || '');
+      }
+    });
+
+    return Array.from(uniqueDeptsMap.entries()).map(([name, code]) => ({
+      value: name,
+      label: name,
+      code: code || name.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 4) || "DEPT"
+    }));
+  }, [departments]);
+
+  const designationOptions = React.useMemo(() => {
+    return getDesignationOptions(normalizedCategory, value.department, designations);
+  }, [normalizedCategory, value.department, designations]);
 
   // Dynamic Department change handler
   const handleDepartmentChange = (dept: string) => {
@@ -434,24 +497,58 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Mobile Number <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="tel"
-                  value={value.mobileNumber}
-                  onChange={e => onChange('mobileNumber', e.target.value)}
-                  className={fieldClass}
-                />
+                <div className="flex gap-2 mt-1.5">
+                  <div className="relative shrink-0 w-24">
+                    <select
+                      value={primaryCc}
+                      onChange={e => onChange('mobileNumber', `${e.target.value}-${primaryLocal}`)}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3.5 pr-8 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+971">🇦🇪 +971</option>
+                      <option value="+61">🇦🇺 +61</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={primaryLocal}
+                    onChange={e => handleMobileChange('mobileNumber', e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium"
+                    placeholder="10-digit number"
+                  />
+                </div>
                 {errors.mobileNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.mobileNumber}</p>}
               </div>
 
               {/* Alternate Mobile Number */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alternate Mobile Number <span className="text-slate-400 font-normal">(Optional)</span></label>
-                <input
-                  type="tel"
-                  value={value.alternateMobileNumber || ''}
-                  onChange={e => onChange('alternateMobileNumber', e.target.value)}
-                  className={fieldClass}
-                />
+                <div className="flex gap-2 mt-1.5">
+                  <div className="relative shrink-0 w-24">
+                    <select
+                      value={altCc}
+                      onChange={e => onChange('alternateMobileNumber', `${e.target.value}-${altLocal}`)}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3.5 pr-8 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+971">🇦🇪 +971</option>
+                      <option value="+61">🇦🇺 +61</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={altLocal}
+                    onChange={e => handleMobileChange('alternateMobileNumber', e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium"
+                    placeholder="10-digit number"
+                  />
+                </div>
               </div>
 
               {/* Email Address */}
@@ -468,7 +565,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               {/* Staff Photo Upload */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Photo</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Profile Photo</label>
                 <div className="relative">
                   {value.photoUrl ? (
                     <div className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -566,6 +663,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   value={value.presentAddress || ''}
                   onChange={e => onChange('presentAddress', e.target.value)}
                   className={fieldClass}
+                  placeholder="Enter present address"
                 />
               </div>
 
@@ -577,22 +675,41 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   onChange={e => onChange('permanentAddress', e.target.value)}
                   className={fieldClass}
                   disabled={value.sameAsPresentAddress}
+                  placeholder="Enter permanent address"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">State</label>
+                <input
+                  type="text"
+                  value={value.state || ''}
+                  onChange={e => onChange('state', e.target.value)}
+                  className={fieldClass}
+                  placeholder="Enter state"
                 />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">City</label>
-                <input type="text" value={value.city || ''} onChange={e => onChange('city', e.target.value)} className={fieldClass} />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">State</label>
-                <input type="text" value={value.state || ''} onChange={e => onChange('state', e.target.value)} className={fieldClass} />
+                <input
+                  type="text"
+                  value={value.city || ''}
+                  onChange={e => onChange('city', e.target.value)}
+                  className={fieldClass}
+                  placeholder="Enter city"
+                />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">PIN Code</label>
-                <input type="text" value={value.pinCode || ''} onChange={e => onChange('pinCode', e.target.value)} className={`${fieldClass} font-mono`} />
+                <input
+                  type="text"
+                  value={value.pinCode || ''}
+                  onChange={e => handlePinCodeChange(e.target.value)}
+                  className={`${fieldClass} font-mono`}
+                  placeholder="Enter 6-digit PIN"
+                />
               </div>
             </div>
           </div>
@@ -1150,7 +1267,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Total Experience (Auto)</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Total Experience</label>
                     <input
                       type="text"
                       value={calculateExperienceYearsMonths(expForm.fromDate, expForm.toDate)}

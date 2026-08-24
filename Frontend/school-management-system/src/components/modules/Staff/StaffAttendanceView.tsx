@@ -45,7 +45,7 @@ import { DateInput } from "../../common/DateInput";
 
 type AttendanceTab = "teaching" | "non-teaching";
 
-export const StaffAttendanceView: React.FC = () => {
+export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
     staff,
     attendance,
@@ -617,13 +617,18 @@ export const StaffAttendanceView: React.FC = () => {
               </div>
             </div>
 
-            {/* Leave Balance */}
+            {/* Leave Balance Overview & Quick Link */}
             <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-              <div className="flex items-center gap-2 pb-1 border-b border-slate-105 dark:border-slate-800/80">
-                <CalendarCheck className="w-5 h-5 text-purple-500" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                  Leave Balance
-                </h3>
+              <div className="flex items-center justify-between pb-1 border-b border-slate-105 dark:border-slate-800/80">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="w-5 h-5 text-purple-500" />
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                    Leave Balance
+                  </h3>
+                </div>
+                <span className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md">
+                  Active
+                </span>
               </div>
 
               <div className="grid grid-cols-3 gap-2.5">
@@ -655,10 +660,16 @@ export const StaffAttendanceView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setShowApplyLeaveModal(true)}
-                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors flex items-center justify-center gap-1.5"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate("staff-leave");
+                  } else {
+                    setShowApplyLeaveModal(true);
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Calendar className="w-4 h-4" /> Apply Leave
+                <Calendar className="w-4 h-4" /> Go to Leave Management
               </button>
             </div>
           </div>
@@ -690,6 +701,22 @@ export const StaffAttendanceView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Search
+                  </label>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={personalSearchQuery}
+                      onChange={(e) => setPersonalSearchQuery(e.target.value)}
+                      placeholder="Search status (e.g. Present)..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
                     Filter by Month
                   </label>
                   <select
@@ -714,22 +741,6 @@ export const StaffAttendanceView: React.FC = () => {
                     onChange={(e) => setPersonalFilterDate(e.target.value)}
                     className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Search
-                  </label>
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={personalSearchQuery}
-                      onChange={(e) => setPersonalSearchQuery(e.target.value)}
-                      placeholder="Search status (e.g. Present)..."
-                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
-                    />
-                  </div>
                 </div>
               </div>
 

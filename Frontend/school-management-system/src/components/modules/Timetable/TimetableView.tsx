@@ -50,17 +50,29 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const isTeacher = normalizedRole === 'teacher' || normalizedRole === 'class teacher';
   
   // Find logged-in teacher profile
-  const dbTeacher = staff.find(s => s.email && user?.email && s.email === user.email && s.employeeCategory === 'Teacher') || 
-                     staff.find(s => s.email && (s.email.toLowerCase().includes('jenkins') || s.email.toLowerCase().includes('miller'))) ||
-                     staff.find(s => s.employeeCategory === 'Teacher');
+  const dbTeacher = useMemo(() => {
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
+
+    const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+    if (byEmail) return byEmail;
+
+    const byName = staff.find(s => {
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+      return sFullName && userName && (sFullName.includes(userName) || userName.includes(sFullName));
+    });
+    if (byName) return byName;
+
+    return staff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || null;
+  }, [user, staff]);
 
   // Fallback to static mock data if no teacher profile is found
   const teacher = dbTeacher || {
     id: 'STF-002',
     empId: 'EMP002',
-    firstName: user?.name || 'Jonathan',
-    lastName: 'Miller',
-    assignedClasses: ['Class 10-A', 'Class 11-B'],
+    firstName: user?.name || 'Rajesh',
+    lastName: 'rayudu',
+    assignedClasses: ['Class 10-A', 'Class 9-B'],
     assignedSubjects: ['Mathematics'],
     department: 'Mathematics',
     designation: 'Class Teacher'
@@ -80,12 +92,26 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayDay = daysOfWeek[new Date().getDay()] as any;
 
-  // Retrieve today's schedule for this teacher
+  // Retrieve today's schedule for this teacher dynamically from Admin Timetable
   const teacherTodaysSchedule = useMemo(() => {
+    const tFirstName = (teacher.firstName || '').toLowerCase().trim();
+    const tLastName = (teacher.lastName || '').toLowerCase().trim();
+    const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+
     return timetable
-      .filter(t => t.teacherName === teacherFullName && t.day === todayDay)
+      .filter(t => {
+        if (!t.teacherName) return false;
+        const entryTeacher = t.teacherName.toLowerCase().trim();
+        const matchesTeacher = entryTeacher.includes(tFirstName) || 
+          (tLastName && entryTeacher.includes(tLastName)) || 
+          entryTeacher.includes(tFullName) || 
+          tFullName.includes(entryTeacher);
+        
+        const matchesDay = !t.day || t.day === 'All' || t.day.toLowerCase() === todayDay.toLowerCase();
+        return matchesTeacher && matchesDay;
+      })
       .sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
-  }, [timetable, teacherFullName, todayDay]);
+  }, [timetable, teacher, todayDay]);
 
   // Helper: parse timeSlot to relative status (Current / Upcoming / Completed)
   const getPeriodStatus = (timeSlot: string) => {
@@ -703,16 +729,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     return (
       <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
-        <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+        <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
           <div className="space-y-1">
             <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+              <Clock className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
               Teacher Timetable
             </h2>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 font-bold">
-              <span>👤 Teacher: <strong className="text-slate-855 dark:text-slate-200">{teacherFullName}</strong></span>
-              <span>🏢 Dept: <strong className="text-slate-855 dark:text-slate-200">{teacher.department}</strong></span>
-              <span>📅 Today: <strong className="text-slate-855 dark:text-slate-200">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 font-bold text-xs">
+              <span>👤 Teacher: <strong className="text-slate-900 dark:text-slate-200">{teacherFullName}</strong></span>
+              <span>🏢 Dept: <strong className="text-slate-900 dark:text-slate-200">{teacher.department}</strong></span>
+              <span>📅 Today: <strong className="text-slate-900 dark:text-slate-200">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
             </div>
           </div>
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
@@ -1786,11 +1812,36 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             <span className="text-xs font-bold text-sky-600 dark:text-sky-400">Auto Generated from Published Timetables</span>
           </div>
 
-          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
-                Teacher Timetable: {selectedTeacherName}
-              </h3>
+          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <User className="w-5 h-5 text-sky-600" />
+                  <span>Daily Schedule Timeline: {selectedTeacherName}</span>
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Full period-by-period schedule from School Opening (08:30 AM) to School Dismissal (04:30 PM) synced live with Admin Master Database.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const targetStaff = teachingStaff.find(s => `${s.firstName} ${s.lastName}` === selectedTeacherName);
+                  setFormData({
+                    day: 'Monday',
+                    timeSlot: '08:30 AM - 09:15 AM',
+                    className: targetStaff?.assignedClasses?.[0] || 'Class 10',
+                    section: 'A',
+                    subject: targetStaff?.assignedSubjects?.[0] || 'Mathematics',
+                    teacherName: selectedTeacherName,
+                    roomNo: 'Room 204'
+                  });
+                  setIsFormOpen(true);
+                }}
+                className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" /> Assign Class / Subject Period
+              </button>
             </div>
 
             {(() => {
@@ -1800,6 +1851,21 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   .filter(s1 => teacherAllSlots.some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
                   .map(s => s.id)
               );
+
+              // Standard master period timeline covering school open (08:30 AM) to school end (04:30 PM)
+              const masterSchoolTimeline = [
+                { name: 'Period 1', slot: '08:30 AM - 09:15 AM', type: 'Teaching' },
+                { name: 'Period 2', slot: '09:15 AM - 10:00 AM', type: 'Teaching' },
+                { name: 'Period 3', slot: '10:00 AM - 10:45 AM', type: 'Teaching' },
+                { name: 'Morning Break', slot: '10:45 AM - 11:00 AM', type: 'Break' },
+                { name: 'Period 4', slot: '11:00 AM - 11:45 AM', type: 'Teaching' },
+                { name: 'Period 5', slot: '11:45 AM - 12:30 PM', type: 'Teaching' },
+                { name: 'Lunch Break', slot: '12:30 PM - 01:15 PM', type: 'Lunch' },
+                { name: 'Period 6', slot: '01:15 PM - 02:00 PM', type: 'Teaching' },
+                { name: 'Period 7', slot: '02:00 PM - 02:45 PM', type: 'Teaching' },
+                { name: 'Period 8', slot: '02:45 PM - 03:30 PM', type: 'Teaching' },
+                { name: 'Dispersal & Activity', slot: '03:30 PM - 04:15 PM', type: 'Other' },
+              ];
 
               return (
                 <>
@@ -1820,42 +1886,123 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     {baseDays.map(day => {
                       const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
-                      let displaySlots = teacherSlots;
 
                       return (
-                        <div key={day} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 border-b pb-2 border-slate-200 dark:border-slate-700">
-                            {day}
-                          </h4>
-                          {displaySlots.length === 0 ? (
-                            <p className="text-[11px] text-slate-400 italic">No assigned periods</p>
-                          ) : (
-                            displaySlots.map(st => {
-                              const isClashing = clashingSlotIds.has(st.id);
+                        <div key={day} className="space-y-3 p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80">
+                          <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
+                            <h4 className="font-black text-xs uppercase tracking-wider text-sky-700 dark:text-sky-400">
+                              {day}
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {teacherSlots.length} Teaching Period{teacherSlots.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {masterSchoolTimeline.map((timelinePeriod) => {
+                              const matchSlot = teacherSlots.find(s => s.timeSlot === timelinePeriod.slot);
+                              const isClashing = matchSlot ? clashingSlotIds.has(matchSlot.id) : false;
+                              const status = getPeriodStatus(timelinePeriod.slot);
+
+                              if (timelinePeriod.type === 'Break' || timelinePeriod.type === 'Lunch') {
+                                return (
+                                  <div
+                                    key={timelinePeriod.slot}
+                                    className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-center space-y-0.5"
+                                  >
+                                    <p className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 flex items-center justify-center gap-1">
+                                      <span>{timelinePeriod.type === 'Lunch' ? '🍱' : '☕'}</span> {timelinePeriod.name}
+                                    </p>
+                                    <p className="text-[9px] font-mono font-bold text-amber-600 dark:text-amber-400">{timelinePeriod.slot}</p>
+                                  </div>
+                                );
+                              }
+
+                              if (matchSlot) {
+                                const globalSub = subjects.find(s => s.name.toLowerCase().trim() === matchSlot.subject.toLowerCase().trim());
+                                const codeStr = globalSub?.code ? ` (${globalSub.code})` : '';
+
+                                return (
+                                  <div
+                                    key={matchSlot.id}
+                                    className={`p-3 rounded-2xl border space-y-1 relative overflow-hidden transition-all shadow-xs ${
+                                      isClashing
+                                        ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-700'
+                                        : 'bg-white dark:bg-slate-900 border-sky-200 dark:border-sky-800'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
+                                        {timelinePeriod.name}
+                                      </span>
+                                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                        status === 'Current' ? 'bg-blue-100 text-blue-700 animate-pulse' :
+                                        status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                                      }`}>
+                                        {status === 'Current' ? '● Active' : status === 'Completed' ? '✓ Done' : 'Scheduled'}
+                                      </span>
+                                    </div>
+
+                                    <p className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">
+                                      {matchSlot.subject}{codeStr}
+                                    </p>
+
+                                    <div className="flex items-center justify-between text-[10px] font-bold">
+                                      <span className="text-sky-700 dark:text-sky-300 font-extrabold">
+                                        Class {matchSlot.className.replace(/^Class\s*/i, '')}-{matchSlot.section}
+                                      </span>
+                                      <span className="text-slate-500 font-mono">
+                                        🚪 {matchSlot.roomNo || 'Room 101'}
+                                      </span>
+                                    </div>
+
+                                    <p className="text-[9.5px] font-mono text-slate-400 font-bold border-t pt-1 border-slate-100 dark:border-slate-800">
+                                      {matchSlot.timeSlot}
+                                    </p>
+
+                                    <div className="flex items-center justify-end gap-1 pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingSlot(matchSlot);
+                                          setFormData(matchSlot);
+                                          setIsFormOpen(true);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-sky-600 cursor-pointer"
+                                        title="Edit Period Slot"
+                                      >
+                                        <Edit className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          deleteTimetableSlot(matchSlot.id);
+                                          addToast('success', 'Period Slot Removed', `Removed ${matchSlot.subject} from ${day}`);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                        title="Delete Period Slot"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <div
-                                  key={st.id}
-                                  className={`p-2.5 rounded-xl border space-y-1 relative overflow-hidden transition-all ${
-                                    isClashing
-                                      ? 'bg-rose-50/90 dark:bg-rose-950/50 border-rose-300 dark:border-rose-700 shadow-xs'
-                                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                                  }`}
+                                  key={timelinePeriod.slot}
+                                  className="p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 space-y-1"
                                 >
-                                  {isClashing && (
-                                    <div className="flex items-center gap-1 text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wide">
-                                      <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
-                                      <span>Time Clash / Double Booked</span>
-                                    </div>
-                                  )}
-                                  <p className="font-bold text-xs text-slate-900 dark:text-white">{st.subject}</p>
-                                  <p className={`text-[10px] font-bold ${isClashing ? 'text-rose-600 dark:text-rose-400' : 'text-brand-600'}`}>
-                                    {st.className}-{st.section}
-                                  </p>
-                                  <p className="text-[10px] font-mono text-slate-400">{st.timeSlot}</p>
+                                  <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400">
+                                    <span>{timelinePeriod.name}</span>
+                                    <span>Free / Prep</span>
+                                  </div>
+                                  <p className="text-[9.5px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
                                 </div>
                               );
-                            })
-                          )}
+                            })}
+                          </div>
                         </div>
                       );
                     })}

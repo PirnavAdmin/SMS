@@ -48,6 +48,8 @@ import { ParentHostelView } from './components/modules/Dashboard/ParentHostelVie
 import { FinanceContainerView } from './components/modules/Finance/FinanceContainerView';
 import { UniformContainerView } from './components/modules/Uniform/UniformContainerView';
 import { LibraryView } from './components/modules/Library/LibraryView';
+import { LibrarianAttendanceView } from './components/modules/Library/LibrarianAttendanceView';
+import { LibraryTimetableView } from './components/modules/Library/LibraryTimetableView';
 import { TransportView } from './components/modules/Transport/TransportView';
 import { TransportContainerView } from './components/modules/Transport/TransportContainerView';
 import { HostelView } from './components/modules/Hostel/HostelView';
@@ -127,9 +129,7 @@ const MainLayout: React.FC = () => {
     return <LandingView onLoginClick={() => setShowLogin(true)} />;
   }
 
-  if (user?.isFirstLogin) {
-    return <ProfileCompletionView />;
-  }
+  // Straight to Dashboard on login (Profile completion accessible anytime via Edit Profile option)
 
   const renderModuleContent = () => {
     if (activeModule.startsWith('parent-fee-')) {
@@ -204,7 +204,7 @@ const MainLayout: React.FC = () => {
         if (userRole === 'teacher') return <TeacherProfileView />;
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffRegistrationPage onNavigate={setActiveModule} />;
       case 'staff-attendance':
-        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffAttendanceView />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'staff-leave':
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <LeaveManagementView />;
       case 'staff-my-payslips':
@@ -281,6 +281,11 @@ const MainLayout: React.FC = () => {
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <UniformContainerView initialTab="uniform-dashboard" onTabChange={setActiveModule} />;
       case 'library':
         return <LibraryView />;
+      case 'librarian-attendance':
+      case 'library-attendance':
+        return <LibrarianAttendanceView />;
+      case 'library-timetable':
+        return <LibraryTimetableView />;
       case 'transport':
         return userRole === 'parent' || userRole === 'student' ? <ParentBusInfoView /> : <TransportContainerView initialTab="transport-dashboard" onTabChange={setActiveModule} />;
       case 'hostel':
@@ -302,6 +307,9 @@ const MainLayout: React.FC = () => {
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <UserManagementView />;
       case 'settings':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <SettingsView />;
+      case 'profile-completion':
+      case 'edit-profile':
+        return <ProfileCompletionView onComplete={() => setActiveModule('dashboard')} />;
       default:
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
     }
@@ -321,6 +329,7 @@ const MainLayout: React.FC = () => {
         setCollapsed={setCollapsed}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenChangePass={() => setChangePassOpen(true)}
+        onNavigate={(mod) => setActiveModule(mod)}
       />
 
       <main

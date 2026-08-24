@@ -144,9 +144,13 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const staff = allStaff.find(s => s.id === staffProp?.id) || staffProp;
   const [activeTab, setActiveTab] = useState<DrawerTab>('overview');
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
+  const [imgErr, setImgErr] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setActiveTab('overview');
+    if (isOpen) {
+      setActiveTab('overview');
+      setImgErr(false);
+    }
   }, [isOpen, staff?.id]);
 
   const fullName = staff ? `${staff.firstName} ${staff.lastName}`.trim() : '';
@@ -764,15 +768,16 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative shrink-0">
-                {staff.avatar ? (
+                {!imgErr && staff.avatar ? (
                   <img
                     src={staff.avatar}
                     alt=""
+                    onError={() => setImgErr(true)}
                     className="w-12 h-12 rounded-2xl object-cover ring-2 ring-white dark:ring-slate-900 shadow-md"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 ring-2 ring-white dark:ring-slate-900 shadow-md flex items-center justify-center">
-                    <UserRound className="w-6 h-6 text-slate-400" />
+                  <div className="w-12 h-12 rounded-2xl bg-brand-100 text-brand-700 dark:bg-brand-950/40 dark:text-brand-400 ring-2 ring-white dark:ring-slate-900 shadow-md flex items-center justify-center text-xs font-black uppercase">
+                    {((staff.firstName?.[0] || '') + (staff.lastName?.[0] || '')).toUpperCase() || <UserRound className="w-5 h-5 text-slate-400" />}
                   </div>
                 )}
                 <div className="absolute -bottom-1 -right-1">

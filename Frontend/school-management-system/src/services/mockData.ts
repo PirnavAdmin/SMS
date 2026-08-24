@@ -9,10 +9,10 @@ import {
   TransportRoute as ERPTransportRoute, StudentTransport, HostelMaster,
   StudentHostel, Refund, FinanceSettings,
   RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, VehicleMaintenance,
-  FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
+  FinanceTransportConfig, StudentFeeLedger,
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
-  LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent, PayrollAmountLine,
+  LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
   SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department,
   CertificateTemplateConfig, Designation
 } from '../types';
@@ -81,13 +81,6 @@ export const initialHostelMasters: HostelMaster[] = [];
 export const initialStudentHostels: StudentHostel[] = [];
 export const initialRefunds: Refund[] = [];
 export const initialFinanceSettings: FinanceSettings = {
-  activeAcademicYear: '2026-2027',
-  currency: 'INR',
-  paymentGatewayEnabled: false,
-  autoInvoiceGeneration: false,
-  invoiceDueDays: 15,
-  taxRatePct: 0,
-  taxRegistrationNo: '',
   bankName: '',
   bankBranch: '',
   accountName: '',

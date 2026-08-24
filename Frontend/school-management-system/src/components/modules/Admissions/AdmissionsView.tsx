@@ -4302,7 +4302,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </head>
                         <body>
                           <div class="header">
-                            <h1 class="school-title">${schoolProfile?.name || "St. Xavier's International Academy"}</h1>
+                            <h1 class="school-title">${schoolProfile?.name || "Pirnav Educational Institutions"}</h1>
                             <div class="school-tag">${schoolProfile?.tagline || "Empowering Minds, Shaping Tomorrow"}</div>
                             <div class="school-tag">${schoolProfile?.address || "742 Evergreen Terrace, NY"} • ${schoolProfile?.phone || "+1 (555) 019-2834"}</div>
                             <div class="doc-title">Official Student Academic Fee Summary Statement</div>
@@ -4400,7 +4400,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         (i) => i.isApplicable,
                       );
                       let text = `====================================================\n`;
-                      text += `   ${schoolProfile?.name || "ST. XAVIER'S INTERNATIONAL ACADEMY"}\n`;
+                      text += `   ${schoolProfile?.name || "PIRNAV EDUCATIONAL INSTITUTIONS"}\n`;
                       text += `        STUDENT ANNUAL FEE SUMMARY STATEMENT\n`;
                       text += `====================================================\n\n`;
                       text += `Student Name   : ${ledger.studentName}\n`;

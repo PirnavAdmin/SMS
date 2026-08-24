@@ -56,7 +56,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   const [docCategory, setDocCategory] = useState('Birth Certificate');
   const [docFile, setDocFile] = useState<File | null>(null);
 
-  const { attendance, feePayments, examMarks, studentFeeAssignments, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
+  const { schoolProfile, attendance, feePayments, examMarks, studentFeeAssignments, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
   const { addToast } = useToast();
 
   if (!isOpen || !student) return null;
@@ -946,10 +946,10 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               {/* ID Card Card Preview */}
               <div className="p-5 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-xl space-y-4 max-w-sm mx-auto font-sans">
                 <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                  <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-black text-sm">ST</div>
+                  <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-black text-sm">PE</div>
                   <div>
-                    <h4 className="font-black text-xs uppercase tracking-wider text-white">St. Xavier's International</h4>
-                    <p className="text-[9px] text-brand-300">Empowering Minds, Shaping Tomorrow</p>
+                    <h4 className="font-black text-xs uppercase tracking-wider text-white">{schoolProfile?.name || 'Pirnav Educational Institutions'}</h4>
+                    <p className="text-[9px] text-brand-300">{schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow'}</p>
                   </div>
                 </div>
 

@@ -29,6 +29,8 @@ export const TrainingContainerView: React.FC = () => {
 
   const { addToast } = useToast();
   const { role, selectedBranch } = useAuth();
+  const userRole = (role || '').toLowerCase();
+  const canManageTraining = userRole.includes('admin') || userRole.includes('principal') || userRole.includes('director') || userRole.includes('coordinator') || userRole.includes('librarian') || userRole.includes('staff');
 
   // Active Sub-Tab: 'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'
   const [activeTab, setActiveTab] = useState<'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'>('dashboard');
@@ -532,19 +534,23 @@ export const TrainingContainerView: React.FC = () => {
             <Download className="w-3.5 h-3.5 text-emerald-600" /> Export CSV
           </button>
 
-          <button
-            onClick={() => handleOpenCreateAssessmentModal()}
-            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
-          >
-             Schedule Evaluation
-          </button>
+          {canManageTraining && (
+            <>
+              <button
+                onClick={() => handleOpenCreateAssessmentModal()}
+                className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                Schedule Evaluation
+              </button>
 
-          <button
-            onClick={() => setIsAddWorkshopModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
-          >
-            Create Workshop / FDP
-          </button>
+              <button
+                onClick={() => setIsAddWorkshopModalOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                Create Workshop / FDP
+              </button>
+            </>
+          )}
         </div>
       </div>
 
