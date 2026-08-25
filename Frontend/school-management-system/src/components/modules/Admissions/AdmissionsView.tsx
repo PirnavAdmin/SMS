@@ -32,6 +32,7 @@ import {
   FileSpreadsheet,
   Download,
   ChevronDown,
+  FileText,
 } from "lucide-react";
 import {
   AdmissionApplication,
@@ -43,6 +44,7 @@ import { useData, normalizeToISODate } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { DateInput } from "../../common/DateInput";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import {
   validate10DigitPhone,
