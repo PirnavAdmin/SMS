@@ -20,6 +20,7 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetApplications(
         [FromQuery] string? search,
         [FromQuery] string? branch,
@@ -28,18 +29,22 @@ public class AdmissionsController : ControllerBase
         Ok(new { success = true, data = await _schoolService.GetAllApplicationsAsync(search, branch, classId, status) });
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetApplicationById(int id) =>
         Ok(new { success = true, data = await _schoolService.GetApplicationByIdAsync(id) });
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> SubmitApplication([FromBody] SubmitAdmissionDto dto) =>
         Ok(new { success = true, message = "Application submitted successfully.", data = await _schoolService.SubmitApplicationAsync(dto) });
 
     [HttpPut("{id:int}")]
+    [AllowAnonymous]
     public async Task<IActionResult> UpdateApplication(int id, [FromBody] SubmitAdmissionDto dto) =>
         Ok(new { success = true, message = "Application updated successfully.", data = await _schoolService.UpdateApplicationAsync(id, dto) });
 
     [HttpDelete("{id:int}")]
+    [AllowAnonymous]
     public async Task<IActionResult> DeleteApplication(int id)
     {
         await _schoolService.DeleteApplicationAsync(id);
@@ -48,10 +53,27 @@ public class AdmissionsController : ControllerBase
 
     [HttpPost("{registrationNo}/status")]
     [HttpPatch("{registrationNo}/status")]
+    [HttpPut("{registrationNo}/status")]
+    [HttpPost("{id:int}/status")]
+    [HttpPatch("{id:int}/status")]
+    [HttpPut("{id:int}/status")]
+    [AllowAnonymous]
     public async Task<IActionResult> UpdateStatusByRegistrationNo(string registrationNo, [FromBody] StatusUpdateDto dto)
     {
+        int targetId = 0;
+        if (int.TryParse(registrationNo, out int parsedId))
+        {
+            targetId = parsedId;
+        }
+
         var apps = await _schoolService.GetAllApplicationsAsync(registrationNo, null, null, null);
-        var target = apps.Find(a => a.RegistrationNo.Equals(registrationNo, System.StringComparison.OrdinalIgnoreCase));
+        var target = apps.Find(a => a.RegistrationNo.Equals(registrationNo, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
+        if (target == null && targetId > 0)
+        {
+            var allApps = await _schoolService.GetAllApplicationsAsync(null, null, null, null);
+            target = allApps.Find(a => a.Id == targetId);
+        }
+
         if (target == null)
         {
             return NotFound(new { success = false, message = $"Application '{registrationNo}' not found." });
@@ -61,7 +83,7 @@ public class AdmissionsController : ControllerBase
         {
             await _schoolService.RejectApplicationAsync(target.Id);
         }
-        else if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase))
+        else if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase) || dto.Status.Equals("Admitted", System.StringComparison.OrdinalIgnoreCase))
         {
             await _schoolService.EnrollStudentAsync(target.Id);
         }
@@ -74,6 +96,7 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPost("{id:int}/reject")]
+    [AllowAnonymous]
     public async Task<IActionResult> RejectApplication(int id)
     {
         await _schoolService.RejectApplicationAsync(id);
@@ -81,6 +104,7 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPost("{id:int}/enroll")]
+    [AllowAnonymous]
     public async Task<IActionResult> EnrollStudent(int id)
     {
         await _schoolService.EnrollStudentAsync(id);

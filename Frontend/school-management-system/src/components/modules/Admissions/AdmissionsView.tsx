@@ -470,63 +470,90 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       const XLSX = await import("xlsx");
       const reader = new FileReader();
 
-      reader.onload = (evt) => {
+      reader.onload = async (evt) => {
         try {
-          setUploadProgress(45);
+          setUploadProgress(30);
           const bstr = evt.target?.result;
           const workbook = XLSX.read(bstr, { type: "binary" });
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
           const data = XLSX.utils.sheet_to_json(sheet) as any[];
 
-          setUploadProgress(75);
+          setUploadProgress(50);
 
           let count = 0;
-          data.forEach((row) => {
-            if (row.FirstName || row.applicantName || row.firstName) {
+          for (let i = 0; i < data.length; i++) {
+            const row = data[i];
+            if (row.FirstName || row.applicantName || row.firstName || row.LastName || row.lastName) {
               const name =
                 row.applicantName ||
                 `${row.FirstName || row.firstName || ""} ${row.LastName || row.lastName || ""}`.trim();
+
+              let rowDob = row.DOB || row.dob || "2018-08-15";
+              if (rowDob instanceof Date && !isNaN(rowDob.getTime())) {
+                rowDob = rowDob.toISOString().split("T")[0];
+              } else if (typeof rowDob === "number") {
+                const utcDays = Math.floor(rowDob - 25569);
+                const d = new Date(utcDays * 86400 * 1000);
+                if (!isNaN(d.getTime())) rowDob = d.toISOString().split("T")[0];
+              } else {
+                rowDob = String(rowDob).trim();
+              }
+
+              let rowAdmDate = row.DateOfAdmission || row.joiningDate || row.admissionDate || new Date().toISOString().split("T")[0];
+              if (rowAdmDate instanceof Date && !isNaN(rowAdmDate.getTime())) {
+                rowAdmDate = rowAdmDate.toISOString().split("T")[0];
+              } else if (typeof rowAdmDate === "number") {
+                const utcDays = Math.floor(rowAdmDate - 25569);
+                const d = new Date(utcDays * 86400 * 1000);
+                if (!isNaN(d.getTime())) rowAdmDate = d.toISOString().split("T")[0];
+              } else {
+                rowAdmDate = String(rowAdmDate).trim();
+              }
+
               const newApp = {
                 applicantName: name,
-                appliedClass: row.AppliedClass || row.appliedClass || "Class 1",
-                gender: row.Gender || row.gender || "Male",
-                dob: row.DOB || row.dob || "15/08/2018",
-                bloodGroup: row.BloodGroup || row.bloodGroup || "O+",
-                religion: row.Religion || row.religion || "General",
-                casteCategory: row.CasteCategory || row.casteCategory || "General",
-                parentName: row.FatherFullName || row.parentName || row.fatherName || "Not Provided",
-                motherName: row.MotherFullName || row.motherName || "Not Provided",
-                phone: row.FatherMobile || row.phone || row.mobile || "9876543210",
-                motherPhone: row.MotherMobile || row.motherPhone || "",
-                alternatePhone: row.AlternateMobile || row.alternatePhone || "",
-                email: row.Email || row.email || "",
-                addressHouseNo: row.HouseNo || row.addressHouseNo || "",
-                addressStreet: row.Street || row.addressStreet || "",
-                addressArea: row.Area || row.addressArea || "",
-                addressCity: row.City || row.addressCity || "",
-                addressDistrict: row.District || row.addressDistrict || "",
-                addressState: row.State || row.addressState || "",
-                addressPinCode: row.Pincode || row.addressPinCode || "",
-                branch: row.Campus || row.branch || selectedBranch || "Main Campus",
+                appliedClass: String(row.AppliedClass || row.appliedClass || "Class 1").trim(),
+                gender: String(row.Gender || row.gender || "Male").trim(),
+                dob: rowDob,
+                bloodGroup: String(row.BloodGroup || row.bloodGroup || "O+").trim(),
+                religion: String(row.Religion || row.religion || "General").trim(),
+                casteCategory: String(row.CasteCategory || row.casteCategory || "General").trim(),
+                parentName: String(row.FatherFullName || row.parentName || row.fatherName || "Not Provided").trim(),
+                motherName: String(row.MotherFullName || row.motherName || "Not Provided").trim(),
+                phone: String(row.FatherMobile || row.phone || row.mobile || "9876543210").trim(),
+                motherPhone: String(row.MotherMobile || row.motherPhone || "").trim(),
+                alternatePhone: String(row.AlternateMobile || row.alternatePhone || "").trim(),
+                email: String(row.Email || row.email || "").trim(),
+                addressHouseNo: String(row.HouseNo || row.addressHouseNo || "").trim(),
+                addressStreet: String(row.Street || row.addressStreet || "").trim(),
+                addressArea: String(row.Area || row.addressArea || "").trim(),
+                addressCity: String(row.City || row.addressCity || "").trim(),
+                addressDistrict: String(row.District || row.addressDistrict || "").trim(),
+                addressState: String(row.State || row.addressState || "").trim(),
+                addressPinCode: String(row.Pincode || row.addressPinCode || "").trim(),
+                branch: String(row.Campus || row.branch || selectedBranch || "Main Campus").trim(),
                 status: "Pending",
-                studentType: row.StudentType || row.studentType || "Day Scholar",
-                transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true),
-                busRoute: row.BusRoute || row.busRoute || "",
-                pickupPoint: row.PickupPoint || row.pickupPoint || "",
-                joiningDate: row.DateOfAdmission || row.joiningDate || new Date().toISOString().split("T")[0],
-                admissionDate: row.DateOfAdmission || row.admissionDate || new Date().toISOString().split("T")[0],
+                studentType: String(row.StudentType || row.studentType || "Day Scholar").trim(),
+                transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true || String(row.TransportRequired).toLowerCase() === "true"),
+                busRoute: String(row.BusRoute || row.busRoute || "").trim(),
+                pickupPoint: String(row.PickupPoint || row.pickupPoint || "").trim(),
+                joiningDate: rowAdmDate,
+                admissionDate: rowAdmDate,
                 submissionDate: new Date().toISOString(),
               } as unknown as Omit<
                 AdmissionApplication,
                 "id" | "applicationNo"
               >;
-              addAdmission(newApp);
+
+              await addAdmission(newApp, { silent: true });
               count++;
             }
-          });
+            setUploadProgress(50 + Math.round(((i + 1) / data.length) * 45));
+          }
 
           setUploadProgress(100);
+          await fetchAdmissions();
 
           setTimeout(() => {
             addToast(

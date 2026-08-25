@@ -198,7 +198,7 @@ export const LibraryTimetableView: React.FC = () => {
     const titleText = activeTab === 'today'
       ? `Library Schedule - ${selectedDay}`
       : activeTab === 'weekly-matrix'
-      ? `Weekly Library Master Matrix (Mon-Sat)`
+      ? `Weekly Library Schedule (Mon-Sat)`
       : `Class Schedule - ${selectedClass || 'All Classes'} ${selectedSection ? `Section ${selectedSection}` : ''}`;
 
     let contentHtml = '';
@@ -235,7 +235,7 @@ export const LibraryTimetableView: React.FC = () => {
       `;
     } else if (activeTab === 'weekly-matrix') {
       contentHtml = `
-        <h3 style="font-size: 15px; margin-bottom: 12px; color: #0284c7;">📅 Weekly Library Master Matrix (Monday to Saturday)</h3>
+        <h3 style="font-size: 15px; margin-bottom: 12px; color: #0284c7;">📅 Weekly Library Schedule (Monday to Saturday)</h3>
         <table style="width:100%; border-collapse:collapse; font-size:11px; text-align:center;">
           <thead>
             <tr style="background:#0284c7; color:#ffffff;">
@@ -421,7 +421,7 @@ export const LibraryTimetableView: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Calendar className="w-4 h-4 shrink-0" /> Weekly Master Matrix
+            <Calendar className="w-4 h-4 shrink-0" /> Weekly Schedule
           </button>
           <button
             onClick={() => setActiveTab('class-view')}
@@ -544,7 +544,7 @@ export const LibraryTimetableView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Calendar className="w-4.5 h-4.5 text-sky-500" /> Weekly Library Master Matrix (Monday to Saturday)
+              <Calendar className="w-4.5 h-4.5 text-sky-500" /> Weekly Library Schedule (Monday to Saturday)
             </h3>
             <span className="text-xs text-slate-500 font-medium">Shows which Class & Section is in the Library for every period</span>
           </div>

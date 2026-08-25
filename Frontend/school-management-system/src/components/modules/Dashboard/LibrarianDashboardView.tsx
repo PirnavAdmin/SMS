@@ -86,35 +86,81 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
         </div>
       </div>
 
-      {/* 2. Top Summary Metrics Bar & Launch Full Library Management */}
-      <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-brand-600 dark:text-brand-400" /> Library Overview
-            </h3>
+      {/* 2. Separate Summary Metric Cards (Clickable to Navigate directly to specific data tab) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Books */}
+        <div 
+          onClick={() => handleNavigate('library-books')}
+          className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Books</span>
+            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-slate-200 transition-colors">
+              <BookOpen className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <p className="text-2xl font-black text-slate-900 dark:text-white font-mono">{totalBooksCount || 200}</p>
+            <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              In Catalog <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] font-extrabold uppercase text-slate-400">Total Books</p>
-            <p className="text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">{totalBooksCount || 200}</p>
+        {/* Card 2: Available */}
+        <div 
+          onClick={() => handleNavigate('library-books')}
+          className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/50 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Available</span>
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-100 transition-colors">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
           </div>
-
-          <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40">
-            <p className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400">Available</p>
-            <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">{availableCopiesCount || 167}</p>
+          <div className="mt-3 flex items-baseline justify-between">
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{availableCopiesCount || 167}</p>
+            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              On Shelves <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
+        </div>
 
-          <div className="p-3 rounded-xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40">
-            <p className="text-[10px] font-extrabold uppercase text-sky-600 dark:text-sky-400">Issued Books</p>
-            <p className="text-lg font-black text-sky-600 dark:text-sky-400 font-mono mt-0.5">{activeLoansCount || 2}</p>
+        {/* Card 3: Issued Books (Borrowed) */}
+        <div 
+          onClick={() => handleNavigate('library-issue')}
+          className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-sky-900/50 shadow-xs hover:shadow-md hover:border-sky-300 transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-600 dark:text-sky-400">Issued Books</span>
+            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 group-hover:bg-sky-100 transition-colors">
+              <Bookmark className="w-4 h-4" />
+            </div>
           </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <p className="text-2xl font-black text-sky-600 dark:text-sky-400 font-mono">{activeLoansCount || 2}</p>
+            <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              Borrowed <ArrowUpRight className="w-3 h-3" />
+            </span>
+          </div>
+        </div>
 
-          <div className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40">
-            <p className="text-[10px] font-extrabold uppercase text-rose-600 dark:text-rose-400">Overdue Returns</p>
-            <p className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono mt-0.5">{overdueCount || 2}</p>
+        {/* Card 4: Overdue Returns */}
+        <div 
+          onClick={() => handleNavigate('library-return')}
+          className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-rose-200/80 dark:border-rose-900/50 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400">Overdue Returns</span>
+            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 group-hover:bg-rose-100 transition-colors">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">{overdueCount || 2}</p>
+            <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              Late Returns <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
         </div>
       </div>

@@ -717,7 +717,8 @@ interface DataContextType {
   admissions: AdmissionApplication[];
   addAdmission: (
     app: Omit<AdmissionApplication, "id" | "applicationNo">,
-  ) => void;
+    options?: { silent?: boolean },
+  ) => Promise<any>;
   updateAdmission: (id: string, updates: Partial<AdmissionApplication>) => void;
   deleteAdmission: (id: string) => void;
   updateAdmissionStatus: (
@@ -6750,21 +6751,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Admission CRUD
   const addAdmission = async (
     appData: Omit<AdmissionApplication, "id" | "applicationNo">,
+    options?: { silent?: boolean },
   ) => {
     try {
       let isoDob = new Date().toISOString();
       if (appData.dob) {
-        if (appData.dob.includes("/")) {
-          const parts = appData.dob.split("/");
-          if (parts.length === 3) {
-            const parsed = new Date(
-              `${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`,
-            );
+        if (appData.dob instanceof Date) {
+          if (!isNaN(appData.dob.getTime())) isoDob = appData.dob.toISOString();
+        } else if (typeof appData.dob === "number") {
+          const utcDays = Math.floor(appData.dob - 25569);
+          const parsed = new Date(utcDays * 86400 * 1000);
+          if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+        } else {
+          const dobStr = String(appData.dob).trim();
+          if (dobStr.includes("/")) {
+            const parts = dobStr.split("/");
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                const parsed = new Date(
+                  `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}T00:00:00Z`,
+                );
+                if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+              } else {
+                const parsed = new Date(
+                  `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}T00:00:00Z`,
+                );
+                if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+              }
+            }
+          } else if (dobStr.includes("-")) {
+            const parts = dobStr.split("-");
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                const parsed = new Date(
+                  `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}T00:00:00Z`,
+                );
+                if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+              } else {
+                const parsed = new Date(
+                  `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}T00:00:00Z`,
+                );
+                if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+              }
+            }
+          } else {
+            const parsed = new Date(dobStr);
             if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
           }
-        } else {
-          const parsed = new Date(appData.dob);
-          if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
         }
       }
 
@@ -6816,64 +6849,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const json = await createAdmissionApi(payload);
 
-      const createdApp: AdmissionApplication = {
-        id:
-          json?.data?.applicationId?.toString() ||
-          json?.data?.id?.toString() ||
-          "ADM-" + Date.now(),
-        applicationNo:
-          json?.data?.registrationNo ||
-          "REG-" + Math.floor(1000 + Math.random() * 9000),
-        registrationNo:
-          json?.data?.registrationNo ||
-          "REG-" + Math.floor(1000 + Math.random() * 9000),
-        applicantName: appData.applicantName,
-        appliedClass: appData.appliedClass,
-        gender: appData.gender || "Male",
-        dob: appData.dob || "",
-        bloodGroup: appData.bloodGroup || "O+",
-        religion: appData.religion || "General",
-        casteCategory: appData.casteCategory || "General",
-        parentName: appData.parentName,
-        motherName: appData.motherName || "N/A",
-        phone: appData.phone,
-        email: appData.email || "",
-        addressHouseNo: appData.addressHouseNo,
-        addressStreet: appData.addressStreet,
-        addressArea: appData.addressArea,
-        addressCity: appData.addressCity,
-        addressDistrict: appData.addressDistrict,
-        addressState: appData.addressState,
-        addressPinCode: appData.addressPinCode,
-        hasSiblings: appData.hasSiblings,
-        siblingsCount: appData.siblingsCount || 0,
-        siblingDetails: appData.siblingDetails || [],
-        siblingStudentId: appData.siblingStudentId || "",
-        siblingStudentIds: appData.siblingStudentIds || [],
-        studentType: appData.studentType || "Day Scholar",
-        transportRequired: appData.transportRequired,
-        transportType: appData.transportType,
-        busRoute: appData.busRoute,
-        pickupPoint: appData.pickupPoint,
-        dropPoint: appData.dropPoint,
-        hostelBlock: appData.hostelBlock,
-        floor: appData.floor,
-        hostelRoom: appData.hostelRoom,
-        hostelBed: appData.hostelBed,
-        branch: appData.branch || selectedBranch || "Main Campus",
-        scholarshipId: appData.scholarshipId,
-        discountId: appData.discountId,
-        selectedOptionalFees: appData.selectedOptionalFees || [],
-        submissionDate: new Date().toISOString().split("T")[0],
-        status: "Pending",
-        documentsSubmitted: appData.documentsSubmitted || [],
-      };
-
-      setAdmissions((prev) => [
-        createdApp,
-        ...prev.filter((a) => a.id !== createdApp.id),
-      ]);
-
       if (json && json.success !== false) {
         const createdApp: AdmissionApplication = {
           id:
@@ -6899,27 +6874,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "New Admission Application",
           `Received application from ${appData.applicantName}`,
         );
-        addToast(
-          "success",
-          "Application Submitted",
-          "New admission application has been registered.",
-        );
-        fetchAdmissions();
+        if (!options?.silent) {
+          addToast(
+            "success",
+            "Application Submitted",
+            "New admission application has been registered.",
+          );
+          fetchAdmissions();
+        }
+        return json?.data;
       } else {
-        addToast(
-          "error",
-          "Failed to Add",
-          json?.message || "Failed to submit admission application.",
-        );
+        if (!options?.silent) {
+          addToast(
+            "error",
+            "Failed to Add",
+            json?.message || "Failed to submit admission application.",
+          );
+        }
         console.error("Failed to add admission");
+        return null;
       }
     } catch (err: any) {
       console.error("Error adding admission", err);
-      addToast(
-        "error",
-        "Network Error",
-        err.message || "Unable to submit application.",
-      );
+      if (!options?.silent) {
+        addToast(
+          "error",
+          "Network Error",
+          err.message || "Unable to submit application.",
+        );
+      }
+      return null;
     }
   };
 

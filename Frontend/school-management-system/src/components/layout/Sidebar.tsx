@@ -107,9 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isUniformActive =
     activeModule.startsWith("uniform-") || activeModule === "uniforms";
   const isLibraryActive =
-    activeModule === "library" ||
-    activeModule === "librarian-attendance" ||
-    activeModule === "library-timetable";
+    activeModule.startsWith("library") ||
+    activeModule === "librarian-attendance";
   const isStaffActive =
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
