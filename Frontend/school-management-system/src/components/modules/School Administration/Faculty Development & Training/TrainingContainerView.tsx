@@ -30,7 +30,8 @@ export const TrainingContainerView: React.FC = () => {
   const { addToast } = useToast();
   const { role, selectedBranch } = useAuth();
   const userRole = (role || '').toLowerCase();
-  const canManageTraining = userRole.includes('admin') || userRole.includes('principal') || userRole.includes('director') || userRole.includes('coordinator') || userRole.includes('librarian') || userRole.includes('staff');
+  const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
+  const canManageTraining = (userRole.includes('admin') || userRole.includes('principal') || userRole.includes('director') || userRole.includes('coordinator')) && !isLibrarianRole;
 
   // Active Sub-Tab: 'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'
   const [activeTab, setActiveTab] = useState<'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'>('dashboard');
@@ -717,12 +718,14 @@ export const TrainingContainerView: React.FC = () => {
                 <BookOpen className="w-4 h-4 text-sky-500" /> Workshops & Training Catalog
               </h3>
             </div>
-            <button
-              onClick={() => setIsAddWorkshopModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-            >
-              <Plus className="w-4 h-4" /> Create Workshop
-            </button>
+            {canManageTraining && (
+              <button
+                onClick={() => setIsAddWorkshopModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+              >
+                <Plus className="w-4 h-4" /> Create Workshop
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -742,9 +745,11 @@ export const TrainingContainerView: React.FC = () => {
                     >
                       <UserCheck className="w-3 h-3" /> Attendance ({w.attendancePct || 0}%)
                     </button>
-                    <button onClick={() => deleteWorkshop(w.id)} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canManageTraining && (
+                      <button onClick={() => deleteWorkshop(w.id)} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -776,12 +781,14 @@ export const TrainingContainerView: React.FC = () => {
                 <FileCheck className="w-4 h-4 text-sky-500" /> Employee Competency Assessments
               </h3>
             </div>
-            <button
-              onClick={() => handleOpenCreateAssessmentModal()}
-              className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-            >
-              <Plus className="w-4 h-4" /> Schedule Assessment
-            </button>
+            {canManageTraining && (
+              <button
+                onClick={() => handleOpenCreateAssessmentModal()}
+                className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+              >
+                <Plus className="w-4 h-4" /> Schedule Assessment
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -791,26 +798,28 @@ export const TrainingContainerView: React.FC = () => {
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-sky-100 text-sky-800 border border-sky-200">
                     {a.assessmentType}
                   </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        setSelectedAssessmentForEvaluation(a);
-                        // pre-fill scores
-                        const initialScores: Record<string, { marksObtained: number; remarks: string }> = {};
-                        a.results.forEach(r => {
-                          initialScores[r.employeeId] = { marksObtained: r.marksObtained, remarks: r.evaluatorRemarks || '' };
-                        });
-                        setEvaluationScores(initialScores);
-                        setIsEvaluateModalOpen(true);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-bold text-[10px] hover:bg-sky-100 flex items-center gap-1"
-                    >
-                      <Edit className="w-3 h-3" /> Record Results
-                    </button>
-                    <button onClick={() => deleteAssessment(a.id)} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {canManageTraining && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setSelectedAssessmentForEvaluation(a);
+                          // pre-fill scores
+                          const initialScores: Record<string, { marksObtained: number; remarks: string }> = {};
+                          a.results.forEach(r => {
+                            initialScores[r.employeeId] = { marksObtained: r.marksObtained, remarks: r.evaluatorRemarks || '' };
+                          });
+                          setEvaluationScores(initialScores);
+                          setIsEvaluateModalOpen(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-bold text-[10px] hover:bg-sky-100 flex items-center gap-1"
+                      >
+                        <Edit className="w-3 h-3" /> Record Results
+                      </button>
+                      <button onClick={() => deleteAssessment(a.id)} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>

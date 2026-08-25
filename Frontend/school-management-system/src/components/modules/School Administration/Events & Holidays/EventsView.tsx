@@ -70,7 +70,9 @@ export const EventsView: React.FC = () => {
   }, [holidays, REALISTIC_HOLIDAYS_2026_2027]);
 
   const { role } = useAuth();
-  const canManageEvents = role !== 'Student' && role !== 'Parent';
+  const userRoleStr = (role || '').toLowerCase();
+  const isLibrarianRole = userRoleStr.includes('librarian') || userRoleStr.includes('library');
+  const canManageEvents = role !== 'Student' && role !== 'Parent' && !isLibrarianRole;
 
   const { addToast } = useToast();
 

@@ -62,7 +62,8 @@ export const CommunicationView: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const userRole = (role || '').toLowerCase();
-  const canModify = userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('librarian');
+  const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
+  const canModify = (userRole.includes('admin') || userRole.includes('principal') || userRole.includes('super_admin')) && !isLibrarianRole;
 
   // Form State
   const [title, setTitle] = useState('');
