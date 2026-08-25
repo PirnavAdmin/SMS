@@ -717,6 +717,7 @@ export interface BasicStaffFormState {
   city: string;
   state: string;
   pinCode: string;
+  country: string;
 
   // SECTION 2: EMPLOYMENT DETAILS
   branch: string;
@@ -769,6 +770,7 @@ export const defaultBasicStaffFormState = (
   city: "",
   state: "",
   pinCode: "",
+  country: "India",
 
   branch: "Main Campus",
   department: "",
@@ -896,8 +898,10 @@ export function buildBasicStaffCreatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
+    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
     gender: form.gender || "Male",
     dob: form.dob || "",
+    bloodGroup: form.bloodGroup,
     joiningDate: form.joiningDate,
     qualification: formattedQual,
     experienceYears: Math.round(expYears * 10) / 10,
@@ -907,6 +911,14 @@ export function buildBasicStaffCreatePayload(
       form.photoUrl ||
       "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80",
     address: form.presentAddress || "",
+    presentAddress: form.presentAddress || "",
+    permanentAddress: form.permanentAddress || "",
+    city: form.city || "",
+    state: form.state || "",
+    pinCode: form.pinCode || "",
+    country: form.country ? form.country.trim() : "",
+    aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",
@@ -966,12 +978,22 @@ export function buildBasicStaffUpdatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
+    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
     gender: form.gender,
     dob: form.dob,
+    bloodGroup: form.bloodGroup,
     joiningDate: form.joiningDate,
     status: form.status === "Active" ? "Active" : "Inactive",
     employmentType: form.employmentType || "Full-Time",
     address: form.presentAddress,
+    presentAddress: form.presentAddress,
+    permanentAddress: form.permanentAddress,
+    city: form.city,
+    state: form.state,
+    pinCode: form.pinCode,
+    country: form.country ? form.country.trim() : "",
+    aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",

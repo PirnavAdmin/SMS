@@ -8,7 +8,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 
 export const FeeReceiptsView: React.FC = () => {
-  const { feePayments, academicClasses } = useData();
+  const { feePayments, academicClasses, students } = useData();
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');
@@ -20,13 +20,28 @@ export const FeeReceiptsView: React.FC = () => {
   const selectedClassObj = academicClasses.find(c => c.name === filterClass);
   const availableSections = selectedClassObj ? selectedClassObj.sections : ['A', 'B', 'C', 'D'];
 
-  const filteredPayments = feePayments.filter(p => {
-    const matchesSearch =
-      p.receiptNo.toLowerCase().includes(query.toLowerCase()) ||
-      p.studentName.toLowerCase().includes(query.toLowerCase());
+  const filteredPayments = feePayments.filter((p) => {
+    const student = students.find(
+      (s) => s.id === p.studentId || (s.admissionNo && s.admissionNo === p.studentId),
+    );
+    const receiptNoStr =
+      p.receiptNo || (p.id && p.id.startsWith("REC-") ? p.id : `REC-${(p.id || "1001").slice(-6)}`);
+    const studentNameStr =
+      p.studentName || (student ? `${student.firstName} ${student.lastName}` : "");
+    const classNameStr =
+      p.className || (student ? `${student.className}-${student.section}` : "");
 
-    const matchesClass = filterClass === 'All' || p.className.startsWith(filterClass);
-    const matchesSection = filterSection === 'All' || p.className.endsWith(`-${filterSection}`);
+    const matchesSearch =
+      query.trim() === "" ||
+      receiptNoStr.toLowerCase().includes(query.toLowerCase()) ||
+      studentNameStr.toLowerCase().includes(query.toLowerCase());
+
+    const matchesClass =
+      filterClass === "All" ||
+      classNameStr.toLowerCase().includes(filterClass.toLowerCase());
+    const matchesSection =
+      filterSection === "All" ||
+      classNameStr.toLowerCase().endsWith(`-${filterSection.toLowerCase()}`);
 
     return matchesSearch && matchesClass && matchesSection;
   });
@@ -37,7 +52,6 @@ export const FeeReceiptsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-
       {/* Filter */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3">
         <div className="relative w-full sm:w-72">
@@ -46,7 +60,7 @@ export const FeeReceiptsView: React.FC = () => {
             type="text"
             placeholder="Search receipt no or student name..."
             value={query}
-            onChange={e => {
+            onChange={(e) => {
               setQuery(e.target.value);
               setCurrentPage(1);
             }}
@@ -57,30 +71,34 @@ export const FeeReceiptsView: React.FC = () => {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <select
             value={filterClass}
-            onChange={e => {
+            onChange={(e) => {
               setFilterClass(e.target.value);
-              setFilterSection('All');
+              setFilterSection("All");
               setCurrentPage(1);
             }}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
           >
             <option value="All">Select Class</option>
-            {academicClasses.map(c => (
-              <option key={c.id} value={c.name}>{c.name}</option>
+            {academicClasses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
             ))}
           </select>
 
           <select
             value={filterSection}
-            onChange={e => {
+            onChange={(e) => {
               setFilterSection(e.target.value);
               setCurrentPage(1);
             }}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
           >
             <option value="All">Select Section</option>
-            {availableSections.map(sec => (
-              <option key={sec} value={sec}>Section {sec}</option>
+            {availableSections.map((sec) => (
+              <option key={sec} value={sec}>
+                Section {sec}
+              </option>
             ))}
           </select>
         </div>
@@ -110,25 +128,67 @@ export const FeeReceiptsView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedPayments.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{p.receiptNo}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{p.studentName}</td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{p.className}</td>
-                    <td className="py-3 px-4 text-slate-500">{p.paymentDate}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{p.paymentMode}</td>
-                    <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.amountPaid)}</td>
-                    <td className="py-3 px-4"><Badge variant="success">{p.status}</Badge></td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedReceipt(p)}
-                        className="px-3 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto cursor-pointer"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> View / Print Receipt
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                paginatedPayments.map((p) => {
+                  const student = students.find(
+                    (s) => s.id === p.studentId || (s.admissionNo && s.admissionNo === p.studentId),
+                  );
+                  const displayReceiptNo =
+                    p.receiptNo ||
+                    (p.id && p.id.startsWith("REC-") ? p.id : `REC-${(p.id || "1001").slice(-6)}`);
+                  const displayStudentName =
+                    p.studentName ||
+                    (student ? `${student.firstName} ${student.lastName}` : "Enrolled Student");
+                  const displayClass =
+                    p.className ||
+                    (student
+                      ? student.className.toLowerCase().startsWith("class")
+                        ? `${student.className}-${student.section}`
+                        : `Class ${student.className}-${student.section}`
+                      : "—");
+                  const displayDate = p.paymentDate
+                    ? p.paymentDate.split("T")[0]
+                    : new Date().toISOString().split("T")[0];
+
+                  const fullPaymentObj: FeePayment = {
+                    ...p,
+                    receiptNo: displayReceiptNo,
+                    studentName: displayStudentName,
+                    className: displayClass,
+                    paymentDate: displayDate,
+                  };
+
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                        {displayReceiptNo}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                        {displayStudentName}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                        {displayClass}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 font-mono">{displayDate}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                        {p.paymentMode || "Cash"}
+                      </td>
+                      <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(p.amountPaid)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant="success">{p.status || "Paid"}</Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedReceipt(fullPaymentObj)}
+                          className="px-3 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" /> View / Print Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

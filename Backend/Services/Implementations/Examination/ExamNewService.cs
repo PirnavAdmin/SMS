@@ -103,11 +103,11 @@ public class ExamNewService : IExamNewService
         var savedConfigs = await _repository.GetSubjectConfigsAsync(examId, targetClass);
         if (savedConfigs != null && savedConfigs.Any())
         {
-            foreach (var sub in availableSubjects)
+            foreach (var match in savedConfigs)
             {
-                var match = savedConfigs.FirstOrDefault(c => c.SubjectName.Equals(sub.SubjectName, StringComparison.OrdinalIgnoreCase)
-                                                          || c.SubjectCode.Equals(sub.SubjectCode, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
+                var sub = availableSubjects.FirstOrDefault(c => c.SubjectName.Equals(match.SubjectName, StringComparison.OrdinalIgnoreCase)
+                                                          || c.SubjectCode.Equals(match.SubjectCode, StringComparison.OrdinalIgnoreCase));
+                if (sub != null)
                 {
                     sub.IsActive = match.IsActive;
                     sub.MaxMarks = match.MaxMarks;
@@ -116,6 +116,17 @@ public class ExamNewService : IExamNewService
                     {
                         sub.SubjectCode = match.SubjectCode;
                     }
+                }
+                else
+                {
+                    availableSubjects.Add(new SubjectMarksConfigItemDto
+                    {
+                        SubjectCode = match.SubjectCode,
+                        SubjectName = match.SubjectName,
+                        IsActive = match.IsActive,
+                        MaxMarks = match.MaxMarks,
+                        PassMarks = match.PassMarks
+                    });
                 }
             }
         }

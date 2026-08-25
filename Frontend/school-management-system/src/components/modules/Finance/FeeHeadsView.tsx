@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, ArrowUpDown } from 'lucide-react';
 import { FeeHead, FeeHeadCategory, FeeHeadFrequency } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -6,6 +6,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { compareClassesAscending } from '../../../utils/classSorter';
 
 const CATEGORIES: FeeHeadCategory[] = [
   'Tuition', 'Admission', 'Books', 'Uniform', 'Lab', 'Computer',
@@ -16,11 +17,33 @@ const FREQUENCIES: FeeHeadFrequency[] = [
   'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Annual', 'Custom'
 ];
 
+const DEFAULT_CLASSES = [
+  'Playgroup', 'Nursery', 'LKG', 'UKG',
+  'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+  'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'
+];
+
 export const FeeHeadsView: React.FC = () => {
   const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses } = useData();
   const { addToast } = useToast();
 
-  const classOptions = academicClasses && academicClasses.length > 0 ? academicClasses.map(c => c.name) : ['Class 9', 'Class 10', 'Class 11', 'Class 12'];
+  const classOptions = useMemo(() => {
+    if (academicClasses && academicClasses.length > 0) {
+      const list = academicClasses.map(c => c.name || (c as any).className).filter(Boolean);
+      return Array.from(new Set(list)).sort(compareClassesAscending);
+    }
+    return DEFAULT_CLASSES;
+  }, [academicClasses]);
+
+  const formatClassDisplayName = (cls: string) => {
+    if (!cls) return '';
+    return cls.replace(/^Class\s+/i, '').trim();
+  };
+
+  const formatClassListForDisplay = (classes?: string[]) => {
+    if (!classes || classes.length === 0) return 'None';
+    return classes.map(formatClassDisplayName).join(', ');
+  };
 
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -37,7 +60,7 @@ export const FeeHeadsView: React.FC = () => {
     category: 'Tuition',
     frequency: 'Quarterly',
     mandatory: true,
-    applicableClasses: ['Class 9', 'Class 10', 'Class 11', 'Class 12'],
+    applicableClasses: classOptions,
     applicableBranches: ['Main Campus'],
     taxPercentage: 0,
     displayOrder: 1,
@@ -50,7 +73,12 @@ export const FeeHeadsView: React.FC = () => {
     const matchesFrequency = selectedFrequency === 'All' || h.frequency === selectedFrequency;
     const matchesStatus = selectedStatus === 'All' || h.status === selectedStatus;
     return matchesQuery && matchesCategory && matchesFrequency && matchesStatus;
-  }).sort((a, b) => a.displayOrder - b.displayOrder);
+  }).sort((a, b) => {
+    // Mandatory fee types always display at top
+    if (a.mandatory && !b.mandatory) return -1;
+    if (!a.mandatory && b.mandatory) return 1;
+    return (a.displayOrder || 0) - (b.displayOrder || 0);
+  });
 
   const handleOpenAdd = () => {
     setEditingHead(null);
@@ -79,6 +107,11 @@ export const FeeHeadsView: React.FC = () => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
       addToast('warning', 'Validation Error', 'Fee type name and code are required.');
+      return;
+    }
+
+    if (!formData.applicableClasses || formData.applicableClasses.length === 0) {
+      addToast('warning', 'Validation Error', 'Please select at least one applicable class for this fee type.');
       return;
     }
 
@@ -173,9 +206,9 @@ export const FeeHeadsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {filteredHeads.map(h => (
+              {filteredHeads.map((h, idx) => (
                 <tr key={h.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                  <td className="py-3 px-4 text-slate-400 font-mono">{h.displayOrder}</td>
+                  <td className="py-3 px-4 text-slate-400 font-mono">{idx + 1}</td>
                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{h.name}</td>
                   <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">{h.code}</td>
                   <td className="py-3 px-4">
@@ -191,7 +224,7 @@ export const FeeHeadsView: React.FC = () => {
                       <span className="text-slate-400 font-medium">Optional</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-slate-500">{h.applicableClasses.join(', ')}</td>
+                  <td className="py-3 px-4 text-slate-500 font-medium">{formatClassListForDisplay(h.applicableClasses)}</td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => toggleFeeHeadStatus(h.id)}
@@ -297,6 +330,63 @@ export const FeeHeadsView: React.FC = () => {
                     onChange={e => setFormData({ ...formData, taxPercentage: Number(e.target.value) })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                   />
+                </div>
+              </div>
+
+              {/* Applicable Classes Configuration */}
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <label className="font-extrabold text-slate-800 dark:text-slate-200">
+                    Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) *
+                  </label>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, applicableClasses: [...classOptions] })}
+                      className="text-sky-600 hover:text-sky-700 dark:text-sky-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, applicableClasses: [] })}
+                      className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto p-1">
+                  {classOptions.map((cls) => {
+                    const isChecked = (formData.applicableClasses || []).includes(cls);
+                    return (
+                      <label
+                        key={cls}
+                        className={`flex items-center gap-2 p-1.5 rounded-xl border text-[11px] font-semibold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const current = formData.applicableClasses || [];
+                            if (e.target.checked) {
+                              setFormData({ ...formData, applicableClasses: [...current, cls] });
+                            } else {
+                              setFormData({ ...formData, applicableClasses: current.filter(c => c !== cls) });
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500"
+                        />
+                        <span className="truncate">{formatClassDisplayName(cls)}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 

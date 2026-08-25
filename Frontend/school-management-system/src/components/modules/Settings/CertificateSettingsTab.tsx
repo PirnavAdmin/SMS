@@ -12,6 +12,8 @@ import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer } from '../Certificates/PrintableCertificateContainer';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
+import { DEFAULT_CERTIFICATE_FIELDS_MAP } from '../../../utils/certificateFields';
+
 export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
   {
     id: 'CT-TC',
@@ -21,6 +23,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 1,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'dateOfBirth', 'dateOfAdmission', 'dateOfLeaving', 'reasonForLeaving', 'conduct'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-TC'],
     numberingPrefix: 'TC',
     numberingStart: 1,
     numberingLength: 4,
@@ -35,6 +38,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 2,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'section', 'academicYear', 'issueDate'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-BONAFIDE'],
     numberingPrefix: 'BC',
     numberingStart: 1,
     numberingLength: 4,
@@ -49,6 +53,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 3,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-STUDY'],
     numberingPrefix: 'SC',
     numberingStart: 1,
     numberingLength: 4,
@@ -63,6 +68,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 4,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'conduct'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CHARACTER'],
     numberingPrefix: 'CC',
     numberingStart: 1,
     numberingLength: 4,
@@ -77,6 +83,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 5,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'conduct'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CONDUCT'],
     numberingPrefix: 'CD',
     numberingStart: 1,
     numberingLength: 4,
@@ -91,6 +98,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 6,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-FEE-CLEARANCE'],
     numberingPrefix: 'FC',
     numberingStart: 1,
     numberingLength: 4,
@@ -105,6 +113,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 7,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'dateOfAdmission'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-ADMISSION'],
     numberingPrefix: 'AC',
     numberingStart: 1,
     numberingLength: 4,
@@ -119,6 +128,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 8,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-COURSE-COMPLETION'],
     numberingPrefix: 'CCC',
     numberingStart: 1,
     numberingLength: 4,
@@ -133,6 +143,7 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 9,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'dateOfLeaving', 'reasonForLeaving'],
+    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-LEAVING'],
     numberingPrefix: 'LC',
     numberingStart: 1,
     numberingLength: 4,
@@ -147,6 +158,11 @@ export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
     status: 'Active',
     displayOrder: 10,
     requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
+    fields: [
+      { key: 'issueDate', label: 'Date of Issue', type: 'date', required: true, displayOrder: 1 },
+      { key: 'purpose', label: 'Purpose', type: 'text', required: false, displayOrder: 2 },
+      { key: 'remarks', label: 'Remarks', type: 'textarea', required: false, displayOrder: 3 }
+    ],
     numberingPrefix: 'CUST',
     numberingStart: 1,
     numberingLength: 4,

@@ -47,9 +47,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('auth_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && (parsed.name === 'Administrator' || !parsed.name) && parsed.email && parsed.email.includes('@')) {
-          const parts = parsed.email.split('@')[0].split('.');
-          parsed.name = parts.map((p: any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        if (parsed) {
+          parsed.isFirstLogin = false;
+          if ((parsed.name === 'Administrator' || !parsed.name) && parsed.email && parsed.email.includes('@')) {
+            const parts = parsed.email.split('@')[0].split('.');
+            parsed.name = parts.map((p: any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          }
           localStorage.setItem('auth_user', JSON.stringify(parsed));
         }
         return parsed;
@@ -123,7 +126,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
-      const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
 
       const loggedUser: User = {
         id: userIdStr,
@@ -133,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
         lastLogin: new Date().toLocaleString(),
         status: 'Active',
-        isFirstLogin: employeeRoles.includes(mappedRole) || mappedRole === 'Teacher'
+        isFirstLogin: false
       };
 
       setUser(loggedUser);

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
+import { useToast } from "../../context/ToastContext";
 
 interface ExportButtonProps<T> {
   data: T[];
@@ -7,6 +8,7 @@ interface ExportButtonProps<T> {
   filteredCount?: number;
   className?: string;
   label?: string;
+  emptyMessage?: string;
 }
 
 export function ExportButton<T extends Record<string, any>>({
@@ -15,11 +17,26 @@ export function ExportButton<T extends Record<string, any>>({
   filteredCount,
   className = "",
   label = "Download",
+  emptyMessage = "No data available to export. Please select filters or load data first.",
 }: ExportButtonProps<T>) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const { addToast } = useToast();
 
   const handleExportExcel = () => {
-    if (!data || data.length === 0 || isDownloading) return;
+    if (isDownloading) return;
+
+    if (!data || data.length === 0) {
+      if (addToast) {
+        addToast(
+          "warning",
+          "No Data Available",
+          emptyMessage
+        );
+      } else {
+        alert(emptyMessage);
+      }
+      return;
+    }
 
     setIsDownloading(true);
 
@@ -48,13 +65,20 @@ export function ExportButton<T extends Record<string, any>>({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `${filename}_filtered.csv`);
+      link.setAttribute("download", `${filename}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
       setIsDownloading(false);
-    }, 850);
+      if (addToast) {
+        addToast(
+          "success",
+          "Download Started",
+          `Exported ${data.length} record(s) successfully.`
+        );
+      }
+    }, 600);
   };
 
   const defaultClasses =
