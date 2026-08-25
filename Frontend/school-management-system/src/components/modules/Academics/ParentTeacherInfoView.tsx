@@ -3,6 +3,8 @@ import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, Loader2 
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 
+import { getParentTeachers } from '../../../api/parent/parentApi';
+
 interface TeacherItem {
   id: string | number;
   firstName: string;
@@ -34,37 +36,36 @@ export const ParentTeacherInfoView: React.FC = () => {
   ];
 
   useEffect(() => {
+    let isMounted = true;
     const fetchTeachers = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/teachers');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-            const mapped: TeacherItem[] = json.data.map((t: any) => ({
-              id: t.id || t.employeeId,
-              firstName: t.firstName || 'Teacher',
-              lastName: t.lastName || '',
-              subject: t.subject || t.department || 'General',
-              subjectCode: t.subjectCode || 'SUB-101',
-              phone: t.phone || '+1 555-888-000',
-              email: t.email || 'teacher@school.com',
-              isClassTeacher: Boolean(t.isClassTeacher)
-            }));
-            setTeachers(mapped);
-            return;
-          }
+        const data = await getParentTeachers(1);
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          const mapped: TeacherItem[] = data.map((t: any) => ({
+            id: t.teacherId || t.id,
+            firstName: t.firstName || t.teacherName?.split(' ')[0] || 'Teacher',
+            lastName: t.lastName || t.teacherName?.split(' ')[1] || '',
+            subject: t.subjectTaught || t.subject || 'General',
+            subjectCode: t.subjectCode || 'SUB-101',
+            phone: t.phone || '+1 555-888-000',
+            email: t.email || 'teacher@pirnavschools.edu',
+            isClassTeacher: Boolean(t.isClassTeacher)
+          }));
+          setTeachers(mapped);
+          return;
         }
       } catch (err) {
-        console.warn('Backend API /api/teachers not reachable, using static fallback:', err);
+        console.warn('Parent teachers API failed, using static fallback:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
 
-      setTeachers(staticTeachers);
+      if (isMounted) setTeachers(staticTeachers);
     };
 
     fetchTeachers();
+    return () => { isMounted = false; };
   }, []);
 
   let parentWards = students.filter(s => 

@@ -1,25 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Printer } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentTimetableView: React.FC = () => {
   const { students, timetable } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
+  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchChildren = async () => {
+      try {
+        const children = await getParentChildren(user?.email);
+        if (isMounted && children && children.length > 0) {
+          setApiChildren(children);
+        }
+      } catch (err) {
+        console.warn('Failed to load parent children in timetable view:', err);
+      }
+    };
+    fetchChildren();
+    return () => { isMounted = false; };
+  }, [user?.email]);
 
   // Match children by email or phone, or own ID if student
-  let parentWards = students.filter(s => 
-    s.status === 'Active' && 
-    (
-      role === 'Student' ? s.id === user?.id : 
-      (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
-    )
-  );
-
-  const hasMatchedWards = parentWards.length > 0;
-  if (!hasMatchedWards) {
-    parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
+  let parentWards: any[] = [];
+  if (apiChildren.length > 0) {
+    parentWards = apiChildren.map(c => ({
+      id: String(c.studentId),
+      studentId: c.studentId,
+      firstName: c.firstName || c.studentName.split(' ')[0],
+      lastName: c.lastName || '',
+      studentName: c.studentName,
+      className: c.className || 'Class 6',
+      section: c.sectionName || 'A',
+      status: 'Active'
+    }));
+  } else {
+    const localMatches = students.filter(s => 
+      s.status === 'Active' && 
+      (
+        role === 'Student' ? s.id === user?.id : 
+        (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
+      )
+    );
+    if (localMatches.length > 0) {
+      parentWards = localMatches;
+    } else {
+      parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
+    }
   }
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

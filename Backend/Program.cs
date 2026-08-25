@@ -64,6 +64,10 @@ builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 
+// Parent Portal
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.Parent.IParentRepository, SMS.Api.Repositories.Implementations.Parent.ParentRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.Parent.IParentService, SMS.Api.Services.Implementations.Parent.ParentService>();
+
 // Transport Route
 builder.Services.AddScoped<ITransportRouteRepository,TransportRouteRepository>();
 
@@ -1796,6 +1800,14 @@ using (var scope = app.Services.CreateScope())
             {
                 FullName = "Kumar Parent",
                 Email = "parent@pirnavschools.com",
+                Mobile = "9876543223",
+                Password = "Parent@123",
+                Role = parentRole
+            },
+            new
+            {
+                FullName = "Kumar Parent",
+                Email = "parent@pirnavschools.edu",
                 Mobile = "9876543223",
                 Password = "Parent@123",
                 Role = parentRole
