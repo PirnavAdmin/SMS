@@ -77,7 +77,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("totalCopies")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int TotalCopies { get; set; } = 10;
     }
 

@@ -44,6 +44,8 @@ namespace SMS.Api.Data
         public DbSet<TeacherAttendanceCorrection> TeacherAttendanceCorrections { get; set; } = null!;
         public DbSet<LibraryBook> LibraryBooks { get; set; } = null!;
         public DbSet<LibraryIssueRecord> LibraryIssueRecords { get; set; } = null!;
+        public DbSet<LibrarianAttendance> LibrarianAttendances { get; set; } = null!;
+        public DbSet<LibraryTimetableSlot> LibraryTimetableSlots { get; set; } = null!;
         public DbSet<LeaveTypeConfig> LeaveTypeConfigs { get; set; } = null!;
         public DbSet<LeaveApplication> LeaveApplications { get; set; } = null!;
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; } = null!;
