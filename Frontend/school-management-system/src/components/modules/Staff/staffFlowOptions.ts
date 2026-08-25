@@ -400,12 +400,16 @@ export const nonTeachingDeptNames = new Set([
   "Stores & Inventory",
 ]);
 
+const lowerTeachingDepts = new Set(Array.from(teachingDeptNames).map(n => n.toLowerCase()));
+const lowerNonTeachingDepts = new Set(Array.from(nonTeachingDeptNames).map(n => n.toLowerCase()));
+
 export function getDepartmentOptions(
   staffTypeCategory?: string,
   settingsDepts?: any[],
 ): string[] {
   if (!settingsDepts || settingsDepts.length === 0) return [];
   const staffType = normalizeStaffType(staffTypeCategory);
+  const isTeaching = staffType === "Teaching Staff";
   
   return settingsDepts
     .filter((d) => {
@@ -415,7 +419,30 @@ export function getDepartmentOptions(
       const status = typeof d === "object" ? d.status : "Active";
       if (status === "Inactive") return false;
 
-      return true;
+      const cleanName = name.toLowerCase().trim();
+      
+      // 1. Exact match in our known sets first
+      if (lowerTeachingDepts.has(cleanName)) {
+        return isTeaching;
+      }
+      if (lowerNonTeachingDepts.has(cleanName)) {
+        return !isTeaching;
+      }
+      
+      // 2. Keyword heuristic for custom/typoed names
+      const nonTeachingKeywords = [
+        'admin', 'account', 'hr', 'admission', 'lib', 'lab', 'transport', 'transp', 
+        'hostel', 'recept', 'it', 'support', 'secur', 'clean', 'housekeep', 'maintenance', 
+        'store', 'inv', 'oper', 'ops', 'non-teach', 'non teaching'
+      ];
+      
+      const isNonTeachingKeyword = nonTeachingKeywords.some(kw => cleanName.includes(kw));
+      if (isNonTeachingKeyword) {
+        return !isTeaching;
+      }
+      
+      // Default fallback: assume it is a teaching department (subjects, grades) unless it's a known non-teaching keyword
+      return isTeaching;
     })
     .map((d) => (typeof d === "string" ? d : d.name || d.departmentName))
     .filter(Boolean);
@@ -583,6 +610,9 @@ export const nonTeachingDesignationNames = new Set([
   "Attender",
 ]);
 
+const lowerTeachingDesignations = new Set(Array.from(teachingDesignationNames).map(n => n.toLowerCase()));
+const lowerNonTeachingDesignations = new Set(Array.from(nonTeachingDesignationNames).map(n => n.toLowerCase()));
+
 export function getDesignationOptions(
   staffTypeCategory?: string,
   selectedDepartment?: string,
@@ -590,6 +620,7 @@ export function getDesignationOptions(
 ): string[] {
   if (!settingsDesignations || settingsDesignations.length === 0) return [];
   const staffType = normalizeStaffType(staffTypeCategory);
+  const isTeachingStaff = staffType === "Teaching Staff";
 
   return settingsDesignations
     .filter((d) => {
@@ -600,10 +631,22 @@ export function getDesignationOptions(
 
       // Filter by staff type category (Teaching vs Non-Teaching)
       const targetCategory = typeof d === "object" ? d.staffType || d.employeeCategory || 'Both' : 'Both';
-      if (targetCategory !== "Both" && targetCategory !== "All") {
-        const isTeachingCat = targetCategory.toLowerCase().includes('teach') || targetCategory.toLowerCase().includes('teacher');
-        const isTeachingStaff = staffType === "Teaching Staff";
+      const cleanTarget = targetCategory.toLowerCase();
+      if (cleanTarget !== "both" && cleanTarget !== "all" && cleanTarget !== "") {
+        const isNonTeachingCat = cleanTarget.includes('non');
+        const isTeachingCat = !isNonTeachingCat && (cleanTarget.includes('teach') || cleanTarget.includes('teacher'));
         if (isTeachingStaff !== isTeachingCat) return false;
+      } else {
+        // Fallback to our case-insensitive sets
+        const lowerName = name.toLowerCase().trim();
+        const isTeachingFallback = lowerTeachingDesignations.has(lowerName);
+        const isNonTeachingFallback = lowerNonTeachingDesignations.has(lowerName);
+        
+        if (isTeachingStaff) {
+          if (isNonTeachingFallback && !isTeachingFallback) return false;
+        } else {
+          if (isTeachingFallback && !isNonTeachingFallback) return false;
+        }
       }
 
       // Filter by selected department if provided

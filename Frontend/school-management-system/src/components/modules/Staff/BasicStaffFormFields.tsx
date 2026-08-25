@@ -267,21 +267,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const [previewDoc, setPreviewDoc] = useState<StaffUploadedDocItem | null>(null);
 
   const departmentSelectOptions = React.useMemo(() => {
-    const uniqueDeptsMap = new Map<string, string>();
-    
-    // Add all active departments from the database
-    (departments || []).forEach(d => {
-      if (d.status === 'Active' && d.departmentName) {
-        uniqueDeptsMap.set(d.departmentName.trim(), d.departmentCode || '');
-      }
-    });
-
-    return Array.from(uniqueDeptsMap.entries()).map(([name, code]) => ({
-      value: name,
-      label: name,
-      code: code || name.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 4) || "DEPT"
-    }));
-  }, [departments]);
+    return getDepartmentSelectOptions(normalizedCategory, departments);
+  }, [normalizedCategory, departments]);
 
   const designationOptions = React.useMemo(() => {
     return getDesignationOptions(normalizedCategory, value.department, designations);
@@ -486,6 +473,25 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             </div>
 
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Staff Type */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Staff Type <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative mt-1.5">
+                  <select
+                    value={value.employeeCategory || ''}
+                    onChange={e => handleStaffTypeSelect(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                  >
+                    <option value="Teaching Staff">Teaching Staff</option>
+                    <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {errors.employeeCategory && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.employeeCategory}</p>}
+              </div>
+
               {/* First Name */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
