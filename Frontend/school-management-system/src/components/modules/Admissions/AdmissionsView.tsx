@@ -2402,7 +2402,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Date of Birth <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <DateInput
+                    <input
+                      type="date"
                       required
                       value={
                         formData.dob
@@ -2531,7 +2532,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Date of Admission <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <DateInput
+                    <input
+                      type="date"
                       required
                       value={
                         formData.admissionDate

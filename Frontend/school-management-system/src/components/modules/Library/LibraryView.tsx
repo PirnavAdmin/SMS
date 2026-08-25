@@ -365,6 +365,50 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [modalType, setModalType] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>(null);
   const [deletingItem, setDeletingItem] = useState<{ type: string; id: string; title: string } | null>(null);
+  const [selectedRackForInspect, setSelectedRackForInspect] = useState<BookRack | null>(null);
+
+  const getRackCapacityInfo = (r: BookRack, booksList: BookItem[]) => {
+    const rackKey = `${r.rackNo} (${r.shelfNo})`.toLowerCase().trim();
+    const matchedBooks = booksList.filter(b => {
+      const bRack = (b.rackNo || '').toLowerCase().trim();
+      return bRack.includes(r.rackNo.toLowerCase()) || rackKey.includes(bRack);
+    });
+    const totalOnShelf = matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
+    const capacity = r.capacity || 50;
+    const remainingSpace = Math.max(0, capacity - totalOnShelf);
+    const isFull = remainingSpace <= 0;
+    const statusLabel = isFull ? 'Not Available (Full)' : `Available (${remainingSpace} spaces left)`;
+
+    return {
+      totalOnShelf,
+      capacity,
+      remainingSpace,
+      isFull,
+      statusLabel
+    };
+  };
+
+  const handleAutoAllocateRack = () => {
+    const numCopiesNeeded = Number(bookForm.totalCopies) || 1;
+    const availableRack = racks.find(r => {
+      const info = getRackCapacityInfo(r, books);
+      return info.remainingSpace >= numCopiesNeeded;
+    }) || racks.find(r => {
+      const info = getRackCapacityInfo(r, books);
+      return info.remainingSpace > 0;
+    }) || racks[0];
+
+    if (availableRack) {
+      const info = getRackCapacityInfo(availableRack, books);
+      const formattedVal = `${availableRack.rackNo} (${availableRack.shelfNo})`;
+      setBookForm(prev => ({ ...prev, rackNo: formattedVal }));
+      if (info.isFull) {
+        addToast('warning', 'Racks Full', `All rack locations are currently full. Selected ${formattedVal} (0 spaces remaining). Consider adding a new rack.`);
+      } else {
+        addToast('success', 'Rack Auto-Allocated', `Auto-allocated ${formattedVal} with ${info.remainingSpace} spaces remaining!`);
+      }
+    }
+  };
 
   const handleOpenAddOrEditBook = (bookToEdit?: BookItem) => {
     if (bookToEdit) {
@@ -380,13 +424,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       setModalType('editBook');
     } else {
       setModalData(null);
+      const bestAvailable = racks.find(r => getRackCapacityInfo(r, books).remainingSpace > 0) || racks[0];
       setBookForm({
         title: '',
         author: '',
         category: categories[0]?.name || 'Science & Physics',
         isbn: '978-0134' + Math.floor(100000 + Math.random() * 900000),
         totalCopies: 10,
-        rackNo: racks[0] ? `${racks[0].rackNo} (${racks[0].shelfNo})` : 'Rack A-01 (Shelf 1)'
+        rackNo: bestAvailable ? `${bestAvailable.rackNo} (${bestAvailable.shelfNo})` : 'Rack A-01 (Shelf 1)'
       });
       setModalType('addBook');
     }
@@ -612,7 +657,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
     if (activeSubTab === 'books') {
       const filteredBooks = books.filter(b =>
-        (!searchQuery || b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.author.toLowerCase().includes(searchQuery.toLowerCase()) || b.isbn.toLowerCase().includes(searchQuery.toLowerCase())) &&
+        (!searchQuery || 
+          b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          b.author.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          b.isbn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (b.rackNo || '').toLowerCase().includes(searchQuery.toLowerCase())
+        ) &&
         (!filterCategory || b.category === filterCategory)
       );
 
@@ -620,9 +670,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="space-y-4 animate-in fade-in">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full sm:w-72">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" placeholder="Search title, author, ISBN..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none" />
+                <input type="text" placeholder="Search title, author, ISBN, or Rack/Shelf..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none" />
               </div>
               <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none">
                 <option value="">All Categories</option>
@@ -791,23 +841,52 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     }
 
     if (activeSubTab === 'racks') {
+      const filteredRacks = racks.filter(r => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase().trim();
+        const matchedBooksInRack = books.some(b => 
+          ((b.rackNo || '').toLowerCase().includes(r.rackNo.toLowerCase()) || (r.rackNo || '').toLowerCase().includes((b.rackNo || '').toLowerCase())) &&
+          (b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q) || b.isbn.toLowerCase().includes(q))
+        );
+        return r.rackNo.toLowerCase().includes(q) ||
+               r.shelfNo.toLowerCase().includes(q) ||
+               r.section.toLowerCase().includes(q) ||
+               r.floor.toLowerCase().includes(q) ||
+               matchedBooksInRack;
+      });
+
       return (
         <div className="space-y-4 animate-in fade-in">
-          <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Bookmark className="w-4 h-4 text-sky-500" /> Racks & Shelves Location Mapping</h3>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 whitespace-nowrap"><Bookmark className="w-4 h-4 text-sky-500" /> Racks & Shelves</h3>
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search rack #, section, or stored book title..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none"
+                />
+              </div>
+            </div>
             {!isReadOnlyAccess && (
               <button onClick={() => setModalType('addRack')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add Rack Location
               </button>
             )}
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {racks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => {
+            {filteredRacks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => {
+              const info = getRackCapacityInfo(r, books);
               const matchedBooks = books.filter(b => (b.rackNo || '').toLowerCase().includes(r.rackNo.toLowerCase()) || (r.rackNo || '').toLowerCase().includes((b.rackNo || '').toLowerCase()));
               const totalOnShelf = matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
               const availableOnShelf = matchedBooks.reduce((sum, b) => sum + (b.availableCopies || 0), 0);
               const issuedFromShelf = Math.max(0, totalOnShelf - availableOnShelf);
-              const occupancyPct = totalOnShelf > 0 ? Math.round((availableOnShelf / totalOnShelf) * 100) : 100;
+              const capacity = r.capacity || 50;
+              const occupancyPct = capacity > 0 ? Math.min(100, Math.round((totalOnShelf / capacity) * 100)) : 0;
 
               return (
                 <div key={r.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-3 shadow-xs">
@@ -822,28 +901,50 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                       )}
                     </div>
                   </div>
-                  <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{r.section}</p>
-                  <p className="text-[11px] text-slate-400">{r.floor}</p>
+
+                  <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{r.section}</p>
+                      <p className="text-[11px] text-slate-400">{r.floor}</p>
+                    </div>
+                    {info.isFull ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 shrink-0">
+                        Not Available
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 shrink-0">
+                        Available ({info.remainingSpace} Left)
+                      </span>
+                    )}
+                  </div>
 
                   <div className="space-y-1.5 pt-2 border-t text-[11px] font-bold">
                     <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                      <span>Shelf Capacity:</span>
-                      <span className="font-mono">{r.capacity} Books</span>
+                      <span>Total Capacity:</span>
+                      <span className="font-mono">{capacity} Books</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-700 dark:text-slate-200">
+                      <span>Stored Copies:</span>
+                      <span className="font-mono font-black">{totalOnShelf} Copies</span>
                     </div>
                     <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-                      <span>On Shelf (Available):</span>
-                      <span className="font-mono font-black">{availableOnShelf} Copies</span>
-                    </div>
-                    <div className="flex justify-between items-center text-amber-600 dark:text-amber-400">
-                      <span>Issued Out (Borrowed):</span>
-                      <span className="font-mono font-black">{issuedFromShelf} Copies</span>
+                      <span>Remaining Space:</span>
+                      <span className="font-mono font-black">{info.remainingSpace} Spaces</span>
                     </div>
 
                     {/* Visual Progress Bar */}
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-1 flex">
-                      <div style={{ width: `${occupancyPct}%` }} className="bg-emerald-500 h-full" title={`${availableOnShelf} Available on shelf`} />
-                      <div style={{ width: `${100 - occupancyPct}%` }} className="bg-amber-500 h-full" title={`${issuedFromShelf} Issued out`} />
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden mt-1.5 flex">
+                      <div style={{ width: `${occupancyPct}%` }} className={occupancyPct >= 100 ? 'bg-rose-500 h-full' : 'bg-sky-500 h-full'} title={`${totalOnShelf} stored out of ${capacity} capacity`} />
                     </div>
+
+                    {/* View Stored Books Action Button */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRackForInspect(r)}
+                      className="w-full mt-2.5 py-2 px-3 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" /> View Stored Books ({matchedBooks.length} Titles)
+                    </button>
                   </div>
                 </div>
               );
@@ -851,7 +952,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           </div>
           <Pagination
             currentPage={currentPage}
-            totalItems={racks.length}
+            totalItems={filteredRacks.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             onItemsPerPageChange={setItemsPerPage}
@@ -2147,22 +2248,56 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block font-bold text-slate-700 dark:text-slate-300">Rack / Shelf *</label>
-                    <button type="button" onClick={() => setModalType('addRack')} className="text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
-                      + Add New Shelf
-                    </button>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300">Rack / Shelf <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={handleAutoAllocateRack} className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer flex items-center gap-1">
+                        ⚡ Auto-Allocate
+                      </button>
+                      <button type="button" onClick={() => setModalType('addRack')} className="text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
+                        + Add Rack
+                      </button>
+                    </div>
                   </div>
                   <select
                     value={bookForm.rackNo}
                     onChange={e => setBookForm(prev => ({ ...prev, rackNo: e.target.value }))}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
                   >
-                    {racks.map(r => (
-                      <option key={r.id} value={`${r.rackNo} (${r.shelfNo})`}>
-                        {r.rackNo} ({r.shelfNo}) {r.section ? `• ${r.section}` : ''}
-                      </option>
-                    ))}
+                    {racks.map(r => {
+                      const info = getRackCapacityInfo(r, books);
+                      const rackVal = `${r.rackNo} (${r.shelfNo})`;
+                      const statusText = info.isFull ? '🔴 FULL (0 space left)' : `🟢 Available (${info.remainingSpace} spaces left)`;
+                      return (
+                        <option 
+                          key={r.id} 
+                          value={rackVal}
+                          className={info.isFull ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}
+                        >
+                          {r.rackNo} ({r.shelfNo}) {r.section ? `• ${r.section}` : ''} — {statusText}
+                        </option>
+                      );
+                    })}
                   </select>
+
+                  {/* Selected Rack Status Indicator */}
+                  {(() => {
+                    const matchedR = racks.find(r => `${r.rackNo} (${r.shelfNo})`.toLowerCase() === (bookForm.rackNo || '').toLowerCase() || (bookForm.rackNo || '').toLowerCase().includes(r.rackNo.toLowerCase()));
+                    if (!matchedR) return null;
+                    const info = getRackCapacityInfo(matchedR, books);
+                    return info.isFull ? (
+                      <div className="mt-1.5 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] font-bold text-rose-800 dark:text-rose-300 flex items-center justify-between">
+                        <span>🛑 Rack Full (0 spaces left)</span>
+                        <button type="button" onClick={handleAutoAllocateRack} className="underline text-sky-600 dark:text-sky-400 cursor-pointer">
+                          Auto-Allocate Free Rack
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                        <span>✅ Space Available: {info.remainingSpace} spaces left (Capacity: {info.capacity})</span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-black">AVAILABLE</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -2323,6 +2458,147 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           confirmLabel="Delete Record"
           variant="danger"
         />
+      )}
+
+      {/* Rack Stored Books Inspection Modal */}
+      {selectedRackForInspect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="glass-card max-w-3xl w-full p-6 sm:p-8 rounded-[32px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 shrink-0">
+                  <Bookmark className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    Books Stored in <span className="text-sky-600 font-mono">{selectedRackForInspect.rackNo}</span> ({selectedRackForInspect.shelfNo})
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+                    {selectedRackForInspect.section} • {selectedRackForInspect.floor} • Total Capacity: {selectedRackForInspect.capacity} Copies
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedRackForInspect(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Metrics Summary Bar */}
+            {(() => {
+              const matchedBooks = books.filter(b => (b.rackNo || '').toLowerCase().includes(selectedRackForInspect.rackNo.toLowerCase()) || (selectedRackForInspect.rackNo || '').toLowerCase().includes((b.rackNo || '').toLowerCase()));
+              const totalCopies = matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
+              const availableCopies = matchedBooks.reduce((sum, b) => sum + (b.availableCopies || 0), 0);
+              const issuedCopies = Math.max(0, totalCopies - availableCopies);
+              const capacity = selectedRackForInspect.capacity || 50;
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <p className="text-[10px] font-extrabold uppercase text-slate-500">Book Titles</p>
+                    <p className="text-lg font-black text-slate-900 dark:text-white font-mono">{matchedBooks.length}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 space-y-1">
+                    <p className="text-[10px] font-extrabold uppercase text-sky-700 dark:text-sky-300">Total Copies Stored</p>
+                    <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono">{totalCopies}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1">
+                    <p className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">Available on Shelf</p>
+                    <p className="text-lg font-black text-emerald-700 dark:text-emerald-300 font-mono">{availableCopies}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-1">
+                    <p className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">Issued Out (Borrowed)</p>
+                    <p className="text-lg font-black text-amber-700 dark:text-amber-300 font-mono">{issuedCopies}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Books Inventory Table */}
+            {(() => {
+              const matchedBooks = books.filter(b => (b.rackNo || '').toLowerCase().includes(selectedRackForInspect.rackNo.toLowerCase()) || (selectedRackForInspect.rackNo || '').toLowerCase().includes((b.rackNo || '').toLowerCase()));
+              
+              if (matchedBooks.length === 0) {
+                return (
+                  <div className="p-8 text-center space-y-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                    <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">No books stored on this rack yet</p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">Click "+ Add New Book" or edit an existing book catalog item to allocate it to {selectedRackForInspect.rackNo}.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-700">
+                        <th className="py-3 px-4">Book Title & Author</th>
+                        <th className="py-3 px-4">ISBN</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4 text-center">Total Copies</th>
+                        <th className="py-3 px-4 text-center">Available</th>
+                        <th className="py-3 px-4 text-center">Issued Out</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                      {matchedBooks.map(b => {
+                        const issuedCount = Math.max(0, (b.totalCopies || 0) - (b.availableCopies || 0));
+                        return (
+                          <tr key={b.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="py-3 px-4">
+                              <p className="font-extrabold text-slate-900 dark:text-white">{b.title}</p>
+                              <p className="text-[11px] text-slate-500 font-semibold">{b.author}</p>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-400">{b.isbn || 'N/A'}</td>
+                            <td className="py-3 px-4">
+                              <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold border border-sky-200 dark:border-sky-800 text-[11px]">
+                                {b.category}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{b.totalCopies}</td>
+                            <td className="py-3 px-4 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              {b.availableCopies} Copies
+                            </td>
+                            <td className="py-3 px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400">
+                              {issuedCount} Copies
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => {
+                                  setSelectedRackForInspect(null);
+                                  handleOpenAddOrEditBook(b);
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-[11px] cursor-pointer transition-colors"
+                              >
+                                Edit Book
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedRackForInspect(null)}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs cursor-pointer shadow-md"
+              >
+                Close Inspection
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
