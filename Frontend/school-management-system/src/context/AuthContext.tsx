@@ -162,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('roles');
   };
 
   const changePassword = async (_oldPass: string, _newPass: string): Promise<boolean> => {

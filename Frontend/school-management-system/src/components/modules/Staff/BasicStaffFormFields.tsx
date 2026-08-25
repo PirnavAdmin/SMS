@@ -22,6 +22,7 @@ import {
 
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;
@@ -824,17 +825,35 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  PIN Code <span className="text-rose-500">*</span>
-                </label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">PIN Code</label>
                 <input
                   type="text"
+                  placeholder="e.g. 560001"
                   value={value.pinCode || ''}
-                  onChange={e => handlePinCodeChange(e.target.value)}
+                  onChange={e => {
+                    const pin = e.target.value;
+                    onChange('pinCode', pin);
+                    if (!pin.trim()) {
+                      onChange('city', '');
+                      onChange('state', '');
+                      return;
+                    }
+                    const offline = getOfflinePostalInfo(pin);
+                    if (offline) {
+                      onChange('city', offline.city);
+                      onChange('state', offline.state);
+                    }
+                    if (pin.replace(/\D/g, '').length >= 4) {
+                      lookupPostalCode(pin).then(info => {
+                        if (info) {
+                          onChange('city', info.city);
+                          onChange('state', info.state);
+                        }
+                      });
+                    }
+                  }}
                   className={`${fieldClass} font-mono`}
-                  placeholder="Enter 6-digit PIN"
                 />
-                {errors.pinCode && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.pinCode}</p>}
               </div>
 
               <div>

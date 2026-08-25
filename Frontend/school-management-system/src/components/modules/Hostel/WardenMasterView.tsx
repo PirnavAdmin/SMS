@@ -98,8 +98,8 @@ export const WardenMasterView: React.FC = () => {
   }, [wardens, staffList, hostels, searchQuery, filterHostel, effectiveHostel]);
 
   const handleOpenAdd = () => {
-    setSelectedStaffId(staffList.length > 0 ? staffList[0].staffId.toString() : '');
-    setSelectedHostelId(hostels.length > 0 ? hostels[0].hostelId.toString() : '');
+    setSelectedStaffId(staffList.length > 0 ? staffList[0].staffId.toString() : '101');
+    setSelectedHostelId(hostels.length > 0 ? hostels[0].hostelId.toString() : '1');
     setSelectedBlock('Block A');
     setSelectedFloor('Floor 1');
     setAssignmentDate(new Date().toISOString().split('T')[0]);

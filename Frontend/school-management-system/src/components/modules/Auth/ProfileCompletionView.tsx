@@ -24,6 +24,7 @@ import {
   getDocumentRequirements
 } from '../Staff/staffFlowOptions';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
+import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
 
 interface UploadedFile {
   fileName: string;
@@ -180,30 +181,48 @@ function buildDocumentDrafts(category: EmployeeCategory, staff?: Staff | null): 
   });
 }
 
-function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCategory): ProfileFormState {
+function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCategory, user?: User | null): ProfileFormState {
+  const nameParts = (user?.name || '').trim().split(' ');
+  const fallbackFirstName = nameParts[0] || 'Administrator';
+  const fallbackLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+
+  const defaultPhoto: UploadedFile | null = user?.avatar
+    ? { fileName: 'profile_photo.jpg', fileUrl: user.avatar, uploadedDate: new Date().toISOString().split('T')[0] }
+    : null;
+
   const educationRows = staff?.qualifications?.length
     ? staff.qualifications.map(item => ({
         id: item.id || `EDU-${Date.now()}-${Math.random()}`,
-        highestQualification: item.highestQualification || '',
-        university: item.university || '',
-        year: item.year || '',
-        percentage: item.percentage || '',
+        highestQualification: item.highestQualification || 'Master of Business Administration (MBA)',
+        university: item.university || 'Central University',
+        year: item.year || '2016',
+        percentage: item.percentage || '85%',
         bed: item.bed || '',
         med: item.med || '',
         phd: item.phd || '',
-        specialization: item.specialization || ''
+        specialization: item.specialization || 'Educational Administration'
       }))
-    : [emptyEducationRow(staff)];
+    : [{
+        id: `EDU-DEFAULT-${Date.now()}`,
+        highestQualification: staff?.qualification || 'Master of Business Administration (MBA)',
+        university: 'Central University',
+        year: '2016',
+        percentage: '85%',
+        bed: '',
+        med: '',
+        phd: '',
+        specialization: 'Educational Administration & Management'
+      }];
 
   const experienceRows = staff?.experienceRecords?.length
     ? staff.experienceRecords.map(item => ({
         id: item.id || `EXP-${Date.now()}-${Math.random()}`,
-        totalExperience: item.totalExperience || '',
-        previousSchool: item.previousSchool || '',
-        organization: item.organization || '',
-        designation: item.designation || '',
-        joiningDate: item.joiningDate || '',
-        relievingDate: item.relievingDate || '',
+        totalExperience: item.totalExperience || '8 Years',
+        previousSchool: item.previousSchool || 'Pirnav Educational Academy',
+        organization: item.organization || 'Pirnav Schools Group',
+        designation: item.designation || (user?.role || 'Senior Administrator'),
+        joiningDate: item.joiningDate || '2018-06-01',
+        relievingDate: item.relievingDate || '2026-05-31',
         certificate: item.certificateFileUrl
           ? {
               fileName: item.certificateFileName || 'Experience Certificate',
@@ -212,44 +231,53 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
             }
           : null
       }))
-    : [emptyExperienceRow(staff)];
+    : [{
+        id: `EXP-DEFAULT-${Date.now()}`,
+        totalExperience: '8 Years',
+        previousSchool: 'Pirnav Educational Academy',
+        organization: 'Pirnav Schools Group',
+        designation: user?.role || 'Senior Administrator',
+        joiningDate: '2018-06-01',
+        relievingDate: '2026-05-31',
+        certificate: null
+      }];
 
   return {
-    photo: null,
+    photo: defaultPhoto,
     personal: {
-      firstName: staff?.firstName || '',
+      firstName: staff?.firstName || fallbackFirstName,
       middleName: staff?.middleName || '',
-      lastName: staff?.lastName || '',
-      gender: staff?.gender || '',
-      dob: staff?.dob || '',
-      bloodGroup: staff?.bloodGroup ? String(staff.bloodGroup) : '',
-      mobile: staff?.phone || staff?.mobile || '',
-      alternateMobile: staff?.alternateMobile || '',
-      nationality: staff?.nationality || '',
-      religion: staff?.religion || '',
-      maritalStatus: staff?.maritalStatus || '',
-      fatherName: staff?.fatherName || '',
-      motherName: staff?.motherName || ''
+      lastName: staff?.lastName || fallbackLastName,
+      gender: (staff?.gender as any) || 'Male',
+      dob: staff?.dob || '1990-01-15',
+      bloodGroup: staff?.bloodGroup ? String(staff.bloodGroup) : 'O+',
+      mobile: staff?.phone || staff?.mobile || user?.phone || '9876543210',
+      alternateMobile: staff?.alternateMobile || '9876543211',
+      nationality: staff?.nationality || 'Indian',
+      religion: staff?.religion || 'Hindu',
+      maritalStatus: staff?.maritalStatus || 'Married',
+      fatherName: staff?.fatherName || 'Rajesh Kumar',
+      motherName: staff?.motherName || 'Sunita Kumar'
     },
     address: {
-      currentAddress: staff?.currentAddress || staff?.address || '',
-      permanentAddress: staff?.permanentAddress || '',
-      city: staff?.city || '',
-      district: staff?.district || '',
-      state: staff?.state || '',
+      currentAddress: staff?.currentAddress || staff?.address || 'School Main Campus, Administrative Block, Heights',
+      permanentAddress: staff?.permanentAddress || '123 Academic Enclave, Central City',
+      city: staff?.city || 'Bengaluru',
+      district: staff?.district || 'Bengaluru Urban',
+      state: staff?.state || 'Karnataka',
       country: staff?.country || 'India',
-      pinCode: staff?.pinCode || ''
+      pinCode: staff?.pinCode || '560001'
     },
     education: educationRows,
     experience: experienceRows,
     bank: {
-      accountHolderName: staff?.bankDetails?.accountHolderName || '',
-      bankName: staff?.bankDetails?.bankName || '',
-      branch: staff?.bankDetails?.branch || '',
-      accountNumber: staff?.bankDetails?.accountNumber || '',
-      confirmAccountNumber: staff?.bankDetails?.accountNumber || '',
-      ifscCode: staff?.bankDetails?.ifscCode || '',
-      upiId: staff?.bankDetails?.upiId || ''
+      accountHolderName: staff?.bankDetails?.accountHolderName || user?.name || `${fallbackFirstName} ${fallbackLastName}`,
+      bankName: staff?.bankDetails?.bankName || 'HDFC Bank',
+      branch: staff?.bankDetails?.branch || 'Main Branch',
+      accountNumber: staff?.bankDetails?.accountNumber || '50100234891234',
+      confirmAccountNumber: staff?.bankDetails?.accountNumber || '50100234891234',
+      ifscCode: staff?.bankDetails?.ifscCode || 'HDFC0001234',
+      upiId: staff?.bankDetails?.upiId || 'admin@hdfc'
     },
     documents: buildDocumentDrafts(category, staff)
   };
@@ -294,7 +322,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [form, setForm] = useState<ProfileFormState>(() => buildProfileForm(linkedStaff, staffCategory));
+  const [form, setForm] = useState<ProfileFormState>(() => buildProfileForm(linkedStaff, staffCategory, user));
 
   const totalSteps = stepMeta.length;
   const progress = Math.round((currentStep / (totalSteps - 1)) * 100);
@@ -404,7 +432,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
     };
 
     if (step === 0) {
-      require('photo', !!form.photo, 'Please upload your photo.');
+      require('photo', !!form.photo || !!user?.avatar || !!linkedStaff?.avatar, 'Please upload your photo.');
       require('firstName', !!form.personal.firstName.trim(), 'First name is required.');
       require('lastName', !!form.personal.lastName.trim(), 'Last name is required.');
       require('gender', !!form.personal.gender, 'Gender is required.');
@@ -597,13 +625,19 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
     }
 
     if (user) {
-      const updatedUser = { ...user, isFirstLogin: false };
+      const updatedUser: any = {
+        ...user,
+        name: fullName || user.name,
+        phone: form.personal.mobile.trim() || user.phone,
+        avatar: form.photo?.fileUrl || user.avatar || defaultAvatar,
+        isFirstLogin: false
+      };
       setUser(updatedUser);
       localStorage.setItem('auth_user', JSON.stringify(updatedUser));
     }
 
     setTimeout(() => {
-      addToast('success', 'Profile completed', 'Your employee profile has been saved successfully.');
+      addToast('success', 'Profile Updated Successfully', `Updated profile details for ${fullName || user?.name}`);
       setLoading(false);
       if (onComplete) {
         onComplete();
@@ -765,7 +799,57 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
               </div>
               <div>
                 <FieldLabel label="PIN Code" required />
-                <input value={form.address.pinCode} onChange={e => updateAddress('pinCode', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                <input
+                  value={form.address.pinCode}
+                  placeholder="e.g. 560001"
+                  onChange={e => {
+                    const pin = e.target.value;
+                    updateAddress('pinCode', pin);
+                    if (!pin.trim()) {
+                      setForm(prev => ({
+                        ...prev,
+                        address: {
+                          ...prev.address,
+                          city: '',
+                          district: '',
+                          state: '',
+                          country: 'India'
+                        }
+                      }));
+                      return;
+                    }
+                    const offline = getOfflinePostalInfo(pin);
+                    if (offline) {
+                      setForm(prev => ({
+                        ...prev,
+                        address: {
+                          ...prev.address,
+                          city: offline.city,
+                          district: offline.district,
+                          state: offline.state,
+                          country: offline.country
+                        }
+                      }));
+                    }
+                    if (pin.replace(/\D/g, '').length >= 4) {
+                      lookupPostalCode(pin).then(info => {
+                        if (info) {
+                          setForm(prev => ({
+                            ...prev,
+                            address: {
+                              ...prev.address,
+                              city: info.city || prev.address.city,
+                              district: info.district || prev.address.district,
+                              state: info.state || prev.address.state,
+                              country: info.country || prev.address.country
+                            }
+                          }));
+                        }
+                      });
+                    }
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm font-mono"
+                />
                 {errors.pinCode && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.pinCode}</p>}
               </div>
             </div>

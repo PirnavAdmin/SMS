@@ -43,7 +43,7 @@ import { useData, normalizeToISODate } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
-import { DateInput } from "../../common/DateInput";
+import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import {
   validate10DigitPhone,
   BLOOD_GROUPS,
@@ -1180,6 +1180,47 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setIsFormView(true);
   };
 
+  const handlePinCodeChange = (pinCode: string) => {
+    const clean = pinCode.trim();
+    setFormData((prev) => {
+      const updated = { ...prev, addressPinCode: pinCode };
+      if (!clean) {
+        updated.addressCity = "";
+        updated.addressDistrict = "";
+        updated.addressState = "";
+        updated.addressArea = "";
+        return updated;
+      }
+      const offline = getOfflinePostalInfo(clean);
+      if (offline) {
+        updated.addressCity = offline.city;
+        updated.addressDistrict = offline.district;
+        updated.addressState = offline.state;
+        if (!prev.addressArea || prev.addressArea === offline.area) {
+          updated.addressArea = offline.area || "";
+        }
+      }
+      return updated;
+    });
+
+    if (clean.replace(/\D/g, "").length >= 4) {
+      lookupPostalCode(clean).then((info) => {
+        if (info) {
+          setFormData((prev) => {
+            if (!prev.addressPinCode.trim()) return prev;
+            return {
+              ...prev,
+              addressCity: info.city || prev.addressCity,
+              addressDistrict: info.district || prev.addressDistrict,
+              addressState: info.state || prev.addressState,
+              addressArea: prev.addressArea || info.area || "",
+            };
+          });
+        }
+      });
+    }
+  };
+
   useEffect(() => {
     if (initialFormOpen) {
       handleOpenAdd();
@@ -2186,7 +2227,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          First Name *
+                          First Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                         </label>
                         <input
                           type="text"
@@ -2199,7 +2240,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Last Name *
+                          Last Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                         </label>
                         <input
                           type="text"
@@ -2216,7 +2257,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Class *
+                          Class <span className="text-rose-500 font-bold ml-0.5">*</span>
                         </label>
                         <div className="relative">
                           <select
@@ -2242,7 +2283,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Gender *
+                          Gender <span className="text-rose-500 font-bold ml-0.5">*</span>
                         </label>
                         <div className="relative">
                           <select
@@ -2266,7 +2307,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Campus *
+                          Campus <span className="text-rose-500 font-bold ml-0.5">*</span>
                         </label>
                         <div className="relative">
                           <select
@@ -2357,7 +2398,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-1">
                   <div className="sm:col-span-3">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Date of Birth *
+                      Date of Birth <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <DateInput
                       required
@@ -2388,7 +2429,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </div>
                   <div className="sm:col-span-3">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Blood Group *
+                      Blood Group <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <div className="relative">
                       <select
@@ -2428,7 +2469,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </div>
                   <div className="sm:col-span-3">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Caste *
+                      Caste <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     {isCustomCasteCategory ? (
                       <input
@@ -2486,7 +2527,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-1">
                   <div className="sm:col-span-6">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Date of Admission *
+                      Date of Admission <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <DateInput
                       required
@@ -2544,7 +2585,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       >
                         <div className="text-left">
                           <span className="block font-extrabold text-sky-900 dark:text-sky-200 text-xs">
-                            Fee Calculation Method (Late Admission) *
+                            Fee Calculation Method (Late Admission) <span className="text-rose-500 font-bold ml-0.5">*</span>
                           </span>
                           <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
                             {formData.feeCalculationMethod || "Term-wise"}
@@ -2564,7 +2605,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95 text-slate-900 dark:text-white">
                       <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                          Fee Calculation Method (Late Admission) *
+                          Fee Calculation Method (Late Admission) <span className="text-rose-500 font-bold ml-0.5">*</span>
                         </h3>
                         <button
                           type="button"
@@ -2673,7 +2714,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Father Full Name *
+                      Father Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -2703,7 +2744,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      1. Father Mobile *
+                      1. Father Mobile <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -2889,14 +2930,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. 560001"
                       value={formData.addressPinCode}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          addressPinCode: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-mono"
+                      onChange={(e) => handlePinCodeChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-mono focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                     />
                   </div>
                 </div>
@@ -3129,7 +3166,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               /* If Existing = No: Manual Name Input */
                               <div>
                                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                                  Sibling Name *
+                                  Sibling Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                                 </label>
                                 <input
                                   type="text"
@@ -3159,7 +3196,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="w-full">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Student Type *
+                      Student Type <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <div className="relative z-20">
                       <select

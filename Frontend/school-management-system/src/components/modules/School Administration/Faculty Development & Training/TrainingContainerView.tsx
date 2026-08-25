@@ -716,7 +716,6 @@ export const TrainingContainerView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-sky-500" /> Workshops & Training Catalog
               </h3>
-              <p className="text-[11px] text-slate-400">Manage FDPs, Subject Training, POCSO, AI & Classroom Management</p>
             </div>
             <button
               onClick={() => setIsAddWorkshopModalOpen(true)}
@@ -776,7 +775,6 @@ export const TrainingContainerView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <FileCheck className="w-4 h-4 text-sky-500" /> Employee Competency Assessments
               </h3>
-              <p className="text-[11px] text-slate-400">Subject Knowledge, Teaching Competency & Digital Skills Evaluation</p>
             </div>
             <button
               onClick={() => handleOpenCreateAssessmentModal()}
@@ -840,7 +838,6 @@ export const TrainingContainerView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Award className="w-4 h-4 text-amber-500" /> Issued Employee Certificates Registry
               </h3>
-              <p className="text-[11px] text-slate-400">Official credentials issued for completed workshops & passed assessments</p>
             </div>
           </div>
 
@@ -896,7 +893,6 @@ export const TrainingContainerView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-emerald-500" /> Executive Training & Competency Reports
               </h3>
-              <p className="text-[11px] text-slate-400">Detailed analytics on training hours, assessment pass rates, and certification logs</p>
             </div>
             <button onClick={handleExportReportCSV} className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">Export Report</button>
           </div>
@@ -940,7 +936,6 @@ export const TrainingContainerView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-sky-500" /> Employee Profile Professional Development View
               </h3>
-              <p className="text-[11px] text-slate-400">Select an employee to inspect their completed workshops, assessments & earned certificates</p>
             </div>
 
             <select
