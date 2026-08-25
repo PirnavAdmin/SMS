@@ -1626,6 +1626,38 @@ using (var scope = app.Services.CreateScope())
                       `payment_method` VARCHAR(50) NULL,
                       `status` VARCHAR(50) NOT NULL DEFAULT 'Completed'
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `studentfeeassignments` (
+                      `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `StudentId` VARCHAR(50) NOT NULL,
+                      `DynamicFeeStructureId` INT NULL,
+                      `TotalAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `PaidAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `DueAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `Status` VARCHAR(50) NOT NULL DEFAULT 'Active',
+                      `FeePolicy` VARCHAR(255) NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `student_fee_assignments` (
+                      `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `StudentId` VARCHAR(50) NOT NULL,
+                      `DynamicFeeStructureId` INT NULL,
+                      `TotalAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `PaidAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `DueAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `Status` VARCHAR(50) NOT NULL DEFAULT 'Active',
+                      `FeePolicy` VARCHAR(255) NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `school_events` (
+                      `EventId` INT AUTO_INCREMENT PRIMARY KEY,
+                      `Title` VARCHAR(250) NOT NULL,
+                      `Category` VARCHAR(100) NULL,
+                      `StartDate` DATETIME NOT NULL,
+                      `EndDate` DATETIME NULL,
+                      `Description` TEXT NULL,
+                      `Status` VARCHAR(50) NOT NULL DEFAULT 'Active'
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
             }
             catch (System.Exception ex)
