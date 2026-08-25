@@ -5131,6 +5131,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ifscCode: item.ifscCode || "",
                 upiId: item.upiId || "",
               },
+              branch: item.branchName || existing?.branch || "Main Campus",
             };
           });
           setStaff(mappedStaff);
@@ -13879,7 +13880,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               date: item.date,
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
-              status: item.status,
+              status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
               remarks: item.remarks || "",
               inTime: item.inTime || "",
               outTime: item.outTime || "",
@@ -13923,7 +13924,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               date: item.date,
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
-              status: item.status,
+              status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
               remarks: item.remarks || "",
               inTime: item.inTime || "",
               outTime: item.outTime || "",
@@ -14018,11 +14019,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const payload = {
               date: date,
               academicYear: selectedAcademicYear || "2026-2027",
-              branch: selectedBranch || "Main Campus",
+              branch: (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches") ? "Main Campus" : selectedBranch,
               department: dept,
               records: deptRecords.map((r) => ({
                 staffId: parseInt(r.entityId),
-                status: r.status,
+                status: r.status === "HalfDay" ? "Half Day" : (r.status === "Leave" ? "On Leave" : r.status),
                 remarks: r.remarks || "",
                 inTime: r.inTime || "",
                 outTime: r.outTime || "",
@@ -16417,7 +16418,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return stud ? stud.branch === selectedBranch : true;
     } else {
       const st = staff.find((s) => s.id === a.entityId);
-      return st ? st.branch === selectedBranch : true;
+      return st && st.branch ? st.branch === selectedBranch : true;
     }
   });
 
