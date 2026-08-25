@@ -9,7 +9,11 @@ import React, {
   useRef,
 } from "react";
 import { formatCurrency } from "../utils/currency";
-import { getUniformPackageFeeByClass, getUniformFeeForClass, getItemFeeFromFinanceConfig } from "../utils/uniformUtils";
+import {
+  getUniformPackageFeeByClass,
+  getUniformFeeForClass,
+  getItemFeeFromFinanceConfig,
+} from "../utils/uniformUtils";
 import {
   Student,
   AcademicHistoryRecord,
@@ -133,6 +137,73 @@ import {
   MonthlyDueDateConfig,
   MonthDueDateItem,
 } from "../types";
+
+export function normalizeToISODate(dateStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== "string") return "";
+  const trimmed = dateStr.trim();
+  if (!trimmed) return "";
+
+  // 1. YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  // 2. YYYY/MM/DD or YYYY.MM.DD
+  if (/^\d{4}[/.]\d{2}[/.]\d{2}$/.test(trimmed))
+    return trimmed.replace(/[/.]/g, "-");
+
+  // 3. MM/DD/YYYY or DD/MM/YYYY
+  const parts = trimmed.split(/[-/. ]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD
+      const y = parts[0];
+      const m = parts[1].padStart(2, "0");
+      const d = parts[2].padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    } else if (parts[2].length === 4) {
+      const p1 = parseInt(parts[0], 10);
+      const p2 = parseInt(parts[1], 10);
+      const year = parts[2];
+
+      let month: number;
+      let day: number;
+
+      if (p2 > 12) {
+        // MM/DD/YYYY format (e.g. 08/20/2026 -> month=8, day=20)
+        month = p1;
+        day = p2;
+      } else if (p1 > 12) {
+        // DD/MM/YYYY format (e.g. 20/08/2026 -> day=20, month=8)
+        day = p1;
+        month = p2;
+      } else {
+        // Ambiguous (e.g. 05/06/2026) -> try JS native parse first
+        const parsedJs = new Date(trimmed);
+        if (!isNaN(parsedJs.getTime())) {
+          const y = parsedJs.getFullYear();
+          const m = String(parsedJs.getMonth() + 1).padStart(2, "0");
+          const d = String(parsedJs.getDate()).padStart(2, "0");
+          return `${y}-${m}-${d}`;
+        }
+        month = p1;
+        day = p2;
+      }
+
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+    }
+  }
+
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  return trimmed;
+}
 import {
   initialCertificateTemplates,
   initialStudents,
@@ -214,10 +285,15 @@ import {
   updateAdmissionApi,
   updateAdmissionStatusApi,
   deleteAdmissionApi,
+  enrollAdmissionApi,
+  rejectAdmissionApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
 import * as FinanceAPI from "../api/finance";
-import { BusAttendantMaster, initialBusAttendants } from "../components/modules/Transport/transportData";
+import {
+  BusAttendantMaster,
+  initialBusAttendants,
+} from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
 import {
@@ -336,18 +412,6 @@ import {
   updateMeetingApi,
   deleteMeetingApi,
 } from "../api/communication";
-import {
-  fetchWorkshopsApi,
-  createWorkshopApi,
-  updateWorkshopApi,
-  deleteWorkshopApi,
-  fetchAssessmentsApi,
-  createAssessmentApi,
-  updateAssessmentApi,
-  deleteAssessmentApi,
-  recordWorkshopAttendanceApi,
-  gradeAssessmentCandidateApi,
-} from "../api/facultyTraining";
 
 export interface AcademicClass {
   id: string;
@@ -2398,7 +2462,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const getStored = <T,>(key: string, initial: T): T => {
     try {
       const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
-      const saved = localStorage.getItem(storageKey) || localStorage.getItem(key);
+      const saved =
+        localStorage.getItem(storageKey) || localStorage.getItem(key);
       return saved ? JSON.parse(saved) : initial;
     } catch {
       const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
@@ -2523,14 +2588,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (stored && stored.length > 0) {
       return stored;
     }
-    const initialIds = new Set(['UNI-01', 'UNI-02', 'UNI-03', 'UNI-04', 'UNI-05', 'UNI-06']);
+    const initialIds = new Set([
+      "UNI-01",
+      "UNI-02",
+      "UNI-03",
+      "UNI-04",
+      "UNI-05",
+      "UNI-06",
+    ]);
     const sanitizePrice = (u: UniformItem): UniformItem => {
       let p = u.price;
-      const nameLower = (u.name || u.category || '').toLowerCase();
-      if (nameLower.includes('blazer') && (p < 500 || p === 85)) p = 1500;
-      else if (nameLower.includes('shirt') && (p < 100 || p === 35)) p = 350;
-      else if (nameLower.includes('tracksuit') && p < 300) p = 1200;
-      else if (nameLower.includes('pant') || nameLower.includes('trouser') || nameLower.includes('skirt')) {
+      const nameLower = (u.name || u.category || "").toLowerCase();
+      if (nameLower.includes("blazer") && (p < 500 || p === 85)) p = 1500;
+      else if (nameLower.includes("shirt") && (p < 100 || p === 35)) p = 350;
+      else if (nameLower.includes("tracksuit") && p < 300) p = 1200;
+      else if (
+        nameLower.includes("pant") ||
+        nameLower.includes("trouser") ||
+        nameLower.includes("skirt")
+      ) {
         if (p < 200) p = 500;
       }
       return { ...u, price: p };
@@ -2597,7 +2673,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentAttendance, setStudentAttendance] = useState<any[]>(() =>
     getStored("student_attendance", []),
   );
-  const [todayStudentAttendanceSummary, setTodayStudentAttendanceSummary] = useState<any>(null);
+  const [todayStudentAttendanceSummary, setTodayStudentAttendanceSummary] =
+    useState<any>(null);
   const [coScholasticAssessments, setCoScholasticAssessments] = useState<any[]>(
     () => getStored("co_scholastic_assessments", []),
   );
@@ -2627,16 +2704,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("announcements", initialAnnouncements),
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
-    const version = localStorage.getItem("edu_db_holidays_full_v2026");
-    if (!version) {
-      localStorage.setItem("edu_db_holidays_full_v2026", "true");
-      localStorage.removeItem("holidays");
-      localStorage.removeItem("edu_db_holidays");
-      localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
-      return initialHolidays;
-    }
     const stored = getStored("holidays", initialHolidays);
-    if (!stored || stored.length < 10) {
+    if (!stored || stored.length <= 1) {
       localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
       return initialHolidays;
     }
@@ -2662,14 +2731,76 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Leave Management ERP States
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() => {
     const stored = getStored("leave_types", initialLeaveTypes);
-    return Array.isArray(stored) && stored.length > 0 ? stored : [
-      { id: 'LT-001', name: 'Casual Leave', code: 'CL', annualAllowance: 10, maxConsecutiveDays: 3, isPaid: true, carryForward: true, requiresAttachment: false, status: 'Active' },
-      { id: 'LT-002', name: 'Sick Leave', code: 'SL', annualAllowance: 10, maxConsecutiveDays: 5, isPaid: true, carryForward: true, requiresAttachment: true, status: 'Active' },
-      { id: 'LT-003', name: 'Paid / Earned Leave', code: 'PL', annualAllowance: 15, maxConsecutiveDays: 10, isPaid: true, carryForward: true, requiresAttachment: false, status: 'Active' },
-      { id: 'LT-004', name: 'On Duty Leave', code: 'OD', annualAllowance: 12, maxConsecutiveDays: 4, isPaid: true, carryForward: false, requiresAttachment: false, status: 'Active' },
-      { id: 'LT-005', name: 'Maternity / Paternity Leave', code: 'ML', annualAllowance: 90, maxConsecutiveDays: 90, isPaid: true, carryForward: false, requiresAttachment: true, status: 'Active' },
-      { id: 'LT-006', name: 'Loss of Pay (Unpaid)', code: 'LOP', annualAllowance: 30, maxConsecutiveDays: 30, isPaid: false, carryForward: false, requiresAttachment: false, status: 'Active' }
-    ];
+    return Array.isArray(stored) && stored.length > 0
+      ? stored
+      : [
+          {
+            id: "LT-001",
+            name: "Casual Leave",
+            code: "CL",
+            annualAllowance: 10,
+            maxConsecutiveDays: 3,
+            isPaid: true,
+            carryForward: true,
+            requiresAttachment: false,
+            status: "Active",
+          },
+          {
+            id: "LT-002",
+            name: "Sick Leave",
+            code: "SL",
+            annualAllowance: 10,
+            maxConsecutiveDays: 5,
+            isPaid: true,
+            carryForward: true,
+            requiresAttachment: true,
+            status: "Active",
+          },
+          {
+            id: "LT-003",
+            name: "Paid / Earned Leave",
+            code: "PL",
+            annualAllowance: 15,
+            maxConsecutiveDays: 10,
+            isPaid: true,
+            carryForward: true,
+            requiresAttachment: false,
+            status: "Active",
+          },
+          {
+            id: "LT-004",
+            name: "On Duty Leave",
+            code: "OD",
+            annualAllowance: 12,
+            maxConsecutiveDays: 4,
+            isPaid: true,
+            carryForward: false,
+            requiresAttachment: false,
+            status: "Active",
+          },
+          {
+            id: "LT-005",
+            name: "Maternity / Paternity Leave",
+            code: "ML",
+            annualAllowance: 90,
+            maxConsecutiveDays: 90,
+            isPaid: true,
+            carryForward: false,
+            requiresAttachment: true,
+            status: "Active",
+          },
+          {
+            id: "LT-006",
+            name: "Loss of Pay (Unpaid)",
+            code: "LOP",
+            annualAllowance: 30,
+            maxConsecutiveDays: 30,
+            isPaid: false,
+            carryForward: false,
+            requiresAttachment: false,
+            status: "Active",
+          },
+        ];
   });
   const [leaveApplications, setLeaveApplications] = useState<
     LeaveApplication[]
@@ -2702,8 +2833,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (stored && stored.length > 0) {
         return stored;
       }
-      localStorage.setItem("edu_db_uniform_categories", JSON.stringify(initialUniformCategories));
-      localStorage.setItem("uniform_categories", JSON.stringify(initialUniformCategories));
+      localStorage.setItem(
+        "edu_db_uniform_categories",
+        JSON.stringify(initialUniformCategories),
+      );
+      localStorage.setItem(
+        "uniform_categories",
+        JSON.stringify(initialUniformCategories),
+      );
       return initialUniformCategories;
     },
   );
@@ -2712,18 +2849,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const hasV20 = localStorage.getItem(vKey);
     if (!hasV20) {
       localStorage.setItem(vKey, "true");
-      localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(initialUniformSizes));
-      localStorage.setItem("uniform_sizes", JSON.stringify(initialUniformSizes));
+      localStorage.setItem(
+        "edu_db_uniform_sizes",
+        JSON.stringify(initialUniformSizes),
+      );
+      localStorage.setItem(
+        "uniform_sizes",
+        JSON.stringify(initialUniformSizes),
+      );
       return initialUniformSizes;
     }
-    const savedStr = localStorage.getItem("edu_db_uniform_sizes") || localStorage.getItem("uniform_sizes");
-    let baseList: UniformSize[] = savedStr ? JSON.parse(savedStr) : initialUniformSizes;
+    const savedStr =
+      localStorage.getItem("edu_db_uniform_sizes") ||
+      localStorage.getItem("uniform_sizes");
+    let baseList: UniformSize[] = savedStr
+      ? JSON.parse(savedStr)
+      : initialUniformSizes;
 
     // Strict deduplication by sizeName so duplicate sizes never exist
     const seenNames = new Set<string>();
     const deduplicated: UniformSize[] = [];
 
-    for (const s of (baseList || [])) {
+    for (const s of baseList || []) {
       if (!s || !s.sizeName) continue;
       const normName = s.sizeName.trim().toUpperCase();
       if (!seenNames.has(normName)) {
@@ -2735,34 +2882,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(deduplicated));
     return deduplicated;
   });
-  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(() => {
-    const stored = getStored("uniform_suppliers", initialUniformSuppliers);
-    const defaultMockIds = new Set((initialUniformSuppliers || []).map(s => s.id));
-    const isUserItem = (s: any) => {
-      if (!s || !s.id) return false;
-      if (s.createdAt) return true;
-      if (!defaultMockIds.has(s.id)) return true;
-      const num = parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 0;
-      return num > 20;
-    };
-    const userCreated = (stored || []).filter(isUserItem).sort((a: any, b: any) => {
-      if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      const numA = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
-      return numB - numA;
-    });
-    const defaultMock = (stored || []).filter((s: any) => !isUserItem(s));
-    const storedIds = new Set((stored || []).map((s: any) => s.id));
-    const missing = initialUniformSuppliers.filter((s: any) => !storedIds.has(s.id));
-    const merged = [...userCreated, ...defaultMock, ...missing];
-    localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify(merged));
-    return merged;
-  });
+  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(
+    () => {
+      const stored = getStored("uniform_suppliers", initialUniformSuppliers);
+      const defaultMockIds = new Set(
+        (initialUniformSuppliers || []).map((s) => s.id),
+      );
+      const isUserItem = (s: any) => {
+        if (!s || !s.id) return false;
+        if (s.createdAt) return true;
+        if (!defaultMockIds.has(s.id)) return true;
+        const num = parseInt(String(s.id || "").replace(/\D/g, ""), 10) || 0;
+        return num > 20;
+      };
+      const userCreated = (stored || [])
+        .filter(isUserItem)
+        .sort((a: any, b: any) => {
+          if (a.createdAt && b.createdAt)
+            return (
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+          const numA = parseInt(String(a.id || "").replace(/\D/g, ""), 10) || 0;
+          const numB = parseInt(String(b.id || "").replace(/\D/g, ""), 10) || 0;
+          return numB - numA;
+        });
+      const defaultMock = (stored || []).filter((s: any) => !isUserItem(s));
+      const storedIds = new Set((stored || []).map((s: any) => s.id));
+      const missing = initialUniformSuppliers.filter(
+        (s: any) => !storedIds.has(s.id),
+      );
+      const merged = [...userCreated, ...defaultMock, ...missing];
+      localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify(merged));
+      return merged;
+    },
+  );
   const [uniformInventory, setUniformInventory] = useState<
     UniformInventoryItem[]
   >(() => {
     try {
-      const saved = localStorage.getItem("edu_db_uniform_inventory") || localStorage.getItem("uniform_inventory");
+      const saved =
+        localStorage.getItem("edu_db_uniform_inventory") ||
+        localStorage.getItem("uniform_inventory");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -2770,10 +2930,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (e) {
       console.warn("Failed to load uniform_inventory from localStorage", e);
     }
-    const cleanInventory = (initialUniformInventory || []).map(item => ({
+    const cleanInventory = (initialUniformInventory || []).map((item) => ({
       ...item,
       currentStock: item.openingStock || 100,
-      status: 'In Stock' as const
+      status: "In Stock" as const,
     }));
     return cleanInventory;
   });
@@ -2782,20 +2942,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     StudentUniformIssue[]
   >(() => {
     try {
-      const saved = localStorage.getItem("edu_db_student_uniform_issues") || localStorage.getItem("student_uniform_issues");
+      const saved =
+        localStorage.getItem("edu_db_student_uniform_issues") ||
+        localStorage.getItem("student_uniform_issues");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(i => {
-            const name = (i?.studentName || '').toLowerCase();
-            const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
-            const isDummy = name.includes('fahim') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+          return parsed.filter((i) => {
+            const name = (i?.studentName || "").toLowerCase();
+            const adm = (i?.admissionNo || i?.studentId || "").toUpperCase();
+            const isDummy =
+              name.includes("fahim") ||
+              name.includes("mahesh") ||
+              name.includes("alexander") ||
+              name.includes("wright") ||
+              name.includes("rahul") ||
+              name.includes("kiriti") ||
+              name.includes("kiran") ||
+              (name.includes("vishnu") && name.includes("n")) ||
+              adm === "ADM-2026-001" ||
+              adm === "REG-1022" ||
+              adm === "REG-1021";
             return !isDummy;
           });
         }
       }
     } catch (e) {
-      console.warn("Failed to load student_uniform_issues from localStorage", e);
+      console.warn(
+        "Failed to load student_uniform_issues from localStorage",
+        e,
+      );
     }
     return [];
   });
@@ -2803,7 +2979,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     FinanceUniformConfig[]
   >(() => {
     try {
-      const saved = localStorage.getItem("edu_db_finance_uniform_configs") || localStorage.getItem("finance_uniform_configs");
+      const saved =
+        localStorage.getItem("edu_db_finance_uniform_configs") ||
+        localStorage.getItem("finance_uniform_configs");
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -2840,14 +3018,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "edu_db_dynamic_fee_structures",
       getStored("dynamic_fee_structures", initialDynamicFeeStructures),
     );
-    const raw = stored && stored.length > 0 ? stored : initialDynamicFeeStructures;
+    const raw =
+      stored && stored.length > 0 ? stored : initialDynamicFeeStructures;
     return raw.map((dfs) => {
       const cleanItems = (dfs.items || []).filter((item) => {
         if (!item) return false;
         const name = (item.feeHeadName || "").trim();
         return name !== "" && name !== "Fee Head" && name !== "Fee Head:";
       });
-      const cleanTotal = cleanItems.reduce((sum, i) => sum + (i.amount || 0), 0);
+      const cleanTotal = cleanItems.reduce(
+        (sum, i) => sum + (i.amount || 0),
+        0,
+      );
       return {
         ...dfs,
         items: cleanItems,
@@ -2864,25 +3046,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!dbAssignments.length) return;
     const mapped = dbAssignments.map((a) => {
-      const student = students.find((s) => s.id === a.studentId?.toString() || s.admissionNo === a.studentId);
-      const dfs = dynamicFeeStructures.find((d) => d.id === a.dynamicFeeStructureId?.toString() || d.id === a.feeStructureId);
+      const student = students.find(
+        (s) =>
+          s.id === a.studentId?.toString() || s.admissionNo === a.studentId,
+      );
+      const dfs = dynamicFeeStructures.find(
+        (d) =>
+          d.id === a.dynamicFeeStructureId?.toString() ||
+          d.id === a.feeStructureId,
+      );
       return {
         id: a.id?.toString() || a.id || "",
         studentId: a.studentId || "",
-        studentName: (student as any)?.studentName || (student ? `${student.firstName} ${student.lastName}` : "") || a.studentName || "",
+        studentName:
+          (student as any)?.studentName ||
+          (student ? `${student.firstName} ${student.lastName}` : "") ||
+          a.studentName ||
+          "",
         admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
         branch: student?.branch || a.branch || "Main Campus",
-        academicYear: (student as any)?.academicYear || a.academicYear || "2026-2027",
+        academicYear:
+          (student as any)?.academicYear || a.academicYear || "2026-2027",
         className: student?.className || a.className || "",
         section: student?.section || a.section || "",
-        feeStructureId: a.dynamicFeeStructureId?.toString() || a.feeStructureId || "",
+        feeStructureId:
+          a.dynamicFeeStructureId?.toString() || a.feeStructureId || "",
         assignedFeeHeads: dfs?.items || a.assignedFeeHeads || [],
         baseFeeTotal: a.totalAmount ?? a.baseFeeTotal ?? dfs?.totalAmount ?? 0,
-        originalFeeTotal: a.totalAmount ?? a.originalFeeTotal ?? dfs?.totalAmount ?? 0,
+        originalFeeTotal:
+          a.totalAmount ?? a.originalFeeTotal ?? dfs?.totalAmount ?? 0,
         adjustmentTotal: a.adjustmentTotal || 0,
         feePolicy: (a.feePolicy || "Full Annual Fee") as any,
         assignedDate: a.assignedDate || new Date().toISOString(),
-        status: a.status || "Active"
+        status: a.status || "Active",
       };
     });
     setStudentFeeAssignments(mapped);
@@ -2975,44 +3171,65 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("finance_transport_configs", initialFinanceTransportConfigs),
   );
 
-const MONTH_NAMES_ACADEMIC = [
-  "April", "May", "June", "July", "August", "September",
-  "October", "November", "December", "January", "February", "March"
-];
+  const MONTH_NAMES_ACADEMIC = [
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+    "January",
+    "February",
+    "March",
+  ];
 
-function getMonthYearForAcademicIndex(ayStr: string, monthIndex: number): { year: number; month: number } {
-  const startYear = parseInt(ayStr.split("-")[0], 10) || 2026;
-  if (monthIndex < 9) {
-    return { year: startYear, month: monthIndex + 4 };
-  } else {
-    return { year: startYear + 1, month: monthIndex - 8 };
+  function getMonthYearForAcademicIndex(
+    ayStr: string,
+    monthIndex: number,
+  ): { year: number; month: number } {
+    const startYear = parseInt(ayStr.split("-")[0], 10) || 2026;
+    if (monthIndex < 9) {
+      return { year: startYear, month: monthIndex + 4 };
+    } else {
+      return { year: startYear + 1, month: monthIndex - 8 };
+    }
   }
-}
 
-function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyDueDateConfig {
-  const monthDueDates: MonthDueDateItem[] = MONTH_NAMES_ACADEMIC.map((mName, idx) => {
-    const { year, month } = getMonthYearForAcademicIndex(ayStr, idx);
-    const dayStr = String(dueDay).padStart(2, "0");
-    const monthStr = String(month).padStart(2, "0");
+  function buildDefaultMonthlyConfig(
+    ayStr: string,
+    dueDay: number = 10,
+  ): MonthlyDueDateConfig {
+    const monthDueDates: MonthDueDateItem[] = MONTH_NAMES_ACADEMIC.map(
+      (mName, idx) => {
+        const { year, month } = getMonthYearForAcademicIndex(ayStr, idx);
+        const dayStr = String(dueDay).padStart(2, "0");
+        const monthStr = String(month).padStart(2, "0");
+        return {
+          monthIndex: idx,
+          monthName: mName,
+          dueDate: `${year}-${monthStr}-${dayStr}`,
+        };
+      },
+    );
+
     return {
-      monthIndex: idx,
-      monthName: mName,
-      dueDate: `${year}-${monthStr}-${dayStr}`
+      applySameDayToAllMonths: true,
+      dueDay,
+      monthDueDates,
     };
-  });
-
-  return {
-    applySameDayToAllMonths: true,
-    dueDay,
-    monthDueDates
-  };
-}
+  }
 
   // Academic Year Fee Schedules State
   const [academicYearFeeSchedules, setAcademicYearFeeSchedules] = useState<
     AcademicYearFeeSchedule[]
   >(() => {
-    const stored = getStored<AcademicYearFeeSchedule[]>("academic_year_fee_schedules", []);
+    const stored = getStored<AcademicYearFeeSchedule[]>(
+      "academic_year_fee_schedules",
+      [],
+    );
     const version = localStorage.getItem("edu_db_schedules_v64");
     if (!version || stored.length < 3 || !stored[0]?.monthlyConfig) {
       localStorage.setItem("edu_db_schedules_v64", "true");
@@ -3636,10 +3853,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       "edu_db_uniform_inventory",
       JSON.stringify(uniformInventory),
     );
-    localStorage.setItem(
-      "uniform_inventory",
-      JSON.stringify(uniformInventory),
-    );
+    localStorage.setItem("uniform_inventory", JSON.stringify(uniformInventory));
   }, [uniformInventory]);
   useEffect(() => {
     localStorage.setItem(
@@ -3667,10 +3881,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
       for (const item of prevInv) {
         if (!item) continue;
-        const normName = (item.itemName || item.category || '').toLowerCase().trim();
-        if (!normName || normName.includes('polo') || normName === 'winter blazer') continue;
+        const normName = (item.itemName || item.category || "")
+          .toLowerCase()
+          .trim();
+        if (
+          !normName ||
+          normName.includes("polo") ||
+          normName === "winter blazer"
+        )
+          continue;
 
-        const key = `${normName}_${(item.size || 'm').toLowerCase()}`;
+        const key = `${normName}_${(item.size || "m").toLowerCase()}`;
         if (!seen.has(key)) {
           seen.add(key);
           deduplicated.push(item);
@@ -3686,10 +3907,15 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
       for (const u of prevU) {
         if (!u) continue;
-        const normName = (u.name || u.category || '').toLowerCase().trim();
-        if (!normName || normName.includes('polo') || normName === 'winter blazer') continue;
+        const normName = (u.name || u.category || "").toLowerCase().trim();
+        if (
+          !normName ||
+          normName.includes("polo") ||
+          normName === "winter blazer"
+        )
+          continue;
 
-        const key = `${normName}_${(u.size || 'm').toLowerCase()}`;
+        const key = `${normName}_${(u.size || "m").toLowerCase()}`;
         if (!seen.has(key)) {
           seen.add(key);
           deduplicated.push(u);
@@ -3703,7 +3929,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const filtered = prev.filter(
         (iss) =>
           !iss.studentName?.toLowerCase().includes("dattu") &&
-          !iss.notes?.toLowerCase().includes("dattu")
+          !iss.notes?.toLowerCase().includes("dattu"),
       );
       return filtered.length !== prev.length ? filtered : prev;
     });
@@ -3713,51 +3939,87 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   useEffect(() => {
     if (!uniformCategories || uniformCategories.length === 0) return;
 
-    const validCatList = uniformCategories.map((c) => {
-      const name = (c.name || (c as any).categoryName || '').trim();
-      return { id: c.id, name, norm: name.toLowerCase() };
-    }).filter(c => c.name !== '');
+    const validCatList = uniformCategories
+      .map((c) => {
+        const name = (c.name || (c as any).categoryName || "").trim();
+        return { id: c.id, name, norm: name.toLowerCase() };
+      })
+      .filter((c) => c.name !== "");
 
-    const validCatNorms = new Set(validCatList.map(c => c.norm));
+    const validCatNorms = new Set(validCatList.map((c) => c.norm));
 
     // 1. Strict deduplication of uniforms catalog and dynamic Finance Setup price sync
     setUniforms((prevU) => {
       const seenNorms = new Set<string>();
       const deduplicated: UniformItem[] = [];
 
-      for (const u of (prevU || [])) {
+      for (const u of prevU || []) {
         if (!u) continue;
-        const norm = (u.category || u.name || '').toLowerCase().trim();
+        const norm = (u.category || u.name || "").toLowerCase().trim();
         if (validCatNorms.has(norm) && !seenNorms.has(norm)) {
           seenNorms.add(norm);
-          const dynamicPrice = getItemFeeFromFinanceConfig('', u.category || u.name, u.gender, financeUniformConfigs, u.price);
+          const dynamicPrice = getItemFeeFromFinanceConfig(
+            "",
+            u.category || u.name,
+            u.gender,
+            financeUniformConfigs,
+            u.price,
+          );
           deduplicated.push({ ...u, price: dynamicPrice });
         }
       }
 
       // Ensure every category in uniformCategories has 1 catalog item
-      validCatList.forEach(cat => {
+      validCatList.forEach((cat) => {
         if (!seenNorms.has(cat.norm)) {
           seenNorms.add(cat.norm);
           let defPrice = 350;
-          if (cat.norm.includes('blazer')) defPrice = 1500;
-          else if (cat.norm.includes('sweater')) defPrice = 800;
-          else if (cat.norm.includes('pant') || cat.norm.includes('trouser') || cat.norm.includes('skirt') || cat.norm.includes('shoes') || cat.norm.includes('tracksuit')) defPrice = 500;
-          else if (cat.norm.includes('tie') || cat.norm.includes('belt') || cat.norm.includes('cap')) defPrice = 150;
+          if (cat.norm.includes("blazer")) defPrice = 1500;
+          else if (cat.norm.includes("sweater")) defPrice = 800;
+          else if (
+            cat.norm.includes("pant") ||
+            cat.norm.includes("trouser") ||
+            cat.norm.includes("skirt") ||
+            cat.norm.includes("shoes") ||
+            cat.norm.includes("tracksuit")
+          )
+            defPrice = 500;
+          else if (
+            cat.norm.includes("tie") ||
+            cat.norm.includes("belt") ||
+            cat.norm.includes("cap")
+          )
+            defPrice = 150;
 
-          const dynamicPrice = getItemFeeFromFinanceConfig('', cat.name, 'Unisex', financeUniformConfigs, defPrice);
+          const dynamicPrice = getItemFeeFromFinanceConfig(
+            "",
+            cat.name,
+            "Unisex",
+            financeUniformConfigs,
+            defPrice,
+          );
 
           deduplicated.push({
             id: `UNI-${cat.id || Date.now()}`,
             category: cat.name,
             name: cat.name,
-            gender: cat.norm.includes('boys') ? 'Male' : (cat.norm.includes('girls') ? 'Female' : 'Unisex'),
-            size: cat.norm.includes('tie') || cat.norm.includes('belt') || cat.norm.includes('ribbon') || cat.norm.includes('cap') ? 'Free Size' : 'M',
-            className: 'All Wings',
-            color: 'Standard',
+            gender: cat.norm.includes("boys")
+              ? "Male"
+              : cat.norm.includes("girls")
+                ? "Female"
+                : "Unisex",
+            size:
+              cat.norm.includes("tie") ||
+              cat.norm.includes("belt") ||
+              cat.norm.includes("ribbon") ||
+              cat.norm.includes("cap")
+                ? "Free Size"
+                : "M",
+            className: "All Wings",
+            color: "Standard",
             price: dynamicPrice,
             availableStock: 100,
-            branch: selectedBranch || 'Main Campus'
+            branch: selectedBranch || "Main Campus",
           });
         }
       });
@@ -3776,29 +4038,31 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   useEffect(() => {
     if (!uniforms || uniforms.length === 0) return;
 
-    const validItems = uniforms.map(u => ({
-      id: u.id,
-      name: u.category || u.name || '',
-      norm: (u.category || u.name || '').toLowerCase().trim(),
-      stock: u.availableStock !== undefined ? Number(u.availableStock) : 100
-    })).filter(x => x.name !== '');
+    const validItems = uniforms
+      .map((u) => ({
+        id: u.id,
+        name: u.category || u.name || "",
+        norm: (u.category || u.name || "").toLowerCase().trim(),
+        stock: u.availableStock !== undefined ? Number(u.availableStock) : 100,
+      }))
+      .filter((x) => x.name !== "");
 
-    const validNorms = new Set(validItems.map(x => x.norm));
+    const validNorms = new Set(validItems.map((x) => x.norm));
 
     setUniformInventory((prevInv) => {
       const seenNorms = new Set<string>();
       const deduplicated: UniformInventoryItem[] = [];
 
-      for (const inv of (prevInv || [])) {
+      for (const inv of prevInv || []) {
         if (!inv) continue;
-        const norm = (inv.itemName || inv.category || '').toLowerCase().trim();
+        const norm = (inv.itemName || inv.category || "").toLowerCase().trim();
         if (validNorms.has(norm) && !seenNorms.has(norm)) {
           seenNorms.add(norm);
           deduplicated.push(inv);
         }
       }
 
-      validItems.forEach(item => {
+      validItems.forEach((item) => {
         if (!seenNorms.has(item.norm)) {
           seenNorms.add(item.norm);
           deduplicated.push({
@@ -3806,20 +4070,33 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             itemId: item.id,
             itemName: item.name,
             category: item.name,
-            size: item.norm.includes('tie') || item.norm.includes('belt') || item.norm.includes('cap') ? 'Free Size' : 'M',
+            size:
+              item.norm.includes("tie") ||
+              item.norm.includes("belt") ||
+              item.norm.includes("cap")
+                ? "Free Size"
+                : "M",
             openingStock: item.stock,
             currentStock: item.stock,
             minimumStock: 10,
             reorderLevel: 15,
-            status: item.stock === 0 ? 'Out of Stock' : item.stock <= 10 ? 'Low Stock' : 'In Stock',
-            branch: selectedBranch || 'Main Campus'
+            status:
+              item.stock === 0
+                ? "Out of Stock"
+                : item.stock <= 10
+                  ? "Low Stock"
+                  : "In Stock",
+            branch: selectedBranch || "Main Campus",
           } as any);
         }
       });
 
       if (deduplicated.length !== (prevInv || []).length) {
         try {
-          localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(deduplicated));
+          localStorage.setItem(
+            "edu_db_uniform_inventory",
+            JSON.stringify(deduplicated),
+          );
         } catch (e) {}
         return deduplicated;
       }
@@ -3934,16 +4211,24 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         const attendants = extractData(results[6]);
 
         const normalizeStatus = (status: any) => {
-          if (status === true || String(status).toLowerCase() === 'true' || String(status).toLowerCase() === 'active') {
-            return 'Active';
+          if (
+            status === true ||
+            String(status).toLowerCase() === "true" ||
+            String(status).toLowerCase() === "active"
+          ) {
+            return "Active";
           }
-          if (String(status).toLowerCase() === 'on leave') {
-            return 'On Leave';
+          if (String(status).toLowerCase() === "on leave") {
+            return "On Leave";
           }
-          return 'Inactive';
+          return "Inactive";
         };
 
-        const mergeApiAndLocal = <T extends { id: string | number }>(apiList: T[], localKey: string, initialFallback: T[]): T[] => {
+        const mergeApiAndLocal = <T extends { id: string | number }>(
+          apiList: T[],
+          localKey: string,
+          initialFallback: T[],
+        ): T[] => {
           const saved = localStorage.getItem(localKey);
           let localList: T[] = [];
           if (saved) {
@@ -3956,8 +4241,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           const merged = [...apiList];
           if (Array.isArray(localList)) {
             localList.forEach((localItem: T) => {
-              if (localItem && localItem.id !== undefined && localItem.id !== null) {
-                if (!merged.some(m => m.id.toString() === localItem.id.toString())) {
+              if (
+                localItem &&
+                localItem.id !== undefined &&
+                localItem.id !== null
+              ) {
+                if (
+                  !merged.some(
+                    (m) => m.id.toString() === localItem.id.toString(),
+                  )
+                ) {
                   merged.push(localItem);
                 }
               }
@@ -3991,19 +4284,78 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               routeName: updated.routeName || "",
               routeStart: updated.routeStart || updated.startLocation || "",
               routeEnd: updated.routeEnd || updated.endLocation || "",
-              totalDistanceKm: Number(updated.totalDistanceKm !== undefined ? updated.totalDistanceKm : (updated.distanceKm !== undefined ? updated.distanceKm : 0)),
-              estimatedTimeMinutes: Number(updated.estimatedTimeMinutes !== undefined ? updated.estimatedTimeMinutes : (updated.estimatedDurationMinutes !== undefined ? updated.estimatedDurationMinutes : 0)),
-              minDistanceKm: Number(updated.minDistanceKm !== undefined ? updated.minDistanceKm : (updated.minRangeKm !== undefined ? updated.minRangeKm : (updated.minRange !== undefined ? updated.minRange : 5))),
-              minBaseFare: Number(updated.minBaseFare !== undefined ? updated.minBaseFare : (updated.nonAcBaseFare !== undefined ? updated.nonAcBaseFare : 1000)),
-              ratePerKm: Number(updated.ratePerKm !== undefined ? updated.ratePerKm : (updated.nonAcRateAddlKm !== undefined ? updated.nonAcRateAddlKm : (updated.nonAcRatePerKm !== undefined ? updated.nonAcRatePerKm : 100))),
-              acMinBaseFare: Number(updated.acMinBaseFare !== undefined ? updated.acMinBaseFare : (updated.acBaseFare !== undefined ? updated.acBaseFare : 1200)),
-              acRatePerKm: Number(updated.acRatePerKm !== undefined ? updated.acRatePerKm : (updated.acRateAddlKm !== undefined ? updated.acRateAddlKm : (updated.acRatePerKm !== undefined ? updated.acRatePerKm : 150))),
+              totalDistanceKm: Number(
+                updated.totalDistanceKm !== undefined
+                  ? updated.totalDistanceKm
+                  : updated.distanceKm !== undefined
+                    ? updated.distanceKm
+                    : 0,
+              ),
+              estimatedTimeMinutes: Number(
+                updated.estimatedTimeMinutes !== undefined
+                  ? updated.estimatedTimeMinutes
+                  : updated.estimatedDurationMinutes !== undefined
+                    ? updated.estimatedDurationMinutes
+                    : 0,
+              ),
+              minDistanceKm: Number(
+                updated.minDistanceKm !== undefined
+                  ? updated.minDistanceKm
+                  : updated.minRangeKm !== undefined
+                    ? updated.minRangeKm
+                    : updated.minRange !== undefined
+                      ? updated.minRange
+                      : 5,
+              ),
+              minBaseFare: Number(
+                updated.minBaseFare !== undefined
+                  ? updated.minBaseFare
+                  : updated.nonAcBaseFare !== undefined
+                    ? updated.nonAcBaseFare
+                    : 1000,
+              ),
+              ratePerKm: Number(
+                updated.ratePerKm !== undefined
+                  ? updated.ratePerKm
+                  : updated.nonAcRateAddlKm !== undefined
+                    ? updated.nonAcRateAddlKm
+                    : updated.nonAcRatePerKm !== undefined
+                      ? updated.nonAcRatePerKm
+                      : 100,
+              ),
+              acMinBaseFare: Number(
+                updated.acMinBaseFare !== undefined
+                  ? updated.acMinBaseFare
+                  : updated.acBaseFare !== undefined
+                    ? updated.acBaseFare
+                    : 1200,
+              ),
+              acRatePerKm: Number(
+                updated.acRatePerKm !== undefined
+                  ? updated.acRatePerKm
+                  : updated.acRateAddlKm !== undefined
+                    ? updated.acRateAddlKm
+                    : updated.acRatePerKm !== undefined
+                      ? updated.acRatePerKm
+                      : 150,
+              ),
               description: updated.description || "",
-              status: normalizeStatus(updated.status)
+              status: normalizeStatus(updated.status),
             };
           });
-          const validRoutes = mergedRoutes.filter((r: any) => r.routeName && r.routeName.trim() !== "" && r.routeName.toUpperCase() !== "N/A");
-          setRouteMasters(mergeApiAndLocal(validRoutes, "edu_db_route_masters", initialRouteMasters));
+          const validRoutes = mergedRoutes.filter(
+            (r: any) =>
+              r.routeName &&
+              r.routeName.trim() !== "" &&
+              r.routeName.toUpperCase() !== "N/A",
+          );
+          setRouteMasters(
+            mergeApiAndLocal(
+              validRoutes,
+              "edu_db_route_masters",
+              initialRouteMasters,
+            ),
+          );
         }
         if (points) {
           const mappedPoints = points.map((p: any) => ({
@@ -4012,15 +4364,41 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             routeName: p.routeName || p.selectRoute || "",
             pickupName: p.pickupName || p.pickupPointName || "",
             landmark: p.landmark || "",
-            sequenceNumber: Number(p.sequenceNumber !== undefined ? p.sequenceNumber : (p.sequenceNo !== undefined ? p.sequenceNo : 0)),
-            arrivalTime: p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
-            morningPickupTime: p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
+            sequenceNumber: Number(
+              p.sequenceNumber !== undefined
+                ? p.sequenceNumber
+                : p.sequenceNo !== undefined
+                  ? p.sequenceNo
+                  : 0,
+            ),
+            arrivalTime:
+              p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
+            morningPickupTime:
+              p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
             eveningDropTime: p.eveningDropTime || p.dropTime || "",
-            distanceFromSchoolKm: Number(p.distanceFromSchoolKm !== undefined ? p.distanceFromSchoolKm : (p.distanceFromStart !== undefined ? p.distanceFromStart : 0)),
-            monthlyFee: Number(p.monthlyFee !== undefined ? p.monthlyFee : (p.monthlyFare !== undefined ? p.monthlyFare : 0)),
-            status: normalizeStatus(p.status)
+            distanceFromSchoolKm: Number(
+              p.distanceFromSchoolKm !== undefined
+                ? p.distanceFromSchoolKm
+                : p.distanceFromStart !== undefined
+                  ? p.distanceFromStart
+                  : 0,
+            ),
+            monthlyFee: Number(
+              p.monthlyFee !== undefined
+                ? p.monthlyFee
+                : p.monthlyFare !== undefined
+                  ? p.monthlyFare
+                  : 0,
+            ),
+            status: normalizeStatus(p.status),
           }));
-          setPickupPoints(mergeApiAndLocal(mappedPoints, "edu_db_pickup_points", initialPickupPoints));
+          setPickupPoints(
+            mergeApiAndLocal(
+              mappedPoints,
+              "edu_db_pickup_points",
+              initialPickupPoints,
+            ),
+          );
         }
         if (vehicles) {
           const mappedVehicles = vehicles.map((v: any) => ({
@@ -4028,37 +4406,62 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             vehicleNumber: v.vehicleNumber || "",
             registrationNumber: v.registrationNumber || v.regNumber || "",
             vehicleType: v.vehicleType || v.vehicleName || "",
-            capacity: Number(v.capacity !== undefined ? v.capacity : (v.seatingCapacity !== undefined ? v.seatingCapacity : 40)),
+            capacity: Number(
+              v.capacity !== undefined
+                ? v.capacity
+                : v.seatingCapacity !== undefined
+                  ? v.seatingCapacity
+                  : 40,
+            ),
             insuranceExpiry: v.insuranceExpiry || "",
             pollutionExpiry: v.pollutionExpiry || "",
             fitnessExpiry: v.fitnessExpiry || "",
             isAC: v.isAC === true,
-            status: normalizeStatus(v.status)
+            status: normalizeStatus(v.status),
           }));
-          setVehicleMasters(mergeApiAndLocal(mappedVehicles, "edu_db_vehicle_masters", initialVehicleMasters));
+          setVehicleMasters(
+            mergeApiAndLocal(
+              mappedVehicles,
+              "edu_db_vehicle_masters",
+              initialVehicleMasters,
+            ),
+          );
         }
         if (drivers) {
           const mappedDrivers = drivers.map((d: any) => ({
             id: (d.id || d.driverId || "").toString(),
             employeeId: d.employeeId || d.empId || "",
-            driverName: d.driverName || d.driverFullName || d.fullName || d.name || "",
+            driverName:
+              d.driverName || d.driverFullName || d.fullName || d.name || "",
             mobileNumber: d.mobileNumber || d.phone || "",
             email: d.email || "",
-            licenseNumber: d.licenseNumber || d.licenceNumber || d.commercialLicenseNo || "",
+            licenseNumber:
+              d.licenseNumber || d.licenceNumber || d.commercialLicenseNo || "",
             licenseExpiryDate: d.licenseExpiryDate || d.licenceExpiry || "",
             address: d.address || "",
-            emergencyContact: d.emergencyContact || d.emergencyContactNumber || "",
+            emergencyContact:
+              d.emergencyContact || d.emergencyContactNumber || "",
             experienceYears: Number(d.experienceYears || 0),
-            status: normalizeStatus(d.status)
+            status: normalizeStatus(d.status),
           }));
-          setDriverMasters(mergeApiAndLocal(mappedDrivers, "edu_db_driver_masters", initialDriverMasters));
+          setDriverMasters(
+            mergeApiAndLocal(
+              mappedDrivers,
+              "edu_db_driver_masters",
+              initialDriverMasters,
+            ),
+          );
         }
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
             let routeId = (a.routeId || "").toString();
             let routeName = a.routeName || a.selectRoute || "";
             if (!routeId && routeMasters) {
-              const matchedRoute = routeMasters.find((r: any) => r.routeName?.toLowerCase() === routeName.toLowerCase() || r.routeCode?.toLowerCase() === routeName.toLowerCase());
+              const matchedRoute = routeMasters.find(
+                (r: any) =>
+                  r.routeName?.toLowerCase() === routeName.toLowerCase() ||
+                  r.routeCode?.toLowerCase() === routeName.toLowerCase(),
+              );
               if (matchedRoute) {
                 routeId = matchedRoute.id.toString();
               }
@@ -4066,7 +4469,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             let vehicleId = (a.vehicleId || "").toString();
             let vehicleNumber = a.vehicleNumber || a.selectActiveVehicle || "";
             if (!vehicleId && vehicleMasters) {
-              const matchedVehicle = vehicleMasters.find((v: any) => v.vehicleNumber?.toLowerCase() === vehicleNumber.toLowerCase());
+              const matchedVehicle = vehicleMasters.find(
+                (v: any) =>
+                  v.vehicleNumber?.toLowerCase() ===
+                  vehicleNumber.toLowerCase(),
+              );
               if (matchedVehicle) {
                 vehicleId = matchedVehicle.id.toString();
               }
@@ -4074,7 +4481,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             let driverId = (a.driverId || "").toString();
             let driverName = a.driverName || a.selectLicensedDriver || "";
             if (!driverId && driverMasters) {
-              const matchedDriver = driverMasters.find((d: any) => d.driverName?.toLowerCase() === driverName.toLowerCase());
+              const matchedDriver = driverMasters.find(
+                (d: any) =>
+                  d.driverName?.toLowerCase() === driverName.toLowerCase(),
+              );
               if (matchedDriver) {
                 driverId = matchedDriver.id.toString();
               }
@@ -4096,16 +4506,24 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
               effectiveFrom: a.effectiveFrom || a.effectiveFromDate || "",
               effectiveTo: a.effectiveTo || "",
-              status: normalizeStatus(a.status)
+              status: normalizeStatus(a.status),
             };
           });
-          setVehicleAssignments(mergeApiAndLocal(mappedAssignments, "edu_db_vehicle_assignments", initialVehicleAssignments));
+          setVehicleAssignments(
+            mergeApiAndLocal(
+              mappedAssignments,
+              "edu_db_vehicle_assignments",
+              initialVehicleAssignments,
+            ),
+          );
         }
         if (maintenance) {
           const mappedMaintenance = maintenance.map((m: any) => {
             let vNum = m.vehicleNumber || "";
             if (!vNum && vehicles) {
-              const matchedVeh = vehicles.find((v: any) => v.id?.toString() === m.vehicleId?.toString());
+              const matchedVeh = vehicles.find(
+                (v: any) => v.id?.toString() === m.vehicleId?.toString(),
+              );
               if (matchedVeh) {
                 vNum = matchedVeh.vehicleNumber || "";
               }
@@ -4118,33 +4536,57 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               serviceType: m.serviceType || m.type || "Routine Service",
               vendor: m.vendor || m.serviceCenter || "Default Vendor",
               cost: Number(m.cost || 0),
-              nextServiceDue: m.nextServiceDue ? m.nextServiceDue.split("T")[0] : "",
+              nextServiceDue: m.nextServiceDue
+                ? m.nextServiceDue.split("T")[0]
+                : "",
               remarks: m.remarks || m.description || "",
-              status: normalizeStatus(m.status)
+              status: normalizeStatus(m.status),
             };
           });
-          setVehicleMaintenances(mergeApiAndLocal(mappedMaintenance, "edu_db_vehicle_maintenances", initialVehicleMaintenances));
+          setVehicleMaintenances(
+            mergeApiAndLocal(
+              mappedMaintenance,
+              "edu_db_vehicle_maintenances",
+              initialVehicleMaintenances,
+            ),
+          );
         }
         if (attendants) {
           const mappedAttendants = attendants.map((a: any) => ({
             id: (a.id || a.attendantId || "").toString(),
             employeeId: a.employeeId || a.empId || "",
-            attendantName: a.attendantName || a.attendantFullName || a.fullName || a.name || "",
+            attendantName:
+              a.attendantName ||
+              a.attendantFullName ||
+              a.fullName ||
+              a.name ||
+              "",
             mobileNumber: a.mobileNumber || a.phone || "",
             gender: a.gender || "Female",
             branch: a.branch || "",
-            status: normalizeStatus(a.status)
+            status: normalizeStatus(a.status),
           }));
-          setBusAttendants(mergeApiAndLocal(mappedAttendants, "edu_db_bus_attendants", initialBusAttendants));
+          setBusAttendants(
+            mergeApiAndLocal(
+              mappedAttendants,
+              "edu_db_bus_attendants",
+              initialBusAttendants,
+            ),
+          );
         }
         const studentTransportsData = extractData(results[7]);
         if (studentTransportsData) {
           const mappedTransports = studentTransportsData.map((t: any) => {
             let admNo = t.admissionNo || t.admissionNumber || "";
             if (!admNo && students) {
-              const matchedStudent = students.find((s: any) => s.id?.toString() === t.studentId?.toString());
+              const matchedStudent = students.find(
+                (s: any) => s.id?.toString() === t.studentId?.toString(),
+              );
               if (matchedStudent) {
-                admNo = matchedStudent.admissionNo || (matchedStudent as any).admissionNumber || "";
+                admNo =
+                  matchedStudent.admissionNo ||
+                  (matchedStudent as any).admissionNumber ||
+                  "";
               }
             }
             return {
@@ -4160,11 +4602,19 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               vehicleId: (t.vehicleId || "").toString(),
               feePlan: t.feePlan || "Monthly",
               feeAmount: Number(t.feeAmount || 0),
-              effectiveFrom: t.effectiveFrom ? t.effectiveFrom.split("T")[0] : "",
-              status: normalizeStatus(t.status)
+              effectiveFrom: t.effectiveFrom
+                ? t.effectiveFrom.split("T")[0]
+                : "",
+              status: normalizeStatus(t.status),
             };
           });
-          setStudentTransports(mergeApiAndLocal(mappedTransports, "edu_db_student_transports", initialStudentTransports));
+          setStudentTransports(
+            mergeApiAndLocal(
+              mappedTransports,
+              "edu_db_student_transports",
+              initialStudentTransports,
+            ),
+          );
         }
 
         if (results.some((r) => r.status === "rejected")) {
@@ -4287,8 +4737,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   }, [coScholasticAssessments]);
 
   const fetchAcademicClasses = async () => {
-    if (activeRequests.current['classes']) {
-      return activeRequests.current['classes'];
+    if (activeRequests.current["classes"]) {
+      return activeRequests.current["classes"];
     }
     const promise = (async () => {
       try {
@@ -4316,7 +4766,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
                 sectionTeachers: c.sectionTeachers || {},
                 teacher: c.teacher || "Unassigned",
-                subjects: Array.isArray(c.curriculumSubjects) ? c.curriculumSubjects.map((cs: any) => cs.subjectName || cs.name || "") : (c.subjects || []),
+                subjects: Array.isArray(c.curriculumSubjects)
+                  ? c.curriculumSubjects.map(
+                      (cs: any) => cs.subjectName || cs.name || "",
+                    )
+                  : c.subjects || [],
                 weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
                 sectionDetails:
                   localCls?.sectionDetails || c.sectionDetails || {},
@@ -4328,10 +4782,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       } catch (err: any) {
         console.warn("Error fetching classes", err);
       } finally {
-        delete activeRequests.current['classes'];
+        delete activeRequests.current["classes"];
       }
     })();
-    activeRequests.current['classes'] = promise;
+    activeRequests.current["classes"] = promise;
     return promise;
   };
 
@@ -4387,148 +4841,184 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const fetchAdmissions = async () => {
-    if (activeRequests.current['admissions']) {
-      return activeRequests.current['admissions'];
+    if (activeRequests.current["admissions"]) {
+      return activeRequests.current["admissions"];
     }
     const promise = (async () => {
       try {
         const json = await fetchAdmissionsApi();
         console.log("Admissions API response:", json);
         if (json && json.success && json.data) {
-        if (json.data.length === 0) {
+          if (json.data.length === 0) {
+            addToast(
+              "info",
+              "No Records Found",
+              "There are currently no admission applications available.",
+            );
+          }
+          const mappedAdmissions: AdmissionApplication[] = json.data.map(
+            (item: any) => {
+              const existing = admissions.find(
+                (a) =>
+                  a.id === item.applicationId?.toString() ||
+                  a.applicationNo === item.registrationNo ||
+                  (a.applicantName === item.applicantFullName &&
+                    a.phone === item.fatherMobileNo),
+              );
+              return {
+                id: item.applicationId
+                  ? item.applicationId.toString()
+                  : existing?.id || Math.random().toString(),
+                applicationNo:
+                  item.registrationNo || existing?.applicationNo || "",
+                registrationNo:
+                  item.registrationNo || existing?.registrationNo || "",
+                applicantName:
+                  item.applicantFullName || existing?.applicantName || "",
+                appliedClass:
+                  item.appliedClass || existing?.appliedClass || "Class 10",
+                gender: item.gender || existing?.gender || "Male",
+                dob: item.dob ? item.dob.split("T")[0] : existing?.dob || "",
+                bloodGroup: item.bloodGroup || existing?.bloodGroup || "O+",
+                religion: item.religion || existing?.religion || "General",
+                casteCategory:
+                  item.casteCategory || existing?.casteCategory || "General",
+                parentName: item.fatherFullName || existing?.parentName || "",
+                motherName: item.motherFullName || existing?.motherName || "",
+                phone: item.fatherMobileNo || existing?.phone || "",
+                email: item.email || existing?.email || "",
+                addressHouseNo: item.houseNo || existing?.addressHouseNo || "",
+                addressStreet: item.street || existing?.addressStreet || "",
+                addressArea: item.areaLocality || existing?.addressArea || "",
+                addressCity: item.city || existing?.addressCity || "",
+                addressDistrict:
+                  item.district || existing?.addressDistrict || "",
+                addressState: item.state || existing?.addressState || "",
+                addressPinCode: item.pinCode || existing?.addressPinCode || "",
+                siblingsCount:
+                  item.numberOfSiblings ?? existing?.siblingsCount ?? 0,
+                hasSiblings:
+                  existing?.hasSiblings ??
+                  ((item.numberOfSiblings && item.numberOfSiblings > 0) ||
+                    false),
+                siblingDetails:
+                  item.siblingDetails || existing?.siblingDetails || [],
+                studentType:
+                  item.studentType || existing?.studentType || "Day Scholar",
+                transportRequired:
+                  item.transportRequired ??
+                  existing?.transportRequired ??
+                  false,
+                transportType:
+                  item.transportType || existing?.transportType || "",
+                busRoute: item.busRoute || existing?.busRoute || "",
+                pickupPoint: item.pickupPoint || existing?.pickupPoint || "",
+                dropPoint: item.dropPoint || existing?.dropPoint || "",
+                hostelBlock: item.hostelBlock || existing?.hostelBlock || "",
+                hostelRoom:
+                  item.hostelRoom ||
+                  item.roomNumber ||
+                  item.allocatedRoomId ||
+                  existing?.hostelRoom ||
+                  "",
+                hostelBed:
+                  item.allocatedBedId ||
+                  item.hostelBed ||
+                  existing?.hostelBed ||
+                  "",
+                status: item.status || existing?.status || "Pending",
+                applicationDate:
+                  item.createdAt ||
+                  existing?.applicationDate ||
+                  new Date().toISOString(),
+                branch: item.branch || existing?.branch || "Main Campus",
+                avatar: item.avatar || existing?.avatar || "",
+                scholarshipId:
+                  item.scholarshipId ||
+                  item.scholarship ||
+                  existing?.scholarshipId ||
+                  "",
+                discountId:
+                  item.discountId ||
+                  item.discount ||
+                  existing?.discountId ||
+                  "",
+                selectedOptionalFees:
+                  item.selectedOptionalFees ||
+                  item.optionalFees ||
+                  existing?.selectedOptionalFees ||
+                  [],
+                isLateAdmission:
+                  item.isLateAdmission ??
+                  item.isLate ??
+                  existing?.isLateAdmission ??
+                  false,
+                feeCalculationMethod:
+                  item.feeCalculationMethod ||
+                  item.feePolicy ||
+                  existing?.feeCalculationMethod ||
+                  "Term-wise",
+                joiningDate:
+                  item.joiningDate ||
+                  item.admissionDate ||
+                  existing?.joiningDate ||
+                  existing?.admissionDate ||
+                  "",
+                admissionDate:
+                  item.admissionDate ||
+                  item.joiningDate ||
+                  existing?.admissionDate ||
+                  existing?.joiningDate ||
+                  "",
+                documentsSubmitted:
+                  item.documentsSubmitted ||
+                  item.documents ||
+                  existing?.documentsSubmitted ||
+                  [],
+              };
+            },
+          );
+          setAdmissions(mappedAdmissions);
+        } else {
           addToast(
-            "info",
-            "No Records Found",
-            "There are currently no admission applications available.",
+            "error",
+            "API Error",
+            json?.message || "Failed to fetch admission records.",
           );
         }
-        const mappedAdmissions: AdmissionApplication[] = json.data.map(
-          (item: any) => {
-            const existing = admissions.find(
-              (a) =>
-                a.id === item.applicationId?.toString() ||
-                a.applicationNo === item.registrationNo ||
-                (a.applicantName === item.applicantFullName &&
-                  a.phone === item.fatherMobileNo),
-            );
-            return {
-              id: item.applicationId
-                ? item.applicationId.toString()
-                : existing?.id || Math.random().toString(),
-              applicationNo:
-                item.registrationNo || existing?.applicationNo || "",
-              registrationNo:
-                item.registrationNo || existing?.registrationNo || "",
-              applicantName:
-                item.applicantFullName || existing?.applicantName || "",
-              appliedClass:
-                item.appliedClass || existing?.appliedClass || "Class 10",
-              gender: item.gender || existing?.gender || "Male",
-              dob: item.dob ? item.dob.split("T")[0] : existing?.dob || "",
-              bloodGroup: item.bloodGroup || existing?.bloodGroup || "O+",
-              religion: item.religion || existing?.religion || "General",
-              casteCategory:
-                item.casteCategory || existing?.casteCategory || "General",
-              parentName: item.fatherFullName || existing?.parentName || "",
-              motherName: item.motherFullName || existing?.motherName || "",
-              phone: item.fatherMobileNo || existing?.phone || "",
-              email: item.email || existing?.email || "",
-              addressHouseNo: item.houseNo || existing?.addressHouseNo || "",
-              addressStreet: item.street || existing?.addressStreet || "",
-              addressArea: item.areaLocality || existing?.addressArea || "",
-              addressCity: item.city || existing?.addressCity || "",
-              addressDistrict: item.district || existing?.addressDistrict || "",
-              addressState: item.state || existing?.addressState || "",
-              addressPinCode: item.pinCode || existing?.addressPinCode || "",
-              siblingsCount:
-                item.numberOfSiblings ?? existing?.siblingsCount ?? 0,
-              hasSiblings:
-                existing?.hasSiblings ??
-                ((item.numberOfSiblings && item.numberOfSiblings > 0) || false),
-              siblingDetails:
-                item.siblingDetails || existing?.siblingDetails || [],
-              studentType:
-                item.studentType || existing?.studentType || "Day Scholar",
-              transportRequired:
-                item.transportRequired ?? existing?.transportRequired ?? false,
-              transportType:
-                item.transportType || existing?.transportType || "",
-              busRoute: item.busRoute || existing?.busRoute || "",
-              pickupPoint: item.pickupPoint || existing?.pickupPoint || "",
-              dropPoint: item.dropPoint || existing?.dropPoint || "",
-              hostelBlock: item.hostelBlock || existing?.hostelBlock || "",
-              hostelRoom:
-                item.hostelRoom ||
-                item.roomNumber ||
-                item.allocatedRoomId ||
-                existing?.hostelRoom ||
-                "",
-              hostelBed:
-                item.allocatedBedId ||
-                item.hostelBed ||
-                existing?.hostelBed ||
-                "",
-              status: item.status || existing?.status || "Pending",
-              applicationDate:
-                item.createdAt ||
-                existing?.applicationDate ||
-                new Date().toISOString(),
-              branch: item.branch || existing?.branch || "Main Campus",
-              avatar: item.avatar || existing?.avatar || "",
-              scholarshipId:
-                item.scholarshipId ||
-                item.scholarship ||
-                existing?.scholarshipId ||
-                "",
-              discountId:
-                item.discountId || item.discount || existing?.discountId || "",
-              selectedOptionalFees:
-                item.selectedOptionalFees ||
-                item.optionalFees ||
-                existing?.selectedOptionalFees ||
-                [],
-            };
-          },
-        );
-        setAdmissions(mappedAdmissions);
-      } else {
-        addToast(
-          "error",
-          "API Error",
-          json?.message || "Failed to fetch admission records.",
-        );
+      } catch (err: any) {
+        console.error("Error fetching admissions", err);
+        // Don't show toast for 404 errors as it might just mean the backend endpoint isn't ready
+        if (err.status !== 404) {
+          addToast(
+            "error",
+            "Network Error",
+            err.message ||
+              "Unable to connect to the server. Please try again later.",
+          );
+        }
+        throw err;
+      } finally {
+        delete activeRequests.current["admissions"];
       }
-    } catch (err: any) {
-      console.error("Error fetching admissions", err);
-      // Don't show toast for 404 errors as it might just mean the backend endpoint isn't ready
-      if (err.status !== 404) {
-        addToast(
-          "error",
-          "Network Error",
-          err.message ||
-            "Unable to connect to the server. Please try again later.",
-        );
-      }
-      throw err;
-    } finally {
-      delete activeRequests.current['admissions'];
-    }
     })();
-    activeRequests.current['admissions'] = promise;
+    activeRequests.current["admissions"] = promise;
     return promise;
   };
 
   const fetchDepartments = async () => {
     try {
       const response: any = await fetchDepartmentsApi();
-      const dataArray = Array.isArray(response) ? response : (response?.data || []);
+      const dataArray = Array.isArray(response)
+        ? response
+        : response?.data || [];
       if (Array.isArray(dataArray)) {
         const mapped: Department[] = dataArray.map((item: any) => ({
           id: (item.departmentId || item.id || Math.random()).toString(),
-          departmentName: item.departmentName || '',
-          departmentCode: item.departmentCode || '',
-          description: item.description || '',
-          status: item.status || 'Active',
+          departmentName: item.departmentName || "",
+          departmentCode: item.departmentCode || "",
+          description: item.description || "",
+          status: item.status || "Active",
         }));
         setDepartments(mapped);
       }
@@ -4540,15 +5030,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const fetchDesignations = async () => {
     try {
       const response: any = await fetchDesignationsApi();
-      const dataArray = Array.isArray(response) ? response : (response?.data || []);
+      const dataArray = Array.isArray(response)
+        ? response
+        : response?.data || [];
       if (Array.isArray(dataArray)) {
         const mapped: DesignationMaster[] = dataArray.map((item: any) => ({
           id: (item.designationId || item.id || Math.random()).toString(),
-          designationName: item.designationName || '',
-          designationCode: item.designationCode || '',
-          description: item.description || '',
-          employeeCategory: item.employeeCategory || 'Both',
-          status: item.status || 'Active',
+          designationName: item.designationName || "",
+          designationCode: item.designationCode || "",
+          description: item.description || "",
+          employeeCategory: item.employeeCategory || "Both",
+          status: item.status || "Active",
         }));
         setDesignations(mapped);
       }
@@ -4558,8 +5050,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const fetchStaff = async () => {
-    if (activeRequests.current['staff']) {
-      return activeRequests.current['staff'];
+    if (activeRequests.current["staff"]) {
+      return activeRequests.current["staff"];
     }
     const promise = (async () => {
       try {
@@ -4573,12 +5065,20 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               cat.includes("teacher") ||
               cat.includes("faculty") ||
               cat.includes("professor");
-            
-            const itemId = (item.staffId !== undefined && item.staffId !== null ? item.staffId : (item.id !== undefined && item.id !== null ? item.id : "")).toString();
+
+            const itemId = (
+              item.staffId !== undefined && item.staffId !== null
+                ? item.staffId
+                : item.id !== undefined && item.id !== null
+                  ? item.id
+                  : ""
+            ).toString();
             const itemEmpId = item.employeeId || item.empId || "";
 
             // Look up in current staff state to preserve local workload data
-            const existing = staff.find(s => s.id === itemId || s.empId === itemEmpId);
+            const existing = staff.find(
+              (s) => s.id === itemId || s.empId === itemEmpId,
+            );
 
             return {
               id: itemId,
@@ -4589,14 +5089,23 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               lastName: item.lastName,
               email: item.email || "",
               phone: item.phone || "",
+              alternateMobile: item.alternateMobile || "",
               gender: item.gender || "Male",
               dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
               bloodGroup: item.bloodGroup || "",
               aadhaarNumber: item.aadhaarNumber || "",
               panNumber: item.panNumber || "",
-              joiningDate: item.joiningDate ? item.joiningDate.split("T")[0] : "",
+              joiningDate: item.joiningDate
+                ? item.joiningDate.split("T")[0]
+                : "",
               qualification: item.qualification || "",
-              experienceYears: item.experienceRecords ? item.experienceRecords.reduce((total: number, rec: any) => total + (rec.yearsOfExperience || 0), 0) : 0,
+              experienceYears: item.experienceRecords
+                ? item.experienceRecords.reduce(
+                    (total: number, rec: any) =>
+                      total + (rec.yearsOfExperience || 0),
+                    0,
+                  )
+                : 0,
               salary: item.monthlySalary || 0,
               designation: item.designation || "",
               department: item.department || "",
@@ -4604,6 +5113,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               profileStatus: "Completed",
               status: item.isActive ? "Active" : "Inactive",
               employmentType: item.employmentType || existing?.employmentType || "",
+              address: item.presentAddress || item.residentialAddress || item.address || "",
+              presentAddress: item.presentAddress || item.residentialAddress || "",
+              permanentAddress: item.permanentAddress || "",
+              city: item.city || "",
+              state: item.state || "",
+              pinCode: item.pinCode || "",
+              country: item.country || "India",
               assignedClasses: item.assignedClasses || existing?.assignedClasses || [],
               assignedSubjects: item.assignedSubjects || existing?.assignedSubjects || [],
               isClassTeacherEligible: item.isClassTeacherEligible !== undefined ? item.isClassTeacherEligible : (existing?.isClassTeacherEligible || false),
@@ -4622,10 +5138,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       } catch (err) {
         console.warn("Failed to fetch staff from API", err);
       } finally {
-        delete activeRequests.current['staff'];
+        delete activeRequests.current["staff"];
       }
     })();
-    activeRequests.current['staff'] = promise;
+    activeRequests.current["staff"] = promise;
     return promise;
   };
 
@@ -4634,8 +5150,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   // =========================================================
 
   const fetchStudents = async () => {
-    if (activeRequests.current['students']) {
-      return activeRequests.current['students'];
+    if (activeRequests.current["students"]) {
+      return activeRequests.current["students"];
     }
     const promise = (async () => {
       try {
@@ -4652,14 +5168,19 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setTotalStudentCount(totalRecs);
         if (Array.isArray(items)) {
           const mapped = items.map((s: any) => {
-            const nameParts = (s.studentName || s.name || "").trim().split(/\s+/);
+            const nameParts = (s.studentName || s.name || "")
+              .trim()
+              .split(/\s+/);
             const firstName = s.firstName || nameParts[0] || "";
             const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
             return {
               id: s.studentId?.toString() || s.id?.toString() || "",
               admissionNo: s.admissionNumber || s.admissionNo || "",
               registrationNumber:
-                s.registrationNumber || s.admissionNumber || s.admissionNo || "",
+                s.registrationNumber ||
+                s.admissionNumber ||
+                s.admissionNo ||
+                "",
               firstName,
               middleName: s.middleName || "",
               lastName,
@@ -4690,10 +5211,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       } catch (err) {
         console.warn("Failed to fetch students from API", err);
       } finally {
-        delete activeRequests.current['students'];
+        delete activeRequests.current["students"];
       }
     })();
-    activeRequests.current['students'] = promise;
+    activeRequests.current["students"] = promise;
     return promise;
   };
 
@@ -4993,12 +5514,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   const fetchFinanceData = async () => {
     try {
-      const [headsRes, structsRes, assignmentsRes, paymentsRes] = await Promise.allSettled([
-        FinanceAPI.fetchFeeHeadsApi(),
-        FinanceAPI.fetchDynamicFeeStructuresApi(),
-        FinanceAPI.fetchStudentFeeAssignmentsApi(),
-        FinanceAPI.fetchFeePaymentsApi()
-      ]);
+      const [headsRes, structsRes, assignmentsRes, paymentsRes] =
+        await Promise.allSettled([
+          FinanceAPI.fetchFeeHeadsApi(),
+          FinanceAPI.fetchDynamicFeeStructuresApi(),
+          FinanceAPI.fetchStudentFeeAssignmentsApi(),
+          FinanceAPI.fetchFeePaymentsApi(),
+        ]);
       const extract = (r: PromiseSettledResult<any>) =>
         r.status === "fulfilled"
           ? Array.isArray(r.value)
@@ -5010,7 +5532,27 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const assignments = extract(assignmentsRes);
       const payments = extract(paymentsRes);
       if (heads.length) setFeeHeads(heads);
-      if (structs.length) setDynamicFeeStructures(structs);
+      if (structs.length) {
+        setDynamicFeeStructures((prev) => {
+          const merged = [...prev];
+          structs.forEach((apiItem: any) => {
+            const idx = merged.findIndex(
+              (m) =>
+                m.id === apiItem.id ||
+                (m.className &&
+                  apiItem.className &&
+                  m.className.toLowerCase().trim() ===
+                    apiItem.className.toLowerCase().trim()),
+            );
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...apiItem };
+            } else {
+              merged.push(apiItem);
+            }
+          });
+          return merged;
+        });
+      }
       if (assignments.length) setDbAssignments(assignments);
       if (payments.length) setFeePayments(payments);
     } catch (err) {
@@ -5022,13 +5564,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     try {
       const [workshopsRes, assessmentsRes] = await Promise.allSettled([
         fetchWorkshopsApi(),
-        fetchAssessmentsApi()
+        fetchAssessmentsApi(),
       ]);
       if (workshopsRes.status === "fulfilled") {
-        const wItems = Array.isArray(workshopsRes.value) ? workshopsRes.value : workshopsRes.value?.data || [];
+        const wItems = Array.isArray(workshopsRes.value)
+          ? workshopsRes.value
+          : workshopsRes.value?.data || [];
         if (Array.isArray(wItems) && wItems.length > 0) {
           const mappedWorkshops: WorkshopTraining[] = wItems.map((w: any) => ({
-            id: w.workshopId ? `WKS-${w.workshopId}` : (w.id || `WKS-${Math.random()}`),
+            id: w.workshopId
+              ? `WKS-${w.workshopId}`
+              : w.id || `WKS-${Math.random()}`,
             workshopName: w.title || w.workshopName || "Workshop",
             category: w.category || "Faculty Development Program (FDP)",
             type: w.type || "Internal",
@@ -5038,8 +5584,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             department: w.department || "Academics",
             applicableDesignation: w.applicableDesignation || "All Staff",
             venue: w.venue || "Main Auditorium",
-            startDate: w.startDate ? w.startDate.split("T")[0] : new Date().toISOString().split("T")[0],
-            endDate: w.endDate ? w.endDate.split("T")[0] : new Date().toISOString().split("T")[0],
+            startDate: w.startDate
+              ? w.startDate.split("T")[0]
+              : new Date().toISOString().split("T")[0],
+            endDate: w.endDate
+              ? w.endDate.split("T")[0]
+              : new Date().toISOString().split("T")[0],
             startTime: w.startTime || "09:30 AM",
             endTime: w.endTime || "03:30 PM",
             capacity: w.capacity || 50,
@@ -5048,40 +5598,58 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             attendancePct: w.attendanceRate || w.attendancePct || 95,
             status: w.status || "Scheduled",
             participants: (w.participants || []).map((p: any) => ({
-              employeeId: p.staffId ? `STF-${p.staffId}` : (p.employeeId || "STF-101"),
+              employeeId: p.staffId
+                ? `STF-${p.staffId}`
+                : p.employeeId || "STF-101",
               employeeName: p.staffName || p.employeeName || "Staff Member",
               department: p.department || "Academics",
               designation: p.designation || "Faculty",
-              attendanceStatus: p.registrationStatus === "Attended" ? "Present" : (p.attendanceStatus || "Present")
-            }))
+              attendanceStatus:
+                p.registrationStatus === "Attended"
+                  ? "Present"
+                  : p.attendanceStatus || "Present",
+            })),
           }));
           setWorkshops(mappedWorkshops);
         }
       }
       if (assessmentsRes.status === "fulfilled") {
-        const aItems = Array.isArray(assessmentsRes.value) ? assessmentsRes.value : assessmentsRes.value?.data || [];
+        const aItems = Array.isArray(assessmentsRes.value)
+          ? assessmentsRes.value
+          : assessmentsRes.value?.data || [];
         if (Array.isArray(aItems) && aItems.length > 0) {
-          const mappedAssessments: EmployeeAssessment[] = aItems.map((a: any) => ({
-            id: a.assessmentId ? `ASM-${a.assessmentId}` : (a.id || `ASM-${Math.random()}`),
-            assessmentName: a.assessmentName || "Competency Assessment",
-            assessmentType: a.assessmentType || "Digital Skills Test",
-            department: a.departmentFilter || a.department || "Academics",
-            totalMarks: a.totalMarks || 100,
-            passingMarks: a.passingMarks || 40,
-            date: a.scheduledDate ? a.scheduledDate.split("T")[0] : new Date().toISOString().split("T")[0],
-            evaluatorName: a.mainEvaluator || a.evaluatorName || "Academic Director",
-            status: a.status || "Scheduled",
-            branch: a.branchFilter || a.branch || "Main Campus",
-            createdAt: a.createdAt ? a.createdAt.split("T")[0] : new Date().toISOString().split("T")[0],
-            results: (a.candidates || []).map((c: any) => ({
-              employeeId: c.staffId ? `STF-${c.staffId}` : (c.employeeId || "STF-101"),
-              employeeName: c.staffName || c.employeeName || "Staff Member",
-              score: c.score || 80,
-              percentage: c.score || 80,
-              result: c.score >= (a.passingMarks || 40) ? "Pass" : "Fail",
-              remarks: c.remarks || "Good performance"
-            }))
-          }));
+          const mappedAssessments: EmployeeAssessment[] = aItems.map(
+            (a: any) => ({
+              id: a.assessmentId
+                ? `ASM-${a.assessmentId}`
+                : a.id || `ASM-${Math.random()}`,
+              assessmentName: a.assessmentName || "Competency Assessment",
+              assessmentType: a.assessmentType || "Digital Skills Test",
+              department: a.departmentFilter || a.department || "Academics",
+              totalMarks: a.totalMarks || 100,
+              passingMarks: a.passingMarks || 40,
+              date: a.scheduledDate
+                ? a.scheduledDate.split("T")[0]
+                : new Date().toISOString().split("T")[0],
+              evaluatorName:
+                a.mainEvaluator || a.evaluatorName || "Academic Director",
+              status: a.status || "Scheduled",
+              branch: a.branchFilter || a.branch || "Main Campus",
+              createdAt: a.createdAt
+                ? a.createdAt.split("T")[0]
+                : new Date().toISOString().split("T")[0],
+              results: (a.candidates || []).map((c: any) => ({
+                employeeId: c.staffId
+                  ? `STF-${c.staffId}`
+                  : c.employeeId || "STF-101",
+                employeeName: c.staffName || c.employeeName || "Staff Member",
+                score: c.score || 80,
+                percentage: c.score || 80,
+                result: c.score >= (a.passingMarks || 40) ? "Pass" : "Fail",
+                remarks: c.remarks || "Good performance",
+              })),
+            }),
+          );
           setEmployeeAssessments(mappedAssessments);
         }
       }
@@ -5092,15 +5660,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   useEffect(() => {
     if (isAuthenticated) {
-      const userRole = role?.toLowerCase() || '';
-      const isParentOrStudent = userRole === 'parent' || userRole === 'student';
+      const userRole = role?.toLowerCase() || "";
+      const isParentOrStudent = userRole === "parent" || userRole === "student";
 
       // Always fetch events, holidays, announcements, and meetings as these are relevant to parents/students
       fetchSchoolEventsData();
       fetchHolidaysData();
       fetchAnnouncementsData();
       fetchMeetingsData();
-      
+      fetchHomeworkData();
+
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
 
@@ -5150,7 +5719,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
   };
 
-  const addStudent = (stData: Omit<Student, "id">, skipApiCall = false): Student => {
+  const addStudent = (
+    stData: Omit<Student, "id">,
+    skipApiCall = false,
+  ): Student => {
     const id = "STU-" + Math.floor(100 + Math.random() * 900);
     const newStudent: Student = {
       ...stData,
@@ -5159,24 +5731,29 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       studentType: stData.studentType || "Day Scholar",
       promotionHistory: stData.promotionHistory || [],
     };
-    
+
     if (!skipApiCall) {
       createStudentApi({
-        admissionNumber: newStudent.admissionNo || `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
+        admissionNumber:
+          newStudent.admissionNo ||
+          `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
         rollNumber: newStudent.rollNo || "00",
-        studentName: `${newStudent.firstName || ""} ${newStudent.lastName || ""}`.trim(),
+        studentName:
+          `${newStudent.firstName || ""} ${newStudent.lastName || ""}`.trim(),
         dateOfBirth: newStudent.dob || undefined,
         gender: newStudent.gender || "Male",
         fatherName: newStudent.parentName || "",
-        fatherMobile: (newStudent as any).parentPhone || (newStudent as any).mobile || "",
+        fatherMobile:
+          (newStudent as any).parentPhone || (newStudent as any).mobile || "",
         email: newStudent.email || undefined,
-        mobileNumber: (newStudent as any).parentPhone || (newStudent as any).mobile || "",
+        mobileNumber:
+          (newStudent as any).parentPhone || (newStudent as any).mobile || "",
         address: newStudent.address || "",
-        branchId: 1, 
+        branchId: 1,
         academicYearId: 1,
         classId: 1,
         sectionId: 1,
-        status: newStudent.status || "Active"
+        status: newStudent.status || "Active",
       })
         .then((response: any) => {
           if (response && response.success && response.data) {
@@ -5210,25 +5787,28 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const updateStudent = (id: string, updates: Partial<Student>) => {
     const oldStudent = students.find((s) => s.id === id);
     const numericId = parseInt(id, 10);
-    
+
     if (!isNaN(numericId) && oldStudent) {
       const fullStudent = { ...oldStudent, ...updates };
       updateStudentApi(numericId, {
         admissionNumber: fullStudent.admissionNo || "ADM-00",
         rollNumber: fullStudent.rollNo || "00",
-        studentName: `${fullStudent.firstName || ""} ${fullStudent.lastName || ""}`.trim(),
+        studentName:
+          `${fullStudent.firstName || ""} ${fullStudent.lastName || ""}`.trim(),
         dateOfBirth: fullStudent.dob || undefined,
         gender: fullStudent.gender || "Male",
         fatherName: fullStudent.parentName || "",
-        fatherMobile: (fullStudent as any).parentPhone || (fullStudent as any).mobile || "",
+        fatherMobile:
+          (fullStudent as any).parentPhone || (fullStudent as any).mobile || "",
         email: fullStudent.email || undefined,
-        mobileNumber: (fullStudent as any).parentPhone || (fullStudent as any).mobile || "",
+        mobileNumber:
+          (fullStudent as any).parentPhone || (fullStudent as any).mobile || "",
         address: fullStudent.address || "",
         branchId: 1,
         academicYearId: 1,
         classId: 1,
         sectionId: 1,
-        status: fullStudent.status || "Active"
+        status: fullStudent.status || "Active",
       }).catch((err) => console.error("Failed to update student", err));
     }
 
@@ -5462,9 +6042,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const syncTeacherAssignments = (teacher: Staff) => {
     const classes = teacher.assignedClasses || [];
     const subjects = teacher.assignedSubjects || [];
-    const teacherFullName = teacher.name || `${teacher.firstName} ${teacher.lastName}`;
+    const teacherFullName =
+      teacher.name || `${teacher.firstName} ${teacher.lastName}`;
 
-    const norm = (n: string) => n.toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const norm = (n: string) =>
+      n.toLowerCase().replace(/\s+/g, "").replace(/class/gi, "");
 
     setTeacherAssignments((prev) => {
       // 1. Filter out assignments for this teacher that are no longer in their workload lists
@@ -5487,7 +6069,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             (ta) =>
               ta.className === className &&
               ta.section === section &&
-              ta.subject === subject
+              ta.subject === subject,
           );
 
           if (existingIdx > -1) {
@@ -5522,7 +6104,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const parts = classSec.split("-");
       const className = parts[0]?.trim();
 
-      const classObj = academicClasses.find(c => norm(c.name) === norm(className));
+      const classObj = academicClasses.find(
+        (c) => norm(c.name) === norm(className),
+      );
       if (classObj) {
         let subjectsUpdated = false;
         const updatedSubjects = [...(classObj.subjects || [])];
@@ -5532,17 +6116,27 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             updatedSubjects.push(subject);
             subjectsUpdated = true;
 
-            mapSubjectApi(classObj.id, { subject_name: subject, weekly_periods: 5 })
-              .catch((err) => {
-                console.error(`Failed to map subject "${subject}" to class "${classObj.name}":`, err);
-              });
+            mapSubjectApi(classObj.id, {
+              subject_name: subject,
+              weekly_periods: 5,
+            }).catch((err) => {
+              console.error(
+                `Failed to map subject "${subject}" to class "${classObj.name}":`,
+                err,
+              );
+            });
           }
         });
 
         if (subjectsUpdated) {
           setAcademicClasses((prev) => {
-            const next = prev.map((c) => c.id === classObj.id ? { ...c, subjects: updatedSubjects } : c);
-            localStorage.setItem("edu_db_academic_classes", JSON.stringify(next));
+            const next = prev.map((c) =>
+              c.id === classObj.id ? { ...c, subjects: updatedSubjects } : c,
+            );
+            localStorage.setItem(
+              "edu_db_academic_classes",
+              JSON.stringify(next),
+            );
             return next;
           });
         }
@@ -5570,6 +6164,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       lastName: staffData.lastName,
       email: staffData.email?.trim() || null,
       phone: staffData.phone,
+      alternateMobile: staffData.alternateMobile || null,
       gender: staffData.gender || "Male",
       designation: staffData.designation,
       department: staffData.department,
@@ -5582,6 +6177,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       bloodGroup: staffData.bloodGroup,
       aadhaarNumber: staffData.aadhaarNumber,
       panNumber: staffData.panNumber,
+      presentAddress: staffData.presentAddress || null,
+      permanentAddress: staffData.permanentAddress || null,
+      city: staffData.city || null,
+      state: staffData.state || null,
+      pinCode: staffData.pinCode || null,
+      country: staffData.country || "India",
       accountHolderName: staffData.bankDetails?.accountHolderName || "",
       accountNumber: staffData.bankDetails?.accountNumber || "",
       bankName: staffData.bankDetails?.bankName || "",
@@ -5593,11 +6194,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     })
       .then((response) => {
         if (response && response.success && response.data) {
-          const actualId = response.data.staffId?.toString() || response.data.id?.toString() || id;
           setStaff((prev) =>
             prev.map((s) =>
               s.empId === newStaff.empId
-                ? { ...s, id: actualId }
+                ? {
+                    ...s,
+                    id:
+                      response.data.staffId?.toString() ||
+                      response.data.id?.toString() ||
+                      s.id,
+                  }
                 : s,
             ),
           );
@@ -5641,6 +6247,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           lastName: fullStaff.lastName,
           email: fullStaff.email?.trim() || null,
           phone: fullStaff.phone,
+          alternateMobile: fullStaff.alternateMobile || null,
           gender: fullStaff.gender || "Male",
           designation: fullStaff.designation,
           department: fullStaff.department,
@@ -5653,6 +6260,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           bloodGroup: fullStaff.bloodGroup,
           aadhaarNumber: fullStaff.aadhaarNumber,
           panNumber: fullStaff.panNumber,
+          presentAddress: fullStaff.presentAddress || null,
+          permanentAddress: fullStaff.permanentAddress || null,
+          city: fullStaff.city || null,
+          state: fullStaff.state || null,
+          pinCode: fullStaff.pinCode || null,
+          country: fullStaff.country || "India",
           accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
           accountNumber: fullStaff.bankDetails?.accountNumber || "",
           bankName: fullStaff.bankDetails?.bankName || "",
@@ -5668,7 +6281,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     }
 
     setStaff((prev) => {
-      const nextStaff = prev.map((s) => (s.id === id ? { ...s, ...updates } : s));
+      const nextStaff = prev.map((s) =>
+        s.id === id ? { ...s, ...updates } : s,
+      );
       const updated = nextStaff.find((s) => s.id === id);
       if (updated && isTeachingStaff(updated)) {
         syncTeacherAssignments(updated);
@@ -5685,15 +6300,25 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         const response = await deleteStaffApi(numericId);
         if (response && response.success) {
           setStaff((prev) => prev.filter((s) => s.id !== id));
-          setTeacherAssignments((prev) => prev.filter((ta) => ta.teacherId !== id));
+          setTeacherAssignments((prev) =>
+            prev.filter((ta) => ta.teacherId !== id),
+          );
           logActivity("Terminated Staff Record", `Removed staff ID ${id}`);
           addToast("success", "Staff member deleted successfully.");
         } else {
-          addToast("error", "Failed to delete staff", response.message || "An unknown error occurred.");
+          addToast(
+            "error",
+            "Failed to delete staff",
+            response.message || "An unknown error occurred.",
+          );
         }
       } catch (err: any) {
         console.error("Failed to delete staff in backend", err);
-        addToast("error", "Failed to delete staff", err.message || "An error occurred while deleting staff.");
+        addToast(
+          "error",
+          "Failed to delete staff",
+          err.message || "An error occurred while deleting staff.",
+        );
       }
     } else {
       // Local/mock staff deletion
@@ -6094,9 +6719,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       }
 
       const matchedClass = academicClasses.find(
-        (c) => c.name?.toLowerCase().trim() === appData.appliedClass?.toLowerCase().trim()
+        (c) =>
+          c.name?.toLowerCase().trim() ===
+          appData.appliedClass?.toLowerCase().trim(),
       );
-      const appliedClassId = matchedClass ? Number(matchedClass.id.replace(/\D/g, "")) : 1;
+      const appliedClassId = matchedClass
+        ? Number(matchedClass.id.replace(/\D/g, ""))
+        : 1;
 
       const payload = {
         applicantFullName: appData.applicantName || "",
@@ -6140,9 +6769,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const json = await createAdmissionApi(payload);
 
       const createdApp: AdmissionApplication = {
-        id: json?.data?.applicationId?.toString() || json?.data?.id?.toString() || "ADM-" + Date.now(),
-        applicationNo: json?.data?.registrationNo || "REG-" + Math.floor(1000 + Math.random() * 9000),
-        registrationNo: json?.data?.registrationNo || "REG-" + Math.floor(1000 + Math.random() * 9000),
+        id:
+          json?.data?.applicationId?.toString() ||
+          json?.data?.id?.toString() ||
+          "ADM-" + Date.now(),
+        applicationNo:
+          json?.data?.registrationNo ||
+          "REG-" + Math.floor(1000 + Math.random() * 9000),
+        registrationNo:
+          json?.data?.registrationNo ||
+          "REG-" + Math.floor(1000 + Math.random() * 9000),
         applicantName: appData.applicantName,
         appliedClass: appData.appliedClass,
         gender: appData.gender || "Male",
@@ -6185,7 +6821,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         documentsSubmitted: appData.documentsSubmitted || [],
       };
 
-      setAdmissions((prev) => [createdApp, ...prev.filter((a) => a.id !== createdApp.id)]);
+      setAdmissions((prev) => [
+        createdApp,
+        ...prev.filter((a) => a.id !== createdApp.id),
+      ]);
 
       if (json && json.success !== false) {
         const createdApp: AdmissionApplication = {
@@ -6262,9 +6901,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       }
 
       const matchedClass = academicClasses.find(
-        (c) => c.name?.toLowerCase().trim() === appData.appliedClass?.toLowerCase().trim()
+        (c) =>
+          c.name?.toLowerCase().trim() ===
+          appData.appliedClass?.toLowerCase().trim(),
       );
-      const appliedClassId = matchedClass ? Number(matchedClass.id.replace(/\D/g, "")) : 1;
+      const appliedClassId = matchedClass
+        ? Number(matchedClass.id.replace(/\D/g, ""))
+        : 1;
 
       const payload = {
         applicantFullName: appData.applicantName || "",
@@ -6300,6 +6943,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           (appData as any).scholarship || appData.scholarshipId || "None",
         discount: (appData as any).discount || appData.discountId || "None",
         avatar: appData.avatar || "",
+        isLateAdmission: !!appData.isLateAdmission,
+        feeCalculationMethod: appData.feeCalculationMethod || "Term-wise",
+        selectedOptionalFees: appData.selectedOptionalFees || [],
+        documentsSubmitted: appData.documentsSubmitted || [],
       };
 
       await updateAdmissionApi(parseInt(id, 10), payload);
@@ -6339,10 +6986,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     const app = admissions.find((a) => a.id === id);
     if (!app) return null;
 
-    const registrationNo = (app as any).registrationNo || app.applicationNo;
+    const appIdNumeric = parseInt(id, 10);
 
     try {
-      const json = await updateAdmissionStatusApi(registrationNo, status);
+      let json: any;
+      if (status === "Enrolled") {
+        json = await enrollAdmissionApi(appIdNumeric);
+      } else if (status === "Rejected") {
+        json = await rejectAdmissionApi(appIdNumeric);
+      } else {
+        const registrationNo = (app as any).registrationNo || app.applicationNo;
+        json = await updateAdmissionStatusApi(registrationNo, status);
+      }
 
       if (json && json.success !== false) {
         let enrolledStudentId: string | null = null;
@@ -6480,7 +7135,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
                   c.pickupName === pObj?.pickupName) &&
                 c.status === "Active",
             );
-            const pFee = (pObj && (pObj.monthlyFee ?? 0) > 0) ? (pObj.monthlyFee ?? 0) : (ftc ? ftc.feeAmount : 5500);
+            const pFee =
+              pObj && (pObj.monthlyFee ?? 0) > 0
+                ? (pObj.monthlyFee ?? 0)
+                : ftc
+                  ? ftc.feeAmount
+                  : 5500;
             additionalFees += pFee;
           } else if (
             (app.studentType === "Hosteller" ||
@@ -6492,16 +7152,30 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
                 (h) =>
                   h.id === app.hostelBlock || h.hostelName === app.hostelBlock,
               ) || hostelMasters[0];
-            const fhc =
-              financeHostelConfigs.find(
-                (c) =>
-                  (c.hostelId === hObj?.id ||
-                    c.hostelName === hObj?.hostelName) &&
-                  c.status === "Active",
-              ) || financeHostelConfigs[0];
+            let fhc = financeHostelConfigs.find(
+              (c) =>
+                c.status === "Active" &&
+                ((hObj &&
+                  c.hostelId &&
+                  String(c.hostelId) === String(hObj.id)) ||
+                  (hObj &&
+                    c.hostelName &&
+                    hObj.hostelName &&
+                    c.hostelName.toLowerCase() ===
+                      hObj.hostelName.toLowerCase()) ||
+                  (app.hostelBlock &&
+                    c.hostelName &&
+                    c.hostelName
+                      .toLowerCase()
+                      .includes(app.hostelBlock.toLowerCase()))),
+            );
+            if (!fhc) {
+              fhc =
+                financeHostelConfigs.find((c) => c.status === "Active") ||
+                financeHostelConfigs[0];
+            }
             additionalFees += fhc ? fhc.hostelFee : 40000;
-            if (fhc && fhc.messFee) additionalFees += fhc.messFee;
-            if (fhc && fhc.securityDeposit)
+            if (fhc && fhc.securityDeposit !== undefined)
               additionalFees += fhc.securityDeposit;
           }
 
@@ -6550,64 +7224,70 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             baseFeeTotal + additionalFees - scholarshipAmount - discountAmount,
           );
 
-          const newStudent = addStudent({
-            admissionNo:
-              app.applicationNo ||
-              "ADM2026-" + Math.floor(100 + Math.random() * 900),
-            rollNo: "",
-            firstName:
-              app.firstName || (app.applicantName ? app.applicantName.split(" ")[0] : "Enrolled"),
-            lastName:
-              app.lastName ||
-              (app.applicantName && app.applicantName.includes(" ") ? app.applicantName.slice(app.applicantName.indexOf(" ") + 1) : "Student"),
-            gender: app.gender || "Male",
-            dob: app.dob || "15/08/2012",
-            bloodGroup: app.bloodGroup || "O+",
-            religion: app.religion || "General",
-            casteCategory: app.casteCategory || "General",
-            className: app.appliedClass || "Class 1",
-            section: "",
-            category: app.casteCategory || "General",
-            status: "Active",
-            avatar:
-              app.avatar ||
-              "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-            joiningDate:
-              app.joiningDate ||
-              app.admissionDate ||
-              app.submissionDate ||
-              new Date().toISOString().split("T")[0],
-            isLateAdmission: !!app.isLateAdmission,
-            feeCalculationMethod: app.feeCalculationMethod || "Term-wise",
-            branch: app.branch || "Main Campus",
-            studentType: app.studentType || "Day Scholar",
-            transportRequired: app.transportRequired,
-            routeId: app.routeId,
-            busRoute: app.busRoute || "Route A - North Suburbs",
-            transportType: app.transportType || "AC",
-            pickupPointId: app.pickupPointId,
-            pickupPoint: app.pickupPoint || "",
-            dropPoint: app.dropPoint || "",
-            hostelBlock: app.hostelBlock || "",
-            hostelRoom: app.hostelRoom || "",
-            hostelBed: app.hostelBed || "",
-            boardType: "CBSE",
-            fatherName: app.parentName || "Father Name",
-            fatherPhone: app.phone || "9876543210",
-            fatherOccupation: "Business",
-            motherName: app.motherName || "Mother Name",
-            motherPhone: app.phone || "9876543210",
-            email: app.email,
-            phone: app.phone,
-            alternatePhone: app.alternatePhone,
-            address: fullAddress,
-            siblingsCount: app.siblingsCount || 0,
-            totalFee: calculatedTotalFee,
-            paidFee: 0,
-            dueFee: calculatedTotalFee,
-            attendancePct: 100.0,
-            gpa: 4.0,
-          }, true);
+          const newStudent = addStudent(
+            {
+              admissionNo:
+                app.applicationNo ||
+                "ADM2026-" + Math.floor(100 + Math.random() * 900),
+              rollNo: "",
+              firstName: (() => {
+                const parts = (app.applicantName || "").trim().split(" ");
+                return app.firstName || parts[0] || "Enrolled";
+              })(),
+              lastName: (() => {
+                const parts = (app.applicantName || "").trim().split(" ");
+                return app.lastName || parts.slice(1).join(" ") || "";
+              })(),
+              gender: app.gender || "Male",
+              dob: app.dob || "15/08/2012",
+              bloodGroup: app.bloodGroup || "O+",
+              religion: app.religion || "General",
+              casteCategory: app.casteCategory || "General",
+              className: app.appliedClass || "Class 1",
+              section: "",
+              category: app.casteCategory || "General",
+              status: "Active",
+              avatar:
+                app.avatar ||
+                "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+              joiningDate:
+                app.joiningDate ||
+                app.admissionDate ||
+                app.submissionDate ||
+                new Date().toISOString().split("T")[0],
+              isLateAdmission: !!app.isLateAdmission,
+              feeCalculationMethod: app.feeCalculationMethod || "Term-wise",
+              branch: app.branch || "Main Campus",
+              studentType: app.studentType || "Day Scholar",
+              transportRequired: app.transportRequired,
+              routeId: app.routeId,
+              busRoute: app.busRoute || "Route A - North Suburbs",
+              transportType: app.transportType || "AC",
+              pickupPointId: app.pickupPointId,
+              pickupPoint: app.pickupPoint || "",
+              dropPoint: app.dropPoint || "",
+              hostelBlock: app.hostelBlock || "",
+              hostelRoom: app.hostelRoom || "",
+              hostelBed: app.hostelBed || "",
+              boardType: "CBSE",
+              fatherName: app.parentName || "Father Name",
+              fatherPhone: app.phone || "9876543210",
+              fatherOccupation: "Business",
+              motherName: app.motherName || "Mother Name",
+              motherPhone: app.phone || "9876543210",
+              email: app.email,
+              phone: app.phone,
+              alternatePhone: app.alternatePhone,
+              address: fullAddress,
+              siblingsCount: app.siblingsCount || 0,
+              totalFee: calculatedTotalFee,
+              paidFee: 0,
+              dueFee: calculatedTotalFee,
+              attendancePct: 100.0,
+              gpa: 4.0,
+            },
+            true,
+          );
 
           enrolledStudentId = newStudent.id;
 
@@ -6658,7 +7338,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
                 c.status === "Active",
             );
 
-            const trpFee = (pObj && (pObj.monthlyFee ?? 0) > 0) ? (pObj.monthlyFee ?? 0) : (ftc ? ftc.feeAmount : 5500);
+            const trpFee =
+              pObj && (pObj.monthlyFee ?? 0) > 0
+                ? (pObj.monthlyFee ?? 0)
+                : ftc
+                  ? ftc.feeAmount
+                  : 5500;
             assignStudentTransport({
               studentId: newStudent.id,
               studentName: `${newStudent.firstName} ${newStudent.lastName}`,
@@ -6812,30 +7497,38 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       return next;
     });
 
-     try {
-       const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
-       
-       // Find the existing class in state to get the current name and other fields
-       const existingClass = academicClasses.find((c) => c.id === id);
-       const currentName = (existingClass as any)?.className || existingClass?.name || "";
-       const finalName = (updates as any)?.className || updates.name || currentName;
+    try {
+      const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
 
-       const payload = {
-         name: finalName,
-         class_name: finalName,
-         display_order: (updates as any).displayOrder !== undefined ? (updates as any).displayOrder : (existingClass as any)?.displayOrder || 0,
-         status: updates.status || existingClass?.status || "Active",
-         remarks: (updates as any).remarks !== undefined ? (updates as any).remarks : (existingClass as any)?.remarks || ""
-       };
+      // Find the existing class in state to get the current name and other fields
+      const existingClass = academicClasses.find((c) => c.id === id);
+      const currentName =
+        (existingClass as any)?.className || existingClass?.name || "";
+      const finalName =
+        (updates as any)?.className || updates.name || currentName;
 
-       await updateClassApi(numericId, payload);
-       await fetchAcademicClasses();
-     } catch (err: any) {
-       console.error("Error updating academic class:", err);
-       addToast("error", "API Error", err.message || "Failed to update class.");
-       throw err;
-     }
-   };
+      const payload = {
+        name: finalName,
+        class_name: finalName,
+        display_order:
+          (updates as any).displayOrder !== undefined
+            ? (updates as any).displayOrder
+            : (existingClass as any)?.displayOrder || 0,
+        status: updates.status || existingClass?.status || "Active",
+        remarks:
+          (updates as any).remarks !== undefined
+            ? (updates as any).remarks
+            : (existingClass as any)?.remarks || "",
+      };
+
+      await updateClassApi(numericId, payload);
+      await fetchAcademicClasses();
+    } catch (err: any) {
+      console.error("Error updating academic class:", err);
+      addToast("error", "API Error", err.message || "Failed to update class.");
+      throw err;
+    }
+  };
 
   const deleteAcademicClass = async (id: string) => {
     try {
@@ -7159,7 +7852,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     const id = "UNI-" + Date.now();
     const createdAt = new Date().toISOString();
     const catName = itemData.category || itemData.name || "Uniform Item";
-    const newItem: UniformItem = { ...itemData, id, createdAt, category: catName };
+    const newItem: UniformItem = {
+      ...itemData,
+      id,
+      createdAt,
+      category: catName,
+    };
     setUniforms((prev) => [newItem, ...prev]);
 
     // Automatically sync with uniformCategories so it appears in category lists & dropdowns
@@ -7245,7 +7943,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const deleteUniform = (id: string) => {
     setUniforms((prev) => {
       const targetItem = prev.find((u) => u.id === id);
-      const targetName = (targetItem?.category || targetItem?.name || '').toLowerCase().trim();
+      const targetName = (targetItem?.category || targetItem?.name || "")
+        .toLowerCase()
+        .trim();
       const updatedU = prev.filter((u) => u.id !== id);
       try {
         localStorage.setItem("edu_db_uniforms", JSON.stringify(updatedU));
@@ -7253,18 +7953,36 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
       if (targetName) {
         setUniformCategories((prevCats) => {
-          const updatedCats = prevCats.filter((c) => (c.name || (c as any).categoryName || '').toLowerCase().trim() !== targetName);
+          const updatedCats = prevCats.filter(
+            (c) =>
+              (c.name || (c as any).categoryName || "").toLowerCase().trim() !==
+              targetName,
+          );
           try {
-            localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
-            localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
+            localStorage.setItem(
+              "edu_db_uniform_categories",
+              JSON.stringify(updatedCats),
+            );
+            localStorage.setItem(
+              "uniform_categories",
+              JSON.stringify(updatedCats),
+            );
           } catch (e) {}
           return updatedCats;
         });
 
         setUniformInventory((prevInv) => {
-          const updatedInv = prevInv.filter((inv) => inv.itemId !== id && (inv.itemName || inv.category || '').toLowerCase().trim() !== targetName);
+          const updatedInv = prevInv.filter(
+            (inv) =>
+              inv.itemId !== id &&
+              (inv.itemName || inv.category || "").toLowerCase().trim() !==
+                targetName,
+          );
           try {
-            localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(updatedInv));
+            localStorage.setItem(
+              "edu_db_uniform_inventory",
+              JSON.stringify(updatedInv),
+            );
           } catch (e) {}
           return updatedInv;
         });
@@ -7847,20 +8565,32 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const newHead: FeeHead = {
         ...head,
         id: response?.id || "FH-" + Math.floor(100 + Math.random() * 900),
-        applicableBranches: head.applicableBranches && head.applicableBranches.length > 0 ? head.applicableBranches : [selectedBranch || "Main Campus"],
+        applicableBranches:
+          head.applicableBranches && head.applicableBranches.length > 0
+            ? head.applicableBranches
+            : [selectedBranch || "Main Campus"],
       };
       setFeeHeads((prev) => [...prev, newHead]);
-      logActivity("Created Fee Head", `Added ${newHead.name} (${(newHead as any).code || ""})`);
+      logActivity(
+        "Created Fee Head",
+        `Added ${newHead.name} (${(newHead as any).code || ""})`,
+      );
     } catch (err) {
       console.warn("API failed, using local", err);
       const id = "FH-" + Math.floor(100 + Math.random() * 900);
       const newHead: FeeHead = {
         ...head,
         id,
-        applicableBranches: head.applicableBranches && head.applicableBranches.length > 0 ? head.applicableBranches : [selectedBranch || "Main Campus"],
+        applicableBranches:
+          head.applicableBranches && head.applicableBranches.length > 0
+            ? head.applicableBranches
+            : [selectedBranch || "Main Campus"],
       };
       setFeeHeads((prev) => [...prev, newHead]);
-      logActivity("Created Fee Head", `Added ${newHead.name} (${(newHead as any).code || ""})`);
+      logActivity(
+        "Created Fee Head",
+        `Added ${newHead.name} (${(newHead as any).code || ""})`,
+      );
     }
   };
 
@@ -7891,7 +8621,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     if (!dfs.className) return;
 
     const classStudents = students.filter(
-      (s) => s.className === dfs.className || (s as any).appliedClass === dfs.className,
+      (s) =>
+        s.className === dfs.className ||
+        (s as any).appliedClass === dfs.className,
     );
 
     if (classStudents.length === 0) return;
@@ -7950,7 +8682,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   // 2. Dynamic Fee Structures CRUD
-  const addDynamicFeeStructure = async (dfs: Omit<DynamicFeeStructure, "id">) => {
+  const addDynamicFeeStructure = async (
+    dfs: Omit<DynamicFeeStructure, "id">,
+  ) => {
     let id = "DFS-" + Math.floor(100 + Math.random() * 900);
     try {
       const res = await FinanceAPI.createDynamicFeeStructureApi(dfs);
@@ -7967,7 +8701,22 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       id,
       branch: dfs.branch || selectedBranch || "Main Campus",
     };
-    setDynamicFeeStructures((prev) => [...prev, newDfs]);
+    setDynamicFeeStructures((prev) => {
+      const idx = prev.findIndex(
+        (d) =>
+          d.id === id ||
+          (d.className &&
+            newDfs.className &&
+            d.className.toLowerCase().trim() ===
+              newDfs.className.toLowerCase().trim()),
+      );
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = newDfs;
+        return next;
+      }
+      return [...prev, newDfs];
+    });
     applyFeeStructureToClassStudents(newDfs);
     logActivity(
       "Created Dynamic Fee Structure",
@@ -7981,7 +8730,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   ) => {
     const existing = dynamicFeeStructures.find((d) => d.id === id);
     const updatedDfs: DynamicFeeStructure = {
-      ...(existing || ({ id, className: "", items: [], totalAmount: 0 } as any)),
+      ...(existing ||
+        ({ id, className: "", items: [], totalAmount: 0 } as any)),
       ...updates,
     };
 
@@ -7998,7 +8748,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   // 3. Student Fee Assignment
-  const assignFeeStructure = async (studentId: string, feeStructureId: string) => {
+  const assignFeeStructure = async (
+    studentId: string,
+    feeStructureId: string,
+  ) => {
     const st = students.find((s) => s.id === studentId);
     const dfs = dynamicFeeStructures.find((d) => d.id === feeStructureId);
     if (!st || !dfs) return;
@@ -8203,12 +8956,20 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     updates: Partial<StudentFeeAssignment>,
   ) => {
     setDbAssignments((prev) =>
-      prev.map((a) => (a.id === id || a.dynamicFeeStructureId?.toString() === id ? { ...a, ...updates } : a)),
+      prev.map((a) =>
+        a.id === id || a.dynamicFeeStructureId?.toString() === id
+          ? { ...a, ...updates }
+          : a,
+      ),
     );
   };
 
   const removeStudentFeeAssignment = (id: string) => {
-    setDbAssignments((prev) => prev.filter((a) => a.id !== id && a.dynamicFeeStructureId?.toString() !== id));
+    setDbAssignments((prev) =>
+      prev.filter(
+        (a) => a.id !== id && a.dynamicFeeStructureId?.toString() !== id,
+      ),
+    );
   };
 
   // 4. Scholarships CRUD
@@ -8767,10 +9528,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         monthlyConfig: baseSchedule.monthlyConfig
           ? {
               ...baseSchedule.monthlyConfig,
-              monthDueDates: baseSchedule.monthlyConfig.monthDueDates.map((m) => ({
-                ...m,
-                dueDate: shiftDate(m.dueDate),
-              })),
+              monthDueDates: baseSchedule.monthlyConfig.monthDueDates.map(
+                (m) => ({
+                  ...m,
+                  dueDate: shiftDate(m.dueDate),
+                }),
+              ),
             }
           : undefined,
         annualDueDate: baseSchedule.annualDueDate
@@ -8795,57 +9558,99 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       schedule?.terms[0]?.dueDate ||
       `${ayStartYear}-04-15`;
 
-    const terms = schedule?.terms && schedule.terms.length > 0
-      ? [...schedule.terms].sort((a, b) => a.sequence - b.sequence)
-      : [
-          {
-            id: `T1-${academicYear}`,
-            termName: "Term 1",
-            startDate: `${ayStartYear}-04-01`,
-            endDate: `${ayStartYear}-06-30`,
-            dueDate: `${ayStartYear}-04-15`,
-            sequence: 1,
-            status: "Active" as const,
-          },
-          {
-            id: `T2-${academicYear}`,
-            termName: "Term 2",
-            startDate: `${ayStartYear}-07-01`,
-            endDate: `${ayStartYear}-09-30`,
-            dueDate: `${ayStartYear}-07-15`,
-            sequence: 2,
-            status: "Active" as const,
-          },
-          {
-            id: `T3-${academicYear}`,
-            termName: "Term 3",
-            startDate: `${ayStartYear}-10-01`,
-            endDate: `${ayStartYear}-12-31`,
-            dueDate: `${ayStartYear}-10-15`,
-            sequence: 3,
-            status: "Active" as const,
-          },
-          {
-            id: `T4-${academicYear}`,
-            termName: "Term 4",
-            startDate: `${ayStartYear + 1}-01-01`,
-            endDate: `${ayStartYear + 1}-03-31`,
-            dueDate: `${ayStartYear + 1}-01-15`,
-            sequence: 4,
-            status: "Active" as const,
-          },
-        ];
+    const terms =
+      schedule?.terms && schedule.terms.length > 0
+        ? [...schedule.terms].sort((a, b) => a.sequence - b.sequence)
+        : [
+            {
+              id: `T1-${academicYear}`,
+              termName: "Term 1",
+              startDate: `${ayStartYear}-04-01`,
+              endDate: `${ayStartYear}-06-30`,
+              dueDate: `${ayStartYear}-04-15`,
+              sequence: 1,
+              status: "Active" as const,
+            },
+            {
+              id: `T2-${academicYear}`,
+              termName: "Term 2",
+              startDate: `${ayStartYear}-07-01`,
+              endDate: `${ayStartYear}-09-30`,
+              dueDate: `${ayStartYear}-07-15`,
+              sequence: 2,
+              status: "Active" as const,
+            },
+            {
+              id: `T3-${academicYear}`,
+              termName: "Term 3",
+              startDate: `${ayStartYear}-10-01`,
+              endDate: `${ayStartYear}-12-31`,
+              dueDate: `${ayStartYear}-10-15`,
+              sequence: 3,
+              status: "Active" as const,
+            },
+            {
+              id: `T4-${academicYear}`,
+              termName: "Term 4",
+              startDate: `${ayStartYear + 1}-01-01`,
+              endDate: `${ayStartYear + 1}-03-31`,
+              dueDate: `${ayStartYear + 1}-01-15`,
+              sequence: 4,
+              status: "Active" as const,
+            },
+          ];
 
-    const student = students.find((s) => s.id === studentId);
-    const admissionDate =
-      student?.joiningDate || (student as any)?.admissionDate || "";
+    const student = students.find(
+      (s) =>
+        s.id === studentId ||
+        s.admissionNo === studentId ||
+        (s as any).applicationNo === studentId,
+    );
+    const admApp = admissions.find(
+      (a) =>
+        a.id === studentId ||
+        a.applicationNo === studentId ||
+        (a as any).registrationNo === studentId ||
+        (student &&
+          (student.admissionNo === a.applicationNo ||
+            student.admissionNo === (a as any).registrationNo)),
+    );
 
-    // Late admission check: ONLY if explicitly set to true by admin
-    const isLateAdmission = !!(student as any)?.isLateAdmission;
-    const feeCalculationMethod =
+    const rawAdmissionDate =
+      (student as any)?.admissionDate ||
+      admApp?.admissionDate ||
+      student?.joiningDate ||
+      admApp?.joiningDate ||
+      admApp?.submissionDate ||
+      "";
+
+    const admissionDate = normalizeToISODate(rawAdmissionDate);
+    const firstTermStart = terms[0]?.startDate || `${ayStartYear}-04-01`;
+
+    const isExplicitLateAdmission =
+      (student as any)?.isLateAdmission === true ||
+      (student as any)?.isLateAdmission === "Yes" ||
+      (student as any)?.isLateAdmission === "Late Admission" ||
+      (admApp as any)?.isLateAdmission === true ||
+      (admApp as any)?.isLateAdmission === "Yes" ||
+      (admApp as any)?.isLateAdmission === "Late Admission";
+
+    const isExplicitNotLate =
+      (student as any)?.isLateAdmission === false ||
+      (student as any)?.isLateAdmission === "No" ||
+      (admApp as any)?.isLateAdmission === false ||
+      (admApp as any)?.isLateAdmission === "No";
+
+    const isLateAdmission = isExplicitLateAdmission;
+
+    let rawMethod =
       (student as any)?.feeCalculationMethod ||
+      admApp?.feeCalculationMethod ||
       assignment?.feePolicy ||
-      "Term-wise";
+      "Remaining Terms";
+
+    const feeCalculationMethod =
+      rawMethod === "Monthly" ? "Monthly" : "Remaining Terms";
 
     const installments: StudentFeeInstallment[] = [];
 
@@ -8880,22 +9685,25 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           item.category &&
           fh.category &&
           (item.category.toLowerCase() === fh.category.toLowerCase() ||
-           item.category.toLowerCase().includes(fh.category.toLowerCase()))
+            item.category.toLowerCase().includes(fh.category.toLowerCase()))
         )
           return true;
         if (
           item.headName &&
           fh.name &&
           (item.headName.toLowerCase().includes(fh.name.toLowerCase()) ||
-           fh.name.toLowerCase().includes(item.headName.toLowerCase()))
+            fh.name.toLowerCase().includes(item.headName.toLowerCase()))
         )
           return true;
         return false;
       });
 
-      // FEE STRUCTURE / FEE HEAD IS SOURCE OF TRUTH FOR FREQUENCY
+      // FEE STRUCTURE / FEE HEAD / HOSTEL CONFIG IS SOURCE OF TRUTH FOR FREQUENCY
       let rawFrequency: string =
-        feeHead?.frequency || (item as any).frequency || "";
+        (item as any).frequency ||
+        (item as any).feePlan ||
+        feeHead?.frequency ||
+        "";
 
       const catLower = (item.category || "").toLowerCase();
       const nameLower = (item.headName || "").toLowerCase();
@@ -8912,7 +9720,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           catLower.includes("book") ||
           nameLower.includes("book") ||
           nameLower.includes("textbook") ||
-          catLower.includes("sports")
+          catLower.includes("sports") ||
+          catLower.includes("hostel") ||
+          nameLower.includes("hostel")
         ) {
           rawFrequency = "Annual";
         } else if (
@@ -8922,11 +9732,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           rawFrequency = "Quarterly";
         } else if (
           catLower.includes("tuition") ||
-          nameLower.includes("tuition") ||
-          catLower.includes("hostel") ||
-          nameLower.includes("hostel")
+          nameLower.includes("tuition")
         ) {
-          rawFrequency = "Monthly";
+          rawFrequency = "Quarterly";
         } else {
           rawFrequency = "Quarterly";
         }
@@ -8935,6 +9743,29 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       let frequency = rawFrequency;
       if (rawFrequency === "Half-Yearly" || rawFrequency === "Half Yearly") {
         frequency = "Half-Yearly";
+      }
+
+      // ENFORCE ADMIN SELECTION FOR LATE ADMISSION METHOD:
+      // If isLateAdmission is active, honor admin's choice (Term-wise vs Monthly) for recurring fee heads
+      if (isLateAdmission) {
+        if (feeCalculationMethod === "Monthly") {
+          if (
+            frequency !== "One Time" &&
+            frequency !== "Annual" &&
+            frequency !== "One Term"
+          ) {
+            frequency = "Monthly";
+          }
+        } else {
+          // Admin selected Term-wise / Remaining Terms -> Group as Term-wise (Quarterly) installments
+          if (
+            frequency !== "One Time" &&
+            frequency !== "Annual" &&
+            frequency !== "One Term"
+          ) {
+            frequency = "Quarterly";
+          }
+        }
       }
 
       const finalAmount = item.finalAmount;
@@ -8991,50 +9822,114 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           updatedAt: new Date().toISOString(),
         });
       }
-      // 3. MONTHLY
+      // 3. ONE TERM
+      else if (frequency === "One Term" || frequency === "Single Term") {
+        installments.push({
+          id: `INST-${studentId}-${academicYear}-${item.headId}-oneterm`,
+          studentId,
+          academicYear,
+          feeAssignmentId: assignment?.id || "SYNTHETIC",
+          feeHeadId: item.headId,
+          feeHeadName: item.headName,
+          frequency: "One Term",
+          termId: "ONETERM",
+          termName: "One Term",
+          dueDate: annualDueDate,
+          amount: finalAmount,
+          paidAmount: 0,
+          dueAmount: finalAmount,
+          status: "Pending",
+          isLateAdmission,
+          feeCalculationMethod: isLateAdmission
+            ? feeCalculationMethod
+            : undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      // 4. MONTHLY
       else if (frequency === "Monthly") {
         const allMonths =
-          monthlyConfig.monthDueDates && monthlyConfig.monthDueDates.length === 12
+          monthlyConfig.monthDueDates &&
+          monthlyConfig.monthDueDates.length === 12
             ? monthlyConfig.monthDueDates
             : buildDefaultMonthlyConfig(academicYear, 10).monthDueDates;
 
-        let applicableMonthIndices: number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        const totalMonthsCount = 12;
+        const standardMonthlyFee = Math.floor(finalAmount / totalMonthsCount);
+
+        let applicableMonthIndices: number[] = [
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        ];
 
         if (isLateAdmission && admissionDate) {
-          const admDateObj = new Date(admissionDate);
-          const admYear = admDateObj.getFullYear();
-          const admMonth = admDateObj.getMonth(); // 0=Jan..11=Dec
+          if (
+            (feeCalculationMethod as string) === "Term-wise" ||
+            feeCalculationMethod === "Remaining Terms"
+          ) {
+            // Late Admission = Term-wise: Apply remaining terms/months according to selected method
+            const admTime = new Date(admissionDate).getTime();
+            const remainingTerms = terms.filter((term) => {
+              if (!term.endDate) return true;
+              return (
+                new Date(normalizeToISODate(term.endDate)).getTime() >= admTime
+              );
+            });
+            const validTerms =
+              remainingTerms.length > 0
+                ? remainingTerms
+                : [terms[terms.length - 1]];
 
-          let startIdx = 0;
-          if (admYear === ayStartYear) {
-            if (admMonth >= 3) {
-              startIdx = admMonth - 3; // April(3) -> 0, Sep(8) -> 5
-            } else {
-              startIdx = 0;
+            const termMonthMap: Record<number, number[]> = {
+              1: [0, 1, 2],
+              2: [3, 4, 5],
+              3: [6, 7, 8],
+              4: [9, 10, 11],
+            };
+
+            let termIndices: number[] = [];
+            validTerms.forEach((t) => {
+              const seq = t.sequence || 1;
+              if (termMonthMap[seq]) {
+                termIndices.push(...termMonthMap[seq]);
+              }
+            });
+            applicableMonthIndices = applicableMonthIndices.filter((idx) =>
+              termIndices.includes(idx),
+            );
+          } else {
+            // Late Admission = Monthly: Apply remaining months
+            const admDateObj = new Date(admissionDate);
+            const admYear = admDateObj.getFullYear();
+            const admMonth = admDateObj.getMonth();
+
+            let startIdx = 0;
+            if (admYear === ayStartYear) {
+              if (admMonth >= 3) {
+                startIdx = admMonth - 3;
+              } else {
+                startIdx = 0;
+              }
+            } else if (admYear > ayStartYear) {
+              if (admMonth <= 2) {
+                startIdx = admMonth + 9;
+              } else {
+                startIdx = 11;
+              }
             }
-          } else if (admYear > ayStartYear) {
-            if (admMonth <= 2) {
-              startIdx = admMonth + 9; // Jan(0) -> 9, Feb(1) -> 10, Mar(2) -> 11
-            } else {
-              startIdx = 11;
-            }
+            applicableMonthIndices = applicableMonthIndices.filter(
+              (idx) => idx >= startIdx,
+            );
           }
-          applicableMonthIndices = applicableMonthIndices.filter(
-            (idx) => idx >= startIdx,
-          );
         }
 
-        const numMonths = applicableMonthIndices.length || 1;
-        const baseAmt = Math.floor(finalAmount / numMonths);
+        applicableMonthIndices.forEach((mIdx) => {
+          const mInfo = allMonths[mIdx] || {
+            monthName: `Month ${mIdx + 1}`,
+            dueDate: `${ayStartYear}-04-10`,
+          };
 
-        applicableMonthIndices.forEach((mIdx, i) => {
-          const mInfo =
-            allMonths[mIdx] || {
-              monthName: `Month ${mIdx + 1}`,
-              dueDate: `${ayStartYear}-04-10`,
-            };
-          const amt =
-            i === numMonths - 1 ? finalAmount - baseAmt * (numMonths - 1) : baseAmt;
+          const amt = standardMonthlyFee;
 
           installments.push({
             id: `INST-${studentId}-${academicYear}-${item.headId}-m-${mIdx + 1}`,
@@ -9045,62 +9940,162 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             feeHeadName: item.headName,
             frequency: "Monthly",
             termName: `Monthly (${mInfo.monthName})`,
-            dueDate: mInfo.dueDate, // Fee Schedule monthly due date
+            dueDate: mInfo.dueDate,
             amount: amt,
             paidAmount: 0,
             dueAmount: amt,
             status: "Pending",
             isLateAdmission,
-            feeCalculationMethod: isLateAdmission ? "Monthly" : undefined,
+            feeCalculationMethod: isLateAdmission
+              ? feeCalculationMethod
+              : undefined,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
         });
       }
-      // 4. QUARTERLY / TERM-WISE
+      // 5. QUARTERLY / TERM-WISE
       else if (frequency === "Quarterly" || frequency === "Term-wise") {
+        const totalTermsCount = terms.length || 4;
+        const standardTermFee = Math.floor(finalAmount / totalTermsCount);
+
         let applicableTerms = terms;
 
         if (isLateAdmission && admissionDate) {
-          const admTime = new Date(admissionDate).getTime();
-          applicableTerms = terms.filter((term) => {
-            if (!term.endDate) return true;
-            return new Date(term.endDate).getTime() >= admTime;
-          });
-          if (applicableTerms.length === 0) {
-            applicableTerms = [terms[terms.length - 1]];
+          if (feeCalculationMethod === "Monthly") {
+            // Late Admission = Monthly: Apply remaining months
+            const admDateObj = new Date(admissionDate);
+            const admYear = admDateObj.getFullYear();
+            const admMonth = admDateObj.getMonth();
+
+            let startIdx = 0;
+            if (admYear === ayStartYear) {
+              startIdx = admMonth >= 3 ? admMonth - 3 : 0;
+            } else if (admYear > ayStartYear) {
+              startIdx = admMonth <= 2 ? admMonth + 9 : 11;
+            }
+
+            const standardMonthlyFee = Math.floor(finalAmount / 12);
+            const admTime = new Date(admissionDate).getTime();
+
+            const admIso = normalizeToISODate(admissionDate);
+            applicableTerms = terms.filter((term) => {
+              const termDueIso = normalizeToISODate(term.dueDate);
+              const termEndIso = normalizeToISODate(term.endDate);
+
+              if (termDueIso && admIso > termDueIso) return false;
+              if (termEndIso && admIso > termEndIso) return false;
+              return true;
+            });
+            if (applicableTerms.length === 0) {
+              applicableTerms = [terms[terms.length - 1]];
+            }
+
+            const termMonthIndices: Record<number, number[]> = {
+              1: [0, 1, 2],
+              2: [3, 4, 5],
+              3: [6, 7, 8],
+              4: [9, 10, 11],
+            };
+
+            applicableTerms.forEach((term, tIdx) => {
+              const qNumber = term.sequence || tIdx + 1;
+              const monthsInTerm = termMonthIndices[qNumber] || [0, 1, 2];
+              const remainingMonthsInTerm = monthsInTerm.filter(
+                (m) => m >= startIdx,
+              ).length;
+              const amt = standardMonthlyFee * remainingMonthsInTerm;
+
+              if (amt > 0) {
+                installments.push({
+                  id: `INST-${studentId}-${academicYear}-${item.headId}-term-${term.id}`,
+                  studentId,
+                  academicYear,
+                  feeAssignmentId: assignment?.id || "SYNTHETIC",
+                  feeHeadId: item.headId,
+                  feeHeadName: item.headName,
+                  frequency:
+                    frequency === "Quarterly" ? "Quarterly" : "Term-wise",
+                  termId: term.id,
+                  termName: `Q${qNumber} (${term.termName})`,
+                  dueDate: term.dueDate,
+                  amount: amt,
+                  paidAmount: 0,
+                  dueAmount: amt,
+                  status: "Pending",
+                  isLateAdmission,
+                  feeCalculationMethod: "Monthly",
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            });
+          } else {
+            // Late Admission = Term-wise: Apply remaining terms (Section 5 & 9: admissionDate <= term.endDate)
+            const admIso = normalizeToISODate(admissionDate);
+            applicableTerms = terms.filter((term) => {
+              const termEndIso = normalizeToISODate(term.endDate);
+              if (!termEndIso) return true;
+              return admIso <= termEndIso;
+            });
+            if (applicableTerms.length === 0) {
+              applicableTerms = [terms[terms.length - 1]];
+            }
+
+            applicableTerms.forEach((term, tIdx) => {
+              const amt = standardTermFee;
+              const qNumber = term.sequence || tIdx + 1;
+
+              installments.push({
+                id: `INST-${studentId}-${academicYear}-${item.headId}-term-${term.id}`,
+                studentId,
+                academicYear,
+                feeAssignmentId: assignment?.id || "SYNTHETIC",
+                feeHeadId: item.headId,
+                feeHeadName: item.headName,
+                frequency:
+                  frequency === "Quarterly" ? "Quarterly" : "Term-wise",
+                termId: term.id,
+                termName: `Q${qNumber} (${term.termName})`,
+                dueDate: term.dueDate,
+                amount: amt,
+                paidAmount: 0,
+                dueAmount: amt,
+                status: "Pending",
+                isLateAdmission,
+                feeCalculationMethod: "Remaining Terms",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            });
           }
-        }
+        } else {
+          // Regular (Not Late Admission)
+          applicableTerms.forEach((term, tIdx) => {
+            const amt = standardTermFee;
+            const qNumber = term.sequence || tIdx + 1;
 
-        const numTerms = applicableTerms.length;
-        const baseAmt = Math.floor(finalAmount / numTerms);
-
-        applicableTerms.forEach((term, tIdx) => {
-          const amt =
-            tIdx === numTerms - 1 ? finalAmount - baseAmt * (numTerms - 1) : baseAmt;
-          const qNumber = term.sequence || tIdx + 1;
-
-          installments.push({
-            id: `INST-${studentId}-${academicYear}-${item.headId}-term-${term.id}`,
-            studentId,
-            academicYear,
-            feeAssignmentId: assignment?.id || "SYNTHETIC",
-            feeHeadId: item.headId,
-            feeHeadName: item.headName,
-            frequency: frequency === "Quarterly" ? "Quarterly" : "Term-wise",
-            termId: term.id,
-            termName: `Q${qNumber} (${term.termName})`,
-            dueDate: term.dueDate, // Fee Schedule term due date
-            amount: amt,
-            paidAmount: 0,
-            dueAmount: amt,
-            status: "Pending",
-            isLateAdmission,
-            feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            installments.push({
+              id: `INST-${studentId}-${academicYear}-${item.headId}-term-${term.id}`,
+              studentId,
+              academicYear,
+              feeAssignmentId: assignment?.id || "SYNTHETIC",
+              feeHeadId: item.headId,
+              feeHeadName: item.headName,
+              frequency: frequency === "Quarterly" ? "Quarterly" : "Term-wise",
+              termId: term.id,
+              termName: `Q${qNumber} (${term.termName})`,
+              dueDate: term.dueDate,
+              amount: amt,
+              paidAmount: 0,
+              dueAmount: amt,
+              status: "Pending",
+              isLateAdmission: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
           });
-        });
+        }
       }
       // 5. HALF-YEARLY
       else if (frequency === "Half-Yearly") {
@@ -9138,7 +10133,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             dueAmount: amt,
             status: "Pending",
             isLateAdmission,
-            feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
+            feeCalculationMethod: isLateAdmission
+              ? feeCalculationMethod
+              : undefined,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
@@ -9462,17 +10459,36 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     }
 
     const student =
-      students.find((s) => s.id === studentId || s.admissionNo === studentId) ||
-      optStudent;
-    const admApp = admissions.find(
-      (a) =>
-        a.id === studentId ||
-        a.applicationNo === studentId ||
-        (student &&
-          a.applicantName &&
-          a.applicantName.trim().toLowerCase() ===
-            `${student.firstName} ${student.lastName}`.trim().toLowerCase()),
-    );
+      students.find(
+        (s) =>
+          s.id === studentId ||
+          s.admissionNo === studentId ||
+          (s as any).applicationNo === studentId ||
+          (s as any).registrationNo === studentId,
+      ) ||
+      (optStudent && (optStudent as any).firstName
+        ? (optStudent as Student)
+        : undefined);
+
+    const admApp =
+      admissions.find(
+        (a) =>
+          a.id === studentId ||
+          a.applicationNo === studentId ||
+          (a as any).registrationNo === studentId ||
+          (a as any).studentId === studentId ||
+          (student &&
+            (student.admissionNo === a.applicationNo ||
+              student.admissionNo === (a as any).registrationNo ||
+              student.id === a.id)) ||
+          (student &&
+            a.applicantName &&
+            a.applicantName.trim().toLowerCase() ===
+              `${student.firstName} ${student.lastName}`.trim().toLowerCase()),
+      ) ||
+      (optStudent && (optStudent as any).applicantName
+        ? (optStudent as AdmissionApplication)
+        : undefined);
 
     const stType: "Day Scholar" | "Hosteller" =
       admApp?.residentialStatus === "Residential" ||
@@ -9489,21 +10505,44 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       "Class 10";
     const secName = admApp?.section || student?.section || "A";
     const admNo =
-      admApp?.applicationNo || student?.admissionNo || "ADM-2026-000";
-    const stName = admApp
-      ? admApp.applicantName || `${admApp.firstName} ${admApp.lastName}`
-      : student
-        ? `${student.firstName} ${student.lastName}`
-        : "Student";
+      student?.admissionNo ||
+      admApp?.applicationNo ||
+      (admApp as any)?.registrationNo ||
+      (optStudent as any)?.admissionNo ||
+      (optStudent as any)?.applicationNo ||
+      (typeof studentId === "string" && studentId.length > 3
+        ? studentId
+        : "ADM-2026-001");
+
+    const rawStName =
+      (admApp?.applicantName || "").trim() ||
+      `${admApp?.firstName || ""} ${admApp?.lastName || ""}`.trim() ||
+      (admApp as any)?.name ||
+      `${student?.firstName || ""} ${student?.lastName || ""}`.trim() ||
+      (student as any)?.name ||
+      (student as any)?.applicantName ||
+      (optStudent as any)?.applicantName ||
+      (optStudent as any)?.name ||
+      "";
+
+    const stName =
+      rawStName && rawStName.toLowerCase() !== "student"
+        ? rawStName
+        : admissions.find(
+              (a) => a.id === studentId || a.applicationNo === studentId,
+            )?.applicantName ||
+            students.find(
+              (s) => s.id === studentId || s.admissionNo === studentId,
+            )?.firstName
+          ? `${students.find((s) => s.id === studentId || s.admissionNo === studentId)?.firstName} ${students.find((s) => s.id === studentId || s.admissionNo === studentId)?.lastName}`.trim()
+          : "Enrolled Student";
 
     const cleanCls = (clsName || "").replace(/[-\s][A-Z]$/i, "").trim();
     const dfs =
       dynamicFeeStructures.find(
         (d) => d.className.trim() === cleanCls && d.status === "Active",
       ) ||
-      dynamicFeeStructures.find(
-        (d) => d.className.trim() === cleanCls,
-      ) ||
+      dynamicFeeStructures.find((d) => d.className.trim() === cleanCls) ||
       dynamicFeeStructures.find(
         (d) => d.className === clsName && d.status === "Active",
       ) ||
@@ -9544,12 +10583,30 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     const selectedOptional = admApp ? admApp.selectedOptionalFees || [] : null;
 
-    const isUniformOpted = (optList: string[] | null | undefined, hId?: string, hName?: string) => {
+    const isUniformOpted = (
+      optList: string[] | null | undefined,
+      hId?: string,
+      hName?: string,
+    ) => {
       if (optList === null || optList === undefined) return true;
       if (Array.isArray(optList) && optList.length === 0) return false;
       if (hId && optList.includes(hId)) return true;
-      if (hName && optList.some(id => id.toLowerCase().includes('uniform') || id.toLowerCase().includes('kit'))) return true;
-      return optList.some(id => id === 'FH-04' || id === 'FH-004' || id.includes('UNI') || id.includes('04'));
+      if (
+        hName &&
+        optList.some(
+          (id) =>
+            id.toLowerCase().includes("uniform") ||
+            id.toLowerCase().includes("kit"),
+        )
+      )
+        return true;
+      return optList.some(
+        (id) =>
+          id === "FH-04" ||
+          id === "FH-004" ||
+          id.includes("UNI") ||
+          id.includes("04"),
+      );
     };
 
     // 1. Base Fee Structure
@@ -9566,13 +10623,24 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     ) {
       assignment.assignedFeeHeads.forEach((h) => {
         const isUni = isUniformHead(h.feeHeadName);
-        const isSelected = isUni ? (selectedOptional !== null ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName) : false) : true;
-        const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs, dynamicFeeStructures) : 0;
+        const isSelected = isUni
+          ? selectedOptional !== null
+            ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName)
+            : false
+          : true;
+        const uniFee = isUni
+          ? getUniformFeeForClass(
+              clsName || student?.className || "",
+              student?.gender || "Male",
+              financeUniformConfigs,
+              dynamicFeeStructures,
+            )
+          : 0;
         const itemAmount = isUni && uniFee > 0 ? uniFee : h.amount;
 
         ledgerItems.push({
           headId: h.feeHeadId,
-          headName: isUni ? 'Uniform & Accessories' : h.feeHeadName,
+          headName: isUni ? "Uniform & Accessories" : h.feeHeadName,
           category:
             h.category ||
             (h.feeHeadName.includes("Tuition")
@@ -9595,7 +10663,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           finalAmount: isSelected ? itemAmount : 0,
           isApplicable: isSelected,
           status: "Pending",
-          remarks: isSelected ? undefined : 'Optional Fee - Not Selected at Admission'
+          remarks: isSelected
+            ? undefined
+            : "Optional Fee - Not Selected at Admission",
         });
       });
     }
@@ -9605,17 +10675,30 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         const exists = ledgerItems.some(
           (item) =>
             (item.headId && i.feeHeadId && item.headId === i.feeHeadId) ||
-            (item.headName && i.feeHeadName && item.headName.toLowerCase() === i.feeHeadName.toLowerCase()),
+            (item.headName &&
+              i.feeHeadName &&
+              item.headName.toLowerCase() === i.feeHeadName.toLowerCase()),
         );
         if (!exists) {
           const isUni = isUniformHead(i.feeHeadName);
-          const isSelected = isUni ? (selectedOptional !== null ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName) : false) : true;
-          const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs, dynamicFeeStructures) : 0;
+          const isSelected = isUni
+            ? selectedOptional !== null
+              ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName)
+              : false
+            : true;
+          const uniFee = isUni
+            ? getUniformFeeForClass(
+                clsName || student?.className || "",
+                student?.gender || "Male",
+                financeUniformConfigs,
+                dynamicFeeStructures,
+              )
+            : 0;
           const itemAmount = isUni && uniFee > 0 ? uniFee : i.amount;
 
           ledgerItems.push({
             headId: i.feeHeadId,
-            headName: isUni ? 'Uniform & Accessories' : i.feeHeadName,
+            headName: isUni ? "Uniform & Accessories" : i.feeHeadName,
             category: i.feeHeadName.includes("Tuition")
               ? "Tuition Fee"
               : i.feeHeadName.includes("Admission")
@@ -9636,7 +10719,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             finalAmount: isSelected ? itemAmount : 0,
             isApplicable: isSelected,
             status: "Pending",
-            remarks: isSelected ? undefined : 'Optional Fee - Not Selected at Admission'
+            remarks: isSelected
+              ? undefined
+              : "Optional Fee - Not Selected at Admission",
           });
         }
       });
@@ -9720,7 +10805,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           finalAmount: isApp
             ? Math.max(
                 0,
-                uniformAmount - item.scholarshipDeduction - item.discountDeduction,
+                uniformAmount -
+                  item.scholarshipDeduction -
+                  item.discountDeduction,
               )
             : 0,
         };
@@ -9728,32 +10815,185 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       return item;
     });
 
-    // 2. Day Scholar vs Hosteller Fee Rules
-    // Transport Fee: Applicable ONLY for Day Scholar
-    let transportAssign = studentTransports.find(
-      (t) => t.studentId === studentId && t.status === "Active",
-    );
-    if (
-      !transportAssign &&
-      ((student && (student.transportRequired || (student as any).busRoute || (student as any).routeId)) ||
-       (admApp && ((admApp as any).transportRequired || (admApp as any).transportOpted || (admApp as any).busRoute)))
-    ) {
-      transportAssign = {
-        id: `STRP-AUTO-${studentId}`,
-        studentId,
-        studentName: `${student?.firstName || admApp?.firstName || "Student"} ${student?.lastName || admApp?.lastName || ""}`.trim(),
-        admissionNo: student?.admissionNo || admApp?.applicationNo || "ADM-001",
-        routeId: (student as any)?.routeId || (admApp as any)?.routeId || "RM-01",
-        routeName: (student as any)?.busRoute || (admApp as any)?.busRoute || (admApp as any)?.routeName || "Route 1",
-        pickupPoint: (student as any)?.pickupPoint || (admApp as any)?.pickupPoint || "Main Stop",
-        feePlan: "Monthly",
-        feeAmount: 5500,
-        effectiveFrom: student?.joiningDate || admApp?.admissionDate || "2026-04-01",
-        status: "Active",
-      };
+    // Normalize Residential Status
+    const isResident =
+      stType === "Hosteller" ||
+      student?.studentType === "Hosteller" ||
+      student?.studentType === "Residential" ||
+      (student as any)?.residentialStatus === "Residential" ||
+      (student as any)?.residentialStatus === "Resident" ||
+      admApp?.residentialStatus === "Residential" ||
+      admApp?.residentialStatus === "Resident" ||
+      admApp?.studentType === "Residential" ||
+      admApp?.studentType === "Hosteller";
+
+    const isNonResident = !isResident;
+
+    // MUTUALLY EXCLUSIVE DECISION:
+    // 1. Resident: Hostel applicable ONLY IF active block & room are assigned. Transport is NEVER applicable.
+    // 2. Non-Resident: Transport applicable ONLY IF transportRequired === true AND pickupPoint is selected. Hostel is NEVER applicable.
+
+    let transportApplicable = false;
+    let activeTransportAssign: any = undefined;
+
+    if (isNonResident) {
+      activeTransportAssign = studentTransports.find(
+        (t) => t.studentId === studentId && t.status === "Active",
+      );
+
+      const isTransportRequired =
+        Boolean(activeTransportAssign) ||
+        (student?.transportRequired === true &&
+          Boolean(
+            (student as any)?.busRoute || (student as any)?.pickupPoint,
+          )) ||
+        ((admApp as any)?.transportRequired === true &&
+          Boolean((admApp as any)?.busRoute || (admApp as any)?.pickupPoint));
+
+      const hasPickupPoint = Boolean(
+        activeTransportAssign?.pickupPoint ||
+        (student as any)?.pickupPoint ||
+        (admApp as any)?.pickupPoint,
+      );
+
+      if (isTransportRequired && hasPickupPoint) {
+        transportApplicable = true;
+        if (!activeTransportAssign) {
+          activeTransportAssign = {
+            id: `STRP-AUTO-${studentId}`,
+            studentId,
+            studentName:
+              `${student?.firstName || admApp?.firstName || "Student"} ${student?.lastName || admApp?.lastName || ""}`.trim(),
+            admissionNo:
+              student?.admissionNo || admApp?.applicationNo || "ADM-001",
+            routeId:
+              (student as any)?.routeId || (admApp as any)?.routeId || "RM-01",
+            routeName:
+              (student as any)?.busRoute ||
+              (admApp as any)?.busRoute ||
+              (admApp as any)?.routeName ||
+              "Route 1",
+            pickupPoint:
+              (student as any)?.pickupPoint ||
+              (admApp as any)?.pickupPoint ||
+              "Main Stop",
+            feePlan: "Monthly",
+            feeAmount: 5500,
+            effectiveFrom:
+              student?.joiningDate || admApp?.admissionDate || "2026-04-01",
+            status: "Active",
+          };
+        }
+      }
     }
-    if (stType === "Day Scholar" && transportAssign) {
-      const activeTa = transportAssign;
+
+    let hostelApplicable = false;
+    let activeHostelAssign: any = undefined;
+    let hstBlockName = "";
+    let hstRoomName = "";
+    let combinedHostelTotal = 0;
+    let hostelFrequency = "Annual";
+
+    if (isResident) {
+      activeHostelAssign =
+        studentHostelAssignments.find(
+          (h) => h.studentId === studentId && h.status === "Active",
+        ) ||
+        studentHostels.find(
+          (h) => h.studentId === studentId && h.status === "Active",
+        );
+
+      hstBlockName =
+        (activeHostelAssign as any)?.hostelName ||
+        (activeHostelAssign as any)?.hostelId ||
+        student?.hostelBlock ||
+        (admApp as any)?.hostelBlock ||
+        "";
+
+      hstRoomName =
+        (activeHostelAssign as any)?.roomNumber ||
+        (activeHostelAssign as any)?.roomTypeName ||
+        student?.hostelRoom ||
+        student?.hostelBed ||
+        (admApp as any)?.hostelRoom ||
+        (admApp as any)?.hostelBed ||
+        "";
+
+      const hasHostelBlock = Boolean(
+        hstBlockName && hstBlockName.trim() !== "",
+      );
+      const hasHostelRoom = Boolean(hstRoomName && hstRoomName.trim() !== "");
+
+      if (hasHostelBlock && hasHostelRoom) {
+        const roomType =
+          (activeHostelAssign as any)?.roomTypeName ||
+          (student as any)?.roomType ||
+          (admApp as any)?.roomType;
+
+        let fhc = financeHostelConfigs.find((c) => {
+          if (c.status !== "Active") return false;
+          const blockMatch =
+            (c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
+            (c.hostelName &&
+              c.hostelName.toLowerCase() === hstBlockName.toLowerCase()) ||
+            (c.hostelName &&
+              c.hostelName
+                .toLowerCase()
+                .includes(hstBlockName.toLowerCase())) ||
+            (c.hostelName &&
+              hstBlockName.toLowerCase().includes(c.hostelName.toLowerCase()));
+
+          if (!blockMatch) return false;
+          if (!roomType) return true;
+
+          return (
+            (c.roomTypeName &&
+              c.roomTypeName.toLowerCase().trim() ===
+                String(roomType).toLowerCase().trim()) ||
+            (c.roomTypeName &&
+              c.roomTypeName
+                .toLowerCase()
+                .includes(String(roomType).toLowerCase())) ||
+            (c.roomTypeName &&
+              String(roomType)
+                .toLowerCase()
+                .includes(c.roomTypeName.toLowerCase()))
+          );
+        });
+
+        if (!fhc) {
+          fhc =
+            financeHostelConfigs.find(
+              (c) =>
+                c.status === "Active" &&
+                ((c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
+                  (c.hostelName &&
+                    c.hostelName
+                      .toLowerCase()
+                      .includes(hstBlockName.toLowerCase()))),
+            ) || financeHostelConfigs.find((c) => c.status === "Active");
+        }
+
+        if (fhc) {
+          const hstFee = fhc.hostelFee;
+          const secDep =
+            fhc.securityDeposit !== undefined ? fhc.securityDeposit : 5000;
+          combinedHostelTotal = hstFee + secDep;
+          hostelFrequency = fhc.feePlan || (fhc as any).frequency || "Annual";
+          hostelApplicable = true;
+        }
+      }
+    }
+
+    // Process Transport Fee Item in ledgerItems
+    const existingTrpIdx = ledgerItems.findIndex(
+      (item) =>
+        item.category === "Transport Fee" ||
+        item.headName.toLowerCase().includes("transport"),
+    );
+
+    if (transportApplicable && activeTransportAssign) {
+      const activeTa = activeTransportAssign;
       const transportConfig = financeTransportConfigs.find(
         (c) =>
           (c.routeId === activeTa.routeId ||
@@ -9766,9 +11006,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ? transportConfig.feeAmount
         : activeTa.feeAmount || 5500;
 
-      ledgerItems.push({
+      const trpItem: LedgerFeeItem = {
         headId: "FH-TRP",
-        headName: `Transport Fee (${activeTa.routeName})`,
+        headName: `Transport Fee (${activeTa.routeName} - ${activeTa.pickupPoint})`,
         category: "Transport Fee",
         originalAmount: trpAmount,
         scholarshipDeduction: 0,
@@ -9777,113 +11017,99 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         finalAmount: trpAmount,
         isApplicable: true,
         status: "Pending",
-      });
+      };
+
+      if (existingTrpIdx >= 0) {
+        ledgerItems[existingTrpIdx] = trpItem;
+      } else {
+        ledgerItems.push(trpItem);
+      }
     } else {
-      ledgerItems.push({
-        headId: "FH-TRP",
-        headName: "Transport Fee",
-        category: "Transport Fee",
-        originalAmount: 0,
-        scholarshipDeduction: 0,
-        discountDeduction: 0,
-        fineAmount: 0,
-        finalAmount: 0,
-        isApplicable: false,
-        status: "Pending",
-        remarks:
-          stType === "Hosteller"
-            ? "Not Applicable for Hostellers"
-            : "Transport Not Opted",
-      });
+      const remarksText = isResident
+        ? "Not Applicable for Residential Students"
+        : "Transport Not Opted / Missing Pickup Point";
+
+      if (existingTrpIdx >= 0) {
+        ledgerItems[existingTrpIdx] = {
+          ...ledgerItems[existingTrpIdx],
+          originalAmount: 0,
+          finalAmount: 0,
+          isApplicable: false,
+          remarks: remarksText,
+        };
+      } else {
+        ledgerItems.push({
+          headId: "FH-TRP",
+          headName: "Transport Fee",
+          category: "Transport Fee",
+          originalAmount: 0,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 0,
+          isApplicable: false,
+          status: "Pending",
+          remarks: remarksText,
+        });
+      }
     }
 
-    const hostelAssign =
-      studentHostelAssignments.find(
-        (h) => h.studentId === studentId && h.status === "Active",
-      ) ||
-      studentHostels.find(
-        (h) => h.studentId === studentId && h.status === "Active",
-      );
+    // Process Hostel Fee Item in ledgerItems
+    const existingHstIdx = ledgerItems.findIndex(
+      (item) =>
+        item.category === "Hostel Fee" ||
+        item.headName.toLowerCase().includes("hostel"),
+    );
 
-    const isHostellerOpted =
-      stType === "Hosteller" ||
-      (admApp && (admApp.residentialStatus === "Residential" || (admApp as any).studentType === "Residential" || (admApp as any).hostelRequired)) ||
-      (student && (student.studentType === "Hosteller" || (student as any).studentType === "Residential" || student.hostelBed || (student as any).hostelBlock));
-
-    if (isHostellerOpted) {
-      const hId = (hostelAssign as any)?.hostelId || student?.hostelBlock;
-      const hName = (hostelAssign as any)?.hostelName || student?.hostelBlock;
-
-      const fhc =
-        financeHostelConfigs.find(
-          (c) =>
-            (c.hostelId === hId || c.hostelName === hName) &&
-            c.status === "Active",
-        ) || financeHostelConfigs[0];
-
-      const hstFee = fhc ? fhc.hostelFee : 40000;
-      const messFee = fhc ? fhc.messFee || 0 : 18000;
-      const secDep = fhc ? fhc.securityDeposit : 5000;
-
-      ledgerItems.push({
-        headId: "FH-HST-RENT",
-        headName: `Hostel Accommodation Fee (${hName || "Hostel"})`,
+    if (hostelApplicable && combinedHostelTotal > 0) {
+      const roomLabel = hstRoomName ? `, Room ${hstRoomName}` : "";
+      const hstItem: LedgerFeeItem = {
+        headId: "FH-HST",
+        headName: `Hostel Fee (${hstBlockName}${roomLabel})`,
         category: "Hostel Fee",
-        originalAmount: hstFee,
+        originalAmount: combinedHostelTotal,
         scholarshipDeduction: 0,
         discountDeduction: 0,
         fineAmount: 0,
-        finalAmount: hstFee,
+        finalAmount: combinedHostelTotal,
         isApplicable: true,
         status: "Pending",
-      });
+        frequency: hostelFrequency,
+      } as any;
 
-      if (messFee > 0) {
-        ledgerItems.push({
-          headId: "FH-HST-MESS",
-          headName: "Hostel Mess Charges",
-          category: "Mess Fee",
-          originalAmount: messFee,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: messFee,
-          isApplicable: true,
-          status: "Pending",
-        });
-      }
-
-      if (secDep > 0) {
-        ledgerItems.push({
-          headId: "FH-HST-DEP",
-          headName: "Hostel Security Deposit (One-Time)",
-          category: "Security Deposit",
-          originalAmount: secDep,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: secDep,
-          isApplicable: true,
-          status: "Pending",
-        });
+      if (existingHstIdx >= 0) {
+        ledgerItems[existingHstIdx] = hstItem;
+      } else {
+        ledgerItems.push(hstItem);
       }
     } else {
-      ledgerItems.push({
-        headId: "FH-HST",
-        headName: "Hostel Fee & Mess Charges",
-        category: "Hostel Fee",
-        originalAmount: 0,
-        scholarshipDeduction: 0,
-        discountDeduction: 0,
-        fineAmount: 0,
-        finalAmount: 0,
-        isApplicable: false,
-        status: "Pending",
-        remarks:
-          stType === "Day Scholar"
-            ? "Not Applicable for Day Scholars"
-            : "Hostel Not Opted",
-      });
+      const remarksText = isNonResident
+        ? "Not Applicable for Day Scholars"
+        : "Hostel Fee Pending Room Assignment";
+
+      if (existingHstIdx >= 0) {
+        ledgerItems[existingHstIdx] = {
+          ...ledgerItems[existingHstIdx],
+          originalAmount: 0,
+          finalAmount: 0,
+          isApplicable: false,
+          remarks: remarksText,
+        };
+      } else {
+        ledgerItems.push({
+          headId: "FH-HST",
+          headName: "Hostel Fee & Mess Charges",
+          category: "Hostel Fee",
+          originalAmount: 0,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 0,
+          isApplicable: false,
+          status: "Pending",
+          remarks: remarksText,
+        });
+      }
     }
 
     // 3. Deductions: Scholarships & Discounts
@@ -9971,6 +11197,33 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       newLedger,
     );
     newLedger.installments = insts;
+
+    // Update feeItems finalAmount to match generated installments sum
+    newLedger.feeItems = newLedger.feeItems.map((item) => {
+      if (!item.isApplicable) return item;
+      const itemInsts = insts.filter(
+        (i) =>
+          i.feeHeadId === item.headId ||
+          i.feeHeadName.toLowerCase().trim() ===
+            item.headName.toLowerCase().trim() ||
+          (item.category &&
+            i.feeHeadName.toLowerCase().includes(item.category.toLowerCase())),
+      );
+      if (itemInsts.length > 0) {
+        const itemSum = itemInsts.reduce((s, i) => s + i.amount, 0);
+        return {
+          ...item,
+          finalAmount: itemSum,
+          remarks:
+            item.remarks ||
+            (insts[0]?.isLateAdmission
+              ? `Late Admission Prorated (${itemInsts.length} periods)`
+              : undefined),
+        };
+      }
+      return item;
+    });
+
     const instsPayable = insts.reduce((sum, i) => sum + i.amount, 0);
     newLedger.totalPayable = instsPayable;
     newLedger.dueBalance = Math.max(0, instsPayable - paidAmt);
@@ -10108,7 +11361,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const getStudentFeeLedger = (
     studentId: string,
     targetAcademicYear?: string,
-  ): StudentFeeLedger | null => {
+  ): StudentFeeLedger => {
     const targetYear =
       targetAcademicYear ||
       selectedAcademicYear ||
@@ -10139,12 +11392,30 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ? admApp.selectedOptionalFees || []
         : null;
 
-      const isUniformOpted = (optList: string[] | null | undefined, hId?: string, hName?: string) => {
+      const isUniformOpted = (
+        optList: string[] | null | undefined,
+        hId?: string,
+        hName?: string,
+      ) => {
         if (optList === null || optList === undefined) return true;
         if (Array.isArray(optList) && optList.length === 0) return false;
         if (hId && optList.includes(hId)) return true;
-        if (hName && optList.some(id => id.toLowerCase().includes('uniform') || id.toLowerCase().includes('kit'))) return true;
-        return optList.some(id => id === 'FH-04' || id === 'FH-004' || id.includes('UNI') || id.includes('04'));
+        if (
+          hName &&
+          optList.some(
+            (id) =>
+              id.toLowerCase().includes("uniform") ||
+              id.toLowerCase().includes("kit"),
+          )
+        )
+          return true;
+        return optList.some(
+          (id) =>
+            id === "FH-04" ||
+            id === "FH-004" ||
+            id.includes("UNI") ||
+            id.includes("04"),
+        );
       };
 
       const assignment = studentFeeAssignments.find(
@@ -10163,9 +11434,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         dynamicFeeStructures.find(
           (d) => d.className.trim() === cleanCls && d.status === "Active",
         ) ||
-        dynamicFeeStructures.find(
-          (d) => d.className.trim() === cleanCls,
-        ) ||
+        dynamicFeeStructures.find((d) => d.className.trim() === cleanCls) ||
         dynamicFeeStructures.find((d) => d.className === clsName);
 
       if (dfs && dfs.items && dfs.items.length > 0) {
@@ -10173,7 +11442,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           return !existing.feeItems.some(
             (fi) =>
               fi.headId === di.feeHeadId ||
-              fi.headName.toLowerCase().trim() === di.feeHeadName.toLowerCase().trim(),
+              fi.headName.toLowerCase().trim() ===
+                di.feeHeadName.toLowerCase().trim(),
           );
         });
 
@@ -10181,26 +11451,42 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           const matchingFi = existing.feeItems.find(
             (fi) =>
               fi.headId === di.feeHeadId ||
-              fi.headName.toLowerCase().trim() === di.feeHeadName.toLowerCase().trim(),
+              fi.headName.toLowerCase().trim() ===
+                di.feeHeadName.toLowerCase().trim(),
           );
           return matchingFi && matchingFi.originalAmount !== di.amount;
         });
 
-        if (hasMissingHead || hasAmountMismatch || existing.grossAmount !== dfs.totalAmount) {
+        if (
+          hasMissingHead ||
+          hasAmountMismatch ||
+          existing.grossAmount !== dfs.totalAmount
+        ) {
           return buildStudentFeeLedgerObject(studentId, targetYear);
         }
       }
 
-      const sanitizedItems = existing.feeItems.map(fi => {
-        if (isUniform(fi.headName) && fi.category !== 'Additional Uniform Purchase') {
-          const isOptedInApp = selectedOptional !== null ? isUniformOpted(selectedOptional, fi.headId, fi.headName) : true;
-          const shouldBeApplicable = selectedOptional !== null ? isOptedInApp : Boolean(hasUniformInAssignment);
+      const sanitizedItems = existing.feeItems.map((fi) => {
+        if (
+          isUniform(fi.headName) &&
+          fi.category !== "Additional Uniform Purchase"
+        ) {
+          const isOptedInApp =
+            selectedOptional !== null
+              ? isUniformOpted(selectedOptional, fi.headId, fi.headName)
+              : true;
+          const shouldBeApplicable =
+            selectedOptional !== null
+              ? isOptedInApp
+              : Boolean(hasUniformInAssignment);
           return {
             ...fi,
             isApplicable: shouldBeApplicable,
             finalAmount: shouldBeApplicable ? fi.originalAmount : 0,
             status: fi.status || ("Pending" as const),
-            remarks: shouldBeApplicable ? undefined : 'Optional Fee - Not Selected at Admission'
+            remarks: shouldBeApplicable
+              ? undefined
+              : "Optional Fee - Not Selected at Admission",
           };
         }
         return fi;
@@ -10578,7 +11864,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ...r,
         ...backendData,
         id,
-        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || r.status === 'Active') ? 'Active' : 'Inactive',
+        status:
+          backendData.status === true ||
+          String(backendData.status).toLowerCase() === "true" ||
+          backendData.status === "Active" ||
+          r.status === "Active"
+            ? "Active"
+            : "Inactive",
         minDistanceKm: r.minDistanceKm ?? 5,
         minBaseFare: r.minBaseFare ?? 1000,
         ratePerKm: r.ratePerKm ?? 100,
@@ -10647,8 +11939,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.totalDistanceKm = Number(updates.totalDistanceKm) || 0;
       }
       if (updates.estimatedTimeMinutes !== undefined) {
-        payload.estimatedDurationMinutes = Number(updates.estimatedTimeMinutes) || 0;
-        payload.estimatedTimeMinutes = Number(updates.estimatedTimeMinutes) || 0;
+        payload.estimatedDurationMinutes =
+          Number(updates.estimatedTimeMinutes) || 0;
+        payload.estimatedTimeMinutes =
+          Number(updates.estimatedTimeMinutes) || 0;
       }
       if (updates.minDistanceKm !== undefined) {
         payload.minRangeKm = Number(updates.minDistanceKm) || 0;
@@ -10774,17 +12068,25 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         try {
           await TransportAPI.deletePickupPointApi(p.id);
         } catch (e) {
-          console.warn("Failed to delete pickup point during route deletion", e);
+          console.warn(
+            "Failed to delete pickup point during route deletion",
+            e,
+          );
         }
       }
 
       // Find all vehicle assignments belonging to this route and delete them from the backend
-      const assignmentsToDelete = vehicleAssignments.filter((a) => a.routeId === id);
+      const assignmentsToDelete = vehicleAssignments.filter(
+        (a) => a.routeId === id,
+      );
       for (const a of assignmentsToDelete) {
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn("Failed to delete vehicle assignment during route deletion", e);
+          console.warn(
+            "Failed to delete vehicle assignment during route deletion",
+            e,
+          );
         }
       }
 
@@ -10797,15 +12099,15 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           st.routeId === id
             ? {
                 ...st,
-                routeId: '',
-                routeName: 'Unassigned',
-                pickupPoint: 'Unassigned',
-                vehicleId: '',
-                vehicleNumber: '',
-                status: 'Inactive',
+                routeId: "",
+                routeName: "Unassigned",
+                pickupPoint: "Unassigned",
+                vehicleId: "",
+                vehicleNumber: "",
+                status: "Inactive",
               }
-            : st
-        )
+            : st,
+        ),
       );
       logActivity("Deleted Transport Route", `Removed Route ID ${id}`);
     } catch (err) {
@@ -10818,15 +12120,15 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           st.routeId === id
             ? {
                 ...st,
-                routeId: '',
-                routeName: 'Unassigned',
-                pickupPoint: 'Unassigned',
-                vehicleId: '',
-                vehicleNumber: '',
-                status: 'Inactive',
+                routeId: "",
+                routeName: "Unassigned",
+                pickupPoint: "Unassigned",
+                vehicleId: "",
+                vehicleNumber: "",
+                status: "Inactive",
               }
-            : st
-        )
+            : st,
+        ),
       );
     }
   };
@@ -10835,17 +12137,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     if (!timeStr) return "00:00:00";
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr;
     if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr + ":00";
-    
+
     const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
     if (!match) return "00:00:00";
-    
+
     let hours = parseInt(match[1], 10);
     const minutes = match[2];
     const ampm = match[3].toUpperCase();
-    
+
     if (ampm === "PM" && hours < 12) hours += 12;
     if (ampm === "AM" && hours === 12) hours = 0;
-    
+
     return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
   };
 
@@ -10858,16 +12160,22 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         landmark: (p as any).landmark || "",
         sequenceNo: Number(p.sequenceNumber) || 0,
         sequenceNumber: Number(p.sequenceNumber) || 0,
-        pickupTime: toTimeSpanString(p.morningPickupTime || p.arrivalTime || "07:30 AM"),
-        arrivalTime: toTimeSpanString(p.morningPickupTime || p.arrivalTime || "07:30 AM"),
+        pickupTime: toTimeSpanString(
+          p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        ),
+        arrivalTime: toTimeSpanString(
+          p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        ),
         dropTime: toTimeSpanString(p.eveningDropTime || "04:15 PM"),
         eveningDropTime: toTimeSpanString(p.eveningDropTime || "04:15 PM"),
-        morningPickupTime: toTimeSpanString(p.morningPickupTime || p.arrivalTime || "07:30 AM"),
+        morningPickupTime: toTimeSpanString(
+          p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        ),
         distanceFromStart: Number(p.distanceFromSchoolKm) || 0,
         distanceFromSchoolKm: Number(p.distanceFromSchoolKm) || 0,
         monthlyFee: Number(p.monthlyFee) || 0,
         monthlyFare: Number(p.monthlyFee) || 0,
-        status: p.status === "Active" || (p.status as any) === true
+        status: p.status === "Active" || (p.status as any) === true,
       };
       const response = await TransportAPI.createPickupPointApi(payload as any);
       const backendData = (response as any)?.data || response || {};
@@ -10880,7 +12188,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ...p,
         ...backendData,
         id,
-        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || p.status === 'Active') ? 'Active' : 'Inactive',
+        status:
+          backendData.status === true ||
+          String(backendData.status).toLowerCase() === "true" ||
+          backendData.status === "Active" ||
+          p.status === "Active"
+            ? "Active"
+            : "Inactive",
         branch: (p as any).branch || selectedBranch || "Main Campus",
       } as any;
       setPickupPoints((prev) => [...prev, newPt]);
@@ -10906,12 +12220,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   ) => {
     try {
       const payload: any = {};
-      if (updates.routeId !== undefined) payload.routeId = Number(updates.routeId) || 0;
+      if (updates.routeId !== undefined)
+        payload.routeId = Number(updates.routeId) || 0;
       if (updates.pickupName !== undefined) {
         payload.pickupPointName = updates.pickupName;
         payload.pickupName = updates.pickupName;
       }
-      if ((updates as any).landmark !== undefined) payload.landmark = (updates as any).landmark;
+      if ((updates as any).landmark !== undefined)
+        payload.landmark = (updates as any).landmark;
       if (updates.sequenceNumber !== undefined) {
         payload.sequenceNo = Number(updates.sequenceNumber) || 0;
         payload.sequenceNumber = Number(updates.sequenceNumber) || 0;
@@ -10935,14 +12251,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       }
       if (updates.distanceFromSchoolKm !== undefined) {
         payload.distanceFromStart = Number(updates.distanceFromSchoolKm) || 0;
-        payload.distanceFromSchoolKm = Number(updates.distanceFromSchoolKm) || 0;
+        payload.distanceFromSchoolKm =
+          Number(updates.distanceFromSchoolKm) || 0;
       }
       if (updates.monthlyFee !== undefined) {
         payload.monthlyFee = Number(updates.monthlyFee) || 0;
         payload.monthlyFare = Number(updates.monthlyFee) || 0;
       }
       if (updates.status !== undefined) {
-        payload.status = updates.status === "Active" || (updates.status as any) === true;
+        payload.status =
+          updates.status === "Active" || (updates.status as any) === true;
       }
 
       await TransportAPI.updatePickupPointApi(id, payload as any);
@@ -10966,9 +12284,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setStudentTransports((prev) =>
           prev.map((st) =>
             st.routeId === p.routeId && st.pickupPoint === p.pickupName
-              ? { ...st, pickupPoint: 'Unassigned' }
-              : st
-          )
+              ? { ...st, pickupPoint: "Unassigned" }
+              : st,
+          ),
         );
       }
     } catch (err) {
@@ -10979,9 +12297,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setStudentTransports((prev) =>
           prev.map((st) =>
             st.routeId === p.routeId && st.pickupPoint === p.pickupName
-              ? { ...st, pickupPoint: 'Unassigned' }
-              : st
-          )
+              ? { ...st, pickupPoint: "Unassigned" }
+              : st,
+          ),
         );
       }
     }
@@ -10997,10 +12315,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         vehicleType: v.vehicleType || "",
         capacity: Number(v.capacity) || 0,
         seatingCapacity: Number(v.capacity) || 0,
-        insuranceExpiry: v.insuranceExpiry ? new Date(v.insuranceExpiry).toISOString() : null,
-        pollutionExpiry: v.pollutionExpiry ? new Date(v.pollutionExpiry).toISOString() : null,
-        fitnessExpiry: v.fitnessExpiry ? new Date(v.fitnessExpiry).toISOString() : null,
-        isAC: (v as any).isAC === true || (v as any).isAC === 'true',
+        insuranceExpiry: v.insuranceExpiry
+          ? new Date(v.insuranceExpiry).toISOString()
+          : null,
+        pollutionExpiry: v.pollutionExpiry
+          ? new Date(v.pollutionExpiry).toISOString()
+          : null,
+        fitnessExpiry: v.fitnessExpiry
+          ? new Date(v.fitnessExpiry).toISOString()
+          : null,
+        isAC: (v as any).isAC === true || (v as any).isAC === "true",
         acSpecification: (v as any).acSpecification || "",
         chassisNumber: (v as any).chassisNumber || "",
         engineNumber: (v as any).engineNumber || "",
@@ -11021,7 +12345,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ...v,
         ...backendData,
         id,
-        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || v.status === 'Active') ? 'Active' : 'Inactive',
+        status:
+          backendData.status === true ||
+          String(backendData.status).toLowerCase() === "true" ||
+          backendData.status === "Active" ||
+          v.status === "Active"
+            ? "Active"
+            : "Inactive",
         branch: (v as any).branch || selectedBranch || "Main Campus",
       } as any;
       setVehicleMasters((prev) => [...prev, newVehicle]);
@@ -11062,13 +12392,20 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.seatingCapacity = Number(updates.capacity) || 0;
       }
       if (updates.insuranceExpiry !== undefined)
-        payload.insuranceExpiry = updates.insuranceExpiry ? new Date(updates.insuranceExpiry).toISOString() : null;
+        payload.insuranceExpiry = updates.insuranceExpiry
+          ? new Date(updates.insuranceExpiry).toISOString()
+          : null;
       if (updates.pollutionExpiry !== undefined)
-        payload.pollutionExpiry = updates.pollutionExpiry ? new Date(updates.pollutionExpiry).toISOString() : null;
+        payload.pollutionExpiry = updates.pollutionExpiry
+          ? new Date(updates.pollutionExpiry).toISOString()
+          : null;
       if (updates.fitnessExpiry !== undefined)
-        payload.fitnessExpiry = updates.fitnessExpiry ? new Date(updates.fitnessExpiry).toISOString() : null;
+        payload.fitnessExpiry = updates.fitnessExpiry
+          ? new Date(updates.fitnessExpiry).toISOString()
+          : null;
       if ((updates as any).isAC !== undefined)
-        payload.isAC = (updates as any).isAC === true || (updates as any).isAC === 'true';
+        payload.isAC =
+          (updates as any).isAC === true || (updates as any).isAC === "true";
       if (updates.status !== undefined)
         payload.status = updates.status === "Active";
 
@@ -11087,27 +12424,36 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const deleteVehicleMaster = async (id: string) => {
     try {
       const v = vehicleMasters.find((x) => x.id === id);
-      
+
       // Find all assignments referencing this vehicle and delete them from the backend
-      const assignmentsToDelete = vehicleAssignments.filter((a) => a.vehicleId === id || (v && a.vehicleNumber === v.vehicleNumber));
+      const assignmentsToDelete = vehicleAssignments.filter(
+        (a) => a.vehicleId === id || (v && a.vehicleNumber === v.vehicleNumber),
+      );
       for (const a of assignmentsToDelete) {
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn("Failed to delete vehicle assignment during vehicle deletion", e);
+          console.warn(
+            "Failed to delete vehicle assignment during vehicle deletion",
+            e,
+          );
         }
       }
 
       await TransportAPI.deleteVehicleApi(id);
       setVehicleMasters((prev) => prev.filter((v) => v.id !== id));
       if (v) {
-        setVehicleAssignments((prev) => prev.filter((a) => a.vehicleId !== id && a.vehicleNumber !== v.vehicleNumber));
+        setVehicleAssignments((prev) =>
+          prev.filter(
+            (a) => a.vehicleId !== id && a.vehicleNumber !== v.vehicleNumber,
+          ),
+        );
         setStudentTransports((prev) =>
           prev.map((st) =>
             st.vehicleId === id || st.vehicleNumber === v.vehicleNumber
-              ? { ...st, vehicleId: '', vehicleNumber: 'Unassigned' }
-              : st
-          )
+              ? { ...st, vehicleId: "", vehicleNumber: "Unassigned" }
+              : st,
+          ),
         );
       }
     } catch (err) {
@@ -11115,13 +12461,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const v = vehicleMasters.find((x) => x.id === id);
       setVehicleMasters((prev) => prev.filter((v) => v.id !== id));
       if (v) {
-        setVehicleAssignments((prev) => prev.filter((a) => a.vehicleId !== id && a.vehicleNumber !== v.vehicleNumber));
+        setVehicleAssignments((prev) =>
+          prev.filter(
+            (a) => a.vehicleId !== id && a.vehicleNumber !== v.vehicleNumber,
+          ),
+        );
         setStudentTransports((prev) =>
           prev.map((st) =>
             st.vehicleId === id || st.vehicleNumber === v.vehicleNumber
-              ? { ...st, vehicleId: '', vehicleNumber: 'Unassigned' }
-              : st
-          )
+              ? { ...st, vehicleId: "", vehicleNumber: "Unassigned" }
+              : st,
+          ),
         );
       }
     }
@@ -11142,8 +12492,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         licenceNumber: d.licenseNumber || "",
         licenseNumber: d.licenseNumber || "",
         commercialLicenseNo: d.licenseNumber || "",
-        licenceExpiry: d.licenseExpiryDate ? new Date(d.licenseExpiryDate).toISOString() : null,
-        licenseExpiryDate: d.licenseExpiryDate ? new Date(d.licenseExpiryDate).toISOString() : null,
+        licenceExpiry: d.licenseExpiryDate
+          ? new Date(d.licenseExpiryDate).toISOString()
+          : null,
+        licenseExpiryDate: d.licenseExpiryDate
+          ? new Date(d.licenseExpiryDate).toISOString()
+          : null,
         address: d.address || "",
         emergencyContactNumber: d.emergencyContact || "",
         emergencyContact: d.emergencyContact || "",
@@ -11161,7 +12515,15 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ...d,
         ...backendData,
         id,
-        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || d.status === 'Active') ? 'Active' : (d.status === 'On Leave' ? 'On Leave' : 'Inactive'),
+        status:
+          backendData.status === true ||
+          String(backendData.status).toLowerCase() === "true" ||
+          backendData.status === "Active" ||
+          d.status === "Active"
+            ? "Active"
+            : d.status === "On Leave"
+              ? "On Leave"
+              : "Inactive",
         branch: (d as any).branch || selectedBranch || "Main Campus",
       } as any;
       setDriverMasters((prev) => [...prev, newDriver]);
@@ -11208,8 +12570,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.commercialLicenseNo = updates.licenseNumber;
       }
       if (updates.licenseExpiryDate !== undefined) {
-        payload.licenceExpiry = updates.licenseExpiryDate ? new Date(updates.licenseExpiryDate).toISOString() : null;
-        payload.licenseExpiryDate = updates.licenseExpiryDate ? new Date(updates.licenseExpiryDate).toISOString() : null;
+        payload.licenceExpiry = updates.licenseExpiryDate
+          ? new Date(updates.licenseExpiryDate).toISOString()
+          : null;
+        payload.licenseExpiryDate = updates.licenseExpiryDate
+          ? new Date(updates.licenseExpiryDate).toISOString()
+          : null;
       }
       if (updates.address !== undefined) payload.address = updates.address;
       if (updates.emergencyContact !== undefined) {
@@ -11237,12 +12603,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const deleteDriverMaster = async (id: string) => {
     try {
       // Find all assignments referencing this driver and delete them from the backend
-      const assignmentsToDelete = vehicleAssignments.filter((a) => a.driverId === id);
+      const assignmentsToDelete = vehicleAssignments.filter(
+        (a) => a.driverId === id,
+      );
       for (const a of assignmentsToDelete) {
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn("Failed to delete vehicle assignment during driver deletion", e);
+          console.warn(
+            "Failed to delete vehicle assignment during driver deletion",
+            e,
+          );
         }
       }
 
@@ -11251,9 +12622,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       setVehicleAssignments((prev) =>
         prev.map((a) =>
           a.driverId === id
-            ? { ...a, driverId: '', driverName: 'Unassigned', driverEmployeeId: '' }
-            : a
-        )
+            ? {
+                ...a,
+                driverId: "",
+                driverName: "Unassigned",
+                driverEmployeeId: "",
+              }
+            : a,
+        ),
       );
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
@@ -11261,9 +12637,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       setVehicleAssignments((prev) =>
         prev.map((a) =>
           a.driverId === id
-            ? { ...a, driverId: '', driverName: 'Unassigned', driverEmployeeId: '' }
-            : a
-        )
+            ? {
+                ...a,
+                driverId: "",
+                driverName: "Unassigned",
+                driverEmployeeId: "",
+              }
+            : a,
+        ),
       );
     }
   };
@@ -11293,7 +12674,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ...a,
         ...backendData,
         id,
-        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || a.status === 'Active') ? 'Active' : 'Inactive',
+        status:
+          backendData.status === true ||
+          String(backendData.status).toLowerCase() === "true" ||
+          backendData.status === "Active" ||
+          a.status === "Active"
+            ? "Active"
+            : "Inactive",
         branch: (a as any).branch || selectedBranch || "Main Campus",
       } as any;
       setBusAttendants((prev) => [...prev, newAttendant]);
@@ -11352,12 +12739,17 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const deleteBusAttendant = async (id: string) => {
     try {
       // Find all assignments referencing this attendant and delete them from the backend
-      const assignmentsToDelete = vehicleAssignments.filter((a) => a.attendantId === id);
+      const assignmentsToDelete = vehicleAssignments.filter(
+        (a) => a.attendantId === id,
+      );
       for (const a of assignmentsToDelete) {
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn("Failed to delete vehicle assignment during attendant deletion", e);
+          console.warn(
+            "Failed to delete vehicle assignment during attendant deletion",
+            e,
+          );
         }
       }
 
@@ -11368,9 +12760,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setVehicleAssignments((prev) =>
           prev.map((a) =>
             a.attendantId === id || a.attendantName === att.attendantName
-              ? { ...a, attendantId: '', attendantName: 'Unassigned', attendantEmployeeId: '' }
-              : a
-          )
+              ? {
+                  ...a,
+                  attendantId: "",
+                  attendantName: "Unassigned",
+                  attendantEmployeeId: "",
+                }
+              : a,
+          ),
         );
       }
     } catch (err) {
@@ -11381,9 +12778,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setVehicleAssignments((prev) =>
           prev.map((a) =>
             a.attendantId === id || a.attendantName === att.attendantName
-              ? { ...a, attendantId: '', attendantName: 'Unassigned', attendantEmployeeId: '' }
-              : a
-          )
+              ? {
+                  ...a,
+                  attendantId: "",
+                  attendantName: "Unassigned",
+                  attendantEmployeeId: "",
+                }
+              : a,
+          ),
         );
       }
     }
@@ -11451,10 +12853,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         eveningTripTime: va.eveningTripTime || "03:45 PM",
         eveningTrip: va.eveningTripTime || "03:45 PM",
         assignmentDate: new Date().toISOString(),
-        effectiveFrom: va.effectiveFrom ? new Date(va.effectiveFrom).toISOString() : new Date().toISOString(),
-        effectiveFromDate: va.effectiveFrom ? new Date(va.effectiveFrom).toISOString() : new Date().toISOString(),
-        effectiveTo: va.effectiveTo ? new Date(va.effectiveTo).toISOString() : null,
-        status: va.status === "Active" || (va.status as any) === true
+        effectiveFrom: va.effectiveFrom
+          ? new Date(va.effectiveFrom).toISOString()
+          : new Date().toISOString(),
+        effectiveFromDate: va.effectiveFrom
+          ? new Date(va.effectiveFrom).toISOString()
+          : new Date().toISOString(),
+        effectiveTo: va.effectiveTo
+          ? new Date(va.effectiveTo).toISOString()
+          : null,
+        status: va.status === "Active" || (va.status as any) === true,
       };
       const response = await TransportAPI.createVehicleAssignmentApi(
         payload as any,
@@ -11471,7 +12879,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         id,
         branch: effectiveBranch,
         academicYear: effectiveAcademicYear,
-        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || normalizedAssignment.status === 'Active') ? 'Active' : 'Inactive',
+        status:
+          backendData.status === true ||
+          String(backendData.status).toLowerCase() === "true" ||
+          backendData.status === "Active" ||
+          normalizedAssignment.status === "Active"
+            ? "Active"
+            : "Inactive",
       } as any;
       setVehicleAssignments((prev) => [
         ...deactivateConflicts(prev),
@@ -11530,7 +12944,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.driverId = Number(updates.driverId) || 0;
       }
       if (updates.attendantId !== undefined) {
-        payload.attendantId = updates.attendantId ? Number(updates.attendantId) : null;
+        payload.attendantId = updates.attendantId
+          ? Number(updates.attendantId)
+          : null;
       }
       if (updates.routeName !== undefined) {
         payload.selectRoute = updates.routeName;
@@ -11560,14 +12976,21 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.eveningTrip = updates.eveningTripTime;
       }
       if (updates.effectiveFrom !== undefined) {
-        payload.effectiveFrom = updates.effectiveFrom ? new Date(updates.effectiveFrom).toISOString() : new Date().toISOString();
-        payload.effectiveFromDate = updates.effectiveFrom ? new Date(updates.effectiveFrom).toISOString() : new Date().toISOString();
+        payload.effectiveFrom = updates.effectiveFrom
+          ? new Date(updates.effectiveFrom).toISOString()
+          : new Date().toISOString();
+        payload.effectiveFromDate = updates.effectiveFrom
+          ? new Date(updates.effectiveFrom).toISOString()
+          : new Date().toISOString();
       }
       if (updates.effectiveTo !== undefined) {
-        payload.effectiveTo = updates.effectiveTo ? new Date(updates.effectiveTo).toISOString() : null;
+        payload.effectiveTo = updates.effectiveTo
+          ? new Date(updates.effectiveTo).toISOString()
+          : null;
       }
       if (updates.status !== undefined) {
-        payload.status = updates.status === "Active" || (updates.status as any) === true;
+        payload.status =
+          updates.status === "Active" || (updates.status as any) === true;
       }
 
       await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
@@ -11691,15 +13114,23 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         selectFleetVehicle: vm.vehicleNumber || "",
         fleetVehicle: vm.vehicleNumber || "",
         serviceType: vm.serviceType || "",
-        serviceDate: vm.serviceDate ? new Date(vm.serviceDate).toISOString() : new Date().toISOString(),
-        serviceDateString: vm.serviceDate ? new Date(vm.serviceDate).toISOString() : new Date().toISOString(),
+        serviceDate: vm.serviceDate
+          ? new Date(vm.serviceDate).toISOString()
+          : new Date().toISOString(),
+        serviceDateString: vm.serviceDate
+          ? new Date(vm.serviceDate).toISOString()
+          : new Date().toISOString(),
         cost: Number(vm.cost) || 0,
         vendor: vm.vendor || "",
         vendorCenter: vm.vendor || "",
-        nextServiceDue: vm.nextServiceDue ? new Date(vm.nextServiceDue).toISOString() : null,
-        nextServiceDueDate: vm.nextServiceDue ? new Date(vm.nextServiceDue).toISOString() : null,
+        nextServiceDue: vm.nextServiceDue
+          ? new Date(vm.nextServiceDue).toISOString()
+          : null,
+        nextServiceDueDate: vm.nextServiceDue
+          ? new Date(vm.nextServiceDue).toISOString()
+          : null,
         remarks: vm.remarks || "",
-        status: vm.status === "Completed" || (vm.status as any) === true
+        status: vm.status === "Completed" || (vm.status as any) === true,
       };
       const response = await TransportAPI.createMaintenanceApi(payload as any);
       const backendData = (response as any)?.data || response || {};
@@ -11748,8 +13179,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.serviceType = updates.serviceType;
       }
       if (updates.serviceDate !== undefined) {
-        payload.serviceDate = updates.serviceDate ? new Date(updates.serviceDate).toISOString() : new Date().toISOString();
-        payload.serviceDateString = updates.serviceDate ? new Date(updates.serviceDate).toISOString() : new Date().toISOString();
+        payload.serviceDate = updates.serviceDate
+          ? new Date(updates.serviceDate).toISOString()
+          : new Date().toISOString();
+        payload.serviceDateString = updates.serviceDate
+          ? new Date(updates.serviceDate).toISOString()
+          : new Date().toISOString();
       }
       if (updates.cost !== undefined) {
         payload.cost = Number(updates.cost) || 0;
@@ -11759,14 +13194,19 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         payload.vendorCenter = updates.vendor;
       }
       if (updates.nextServiceDue !== undefined) {
-        payload.nextServiceDue = updates.nextServiceDue ? new Date(updates.nextServiceDue).toISOString() : null;
-        payload.nextServiceDueDate = updates.nextServiceDue ? new Date(updates.nextServiceDue).toISOString() : null;
+        payload.nextServiceDue = updates.nextServiceDue
+          ? new Date(updates.nextServiceDue).toISOString()
+          : null;
+        payload.nextServiceDueDate = updates.nextServiceDue
+          ? new Date(updates.nextServiceDue).toISOString()
+          : null;
       }
       if (updates.remarks !== undefined) {
         payload.remarks = updates.remarks;
       }
       if (updates.status !== undefined) {
-        payload.status = updates.status === "Completed" || (updates.status as any) === true;
+        payload.status =
+          updates.status === "Completed" || (updates.status as any) === true;
       }
 
       await TransportAPI.updateMaintenanceApi(id, payload);
@@ -11818,17 +13258,24 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   const getPendingLibraryFineDues = (stId: string): number => {
     try {
-      const s = localStorage.getItem('edu_db_library_fines');
+      const s = localStorage.getItem("edu_db_library_fines");
       if (!s) return 0;
       const fines = JSON.parse(s);
-      const stObj = students.find((st) => st.id === stId || st.admissionNo === stId);
+      const stObj = students.find(
+        (st) => st.id === stId || st.admissionNo === stId,
+      );
       const admNo = stObj?.admissionNo || stId;
-      const stName = stObj ? `${stObj.firstName} ${stObj.lastName}`.toLowerCase() : '';
+      const stName = stObj
+        ? `${stObj.firstName} ${stObj.lastName}`.toLowerCase()
+        : "";
 
       return fines
-        .filter((f: any) =>
-          f.paymentStatus === 'Unpaid' &&
-          (f.memberId === stId || f.memberId === admNo || (stName && (f.memberName || '').toLowerCase() === stName))
+        .filter(
+          (f: any) =>
+            f.paymentStatus === "Unpaid" &&
+            (f.memberId === stId ||
+              f.memberId === admNo ||
+              (stName && (f.memberName || "").toLowerCase() === stName)),
         )
         .reduce((sum: number, f: any) => sum + (f.fineAmount || 0), 0);
     } catch {
@@ -11997,12 +13444,88 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     const activeFineRule =
       fineRules.find((f) => f.status === "Active") || fineRules[0];
-    if (activeFineRule && activeFineRule.dueDate) {
-      const dueTime = new Date(activeFineRule.dueDate).getTime();
-      const nowTime = new Date().getTime();
-      const daysDiff = Math.floor((nowTime - dueTime) / (1000 * 3600 * 24));
-      if (daysDiff > activeFineRule.graceDays) {
-        const overdueDays = daysDiff - activeFineRule.graceDays;
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    const todayMs = new Date().getTime();
+
+    // Dynamically find earliest overdue date among student's pending fee installments & fee items
+    let earliestOverdueDateStr: string | null = null;
+
+    if (ledger && ledger.installments && ledger.installments.length > 0) {
+      const overdueInsts = ledger.installments.filter(
+        (inst) =>
+          (inst.dueAmount ?? inst.amount) > 0 &&
+          inst.dueDate &&
+          inst.dueDate < todayStr,
+      );
+      if (overdueInsts.length > 0) {
+        const sorted = [...overdueInsts].sort((a, b) =>
+          a.dueDate.localeCompare(b.dueDate),
+        );
+        earliestOverdueDateStr = sorted[0].dueDate;
+      }
+    }
+
+    if (!earliestOverdueDateStr && ledger && ledger.feeItems) {
+      const overdueItems = ledger.feeItems.filter(
+        (item) =>
+          item.isApplicable &&
+          item.finalAmount > 0 &&
+          (item as any).dueDate &&
+          (item as any).dueDate < todayStr,
+      );
+      if (overdueItems.length > 0) {
+        const sorted = [...overdueItems].sort((a, b) =>
+          ((a as any).dueDate as string).localeCompare(
+            (b as any).dueDate as string,
+          ),
+        );
+        earliestOverdueDateStr = (sorted[0] as any).dueDate;
+      }
+    }
+
+    if (!earliestOverdueDateStr && studentFeeInstallments) {
+      const pendingInsts = studentFeeInstallments.filter(
+        (inst) =>
+          inst.studentId === studentId &&
+          (inst.dueAmount ?? inst.amount) > 0 &&
+          inst.dueDate &&
+          inst.dueDate < todayStr,
+      );
+      if (pendingInsts.length > 0) {
+        const sorted = [...pendingInsts].sort((a, b) =>
+          a.dueDate.localeCompare(b.dueDate),
+        );
+        earliestOverdueDateStr = sorted[0].dueDate;
+      }
+    }
+
+    if (!earliestOverdueDateStr) {
+      if (
+        activeFineRule &&
+        activeFineRule.dueDate &&
+        activeFineRule.dueDate < todayStr
+      ) {
+        earliestOverdueDateStr = activeFineRule.dueDate;
+      } else if (todayStr > "2026-04-15") {
+        earliestOverdueDateStr = "2026-04-15";
+      }
+    }
+
+    if (
+      activeFineRule &&
+      earliestOverdueDateStr &&
+      earliestOverdueDateStr < todayStr
+    ) {
+      const graceDays = activeFineRule.graceDays ?? 5;
+      const dueMs = new Date(earliestOverdueDateStr).getTime();
+      const daysDiff = Math.max(
+        0,
+        Math.floor((todayMs - dueMs) / (1000 * 3600 * 24)),
+      );
+
+      if (daysDiff > graceDays) {
+        const overdueDays = daysDiff - graceDays;
         if (activeFineRule.fineType === "Daily Fine") {
           fineAmount = overdueDays * (activeFineRule.dailyFine || 50);
         } else {
@@ -12015,7 +13538,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           fineAmount = activeFineRule.maximumFine;
         }
         fineDetails = {
-          ruleName: activeFineRule.ruleName,
+          ruleName: activeFineRule.ruleName || "Late Fee",
           daysOverdue: overdueDays,
           amount: fineAmount,
         };
@@ -12037,7 +13560,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     const gross = ledger
       ? (ledger.grossAmount || ledger.totalOriginalAmount) + pendingLibraryFines
-      : baseFee + transportFee + hostelFee + pendingUniformExtras + pendingLibraryFines;
+      : baseFee +
+        transportFee +
+        hostelFee +
+        pendingUniformExtras +
+        pendingLibraryFines;
     const sch = ledger ? ledger.scholarshipAmount || 0 : scholarshipDeduction;
     const disc = ledger ? ledger.discountAmount || 0 : discountDeduction;
     const totalPayable = Math.max(0, gross + fineAmount - sch - disc);
@@ -12427,29 +13954,36 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   );
 
   const fetchTodayStudentAttendanceSummary = useCallback(async () => {
-    if (activeRequests.current['today-attendance-summary']) {
-      return activeRequests.current['today-attendance-summary'];
+    if (activeRequests.current["today-attendance-summary"]) {
+      return activeRequests.current["today-attendance-summary"];
     }
     const promise = (async () => {
       try {
         const todayStr = new Date().toLocaleDateString("en-CA");
         const response = await fetchStudentAttendanceRegisterApi({
           filterType: "day",
-          date: todayStr
+          date: todayStr,
         }).catch((e) => {
-          console.warn("Student attendance API offline/unavailable, using local summary fallback.");
+          console.warn(
+            "Student attendance API offline/unavailable, using local summary fallback.",
+          );
           return null;
         });
-        if (response && response.success && response.data && response.data.summary) {
+        if (
+          response &&
+          response.success &&
+          response.data &&
+          response.data.summary
+        ) {
           setTodayStudentAttendanceSummary(response.data.summary);
         }
       } catch (err) {
         // Suppress unhandled rejection
       } finally {
-        delete activeRequests.current['today-attendance-summary'];
+        delete activeRequests.current["today-attendance-summary"];
       }
     })();
-    activeRequests.current['today-attendance-summary'] = promise;
+    activeRequests.current["today-attendance-summary"] = promise;
     return promise;
   }, []);
 
@@ -12684,27 +14218,40 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     scheduleMeetingApi({
       meetingTitle: newMeeting.title,
       meetingAudience: newMeeting.meetingAudience,
-      participantType: newMeeting.participantType || (newMeeting.participants?.[0]?.type) || "Parent",
-      participantName: newMeeting.participants?.[0]?.name || newMeeting.targetGroupDescription || "Participant",
-      participantPhone: (newMeeting.participants?.[0] as any)?.phone || "9876543210",
-      wardStudentName: (newMeeting.participants?.[0] as any)?.wardName || (newMeeting.participants?.[0] as any)?.studentName || "",
+      participantType:
+        newMeeting.participantType ||
+        newMeeting.participants?.[0]?.type ||
+        "Parent",
+      participantName:
+        newMeeting.participants?.[0]?.name ||
+        newMeeting.targetGroupDescription ||
+        "Participant",
+      participantPhone:
+        (newMeeting.participants?.[0] as any)?.phone || "9876543210",
+      wardStudentName:
+        (newMeeting.participants?.[0] as any)?.wardName ||
+        (newMeeting.participants?.[0] as any)?.studentName ||
+        "",
       wardAdmissionNo: (newMeeting.participants?.[0] as any)?.admissionNo || "",
       wardClass: (newMeeting.participants?.[0] as any)?.className || "",
       agenda: newMeeting.description,
       meetingMode: newMeeting.mode,
       building: newMeeting.building || "Academic Block A",
       floor: newMeeting.floor || "1st Floor",
-      meetingRoom: newMeeting.roomVenue || newMeeting.venue || "Conference Room 102",
+      meetingRoom:
+        newMeeting.roomVenue || newMeeting.venue || "Conference Room 102",
       roomCapacity: newMeeting.roomCapacity || 15,
       onlineMeetingUrl: newMeeting.onlineMeetingUrl || "",
       meetingDate: newMeeting.date,
       startTime: newMeeting.startTime,
       endTime: newMeeting.endTime,
-      meetingStatus: newMeeting.status ? newMeeting.status.toUpperCase() : "SCHEDULED",
+      meetingStatus: newMeeting.status
+        ? newMeeting.status.toUpperCase()
+        : "SCHEDULED",
       priority: newMeeting.priority || "Normal",
       attendancePolicy: newMeeting.attendanceRequired || "Mandatory",
       recurrence: newMeeting.recurrence || "None (One-time)",
-      totalRecipients: newMeeting.participants?.length || 1
+      totalRecipients: newMeeting.participants?.length || 1,
     }).catch((e) => console.warn("API scheduleMeeting error:", e));
 
     if (newMeeting.status === "Scheduled") {
@@ -12733,10 +14280,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       updateMeetingApi(numericId, {
         meetingTitle: updates.title,
         meetingAudience: updates.meetingAudience,
-        participantType: updates.participantType || (updates.participants?.[0]?.type),
-        participantName: updates.participants?.[0]?.name || updates.targetGroupDescription,
+        participantType:
+          updates.participantType || updates.participants?.[0]?.type,
+        participantName:
+          updates.participants?.[0]?.name || updates.targetGroupDescription,
         participantPhone: (updates.participants?.[0] as any)?.phone,
-        wardStudentName: (updates.participants?.[0] as any)?.wardName || (updates.participants?.[0] as any)?.studentName,
+        wardStudentName:
+          (updates.participants?.[0] as any)?.wardName ||
+          (updates.participants?.[0] as any)?.studentName,
         wardAdmissionNo: (updates.participants?.[0] as any)?.admissionNo,
         wardClass: (updates.participants?.[0] as any)?.className,
         agenda: updates.description,
@@ -12749,11 +14300,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         meetingDate: updates.date,
         startTime: updates.startTime,
         endTime: updates.endTime,
-        meetingStatus: updates.status ? updates.status.toUpperCase() : undefined,
+        meetingStatus: updates.status
+          ? updates.status.toUpperCase()
+          : undefined,
         priority: updates.priority,
         attendancePolicy: updates.attendanceRequired,
         recurrence: updates.recurrence,
-        totalRecipients: updates.participants?.length
+        totalRecipients: updates.participants?.length,
       }).catch((e) => console.warn("API updateMeeting error:", e));
     }
 
@@ -12768,14 +14321,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           : m,
       ),
     );
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      updateMeetingApi(numericId, { meetingStatus: "CANCELLED" }).catch((e) =>
-        console.warn("API cancelMeeting error:", e),
-      );
-    }
-
     logActivity(
       "Cancelled Meeting",
       `Cancelled meeting ID ${id}. Reason: ${reason}`,
@@ -12784,15 +14329,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   const deleteMeeting = (id: string) => {
     setMeetings((prev) => prev.filter((m) => m.id !== id));
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      deleteMeetingApi(numericId).catch((e) =>
-        console.warn("API deleteMeeting error:", e),
-      );
-    }
-
-    logActivity("Deleted Meeting", `Permanently removed meeting ID ${id}`);
+    logActivity("Deleted Meeting", `Removed meeting record ID ${id}`);
   };
 
   const addDepartment = (deptData: Omit<Department, "id">): Department => {
@@ -12801,7 +14338,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       ...deptData,
       id,
     };
-    
+
     createDepartmentApi({
       departmentName: newDept.departmentName,
       departmentCode: newDept.departmentCode || "",
@@ -12882,7 +14419,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       ...designationData,
       id,
     };
-    
+
     createDesignationApi({
       designationName: newDesignation.designationName,
       status: newDesignation.status,
@@ -12914,7 +14451,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   ) => {
     const oldDesig = designations.find((d) => d.id === id);
     const numericId = parseInt(id, 10);
-    
+
     if (!isNaN(numericId) && oldDesig) {
       const fullDesig = { ...oldDesig, ...updates };
       updateDesignationApi(numericId, {
@@ -13156,9 +14693,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const addBook = (bookData: Omit<BookItem, "id"> & { id?: string }) => {
     setBooks((prev) => {
       if (bookData.id && prev.some((b) => b.id === bookData.id)) {
-        return prev.map((b) => (b.id === bookData.id ? { ...b, ...bookData } : b));
+        return prev.map((b) =>
+          b.id === bookData.id ? { ...b, ...bookData } : b,
+        );
       }
-      const id = bookData.id || ("BK-" + Math.floor(100 + Math.random() * 900));
+      const id = bookData.id || "BK-" + Math.floor(100 + Math.random() * 900);
       const newBook: BookItem = { ...bookData, id };
       return [newBook, ...prev];
     });
@@ -13243,7 +14782,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       isPinned: (newAnn as any).isPinned || false,
       smsSent: true,
       emailSent: true,
-      pushDelivered: true
+      pushDelivered: true,
     }).catch((e) => console.warn("API createNotification error:", e));
 
     logActivity("Published Announcement", `Posted: ${newAnn.title}`);
@@ -13326,16 +14865,28 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const deleteUniformCategory = (id: string) => {
     setUniformCategories((prev) => {
       const targetCat = prev.find((c) => c.id === id);
-      const targetName = (targetCat?.name || (targetCat as any)?.categoryName || '').toLowerCase().trim();
+      const targetName = (
+        targetCat?.name ||
+        (targetCat as any)?.categoryName ||
+        ""
+      )
+        .toLowerCase()
+        .trim();
       const updatedCats = prev.filter((c) => c.id !== id);
       try {
-        localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
+        localStorage.setItem(
+          "edu_db_uniform_categories",
+          JSON.stringify(updatedCats),
+        );
         localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
       } catch (e) {}
 
       if (targetName) {
         setUniforms((prevU) => {
-          const updatedU = prevU.filter((u) => (u.category || u.name || '').toLowerCase().trim() !== targetName);
+          const updatedU = prevU.filter(
+            (u) =>
+              (u.category || u.name || "").toLowerCase().trim() !== targetName,
+          );
           try {
             localStorage.setItem("edu_db_uniforms", JSON.stringify(updatedU));
           } catch (e) {}
@@ -13343,9 +14894,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         });
 
         setUniformInventory((prevInv) => {
-          const updatedInv = prevInv.filter((inv) => (inv.itemName || inv.category || '').toLowerCase().trim() !== targetName);
+          const updatedInv = prevInv.filter(
+            (inv) =>
+              (inv.itemName || inv.category || "").toLowerCase().trim() !==
+              targetName,
+          );
           try {
-            localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(updatedInv));
+            localStorage.setItem(
+              "edu_db_uniform_inventory",
+              JSON.stringify(updatedInv),
+            );
           } catch (e) {}
           return updatedInv;
         });
@@ -13467,8 +15025,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     // Reduce stock if issued
     if (issueData.status === "Issued" || issueData.status === "Replaced") {
       const issueItemName = (issueData.itemName || "")
-        .replace(/\(extra\)/gi, '')
-        .replace(/\(extra purchase\)/gi, '')
+        .replace(/\(extra\)/gi, "")
+        .replace(/\(extra purchase\)/gi, "")
         .toLowerCase()
         .trim();
       let calculatedNewStock: number | null = null;
@@ -13484,7 +15042,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           idx = prevInv.findIndex((i) => {
             const itemCat = (i.category || "").toLowerCase().trim();
             const itemName = (i.itemName || "").toLowerCase().trim();
-            return itemName === issueItemName || itemCat === issueItemName || itemName.includes(issueItemName) || issueItemName.includes(itemName);
+            return (
+              itemName === issueItemName ||
+              itemCat === issueItemName ||
+              itemName.includes(issueItemName) ||
+              issueItemName.includes(itemName)
+            );
           });
         }
         if (idx === -1) return prevInv;
@@ -13518,7 +15081,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           idx = prevU.findIndex((u) => {
             const uCat = (u.category || "").toLowerCase().trim();
             const uName = (u.name || "").toLowerCase().trim();
-            return uCat === issueItemName || uName === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
+            return (
+              uCat === issueItemName ||
+              uName === issueItemName ||
+              uCat.includes(issueItemName) ||
+              issueItemName.includes(uCat)
+            );
           });
         }
         if (idx === -1) return prevU;
@@ -13543,9 +15111,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     setStudentUniformIssues((prev) => [newIssue, ...prev]);
     try {
-      const stored = localStorage.getItem("edu_db_student_uniform_issues") || "[]";
+      const stored =
+        localStorage.getItem("edu_db_student_uniform_issues") || "[]";
       const parsed = JSON.parse(stored);
-      localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([newIssue, ...parsed]));
+      localStorage.setItem(
+        "edu_db_student_uniform_issues",
+        JSON.stringify([newIssue, ...parsed]),
+      );
     } catch (e) {}
   };
 
@@ -13756,19 +15328,27 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     setDynamicFeeStructures((prevDfs) => {
       const targetLower = config.className.toLowerCase().trim();
-      const targetDigits = targetLower.replace(/\D/g, '');
-      const cleanTarget = targetLower.replace(/[^a-z0-9]/g, '');
+      const targetDigits = targetLower.replace(/\D/g, "");
+      const cleanTarget = targetLower.replace(/[^a-z0-9]/g, "");
 
       const existingDfs = prevDfs.find((d) => {
         if (!d || !d.className) return false;
         const dLower = d.className.toLowerCase().trim();
         if (dLower === targetLower) return true;
-        if (targetLower.includes(dLower) || dLower.includes(targetLower)) return true;
+        if (targetLower.includes(dLower) || dLower.includes(targetLower))
+          return true;
 
-        const cleanD = dLower.replace(/[^a-z0-9]/g, '');
-        if (cleanTarget && cleanD && (cleanTarget === cleanD || cleanTarget.includes(cleanD) || cleanD.includes(cleanTarget))) return true;
+        const cleanD = dLower.replace(/[^a-z0-9]/g, "");
+        if (
+          cleanTarget &&
+          cleanD &&
+          (cleanTarget === cleanD ||
+            cleanTarget.includes(cleanD) ||
+            cleanD.includes(cleanTarget))
+        )
+          return true;
 
-        const dDigits = dLower.replace(/\D/g, '');
+        const dDigits = dLower.replace(/\D/g, "");
         if (targetDigits && dDigits && targetDigits === dDigits) return true;
 
         return false;
@@ -13779,14 +15359,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       if (existingDfs) {
         let hasItem = false;
         const updatedItems = (existingDfs.items || []).map((item) => {
-          const lowerHead = (item.feeHeadName || '').toLowerCase();
+          const lowerHead = (item.feeHeadName || "").toLowerCase();
           if (
             lowerHead.includes("uniform") ||
             lowerHead.includes("kit") ||
             lowerHead.includes("accessories")
           ) {
             hasItem = true;
-            return { ...item, amount: Number(config.feeAmount), feeHeadName: feeItemName };
+            return {
+              ...item,
+              amount: Number(config.feeAmount),
+              feeHeadName: feeItemName,
+            };
           }
           return item;
         });
@@ -13803,7 +15387,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         }
 
         return prevDfs.map((d) =>
-          d.id === existingDfs.id ? { ...d, items: updatedItems } : d
+          d.id === existingDfs.id ? { ...d, items: updatedItems } : d,
         );
       } else {
         const newDfs: DynamicFeeStructure = {
@@ -13836,19 +15420,26 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       id: "FUC-" + Date.now(),
       branch: cData.branch || selectedBranch || "Main Campus",
       academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
-      status: "Active"
+      status: "Active",
     };
 
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
-      const filtered = current.filter(c => 
-        !(c.className?.toLowerCase() === (newConfig.className || '').toLowerCase() &&
-          c.gender === newConfig.gender &&
-          c.uniformPackage === newConfig.uniformPackage)
+      const filtered = current.filter(
+        (c) =>
+          !(
+            c.className?.toLowerCase() ===
+              (newConfig.className || "").toLowerCase() &&
+            c.gender === newConfig.gender &&
+            c.uniformPackage === newConfig.uniformPackage
+          ),
       );
       const updated = [newConfig, ...filtered];
       try {
-        localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_finance_uniform_configs",
+          JSON.stringify(updated),
+        );
       } catch (e) {}
       return updated;
     });
@@ -13858,7 +15449,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   const updateFinanceUniformConfig = (
     id: string,
-    updates: Partial<FinanceUniformConfig>
+    updates: Partial<FinanceUniformConfig>,
   ) => {
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
@@ -13871,7 +15462,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         return c;
       });
       try {
-        localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_finance_uniform_configs",
+          JSON.stringify(updated),
+        );
       } catch (e) {}
       return updated;
     });
@@ -13882,7 +15476,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       const current = Array.isArray(prev) ? prev : [];
       const updated = current.filter((c) => c.id !== id);
       try {
-        localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_finance_uniform_configs",
+          JSON.stringify(updated),
+        );
       } catch (e) {}
       return updated;
     });
@@ -13912,15 +15509,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const fetchLeaveApplications = async () => {
-    if (activeRequests.current['leave-applications']) {
-      return activeRequests.current['leave-applications'];
+    if (activeRequests.current["leave-applications"]) {
+      return activeRequests.current["leave-applications"];
     }
     const promise = (async () => {
       try {
         const response = await fetchLeaveApplicationsApi();
         if (response && response.success && response.data) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
-            id: item.leaveApplicationId?.toString() || item.id?.toString() || "",
+            id:
+              item.leaveApplicationId?.toString() || item.id?.toString() || "",
             employeeId: item.staffId?.toString() || item.id?.toString() || "",
             employeeName: item.staffName,
             empId: item.empId || item.employeeId,
@@ -13947,10 +15545,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       } catch (err) {
         console.warn("Failed to fetch leave applications from API", err);
       } finally {
-        delete activeRequests.current['leave-applications'];
+        delete activeRequests.current["leave-applications"];
       }
     })();
-    activeRequests.current['leave-applications'] = promise;
+    activeRequests.current["leave-applications"] = promise;
     return promise;
   };
 
@@ -14072,44 +15670,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   // Holiday CRUD
   const addHoliday = (hData: Omit<Holiday, "id">) => {
     const id = "HOL-" + Math.floor(100 + Math.random() * 900);
-    const newHoliday = { ...hData, id, branch: hData.branch || selectedBranch || "Main Campus" };
-    setHolidays((prev) => [...prev, newHoliday]);
-
-    createHolidayApi({
-      holidayName: hData.name,
-      holidayType: (hData.type || "Gazetted").toUpperCase(),
-      startDate: hData.startDate,
-      endDate: hData.endDate,
-      description: hData.description,
-    }).catch((e) => console.warn("API createHoliday error:", e));
+    setHolidays((prev) => [
+      ...prev,
+      { ...hData, id, branch: hData.branch || selectedBranch || "Main Campus" },
+    ]);
   };
-
   const updateHoliday = (id: string, updates: Partial<Holiday>) => {
     setHolidays((prev) =>
       prev.map((h) => (h.id === id ? { ...h, ...updates } : h)),
     );
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      updateHolidayApi(numericId, {
-        holidayName: updates.name,
-        holidayType: updates.type ? updates.type.toUpperCase() : undefined,
-        startDate: updates.startDate,
-        endDate: updates.endDate,
-        description: updates.description,
-      }).catch((e) => console.warn("API updateHoliday error:", e));
-    }
   };
-
   const deleteHoliday = (id: string) => {
     setHolidays((prev) => prev.filter((h) => h.id !== id));
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      deleteHolidayApi(numericId).catch((e) =>
-        console.warn("API deleteHoliday error:", e),
-      );
-    }
   };
 
   // School Events CRUD
@@ -14123,19 +15695,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       updatedAt: new Date().toISOString().split("T")[0],
     };
     setSchoolEvents((prev) => [newEvent, ...prev]);
-
-    createSchoolEventApi({
-      title: newEvent.title,
-      category: newEvent.category,
-      venue: newEvent.venue,
-      startDate: newEvent.startDate,
-      endDate: newEvent.endDate,
-      time: newEvent.time,
-      organizer: newEvent.organizer,
-      description: newEvent.description,
-      status: newEvent.status,
-    }).catch((e) => console.warn("API createSchoolEvent error:", e));
-
     logActivity(
       "Created School Event",
       `Scheduled event ${newEvent.title} on ${newEvent.startDate}`,
@@ -14155,35 +15714,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           : e,
       ),
     );
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      updateSchoolEventApi(numericId, {
-        title: updates.title,
-        category: updates.category,
-        venue: updates.venue,
-        startDate: updates.startDate,
-        endDate: updates.endDate,
-        time: updates.time,
-        organizer: updates.organizer,
-        description: updates.description,
-        status: updates.status,
-      }).catch((e) => console.warn("API updateSchoolEvent error:", e));
-    }
-
     logActivity("Updated School Event", `Updated event ID ${id}`);
   };
 
   const deleteSchoolEvent = (id: string) => {
     setSchoolEvents((prev) => prev.filter((e) => e.id !== id));
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      deleteSchoolEventApi(numericId).catch((e) =>
-        console.warn("API deleteSchoolEvent error:", e),
-      );
-    }
-
     logActivity("Deleted School Event", `Removed event ID ${id}`);
   };
 
@@ -14200,21 +15735,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       createdAt: new Date().toISOString().split("T")[0],
     };
     setWorkshops((prev) => [newWorkshop, ...prev]);
-
-    createWorkshopApi({
-      title: newWorkshop.workshopName,
-      category: newWorkshop.category,
-      trainerName: newWorkshop.trainerName,
-      organization: newWorkshop.organization,
-      venue: newWorkshop.venue,
-      startDate: newWorkshop.startDate,
-      endDate: newWorkshop.endDate,
-      startTime: newWorkshop.startTime,
-      endTime: newWorkshop.endTime,
-      branch: newWorkshop.branch,
-      department: newWorkshop.department,
-      description: newWorkshop.description,
-    }).catch((e) => console.warn("API createWorkshop error:", e));
 
     // Automatically Sync to Academic Calendar
     addSchoolEvent({
@@ -14244,32 +15764,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setWorkshops((prev) =>
       prev.map((w) => (w.id === id ? { ...w, ...updates } : w)),
     );
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      updateWorkshopApi(numericId, {
-        title: updates.workshopName,
-        category: updates.category,
-        venue: updates.venue,
-        startDate: updates.startDate,
-        endDate: updates.endDate,
-        description: updates.description,
-      }).catch((e) => console.warn("API updateWorkshop error:", e));
-    }
-
     logActivity("Updated Workshop", `Updated workshop ID ${id}`);
   };
 
   const deleteWorkshop = (id: string) => {
     setWorkshops((prev) => prev.filter((w) => w.id !== id));
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      deleteWorkshopApi(numericId).catch((e) =>
-        console.warn("API deleteWorkshop error:", e),
-      );
-    }
-
     logActivity("Deleted Workshop", `Removed workshop ID ${id}`);
   };
 
@@ -14302,16 +15801,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         };
       }),
     );
-
-    const numericId = parseInt(workshopId.replace(/\D/g, ""), 10);
-    if (numericId) {
-      recordWorkshopAttendanceApi(numericId, {
-        attendances: attendanceList.map((a) => ({
-          staffId: parseInt(a.employeeId.replace(/\D/g, ""), 10) || 1,
-          status: a.status,
-        })),
-      }).catch((e) => console.warn("API recordWorkshopAttendance error:", e));
-    }
   };
 
   const submitWorkshopFeedback = (
@@ -14345,19 +15834,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     };
     setEmployeeAssessments((prev) => [newAssessment, ...prev]);
 
-    createAssessmentApi({
-      assessmentName: newAssessment.assessmentName,
-      assessmentType: newAssessment.assessmentType,
-      assessmentCategory: newAssessment.assessmentType || "Knowledge",
-      totalMarks: newAssessment.totalMarks || 100,
-      passingMarks: newAssessment.passingMarks || 40,
-      gradingScheme: "Letter Grade (A+, A, B, C, F)",
-      scheduledDate: newAssessment.date,
-      mainEvaluator: newAssessment.evaluatorName,
-      departmentFilter: newAssessment.department,
-      status: newAssessment.status,
-    }).catch((e) => console.warn("API createAssessment error:", e));
-
     // Automatically Sync to Academic Calendar
     addSchoolEvent({
       title: `[Assessment] ${newAssessment.assessmentName}`,
@@ -14389,32 +15865,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setEmployeeAssessments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
     );
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      updateAssessmentApi(numericId, {
-        assessmentName: updates.assessmentName,
-        assessmentType: updates.assessmentType,
-        totalMarks: updates.totalMarks,
-        passingMarks: updates.passingMarks,
-        mainEvaluator: updates.evaluatorName,
-        status: updates.status,
-      }).catch((e) => console.warn("API updateAssessment error:", e));
-    }
-
     logActivity("Updated Assessment", `Updated assessment ID ${id}`);
   };
 
   const deleteAssessment = (id: string) => {
     setEmployeeAssessments((prev) => prev.filter((a) => a.id !== id));
-
-    const numericId = parseInt(id.replace(/\D/g, ""), 10);
-    if (numericId) {
-      deleteAssessmentApi(numericId).catch((e) =>
-        console.warn("API deleteAssessment error:", e),
-      );
-    }
-
     logActivity("Deleted Assessment", `Removed assessment ID ${id}`);
   };
 
@@ -14428,18 +15883,6 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         return { ...a, results, status: "Evaluated" };
       }),
     );
-
-    const numericAssessmentId = parseInt(assessmentId.replace(/\D/g, ""), 10);
-    if (numericAssessmentId) {
-      results.forEach((res) => {
-        const numericStaffId = parseInt(res.employeeId.replace(/\D/g, ""), 10) || 1;
-        gradeAssessmentCandidateApi(numericAssessmentId, {
-          staffId: numericStaffId,
-          score: res.score,
-          remarks: res.result,
-        }).catch((e) => console.warn("API gradeAssessmentCandidate error:", e));
-      });
-    }
 
     // Auto issue certificates for passing candidates
     const targetAssessment = employeeAssessments.find(
@@ -14893,7 +16336,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     const branchFiltered = filterByBranch(students);
     const enrolledRegNos = new Set(
       admissions
-        .filter((a) => a.status === "Enrolled" || (a.status as string) === "enrolled")
+        .filter(
+          (a) => a.status === "Enrolled" || (a.status as string) === "enrolled",
+        )
         .map((a) =>
           (a.registrationNo || a.applicationNo || "").trim().toLowerCase(),
         )
@@ -14938,10 +16383,23 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const filteredUniformSizes = filterByBranch(uniformSizes);
   const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
   const filteredUniformInventory = filterByBranch(uniformInventory);
-  const filteredStudentUniformIssues = filterByBranch(studentUniformIssues).filter(i => {
-    const name = (i?.studentName || '').toLowerCase();
-    const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
-    const isDummy = name.includes('fahim') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+  const filteredStudentUniformIssues = filterByBranch(
+    studentUniformIssues,
+  ).filter((i) => {
+    const name = (i?.studentName || "").toLowerCase();
+    const adm = (i?.admissionNo || i?.studentId || "").toUpperCase();
+    const isDummy =
+      name.includes("fahim") ||
+      name.includes("mahesh") ||
+      name.includes("alexander") ||
+      name.includes("wright") ||
+      name.includes("rahul") ||
+      name.includes("kiriti") ||
+      name.includes("kiran") ||
+      (name.includes("vishnu") && name.includes("n")) ||
+      adm === "ADM-2026-001" ||
+      adm === "REG-1022" ||
+      adm === "REG-1021";
     return !isDummy;
   });
   const filteredFinanceUniformConfigs = filterByBranch(financeUniformConfigs);

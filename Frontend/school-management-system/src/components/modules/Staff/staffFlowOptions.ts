@@ -404,45 +404,21 @@ export function getDepartmentOptions(
   staffTypeCategory?: string,
   settingsDepts?: any[],
 ): string[] {
+  if (!settingsDepts || settingsDepts.length === 0) return [];
   const staffType = normalizeStaffType(staffTypeCategory);
-  const defaultList = staffTypeDepartmentMap[staffType] || [];
+  
+  return settingsDepts
+    .filter((d) => {
+      const name = typeof d === "string" ? d : d.name || d.departmentName;
+      if (!name) return false;
 
-  let customDepts: string[] = [];
-  if (settingsDepts && settingsDepts.length > 0) {
-    customDepts = settingsDepts
-      .filter((d) => {
-        const name = typeof d === "string" ? d : d.name || d.departmentName;
-        if (!name) return false;
+      const status = typeof d === "object" ? d.status : "Active";
+      if (status === "Inactive") return false;
 
-        const status = typeof d === "object" ? d.status : "Active";
-        if (status === "Inactive") return false;
-
-        const targetType =
-          typeof d === "object" ? d.staffType || d.employeeCategory : null;
-        if (targetType && targetType !== "All" && targetType !== "Both") {
-          return normalizeStaffType(targetType) === staffType;
-        }
-
-        if (staffType === "Teaching Staff") {
-          return !nonTeachingDeptNames.has(name);
-        } else {
-          return !teachingDeptNames.has(name);
-        }
-      })
-      .map((d) => (typeof d === "string" ? d : d.name || d.departmentName));
-  }
-
-  let combined = Array.from(new Set([...defaultList, ...customDepts])).filter(
-    Boolean,
-  );
-
-  if (staffType === "Teaching Staff") {
-    combined = combined.filter((dept) => !nonTeachingDeptNames.has(dept));
-  } else {
-    combined = combined.filter((dept) => !teachingDeptNames.has(dept));
-  }
-
-  return combined;
+      return true;
+    })
+    .map((d) => (typeof d === "string" ? d : d.name || d.departmentName))
+    .filter(Boolean);
 }
 
 export function getDepartmentCode(name: string, customCode?: string): string {
@@ -612,66 +588,39 @@ export function getDesignationOptions(
   selectedDepartment?: string,
   settingsDesignations?: any[],
 ): string[] {
+  if (!settingsDesignations || settingsDesignations.length === 0) return [];
   const staffType = normalizeStaffType(staffTypeCategory);
-  const staffTypeDesignations = staffTypeDesignationMap[staffType] || [];
 
-  let baseList = staffTypeDesignations;
-  if (selectedDepartment && departmentDesignationMap[selectedDepartment]) {
-    baseList = departmentDesignationMap[selectedDepartment];
-  }
+  return settingsDesignations
+    .filter((d) => {
+      const name = typeof d === "string" ? d : d.designationName || d.name;
+      if (!name) return false;
+      const status = typeof d === "object" ? d.status : "Active";
+      if (status === "Inactive") return false;
 
-  let customDesignations: string[] = [];
-  if (settingsDesignations && settingsDesignations.length > 0) {
-    customDesignations = settingsDesignations
-      .filter((d) => {
-        const name = typeof d === "string" ? d : d.designationName || d.name;
-        if (!name) return false;
-        const status = typeof d === "object" ? d.status : "Active";
-        if (status === "Inactive") return false;
+      // Filter by staff type category (Teaching vs Non-Teaching)
+      const targetCategory = typeof d === "object" ? d.staffType || d.employeeCategory || 'Both' : 'Both';
+      if (targetCategory !== "Both" && targetCategory !== "All") {
+        const isTeachingCat = targetCategory.toLowerCase().includes('teach') || targetCategory.toLowerCase().includes('teacher');
+        const isTeachingStaff = staffType === "Teaching Staff";
+        if (isTeachingStaff !== isTeachingCat) return false;
+      }
 
-        const targetCategory =
-          typeof d === "object" ? d.staffType || d.employeeCategory : null;
-        if (
-          targetCategory &&
-          targetCategory !== "Both" &&
-          targetCategory !== "All" &&
-          normalizeStaffType(targetCategory) !== staffType
-        ) {
-          return false;
-        }
+      // Filter by selected department if provided
+      const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
+      if (
+        selectedDepartment &&
+        targetDept &&
+        targetDept !== "All" &&
+        targetDept !== "Both" &&
+        targetDept.toLowerCase() !== selectedDepartment.toLowerCase()
+      ) {
+        return false;
+      }
 
-        const targetDept = typeof d === "object" ? d.department : null;
-        if (
-          selectedDepartment &&
-          targetDept &&
-          targetDept !== selectedDepartment &&
-          targetDept !== "All"
-        ) {
-          return false;
-        }
-
-        if (staffType === "Teaching Staff") {
-          return !nonTeachingDesignationNames.has(name);
-        } else {
-          return !teachingDesignationNames.has(name);
-        }
-      })
-      .map((d) => (typeof d === "string" ? d : d.designationName || d.name));
-  }
-
-  let combined = Array.from(
-    new Set([...baseList, ...customDesignations]),
-  ).filter(Boolean);
-
-  if (staffType === "Teaching Staff") {
-    combined = combined.filter(
-      (desig) => !nonTeachingDesignationNames.has(desig),
-    );
-  } else {
-    combined = combined.filter((desig) => !teachingDesignationNames.has(desig));
-  }
-
-  return combined;
+      return true;
+    })
+    .map((d) => (typeof d === "string" ? d : d.designationName || d.name));
 }
 
 export interface DocumentRequirementSlot {
@@ -768,6 +717,7 @@ export interface BasicStaffFormState {
   city: string;
   state: string;
   pinCode: string;
+  country: string;
 
   // SECTION 2: EMPLOYMENT DETAILS
   branch: string;
@@ -820,6 +770,7 @@ export const defaultBasicStaffFormState = (
   city: "",
   state: "",
   pinCode: "",
+  country: "India",
 
   branch: "Main Campus",
   department: "",
@@ -852,10 +803,25 @@ export function calculateExperienceYearsMonths(
 
   let years = end.getFullYear() - start.getFullYear();
   let months = end.getMonth() - start.getMonth();
+  let days = end.getDate() - start.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+
   if (months < 0) {
     years -= 1;
     months += 12;
   }
+
+  if (years === 0 && months === 0) {
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return `${diffDays} Day${diffDays !== 1 ? "s" : ""}`;
+  }
+
   return `${years} Year${years !== 1 ? "s" : ""} ${months} Month${months !== 1 ? "s" : ""}`;
 }
 
@@ -932,8 +898,10 @@ export function buildBasicStaffCreatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
+    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
     gender: form.gender || "Male",
     dob: form.dob || "",
+    bloodGroup: form.bloodGroup,
     joiningDate: form.joiningDate,
     qualification: formattedQual,
     experienceYears: Math.round(expYears * 10) / 10,
@@ -943,6 +911,14 @@ export function buildBasicStaffCreatePayload(
       form.photoUrl ||
       "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80",
     address: form.presentAddress || "",
+    presentAddress: form.presentAddress || "",
+    permanentAddress: form.permanentAddress || "",
+    city: form.city || "",
+    state: form.state || "",
+    pinCode: form.pinCode || "",
+    country: form.country ? form.country.trim() : "",
+    aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",
@@ -1002,12 +978,22 @@ export function buildBasicStaffUpdatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
+    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
     gender: form.gender,
     dob: form.dob,
+    bloodGroup: form.bloodGroup,
     joiningDate: form.joiningDate,
     status: form.status === "Active" ? "Active" : "Inactive",
     employmentType: form.employmentType || "Full-Time",
     address: form.presentAddress,
+    presentAddress: form.presentAddress,
+    permanentAddress: form.permanentAddress,
+    city: form.city,
+    state: form.state,
+    pinCode: form.pinCode,
+    country: form.country ? form.country.trim() : "",
+    aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",

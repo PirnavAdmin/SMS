@@ -27,8 +27,10 @@ import {
   BookOpen,
   Heart,
   Info,
-  FileText,
   Upload,
+  UploadCloud,
+  FileSpreadsheet,
+  Download,
   ChevronDown,
 } from "lucide-react";
 import {
@@ -37,7 +39,7 @@ import {
   Student,
   SiblingDetail,
 } from "../../../types";
-import { useData } from "../../../context/DataContext";
+import { useData, normalizeToISODate } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
@@ -54,7 +56,10 @@ import {
   formatToISO,
 } from "../../../utils/dateValidation";
 import { formatCurrency } from "../../../utils/currency";
-import { getUniformPackageFeeByClass, getUniformFeeForClass } from "../../../utils/uniformUtils";
+import {
+  calculateLateAdmissionFees,
+  FeeItemInput,
+} from "../../../utils/lateAdmission";
 import {
   getHostelBlocks,
   getRooms,
@@ -81,12 +86,20 @@ const SearchableCombobox: React.FC<{
   allowCustom?: boolean;
   disabled?: boolean;
   className?: string;
-}> = ({ options, value, onChange, placeholder = 'Select option...', allowCustom = true, disabled = false, className = '' }) => {
+}> = ({
+  options,
+  value,
+  onChange,
+  placeholder = "Select option...",
+  allowCustom = true,
+  disabled = false,
+  className = "",
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const selectedOpt = options.find(o => String(o.value) === String(value));
+  const selectedOpt = options.find((o) => String(o.value) === String(value));
 
   useEffect(() => {
     if (selectedOpt) {
@@ -94,43 +107,52 @@ const SearchableCombobox: React.FC<{
     } else if (value) {
       setSearchText(value);
     } else {
-      setSearchText('');
+      setSearchText("");
     }
   }, [value, selectedOpt]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter(opt => {
+  const filteredOptions = options.filter((opt) => {
     if (!searchText.trim()) return true;
     if (selectedOpt && searchText === selectedOpt.label) return true;
     const q = searchText.toLowerCase().trim();
-    return opt.label.toLowerCase().includes(q) || (opt.subLabel || '').toLowerCase().includes(q);
+    return (
+      opt.label.toLowerCase().includes(q) ||
+      (opt.subLabel || "").toLowerCase().includes(q)
+    );
   });
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      <div className="relative cursor-pointer" onClick={() => !disabled && setIsOpen(prev => !prev)}>
+      <div
+        className="relative cursor-pointer"
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+      >
         <input
           type="text"
           disabled={disabled}
           value={searchText}
           onFocus={() => setIsOpen(true)}
-          onChange={e => {
+          onChange={(e) => {
             const val = e.target.value;
             setSearchText(val);
             setIsOpen(true);
             if (allowCustom) {
               onChange(val);
             } else if (!val) {
-              onChange('');
+              onChange("");
             }
           }}
           placeholder={placeholder}
@@ -152,7 +174,9 @@ const SearchableCombobox: React.FC<{
                 className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 flex items-center justify-between"
               >
                 <span>Use custom: "{searchText}"</span>
-                <span className="text-[10px] bg-sky-100 dark:bg-sky-900 px-2 py-0.5 rounded-full">Custom</span>
+                <span className="text-[10px] bg-sky-100 dark:bg-sky-900 px-2 py-0.5 rounded-full">
+                  Custom
+                </span>
               </button>
             ) : (
               <div className="px-3 py-3 text-center text-xs text-slate-400 font-semibold">
@@ -176,20 +200,24 @@ const SearchableCombobox: React.FC<{
                   }}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
                     opt.disabled
-                      ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-800/40 text-slate-400'
+                      ? "opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-800/40 text-slate-400"
                       : isSelected
-                      ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
+                        ? "bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold"
+                        : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold"
                   }`}
                 >
                   <div className="truncate">
                     <span className="font-bold">{opt.label}</span>
                     {opt.subLabel && (
-                      <span className="text-[10px] text-slate-400 block font-normal">{opt.subLabel}</span>
+                      <span className="text-[10px] text-slate-400 block font-normal">
+                        {opt.subLabel}
+                      </span>
                     )}
                   </div>
                   {isSelected && (
-                    <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">✓ Selected</span>
+                    <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">
+                      ✓ Selected
+                    </span>
                   )}
                 </button>
               );
@@ -236,10 +264,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     roomTypeMasters,
     academicClasses,
     feeHeads,
+    academicYearFeeSchedules,
     schoolProfile,
   } = useData();
   const { addToast } = useToast();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
 
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState("All");
@@ -284,42 +313,202 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     [],
   );
   const [dynamicRoomTypes, setDynamicRoomTypes] = useState<RoomType[]>([]);
-  const [dynamicAllocations, setDynamicAllocations] = useState<BedAllocation[]>(
-    [],
-  );
-  const [loadingHostels, setLoadingHostels] = useState(false);
+  const [dynamicAllocations, setDynamicAllocations] = useState<BedAllocation[]>([]);
+  const [loadingHostels, setLoadingHostels] = useState(false);  // Bulk Upload Modal State
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const bulkFileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const openBulkModal = () => {
+    setSelectedFile(null);
+    setIsDragging(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setIsBulkModalOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (isUploading) return;
+    setIsBulkModalOpen(false);
+    setSelectedFile(null);
+    setUploadProgress(0);
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      "FirstName",
+      "LastName",
+      "AppliedClass",
+      "Gender",
+      "Campus",
+      "DOB",
+      "BloodGroup",
+      "Religion",
+      "CasteCategory",
+      "DateOfAdmission",
+      "FatherFullName",
+      "MotherFullName",
+      "FatherMobile",
+      "MotherMobile",
+      "AlternateMobile",
+      "Email",
+      "HouseNo",
+      "Street",
+      "Area",
+      "City",
+      "District",
+      "State",
+      "Pincode",
+      "StudentType",
+      "TransportRequired",
+      "BusRoute",
+      "PickupPoint"
+    ].join(",");
+
+    const sampleRow = [
+      "Alexander",
+      "Wright",
+      "Class 1",
+      "Male",
+      "Main Campus",
+      "15-08-2018",
+      "O+",
+      "Christianity",
+      "General",
+      "21-08-2026",
+      "Robert Wright",
+      "Sarah Wright",
+      "9876543210",
+      "9876543211",
+      "9876543212",
+      "alexander.wright@gmail.com",
+      "12-A",
+      "Main Street",
+      "North Suburbs",
+      "Metropolis",
+      "Central",
+      "State",
+      "600001",
+      "Day Scholar",
+      "No",
+      "",
+      ""
+    ].join(",");
+
+    const csvContent = `${headers}\n${sampleRow}\n`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "admission_application_upload_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast("info", "Template Downloaded", "Sample CSV upload template ready.");
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls") ||
+        file.name.endsWith(".csv")
+      ) {
+        setSelectedFile(file);
+      } else {
+        addToast("error", "Invalid File Format", "Only .xlsx, .xls, and .csv files are supported.");
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      if (
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls") ||
+        file.name.endsWith(".csv")
+      ) {
+        setSelectedFile(file);
+      } else {
+        addToast("error", "Invalid File Format", "Only .xlsx, .xls, and .csv files are supported.");
+      }
+    }
+  };
 
-    addToast("info", "Processing File", "Reading Excel data...");
+  const handleStartBulkUpload = async () => {
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+    setUploadProgress(15);
+
     try {
       const XLSX = await import("xlsx");
       const reader = new FileReader();
+
       reader.onload = (evt) => {
         try {
+          setUploadProgress(45);
           const bstr = evt.target?.result;
           const workbook = XLSX.read(bstr, { type: "binary" });
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
           const data = XLSX.utils.sheet_to_json(sheet) as any[];
 
+          setUploadProgress(75);
+
           let count = 0;
           data.forEach((row) => {
-            if (row.applicantName || row.firstName || row.lastName) {
+            if (row.FirstName || row.applicantName || row.firstName) {
               const name =
                 row.applicantName ||
-                `${row.firstName || ""} ${row.lastName || ""}`.trim();
+                `${row.FirstName || row.firstName || ""} ${row.LastName || row.lastName || ""}`.trim();
               const newApp = {
                 applicantName: name,
-                appliedClass: row.appliedClass || "Class 1",
-                branch: row.branch || selectedBranch || "Main Campus",
-                parentName: row.parentName || row.fatherName || "Not Provided",
-                phone: row.phone || row.mobile || "",
-                email: row.email || "",
+                appliedClass: row.AppliedClass || row.appliedClass || "Class 1",
+                gender: row.Gender || row.gender || "Male",
+                dob: row.DOB || row.dob || "15/08/2018",
+                bloodGroup: row.BloodGroup || row.bloodGroup || "O+",
+                religion: row.Religion || row.religion || "General",
+                casteCategory: row.CasteCategory || row.casteCategory || "General",
+                parentName: row.FatherFullName || row.parentName || row.fatherName || "Not Provided",
+                motherName: row.MotherFullName || row.motherName || "Not Provided",
+                phone: row.FatherMobile || row.phone || row.mobile || "9876543210",
+                motherPhone: row.MotherMobile || row.motherPhone || "",
+                alternatePhone: row.AlternateMobile || row.alternatePhone || "",
+                email: row.Email || row.email || "",
+                addressHouseNo: row.HouseNo || row.addressHouseNo || "",
+                addressStreet: row.Street || row.addressStreet || "",
+                addressArea: row.Area || row.addressArea || "",
+                addressCity: row.City || row.addressCity || "",
+                addressDistrict: row.District || row.addressDistrict || "",
+                addressState: row.State || row.addressState || "",
+                addressPinCode: row.Pincode || row.addressPinCode || "",
+                branch: row.Campus || row.branch || selectedBranch || "Main Campus",
                 status: "Pending",
-                studentType: row.studentType || "Day Scholar",
+                studentType: row.StudentType || row.studentType || "Day Scholar",
+                transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true),
+                busRoute: row.BusRoute || row.busRoute || "",
+                pickupPoint: row.PickupPoint || row.pickupPoint || "",
+                joiningDate: row.DateOfAdmission || row.joiningDate || new Date().toISOString().split("T")[0],
+                admissionDate: row.DateOfAdmission || row.admissionDate || new Date().toISOString().split("T")[0],
                 submissionDate: new Date().toISOString(),
               } as unknown as Omit<
                 AdmissionApplication,
@@ -330,21 +519,32 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             }
           });
 
-          addToast(
-            "success",
-            "Upload Complete",
-            `Successfully imported ${count} admission records.`,
-          );
+          setUploadProgress(100);
+
+          setTimeout(() => {
+            addToast(
+              "success",
+              "Bulk Upload Complete",
+              `Successfully registered ${count} admission application(s).`
+            );
+            setIsUploading(false);
+            closeBulkModal();
+          }, 400);
         } catch (err) {
           console.error(err);
+          setIsUploading(false);
+          setUploadProgress(0);
           addToast("error", "Upload Failed", "Failed to parse Excel file.");
         }
       };
-      reader.readAsBinaryString(file);
+
+      reader.readAsBinaryString(selectedFile);
     } catch (err) {
-      addToast("error", "Error", "Failed to load excel parser.");
+      console.error(err);
+      setIsUploading(false);
+      setUploadProgress(0);
+      addToast("error", "Upload Failed", "Error processing bulk upload.");
     }
-    e.target.value = "";
   };
 
   useEffect(() => {
@@ -834,6 +1034,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [dobError, setDobError] = useState("");
   const [photoError, setPhotoError] = useState("");
 
+  const maxDobISO = useMemo(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split("T")[0];
+  }, []);
+
   const classOptions = (academicClasses || []).map(
     (cls) => cls.name || (cls as any).className || "",
   );
@@ -961,8 +1167,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       hostelRoom: "",
       hostelBed: "",
       branch: "",
-      scholarshipId: "",
-      discountId: "",
+      joiningDate: new Date().toISOString().split("T")[0],
+      admissionDate: new Date().toISOString().split("T")[0],
+      isLateAdmission: false,
+      feeCalculationMethod: "Term-wise",
       selectedOptionalFees: [],
       documentsSubmitted: [],
     });
@@ -1032,10 +1240,43 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       formattedDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
     }
 
+    const STANDARD_CASTES = ["OC", "BC", "MBC", "SC", "ST", "General", "OBC", "BC-A", "BC-B", "Others"];
+    const isCustomCaste = Boolean(app.casteCategory && !STANDARD_CASTES.includes(app.casteCategory));
+    setIsCustomCasteCategory(isCustomCaste);
+
+    const optFees = app.selectedOptionalFees || (app as any).optionalFees || (app as any).selectedOptional || [];
+    const docsSub = app.documentsSubmitted || (app as any).documents || [];
+    const isTrp = Boolean(app.transportRequired || app.busRoute || app.pickupPoint);
+    const sType = app.studentType === ("Hosteller" as any) ? "Residential" : app.studentType || "Day Scholar";
+
+    const isLateAdm =
+      app.isLateAdmission !== undefined
+        ? Boolean(app.isLateAdmission)
+        : (app as any).isLate !== undefined
+          ? Boolean((app as any).isLate)
+          : (app as any).lateAdmission !== undefined
+            ? Boolean((app as any).lateAdmission)
+            : false;
+
     setFormData({
       ...app,
+      studentType: sType as any,
+      casteCategory: app.casteCategory || "General",
       dob: formattedDob,
-      selectedOptionalFees: app.selectedOptionalFees || [],
+      joiningDate: app.joiningDate || app.admissionDate || new Date().toISOString().split("T")[0],
+      admissionDate: app.admissionDate || app.joiningDate || new Date().toISOString().split("T")[0],
+      isLateAdmission: isLateAdm,
+      feeCalculationMethod: app.feeCalculationMethod || "Term-wise",
+      transportRequired: isTrp,
+      busRoute: app.busRoute || "",
+      pickupPoint: app.pickupPoint || "",
+      hostelBlock: app.hostelBlock || "",
+      hostelRoom: app.hostelRoom || "",
+      hostelBed: app.hostelBed || "",
+      scholarshipId: app.scholarshipId || "",
+      discountId: app.discountId || "",
+      selectedOptionalFees: optFees,
+      documentsSubmitted: docsSub,
     });
     const hasSib =
       app.hasSiblings ??
@@ -1136,21 +1377,67 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!firstName || !lastName || !formData.parentName) {
-      addToast(
-        "warning",
-        "Missing Required Fields",
-        "First name, last name, and father name are required.",
-      );
+    
+    // Validate Student Details Required Fields
+    if (!firstName || !firstName.trim()) {
+      addToast("error", "Missing Required Field", "Please enter Student First Name.");
+      return;
+    }
+
+    if (!lastName || !lastName.trim()) {
+      addToast("error", "Missing Required Field", "Please enter Student Last Name.");
       return;
     }
 
     if (!formData.appliedClass || formData.appliedClass === "Select Class") {
-      addToast(
-        "error",
-        "Missing Class Selection",
-        "Please select a target Class for the student admission application.",
-      );
+      addToast("error", "Missing Required Field", "Please select Target Class.");
+      return;
+    }
+
+    if (!formData.gender) {
+      addToast("error", "Missing Required Field", "Please select Gender.");
+      return;
+    }
+
+    if (!formData.branch) {
+      addToast("error", "Missing Required Field", "Please select Campus.");
+      return;
+    }
+
+    if (!formData.dob) {
+      addToast("error", "Missing Required Field", "Please enter Date of Birth.");
+      return;
+    }
+
+    if (!formData.bloodGroup) {
+      addToast("error", "Missing Required Field", "Please select Blood Group.");
+      return;
+    }
+
+    if (!formData.casteCategory) {
+      addToast("error", "Missing Required Field", "Please select Caste.");
+      return;
+    }
+
+    if (!formData.admissionDate && !formData.joiningDate) {
+      addToast("error", "Missing Required Field", "Please select Date of Admission.");
+      return;
+    }
+
+    // Validate Student Type Required Field
+    if (!formData.studentType || formData.studentType === ("Select Type" as any)) {
+      addToast("error", "Missing Required Field", "Please select Student Type.");
+      return;
+    }
+
+    // Validate Parent Information Required Fields
+    if (!formData.parentName || !formData.parentName.trim()) {
+      addToast("error", "Missing Required Field", "Please enter Father Full Name.");
+      return;
+    }
+
+    if (!formData.phone || !formData.phone.trim()) {
+      addToast("error", "Missing Required Field", "Please enter Father Mobile number.");
       return;
     }
 
@@ -1267,9 +1554,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         applicantName: fullApplicantName,
         avatar,
         appliedClass: formData.appliedClass!,
-        gender: formData.gender || "Male",
-        dob: finalDob || "15/08/2012",
-        bloodGroup: formData.bloodGroup || "O+",
+        gender: formData.gender,
+        dob: finalDob,
+        bloodGroup: formData.bloodGroup,
         religion: formData.religion || "General",
         casteCategory: formData.casteCategory || "General",
         parentName: formData.parentName,
@@ -1329,7 +1616,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         formData.hostelBed
       ) {
         try {
-          const STORE_KEY = 'edu_db_residential_students';
+          const STORE_KEY = "edu_db_residential_students";
           const stored = localStorage.getItem(STORE_KEY);
           let list = stored ? JSON.parse(stored) : [];
           if (!Array.isArray(list)) list = [];
@@ -1344,34 +1631,45 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             lastName: lastName.trim(),
             admissionNo: admNo,
             className: formData.appliedClass,
-            section: 'A',
-            studentType: 'Residential',
+            section: "A",
+            studentType: "Residential",
             isResidential: true,
-            phone: formData.phone || '',
-            email: formData.email || '',
-            parentName: formData.parentName || '',
-            hostelBlock: formData.hostelBlock || '',
-            hostelBed: formData.hostelBed || '',
-            status: 'Active'
+            phone: formData.phone || "",
+            email: formData.email || "",
+            parentName: formData.parentName || "",
+            hostelBlock: formData.hostelBlock || "",
+            hostelBed: formData.hostelBed || "",
+            status: "Active",
           };
 
           list.push(newRecord);
           localStorage.setItem(STORE_KEY, JSON.stringify(list));
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('residential_students_updated'));
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("residential_students_updated"));
           }
         } catch (e) {}
       }
 
       // Auto-Allocate Hostel Room & Bed if Residential student opted for block, room & bed
       if (
-        (formData.studentType === "Residential" || (formData.studentType as any) === "Hosteller") &&
+        (formData.studentType === "Residential" ||
+          (formData.studentType as any) === "Hosteller") &&
         formData.hostelBlock &&
         formData.hostelRoom &&
         formData.hostelBed
       ) {
-        const selBlk = dynamicHostelBlocks.find((b) => String(b.hostelId) === String(formData.hostelBlock)) || hostelMasters.find(h => String(h.id) === String(formData.hostelBlock));
-        const selRm = dynamicHostelRooms.find((r) => String(r.roomId) === String(formData.hostelRoom)) || roomMasters.find(r => String(r.id) === String(formData.hostelRoom));
+        const selBlk =
+          dynamicHostelBlocks.find(
+            (b) => String(b.hostelId) === String(formData.hostelBlock),
+          ) ||
+          hostelMasters.find(
+            (h) => String(h.id) === String(formData.hostelBlock),
+          );
+        const selRm =
+          dynamicHostelRooms.find(
+            (r) => String(r.roomId) === String(formData.hostelRoom),
+          ) ||
+          roomMasters.find((r) => String(r.id) === String(formData.hostelRoom));
 
         createAllocation({
           studentId: `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -1507,9 +1805,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       remarks?: string;
     }[] = [];
 
-    const uniFeeAmount = getUniformFeeForClass(clsName, formData.gender || 'Male', financeUniformConfigs);
+    const admissionDate = normalizeToISODate(
+      formData.admissionDate || formData.joiningDate || "",
+    );
+    // MASTER SWITCH (Section 1 & 11): Checkbox is the explicit switch that controls whether Late Admission rules apply
+    const isLateAdmission = Boolean(formData.isLateAdmission);
+    const calculationMethod = formData.feeCalculationMethod || "Term-wise";
 
-    baseItems.forEach((i) => {
+    const currentSchedule = (academicYearFeeSchedules || []).find(
+      (s) => s.academicYear === (selectedAcademicYear || "2026-2027"),
+    );
+
+    const gnd = formData.gender || "Unisex";
+    const matchingConfig = (financeUniformConfigs || []).find(
+      (c) =>
+        c.className === clsName &&
+        c.status === "Active" &&
+        (gnd.toLowerCase().includes("female")
+          ? c.gender === "Female"
+          : gnd.toLowerCase().includes("male")
+            ? c.gender === "Male"
+            : c.gender === "Unisex" || !c.gender),
+    ) || (financeUniformConfigs || []).find(
+      (c) => c.className === clsName && c.status === "Active"
+    );
+    const uniFeeAmount = matchingConfig ? Number(matchingConfig.feeAmount) || 0 : 0;
+
+    const feeInputs: FeeItemInput[] = baseItems.map((i) => {
       const isMandatory = isItemMandatory(i);
       const isSelected =
         isMandatory ||
@@ -1519,136 +1841,279 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             idOrName === i.feeHeadName ||
             idOrName.replace("-0", "-") === i.feeHeadId.replace("-0", "-") ||
             i.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-") ||
-            (idOrName.toLowerCase().includes('uniform') && i.feeHeadName.toLowerCase().includes('uniform'))
+            (idOrName.toLowerCase().includes("uniform") &&
+              i.feeHeadName.toLowerCase().includes("uniform")),
         );
 
       let amt = i.amount;
       let itemName = i.feeHeadName;
-      const lowerName = (i.feeHeadName || '').toLowerCase();
-      const isUniform = lowerName.includes('uniform') || lowerName.includes('kit');
+      const lowerName = (i.feeHeadName || "").toLowerCase();
+      const isUniform =
+        lowerName.includes("uniform") || lowerName.includes("kit");
       if (isUniform) {
         amt = uniFeeAmount > 0 ? uniFeeAmount : i.amount;
-        itemName = 'Uniform & Accessories';
+        itemName = "Uniform & Accessories";
       }
-      items.push({
-        name: itemName,
+
+      const fh = (feeHeads || []).find(
+        (h) =>
+          (i.feeHeadId && h.id && h.id.toLowerCase() === i.feeHeadId.toLowerCase()) ||
+          (h.name && i.feeHeadName && h.name.toLowerCase().trim() === i.feeHeadName.toLowerCase().trim()),
+      );
+
+      const detectedFreq =
+        i.frequency ||
+        fh?.frequency ||
+        (lowerName.includes("tuition") ||
+         lowerName.includes("lab") ||
+         lowerName.includes("tech") ||
+         lowerName.includes("computer") ||
+         lowerName.includes("smart") ||
+         lowerName.includes("term") ||
+         lowerName.includes("quarterly")
+          ? "Quarterly"
+          : lowerName.includes("admission") || lowerName.includes("one time")
+            ? "One Time"
+            : "Annual");
+
+      return {
+        feeHeadId: i.feeHeadId,
+        feeHeadName: itemName,
         amount: amt,
+        frequency: detectedFreq,
+        category: i.category,
+        isMandatory: isSelected,
+      };
+    });
+
+    const calcResult = calculateLateAdmissionFees({
+      feeItems: feeInputs,
+      admissionDate,
+      isLateAdmission,
+      feeCalculationMethod: calculationMethod,
+      schedule: currentSchedule,
+      academicYear: selectedAcademicYear || "2026-2027",
+    });
+
+    baseItems.forEach((i, idx) => {
+      const computedItem = calcResult.items[idx];
+      const isSelected = computedItem ? computedItem.isApplicable : true;
+      const adjustedAmount = computedItem
+        ? computedItem.adjustedAmount
+        : i.amount;
+      const lateRemarks = computedItem ? computedItem.remarks : undefined;
+
+      items.push({
+        name: i.feeHeadName,
+        amount: isSelected ? adjustedAmount : i.amount,
         isApplicable: isSelected,
-        remarks: isSelected ? undefined : "Optional Fee Not Selected",
+        remarks: isSelected ? lateRemarks : "Optional Fee Not Selected",
       });
     });
 
-    if (stType === "Day Scholar" || stType === "Non-Residential") {
-      const isTransportSelected =
-        formData.transportRequired && formData.busRoute && formData.pickupPoint;
-      if (isTransportSelected) {
-        const rObj = routeMasters.find(
-          (r) => r.id === formData.routeId || r.routeName === formData.busRoute,
-        );
-        const pObj = pickupPoints.find(
-          (p) =>
-            p.id === formData.pickupPointId ||
-            (rObj &&
-              p.routeId === rObj.id &&
-              p.pickupName === formData.pickupPoint),
-        );
-        const ftc =
-          financeTransportConfigs.find(
-            (c) =>
-              c.routeId === rObj?.id &&
-              (c.pickupPointId === pObj?.id ||
-                c.pickupName === pObj?.pickupName) &&
-              c.status === "Active",
-          ) || financeTransportConfigs[0];
+    const isResidentForm =
+      formData.studentType === "Residential" ||
+      formData.studentType === "Hosteller" ||
+      formData.residentialStatus === "Residential" ||
+      formData.residentialStatus === "Resident";
 
-        const trpFee =
-          pObj && (pObj.monthlyFee ?? 0) > 0
-            ? (pObj.monthlyFee ?? 0)
-            : ftc
-              ? ftc.feeAmount
-              : 0;
-        items.push({
-          name: `Transport Fee (${rObj?.routeName || formData.busRoute})`,
-          amount: trpFee,
-          isApplicable: true,
-        });
-      } else {
-        items.push({
-          name: "Transport Fee",
-          amount: 0,
-          isApplicable: false,
-          remarks: formData.transportRequired
-            ? "Pickup Point Not Selected"
-            : "Transport Not Opted",
-        });
-      }
+    const isNonResidentForm = !isResidentForm;
+
+    const isTransportSelected =
+      isNonResidentForm &&
+      Boolean(formData.transportRequired) &&
+      Boolean(formData.pickupPoint || formData.busRoute);
+
+    if (isTransportSelected) {
+      const rObj = routeMasters.find(
+        (r) => r.id === formData.routeId || r.routeName === formData.busRoute,
+      );
+      const pObj = pickupPoints.find(
+        (p) =>
+          p.id === formData.pickupPointId ||
+          (rObj &&
+            p.routeId === rObj.id &&
+            p.pickupName === formData.pickupPoint),
+      );
+      const ftc =
+        financeTransportConfigs.find(
+          (c) =>
+            (c.routeId === rObj?.id ||
+              c.routeName === rObj?.routeName ||
+              c.routeName === formData.busRoute) &&
+            c.status === "Active",
+        ) || financeTransportConfigs[0];
+
+      const trpFee =
+        pObj && (pObj.monthlyFee ?? 0) > 0
+          ? (pObj.monthlyFee ?? 0)
+          : ftc
+            ? ftc.feeAmount
+            : 5500;
 
       items.push({
-        name: "Hostel Fee",
-        amount: 0,
-        isApplicable: false,
-        remarks: "Not Applicable for Day Scholars",
+        name: `Transport Fee (${rObj?.routeName || formData.busRoute || "Opted"}${formData.pickupPoint ? ` - ${formData.pickupPoint}` : ""})`,
+        amount: trpFee,
+        isApplicable: true,
       });
     } else {
-      const isHostelSelected =
-        Boolean(formData.hostelBlock) ||
-        Boolean(selectedBlockObj) ||
-        Boolean(formData.hostelRoom || formData.hostelBed);
-      if (isHostelSelected) {
-        const hObj =
-          selectedBlockObj ||
-          hostelMasters.find(
-            (h) =>
-              h.id === formData.hostelBlock ||
-              h.hostelName === formData.hostelBlock ||
-              h.id.toString() === formData.hostelBlock?.toString(),
-          ) ||
-          hostelMasters[0];
-        const fhc =
-          financeHostelConfigs.find(
-            (c) =>
-              (c.hostelId === (hObj as any)?.rawId ||
-                c.hostelId === (hObj as any)?.id ||
-                c.hostelName === (hObj as any)?.name) &&
-              c.status === "Active",
-          ) || financeHostelConfigs[0];
-
-        const hstFee = fhc ? fhc.hostelFee : 0;
-        const secDep = fhc ? fhc.securityDeposit : 0;
-
-        items.push({
-          name: `Hostel Fee (${(hObj as any)?.hostelName || (hObj as any)?.name || "Hostel Accommodation"})`,
-          amount: hstFee,
-          isApplicable: true,
-        });
-
-        if (secDep > 0) {
-          items.push({
-            name: "Security Deposit",
-            amount: secDep,
-            isApplicable: true,
-          });
-        }
-      } else {
-        items.push({
-          name: "Hostel Fee",
-          amount: 0,
-          isApplicable: false,
-          remarks: "Hostel Bed Not Allocated",
-        });
-        items.push({
-          name: "Security Deposit",
-          amount: 0,
-          isApplicable: false,
-          remarks: "Hostel Bed Not Allocated",
-        });
-      }
-
       items.push({
         name: "Transport Fee",
         amount: 0,
         isApplicable: false,
-        remarks: "Not Applicable for Hostellers",
+        remarks: isResidentForm
+          ? "Not Applicable for Residential Students"
+          : "Transport Not Opted / Missing Pickup Point",
+      });
+    }
+
+    const isHostelOpted = isResidentForm;
+
+    const hasHostelBlockSelected = Boolean(
+      (formData.hostelBlock && formData.hostelBlock.trim() !== "") ||
+      selectedBlockObj,
+    );
+
+    const hasHostelRoomSelected = Boolean(
+      (formData.hostelRoom && formData.hostelRoom.trim() !== "") ||
+      (formData.hostelBed && formData.hostelBed.trim() !== ""),
+    );
+
+    if (isHostelOpted && hasHostelBlockSelected && hasHostelRoomSelected) {
+      const hObj =
+        selectedBlockObj ||
+        hostelMasters.find(
+          (h) =>
+            h.id === formData.hostelBlock ||
+            h.hostelName === formData.hostelBlock ||
+            h.id.toString() === formData.hostelBlock?.toString(),
+        );
+
+      const selectedRoom =
+        (dynamicHostelRooms || []).find(
+          (r) =>
+            String(r.roomId) === String(formData.hostelRoom) ||
+            String(r.roomNumber) === String(formData.hostelRoom),
+        ) ||
+        (roomMasters || []).find(
+          (r) =>
+            String(r.id) === String(formData.hostelRoom) ||
+            String(r.roomNumber) === String(formData.hostelRoom),
+        );
+
+      const targetRoomTypeObj = selectedRoom
+        ? (dynamicRoomTypes || []).find(
+            (rt) =>
+              String(rt.roomTypeId) ===
+              String((selectedRoom as any).roomTypeId),
+          )
+        : null;
+
+      const targetRoomType = targetRoomTypeObj
+        ? targetRoomTypeObj.roomTypeSpecification
+        : (selectedRoom as any)?.roomTypeSpecification ||
+          (selectedRoom as any)?.roomTypeName ||
+          (selectedRoom as any)?.roomType;
+
+      let fhc = financeHostelConfigs.find((c) => {
+        if (c.status !== "Active") return false;
+
+        const blockMatch =
+          (hObj &&
+            c.hostelId &&
+            String(c.hostelId) ===
+              String((hObj as any)?.rawId || (hObj as any)?.id)) ||
+          (hObj &&
+            c.hostelName &&
+            (hObj as any)?.hostelName &&
+            c.hostelName.toLowerCase() ===
+              String((hObj as any)?.hostelName).toLowerCase()) ||
+          (formData.hostelBlock &&
+            c.hostelName &&
+            c.hostelName
+              .toLowerCase()
+              .includes(formData.hostelBlock.toLowerCase())) ||
+          (formData.hostelBlock &&
+            c.hostelName &&
+            formData.hostelBlock
+              .toLowerCase()
+              .includes(c.hostelName.toLowerCase()));
+
+        if (!blockMatch) return false;
+
+        if (!targetRoomType) return true;
+
+        const rtMatch =
+          (c.roomTypeName &&
+            targetRoomType &&
+            c.roomTypeName.toLowerCase().trim() ===
+              targetRoomType.toLowerCase().trim()) ||
+          (c.roomTypeName &&
+            targetRoomType &&
+            c.roomTypeName
+              .toLowerCase()
+              .includes(targetRoomType.toLowerCase())) ||
+          (c.roomTypeName &&
+            targetRoomType &&
+            targetRoomType
+              .toLowerCase()
+              .includes(c.roomTypeName.toLowerCase()));
+
+        return rtMatch;
+      });
+
+      if (!fhc) {
+        fhc =
+          financeHostelConfigs.find(
+            (c) =>
+              c.status === "Active" &&
+              ((hObj &&
+                (c.hostelId === (hObj as any)?.rawId ||
+                  c.hostelId === (hObj as any)?.id)) ||
+                (formData.hostelBlock &&
+                  c.hostelName &&
+                  c.hostelName
+                    .toLowerCase()
+                    .includes(formData.hostelBlock.toLowerCase()))),
+          ) || financeHostelConfigs.find((c) => c.status === "Active");
+      }
+
+      const hstFee = fhc ? fhc.hostelFee : 40000;
+      const secDep = fhc
+        ? fhc.securityDeposit !== undefined
+          ? fhc.securityDeposit
+          : 5000
+        : 5000;
+
+      const blockLabel =
+        (hObj as any)?.hostelName ||
+        (hObj as any)?.name ||
+        formData.hostelBlock;
+      const roomNumStr =
+        (selectedRoom as any)?.roomNumber || formData.hostelRoom;
+      const roomTypeLabel = targetRoomType ? ` - ${targetRoomType}` : "";
+
+      items.push({
+        name: `Hostel Accommodation Fee (${blockLabel}, Room ${roomNumStr}${roomTypeLabel})`,
+        amount: hstFee,
+        isApplicable: true,
+      });
+
+      if (secDep > 0) {
+        items.push({
+          name: "Hostel Security Deposit",
+          amount: secDep,
+          isApplicable: true,
+        });
+      }
+    } else {
+      items.push({
+        name: "Hostel Fee & Security Deposit",
+        amount: 0,
+        isApplicable: false,
+        remarks: isNonResidentForm
+          ? "Not Applicable for Day Scholars"
+          : "Hostel Fee Pending Room Assignment",
       });
     }
 
@@ -1767,7 +2232,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Alexander"
+                          placeholder="Enter First Name"
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -1780,7 +2245,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Wright"
+                          placeholder="Enter Last Name"
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -1796,6 +2261,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </label>
                         <div className="relative">
                           <select
+                            required
                             value={formData.appliedClass}
                             onChange={(e) =>
                               setFormData({
@@ -1821,6 +2287,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </label>
                         <div className="relative">
                           <select
+                            required
                             value={formData.gender}
                             onChange={(e) =>
                               setFormData({
@@ -1844,6 +2311,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </label>
                         <div className="relative">
                           <select
+                            required
                             value={formData.branch}
                             onChange={(e) =>
                               setFormData({
@@ -1932,26 +2400,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Date of Birth <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       required
                       value={
                         formData.dob
-                          ? formData.dob.split("/").reverse().join("-")
+                          ? formatToISO(formData.dob) || formData.dob
                           : ""
                       }
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val) {
-                          const parts = val.split("-");
-                          if (parts.length === 3) {
-                            handleDOBChange(
-                              `${parts[2]}/${parts[1]}/${parts[0]}`,
-                            );
-                            return;
-                          }
+                          handleDOBChange(formatToDDMMYYYY(val, "/"));
+                        } else {
+                          handleDOBChange("");
                         }
-                        handleDOBChange("");
                       }}
                       className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                         dobError
@@ -1971,6 +2433,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <div className="relative">
                       <select
+                        required
                         value={formData.bloodGroup}
                         onChange={(e) =>
                           setFormData({
@@ -1996,7 +2459,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Christianity"
+                      placeholder="Enter Religion"
                       value={formData.religion}
                       onChange={(e) =>
                         setFormData({ ...formData, religion: e.target.value })
@@ -2031,6 +2494,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     ) : (
                       <div className="relative">
                         <select
+                          required
                           value={formData.casteCategory}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -2065,13 +2529,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Date of Admission <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       required
                       value={
-                        formData.joiningDate ||
-                        formData.admissionDate ||
-                        new Date().toISOString().split("T")[0]
+                        formData.admissionDate
+                          ? formatToISO(formData.admissionDate) || formData.admissionDate
+                          : formData.joiningDate
+                            ? formatToISO(formData.joiningDate) || formData.joiningDate
+                            : ""
                       }
                       onChange={(e) => {
                         const val = e.target.value;
@@ -2081,7 +2546,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           admissionDate: val,
                         });
                       }}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none cursor-pointer"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
                     />
                     <div className="mt-2 flex items-center gap-2">
                       <input
@@ -2152,7 +2617,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </button>
                       </div>
 
-                      <div className="space-y-3.5 pt-1">
+                      <div className="space-y-3 pt-1">
                         <label
                           className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
                             formData.feeCalculationMethod === "Monthly"
@@ -2175,13 +2640,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             }
                             className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
-                          <span className="font-extrabold text-xs">
-                            Monthly (Calculate from admission month to year-end)
-                          </span>
+                          <div>
+                            <span className="font-extrabold text-xs block">
+                              Monthly
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              Calculates fee from student's admission month
+                              through end of Academic Year. Excludes past
+                              months.
+                            </span>
+                          </div>
                         </label>
 
                         <label
                           className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                            formData.feeCalculationMethod ===
+                              "Remaining Terms" ||
                             formData.feeCalculationMethod === "Term-wise" ||
                             !formData.feeCalculationMethod
                               ? "bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs"
@@ -2191,22 +2665,30 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <input
                             type="radio"
                             name="popupMidYearMethod"
-                            value="Term-wise"
+                            value="Remaining Terms"
                             checked={
+                              formData.feeCalculationMethod ===
+                                "Remaining Terms" ||
                               formData.feeCalculationMethod === "Term-wise" ||
                               !formData.feeCalculationMethod
                             }
                             onChange={() =>
                               setFormData({
                                 ...formData,
-                                feeCalculationMethod: "Term-wise",
+                                feeCalculationMethod: "Remaining Terms",
                               })
                             }
                             className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
-                          <span className="font-extrabold text-xs">
-                            Term-wise (Calculate from applicable term/quarter)
-                          </span>
+                          <div>
+                            <span className="font-extrabold text-xs block">
+                              Remaining Terms
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              Calculates fee for applicable remaining terms from
+                              admission date. Excludes past terms.
+                            </span>
+                          </div>
                         </label>
                       </div>
 
@@ -2718,6 +3200,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <div className="relative z-20">
                       <select
+                        required
                         value={formData.studentType || ""}
                         onChange={(e) =>
                           setFormData({
@@ -2866,17 +3349,27 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </label>
                         {(() => {
                           const blockMap = new Map<string, any>();
-                          (hostelMasters || []).forEach(h => blockMap.set(String(h.id), { hostelId: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' }));
-                          (dynamicHostelBlocks || []).forEach(b => blockMap.set(String(b.hostelId), b));
-                          const blockOpts = Array.from(blockMap.values()).map(b => ({
-                            value: String(b.hostelId),
-                            label: b.hostelName,
-                            subLabel: b.hostelType
-                          }));
+                          (hostelMasters || []).forEach((h) =>
+                            blockMap.set(String(h.id), {
+                              hostelId: String(h.id),
+                              hostelName: h.hostelName,
+                              hostelType: h.hostelType || "Boys Hostel",
+                            }),
+                          );
+                          (dynamicHostelBlocks || []).forEach((b) =>
+                            blockMap.set(String(b.hostelId), b),
+                          );
+                          const blockOpts = Array.from(blockMap.values()).map(
+                            (b) => ({
+                              value: String(b.hostelId),
+                              label: b.hostelName,
+                              subLabel: b.hostelType,
+                            }),
+                          );
 
                           return (
                             <SearchableCombobox
-                              value={formData.hostelBlock || ''}
+                              value={formData.hostelBlock || ""}
                               placeholder="Search or type Hostel Block..."
                               options={blockOpts}
                               onChange={(val) => {
@@ -2897,17 +3390,41 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </label>
                         {(() => {
                           const roomMap = new Map<string, any>();
-                          (roomMasters || []).forEach(r => roomMap.set(String(r.id), { roomId: String(r.id), hostelId: String(r.hostelId), roomNumber: r.roomNumber, bedCapacity: r.bedCapacity || r.capacity || 4, roomTypeSpecification: r.roomTypeSpecification }));
-                          (dynamicHostelRooms || []).forEach(r => roomMap.set(String(r.roomId), r));
+                          (roomMasters || []).forEach((r) =>
+                            roomMap.set(String(r.id), {
+                              roomId: String(r.id),
+                              hostelId: String(r.hostelId),
+                              roomNumber: r.roomNumber,
+                              bedCapacity: r.bedCapacity || r.capacity || 4,
+                              roomTypeSpecification: r.roomTypeSpecification,
+                            }),
+                          );
+                          (dynamicHostelRooms || []).forEach((r) =>
+                            roomMap.set(String(r.roomId), r),
+                          );
 
                           const roomOpts = Array.from(roomMap.values())
-                            .filter((r) => String(r.hostelId) === String(formData.hostelBlock))
+                            .filter(
+                              (r) =>
+                                String(r.hostelId) ===
+                                String(formData.hostelBlock),
+                            )
                             .map((r) => {
-                              const rtObj = dynamicRoomTypes.find((rt) => rt.roomTypeId === r.roomTypeId);
-                              const rCap = rtObj ? rtObj.bedCapacity : (r.bedCapacity || 4);
-                              const rName = rtObj ? rtObj.roomTypeSpecification : (r.roomTypeSpecification || "Standard Room");
+                              const rtObj = dynamicRoomTypes.find(
+                                (rt) => rt.roomTypeId === r.roomTypeId,
+                              );
+                              const rCap = rtObj
+                                ? rtObj.bedCapacity
+                                : r.bedCapacity || 4;
+                              const rName = rtObj
+                                ? rtObj.roomTypeSpecification
+                                : r.roomTypeSpecification || "Standard Room";
                               const occupied = dynamicAllocations.filter(
-                                (a) => (String(a.roomId) === String(r.roomId) || String(a.roomNumber) === String(r.roomNumber)) && a.status === "Active"
+                                (a) =>
+                                  (String(a.roomId) === String(r.roomId) ||
+                                    String(a.roomNumber) ===
+                                      String(r.roomNumber)) &&
+                                  a.status === "Active",
                               ).length;
                               const isFull = occupied >= rCap;
 
@@ -2915,24 +3432,45 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                 value: String(r.roomId),
                                 label: `Room #${r.roomNumber} (${rName})`,
                                 subLabel: `${occupied}/${rCap} Occupied${isFull ? " • FULL" : ""}`,
-                                disabled: isFull
+                                disabled: isFull,
                               };
                             });
 
                           return (
                             <SearchableCombobox
                               disabled={!formData.hostelBlock}
-                              value={formData.hostelRoom || ''}
-                              placeholder={formData.hostelBlock ? "Search or type Room..." : "Select Block first"}
+                              value={formData.hostelRoom || ""}
+                              placeholder={
+                                formData.hostelBlock
+                                  ? "Search or type Room..."
+                                  : "Select Block first"
+                              }
                               options={roomOpts}
                               onChange={(val) => {
-                                const selRoomObj = dynamicHostelRooms.find(r => String(r.roomId) === String(val));
-                                const rtObj = selRoomObj ? dynamicRoomTypes.find(rt => rt.roomTypeId === selRoomObj.roomTypeId) : null;
-                                const rCap = rtObj ? rtObj.bedCapacity : (selRoomObj?.bedCapacity || 4);
-                                const bedOpts = Array.from({ length: rCap }, (_, idx) => `BED-${idx + 1}`);
+                                const selRoomObj = dynamicHostelRooms.find(
+                                  (r) => String(r.roomId) === String(val),
+                                );
+                                const rtObj = selRoomObj
+                                  ? dynamicRoomTypes.find(
+                                      (rt) =>
+                                        rt.roomTypeId === selRoomObj.roomTypeId,
+                                    )
+                                  : null;
+                                const rCap = rtObj
+                                  ? rtObj.bedCapacity
+                                  : selRoomObj?.bedCapacity || 4;
+                                const bedOpts = Array.from(
+                                  { length: rCap },
+                                  (_, idx) => `BED-${idx + 1}`,
+                                );
 
-                                const firstVacantBed = bedOpts.find(bed => {
-                                  return !dynamicAllocations.some(a => String(a.roomId) === String(val) && a.bedNumber === bed && a.status === "Active");
+                                const firstVacantBed = bedOpts.find((bed) => {
+                                  return !dynamicAllocations.some(
+                                    (a) =>
+                                      String(a.roomId) === String(val) &&
+                                      a.bedNumber === bed &&
+                                      a.status === "Active",
+                                  );
                                 });
 
                                 setFormData({
@@ -2957,7 +3495,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               : selRoom.bedCapacity || 4;
                             const occupied = dynamicAllocations.filter(
                               (a) =>
-                                (String(a.roomId) === String(selRoom.roomId) || String(a.roomNumber) === String(selRoom.roomNumber)) &&
+                                (String(a.roomId) === String(selRoom.roomId) ||
+                                  String(a.roomNumber) ===
+                                    String(selRoom.roomNumber)) &&
                                 a.status === "Active",
                             ).length;
                             const avail = Math.max(0, rCap - occupied);
@@ -3006,7 +3546,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           const bedOpts = beds.map((bed) => {
                             const activeAlloc = dynamicAllocations.find(
                               (a) =>
-                                (String(a.roomId) === String(formData.hostelRoom) || String(a.roomNumber) === String(selRoom?.roomNumber)) &&
+                                (String(a.roomId) ===
+                                  String(formData.hostelRoom) ||
+                                  String(a.roomNumber) ===
+                                    String(selRoom?.roomNumber)) &&
                                 a.bedNumber === bed &&
                                 a.status === "Active",
                             );
@@ -3018,21 +3561,30 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                 app.id !== editingApp?.id,
                             );
                             const isTaken = Boolean(activeAlloc || pendingApp);
-                            const occupantName = activeAlloc?.studentName || pendingApp?.applicantName || "Student";
+                            const occupantName =
+                              activeAlloc?.studentName ||
+                              pendingApp?.applicantName ||
+                              "Student";
 
                             return {
                               value: bed,
-                              label: `Bed #${bed.replace(/\D/g, '') || bed}`,
-                              subLabel: isTaken ? `Occupied by ${occupantName}` : 'Vacant & Available',
-                              disabled: isTaken
+                              label: `Bed #${bed.replace(/\D/g, "") || bed}`,
+                              subLabel: isTaken
+                                ? `Occupied by ${occupantName}`
+                                : "Vacant & Available",
+                              disabled: isTaken,
                             };
                           });
 
                           return (
                             <SearchableCombobox
                               disabled={!formData.hostelRoom}
-                              value={formData.hostelBed || ''}
-                              placeholder={formData.hostelRoom ? "Search or type Bed..." : "Select Room first"}
+                              value={formData.hostelBed || ""}
+                              placeholder={
+                                formData.hostelRoom
+                                  ? "Search or type Bed..."
+                                  : "Select Room first"
+                              }
                               options={bedOpts}
                               onChange={(val) => {
                                 setFormData({
@@ -3243,12 +3795,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             (idOrName) =>
                               idOrName === item.feeHeadId ||
                               idOrName === item.feeHeadName ||
-                              idOrName.replace("-0", "-") === item.feeHeadId.replace("-0", "-") ||
-                              item.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-") ||
-                              (idOrName.toLowerCase().includes('uniform') && (item.feeHeadName || '').toLowerCase().includes('uniform'))
+                              idOrName.replace("-0", "-") ===
+                                item.feeHeadId.replace("-0", "-") ||
+                              item.feeHeadId.replace("-0", "-") ===
+                                idOrName.replace("-0", "-") ||
+                              (idOrName.toLowerCase().includes("uniform") &&
+                                item.feeHeadName.toLowerCase().includes("uniform")),
                           );
-                          const isUniformHead = (item.feeHeadName || '').toLowerCase().includes('uniform') || (item.feeHeadName || '').toLowerCase().includes('kit');
-                          const displayAmount = isUniformHead ? getUniformFeeForClass(clsName, formData.gender || 'Male', financeUniformConfigs) : item.amount;
                           return (
                             <label
                               key={item.feeHeadId}
@@ -3280,14 +3833,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               />
                               <div>
                                 <span className="block font-bold text-slate-900 dark:text-white text-xs">
-                                  {isUniformHead
-                                    ? ((formData.gender || '').toLowerCase().includes('female') || (formData.gender || '').toLowerCase().includes('girl')
-                                        ? 'Girls Uniform Package (Admission Kit)'
-                                        : 'Boys Uniform Package (Admission Kit)')
-                                    : item.feeHeadName}
+                                  {item.feeHeadName}
                                 </span>
-                                <span className="block text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                  ₹{displayAmount?.toLocaleString('en-IN')}
+                                <span className="block text-[10px] text-slate-500">
+                                  {formatCurrency(item.amount)}
                                 </span>
                               </div>
                             </label>
@@ -3363,19 +3912,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         .map((item, idx) => (
                           <div
                             key={idx}
-                            className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex justify-between py-1.5 px-2.5 rounded-xl transition-all"
+                            className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex flex-col py-1.5 px-2.5 rounded-xl transition-all space-y-0.5"
                           >
-                            <span className="font-bold flex items-center gap-1.5 text-slate-750 dark:text-slate-200">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                              <span className="truncate max-w-[170px]">
-                                {item.name}
+                            <div className="flex justify-between items-center w-full">
+                              <span className="font-bold flex items-center gap-1.5 text-slate-750 dark:text-slate-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span className="truncate max-w-[170px]">
+                                  {item.name}
+                                </span>
                               </span>
-                            </span>
-                            <span className="font-black text-slate-900 dark:text-white">
-                              {item.amount > 0
-                                ? formatCurrency(item.amount)
-                                : "N/A"}
-                            </span>
+                              <span className="font-black text-slate-900 dark:text-white">
+                                {item.amount > 0
+                                  ? formatCurrency(item.amount)
+                                  : "N/A"}
+                              </span>
+                            </div>
+                            {item.remarks && (
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 pl-5">
+                                {item.remarks}
+                              </span>
+                            )}
                           </div>
                         ))}
                     </div>
@@ -3412,15 +3968,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-black text-slate-700 dark:text-slate-300 shadow-sm cursor-pointer transition-all">
+          <button
+            onClick={openBulkModal}
+            className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-black text-slate-700 dark:text-slate-300 shadow-sm cursor-pointer transition-all"
+          >
             <Upload className="w-4 h-4" /> Upload Excel
-            <input
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              className="hidden"
-              onChange={handleBulkUpload}
-            />
-          </label>
+          </button>
           <button
             onClick={handleOpenAdd}
             className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
@@ -4100,20 +4653,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             );
             if (confirmingApp.status === "Enrolled") {
               await fetchStudents();
-              if (studentId) {
-                setFeeSummaryStudentId(studentId);
-              } else {
-                const matchedSt = students.find(
-                  (s) =>
-                    s.admissionNo === confirmingApp.app.applicationNo ||
-                    s.phone === confirmingApp.app.phone,
-                );
-                if (matchedSt) {
-                  setFeeSummaryStudentId(matchedSt.id);
-                } else {
-                  setFeeSummaryStudentId(students[0]?.id || "STU-001");
-                }
-              }
+              const matchedSt = students.find(
+                (s) =>
+                  s.id === studentId ||
+                  s.admissionNo === confirmingApp.app.applicationNo ||
+                  (confirmingApp.app.applicationNo &&
+                    s.admissionNo?.includes(confirmingApp.app.applicationNo)) ||
+                  s.phone === confirmingApp.app.phone,
+              );
+              const targetId =
+                matchedSt?.id ||
+                studentId ||
+                confirmingApp.app.id ||
+                confirmingApp.app.applicationNo;
+              setFeeSummaryStudentId(targetId);
             }
             addToast(
               confirmingApp.status === "Enrolled" ? "success" : "info",
@@ -4497,6 +5050,137 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </div>
           );
         })()}
+
+      {/* ENTERPRISE BULK UPLOAD ADMISSION APPLICATIONS MODAL */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 space-y-5">
+            {/* Close Button */}
+            <button
+              onClick={closeBulkModal}
+              disabled={isUploading}
+              className="absolute right-4 top-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors border border-slate-200/60 dark:border-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Bulk Upload Applications
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Upload a single Excel file to add or update student admission applications in one enterprise-ready flow.
+              </p>
+            </div>
+
+            {/* Download Template Button */}
+            <div>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Download className="w-4 h-4" /> Download Template
+              </button>
+            </div>
+
+            {/* Drag & Drop Zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 transition-colors ${
+                isDragging
+                  ? "border-sky-500 bg-sky-50/30 dark:bg-sky-950/20"
+                  : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30"
+              }`}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+                <UploadCloud className="w-6 h-6" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Drag and drop your Excel file here
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Only `.xlsx`, `.xls`, and `.csv` files are accepted.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => bulkFileInputRef.current?.click()}
+                className="mt-1 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer"
+              >
+                Choose File
+              </button>
+              <input
+                type="file"
+                ref={bulkFileInputRef}
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </div>
+
+            {/* Selected File Details */}
+            <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950/40 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[240px]">
+                    {selectedFile ? selectedFile.name : "No file selected yet"}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {selectedFile
+                      ? `${(selectedFile.size / 1024).toFixed(1)} KB`
+                      : "Select an Excel file to continue"}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[9px] font-black tracking-wider text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2 py-1 rounded-lg">
+                XLSX
+              </span>
+            </div>
+
+            {/* Upload Progress */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span>Upload progress</span>
+                <span className="text-sky-600 font-mono">{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-sky-600 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={closeBulkModal}
+                disabled={isUploading}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleStartBulkUpload}
+                disabled={!selectedFile || isUploading}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 text-xs font-extrabold shadow-lg shadow-sky-600/20 transition-all disabled:shadow-none cursor-pointer flex items-center gap-2"
+              >
+                {isUploading ? "Uploading..." : "Upload Applications"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

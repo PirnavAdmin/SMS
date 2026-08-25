@@ -41,8 +41,8 @@ const fieldClass =
 
 export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   value,
-  errors = {},
-  onChange,
+  errors: parentErrors = {},
+  onChange: parentOnChange,
   onCategoryChange,
   employeeIdReadOnly = true,
   compact = false,
@@ -52,6 +52,120 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 }) => {
   const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [] } = useData();
   const normalizedCategory = normalizeStaffType(value.employeeCategory);
+
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+  const errors = { ...parentErrors, ...localErrors };
+
+  const onChange = (field: keyof BasicStaffFormState, val: any) => {
+    parentOnChange(field, val);
+    setLocalErrors(prev => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateStep = (step: number): boolean => {
+    const stepErrors: Record<string, string> = {};
+    const require = (key: string, condition: boolean, message: string) => {
+      if (!condition) stepErrors[key] = message;
+    };
+
+    if (step === 1) {
+      require("employeeCategory", !!value.employeeCategory, "Staff Type is required.");
+      require("firstName", !!value.firstName.trim(), "First name is required.");
+      require("lastName", !!value.lastName.trim(), "Last name is required.");
+      require("gender", !!value.gender, "Gender is required.");
+      require("dob", !!value.dob.trim(), "Date of Birth is required.");
+      require("bloodGroup", !!value.bloodGroup, "Blood Group is required.");
+      require("mobileNumber", !!value.mobileNumber.trim(), "Mobile number is required.");
+      if (value.mobileNumber.trim()) {
+        const localPart = value.mobileNumber.split("-").pop() || "";
+        if (!/^\d{10}$/.test(localPart.replace(/[^\d]/g, ""))) {
+          stepErrors.mobileNumber = "Mobile number must be exactly 10 digits.";
+        }
+      }
+      require("presentAddress", !!value.presentAddress.trim(), "Present Address is required.");
+      if (!value.sameAsPresentAddress) {
+        require("permanentAddress", !!value.permanentAddress.trim(), "Permanent Address is required.");
+      }
+      require("city", !!value.city.trim(), "City is required.");
+      require("state", !!value.state.trim(), "State is required.");
+      require("pinCode", !!value.pinCode.trim(), "PIN Code is required.");
+      require("country", !!value.country.trim(), "Country is required.");
+      if (value.pinCode.trim() && !/^\d{6}$/.test(value.pinCode.trim())) {
+        stepErrors.pinCode = "PIN Code must be exactly 6 digits.";
+      }
+      require("aadhaarNumber", !!value.aadhaarNumber?.trim(), "Aadhaar Number is required.");
+      if (value.aadhaarNumber?.trim() && !/^\d{12}$/.test(value.aadhaarNumber.trim())) {
+        stepErrors.aadhaarNumber = "Aadhaar Number must be exactly 12 digits.";
+      }
+      require("panNumber", !!value.panNumber?.trim(), "PAN Number is required.");
+      if (value.panNumber?.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(value.panNumber.trim().toUpperCase())) {
+        stepErrors.panNumber = "Invalid PAN Number format (e.g. ABCDE1234F).";
+      }
+      require("email", !!value.email.trim(), "Email address is required.");
+      if (value.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email.trim())) {
+        stepErrors.email = "Invalid email format.";
+      }
+    } else if (step === 2) {
+      require("branch", !!value.branch.trim(), "Branch is required.");
+      require("department", !!value.department.trim(), "Department is required.");
+      require("designation", !!value.designation.trim(), "Designation is required.");
+      require("joiningDate", !!value.joiningDate.trim(), "Joining date is required.");
+      require("employmentType", !!value.employmentType.trim(), "Employment type is required.");
+      require("status", !!value.status.trim(), "Status is required.");
+    }
+
+    setLocalErrors(stepErrors);
+    return Object.keys(stepErrors).length === 0;
+  };
+
+  const parsePhone = (phoneStr: string = '') => {
+    const clean = phoneStr.trim();
+    const codes = ['+91', '+971', '+44', '+61', '+1'];
+    for (const code of codes) {
+      if (clean.startsWith(code)) {
+        let local = clean.slice(code.length);
+        if (local.startsWith('-')) local = local.slice(1);
+        return { countryCode: code, localNumber: local.replace(/[^0-9]/g, '').slice(0, 10) };
+      }
+    }
+    return { countryCode: '+91', localNumber: clean.replace(/[^0-9]/g, '').slice(0, 10) };
+  };
+
+  const { countryCode: primaryCc, localNumber: primaryLocal } = parsePhone(value.mobileNumber);
+  const { countryCode: altCc, localNumber: altLocal } = parsePhone(value.alternateMobileNumber || '');
+
+  const handleMobileChange = (field: 'mobileNumber' | 'alternateMobileNumber', val: string) => {
+    const numericVal = val.replace(/[^0-9]/g, '').slice(0, 10);
+    const cc = field === 'mobileNumber' ? primaryCc : altCc;
+    onChange(field, `${cc}-${numericVal}`);
+  };
+
+  const handlePinCodeChange = async (val: string) => {
+    const cleanPin = val.replace(/[^0-9]/g, '').slice(0, 6);
+    onChange('pinCode', cleanPin);
+
+    if (cleanPin.length === 6) {
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData && resData[0] && resData[0].Status === "Success") {
+            const postOffice = resData[0].PostOffice[0];
+            if (postOffice) {
+              onChange('city', postOffice.District || postOffice.Name || '');
+              onChange('state', postOffice.State || '');
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching PIN code details:", err);
+      }
+    }
+  };
 
   const allClassSectionOptions = React.useMemo(() => {
     return academicClasses.flatMap(cls => 
@@ -152,8 +266,26 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   // Document preview modal state
   const [previewDoc, setPreviewDoc] = useState<StaffUploadedDocItem | null>(null);
 
-  const departmentSelectOptions = getDepartmentSelectOptions(normalizedCategory, departments);
-  const designationOptions = getDesignationOptions(normalizedCategory, value.department, designations);
+  const departmentSelectOptions = React.useMemo(() => {
+    const uniqueDeptsMap = new Map<string, string>();
+    
+    // Add all active departments from the database
+    (departments || []).forEach(d => {
+      if (d.status === 'Active' && d.departmentName) {
+        uniqueDeptsMap.set(d.departmentName.trim(), d.departmentCode || '');
+      }
+    });
+
+    return Array.from(uniqueDeptsMap.entries()).map(([name, code]) => ({
+      value: name,
+      label: name,
+      code: code || name.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 4) || "DEPT"
+    }));
+  }, [departments]);
+
+  const designationOptions = React.useMemo(() => {
+    return getDesignationOptions(normalizedCategory, value.department, designations);
+  }, [normalizedCategory, value.department, designations]);
 
   // Dynamic Department change handler
   const handleDepartmentChange = (dept: string) => {
@@ -250,19 +382,22 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const fakeUrl = URL.createObjectURL(file);
-    const newDoc: StaffUploadedDocItem = {
-      id: `DOC-${Date.now()}`,
-      docType,
-      fileName: file.name,
-      fileUrl: fakeUrl,
-      fileSize: `${(file.size / 1024).toFixed(1)} KB`,
-      uploadedAt: new Date().toLocaleDateString()
-    };
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const newDoc: StaffUploadedDocItem = {
+        id: `DOC-${Date.now()}`,
+        docType,
+        fileName: file.name,
+        fileUrl: reader.result as string,
+        fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+        uploadedAt: new Date().toLocaleDateString()
+      };
 
-    // Remove existing doc of same type if present
-    const filteredDocs = value.documents.filter(d => d.docType !== docType);
-    onChange('documents', [...filteredDocs, newDoc]);
+      // Remove existing doc of same type if present
+      const filteredDocs = value.documents.filter(d => d.docType !== docType);
+      onChange('documents', [...filteredDocs, newDoc]);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteDocument = (docId: string) => {
@@ -304,7 +439,22 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               <button
                 type="button"
                 key={step.number}
-                onClick={() => setActiveStep(step.number)}
+                onClick={() => {
+                  if (step.number < activeStep) {
+                    setActiveStep(step.number);
+                  } else {
+                    let isValid = true;
+                    for (let s = activeStep; s < step.number; s++) {
+                      if (!validateStep(s)) {
+                        isValid = false;
+                        break;
+                      }
+                    }
+                    if (isValid) {
+                      setActiveStep(step.number);
+                    }
+                  }
+                }}
                 className={`flex items-center justify-center gap-2 py-2 px-2.5 rounded-xl font-bold transition-all ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-xs'
@@ -390,7 +540,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               {/* Gender */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Gender</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Gender <span className="text-rose-500">*</span>
+                </label>
                 <div className="relative mt-1.5">
                   <select
                     value={value.gender || ''}
@@ -404,17 +556,23 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
+                {errors.gender && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.gender}</p>}
               </div>
 
               {/* Date of Birth */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date of Birth</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Date of Birth <span className="text-rose-500">*</span>
+                </label>
                 <DateInput value={value.dob || ''} onChange={e => onChange('dob', e.target.value)} className={fieldClass} />
+                {errors.dob && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.dob}</p>}
               </div>
 
               {/* Blood Group */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Blood Group</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Blood Group <span className="text-rose-500">*</span>
+                </label>
                 <div className="relative mt-1.5">
                   <select
                     value={value.bloodGroup || ''}
@@ -428,6 +586,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
+                {errors.bloodGroup && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.bloodGroup}</p>}
               </div>
 
               {/* Mobile Number */}
@@ -435,24 +594,58 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Mobile Number <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="tel"
-                  value={value.mobileNumber}
-                  onChange={e => onChange('mobileNumber', e.target.value)}
-                  className={fieldClass}
-                />
+                <div className="flex gap-2 mt-1.5">
+                  <div className="relative shrink-0 w-24">
+                    <select
+                      value={primaryCc}
+                      onChange={e => onChange('mobileNumber', `${e.target.value}-${primaryLocal}`)}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3.5 pr-8 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+971">🇦🇪 +971</option>
+                      <option value="+61">🇦🇺 +61</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={primaryLocal}
+                    onChange={e => handleMobileChange('mobileNumber', e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium"
+                    placeholder="10-digit number"
+                  />
+                </div>
                 {errors.mobileNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.mobileNumber}</p>}
               </div>
 
               {/* Alternate Mobile Number */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alternate Mobile Number <span className="text-slate-400 font-normal">(Optional)</span></label>
-                <input
-                  type="tel"
-                  value={value.alternateMobileNumber || ''}
-                  onChange={e => onChange('alternateMobileNumber', e.target.value)}
-                  className={fieldClass}
-                />
+                <div className="flex gap-2 mt-1.5">
+                  <div className="relative shrink-0 w-24">
+                    <select
+                      value={altCc}
+                      onChange={e => onChange('alternateMobileNumber', `${e.target.value}-${altLocal}`)}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3.5 pr-8 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+971">🇦🇪 +971</option>
+                      <option value="+61">🇦🇺 +61</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={altLocal}
+                    onChange={e => handleMobileChange('alternateMobileNumber', e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium"
+                    placeholder="10-digit number"
+                  />
+                </div>
               </div>
 
               {/* Email Address */}
@@ -469,7 +662,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               {/* Staff Photo Upload */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Photo</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Profile Photo</label>
                 <div className="relative">
                   {value.photoUrl ? (
                     <div className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -499,7 +692,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                         accept="image/*"
                         onChange={e => {
                           const file = e.target.files?.[0];
-                          if (file) onChange('photoUrl', URL.createObjectURL(file));
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              onChange('photoUrl', reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
                         }}
                         className="hidden"
                       />
@@ -519,24 +718,32 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Aadhaar Number <span className="text-slate-400 font-normal">(Optional)</span></label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Aadhaar Number <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={value.aadhaarNumber || ''}
                   onChange={e => onChange('aadhaarNumber', e.target.value)}
                   className={`${fieldClass} font-mono`}
+                  placeholder="Enter 12-digit Aadhaar"
                 />
+                {errors.aadhaarNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.aadhaarNumber}</p>}
               </div>
 
               {/* PAN Number */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">PAN Number <span className="text-slate-400 font-normal">(Optional)</span></label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  PAN Number <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={value.panNumber || ''}
                   onChange={e => onChange('panNumber', e.target.value.toUpperCase())}
                   className={`${fieldClass} font-mono uppercase`}
+                  placeholder="Enter 10-char PAN"
                 />
+                {errors.panNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.panNumber}</p>}
               </div>
             </div>
           </div>
@@ -561,34 +768,60 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Present Address</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Present Address <span className="text-rose-500">*</span>
+                </label>
                 <textarea
                   rows={2}
                   value={value.presentAddress || ''}
                   onChange={e => onChange('presentAddress', e.target.value)}
                   className={fieldClass}
+                  placeholder="Enter present address"
                 />
+                {errors.presentAddress && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.presentAddress}</p>}
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Permanent Address</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Permanent Address {!value.sameAsPresentAddress && <span className="text-rose-500">*</span>}
+                </label>
                 <textarea
                   rows={2}
                   value={value.permanentAddress || ''}
                   onChange={e => onChange('permanentAddress', e.target.value)}
                   className={fieldClass}
                   disabled={value.sameAsPresentAddress}
+                  placeholder="Enter permanent address"
                 />
+                {errors.permanentAddress && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.permanentAddress}</p>}
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">City</label>
-                <input type="text" value={value.city || ''} onChange={e => onChange('city', e.target.value)} className={fieldClass} />
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  State <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={value.state || ''}
+                  onChange={e => onChange('state', e.target.value)}
+                  className={fieldClass}
+                  placeholder="Enter state"
+                />
+                {errors.state && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.state}</p>}
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">State</label>
-                <input type="text" value={value.state || ''} onChange={e => onChange('state', e.target.value)} className={fieldClass} />
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  City <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={value.city || ''}
+                  onChange={e => onChange('city', e.target.value)}
+                  className={fieldClass}
+                  placeholder="Enter city"
+                />
+                {errors.city && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.city}</p>}
               </div>
 
               <div>
@@ -621,6 +854,28 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   }}
                   className={`${fieldClass} font-mono`}
                 />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Country <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative mt-1.5">
+                  <select
+                    value={value.country || ''}
+                    onChange={e => onChange('country', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                  >
+                    <option value="">Select Country</option>
+                    <option value="India">India</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="United Arab Emirates">United Arab Emirates</option>
+                    <option value="Australia">Australia</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {errors.country && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.country}</p>}
               </div>
             </div>
           </div>
@@ -1178,7 +1433,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Total Experience (Auto)</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Total Experience</label>
                     <input
                       type="text"
                       value={calculateExperienceYearsMonths(expForm.fromDate, expForm.toDate)}
@@ -1337,7 +1592,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
           <button
             key="next-staff-btn"
             type="button"
-            onClick={() => setActiveStep(prev => Math.min(5, prev + 1))}
+            onClick={() => {
+              if (validateStep(activeStep)) {
+                setActiveStep(prev => Math.min(5, prev + 1));
+              }
+            }}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
           >
             Next Step

@@ -79,21 +79,61 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Communication Hub', module: 'communication' }
   ] : [
     { name: 'Dashboard', module: 'dashboard' },
-    { name: 'Student Management', module: 'students' },
-    { name: 'Staff Management', module: 'staff' },
     { name: 'Admissions Management', module: 'admissions' },
-    { name: 'Fee Collection & Dues', module: 'fees' },
-    { name: 'Attendance Analytics', module: 'attendance' },
-    { name: 'Examination & Reports', module: 'examination' },
-    { name: 'Library Inventory', module: 'library' },
-    { name: 'Transport Management', module: 'transport' },
-    { name: 'Hostel Allocation', module: 'hostel' },
-    { name: 'Inventory & Supplies', module: 'inventory' },
-    { name: 'Broadcast Communication', module: 'communication' },
+    { name: 'Student Directory', module: 'students' },
+    { name: 'Academic History', module: 'academic-history' },
+    { name: 'Student Attendance', module: 'attendance' },
+    { name: 'Student Promotion', module: 'student-promotion' },
+    { name: 'Certificates', module: 'certificates' },
+    { name: 'Alumni', module: 'alumni' },
+    { name: 'Communication Hub', module: 'communication' },
     { name: 'Events & Holidays', module: 'events' },
-    { name: 'Reports & Export', module: 'reports' },
-    { name: 'System Settings', module: 'settings' }
-  ]).filter(m => m.name.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+    { name: 'Faculty Training', module: 'training' },
+    { name: 'School Reports', module: 'reports' },
+    { name: 'System Settings', module: 'settings' },
+    { name: 'Library Inventory', module: 'library' },
+    { name: 'Librarian Attendance', module: 'librarian-attendance' },
+    { name: 'Library Timetable', module: 'library-timetable' },
+    { name: 'Inventory & Supplies', module: 'inventory' },
+    // Finance Sub-options
+    { name: 'Finance \u2192 Dashboard', module: 'finance-dashboard' },
+    { name: 'Finance \u2192 Fee Collection', module: 'finance-fee-collection' },
+    { name: 'Finance \u2192 Finance Setup', module: 'finance-masters' },
+    { name: 'Finance \u2192 Transactions', module: 'finance-transactions' },
+    { name: 'Finance \u2192 Finance Reports', module: 'finance-reports' },
+    // Hostel Sub-options
+    { name: 'Hostel \u2192 Dashboard', module: 'hostel-dashboard' },
+    { name: 'Hostel \u2192 Hostel Master Setup', module: 'hostel-masters' },
+    { name: 'Hostel \u2192 Room Allocation', module: 'hostel-student-hostel' },
+    { name: 'Hostel \u2192 Hostel Reports', module: 'hostel-reports' },
+    // Transport Sub-options
+    { name: 'Transport \u2192 Dashboard', module: 'transport-dashboard' },
+    { name: 'Transport \u2192 Route & Vehicle Setup', module: 'transport-setup' },
+    { name: 'Transport \u2192 Transport Operations', module: 'transport-operations' },
+    { name: 'Transport \u2192 Reports', module: 'transport-reports' },
+    // Uniform Sub-options
+    { name: 'Uniform \u2192 Dashboard', module: 'uniform-dashboard' },
+    { name: 'Uniform \u2192 Uniform Configuration', module: 'uniform-masters' },
+    { name: 'Uniform \u2192 Student Uniform Distribution', module: 'uniform-student-uniform' },
+    { name: 'Uniform \u2192 Uniform Reports', module: 'uniform-reports' },
+    // Staff Sub-options (Teachers vs Admin)
+    ...(userRole === 'teacher' ? [
+      { name: 'Staff \u2192 My Profile', module: 'teacher-profile' },
+      { name: 'Staff \u2192 My Attendance', module: 'staff-attendance' },
+      { name: 'Staff \u2192 Leave Management', module: 'staff-leave' },
+      { name: 'Staff \u2192 My Payslips', module: 'staff-my-payslips' }
+    ] : [
+      { name: 'Staff \u2192 Staff Directory', module: 'staff-directory' },
+      { name: 'Staff \u2192 Staff Attendance', module: 'staff-attendance' },
+      { name: 'Staff \u2192 Leave Management', module: 'staff-leave' },
+      { name: 'Staff \u2192 Payroll', module: 'staff-payroll' }
+    ]),
+    // Academics Sub-options
+    { name: 'Academics \u2192 Dashboard', module: 'academic-dashboard' },
+    { name: 'Academics \u2192 Class Management', module: 'academic-class' },
+    { name: 'Academics \u2192 Subject Management', module: 'subjects' },
+    { name: 'Academics \u2192 Time Table', module: 'timetable' }
+  ]).filter(m => m.name.toLowerCase().includes(query.toLowerCase())).slice(0, 10);
 
   return (
     <div 

@@ -223,54 +223,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </table>
       </div>
 
-      {/* Section split for Non-academics & attendance summary details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-        {/* Attendance Summary */}
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs">
-          <h4 className="font-extrabold text-[10px] uppercase text-slate-400 block tracking-wider mb-2">Attendance Summary</h4>
-          <div className="grid grid-cols-2 gap-3 font-semibold">
-            <div>
-              <span className="text-[10px] text-slate-450 block">Total School Working Days:</span>
-              <span className="font-mono text-slate-900 dark:text-white font-bold">{workingDays} Days</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-450 block">Days Present:</span>
-              <span className="font-mono text-slate-900 dark:text-white font-bold">{presentDays} Days</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-450 block">Days Absent:</span>
-              <span className="font-mono text-slate-900 dark:text-white font-bold">{absentDays} Days</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-450 block">Attendance Rate:</span>
-              <span className="font-mono text-sky-600 dark:text-sky-400 font-black">{attendanceRate}%</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Co-Scholastic Assessment */}
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs">
-          <h4 className="font-extrabold text-[10px] uppercase text-slate-400 block tracking-wider mb-2">Co-Scholastic Assessment</h4>
-          <div className="grid grid-cols-2 gap-3 font-semibold">
-            <div>
-              <span className="text-[10px] text-slate-450 block font-bold">Discipline Grade:</span>
-              <span className="font-black text-indigo-600 dark:text-indigo-400">{csData.discipline || 'A'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-450 block font-bold">Sports & Games:</span>
-              <span className="font-black text-indigo-600 dark:text-indigo-400">{csData.sports || 'A'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-450 block font-bold">Art & Craft Rating:</span>
-              <span className="font-black text-indigo-600 dark:text-indigo-400">{csData.artAndCraft || 'B+'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-450 block font-bold">General Conduct:</span>
-              <span className="font-black text-indigo-600 dark:text-indigo-400">{csData.generalConduct || 'A'}</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Performance Summary Metrics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-center font-bold">

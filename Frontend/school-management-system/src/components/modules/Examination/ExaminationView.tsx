@@ -171,11 +171,8 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   }, [selectedExamId]);
 
   const classOptions = useMemo(() => {
-    if (options?.availableClasses && options.availableClasses.length > 0) {
-      return options.availableClasses;
-    }
     return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
-  }, [options, academicClasses]);
+  }, [academicClasses]);
 
   const handleCreateNewExam = async () => {
     setLoading(true);

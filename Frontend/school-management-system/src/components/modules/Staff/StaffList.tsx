@@ -14,6 +14,10 @@ import {
   ChevronDown,
   Upload,
   User,
+  X,
+  Download,
+  UploadCloud,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -36,6 +40,30 @@ import {
 
 import { useAuth } from "../../../context/AuthContext";
 import { TeacherProfileView } from "./TeacherProfileView";
+
+const StaffListRowAvatar: React.FC<{ st: Staff }> = ({ st }) => {
+  const [imgErr, setImgErr] = useState(false);
+  useEffect(() => {
+    setImgErr(false);
+  }, [st.avatar, st.id]);
+
+  if (!imgErr && st.avatar) {
+    return (
+      <img
+        src={st.avatar}
+        alt=""
+        onError={() => setImgErr(true)}
+        className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800"
+      />
+    );
+  }
+
+  return (
+    <div className="w-9 h-9 rounded-xl bg-brand-100 text-brand-700 dark:bg-brand-950/40 dark:text-brand-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] font-black uppercase">
+      {((st.firstName?.[0] || '') + (st.lastName?.[0] || '')).toUpperCase() || <User className="w-4 h-4 text-slate-400" />}
+    </div>
+  );
+};
 
 export const StaffList: React.FC<{
   initialCategory?: string;
@@ -114,6 +142,14 @@ export const StaffList: React.FC<{
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
   const [isRuleMasterOpen, setIsRuleMasterOpen] = useState(false);
+
+  // Bulk upload modal state
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to categorize staff dynamically for backward compatibility
   const getStaffCategory = (s: Staff): string => {
@@ -283,11 +319,106 @@ export const StaffList: React.FC<{
     setCurrentPage(1);
   };
 
-  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const openBulkModal = () => {
+    setIsBulkModalOpen(true);
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+  };
 
-    addToast("info", "Processing File", "Reading Excel data...");
+  const closeBulkModal = () => {
+    if (isUploading) return;
+    setIsBulkModalOpen(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      validateAndSetFile(file);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      validateAndSetFile(file);
+    }
+  };
+
+  const validateAndSetFile = (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext !== "xlsx" && ext !== "xls") {
+      addToast("error", "Invalid File", "Only .xlsx and .xls Excel files are accepted.");
+      return;
+    }
+    setSelectedFile(file);
+    setUploadProgress(0);
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRow = {
+        "empId": "EMP1001",
+        "firstName": "John",
+        "middleName": "Robert",
+        "lastName": "Doe",
+        "employeeCategory": activeCategory,
+        "gender": "Male",
+        "dob": "1990-05-15",
+        "bloodGroup": "O+",
+        "mobileNumber": "9876543210",
+        "alternateMobileNumber": "9876543211",
+        "email": "john.doe@school.com",
+        "aadhaarNumber": "123456789012",
+        "panNumber": "ABCDE1234F",
+        "presentAddress": "123 Main Street",
+        "permanentAddress": "123 Main Street",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "pinCode": "500001",
+        "branch": "Main Campus",
+        "department": activeCategory === "Teaching Staff" ? "Mathematics" : "Administration",
+        "designation": activeCategory === "Teaching Staff" ? "PGT Teacher" : "Administrator",
+        "employmentType": "Full Time",
+        "joiningDate": "2024-06-01"
+      };
+      const worksheet = XLSX.utils.json_to_sheet([sampleRow]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+      XLSX.writeFile(workbook, "bulk_employee_template.xlsx");
+      addToast("success", "Template Downloaded", "The Excel template has been downloaded.");
+    } catch (err) {
+      addToast("error", "Error", "Failed to generate template.");
+    }
+  };
+
+  const handleUploadExecute = async () => {
+    if (!selectedFile) return;
+    setIsUploading(true);
+    setUploadProgress(10);
+
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(interval);
+          return 90;
+        }
+        return prev + 20;
+      });
+    }, 150);
+
     try {
       const XLSX = await import("xlsx");
       const reader = new FileReader();
@@ -313,22 +444,30 @@ export const StaffList: React.FC<{
                   ? row.applicantName.split(" ").slice(1).join(" ")
                   : "Unknown");
               const newStaff: Omit<Staff, "id"> = {
-                empId:
-                  row.empId || `EMP${Math.floor(1000 + Math.random() * 9000)}`,
+                empId: row.empId || `EMP${Math.floor(1000 + Math.random() * 9000)}`,
                 firstName: fName,
+                middleName: row.middleName || "",
                 lastName: lName,
+                employeeCategory: row.employeeCategory || activeCategory,
+                gender: row.gender || "Male",
+                dob: row.dob || "",
+                bloodGroup: row.bloodGroup || "",
+                mobileNumber: row.mobileNumber || row.phone || row.mobile || "",
+                alternateMobileNumber: row.alternateMobileNumber || "",
                 email: row.email || `${fName.toLowerCase()}@pirnav.com`,
-                phone: row.phone || row.mobile || "",
+                aadhaarNumber: row.aadhaarNumber || "",
+                panNumber: row.panNumber || "",
+                presentAddress: row.presentAddress || "",
+                permanentAddress: row.permanentAddress || "",
+                city: row.city || "",
+                state: row.state || "",
+                pinCode: row.pinCode || "",
+                branch: row.branch || "Main Campus",
                 department: row.department || "General",
-                designation:
-                  row.designation ||
-                  (activeCategory === "Teacher"
-                    ? "PGT Teacher"
-                    : "Support Staff"),
-                role:
-                  row.role ||
-                  (activeCategory === "Teacher" ? "Teacher" : "Staff"),
-                employeeCategory: activeCategory,
+                designation: row.designation || (activeCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
+                employmentType: row.employmentType || "Full Time",
+                joiningDate: row.joiningDate || "",
+                role: activeCategory === "Teaching Staff" ? "Teacher" : "Staff",
                 status: "Active",
                 assignedClasses: [],
                 assignedSubjects: [],
@@ -338,21 +477,30 @@ export const StaffList: React.FC<{
             }
           });
 
-          addToast(
-            "success",
-            "Upload Complete",
-            `Successfully imported ${count} ${getCategoryLabel(activeCategory)} records.`,
-          );
+          setUploadProgress(100);
+          setTimeout(() => {
+            addToast(
+              "success",
+              "Upload Complete",
+              `Successfully imported ${count} ${getCategoryLabel(activeCategory)} records.`,
+            );
+            setIsBulkModalOpen(false);
+            setSelectedFile(null);
+            setIsUploading(false);
+          }, 300);
         } catch (err) {
+          clearInterval(interval);
+          setIsUploading(false);
           console.error(err);
           addToast("error", "Upload Failed", "Failed to parse Excel file.");
         }
       };
-      reader.readAsBinaryString(file);
+      reader.readAsBinaryString(selectedFile);
     } catch (err) {
+      clearInterval(interval);
+      setIsUploading(false);
       addToast("error", "Error", "Failed to load excel parser.");
     }
-    e.target.value = "";
   };
 
   return (
@@ -367,15 +515,12 @@ export const StaffList: React.FC<{
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer">
+          <button
+            onClick={openBulkModal}
+            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+          >
             <Upload className="w-4 h-4" /> Upload Excel
-            <input
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              className="hidden"
-              onChange={handleBulkUpload}
-            />
-          </label>
+          </button>
           <ExportButton
             data={filtered}
             filename={`${activeCategory.toLowerCase()}_directory`}
@@ -742,17 +887,7 @@ export const StaffList: React.FC<{
                           className="shrink-0"
                           title="Open staff profile"
                         >
-                          {st.avatar ? (
-                            <img
-                              src={st.avatar}
-                              alt=""
-                              className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800"
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                              <User className="w-4 h-4 text-slate-400" />
-                            </div>
-                          )}
+                          <StaffListRowAvatar st={st} />
                         </button>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">
@@ -902,6 +1037,127 @@ export const StaffList: React.FC<{
         isOpen={isRuleMasterOpen}
         onClose={() => setIsRuleMasterOpen(false)}
       />
+
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 space-y-5">
+            {/* Close Button */}
+            <button
+              onClick={closeBulkModal}
+              className="absolute right-4 top-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors border border-slate-200/60 dark:border-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Bulk Upload Employees</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Upload a single Excel file to add or update employees in one enterprise-ready flow.
+              </p>
+            </div>
+
+            {/* Download Template Button */}
+            <div>
+              <button
+                onClick={downloadTemplate}
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md flex items-center gap-2 transition-all"
+              >
+                <Download className="w-4 h-4" /> Download Template
+              </button>
+            </div>
+
+            {/* Drag & Drop Zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 transition-colors ${
+                isDragging
+                  ? "border-brand-500 bg-brand-50/30 dark:bg-brand-950/20"
+                  : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30"
+              }`}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+                <UploadCloud className="w-6 h-6" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Drag and drop your Excel file here
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Only `.xlsx` and `.xls` files are accepted.
+                </p>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-1 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
+              >
+                Choose File
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".xlsx, .xls"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </div>
+
+            {/* Selected File Details */}
+            <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[240px]">
+                    {selectedFile ? selectedFile.name : "No file selected yet"}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : "Select an Excel file to continue"}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[9px] font-black tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-1 rounded-lg">
+                XLSX
+              </span>
+            </div>
+
+            {/* Upload Progress */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span>Upload progress</span>
+                <span className="text-brand-600">{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-brand-600 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={closeBulkModal}
+                disabled={isUploading}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUploadExecute}
+                disabled={!selectedFile || isUploading}
+                className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:bg-slate-100 dark:disabled:bg-slate-900 text-white disabled:text-slate-400 text-xs font-bold shadow-lg shadow-brand-500/20 disabled:shadow-none flex items-center gap-2 transition-all disabled:cursor-not-allowed"
+              >
+                Upload Employees
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

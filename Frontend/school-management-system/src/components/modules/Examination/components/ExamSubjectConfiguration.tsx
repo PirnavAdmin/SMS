@@ -39,19 +39,12 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
   // Subjects assigned strictly to the selected class
   const classSubjects = useMemo(() => {
     let rawNames: string[] = [];
-    if (!selectedClass) {
-      rawNames = allSubjects.map(s => s.name);
-    } else {
+    if (selectedClass) {
       const matchedClass = academicClasses.find(c => c.name === selectedClass);
-      if (!matchedClass || !matchedClass.subjects || matchedClass.subjects.length === 0) {
-        rawNames = allSubjects.map(s => s.name);
-      } else {
+      if (matchedClass && matchedClass.subjects && matchedClass.subjects.length > 0) {
         rawNames = matchedClass.subjects
           .map((sub: any) => (typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')))
           .filter(Boolean);
-        if (rawNames.length === 0) {
-          rawNames = allSubjects.map(s => s.name);
-        }
       }
     }
 
@@ -64,7 +57,7 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
     });
 
     return filtered;
-  }, [selectedClass, academicClasses, allSubjects]);
+  }, [selectedClass, academicClasses]);
 
   // Active subjects strictly belonging to the displayed class subjects
   const currentClassMap = classWiseConfig[selectedClass] || {};

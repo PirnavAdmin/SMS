@@ -80,6 +80,28 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [promotionRows, setPromotionRows] = useState<PromotionStudentRow[]>([]);
 
+  const exportablePromotionData = useMemo(() => {
+    if (!promotionRows || promotionRows.length === 0) return [];
+    return promotionRows.map((r, idx) => ({
+      "S.No": idx + 1,
+      "Admission No": r.admissionNo,
+      "Roll No": r.rollNo,
+      "Student Name": `${r.firstName} ${r.lastName}`,
+      "Campus / Branch": r.branch,
+      "Current Academic Year": currentYear,
+      "Target Academic Year": targetYear,
+      "Current Class": r.currentClass,
+      "Current Section": r.currentSection,
+      "Academic Score (%)": `${r.overallPct}%`,
+      "Grade": r.grade,
+      "Final Exam Result": r.finalResult,
+      "Promotion Decision": r.promotionStatus,
+      "Target Class": r.newClass,
+      "Target Section": r.newSection || "Unassigned",
+      "Remarks / Status Notes": r.remarks
+    }));
+  }, [promotionRows, currentYear, targetYear]);
+
   // Bulk Controls State
   const [bulkTargetSection, setBulkTargetSection] = useState<string>('Section A');
   const [bulkStatus, setBulkStatus] = useState<'Promote' | 'Retain'>('Promote');
@@ -659,7 +681,11 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
             ))}
           </div>
 
-          <ExportButton data={promotionRows} filename={`student_promotion_${fromClass || 'list'}`} />
+          <ExportButton
+            data={exportablePromotionData}
+            filename={`student_promotion_${fromClass || 'list'}`}
+            emptyMessage="No student promotion records available to export. Please select a Current Class and click 'Load Final Results' first."
+          />
         </div>
       </div>
 
@@ -940,7 +966,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                         {isAllSelected ? <CheckSquare className="w-4 h-4 text-brand-600" /> : <Square className="w-4 h-4 text-slate-400" />}
                       </button>
                     </th>
-                    <th className="py-3.5 px-4">Photo</th>
                     <th className="py-3.5 px-4">Adm No</th>
                     <th className="py-3.5 px-4">Roll No</th>
                     <th className="py-3.5 px-4">Student Name</th>
@@ -956,7 +981,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="text-center py-10 text-slate-400 font-bold">
+                      <td colSpan={11} className="text-center py-10 text-slate-400 font-bold">
                         No active student records matched for {fromClass}
                       </td>
                     </tr>
@@ -976,17 +1001,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                             <button onClick={() => handleToggleSelectStudent(r.id)}>
                               {isSelected ? <CheckSquare className="w-4 h-4 text-brand-600" /> : <Square className="w-4 h-4 text-slate-400" />}
                             </button>
-                          </td>
-
-                          {/* Photo */}
-                          <td className="py-3.5 px-4">
-                            {r.avatar ? (
-                              <img src={r.avatar} alt={r.firstName} className="w-8 h-8 rounded-xl object-cover ring-2 ring-slate-100 dark:ring-slate-800" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 text-[10px]">
-                                {r.firstName[0]}
-                              </div>
-                            )}
                           </td>
 
                           {/* Admission No */}

@@ -132,21 +132,52 @@ export const PrintableCertificateContainer: React.FC<
 
   const renderInterpolatedBody = () => {
     let body = template.bodyTemplate || "";
+
+    // Standard Replacements
     body = body
-      .replace(/{studentName}/g, studentName)
-      .replace(/{admissionNo}/g, admissionNo)
-      .replace(/{className}/g, className)
-      .replace(/{section}/g, section)
-      .replace(/{rollNo}/g, rollNo)
-      .replace(/{academicYear}/g, academicYear)
-      .replace(/{fatherName}/g, fatherName)
-      .replace(/{motherName}/g, motherName)
-      .replace(/{dob}/g, dob)
-      .replace(/{dobInWords}/g, dobInWords)
-      .replace(/{leavingDate}/g, leavingDate)
-      .replace(/{reason}/g, reason)
-      .replace(/{conduct}/g, conduct)
-      .replace(/{remarks}/g, remarks);
+      .replace(/{{studentName}}/gi, studentName)
+      .replace(/{{admissionNumber}}/gi, admissionNo)
+      .replace(/{{admissionNo}}/gi, admissionNo)
+      .replace(/{{class}}/gi, className)
+      .replace(/{{className}}/gi, className)
+      .replace(/{{section}}/gi, section)
+      .replace(/{{rollNo}}/gi, rollNo)
+      .replace(/{{academicYear}}/gi, academicYear)
+      .replace(/{{fatherName}}/gi, fatherName)
+      .replace(/{{motherName}}/gi, motherName)
+      .replace(/{{dateOfBirth}}/gi, formatDateDDMMYYYY(dob))
+      .replace(/{{dob}}/gi, formatDateDDMMYYYY(dob))
+      .replace(/{{dobInWords}}/gi, dobInWords)
+      .replace(/{{dateOfAdmission}}/gi, formatDateDDMMYYYY(admissionDate))
+      .replace(/{{schoolName}}/gi, schoolName)
+      .replace(/{{schoolAddress}}/gi, schoolAddress)
+      .replace(/{{certificateNumber}}/gi, displayCertNo)
+      .replace(/{{issueDate}}/gi, formatDateDDMMYYYY(issueDate))
+      .replace(/{{leavingDate}}/gi, formatDateDDMMYYYY(leavingDate || fieldDataSnapshot?.dateOfLeaving))
+      .replace(/{{dateOfLeaving}}/gi, formatDateDDMMYYYY(leavingDate || fieldDataSnapshot?.dateOfLeaving))
+      .replace(/{{reason}}/gi, reason || fieldDataSnapshot?.reasonForLeaving || fieldDataSnapshot?.purpose || '')
+      .replace(/{{reasonForLeaving}}/gi, reason || fieldDataSnapshot?.reasonForLeaving || fieldDataSnapshot?.purpose || '')
+      .replace(/{{conduct}}/gi, conduct || fieldDataSnapshot?.generalConduct || '')
+      .replace(/{{remarks}}/gi, remarks || fieldDataSnapshot?.specialRemarks || fieldDataSnapshot?.remarks || '')
+      .replace(/{{moleIdentification}}/gi, moleIdentification || identificationMarks || fieldDataSnapshot?.moleIdentification || fieldDataSnapshot?.identificationMarks || '')
+      .replace(/{{identificationMarks}}/gi, moleIdentification || identificationMarks || fieldDataSnapshot?.moleIdentification || fieldDataSnapshot?.identificationMarks || '');
+
+    // Dynamic fieldDataSnapshot Replacements
+    if (fieldDataSnapshot) {
+      Object.keys(fieldDataSnapshot).forEach(key => {
+        const val = fieldDataSnapshot[key];
+        if (val !== undefined && val !== null && val !== '') {
+          const formattedVal = (key.toLowerCase().includes('date') && typeof val === 'string' && val.includes('-')) 
+            ? formatDateDDMMYYYY(val) 
+            : String(val);
+          const regex = new RegExp(`{{${key}}}`, 'gi');
+          body = body.replace(regex, formattedVal);
+        }
+      });
+    }
+
+    // Clean up unreplaced optional placeholders
+    body = body.replace(/{{[a-zA-Z0-9_]+}}/g, '—');
 
     return (
       <div className="py-6 px-4 text-slate-800 leading-relaxed text-sm sm:text-base font-serif whitespace-pre-wrap">
@@ -372,7 +403,7 @@ export const PrintableCertificateContainer: React.FC<
                 9. Date of Leaving School:
               </td>
               <td className="py-2.5 px-3 font-bold text-slate-800">
-                {formatDateDDMMYYYY(leavingDate)}
+                {formatDateDDMMYYYY(leavingDate || fieldDataSnapshot?.dateOfLeaving)}
               </td>
             </tr>
             <tr className="border-b border-slate-200">
@@ -380,7 +411,7 @@ export const PrintableCertificateContainer: React.FC<
                 10. Reason for Leaving:
               </td>
               <td className="py-2.5 px-3 font-bold text-slate-800">
-                {reason || "Course Completed"}
+                {reason || fieldDataSnapshot?.reasonForLeaving || fieldDataSnapshot?.purpose || "Course Completed"}
               </td>
             </tr>
             <tr className="border-b border-slate-200">
@@ -388,8 +419,8 @@ export const PrintableCertificateContainer: React.FC<
                 11. General Conduct & Remarks:
               </td>
               <td className="py-2.5 px-3 font-medium text-slate-800">
-                Conduct: <strong>{conduct || "Good"}</strong> • Remarks:{" "}
-                <em>{remarks || "Satisfactory"}</em>
+                Conduct: <strong>{conduct || fieldDataSnapshot?.generalConduct || "Good"}</strong> • Remarks:{" "}
+                <em>{remarks || fieldDataSnapshot?.specialRemarks || fieldDataSnapshot?.remarks || "Satisfactory"}</em>
               </td>
             </tr>
             <tr className="border-b border-slate-200">
@@ -399,22 +430,47 @@ export const PrintableCertificateContainer: React.FC<
               <td className="py-2.5 px-3 font-semibold text-slate-800">
                 {fieldDataSnapshot?.moleIdentification ||
                   fieldDataSnapshot?.identificationMarks ||
+                  moleIdentification ||
+                  identificationMarks ||
                   "1. A mole on right cheek  2. A mole on left shoulder"}
               </td>
             </tr>
           </tbody>
         </table>
       ) : (
-        /* DEFAULT GENERIC PARAGRAPH LAYOUT */
-        <div className="py-6 px-4 text-sm sm:text-base leading-relaxed text-slate-800 font-serif text-justify">
-          This is to certify that <strong>{studentName}</strong>, Admission No.{" "}
-          <strong>{admissionNo}</strong>, Class{" "}
-          <strong>
-            {className} - {section}
-          </strong>
-          , is a student of <strong>{schoolName}</strong> for the Academic
-          Session <strong>{academicYear}</strong>. Issued on{" "}
-          <strong>{formatDateDDMMYYYY(issueDate)}</strong>.
+        /* DYNAMIC DEDICATED LAYOUT FOR NON-TC CERTIFICATES */
+        <div className="py-6 px-4 space-y-4">
+          <div className="text-sm sm:text-base leading-relaxed text-slate-800 font-serif text-justify">
+            This is to certify that <strong>{studentName}</strong>, Admission No.{" "}
+            <strong>{admissionNo}</strong>, Class{" "}
+            <strong>
+              {className} {section ? `- ${section}` : ''}
+            </strong>
+            , is a student of <strong>{schoolName}</strong> for the Academic
+            Session <strong>{academicYear}</strong>. Issued on{" "}
+            <strong>{formatDateDDMMYYYY(issueDate)}</strong>.
+          </div>
+
+          {/* Dynamic Field Values Grid */}
+          {fieldDataSnapshot && Object.keys(fieldDataSnapshot).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
+              {Object.entries(fieldDataSnapshot)
+                .filter(([k]) => !['studentName', 'admissionNumber', 'class', 'section', 'academicYear', 'dateOfBirth', 'fatherName', 'dateOfAdmission', 'certificateNumber', 'issueDate'].includes(k))
+                .map(([key, val]) => {
+                  if (val === undefined || val === null || val === '') return null;
+                  const labelFormatted = key
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, str => str.toUpperCase());
+
+                  return (
+                    <div key={key} className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 font-medium block text-[11px] uppercase tracking-wider">{labelFormatted}</span>
+                      <span className="text-slate-900 font-bold text-xs">{String(val)}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
 
@@ -474,6 +530,72 @@ export const PrintableCertificateContainer: React.FC<
           {template.footerText || (template as any).footerDisclaimer}
         </div>
       )}
+    </div>
+  );
+};
+
+export interface PrintableBatchCertificatesContainerProps {
+  records: GeneratedCertificateRecord[];
+  schoolProfile: SchoolProfile;
+}
+
+export const PrintableBatchCertificatesContainer: React.FC<PrintableBatchCertificatesContainerProps> = ({
+  records,
+  schoolProfile
+}) => {
+  return (
+    <div className="printable-batch-container space-y-8 print:space-y-0">
+      {records.map((rec, index) => {
+        const snapshot = rec.fieldDataSnapshot || {};
+        const template = rec.templateSnapshot || {
+          id: `TPL-${rec.certificateTypeId}`,
+          certificateTypeId: rec.certificateTypeId,
+          certificateTypeName: rec.certificateTypeName,
+          title: (rec.certificateTypeName || 'CERTIFICATE').toUpperCase(),
+          headerStyle: 'Classic Double Border' as const,
+          themeColor: '#1e3a8a',
+          showLogo: true,
+          showSchoolHeader: true,
+          bodyTemplate: `This is to certify that {{studentName}}, Admission No. {{admissionNumber}}, Class {{class}}, is a student of {{schoolName}}. Issued on {{issueDate}}.`,
+          footerText: 'Official Certificate issued by School Authority.',
+          signatories: [
+            { id: '1', title: 'Class Teacher', show: true },
+            { id: '2', title: 'Accounts Officer', show: true },
+            { id: '3', title: 'Principal', name: 'Dr. Robert Miller', show: true }
+          ],
+          showSeal: true,
+          dateFormat: 'DD/MM/YYYY'
+        };
+
+        return (
+          <div key={rec.id || index} style={{ pageBreakAfter: 'always', breakAfter: 'page' }}>
+            <PrintableCertificateContainer
+              template={template}
+              schoolProfile={schoolProfile}
+              academicYear={rec.academicYear}
+              studentName={rec.studentName}
+              admissionNo={rec.admissionNo}
+              admissionDate={snapshot.dateOfAdmission || snapshot.joiningDate || ''}
+              fatherName={snapshot.fatherName || '—'}
+              motherName={snapshot.motherName || '—'}
+              dob={snapshot.dateOfBirth || snapshot.dob || ''}
+              gender={snapshot.gender || ''}
+              className={rec.className}
+              section={rec.section}
+              leavingDate={rec.leavingDate || snapshot.dateOfLeaving || ''}
+              reason={rec.reason || snapshot.reasonForLeaving || snapshot.purpose || ''}
+              conduct={rec.conduct || snapshot.generalConduct || ''}
+              remarks={rec.remarks || snapshot.specialRemarks || ''}
+              identificationMarks={snapshot.identificationMarks || snapshot.moleIdentification || ''}
+              certificateNumber={rec.certificateNumber}
+              tcNo={rec.tcNo || rec.certificateNumber}
+              issueDate={rec.issueDate}
+              isDraftPreview={false}
+              fieldDataSnapshot={snapshot}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };

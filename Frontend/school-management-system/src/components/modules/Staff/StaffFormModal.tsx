@@ -62,17 +62,18 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         dob: staffToEdit.dob || "",
         bloodGroup: staffToEdit.bloodGroup || "",
         mobileNumber: staffToEdit.phone || "",
-        alternateMobileNumber: "",
+        alternateMobileNumber: staffToEdit.alternateMobile || "",
         email: staffToEdit.email || "",
         photoUrl: staffToEdit.avatar || "",
-        aadhaarNumber: "",
-        panNumber: "",
-        presentAddress: staffToEdit.address || "",
-        permanentAddress: staffToEdit.address || "",
-        sameAsPresentAddress: true,
-        city: "",
-        state: "",
-        pinCode: "",
+        aadhaarNumber: staffToEdit.aadhaarNumber || "",
+        panNumber: staffToEdit.panNumber || "",
+        presentAddress: staffToEdit.presentAddress || staffToEdit.address || "",
+        permanentAddress: staffToEdit.permanentAddress || staffToEdit.address || "",
+        sameAsPresentAddress: !staffToEdit.permanentAddress || (staffToEdit.presentAddress === staffToEdit.permanentAddress),
+        city: staffToEdit.city || "",
+        state: staffToEdit.state || "",
+        pinCode: staffToEdit.pinCode || "",
+        country: staffToEdit.country || "India",
         branch: staffToEdit.branch || "Main Campus",
         department: staffToEdit.department || "",
         designation: staffToEdit.designation || "",
@@ -150,15 +151,47 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     require("employeeCategory", !!form.employeeCategory, "Staff Type is required.");
     require("firstName", !!form.firstName.trim(), "First name is required.");
     require("lastName", !!form.lastName.trim(), "Last name is required.");
+    require("gender", !!form.gender, "Gender is required.");
+    require("dob", !!form.dob.trim(), "Date of Birth is required.");
+    require("bloodGroup", !!form.bloodGroup, "Blood Group is required.");
     require("mobileNumber", !!form.mobileNumber.trim(), "Mobile number is required.");
+    if (form.mobileNumber.trim()) {
+      const localPart = form.mobileNumber.split("-").pop() || "";
+      if (!/^\d{10}$/.test(localPart.replace(/[^\d]/g, ""))) {
+        nextErrors.mobileNumber = "Mobile number must be exactly 10 digits.";
+      }
+    }
     require("branch", !!form.branch.trim(), "Branch is required.");
     require("department", !!form.department.trim(), "Department is required.");
     require("designation", !!form.designation.trim(), "Designation is required.");
     require("joiningDate", !!form.joiningDate.trim(), "Joining date is required.");
     require("employmentType", !!form.employmentType.trim(), "Employment type is required.");
     require("status", !!form.status.trim(), "Status is required.");
+    require("presentAddress", !!form.presentAddress.trim(), "Present Address is required.");
+    if (!form.sameAsPresentAddress) {
+      require("permanentAddress", !!form.permanentAddress.trim(), "Permanent Address is required.");
+    }
+    require("city", !!form.city.trim(), "City is required.");
+    require("state", !!form.state.trim(), "State is required.");
+    require("pinCode", !!form.pinCode.trim(), "PIN Code is required.");
+    require("country", !!form.country.trim(), "Country is required.");
+
+    if (form.pinCode.trim() && !/^\d{6}$/.test(form.pinCode.trim())) {
+      nextErrors.pinCode = "PIN Code must be exactly 6 digits.";
+    }
+
+    require("aadhaarNumber", !!form.aadhaarNumber?.trim(), "Aadhaar Number is required.");
+    if (form.aadhaarNumber?.trim() && !/^\d{12}$/.test(form.aadhaarNumber.trim())) {
+      nextErrors.aadhaarNumber = "Aadhaar Number must be exactly 12 digits.";
+    }
+
+    require("panNumber", !!form.panNumber?.trim(), "PAN Number is required.");
+    if (form.panNumber?.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(form.panNumber.trim().toUpperCase())) {
+      nextErrors.panNumber = "Invalid PAN Number format (e.g. ABCDE1234F).";
+    }
 
     // Email format check
+    require("email", !!form.email.trim(), "Email address is required.");
     if (
       form.email.trim() &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())

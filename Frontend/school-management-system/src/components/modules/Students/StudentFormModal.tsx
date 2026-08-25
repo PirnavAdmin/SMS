@@ -6,6 +6,8 @@ import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 
+import { DateInput } from '../../common/DateInput';
+
 interface StudentFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -222,10 +224,15 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
   useEffect(() => {
     if (studentToEdit) {
+      const optFees = (studentToEdit as any).selectedOptionalFees || (studentToEdit as any).optionalFees || [];
+      const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || [];
       setFormData({
         ...studentToEdit,
         isLateAdmission: !!studentToEdit.isLateAdmission,
         feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
+        joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || new Date().toISOString().split('T')[0],
+        selectedOptionalFees: optFees,
+        documentsSubmitted: docsSub,
         dob: formatToDDMMYYYY(studentToEdit.dob)
       });
       const hasSib = studentToEdit.hasSiblings ?? ((studentToEdit.siblingsCount && studentToEdit.siblingsCount > 0) || !!studentToEdit.siblingStudentId || (studentToEdit.siblingDetails && studentToEdit.siblingDetails.length > 0));
@@ -442,6 +449,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <input
                   type="text"
                   required
+                  placeholder="Enter First Name"
                   value={formData.firstName}
                   onChange={e => setFormData({ ...formData, firstName: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -452,6 +460,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <input
                   type="text"
                   required
+                  placeholder="Enter Last Name"
                   value={formData.lastName}
                   onChange={e => setFormData({ ...formData, lastName: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -538,12 +547,19 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD-MM-YYYY) *</label>
-                <input
-                  type="text"
+                <DateInput
                   required
                   placeholder="15-08-2012"
-                  value={formData.dob ? formatToDDMMYYYY(formData.dob, '-') : ''}
-                  onChange={handleDOBChange}
+                  value={formData.dob ? (formatToISO(formData.dob) || formData.dob) : ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val) {
+                      setFormData({ ...formData, dob: formatToDDMMYYYY(val, '-') });
+                      if (dobError) setDobError('');
+                    } else {
+                      setFormData({ ...formData, dob: '' });
+                    }
+                  }}
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                     dobError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'
                   }`}
@@ -564,7 +580,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Religion</label>
                 <input
                   type="text"
-                  placeholder="e.g. Christianity"
+                  placeholder="Enter Religion"
                   value={formData.religion}
                   onChange={e => setFormData({ ...formData, religion: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -610,12 +626,11 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Admission *</label>
-                <input
-                  type="date"
+                <DateInput
                   required
                   value={formData.joiningDate || new Date().toISOString().split('T')[0]}
                   onChange={e => setFormData({ ...formData, joiningDate: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none cursor-pointer"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
                 />
                 <div className="mt-2 flex items-center gap-2">
                   <input
