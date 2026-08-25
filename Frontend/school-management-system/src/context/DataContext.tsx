@@ -9,6 +9,7 @@ import React, {
   useRef,
 } from "react";
 import { formatCurrency } from "../utils/currency";
+import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
 import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
@@ -5225,7 +5226,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setBooks(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setBooks((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch books from API", err);
     }
@@ -5237,7 +5244,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setBookIssues(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setBookIssues((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch issued books from API", err);
     }
@@ -5249,7 +5262,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setHomework(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setHomework((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch homework from API", err);
     }
@@ -5261,7 +5280,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setInventory(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setInventory((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch inventory from API", err);
     }
@@ -5471,7 +5496,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setSchoolEvents(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setSchoolEvents((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch school events from API", err);
     }
@@ -5483,7 +5514,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setHolidays(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setHolidays((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch holidays from API", err);
     }
@@ -5495,7 +5532,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setAnnouncements(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setAnnouncements((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch announcements from API", err);
     }
@@ -5507,7 +5550,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setMeetings(items);
+      if (Array.isArray(items) && items.length > 0) {
+        setMeetings((prev) => {
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+          return [...items, ...localOnly];
+        });
+      }
     } catch (err) {
       console.warn("Failed to fetch meetings from API", err);
     }
