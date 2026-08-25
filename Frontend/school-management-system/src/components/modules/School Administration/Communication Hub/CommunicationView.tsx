@@ -16,6 +16,7 @@ export interface AnnouncementItem {
   targetAudience: string;
   category: string;
   date: string;
+  time?: string;
   author?: string;
   targetClass?: string;
   targetSection?: string;
@@ -45,29 +46,23 @@ export const CommunicationView: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [broadcastDate, setBroadcastDate] = useState(new Date().toISOString().split('T')[0]);
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
   const [broadcastTime, setBroadcastTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [emergencyDate, setEmergencyDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+=======
+  const [broadcastTime, setBroadcastTime] = useState('09:30 AM');
+  const [emergencyDate, setEmergencyDate] = useState(new Date().toISOString().split('T')[0]);
+  const [emergencyTime, setEmergencyTime] = useState('09:30 AM');
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
   const [target, setTarget] = useState<'STUDENTS ONLY' | 'STAFF ONLY' | 'PARENTS ONLY' | 'ALL'>('ALL');
   const [category, setCategory] = useState<'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL'>('GENERAL');
   const [sendSMS, setSendSMS] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
   const [sendPush, setSendPush] = useState(true);
 
-  // Initial Default sample circulars
+  // Initial Default sample circulars with Date & Time
   const defaultAnnouncements: AnnouncementItem[] = useMemo(() => [
-    {
-      id: 'ANN-REAL-1',
-      title: '🚨 EMERGENCY ALERT: Early School Dismissal Due to City Traffic Advisory',
-      content: 'Urgent notification regarding Early School Dismissal Due to City Traffic Advisory. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.',
-      targetAudience: 'ALL',
-      category: 'URGENT',
-      date: '2026-08-18',
-      author: 'Principal Office',
-      isPinned: true,
-      recipientsCount: 1420,
-      deliveryChannels: 'SMS & Email'
-    },
     {
       id: 'ANN-REAL-2',
       title: '🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday',
@@ -75,8 +70,9 @@ export const CommunicationView: React.FC = () => {
       targetAudience: 'ALL',
       category: 'URGENT',
       date: '2026-08-18',
+      time: '08:15 AM',
       author: 'Principal Office',
-      isPinned: false,
+      isPinned: true,
       recipientsCount: 1420,
       deliveryChannels: 'SMS & Email'
     },
@@ -87,6 +83,7 @@ export const CommunicationView: React.FC = () => {
       targetAudience: 'ALL',
       category: 'ASSEMBLY',
       date: '2026-08-18',
+      time: '09:00 AM',
       author: 'School Administration',
       isPinned: false,
       recipientsCount: 1420,
@@ -99,6 +96,7 @@ export const CommunicationView: React.FC = () => {
       targetAudience: 'STUDENTS ONLY',
       category: 'SPORTS',
       date: '2026-07-20',
+      time: '10:30 AM',
       author: 'PE Department',
       isPinned: false,
       recipientsCount: 850,
@@ -111,6 +109,7 @@ export const CommunicationView: React.FC = () => {
       targetAudience: 'STAFF ONLY',
       category: 'ACADEMIC',
       date: '2026-07-30',
+      time: '02:00 PM',
       author: 'Academic Coordinator',
       isPinned: false,
       recipientsCount: 120,
@@ -123,7 +122,8 @@ export const CommunicationView: React.FC = () => {
     try {
       const saved = localStorage.getItem('broadcast_announcements_store');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed: AnnouncementItem[] = JSON.parse(saved);
+        return parsed.filter(item => !item.title.includes('Early School Dismissal') && !item.title.includes('Early Bus'));
       }
     } catch (e) {
       // Fallback
@@ -134,18 +134,21 @@ export const CommunicationView: React.FC = () => {
   // Sync contextAnnouncements into localList if available
   useEffect(() => {
     if (contextAnnouncements && contextAnnouncements.length > 0) {
-      const contextMapped: AnnouncementItem[] = contextAnnouncements.map(a => ({
-        id: a.id || `ANN-${Math.random()}`,
-        title: a.title,
-        content: a.content,
-        targetAudience: a.targetAudience || 'ALL',
-        category: (a.category || 'GENERAL').toUpperCase(),
-        date: a.date || new Date().toISOString().split('T')[0],
-        author: a.author || 'School Administration',
-        isPinned: (a as any).isPinned || false,
-        recipientsCount: (a as any).recipientsCount || 1420,
-        deliveryChannels: (a as any).deliveryChannels || 'SMS & Email'
-      }));
+      const contextMapped: AnnouncementItem[] = contextAnnouncements
+        .filter(a => !a.title.includes('Early School Dismissal') && !a.title.includes('Early Bus'))
+        .map(a => ({
+          id: a.id || `ANN-${Math.random()}`,
+          title: a.title,
+          content: a.content,
+          targetAudience: a.targetAudience || 'ALL',
+          category: (a.category || 'GENERAL').toUpperCase(),
+          date: a.date || new Date().toISOString().split('T')[0],
+          time: (a as any).time || '09:30 AM',
+          author: a.author || 'School Administration',
+          isPinned: (a as any).isPinned || false,
+          recipientsCount: (a as any).recipientsCount || 1420,
+          deliveryChannels: (a as any).deliveryChannels || 'SMS & Email'
+        }));
 
       const mergedMap = new Map<string, AnnouncementItem>();
       [...contextMapped, ...localList, ...defaultAnnouncements].forEach(item => {
@@ -183,7 +186,17 @@ export const CommunicationView: React.FC = () => {
 
   const newDateDate = () => new Date().toISOString().split('T')[0];
 
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
   // Trigger Emergency Dispatch Quick Actions
+=======
+  // Helper for current formatted time
+  const getCurrentTimeFormatted = () => {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
+  // Trigger Emergency Dispatch Quick Actions (Weather & Safety Drill Only) with Date & Time
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
   const handleTriggerEmergency = (type: 'weather' | 'safety_drill') => {
     let emergencyTitle = '';
     let emergencyContent = '';
@@ -192,7 +205,11 @@ export const CommunicationView: React.FC = () => {
 
     if (type === 'weather') {
       emergencyTitle = '🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday';
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
       emergencyContent = `Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (${formattedDateTime}). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.`;
+=======
+      emergencyContent = 'Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.';
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
     } else if (type === 'safety_drill') {
       emergencyTitle = '🛡️ EMERGENCY NOTICE: Mandatory Campus Safety & Evacuation Drill';
       emergencyContent = `Special notice regarding Mandatory Campus Safety & Evacuation Drill (${formattedDateTime}). All faculty, staff, and students please prepare for the scheduled campus drill.`;
@@ -205,6 +222,10 @@ export const CommunicationView: React.FC = () => {
       targetAudience: 'ALL',
       category: 'URGENT',
       date: emergencyDate,
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
+=======
+      time: emergencyTime,
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
       author: 'Principal Office',
       isPinned: true,
       recipientsCount: 1420,
@@ -223,7 +244,11 @@ export const CommunicationView: React.FC = () => {
       category: 'URGENT' as any
     });
 
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
     addToast('success', '🚨 Emergency Broadcast Dispatched!', `Instant SMS & Push Advisory sent on ${emergencyDate} at ${emergencyTime} to 1,420 users!`);
+=======
+    addToast('success', '🚨 Emergency Broadcast Dispatched!', `Scheduled for ${emergencyDate} at ${emergencyTime} to 1,420 users!`);
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
     setIsEmergencyModalOpen(false);
     setCurrentPage(1);
   };
@@ -232,6 +257,7 @@ export const CommunicationView: React.FC = () => {
   const applyTemplate = (tmplKey: 'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL') => {
     setCategory(tmplKey);
     setBroadcastDate(newDateDate());
+    setBroadcastTime(getCurrentTimeFormatted());
 
     switch (tmplKey) {
       case 'SPORTS':
@@ -278,6 +304,7 @@ export const CommunicationView: React.FC = () => {
       setTitle(itemToEdit.title);
       setContent(itemToEdit.content);
       setBroadcastDate(itemToEdit.date);
+      setBroadcastTime(itemToEdit.time || getCurrentTimeFormatted());
       setCategory((itemToEdit.category.toUpperCase() as any) || 'GENERAL');
       setTarget((itemToEdit.targetAudience.toUpperCase() as any) || 'ALL');
     } else {
@@ -285,13 +312,24 @@ export const CommunicationView: React.FC = () => {
       setTitle('');
       setContent('');
       setBroadcastDate(newDateDate());
+      setBroadcastTime(getCurrentTimeFormatted());
       setCategory('GENERAL');
       setTarget('ALL');
     }
     setIsComposeModalOpen(true);
   };
 
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
   const handleBroadcast = async (e: React.FormEvent) => {
+=======
+  const handleOpenEmergencyModal = () => {
+    setEmergencyDate(newDateDate());
+    setEmergencyTime(getCurrentTimeFormatted());
+    setIsEmergencyModalOpen(true);
+  };
+
+  const handleBroadcast = (e: React.FormEvent) => {
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
@@ -317,6 +355,7 @@ export const CommunicationView: React.FC = () => {
               title: title.trim(),
               content: content.trim(),
               date: broadcastDate,
+              time: broadcastTime,
               category: category.toUpperCase(),
               targetAudience: target.toUpperCase()
             }
@@ -353,6 +392,7 @@ export const CommunicationView: React.FC = () => {
         targetAudience: target,
         category: category.toUpperCase(),
         date: broadcastDate,
+        time: broadcastTime,
         author: role.toLowerCase().includes('teacher') ? 'Teacher' : 'Principal Office',
         isPinned: false,
         recipientsCount: 1420,
@@ -361,7 +401,21 @@ export const CommunicationView: React.FC = () => {
 
       const updated = [newCircular, ...localList];
       updateLocalList(updated);
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
       addToast('success', '📢 Broadcast Notification Published!', `Sent circular to ${target} via ${channelStr}`);
+=======
+
+      addAnnouncement({
+        title: newCircular.title,
+        content: newCircular.content,
+        targetAudience: newCircular.targetAudience as any,
+        date: newCircular.date,
+        author: newCircular.author,
+        category: newCircular.category as any
+      });
+
+      addToast('success', '📢 Broadcast Notification Published!', `Sent circular for ${broadcastDate} at ${broadcastTime} to ${target} via ${channelStr}`);
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
     }
 
     setIsComposeModalOpen(false);
@@ -420,7 +474,7 @@ export const CommunicationView: React.FC = () => {
         {canModify && (
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setIsEmergencyModalOpen(true)}
+              onClick={handleOpenEmergencyModal}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 font-extrabold text-xs border border-rose-200 dark:border-rose-800 shadow-xs transition-all cursor-pointer whitespace-nowrap"
             >
               <ShieldAlert className="w-4 h-4 text-rose-600" />
@@ -495,9 +549,16 @@ export const CommunicationView: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-slate-400 dark:text-slate-500 font-medium">
-                      {a.date}
-                    </span>
+                    {/* Full Date & Time Display on Top Right */}
+                    <div className="flex items-center gap-2 font-mono text-xs text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-slate-700">
+                      <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300">
+                        <Calendar className="w-3 h-3" /> {a.date}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                        <Clock className="w-3 h-3 text-amber-600" /> {a.time || '09:30 AM'}
+                      </span>
+                    </div>
 
                     {canModify && (
                       <div className="flex items-center gap-1 border-l pl-3 border-slate-200 dark:border-slate-800">
@@ -608,19 +669,57 @@ export const CommunicationView: React.FC = () => {
         </div>
       )}
 
-      {/* Emergency Broadcast Trigger Modal - Hidden Scrollbar */}
+      {/* Emergency Broadcast Trigger Modal with Date & Time Picker */}
       {isEmergencyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card max-w-lg w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5 shadow-2xl overflow-y-auto max-h-[90vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200 dark:border-rose-800 shrink-0">
-                <ShieldAlert className="w-7 h-7" />
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200 dark:border-rose-800 shrink-0">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white">Emergency Broadcast Trigger</h3>
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                    Instant SMS & Call Advisory to 1,420 Users
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white">Emergency Broadcast Trigger</h3>
-                <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-                  Instant SMS & Call Advisory to 1,420 Users
-                </p>
+              <button
+                onClick={() => setIsEmergencyModalOpen(false)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Date & Time Input Box */}
+            <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-slate-800/60 border border-rose-200 dark:border-slate-700 space-y-2">
+              <label className="block text-xs font-black uppercase text-rose-900 dark:text-rose-300">
+                📅 Broadcast Dispatch Date & Time *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={emergencyDate}
+                    onChange={e => setEmergencyDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Time</label>
+                  <input
+                    type="text"
+                    required
+                    value={emergencyTime}
+                    onChange={e => setEmergencyTime(e.target.value)}
+                    placeholder="09:30 AM"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
+                  />
+                </div>
               </div>
             </div>
 
@@ -696,7 +795,7 @@ export const CommunicationView: React.FC = () => {
         </div>
       )}
 
-      {/* Compose Broadcast Circular Modal - Hidden Scrollbar */}
+      {/* Compose Broadcast Circular Modal with Date & Time Inputs */}
       {isComposeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card max-w-xl w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -792,7 +891,12 @@ export const CommunicationView: React.FC = () => {
                 />
               </div>
 
+<<<<<<< Updated upstream:Frontend/school-management-system/src/components/modules/School Administration/Communication Hub/CommunicationView.tsx
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+=======
+              {/* 4-Grid Field Row with Date & Time Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+>>>>>>> Stashed changes:Frontend/school-management-system/src/components/modules/Communication/CommunicationView.tsx
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Date *</label>
                   <input
@@ -800,9 +904,22 @@ export const CommunicationView: React.FC = () => {
                     required
                     value={broadcastDate}
                     onChange={e => setBroadcastDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono"
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
                   />
                 </div>
+
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Dispatch Time *</label>
+                  <input
+                    type="text"
+                    required
+                    value={broadcastTime}
+                    onChange={e => setBroadcastTime(e.target.value)}
+                    placeholder="09:30 AM"
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
+                  />
+                </div>
+
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Time *</label>
                   <input
@@ -819,7 +936,7 @@ export const CommunicationView: React.FC = () => {
                   <select
                     value={category}
                     onChange={e => setCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                    className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer text-[11px]"
                   >
                     <option value="SPORTS">SPORTS</option>
                     <option value="ACADEMIC">ACADEMIC</option>
@@ -830,12 +947,13 @@ export const CommunicationView: React.FC = () => {
                     <option value="GENERAL">GENERAL</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Audience *</label>
                   <select
                     value={target}
                     onChange={e => setTarget(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                    className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer text-[11px]"
                   >
                     <option value="STUDENTS ONLY">STUDENTS ONLY</option>
                     <option value="STAFF ONLY">STAFF ONLY</option>

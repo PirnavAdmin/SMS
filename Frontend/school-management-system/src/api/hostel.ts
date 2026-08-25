@@ -107,20 +107,94 @@ export interface DashboardMetrics {
 }
 
 // Persistent Local Storage Sync Layer for Hostel Blocks
+// Persistent Local Storage Sync Layer for Hostel Blocks
 const HOSTEL_BLOCKS_STORE_KEY = 'edu_db_hostel_blocks';
 
+export const defaultHostelBlocks: HostelBlock[] = [
+  {
+    hostelId: 1,
+    hostelName: 'Block A - Boys Senior Hostel',
+    hostelCode: 'HST-001',
+    hostelType: 'Boys Hostel',
+    wardenName: 'Rajesh Kumar',
+    primaryMobileNumber: '+91 9876543210',
+    alternateMobileNumber: '+91 9876543211',
+    email: 'rajesh.warden@stxaviers.edu',
+    status: 'Active',
+    address: 'Campus East Wing, Near Sports Complex',
+    createdAt: new Date().toISOString(),
+    totalRooms: 40,
+    occupiedBeds: 72,
+    totalCapacity: 120,
+    totalFloors: 4
+  },
+  {
+    hostelId: 2,
+    hostelName: 'Block B - Girls Junior Hostel',
+    hostelCode: 'HST-002',
+    hostelType: 'Girls Hostel',
+    wardenName: 'Savitri Devi',
+    primaryMobileNumber: '+91 9876543212',
+    alternateMobileNumber: '+91 9876543213',
+    email: 'savitri.warden@stxaviers.edu',
+    status: 'Active',
+    address: 'Campus West Wing, Near Main Library',
+    createdAt: new Date().toISOString(),
+    totalRooms: 35,
+    occupiedBeds: 58,
+    totalCapacity: 100,
+    totalFloors: 3
+  },
+  {
+    hostelId: 3,
+    hostelName: 'Vidyarthi Nilayam - Senior Girls Wing',
+    hostelCode: 'HST-003',
+    hostelType: 'Girls Hostel',
+    wardenName: 'Dr. Eleanor Vance',
+    primaryMobileNumber: '+91 9876543214',
+    alternateMobileNumber: '+91 9876543215',
+    email: 'eleanor.vance@stxaviers.edu',
+    status: 'Active',
+    address: 'Academic Square North',
+    createdAt: new Date().toISOString(),
+    totalRooms: 25,
+    occupiedBeds: 40,
+    totalCapacity: 80,
+    totalFloors: 3
+  },
+  {
+    hostelId: 4,
+    hostelName: 'Block D - International Student Hostel',
+    hostelCode: 'HST-004',
+    hostelType: 'Co-ed / International',
+    wardenName: 'Vikram Singh',
+    primaryMobileNumber: '+91 9876543216',
+    alternateMobileNumber: '+91 9876543217',
+    email: 'vikram.warden@stxaviers.edu',
+    status: 'Active',
+    address: 'South Quadrangle',
+    createdAt: new Date().toISOString(),
+    totalRooms: 20,
+    occupiedBeds: 30,
+    totalCapacity: 50,
+    totalFloors: 2
+  }
+];
+
 const getStoredHostelBlocks = (): HostelBlock[] => {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return defaultHostelBlocks;
   const stored = localStorage.getItem(HOSTEL_BLOCKS_STORE_KEY);
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     } catch (e) {
       // Ignored
     }
   }
-  return [];
+  // Initialize with defaults if empty
+  localStorage.setItem(HOSTEL_BLOCKS_STORE_KEY, JSON.stringify(defaultHostelBlocks));
+  return defaultHostelBlocks;
 };
 
 const saveStoredHostelBlocks = (blocks: HostelBlock[]) => {
