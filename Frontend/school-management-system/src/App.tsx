@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -7,13 +6,6 @@ import { DataProvider } from './context/DataContext';
 import { HostelProvider } from './context/HostelContext';
 import { ExaminationProvider } from './context/ExaminationContext';
 import { HRProvider } from './context/HRContext';
-=======
-import React, { useState, useEffect, useRef } from "react";
-import { ThemeProvider } from "./context/ThemeContext";
-import { ToastProvider } from "./context/ToastContext";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { DataProvider } from "./context/DataContext";
->>>>>>> cb326498cf1a5763bf149835a488ab5c84f96454
 
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
@@ -537,13 +529,6 @@ const MainLayout: React.FC = () => {
   );
 };
 
-<<<<<<< HEAD
-=======
-import { HostelProvider } from "./context/HostelContext";
-import { ExaminationProvider } from "./context/ExaminationContext";
-import { HRProvider } from "./context/HRContext";
-
->>>>>>> cb326498cf1a5763bf149835a488ab5c84f96454
 export function App() {
   return (
     <ThemeProvider>

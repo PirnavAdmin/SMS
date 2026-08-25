@@ -6723,13 +6723,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           c.name?.toLowerCase().trim() ===
           appData.appliedClass?.toLowerCase().trim(),
       );
-<<<<<<< HEAD
       const appliedClassId = matchedClass ? Number(String(matchedClass.id).replace(/\D/g, "")) : 1;
-=======
-      const appliedClassId = matchedClass
-        ? Number(matchedClass.id.replace(/\D/g, ""))
-        : 1;
->>>>>>> cb326498cf1a5763bf149835a488ab5c84f96454
 
       const payload = {
         applicantFullName: appData.applicantName || "",
@@ -6909,13 +6903,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           c.name?.toLowerCase().trim() ===
           appData.appliedClass?.toLowerCase().trim(),
       );
-<<<<<<< HEAD
       const appliedClassId = matchedClass ? Number(String(matchedClass.id).replace(/\D/g, "")) : 1;
-=======
-      const appliedClassId = matchedClass
-        ? Number(matchedClass.id.replace(/\D/g, ""))
-        : 1;
->>>>>>> cb326498cf1a5763bf149835a488ab5c84f96454
 
       const payload = {
         applicantFullName: appData.applicantName || "",
