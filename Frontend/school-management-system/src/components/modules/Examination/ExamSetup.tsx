@@ -81,12 +81,9 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         // Process each applicable class
         await Promise.all(appClasses.map(async (cls: string) => {
           const matchedClass = academicClasses.find(c => c.name === cls);
-          let rawSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+          const rawSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
             ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
             : [];
-          if (rawSubs.length === 0) {
-            rawSubs = (subjects || []).map(s => s.name);
-          }
 
           // Deduplicate valid class subjects
           const seen = new Set<string>();
@@ -119,7 +116,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
             let isAct = false;
             if (existing && existing.isActive === true) {
               isAct = true;
-            } else if (apiMatch && (apiMatch.isExamSubject === true || apiMatch.selected === true)) {
+            } else if (apiMatch && (apiMatch.isActive === true || apiMatch.isExamSubject === true || apiMatch.selected === true)) {
               isAct = true;
             }
 
@@ -518,18 +515,15 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       const appClasses = formData.applicableClasses || [];
       const classWise = (formData.marksConfig as any)?.classWiseConfig || {};
 
-      const saves = appClasses.map(async (cls) => {
+      for (const cls of appClasses) {
         const origList = originalSubjects[cls] || [];
         const classSubsMap = classWise[cls] || {};
 
         // Find matched class subjects or all global subjects
         const matchedClass = academicClasses.find(c => c.name === cls);
-        let defaultSubNames = matchedClass?.subjects && matchedClass.subjects.length > 0
+        const defaultSubNames = matchedClass?.subjects && matchedClass.subjects.length > 0
           ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
           : [];
-        if (defaultSubNames.length === 0) {
-          defaultSubNames = (subjects || []).map(s => s.name);
-        }
 
         const allKnownNames = Array.from(new Set([
           ...origList.map(s => s.subjectName),
@@ -540,7 +534,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         const subjectsPayload = allKnownNames.map(sName => {
           const orig = origList.find(s => s.subjectName.toLowerCase() === sName.toLowerCase());
           const activeConfig = classSubsMap[sName];
-          const isActive = activeConfig !== undefined || orig?.isActive === true;
+          const isActive = activeConfig !== undefined;
           const maxMarks = activeConfig?.maxMarks || orig?.maxMarks || 100;
           const passMarks = activeConfig?.passMarks || orig?.passMarks || 35;
           const subjectCode = orig?.subjectCode || `${sName.substring(0, 3).toUpperCase()}-101`;
@@ -565,9 +559,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         if (!response || !response.success) {
           throw new Error(response?.message || `Failed to save subjects configuration for class ${cls}`);
         }
-      });
+      }
 
-      await Promise.all(saves);
       onSaveSetup(formData, false);
       addToast('success', 'Subjects Configurations Saved', 'Exam subject rules updated successfully.');
       onNavigateNext();

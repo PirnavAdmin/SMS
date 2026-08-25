@@ -179,7 +179,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
         } else if (classSubs.length > 0) {
           activeSubjects = classSubs;
         } else {
-          activeSubjects = (subjects || []).map(s => s.name);
+          activeSubjects = [];
         }
 
         const seenNames = new Set<string>();

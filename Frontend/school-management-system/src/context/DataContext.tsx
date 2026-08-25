@@ -285,6 +285,8 @@ import {
   updateAdmissionApi,
   updateAdmissionStatusApi,
   deleteAdmissionApi,
+  enrollAdmissionApi,
+  rejectAdmissionApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
 import * as FinanceAPI from "../api/finance";
@@ -5087,6 +5089,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               lastName: item.lastName,
               email: item.email || "",
               phone: item.phone || "",
+              alternateMobile: item.alternateMobile || "",
               gender: item.gender || "Male",
               dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
               bloodGroup: item.bloodGroup || "",
@@ -5109,16 +5112,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
               profileStatus: "Completed",
               status: item.isActive ? "Active" : "Inactive",
-              employmentType:
-                item.employmentType || existing?.employmentType || "",
-              assignedClasses:
-                item.assignedClasses || existing?.assignedClasses || [],
-              assignedSubjects:
-                item.assignedSubjects || existing?.assignedSubjects || [],
-              isClassTeacherEligible:
-                item.isClassTeacherEligible !== undefined
-                  ? item.isClassTeacherEligible
-                  : existing?.isClassTeacherEligible || false,
+              employmentType: item.employmentType || existing?.employmentType || "",
+              address: item.presentAddress || item.residentialAddress || item.address || "",
+              presentAddress: item.presentAddress || item.residentialAddress || "",
+              permanentAddress: item.permanentAddress || "",
+              city: item.city || "",
+              state: item.state || "",
+              pinCode: item.pinCode || "",
+              country: item.country || "India",
+              assignedClasses: item.assignedClasses || existing?.assignedClasses || [],
+              assignedSubjects: item.assignedSubjects || existing?.assignedSubjects || [],
+              isClassTeacherEligible: item.isClassTeacherEligible !== undefined ? item.isClassTeacherEligible : (existing?.isClassTeacherEligible || false),
               bankDetails: {
                 accountHolderName: item.accountHolderName || "",
                 accountNumber: item.accountNumber || "",
@@ -6160,6 +6164,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       lastName: staffData.lastName,
       email: staffData.email?.trim() || null,
       phone: staffData.phone,
+      alternateMobile: staffData.alternateMobile || null,
       gender: staffData.gender || "Male",
       designation: staffData.designation,
       department: staffData.department,
@@ -6172,6 +6177,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       bloodGroup: staffData.bloodGroup,
       aadhaarNumber: staffData.aadhaarNumber,
       panNumber: staffData.panNumber,
+      presentAddress: staffData.presentAddress || null,
+      permanentAddress: staffData.permanentAddress || null,
+      city: staffData.city || null,
+      state: staffData.state || null,
+      pinCode: staffData.pinCode || null,
+      country: staffData.country || "India",
       accountHolderName: staffData.bankDetails?.accountHolderName || "",
       accountNumber: staffData.bankDetails?.accountNumber || "",
       bankName: staffData.bankDetails?.bankName || "",
@@ -6236,6 +6247,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           lastName: fullStaff.lastName,
           email: fullStaff.email?.trim() || null,
           phone: fullStaff.phone,
+          alternateMobile: fullStaff.alternateMobile || null,
           gender: fullStaff.gender || "Male",
           designation: fullStaff.designation,
           department: fullStaff.department,
@@ -6248,6 +6260,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           bloodGroup: fullStaff.bloodGroup,
           aadhaarNumber: fullStaff.aadhaarNumber,
           panNumber: fullStaff.panNumber,
+          presentAddress: fullStaff.presentAddress || null,
+          permanentAddress: fullStaff.permanentAddress || null,
+          city: fullStaff.city || null,
+          state: fullStaff.state || null,
+          pinCode: fullStaff.pinCode || null,
+          country: fullStaff.country || "India",
           accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
           accountNumber: fullStaff.bankDetails?.accountNumber || "",
           bankName: fullStaff.bankDetails?.bankName || "",
@@ -6968,10 +6986,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const app = admissions.find((a) => a.id === id);
     if (!app) return null;
 
-    const registrationNo = (app as any).registrationNo || app.applicationNo;
+    const appIdNumeric = parseInt(id, 10);
 
     try {
-      const json = await updateAdmissionStatusApi(registrationNo, status);
+      let json: any;
+      if (status === "Enrolled") {
+        json = await enrollAdmissionApi(appIdNumeric);
+      } else if (status === "Rejected") {
+        json = await rejectAdmissionApi(appIdNumeric);
+      } else {
+        const registrationNo = (app as any).registrationNo || app.applicationNo;
+        json = await updateAdmissionStatusApi(registrationNo, status);
+      }
 
       if (json && json.success !== false) {
         let enrolledStudentId: string | null = null;
