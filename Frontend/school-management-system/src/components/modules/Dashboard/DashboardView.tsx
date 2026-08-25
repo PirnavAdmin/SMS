@@ -78,9 +78,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   const currentSessionDisplay = formatAcademicYearDisplay(selectedAcademicYear);
 
-  // Time-based greeting
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';  
+  const isLibrarian = ['librarian', 'library'].includes(userRole);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }, []); 
   
   const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
   const nonTeachingStaff = useMemo(() => staff.filter(s => !teachingStaff.includes(s)), [staff, teachingStaff]);
@@ -352,10 +357,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div className="absolute right-0 top-0 w-96 h-96 bg-brand-100/50 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-              <span>{greeting}, {user?.name || 'Admin'}</span>
-              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
-            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
+                <span>{greeting}, {user?.name || (isLibrarian ? 'Librarian' : 'Admin')}</span>
+                <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
+              </h1>
+              {isLibrarian && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800 flex items-center gap-1">
+                  👁️ Librarian Executive Overview (View-Only)
+                </span>
+              )}
+            </div>
           </div>
           <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
             <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-200/80 dark:border-sky-900/50 shrink-0">
@@ -576,25 +588,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pt-2 pr-1">
-              <button onClick={() => onNavigate('staff-leave')} className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-slate-200 dark:border-slate-800">
+              <div 
+                onClick={isLibrarian ? undefined : () => onNavigate('staff-leave')} 
+                className={`w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 ${isLibrarian ? 'cursor-default' : 'hover:bg-slate-100 dark:hover:bg-slate-750 cursor-pointer transition-colors'}`}
+              >
                 <div className="flex flex-col items-start text-xs">
                   <span className="font-bold text-slate-900 dark:text-white">Leave Requests</span>
                   <span className="text-[10px] text-slate-500">Requires manager approval</span>
                 </div>
                 <Badge variant="warning">{pendingLeaves.length} Pending</Badge>
-              </button>
-              <button onClick={() => onNavigate('admissions')} className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-slate-200 dark:border-slate-800">
+              </div>
+              <div 
+                onClick={isLibrarian ? undefined : () => onNavigate('admissions')} 
+                className={`w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 ${isLibrarian ? 'cursor-default' : 'hover:bg-slate-100 dark:hover:bg-slate-750 cursor-pointer transition-colors'}`}
+              >
                 <div className="flex flex-col items-start text-xs">
                   <span className="font-bold text-slate-900 dark:text-white">Admissions</span>
                   <span className="text-[10px] text-slate-500">Submitted / Under Review</span>
                 </div>
                 <Badge variant="info">{pendingAdmissions.length} Pending</Badge>
-              </button>
+              </div>
             </div>
           </div>
 
           {/* Examinations info container */}
-          <div onClick={() => onNavigate('examination')} className="lg:col-span-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[250px]">
+          <div 
+            onClick={isLibrarian ? undefined : () => onNavigate('examination')} 
+            className={`lg:col-span-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 flex flex-col h-[250px] ${isLibrarian ? 'cursor-default' : 'cursor-pointer hover:border-brand-400 transition-colors'}`}
+          >
             <div className="flex items-center gap-2 shrink-0">
               <ClipboardList className="w-5 h-5 text-indigo-500" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Examinations</h3>
@@ -637,7 +658,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{b.name}</p>
                     <p className="text-[9px] text-slate-500 truncate">{b.dob} • {b.role}</p>
                   </div>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500 text-white shrink-0">🎂 Wish</span>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${isLibrarian ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : 'bg-rose-500 text-white'} shrink-0`}>
+                    {isLibrarian ? '🎂 Birthday' : '🎂 Wish'}
+                  </span>
                 </div>
               ))}
             </div>
