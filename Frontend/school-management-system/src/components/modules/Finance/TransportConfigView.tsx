@@ -162,11 +162,11 @@ export const TransportConfigView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs overflow-y-auto pr-1 flex-1">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Route Name *</label>
+                  <label className="block font-semibold mb-1">Route Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.routeName} onChange={e => setFormData({ ...formData, routeName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Route Code *</label>
+                  <label className="block font-semibold mb-1">Route Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.routeCode} onChange={e => setFormData({ ...formData, routeCode: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
                 </div>
               </div>

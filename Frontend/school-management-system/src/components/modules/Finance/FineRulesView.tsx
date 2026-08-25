@@ -126,13 +126,13 @@ export const FineRulesView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Rule Name *</label>
+                <label className="block font-semibold mb-1">Rule Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required value={formData.ruleName} onChange={e => setFormData({ ...formData, ruleName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Standard Due Date *</label>
+                  <label className="block font-semibold mb-1">Standard Due Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="date" required value={formData.dueDate} onChange={e => setFormData({ ...formData, dueDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                 </div>
                 <div>

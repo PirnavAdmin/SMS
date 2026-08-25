@@ -727,7 +727,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
           {/* Current Class */}
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Current Class *</label>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Current Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={fromClass}
               onChange={e => { setFromClass(e.target.value); setIsResultsLoaded(false); }}

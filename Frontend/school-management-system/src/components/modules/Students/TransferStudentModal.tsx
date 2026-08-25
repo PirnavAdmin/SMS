@@ -624,7 +624,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Date of Leaving School *</label>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Date of Leaving School <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="date"
                       required
@@ -635,7 +635,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Reason for Leaving *</label>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Reason for Leaving <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
                       value={reason}
                       onChange={e => setReason(e.target.value)}

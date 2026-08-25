@@ -211,11 +211,11 @@ export const DiscountsView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Discount Name *</label>
+                  <label className="block font-semibold mb-1">Discount Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Code *</label>
+                  <label className="block font-semibold mb-1">Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
                 </div>
               </div>
@@ -237,7 +237,7 @@ export const DiscountsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Value ({formData.mode === 'Percentage' ? '%' : '₹'}) *</label>
+                <label className="block font-semibold mb-1">Value ({formData.mode === 'Percentage' ? '%' : '₹'}) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="number" required value={formData.value} onChange={e => setFormData({ ...formData, value: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" />
               </div>
 
@@ -261,7 +261,7 @@ export const DiscountsView: React.FC = () => {
 
             <form onSubmit={handleAllocSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Student *</label>
+                <label className="block font-semibold mb-1">Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={allocStudentId} onChange={e => setAllocStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   <option value="">-- Choose Student --</option>
                   {students.map(st => (
@@ -271,7 +271,7 @@ export const DiscountsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Discount Rule *</label>
+                <label className="block font-semibold mb-1">Select Discount Rule <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={allocDiscountId} onChange={e => setAllocDiscountId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {discounts.map(d => (
                     <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : formatCurrency(d.value)})</option>

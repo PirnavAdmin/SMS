@@ -2296,8 +2296,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             >
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Payment Method *
-                </label>
+                  Payment Method <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={paymentMode}
                   onChange={(e) => {
@@ -2325,8 +2324,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 paymentMode === "Other") && (
                 <div className="animate-in slide-in-from-top-1">
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Transaction Ref / UTR No *
-                  </label>
+                    Transaction Ref / UTR No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2341,8 +2339,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 animate-in slide-in-from-top-1">
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Cheque No *
-                    </label>
+                      Cheque No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required
@@ -2354,8 +2351,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Cheque Date *
-                    </label>
+                      Cheque Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="date"
                       required
@@ -2366,8 +2362,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Bank Name *
-                    </label>
+                      Bank Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required

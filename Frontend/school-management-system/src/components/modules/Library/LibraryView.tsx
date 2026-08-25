@@ -26,30 +26,7 @@ const RESERVATIONS_KEY = 'edu_db_library_reservations';
 const FINES_KEY = 'edu_db_library_fines';
 const LOST_DAMAGED_KEY = 'edu_db_library_lost_damaged';
 const RULES_KEY = 'edu_db_library_rules';
-const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
-
-export interface LibrarianAttendanceRecord {
-  id: string;
-  staffId: string;
-  staffName: string;
-  role: string;
-  date: string;
-  checkInTime: string;
-  checkOutTime?: string;
-  workingHours?: string;
-  shift: string;
-  status: 'Present' | 'Late' | 'Half Day' | 'On Leave';
-  remarks?: string;
-}
-
-const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [
-  { id: 'ATT-LIB-101', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-20', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Catalog audit & inventory completed' },
-  { id: 'ATT-LIB-102', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-20', checkInTime: '08:45 AM', checkOutTime: '05:15 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Circulation desk duty' },
-  { id: 'ATT-LIB-103', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-19', checkInTime: '08:28 AM', checkOutTime: '05:05 PM', workingHours: '8.6 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Book issue renewals' },
-  { id: 'ATT-LIB-104', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-19', checkInTime: '09:15 AM', checkOutTime: '05:00 PM', workingHours: '7.75 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Late', remarks: 'Traffic delay' },
-  { id: 'ATT-LIB-105', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-18', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'New book arrivals cataloging' },
-  { id: 'ATT-LIB-106', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-18', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Fine collection reconciliation' }
-];
+import { LibrarianAttendanceRecord, DEFAULT_LIBRARIAN_ATTENDANCE, LIBRARIAN_ATTENDANCE_KEY, calculateWorkedHours } from './LibrarianAttendanceView';
 
 // Initial Defaults
 const DEFAULT_CATEGORIES: BookCategory[] = [
@@ -1138,7 +1115,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             {issueMode === 'catalog' ? (
               <>
                 <div>
-                  <label className="block font-bold mb-1">Select Member (Student / Staff) *</label>
+                  <label className="block font-bold mb-1">Select Member (Student / Staff) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select name="memberId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                     <option value="">Select Member...</option>
                     {mergedMembersList.map(m => (
@@ -1148,7 +1125,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1">Select Book from Catalog *</label>
+                  <label className="block font-bold mb-1">Select Book from Catalog <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                     <option value="">Select Book...</option>
                     {books.map(b => (
@@ -1168,15 +1145,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-bold mb-1">Member ID / Admission No *</label>
+                    <label className="block font-bold mb-1">Member ID / Admission No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input type="text" name="manualMemberId" placeholder="e.g. ADM2024-001" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold mb-1">Member Full Name *</label>
+                    <label className="block font-bold mb-1">Member Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input type="text" name="manualMemberName" placeholder="e.g. Alexander Wright" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold mb-1">Borrower Role *</label>
+                    <label className="block font-bold mb-1">Borrower Role <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select name="manualMemberRole" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                       <option value="Student">Student</option>
                       <option value="Teacher">Teacher</option>
@@ -1187,7 +1164,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold mb-1">Book Title / Accession Code *</label>
+                    <label className="block font-bold mb-1">Book Title / Accession Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input type="text" name="manualBookTitle" placeholder="e.g. Fundamentals of Physics" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
@@ -1204,7 +1181,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <input type="date" defaultValue={new Date().toISOString().split('T')[0]} readOnly className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border font-mono font-bold" />
               </div>
               <div>
-                <label className="block font-bold mb-1">Due Date *</label>
+                <label className="block font-bold mb-1">Due Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="date" name="dueDate" defaultValue={new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]} required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold" />
               </div>
             </div>
@@ -1822,8 +1799,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               addToast('success', 'Category Created', `Added category ${newC.name}`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Category Name *</label><input type="text" name="name" required placeholder="e.g. Computer Science" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Category Code *</label><input type="text" name="code" required placeholder="e.g. CS" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
+              <div><label className="block font-bold mb-1">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required placeholder="e.g. Computer Science" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Category Code <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="code" required placeholder="e.g. CS" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
               <div><label className="block font-bold mb-1">Description</label><input type="text" name="description" placeholder="Short summary..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Category</button></div>
             </form>
@@ -1849,8 +1826,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               addToast('success', 'Author Added', `Added ${newA.name}`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Author Name *</label><input type="text" name="name" required placeholder="e.g. R.D. Sharma" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Publisher *</label><input type="text" name="publisher" required placeholder="e.g. Oxford Press" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Author Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required placeholder="e.g. R.D. Sharma" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Publisher <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="publisher" required placeholder="e.g. Oxford Press" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Biography</label><input type="text" name="biography" placeholder="Short biography..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Author</button></div>
             </form>
@@ -1878,8 +1855,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               addToast('success', 'Rack Added', `Added ${newR.rackNo}`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Rack Number *</label><input type="text" name="rackNo" required placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Shelf Number *</label><input type="text" name="shelfNo" required placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Rack Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="rackNo" required placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Shelf Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="shelfNo" required placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Floor / Wing</label><input type="text" name="floor" defaultValue="1st Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div><label className="block font-bold mb-1">Section</label><input type="text" name="section" placeholder="e.g. Reference Section" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div><label className="block font-bold mb-1">Capacity</label><input type="number" name="capacity" defaultValue={50} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
@@ -1962,7 +1939,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             }} className="space-y-3 text-xs">
 
               <div>
-                <label className="block font-bold mb-1">Member ID / Admission No *</label>
+                <label className="block font-bold mb-1">Member ID / Admission No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1988,7 +1965,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </div>
 
               <div className="relative">
-                <label className="block font-bold mb-1">Full Name *</label>
+                <label className="block font-bold mb-1">Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -2037,7 +2014,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Role *</label>
+                <label className="block font-bold mb-1">Role <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={memberFormState.role}
                   onChange={e => setMemberFormState(prev => ({ ...prev, role: e.target.value as any, maxLimit: e.target.value === 'Staff' ? 6 : 3 }))}
@@ -2101,8 +2078,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               addToast('success', 'Book Reserved', `Reserved "${newRes.bookTitle}" for ${newRes.memberName}`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Select Member *</label><select name="memberId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Member...</option>{members.map(m => <option key={m.id} value={m.memberId}>{m.name} ({m.memberId})</option>)}</select></div>
-              <div><label className="block font-bold mb-1">Select Book *</label><select name="bookId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Book...</option>{books.map(b => <option key={b.id} value={b.id}>{b.title} (Author: {b.author})</option>)}</select></div>
+              <div><label className="block font-bold mb-1">Select Member <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="memberId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Member...</option>{members.map(m => <option key={m.id} value={m.memberId}>{m.name} ({m.memberId})</option>)}</select></div>
+              <div><label className="block font-bold mb-1">Select Book <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="bookId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Book...</option>{books.map(b => <option key={b.id} value={b.id}>{b.title} (Author: {b.author})</option>)}</select></div>
               <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Reservation</button></div>
             </form>
           </div>
@@ -2135,9 +2112,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               addToast('success', 'Issue Logged', `Logged ${newLD.issueType} report for "${newLD.bookTitle}"`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Select Member *</label><select name="memberId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Member...</option>{members.map(m => <option key={m.id} value={m.memberId}>{m.name} ({m.memberId})</option>)}</select></div>
-              <div><label className="block font-bold mb-1">Select Book *</label><select name="bookId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Book...</option>{books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select></div>
-              <div><label className="block font-bold mb-1">Issue Type *</label><select name="issueType" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="Damaged">Damaged</option><option value="Lost">Lost</option></select></div>
+              <div><label className="block font-bold mb-1">Select Member <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="memberId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Member...</option>{members.map(m => <option key={m.id} value={m.memberId}>{m.name} ({m.memberId})</option>)}</select></div>
+              <div><label className="block font-bold mb-1">Select Book <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="bookId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Book...</option>{books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select></div>
+              <div><label className="block font-bold mb-1">Issue Type <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="issueType" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="Damaged">Damaged</option><option value="Lost">Lost</option></select></div>
               <div><label className="block font-bold mb-1">Replacement Cost (₹)</label><input type="number" name="replacementCost" defaultValue={350} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
               <div><label className="block font-bold mb-1">Fine Penalty Amount (₹)</label><input type="number" name="fineAmount" defaultValue={50} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
               <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-rose-600 text-white font-extrabold">Log Report</button></div>
@@ -2189,7 +2166,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               setModalType(null);
             }} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Book Title *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Book Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -2201,7 +2178,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Author Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Author Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -2213,7 +2190,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={bookForm.category}
                   onChange={e => setBookForm(prev => ({ ...prev, category: e.target.value }))}
@@ -2336,7 +2313,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 date: modalData?.date || new Date().toISOString().split('T')[0],
                 checkInTime: modalData?.checkInTime || '08:30 AM',
                 checkOutTime: modalData?.checkOutTime || '05:00 PM',
-                workingHours: modalData?.workingHours || '8.5 Hours',
+                workingHours: modalData?.workingHours || calculateWorkedHours(modalData?.checkInTime || '08:30 AM', modalData?.checkOutTime || '05:00 PM'),
                 shift: modalData?.shift || 'Morning Shift (08:30 - 17:00)',
                 status: modalData?.status || 'Present',
                 remarks: modalData?.remarks || 'Manual shift record entry'
@@ -2347,7 +2324,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             }} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Staff Member *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Staff Member <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={modalData?.staffId}
                     onChange={e => {
@@ -2363,7 +2340,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Shift Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Shift Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -2376,7 +2353,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Check In Time *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Check In Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2400,7 +2377,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Attendance Status *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Attendance Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={modalData?.status}
                     onChange={e => setModalData((prev: any) => ({ ...prev, status: e.target.value }))}

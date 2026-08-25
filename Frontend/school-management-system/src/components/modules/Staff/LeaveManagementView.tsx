@@ -889,7 +889,7 @@ export const LeaveManagementView: React.FC = () => {
               
               {/* Employee Selection */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700">Applicant Employee *</label>
+                <label className="block font-semibold mb-1 text-slate-700">Applicant Employee <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 {isTeacher && teacherStaffMember ? (
                   <input
                     type="text"
@@ -925,7 +925,7 @@ export const LeaveManagementView: React.FC = () => {
 
               {/* Leave Type */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700">Leave Type *</label>
+                <label className="block font-semibold mb-1 text-slate-700">Leave Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   required
                   value={applyForm.leaveTypeId}
@@ -939,7 +939,7 @@ export const LeaveManagementView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700">From Date *</label>
+                  <label className="block font-semibold mb-1 text-slate-700">From Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -949,7 +949,7 @@ export const LeaveManagementView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700">To Date *</label>
+                  <label className="block font-semibold mb-1 text-slate-700">To Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -994,7 +994,7 @@ export const LeaveManagementView: React.FC = () => {
 
               {/* Reason */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700">Reason for Request *</label>
+                <label className="block font-semibold mb-1 text-slate-700">Reason for Request <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <textarea
                   required
                   placeholder="Explain why you are applying for leave..."
@@ -1208,16 +1208,16 @@ export const LeaveManagementView: React.FC = () => {
             <h3 className="text-base font-bold">{editingType ? 'Edit Leave Type' : 'Configure Leave Type'}</h3>
             <form onSubmit={handleTypeSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Leave Name *</label>
+                <label className="block font-semibold mb-1">Leave Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" name="name" required defaultValue={editingType?.name || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Leave Code *</label>
+                  <label className="block font-semibold mb-1">Leave Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" name="code" placeholder="e.g. CL" required defaultValue={editingType?.code || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none font-mono" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Annual Allowance (Days) *</label>
+                  <label className="block font-semibold mb-1">Annual Allowance (Days) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="number" name="annualAllowance" required defaultValue={editingType?.annualAllowance || 10} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
                 </div>
               </div>
@@ -1277,23 +1277,23 @@ export const LeaveManagementView: React.FC = () => {
             <h3 className="text-base font-bold">{editingHoliday ? 'Edit Holiday' : 'Add Calendar Holiday'}</h3>
             <form onSubmit={handleHolidaySubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Holiday Name *</label>
+                <label className="block font-semibold mb-1">Holiday Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" name="name" required defaultValue={editingHoliday?.name || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Start Date *</label>
+                  <label className="block font-semibold mb-1">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="date" name="startDate" required defaultValue={editingHoliday?.startDate || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">End Date *</label>
+                  <label className="block font-semibold mb-1">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="date" name="endDate" required defaultValue={editingHoliday?.endDate || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Holiday Type *</label>
+                  <label className="block font-semibold mb-1">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select name="type" defaultValue={editingHoliday?.type || 'School'} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
                     <option value="National">National Holiday</option>
                     <option value="School">School Holiday</option>

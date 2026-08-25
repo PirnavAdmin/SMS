@@ -75,9 +75,6 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
                 📖 Librarian Executive Cockpit
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Welcome to your daily staff cockpit. Manage desk duty, inspect reading schedules, and stay updated with school notices.
-            </p>
           </div>
 
           <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs shrink-0">
@@ -99,9 +96,6 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-brand-600 dark:text-brand-400" /> Library Overview Summary
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Live status snapshot of catalog copies and active student/staff loans.
-            </p>
           </div>
           <button
             onClick={() => handleNavigate('library')}
@@ -186,7 +180,6 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
               <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-sky-500" /> Today's Class Reading Schedule
               </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">Scheduled class library periods for today.</p>
             </div>
             <button
               onClick={() => handleNavigate('library-timetable')}

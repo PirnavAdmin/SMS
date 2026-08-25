@@ -710,8 +710,7 @@ export const CommunicationView: React.FC = () => {
             {/* Date & Time Input Box */}
             <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-slate-800/60 border border-rose-200 dark:border-slate-700 space-y-2">
               <label className="block text-xs font-black uppercase text-rose-900 dark:text-rose-300">
-                📅 Broadcast Dispatch Date & Time *
-              </label>
+                📅 Broadcast Dispatch Date & Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Date</label>
@@ -867,7 +866,7 @@ export const CommunicationView: React.FC = () => {
 
             <form onSubmit={handleBroadcast} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Circular Headline / Title *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Circular Headline / Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -880,7 +879,7 @@ export const CommunicationView: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -902,7 +901,7 @@ export const CommunicationView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category Tag *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category Tag <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={category}
                     onChange={e => setCategory(e.target.value as any)}
@@ -919,7 +918,7 @@ export const CommunicationView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Audience *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Audience <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={target}
                     onChange={e => setTarget(e.target.value as any)}
@@ -953,7 +952,7 @@ export const CommunicationView: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Message Content / Circular Text *</label>
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Message Content / Circular Text <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">✏️ Editable Text Area</span>
                 </div>
                 <textarea

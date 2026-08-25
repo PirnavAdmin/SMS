@@ -19,9 +19,40 @@ export interface LibrarianAttendanceRecord {
   remarks?: string;
 }
 
-const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
+export const calculateWorkedHours = (checkInTime?: string, checkOutTime?: string): string => {
+  if (!checkInTime || !checkOutTime) return '--';
+  
+  const parseTime = (timeStr: string): number | null => {
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3]?.toUpperCase();
 
-const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  const startMins = parseTime(checkInTime);
+  const endMins = parseTime(checkOutTime);
+
+  if (startMins === null || endMins === null || endMins < startMins) return '--';
+
+  const diffMins = endMins - startMins;
+  if (diffMins === 0) return '0 Mins';
+
+  if (diffMins < 60) {
+    return `${diffMins} Mins (${(diffMins / 60).toFixed(1)} Hours)`;
+  }
+
+  const decimalHrs = (diffMins / 60).toFixed(1);
+  return `${decimalHrs} Hours`;
+};
+
+export const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
+
+export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [
   { id: 'ATT-LIB-101', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-20', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Catalog audit & inventory completed' },
   { id: 'ATT-LIB-102', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-20', checkInTime: '08:45 AM', checkOutTime: '05:15 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Circulation desk duty' },
   { id: 'ATT-LIB-103', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-19', checkInTime: '08:28 AM', checkOutTime: '05:05 PM', workingHours: '8.6 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Book issue renewals' },
@@ -108,23 +139,23 @@ export const LibrarianAttendanceView: React.FC = () => {
 
       {/* Daily Shift Punch Control Banner - Shown ONLY in Librarian Panel */}
       {!isReadOnlyAccess && (
-        <div className="glass-card p-6 rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-brand-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-extrabold tracking-wider uppercase text-sky-200">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Daily Shift Punch Desk
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-[11px] font-extrabold tracking-wider uppercase border border-sky-200 dark:border-sky-800">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Daily Shift Punch Desk
             </div>
-            <h3 className="text-xl font-black">{currentStaffName} ({role || 'Librarian'})</h3>
-            <p className="text-xs text-sky-100 font-medium">
-              Today: <span className="font-mono font-bold">{todayStr}</span> • Shift: Morning Shift (08:30 AM - 05:00 PM)
+            <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{currentStaffName} ({role || 'Librarian'})</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Today: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{todayStr}</span> • Shift: <span className="font-semibold text-slate-700 dark:text-slate-300">Morning Shift (08:30 AM - 05:00 PM)</span>
             </p>
             {todayRecord && (
               <div className="flex items-center gap-3 pt-1 text-xs justify-center md:justify-start">
-                <span className="px-3 py-1 rounded-xl bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Checked In: {todayRecord.checkInTime}
+                <span className="px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Checked In: {todayRecord.checkInTime}
                 </span>
                 {todayRecord.checkOutTime && (
-                  <span className="px-3 py-1 rounded-xl bg-amber-500/30 border border-amber-400/40 text-amber-200 font-bold flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" /> Checked Out: {todayRecord.checkOutTime}
+                  <span className="px-3 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-bold flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" /> Checked Out: {todayRecord.checkOutTime}
                   </span>
                 )}
               </div>
@@ -153,21 +184,22 @@ export const LibrarianAttendanceView: React.FC = () => {
                   saveLibrarianAttendance([newRec, ...librarianAttendance]);
                   addToast('success', 'Checked In', `Successfully checked in at ${timeStr}`);
                 }}
-                className="w-full md:w-auto px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <CheckCircle2 className="w-4.5 h-4.5" /> Check In Now
+                <CheckCircle2 className="w-4 h-4" /> Check In Now
               </button>
             ) : !todayRecord.checkOutTime ? (
               <button
                 onClick={() => {
                   const now = new Date();
                   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const calcHours = calculateWorkedHours(todayRecord.checkInTime, timeStr);
                   const updated = librarianAttendance.map(r => {
                     if (r.id === todayRecord.id) {
                       return {
                         ...r,
                         checkOutTime: timeStr,
-                        workingHours: '8.5 Hours',
+                        workingHours: calcHours,
                         remarks: (r.remarks || '') + ` • Checked out at ${timeStr}`
                       };
                     }
@@ -177,13 +209,13 @@ export const LibrarianAttendanceView: React.FC = () => {
                   saveLibrarianAttendance(updated);
                   addToast('success', 'Checked Out', `Successfully checked out at ${timeStr}`);
                 }}
-                className="w-full md:w-auto px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <Clock className="w-4.5 h-4.5" /> Check Out Shift
+                <Clock className="w-4 h-4" /> Check Out Shift
               </button>
             ) : (
-              <div className="px-5 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-xs font-black text-emerald-200 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Shift Completed ({todayRecord.workingHours || '8.5 Hours'})
+              <div className="px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Shift Completed ({calculateWorkedHours(todayRecord.checkInTime, todayRecord.checkOutTime)})
               </div>
             )}
           </div>
@@ -289,7 +321,9 @@ export const LibrarianAttendanceView: React.FC = () => {
                   <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400">{r.shift}</td>
                   <td className="py-3.5 px-4 text-center font-mono font-extrabold text-emerald-600">{r.checkInTime || '--'}</td>
                   <td className="py-3.5 px-4 text-center font-mono font-extrabold text-amber-600">{r.checkOutTime || 'Active Shift'}</td>
-                  <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">{r.workingHours || '--'}</td>
+                  <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                    {r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : (r.workingHours || '--')}
+                  </td>
                   <td className="py-3.5 px-4 text-center">
                     <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[10px] ${
                       r.status === 'Present' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
@@ -334,7 +368,7 @@ export const LibrarianAttendanceView: React.FC = () => {
                 date: modalData?.date || new Date().toISOString().split('T')[0],
                 checkInTime: modalData?.checkInTime || '',
                 checkOutTime: modalData?.checkOutTime || '',
-                workingHours: modalData?.workingHours || (modalData?.checkInTime && modalData?.checkOutTime ? '8.5 Hours' : '--'),
+                workingHours: calculateWorkedHours(modalData?.checkInTime, modalData?.checkOutTime),
                 shift: modalData?.shift || 'Morning Shift (08:30 - 17:00)',
                 status: modalData?.status || 'Present',
                 remarks: modalData?.remarks || 'Manual shift entry'
@@ -345,7 +379,7 @@ export const LibrarianAttendanceView: React.FC = () => {
             }} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Staff Member *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Staff Member <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={modalData?.staffId}
                     onChange={e => {
@@ -365,7 +399,7 @@ export const LibrarianAttendanceView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     value={modalData?.date}

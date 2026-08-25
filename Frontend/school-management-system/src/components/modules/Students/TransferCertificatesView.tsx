@@ -219,7 +219,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
           
           {/* Class Filter (Required for loading) */}
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Class *</label>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={selectedClass}
               onChange={e => {

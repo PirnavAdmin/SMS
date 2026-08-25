@@ -1451,7 +1451,7 @@ export const EventsView: React.FC = () => {
 
             <form onSubmit={handleAddEventSubmit} className="flex-1 overflow-y-auto space-y-3.5 pr-1">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Event Title *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Event Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1464,7 +1464,7 @@ export const EventsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Event Category *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Event Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={eventForm.category}
                     onChange={e => setEventForm({ ...eventForm, category: e.target.value as any })}
@@ -1481,7 +1481,7 @@ export const EventsView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Venue *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Venue <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -1495,7 +1495,7 @@ export const EventsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Start Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -1505,7 +1505,7 @@ export const EventsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">End Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -1569,7 +1569,7 @@ export const EventsView: React.FC = () => {
 
             <form onSubmit={handleAddHolidaySubmit} className="space-y-3.5">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Holiday Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Holiday Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1581,7 +1581,7 @@ export const EventsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Holiday Type *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={holidayForm.type}
                   onChange={e => setHolidayForm({ ...holidayForm, type: e.target.value as any })}
@@ -1597,7 +1597,7 @@ export const EventsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Start Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -1607,7 +1607,7 @@ export const EventsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">End Date *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required

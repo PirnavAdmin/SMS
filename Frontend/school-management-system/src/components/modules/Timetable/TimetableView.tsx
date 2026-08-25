@@ -2028,7 +2028,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
             <form onSubmit={handleAddPeriodSettingSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold mb-1">Period Name *</label>
+                <label className="block font-bold mb-1">Period Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -2041,7 +2041,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Start Time *</label>
+                  <label className="block font-bold mb-1">Start Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2052,7 +2052,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">End Time *</label>
+                  <label className="block font-bold mb-1">End Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2065,7 +2065,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Period Type *</label>
+                <label className="block font-bold mb-1">Period Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={periodFormData.periodType}
                   onChange={e => setPeriodFormData({ ...periodFormData, periodType: e.target.value as any })}
@@ -2079,7 +2079,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
               {periodFormData.periodType === 'Other' && (
                 <div>
-                  <label className="block font-bold mb-1">Custom Period Type *</label>
+                  <label className="block font-bold mb-1">Custom Period Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2330,7 +2330,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Class *</label>
+                  <label className="block font-bold mb-1">Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={formData.className}
@@ -2353,7 +2353,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Section *</label>
+                  <label className="block font-bold mb-1">Section <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={formData.section}
@@ -2367,7 +2367,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Day *</label>
+                  <label className="block font-bold mb-1">Day <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={formData.day}
                     onChange={e => setFormData({ ...formData, day: e.target.value as any })}
@@ -2377,7 +2377,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Start Time *</label>
+                  <label className="block font-bold mb-1">Start Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="time"
                     required
@@ -2387,7 +2387,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">End Time *</label>
+                  <label className="block font-bold mb-1">End Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="time"
                     required

@@ -234,7 +234,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs overflow-y-auto pr-1 flex-1">
               <div>
-                <label className="block font-semibold mb-1">Uniform Category / Item Name *</label>
+                <label className="block font-semibold mb-1">Uniform Category / Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 {(() => {
                   const configuredCategories = (uniformCategories || [])
                     .map(c => typeof c === 'string' ? c : (c.name || (c as any).categoryName || ''))
@@ -366,7 +366,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Size Specification *</label>
+                  <label className="block font-semibold mb-1">Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={formData.size || ''}
                     onChange={e => setFormData({ ...formData, size: e.target.value })}
@@ -454,7 +454,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
               )}
 
               <div>
-                <label className="block font-semibold mb-1">Available Warehouse Stock *</label>
+                <label className="block font-semibold mb-1">Available Warehouse Stock <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="number"
                   placeholder="e.g. 50"

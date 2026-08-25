@@ -543,7 +543,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
 
             <form onSubmit={handleSaveStatus} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Current Status Category *</label>
+                <label className="block font-semibold mb-1">Current Status Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={statusForm.currentStatus}
                   onChange={e => setStatusForm({ ...statusForm, currentStatus: e.target.value as AlumniCurrentStatus })}

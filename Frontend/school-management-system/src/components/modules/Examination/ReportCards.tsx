@@ -230,7 +230,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
               {/* Class Filter */}
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 block">Class / Grade *</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 block">Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={selectedClass}
                   onChange={e => {
@@ -248,7 +248,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
 
               {/* Section Filter */}
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 block">Section *</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 block">Section <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={selectedSection}
                   onChange={e => setSelectedSection(e.target.value)}

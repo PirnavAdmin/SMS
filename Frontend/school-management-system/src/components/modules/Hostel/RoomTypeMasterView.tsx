@@ -627,7 +627,7 @@ export const RoomTypeMasterView: React.FC = () => {
                           <span className="text-slate-800 dark:text-slate-200 font-bold">{selectedBlock.hostelType || 'Boys Hostel'}</span>
                         </div>
                         <div>
-                          <label className="text-slate-400 font-bold block text-[10px] uppercase mb-0.5">Total Floors in Block *</label>
+                          <label className="text-slate-400 font-bold block text-[10px] uppercase mb-0.5">Total Floors in Block <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                           <select
                             value={floorConfigs.length || selectedBlock.totalFloors || 3}
                             onChange={e => {

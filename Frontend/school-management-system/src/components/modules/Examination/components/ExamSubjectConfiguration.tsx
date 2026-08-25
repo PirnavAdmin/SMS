@@ -277,7 +277,7 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
               {isActive && (
                 <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800">
                   <div className="space-y-0.5">
-                    <label className={labelClass}>Max Marks *</label>
+                    <label className={labelClass}>Max Marks <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -294,7 +294,7 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
                   </div>
 
                   <div className="space-y-0.5">
-                    <label className={labelClass}>Pass Marks *</label>
+                    <label className={labelClass}>Pass Marks <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       inputMode="numeric"

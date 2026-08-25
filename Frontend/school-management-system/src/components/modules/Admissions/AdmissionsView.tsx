@@ -2984,8 +2984,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <div className="space-y-4 pt-3 border-t border-sky-100 dark:border-sky-900/40">
                       <div className="max-w-xs">
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                          Number of Siblings *
-                        </label>
+                          Number of Siblings <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
                           type="number"
                           min={1}
@@ -3053,8 +3052,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             {entry.isExisting ? (
                               <div>
                                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                                  Select Existing Student *
-                                </label>
+                                  Select Existing Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                                 <div className="relative">
                                   <button
                                     type="button"

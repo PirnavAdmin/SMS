@@ -101,8 +101,7 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                Discontinuation Date *
-              </label>
+                Discontinuation Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <input
                 type="date"
                 value={date}
@@ -114,8 +113,7 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                Discontinuation Academic Year *
-              </label>
+                Discontinuation Academic Year <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <input
                 type="text"
                 value={discontinuationAY}
@@ -155,8 +153,7 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-              Reason for Discontinuation *
-            </label>
+              Reason for Discontinuation <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -174,8 +171,7 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
           {reason === 'Other' && (
             <div>
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                Custom Reason Details *
-              </label>
+                Custom Reason Details <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <input
                 type="text"
                 value={customReason}
@@ -233,8 +229,7 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-              Authorized By *
-            </label>
+              Authorized By <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <input
               type="text"
               value={authorizedBy}

@@ -70,7 +70,7 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Transfer Date *</label>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Transfer Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-medium" required />
             </div>
             <div>
@@ -80,7 +80,7 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Target Destination Branch *</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Target Destination Branch <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select value={toBranch} onChange={e => setToBranch(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold">
               {BRANCHES.filter(b => b !== student.branch).map(b => (
                 <option key={b} value={b}>{b}</option>
@@ -89,7 +89,7 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Reason for Branch Transfer *</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Reason for Branch Transfer <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-medium" required />
           </div>
 

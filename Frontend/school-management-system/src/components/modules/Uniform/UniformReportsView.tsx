@@ -411,7 +411,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
             
             {/* Select Report Type */}
             <div className="w-full sm:w-60 md:w-64">
-              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Select Report Type *</label>
+              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Select Report Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <select
                 value={reportType}
                 onChange={e => setReportType(e.target.value)}

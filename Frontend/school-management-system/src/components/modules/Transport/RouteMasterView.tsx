@@ -313,7 +313,7 @@ export const RouteMasterView: React.FC = () => {
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1">Route Code (Unique) *</label>
+                    <label className="block font-semibold mb-1">Route Code (Unique) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required
@@ -333,7 +333,7 @@ export const RouteMasterView: React.FC = () => {
                 </div>
  
                 <div>
-                  <label className="block font-semibold mb-1">Route Name *</label>
+                  <label className="block font-semibold mb-1">Route Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required

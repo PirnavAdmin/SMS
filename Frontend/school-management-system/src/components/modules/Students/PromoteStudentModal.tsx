@@ -93,8 +93,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-brand-600" /> Completion Academic Year *
-            </label>
+              <Calendar className="w-3.5 h-3.5 text-brand-600" /> Completion Academic Year <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={targetYear}
               onChange={e => setTargetYear(e.target.value)}
@@ -110,8 +109,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                  <BookOpen className="w-3.5 h-3.5 text-brand-600" /> New Class *
-                </label>
+                  <BookOpen className="w-3.5 h-3.5 text-brand-600" /> New Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={targetClass}
                   onChange={e => {
@@ -129,7 +127,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">New Section *</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">New Section <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={targetSection}
                   onChange={e => setTargetSection(e.target.value)}

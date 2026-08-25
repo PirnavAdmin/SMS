@@ -387,8 +387,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block font-semibold text-slate-700 dark:text-slate-200">
-                    Select Non-Residential Student (Bus Opted) *
-                  </label>
+                    Select Non-Residential Student (Bus Opted) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md">
                     {availableStudentsForTransport.length} Eligible
                   </span>
@@ -404,7 +403,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Transit Route *</label>
+                <label className="block font-semibold mb-1">Select Transit Route <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={routeId}
                   onChange={e => {
@@ -422,7 +421,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Pickup Point (Stop) *</label>
+                <label className="block font-semibold mb-1">Select Pickup Point (Stop) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={pickupPointId} onChange={e => setPickupPointId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   <option value="">-- Select Pickup Point --</option>
                   {availablePickupPoints.map(p => (
@@ -432,7 +431,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Fleet Vehicle *</label>
+                <label className="block font-semibold mb-1">Select Fleet Vehicle <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={selectedVehicleId}
                   onChange={e => setSelectedVehicleId(e.target.value)}

@@ -687,8 +687,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
                   <div className="relative">
                     <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                      1. Select Student *
-                    </label>
+                      1. Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
 
                     <div className="relative" ref={studentDropdownRef}>
                       <div className="relative">
@@ -813,8 +812,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
                   <div>
                     <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                      2. Select Certificate Type *
-                    </label>
+                      2. Select Certificate Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
                       disabled={!!existingRecord}
                       value={selectedTypeId}
@@ -833,8 +831,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                        1. Select Class *
-                      </label>
+                        1. Select Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <select
                         value={selectedBulkClass}
                         onChange={e => handleBulkClassChange(e.target.value)}
@@ -849,8 +846,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
                     <div>
                       <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                        2. Select Section *
-                      </label>
+                        2. Select Section <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <select
                         disabled={!selectedBulkClass}
                         value={selectedBulkSection}
@@ -866,8 +862,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
                     <div>
                       <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                        3. Certificate Type *
-                      </label>
+                        3. Certificate Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <select
                         value={selectedTypeId}
                         onChange={e => setSelectedTypeId(e.target.value)}

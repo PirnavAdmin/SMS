@@ -348,7 +348,7 @@ export const FeeManagementView: React.FC = () => {
                   <input type="text" value={structForm.academicYear} onChange={e => setStructForm({ ...structForm, academicYear: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Class Grade *</label>
+                  <label className="block font-semibold mb-1">Class Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select value={structForm.className} onChange={e => setStructForm({ ...structForm, className: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
                     <option value="Class 9">Class 9</option>
                     <option value="Class 10">Class 10</option>

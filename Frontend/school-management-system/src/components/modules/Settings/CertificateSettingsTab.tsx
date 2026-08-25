@@ -1257,7 +1257,7 @@ export const CertificateSettingsTab: React.FC = () => {
 
             <form onSubmit={handleSaveType} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Certificate Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Certificate Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1270,7 +1270,7 @@ export const CertificateSettingsTab: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Short Code *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Short Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -1330,7 +1330,7 @@ export const CertificateSettingsTab: React.FC = () => {
 
             <form onSubmit={handleSavePlaceholder} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Placeholder Key Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Placeholder Key Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border font-mono font-bold text-xs text-sky-600 dark:text-sky-400">
                   <span>{"{{"}</span>
                   <input
@@ -1361,7 +1361,7 @@ export const CertificateSettingsTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Description *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Description <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required

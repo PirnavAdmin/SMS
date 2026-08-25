@@ -193,7 +193,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Code Name *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Code Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -204,7 +204,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={form.gender}
                     onChange={e => setForm({ ...form, gender: e.target.value as any })}

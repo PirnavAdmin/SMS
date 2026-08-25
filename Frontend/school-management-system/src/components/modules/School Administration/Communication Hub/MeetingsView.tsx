@@ -1177,7 +1177,7 @@ export const MeetingsView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold text-slate-655 dark:text-slate-350">
               {/* Meeting Audience Selection */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-455 mb-1.5">Meeting Audience *</label>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1.5">Meeting Audience <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -1210,7 +1210,7 @@ export const MeetingsView: React.FC = () => {
               {meetingAudience === 'Individual' ? (
                 <div className="p-4 rounded-2xl bg-sky-50/40 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 space-y-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">Participant Type *</label>
+                    <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">Participant Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
                       value={participantType}
                       onChange={e => {
@@ -1234,8 +1234,7 @@ export const MeetingsView: React.FC = () => {
 
                   <div>
                     <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">
-                      Search & Select Participant ({participantType}) *
-                    </label>
+                      Search & Select Participant ({participantType}) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
 
                     {/* Search Bar Input */}
                     <div ref={searchRef} className="relative">
@@ -1558,8 +1557,7 @@ export const MeetingsView: React.FC = () => {
                   {/* 1. Multiple Participant Types Multi-Select Checkboxes */}
                   <div>
                     <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1.5 uppercase tracking-wider">
-                      1. Select Participant Types (Multi-Selection Allowed) *
-                    </label>
+                      1. Select Participant Types (Multi-Selection Allowed) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {(['Teaching Staff', 'Non-Teaching Staff', 'Student', 'Parent'] as MeetingParticipantType[]).map(pType => {
                         const isChecked = selectedGroupParticipantTypes.includes(pType);
@@ -1608,7 +1606,7 @@ export const MeetingsView: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type *</label>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                           <select
                             value={teachingGroupType}
                             onChange={e => setTeachingGroupType(e.target.value)}
@@ -1767,7 +1765,7 @@ export const MeetingsView: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type *</label>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                           <select
                             value={nonTeachingGroupType}
                             onChange={e => setNonTeachingGroupType(e.target.value)}
@@ -1842,7 +1840,7 @@ export const MeetingsView: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type *</label>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                           <select
                             value={studentGroupType}
                             onChange={e => setStudentGroupType(e.target.value)}
@@ -1935,7 +1933,7 @@ export const MeetingsView: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type *</label>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Group Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                           <select
                             value={parentGroupType}
                             onChange={e => setParentGroupType(e.target.value)}
@@ -2135,7 +2133,7 @@ export const MeetingsView: React.FC = () => {
 
               {/* Title & Description */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Title *</label>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -2159,7 +2157,7 @@ export const MeetingsView: React.FC = () => {
 
               {/* Meeting Mode */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Mode *</label>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Mode <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['In-Person', 'Online', 'Hybrid'] as MeetingMode[]).map(mode => (
                     <button
@@ -2209,7 +2207,7 @@ export const MeetingsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Room / Venue *</label>
+                      <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Room / Venue <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         required
@@ -2237,7 +2235,7 @@ export const MeetingsView: React.FC = () => {
               {/* Online link for Online or Hybrid */}
               {(formData.meetingMode === 'Online' || formData.meetingMode === 'Hybrid') && (
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Online Video URL *</label>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Online Video URL <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="url"
                     required
@@ -2252,7 +2250,7 @@ export const MeetingsView: React.FC = () => {
               {/* Date & Time */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Date *</label>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -2263,7 +2261,7 @@ export const MeetingsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Start Time (24h) *</label>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Start Time (24h) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2275,7 +2273,7 @@ export const MeetingsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">End Time (24h) *</label>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">End Time (24h) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -2288,7 +2286,7 @@ export const MeetingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Status *</label>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Meeting Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={formData.status}
                   onChange={e => setFormData({ ...formData, status: e.target.value as MeetingStatus })}
@@ -2411,7 +2409,7 @@ export const MeetingsView: React.FC = () => {
             </p>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-455 mb-1">Reason for Cancellation *</label>
+              <label className="block text-[10px] font-bold text-slate-455 mb-1">Reason for Cancellation <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <textarea
                 rows={3}
                 required

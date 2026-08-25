@@ -2051,8 +2051,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 {/* Attendance Date */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Attendance Date *
-                  </label>
+                    Attendance Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <DateInput
                     value={attendanceDate}
                     onChange={(e) => setAttendanceDate(e.target.value)}

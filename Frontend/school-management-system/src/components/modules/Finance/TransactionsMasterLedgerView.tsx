@@ -890,7 +890,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
 
             <form onSubmit={handleReversalSubmit} className="space-y-3">
               <div>
-                <label className="block font-bold mb-1">Reason for Reversal *</label>
+                <label className="block font-bold mb-1">Reason for Reversal <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <textarea
                   required
                   rows={3}
@@ -925,7 +925,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
             <form onSubmit={handleManualSubmit} className="flex-1 overflow-y-auto space-y-3 pr-1">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Transaction Type *</label>
+                  <label className="block font-bold mb-1">Transaction Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={manualForm.type}
                     onChange={e => setManualForm({ ...manualForm, type: e.target.value as any })}
@@ -936,7 +936,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Category *</label>
+                  <label className="block font-bold mb-1">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={manualForm.category}
                     onChange={e => setManualForm({ ...manualForm, category: e.target.value })}
@@ -952,7 +952,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Description *</label>
+                <label className="block font-bold mb-1">Description <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -965,7 +965,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Amount (INR) *</label>
+                  <label className="block font-bold mb-1">Amount (INR) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="number"
                     required
@@ -977,7 +977,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Payment Mode *</label>
+                  <label className="block font-bold mb-1">Payment Mode <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={manualForm.paymentMode}
                     onChange={e => setManualForm({ ...manualForm, paymentMode: e.target.value as any })}
@@ -995,7 +995,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Linked Financial Account *</label>
+                  <label className="block font-bold mb-1">Linked Financial Account <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={manualForm.account}
                     onChange={e => setManualForm({ ...manualForm, account: e.target.value as any })}
@@ -1007,7 +1007,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Transaction Date *</label>
+                  <label className="block font-bold mb-1">Transaction Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required
@@ -1048,11 +1048,11 @@ export const TransactionsMasterLedgerView: React.FC = () => {
             </div>
             <form onSubmit={handleSaveCategory} className="space-y-3">
               <div>
-                <label className="block font-semibold mb-1">Category Name *</label>
+                <label className="block font-semibold mb-1">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required value={newCatForm.name} onChange={e => setNewCatForm({ ...newCatForm, name: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
               </div>
               <div>
-                <label className="block font-semibold mb-1">Type *</label>
+                <label className="block font-semibold mb-1">Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={newCatForm.type} onChange={e => setNewCatForm({ ...newCatForm, type: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
                   <option value="Income">Income</option>
                   <option value="Expense">Expense</option>
@@ -1077,11 +1077,11 @@ export const TransactionsMasterLedgerView: React.FC = () => {
             </div>
             <form onSubmit={handleSaveAccount} className="space-y-3">
               <div>
-                <label className="block font-semibold mb-1">Account Name *</label>
+                <label className="block font-semibold mb-1">Account Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required placeholder="e.g. HDFC Hostel Operations" value={newAccForm.accountName} onChange={e => setNewAccForm({ ...newAccForm, accountName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
               </div>
               <div>
-                <label className="block font-semibold mb-1">Account Type *</label>
+                <label className="block font-semibold mb-1">Account Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={newAccForm.accountType} onChange={e => setNewAccForm({ ...newAccForm, accountType: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
                   <option value="Cash">Cash</option>
                   <option value="Main Bank Account">Main Bank Account</option>
@@ -1092,7 +1092,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block font-semibold mb-1">Opening Balance (INR) *</label>
+                <label className="block font-semibold mb-1">Opening Balance (INR) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="number" required value={newAccForm.currentBalance} onChange={e => setNewAccForm({ ...newAccForm, currentBalance: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">

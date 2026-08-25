@@ -173,7 +173,7 @@ export const UserManagementView: React.FC = () => {
 
             <form onSubmit={handleRoleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Role Title *</label>
+                <label className="block font-semibold mb-1">Role Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required placeholder="e.g. Vice Principal, IT Lead" value={roleForm.name} onChange={e => setRoleForm({ ...roleForm, name: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
               </div>
               <div>
