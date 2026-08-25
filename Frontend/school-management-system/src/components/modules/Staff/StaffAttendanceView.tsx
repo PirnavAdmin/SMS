@@ -35,6 +35,7 @@ import {
   Plus,
   LogIn,
   LogOut,
+  Loader2,
 } from "lucide-react";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -42,6 +43,7 @@ import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import { DateInput } from "../../common/DateInput";
+import { ConfirmModal } from "../../common/ConfirmModal";
 
 type AttendanceTab = "teaching" | "non-teaching";
 
@@ -1070,6 +1072,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const [attendanceDate, setAttendanceDate] = useState(todayStr);
   const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Teaching Staff Filters
   const [teachingDept, setTeachingDept] = useState("All");
@@ -1529,6 +1533,45 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     });
   };
 
+  // Save Attendance Execution
+  const executeSaveAttendance = async () => {
+    setIsSaving(true);
+    try {
+      const activeStaffCategoryList = staff.filter((s) => {
+        const isTeacher = isTeachingStaff(s);
+        const isCorrectCategory = activeTab === "teaching" ? isTeacher : !isTeacher;
+        return isCorrectCategory && s.status !== "Inactive";
+      });
+
+      const recordsToSave: DailyAttendance[] = activeStaffCategoryList.map((s) => ({
+        date: attendanceDate,
+        entityType: "Staff",
+        entityId: s.id,
+        status: normalizeStatus(attendanceMap[s.id]),
+        inTime: inTimeMap[s.id] || "",
+        outTime: outTimeMap[s.id] || "",
+        department: s.department || "",
+        designation: s.designation || "",
+        remarks: remarksMap[s.id] || "",
+      }));
+
+      const success = await markAttendance(recordsToSave);
+      if (success) {
+        addToast(
+          "success",
+          "Attendance Saved Successfully",
+          `Saved daily attendance logs for ${recordsToSave.length} ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff members on ${attendanceDate}.`,
+        );
+        if (fetchDailyAttendance) {
+          const activeDept = activeTab === "teaching" ? teachingDept : nonTeachingDept;
+          fetchDailyAttendance(attendanceDate, activeDept);
+        }
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Save Attendance Handler
   const handleSaveAttendance = async () => {
     if (!canMarkAttendance) {
@@ -1554,41 +1597,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       (r) => r.entityType === "Staff" && r.date === attendanceDate,
     );
     if (hasExisting) {
-      const confirmOverwrite = window.confirm(
-        `Attendance records already exist for ${attendanceDate}. Do you want to update and overwrite existing entries?`,
-      );
-      if (!confirmOverwrite) return;
-    }
-
-    const activeStaffCategoryList = staff.filter((s) => {
-      const isTeacher = isTeachingStaff(s);
-      const isCorrectCategory = activeTab === "teaching" ? isTeacher : !isTeacher;
-      return isCorrectCategory && s.status !== "Inactive";
-    });
-
-    const recordsToSave: DailyAttendance[] = activeStaffCategoryList.map((s) => ({
-      date: attendanceDate,
-      entityType: "Staff",
-      entityId: s.id,
-      status: normalizeStatus(attendanceMap[s.id]),
-      inTime: inTimeMap[s.id] || "",
-      outTime: outTimeMap[s.id] || "",
-      department: s.department || "",
-      designation: s.designation || "",
-      remarks: remarksMap[s.id] || "",
-    }));
-
-    const success = await markAttendance(recordsToSave);
-    if (success) {
-      addToast(
-        "success",
-        "Attendance Saved Successfully",
-        `Saved daily attendance logs for ${recordsToSave.length} ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff members on ${attendanceDate}.`,
-      );
-      if (fetchDailyAttendance) {
-        const activeDept = activeTab === "teaching" ? teachingDept : nonTeachingDept;
-        fetchDailyAttendance(attendanceDate, activeDept);
-      }
+      setShowSaveConfirm(true);
+    } else {
+      executeSaveAttendance();
     }
   };
 
@@ -1852,10 +1863,15 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           canMarkAttendance && (
             <button
               onClick={handleSaveAttendance}
-              disabled={isFutureDate}
+              disabled={isFutureDate || isSaving}
               className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-brand-600/20 flex items-center gap-2 transition-all self-start sm:self-center"
             >
-              <Save className="w-4 h-4" /> Save Attendance Log
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {isSaving ? "Saving..." : "Save Attendance Log"}
             </button>
           )}
       </div>
@@ -2632,6 +2648,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
         )}
 
+
+      <ConfirmModal
+        isOpen={showSaveConfirm}
+        title="Overwrite Attendance Logs?"
+        message={`Attendance records already exist for ${attendanceDate}. Do you want to update and overwrite these existing entries?`}
+        confirmLabel="Update Logs"
+        cancelLabel="Keep Current"
+        variant="warning"
+        onConfirm={() => {
+          setShowSaveConfirm(false);
+          executeSaveAttendance();
+        }}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
 
     </div>
   );
