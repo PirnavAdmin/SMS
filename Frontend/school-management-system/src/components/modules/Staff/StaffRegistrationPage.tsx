@@ -19,6 +19,12 @@ interface StaffRegistrationPageProps {
 
 const getInitialCategory = (): string => {
   try {
+    const globalVal = (window as any).staffRegistrationCategory;
+    if (globalVal) return normalizeStaffType(globalVal);
+  } catch {
+    // Ignore
+  }
+  try {
     const saved = sessionStorage.getItem('staff-registration-category');
     if (saved) return normalizeStaffType(saved);
   } catch {
@@ -180,6 +186,11 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     } catch {
       // Ignore session storage errors.
     }
+    try {
+      delete (window as any).staffRegistrationCategory;
+    } catch {
+      // Ignore
+    }
 
     addToast(
       'success',
@@ -196,7 +207,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     }
 
     setSubmitting(false);
-    onNavigate('staff-directory');
+    onNavigate(isTeaching ? 'staff-directory' : 'staff-non-teaching');
   };
 
   return (
@@ -206,7 +217,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => onNavigate('staff-directory')}
+            onClick={() => onNavigate(normalizeStaffType(form.employeeCategory) === 'Teaching Staff' ? 'staff-directory' : 'staff-non-teaching')}
             className="p-2 -ml-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
             title="Go Back"
           >

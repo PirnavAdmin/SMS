@@ -281,6 +281,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
+  // Reset pagination on search query or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, filterClass, filterStatus, sortBy]);
+
   // View States: Table View vs Full-Page Form View
   const [isFormView, setIsFormView] = useState(initialFormOpen || false);
 

@@ -178,6 +178,11 @@ export const StaffList: React.FC<{
     } catch {
       // Ignore storage failures and keep navigation working.
     }
+    try {
+      (window as any).staffRegistrationCategory = activeCategory;
+    } catch {
+      // Ignore
+    }
 
     if (onNavigate) {
       onNavigate("staff-add");

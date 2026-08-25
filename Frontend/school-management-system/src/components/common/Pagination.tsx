@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PaginationProps {
   currentPage: number;
@@ -38,7 +38,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         <span className="font-extrabold text-slate-700 dark:text-slate-200">{totalItems}</span> {label}
       </div>
 
-      {/* Right side: Show: [dropdown]  Previous  Page X of Y  Next */}
+      {/* Right side: Show: [dropdown]  <  Page X of Y  > */}
       <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
         {onItemsPerPageChange && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold">
@@ -70,9 +70,11 @@ export const Pagination: React.FC<PaginationProps> = ({
             type="button"
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:bg-slate-50 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed"
+            title="Previous Page"
+            aria-label="Previous Page"
+            className="p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:bg-slate-50 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            Previous
+            <ChevronLeft className="w-4 h-4" />
           </button>
 
           {/* Page X of Y */}
@@ -85,9 +87,11 @@ export const Pagination: React.FC<PaginationProps> = ({
             type="button"
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:bg-slate-50 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed"
+            title="Next Page"
+            aria-label="Next Page"
+            className="p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:bg-slate-50 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            Next
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>

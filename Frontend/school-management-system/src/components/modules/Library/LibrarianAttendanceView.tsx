@@ -114,12 +114,59 @@ export const LibrarianAttendanceView: React.FC = () => {
   const totalLate = filteredAttendance.filter(r => r.status === 'Late').length;
   const totalOnLeave = filteredAttendance.filter(r => r.status === 'On Leave').length;
 
+  const handleExportLog = () => {
+    if (filteredAttendance.length === 0) {
+      addToast('warning', 'No Data Available', 'No attendance records match the selected filter to export.');
+      return;
+    }
+
+    const headers = ['Date', 'Staff ID', 'Staff Name', 'Role', 'Shift', 'Check In', 'Check Out', 'Working Hours', 'Status', 'Duty Remarks'];
+    const csvRows = [
+      headers.join(','),
+      ...filteredAttendance.map(r => {
+        const hrs = r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : (r.workingHours || '--');
+        return [
+          `"${r.date}"`,
+          `"${r.staffId}"`,
+          `"${r.staffName}"`,
+          `"${r.role}"`,
+          `"${r.shift}"`,
+          `"${r.checkInTime || '--'}"`,
+          `"${r.checkOutTime || 'Active Shift'}"`,
+          `"${hrs}"`,
+          `"${r.status}"`,
+          `"${(r.remarks || 'Routine Shift').replace(/"/g, '""')}"`
+        ].join(',');
+      })
+    ];
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const fileName = `librarian_attendance_${attendanceViewMode}_${selectedAttendanceDate}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    addToast('success', 'Report Exported', `Exported ${filteredAttendance.length} filtered attendance records to ${fileName}.`);
+  };
+
+  const handlePrint = () => {
+    if (filteredAttendance.length === 0) {
+      addToast('warning', 'No Data Available', 'No attendance records match the selected filter to print.');
+      return;
+    }
+    window.print();
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200/80 dark:border-amber-800 shadow-xs flex items-center justify-center">
+          <div className="p-2.5 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-200/80 dark:border-sky-800 shadow-xs flex items-center justify-center">
             <CalendarCheck className="w-5 h-5" />
           </div>
           <div>
@@ -128,10 +175,10 @@ export const LibrarianAttendanceView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200 flex items-center gap-1.5 transition-all cursor-pointer">
+          <button onClick={handlePrint} className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200 flex items-center gap-1.5 transition-all cursor-pointer">
             <Printer className="w-4 h-4" /> Print
           </button>
-          <button onClick={() => addToast('success', 'Report Exported', 'Downloaded Librarian Attendance Log.')} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm">
+          <button onClick={handleExportLog} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm">
             <Download className="w-4 h-4" /> Export Log
           </button>
         </div>
@@ -469,6 +516,45 @@ export const LibrarianAttendanceView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Printable Area for Filtered Librarian Attendance Logs */}
+      <div id="printable-content" className="hidden print:block space-y-4 p-4">
+        <div className="text-center border-b pb-3 mb-4">
+          <h1 className="text-lg font-black uppercase text-slate-900">Pirnav Schools — Librarian Attendance Report</h1>
+          <p className="text-xs text-slate-600 font-medium mt-1">
+            Filter View: <strong className="uppercase">{attendanceViewMode}</strong> ({selectedAttendanceDate}) • Total Logs: <strong>{filteredAttendance.length}</strong>
+          </p>
+        </div>
+
+        <table className="w-full text-left text-xs border-collapse border border-slate-300">
+          <thead>
+            <tr className="bg-slate-100 uppercase text-[10px] text-slate-700 font-extrabold border-b">
+              <th className="p-2 border">Date</th>
+              <th className="p-2 border">Librarian / Staff</th>
+              <th className="p-2 border">Shift Details</th>
+              <th className="p-2 border text-center">Check In</th>
+              <th className="p-2 border text-center">Check Out</th>
+              <th className="p-2 border text-center">Hours</th>
+              <th className="p-2 border text-center">Status</th>
+              <th className="p-2 border">Duty Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAttendance.map(r => (
+              <tr key={r.id} className="border-b">
+                <td className="p-2 border font-mono font-bold">{r.date}</td>
+                <td className="p-2 border font-bold">{r.staffName} ({r.staffId})</td>
+                <td className="p-2 border">{r.shift}</td>
+                <td className="p-2 border text-center font-mono font-bold text-emerald-700">{r.checkInTime || '--'}</td>
+                <td className="p-2 border text-center font-mono font-bold text-amber-700">{r.checkOutTime || 'Active Shift'}</td>
+                <td className="p-2 border text-center font-mono">{r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : (r.workingHours || '--')}</td>
+                <td className="p-2 border text-center font-bold">{r.status}</td>
+                <td className="p-2 border text-slate-600">{r.remarks || 'Routine Shift'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

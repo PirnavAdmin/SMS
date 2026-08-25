@@ -11,14 +11,14 @@ import {
   Printer,
   FileText,
   Search,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { formatCurrency } from '../../../utils/currency';
 import { ExportButton } from '../../common/ExportButton';
 import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
-import { TransportScrollableTabs } from './TransportScrollableTabs';
 
 type TransportReportTabId =
   | 'transport-dashboard-report'
@@ -312,12 +312,30 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         </div>
       </div>
 
-      <TransportScrollableTabs
-        tabs={REPORT_TABS}
-        activeId={selectedReport}
-        onChange={tabId => setSelectedReport(tabId as TransportReportTabId)}
-        sticky={false}
-      />
+      <div className="w-full sm:w-72 relative">
+        <label className="block text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">
+          Select Report Type
+        </label>
+        <div className="relative">
+          {(() => {
+            const activeTab = REPORT_TABS.find(t => t.id === selectedReport);
+            const ActiveIcon = activeTab ? activeTab.icon : FileSpreadsheet;
+            return <ActiveIcon className="w-4 h-4 text-sky-500 absolute left-3.5 top-3 pointer-events-none" />;
+          })()}
+          <select
+            value={selectedReport}
+            onChange={e => setSelectedReport(e.target.value as TransportReportTabId)}
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 text-xs font-bold text-slate-800 dark:text-white outline-none cursor-pointer appearance-none transition-all hover:border-sky-300 shadow-xs"
+          >
+            {REPORT_TABS.map(tab => (
+              <option key={tab.id} value={tab.id}>
+                {tab.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-3 pointer-events-none" />
+        </div>
+      </div>
 
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800">
         <div className="relative w-full sm:w-64">

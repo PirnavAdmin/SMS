@@ -3,7 +3,7 @@ import {
   Library, BookOpen, Plus, Search, Edit, Trash2, Users, Layers, Bookmark,
   FileText, CheckCircle2, XCircle, AlertTriangle, Clock, RotateCcw,
   ShieldAlert, IndianRupee, Sliders, Printer, Download, ChevronDown,
-  RefreshCw, AlertOctagon, FileSpreadsheet, Sparkles, Home, UserCheck, Calendar, CalendarCheck
+  RefreshCw, AlertOctagon, FileSpreadsheet, Sparkles, Home, UserCheck, Calendar, CalendarCheck, X
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -45,11 +45,11 @@ const DEFAULT_AUTHORS: BookAuthor[] = [
 ];
 
 const DEFAULT_RACKS: BookRack[] = [
-  { id: 'RCK-1', rackNo: 'Rack A-01', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Science Wing', capacity: 50, occupiedCount: 32 },
-  { id: 'RCK-2', rackNo: 'Rack A-01', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Science Wing', capacity: 50, occupiedCount: 18 },
-  { id: 'RCK-3', rackNo: 'Rack A-01', shelfNo: 'Shelf 3', floor: '1st Floor', section: 'Science Wing', capacity: 50, occupiedCount: 10 },
-  { id: 'RCK-4', rackNo: 'Rack B-02', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Maths Wing', capacity: 40, occupiedCount: 25 },
-  { id: 'RCK-5', rackNo: 'Rack B-02', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Maths Wing', capacity: 40, occupiedCount: 15 },
+  { id: 'RCK-1', rackNo: 'Rack A-01', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 32 },
+  { id: 'RCK-2', rackNo: 'Rack A-01', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 18 },
+  { id: 'RCK-3', rackNo: 'Rack A-01', shelfNo: 'Shelf 3', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 10 },
+  { id: 'RCK-4', rackNo: 'Rack B-02', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Mathematics Section', capacity: 40, occupiedCount: 25 },
+  { id: 'RCK-5', rackNo: 'Rack B-02', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Mathematics Section', capacity: 40, occupiedCount: 15 },
   { id: 'RCK-6', rackNo: 'Rack C-03', shelfNo: 'Shelf 1', floor: '2nd Floor', section: 'CS & Tech Lab', capacity: 45, occupiedCount: 20 },
   { id: 'RCK-7', rackNo: 'Rack C-03', shelfNo: 'Shelf 2', floor: '2nd Floor', section: 'CS & Tech Lab', capacity: 45, occupiedCount: 8 },
   { id: 'RCK-8', rackNo: 'Rack D-04', shelfNo: 'Shelf 1', floor: '2nd Floor', section: 'Literature Section', capacity: 60, occupiedCount: 40 },
@@ -554,6 +554,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     if (activeSubTab === 'dashboard') {
       return (
         <div className="space-y-6 animate-in fade-in">
+          {/* Operational Quick Actions Banner - Shown ONLY in Librarian Panel */}
+          {!isReadOnlyAccess && (
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-brand-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Library Overview
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button onClick={() => switchTab('phase2', 'issue')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
+                  <Plus className="w-4 h-4" /> Issue Book
+                </button>
+                <button onClick={() => switchTab('phase2', 'return')} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer">
+                  <RotateCcw className="w-4 h-4" /> Return Book
+                </button>
+                <button onClick={() => switchTab('phase3', 'fines')} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
+                  <IndianRupee className="w-4 h-4" /> Manage Fines
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* KPI Stat Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
@@ -593,35 +615,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             </div>
           </div>
 
-          {/* Operational Quick Actions Banner - Shown ONLY in Librarian Panel */}
-          {!isReadOnlyAccess && (
-            <div className="glass-card p-5 rounded-3xl bg-gradient-to-r from-sky-600 to-indigo-700 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-lg font-black flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" /> Library Operations Hub
-                </h3>
-                <p className="text-xs text-sky-100 font-medium">Issue books, return active loans, manage member fines, and run book audits.</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                <button onClick={() => switchTab('phase2', 'issue')} className="px-4 py-2 rounded-xl bg-white text-sky-700 font-extrabold text-xs hover:bg-sky-50 transition-all shadow-md flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" /> Issue Book
-                </button>
-                <button onClick={() => switchTab('phase2', 'return')} className="px-4 py-2 rounded-xl bg-sky-950/40 text-white font-extrabold text-xs border border-white/30 hover:bg-sky-900/60 transition-all flex items-center gap-1.5">
-                  <RotateCcw className="w-4 h-4" /> Return Book
-                </button>
-                <button onClick={() => switchTab('phase3', 'fines')} className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs hover:bg-emerald-400 transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
-                  <IndianRupee className="w-4 h-4" /> Manage Fines
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Quick Overview Grid: Categories & Recent Issues */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                 <h4 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-sky-500" /> Book Categories Breakdown
+                  <Layers className="w-4 h-4 text-sky-500" /> Book Categories
                 </h4>
                 <button onClick={() => switchTab('phase1', 'categories')} className="text-[11px] font-bold text-sky-600 hover:underline">View All</button>
               </div>
@@ -682,9 +681,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="space-y-4 animate-in fade-in">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-80">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" placeholder="Search title, author, ISBN, or Rack/Shelf..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none" />
+                <input type="text" placeholder="Search by title, author, ISBN, or Rack/Shelf..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none" />
               </div>
               <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none">
                 <option value="">All Categories</option>
@@ -703,52 +702,54 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] text-slate-500 border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="py-3.5 px-4">ISBN</th>
-                    <th className="py-3.5 px-4">BOOK TITLE</th>
-                    <th className="py-3.5 px-4">AUTHOR</th>
-                    <th className="py-3.5 px-4">CATEGORY</th>
-                    <th className="py-3.5 px-4">RACK / LOCATION</th>
-                    <th className="py-3.5 px-4 text-center">TOTAL COPIES</th>
-                    <th className="py-3.5 px-4 text-center">AVAILABLE</th>
-                    <th className="py-3.5 px-4 text-right">ACTION</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">ISBN</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">BOOK TITLE</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">AUTHOR</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">CATEGORY</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">RACK / LOCATION</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">TOTAL COPIES</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">AVAILABLE</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredBooks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(b => (
                     <tr key={b.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500">{b.isbn}</td>
-                      <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white leading-snug">{b.title}</td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300">{b.author}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold text-[10px] border border-sky-100 dark:border-sky-900/40">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500 whitespace-nowrap">{b.isbn}</td>
+                      <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white leading-snug min-w-[180px]">{b.title}</td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300 min-w-[140px]">{b.author}</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold text-[10px] border border-sky-100 dark:border-sky-900/40 whitespace-nowrap">
                           {b.category}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                      <td className="py-3.5 px-4 font-bold text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
                         {b.rackNo || 'Rack A-01 (Shelf 1)'}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono font-extrabold text-slate-900 dark:text-white">{b.totalCopies}</td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-lg font-mono font-black text-[11px] ${b.availableCopies > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'}`}>
+                      <td className="py-3.5 px-4 text-center font-mono font-extrabold text-slate-900 dark:text-white whitespace-nowrap">{b.totalCopies}</td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className={`inline-block px-2.5 py-1 rounded-lg font-mono font-black text-[11px] whitespace-nowrap ${b.availableCopies > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'}`}>
                           {b.availableCopies} / {b.totalCopies}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-                        {!isReadOnlyAccess ? (
-                          <>
-                            <button onClick={() => { switchTab('phase2', 'issue'); }} className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px] shadow-xs transition-all cursor-pointer">
-                              Issue
-                            </button>
-                            <button onClick={() => handleOpenAddOrEditBook(b)} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-600 dark:text-slate-300 hover:text-sky-600 transition-all cursor-pointer" title="Edit Book">
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setDeletingItem({ type: 'book', id: b.id, title: b.title })} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition-all cursor-pointer" title="Delete Book">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                        )}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {!isReadOnlyAccess ? (
+                            <>
+                              <button onClick={() => { switchTab('phase2', 'issue'); }} className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px] shadow-xs transition-all cursor-pointer">
+                                Issue
+                              </button>
+                              <button onClick={() => handleOpenAddOrEditBook(b)} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-600 dark:text-slate-300 hover:text-sky-600 transition-all cursor-pointer" title="Edit Book">
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => setDeletingItem({ type: 'book', id: b.id, title: b.title })} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition-all cursor-pointer" title="Delete Book">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -774,7 +775,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       return (
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Layers className="w-4 h-4 text-sky-500" /> Book Categories Master</h3>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Layers className="w-4 h-4 text-sky-500" /> Book Categories</h3>
             {!isReadOnlyAccess && (
               <button onClick={() => setModalType('addCategory')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add Category
@@ -978,7 +979,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       return (
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-sky-500" /> Library Membership Roster</h3>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-sky-500" /> Library Members</h3>
             {!isReadOnlyAccess && (
               <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Register Member
@@ -997,7 +998,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <th className="py-3 px-4 text-center">ISSUED</th>
                   <th className="py-3 px-4 text-right">FINE DUE</th>
                   <th className="py-3 px-4 text-center">STATUS</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1011,14 +1012,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <td className="py-3 px-4 text-center font-mono font-bold text-sky-600">{m.issuedCount}</td>
                     <td className="py-3 px-4 text-right font-mono font-black text-rose-600">{formatCurrency(m.fineBalance || 0)}</td>
                     <td className="py-3 px-4 text-center"><span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">{m.status}</span></td>
-                    <td className="py-3 px-4 text-right">
-                      {!isReadOnlyAccess ? (
-                        <button onClick={() => setDeletingItem({ type: 'member', id: m.id, title: m.name })} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                      )}
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {!isReadOnlyAccess ? (
+                          <button onClick={() => setDeletingItem({ type: 'member', id: m.id, title: m.name })} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1060,7 +1063,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       }
 
       return (
-        <div className="max-w-2xl mx-auto glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-4 animate-in fade-in">
+        <div className="w-full glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-4 animate-in fade-in">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3.5">
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Plus className="w-5 h-5 text-sky-500" /> Issue Book to Student / Staff
@@ -1144,8 +1147,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               });
               addToast('success', 'Book Issued (Manual Entry)', `Issued "${manualBookTitle}" to ${manualMemName} (${manualMemId})`);
             }
-
-            switchTab('phase1', 'dashboard');
           }} className="space-y-4 text-xs">
             {issueMode === 'catalog' ? (
               <>
@@ -1173,10 +1174,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </>
             ) : (
               <>
-                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-bold space-y-1">
-                  <p className="flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-amber-500" /> Manual Issue Mode Enabled</p>
-                  <p className="text-[11px] font-medium text-slate-600 dark:text-slate-400">Type custom borrower details and book accession details directly if not selecting from predefined dropdowns.</p>
-                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -1222,7 +1219,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             </div>
 
             <button type="submit" className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-lg shadow-sky-500/20 cursor-pointer transition-all">
-              Confirm & Dispatch Book Issue
+              Confirm & Dispatch Book
             </button>
           </form>
         </div>
@@ -1235,8 +1232,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       return (
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><RotateCcw className="w-4 h-4 text-emerald-500" /> Return Book Processing</h3>
-            <span className="text-xs font-bold text-slate-400">{activeIssues.length} Active Loans</span>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><RotateCcw className="w-4 h-4 text-emerald-500" /> Return Book</h3>
+            <span className="text-xs font-bold text-slate-400">{activeIssues.length} Issued Books</span>
           </div>
 
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
@@ -1249,7 +1246,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <th className="py-3 px-4">ISSUE DATE</th>
                   <th className="py-3 px-4">DUE DATE</th>
                   <th className="py-3 px-4 text-center">FINE CALCULATED</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1270,33 +1267,35 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                       <td className="py-3 px-4 text-center font-mono font-black text-rose-600">
                         {calculatedFine > 0 ? formatCurrency(calculatedFine) : '₹0 (On Time)'}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        {!isReadOnlyAccess ? (
-                          <button onClick={() => {
-                            returnBook(iss.id);
-                            if (calculatedFine > 0) {
-                              const newFine: LibraryFineRecord = {
-                                id: `FIN-${Date.now()}`,
-                                issueId: iss.id,
-                                memberId: iss.borrowerId,
-                                memberName: iss.borrowerName,
-                                memberRole: iss.borrowerRole,
-                                bookTitle: iss.bookTitle,
-                                overdueDays: lateDays,
-                                fineAmount: calculatedFine,
-                                paymentStatus: 'Unpaid',
-                                createdDate: new Date().toISOString().split('T')[0],
-                                remarks: `Late return fine for ${lateDays} days`
-                              };
-                              saveFines([newFine, ...fineRecords]);
-                            }
-                            addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
-                          }} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm">
-                            Process Return
-                          </button>
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                        )}
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {!isReadOnlyAccess ? (
+                            <button onClick={() => {
+                              returnBook(iss.id);
+                              if (calculatedFine > 0) {
+                                const newFine: LibraryFineRecord = {
+                                  id: `FIN-${Date.now()}`,
+                                  issueId: iss.id,
+                                  memberId: iss.borrowerId,
+                                  memberName: iss.borrowerName,
+                                  memberRole: iss.borrowerRole,
+                                  bookTitle: iss.bookTitle,
+                                  overdueDays: lateDays,
+                                  fineAmount: calculatedFine,
+                                  paymentStatus: 'Unpaid',
+                                  createdDate: new Date().toISOString().split('T')[0],
+                                  remarks: `Late return fine for ${lateDays} days`
+                                };
+                                saveFines([newFine, ...fineRecords]);
+                              }
+                              addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
+                            }} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm">
+                              Process Return
+                            </button>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1334,7 +1333,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <th className="py-3 px-4">BORROWER</th>
                   <th className="py-3 px-4">CURRENT DUE DATE</th>
                   <th className="py-3 px-4 text-center">RENEWALS</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1344,21 +1343,22 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <td className="py-3 px-4 font-semibold text-slate-700">{iss.borrowerName} ({iss.borrowerRole})</td>
                     <td className="py-3 px-4 font-mono font-bold text-slate-800">{iss.dueDate}</td>
                     <td className="py-3 px-4 text-center font-mono font-bold text-sky-600">{iss.renewCount || 0} / 2</td>
-                    <td className="py-3 px-4 text-right">
-                      {!isReadOnlyAccess ? (
-                        <button onClick={() => {
-                          const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
-                          iss.dueDate = newDueDate;
-                          iss.renewCount = (iss.renewCount || 0) + 1;
-                          iss.status = 'Renewed';
-                          addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
-                          switchTab('phase1', 'dashboard');
-                        }} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-[11px] hover:bg-sky-500 transition-all shadow-sm">
-                          Extend +14 Days
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                      )}
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {!isReadOnlyAccess ? (
+                          <button onClick={() => {
+                            const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
+                            iss.dueDate = newDueDate;
+                            iss.renewCount = (iss.renewCount || 0) + 1;
+                            iss.status = 'Renewed';
+                            addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
+                          }} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-[11px] hover:bg-sky-500 transition-all shadow-sm">
+                            Extend +14 Days
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1399,7 +1399,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <th className="py-3 px-4">REQUESTED BY</th>
                   <th className="py-3 px-4">DATE</th>
                   <th className="py-3 px-4 text-center">QUEUE STATUS</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1409,22 +1409,36 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{res.bookTitle}</td>
                     <td className="py-3 px-4 font-semibold text-slate-700">{res.memberName} ({res.memberRole})</td>
                     <td className="py-3 px-4 font-mono text-slate-500">{res.requestDate}</td>
-                    <td className="py-3 px-4 text-center"><span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">{res.status}</span></td>
-                    <td className="py-3 px-4 text-right space-x-2">
-                      {!isReadOnlyAccess ? (
-                        <>
-                          <button onClick={() => {
-                            const updated = reservations.map(r => r.id === res.id ? { ...r, status: 'Fulfilled' as any } : r);
-                            saveReservations(updated);
-                            addToast('success', 'Reservation Fulfilled', `Book copy assigned to ${res.memberName}`);
-                          }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px]">Fulfill</button>
-                          <button onClick={() => setDeletingItem({ type: 'reservation', id: res.id, title: res.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                      )}
+                    <td className="py-3 px-4 text-center">
+                      <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                        res.status === 'Approved' || res.status === 'Fulfilled'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {res.status === 'Fulfilled' ? 'Approved' : res.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {!isReadOnlyAccess ? (
+                          <>
+                            {res.status === 'Pending' ? (
+                              <button onClick={() => {
+                                const updated = reservations.map(r => r.id === res.id ? { ...r, status: 'Approved' as any } : r);
+                                saveReservations(updated);
+                                addToast('success', 'Reservation Approved', `Book copy assigned to ${res.memberName}`);
+                              }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px]">Approve</button>
+                            ) : (
+                              <span className="text-[11px] font-bold text-emerald-600">Approved</span>
+                            )}
+                            <button onClick={() => setDeletingItem({ type: 'reservation', id: res.id, title: res.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1456,9 +1470,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <IndianRupee className="w-4 h-4 text-emerald-500" /> Library Fines & Fee Integration
+                <IndianRupee className="w-4 h-4 text-emerald-500" /> Library Fees & Fines
               </h3>
-              <p className="text-[11px] text-slate-500 font-medium">Overdue & Damage fines automatically sync to Finance Fee Collection reports.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-mono font-black text-xs">
@@ -1480,7 +1493,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <th className="py-3 px-4 text-center">DAYS LATE</th>
                   <th className="py-3 px-4 text-right">FINE AMOUNT</th>
                   <th className="py-3 px-4 text-center">PAYMENT STATUS</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1496,25 +1509,27 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         {f.paymentStatus}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right space-x-2">
-                      {!isReadOnlyAccess ? (
-                        <>
-                          {f.paymentStatus === 'Unpaid' ? (
-                            <button onClick={() => {
-                              const updated = fineRecords.map(item => item.id === f.id ? { ...item, paymentStatus: 'Paid' as any, paidDate: new Date().toISOString().split('T')[0] } : item);
-                              saveFines(updated);
-                              addToast('success', 'Fine Collected', `Collected ${formatCurrency(f.fineAmount)} fine for ${f.memberName}`);
-                            }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px]">Collect Fine</button>
-                          ) : (
-                            <span className="text-[11px] font-bold text-emerald-600">Paid on {f.paidDate}</span>
-                          )}
-                          <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                      )}
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {!isReadOnlyAccess ? (
+                          <>
+                            {f.paymentStatus === 'Unpaid' ? (
+                              <button onClick={() => {
+                                const updated = fineRecords.map(item => item.id === f.id ? { ...item, paymentStatus: 'Paid' as any, paidDate: new Date().toISOString().split('T')[0] } : item);
+                                saveFines(updated);
+                                addToast('success', 'Fine Collected', `Collected ${formatCurrency(f.fineAmount)} fine for ${f.memberName}`);
+                              }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px]">Collect Fine</button>
+                            ) : (
+                              <span className="text-[11px] font-bold text-emerald-600">Paid on {f.paidDate}</span>
+                            )}
+                            <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1556,7 +1571,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <th className="py-3 px-4">TYPE</th>
                   <th className="py-3 px-4 text-right">REPLACEMENT COST</th>
                   <th className="py-3 px-4 text-center">STATUS</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1568,21 +1583,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <td className="py-3 px-4"><span className={`px-2 py-0.5 rounded font-bold text-[10px] ${ld.issueType === 'Lost' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>{ld.issueType}</span></td>
                     <td className="py-3 px-4 text-right font-mono font-black text-rose-600">{formatCurrency(ld.replacementCost)}</td>
                     <td className="py-3 px-4 text-center"><span className="px-2.5 py-0.5 rounded-full bg-slate-100 font-bold text-[10px]">{ld.status}</span></td>
-                    <td className="py-3 px-4 text-right space-x-2">
-                      {!isReadOnlyAccess ? (
-                        <>
-                          <button onClick={() => {
-                            const updated = lostDamagedList.map(item => item.id === ld.id ? { ...item, status: 'Replaced' as any } : item);
-                            saveLostDamaged(updated);
-                            addToast('success', 'Book Replaced', `Recorded replacement copy for "${ld.bookTitle}"`);
-                          }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px]">Mark Replaced</button>
-                          <button onClick={() => setDeletingItem({ type: 'lostDamaged', id: ld.id, title: ld.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
-                      )}
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {!isReadOnlyAccess ? (
+                          <>
+                            <button onClick={() => {
+                              const updated = lostDamagedList.map(item => item.id === ld.id ? { ...item, status: 'Replaced' as any } : item);
+                              saveLostDamaged(updated);
+                              addToast('success', 'Book Replaced', `Recorded replacement copy for "${ld.bookTitle}"`);
+                            }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px]">Mark Replaced</button>
+                            <button onClick={() => setDeletingItem({ type: 'lostDamaged', id: ld.id, title: ld.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1607,7 +1624,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       return (
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Sliders className="w-4 h-4 text-sky-500" /> Library Policy & Rule Configuration</h3>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Sliders className="w-4 h-4 text-sky-500" /> Library Policies & Rules</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {rules.map(rule => (
@@ -1641,9 +1658,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <FileSpreadsheet className="w-4 h-4 text-sky-500" /> Library Enterprise Reports & Analytics
+              <FileSpreadsheet className="w-4 h-4 text-sky-500" /> Library Reports & Analytics
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium">Generated reports for audit compliance and Finance fee matching.</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => window.print()} className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
@@ -1666,9 +1682,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             <thead className="bg-slate-50 dark:bg-slate-800 uppercase font-extrabold text-[10px] text-slate-500">
               <tr>
                 <th className="py-3 px-4">RECORD ID</th>
-                <th className="py-3 px-4">PRIMARY ENTITY</th>
+                <th className="py-3 px-4">
+                  {activeSubTab === 'book-reports' || activeSubTab === 'issue-reports' ? 'BOOK TITLE' : activeSubTab === 'overdue-reports' ? 'BORROWER NAME' : 'MEMBER NAME'}
+                </th>
                 <th className="py-3 px-4">DETAILS</th>
-                <th className="py-3 px-4 text-center">DATE</th>
+                <th className="py-3 px-4 text-center">
+                  {activeSubTab === 'book-reports' ? 'RACK / LOCATION' : activeSubTab === 'overdue-reports' ? 'DUE DATE' : 'DATE'}
+                </th>
                 <th className="py-3 px-4 text-right">AMOUNT / STATUS</th>
               </tr>
             </thead>
@@ -1892,7 +1912,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             }} className="space-y-3 text-xs">
               <div><label className="block font-bold mb-1">Rack Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="rackNo" required placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Shelf Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="shelfNo" required placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Floor / Wing</label><input type="text" name="floor" defaultValue="1st Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
+              <div><label className="block font-bold mb-1">Floor / Building</label><input type="text" name="floor" defaultValue="1st Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div><label className="block font-bold mb-1">Section</label><input type="text" name="section" placeholder="e.g. Reference Section" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div><label className="block font-bold mb-1">Capacity</label><input type="number" name="capacity" defaultValue={50} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
               <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Location</button></div>
@@ -2162,7 +2182,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-              {modalType === 'editBook' ? 'Edit Book Details' : 'Add New Book to Catalog'}
+              {modalType === 'editBook' ? 'Edit Book' : 'Add New Book'}
             </h3>
             <form onSubmit={e => {
               e.preventDefault();
@@ -2248,69 +2268,68 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Total Copies</label>
-                  <input
-                    type="number"
-                    value={bookForm.totalCopies}
-                    onChange={e => setBookForm(prev => ({ ...prev, totalCopies: Number(e.target.value) || 1 }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
-                  />
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Total Copies</label>
+                <input
+                  type="number"
+                  value={bookForm.totalCopies}
+                  onChange={e => setBookForm(prev => ({ ...prev, totalCopies: Number(e.target.value) || 1 }))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">Rack / Shelf <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={handleAutoAllocateRack} className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer flex items-center gap-1">
+                      ⚡ Auto-Allocate
+                    </button>
+                    <button type="button" onClick={() => setModalType('addRack')} className="text-[10px] font-extrabold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
+                      + Add Rack
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block font-bold text-slate-700 dark:text-slate-300">Rack / Shelf <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={handleAutoAllocateRack} className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer flex items-center gap-1">
-                        ⚡ Auto-Allocate
-                      </button>
-                      <button type="button" onClick={() => setModalType('addRack')} className="text-[10px] font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
-                        + Add Rack
+                <select
+                  value={bookForm.rackNo}
+                  onChange={e => setBookForm(prev => ({ ...prev, rackNo: e.target.value }))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                >
+                  {racks.map(r => {
+                    const info = getRackCapacityInfo(r, books);
+                    const rackVal = `${r.rackNo} (${r.shelfNo})`;
+                    const statusText = info.isFull ? '🔴 FULL (0 space left)' : `🟢 Available (${info.remainingSpace} spaces left)`;
+                    return (
+                      <option 
+                        key={r.id} 
+                        value={rackVal}
+                        className={info.isFull ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}
+                      >
+                        {r.rackNo} ({r.shelfNo}) {r.section ? `• ${r.section}` : ''} — {statusText}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* Selected Rack Status Indicator */}
+                {(() => {
+                  const matchedR = racks.find(r => `${r.rackNo} (${r.shelfNo})`.toLowerCase() === (bookForm.rackNo || '').toLowerCase() || (bookForm.rackNo || '').toLowerCase().includes(r.rackNo.toLowerCase()));
+                  if (!matchedR) return null;
+                  const info = getRackCapacityInfo(matchedR, books);
+                  return info.isFull ? (
+                    <div className="mt-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] font-bold text-rose-800 dark:text-rose-300 flex items-center justify-between">
+                      <span>🛑 Rack Full (0 spaces left)</span>
+                      <button type="button" onClick={handleAutoAllocateRack} className="underline text-sky-600 dark:text-sky-400 cursor-pointer">
+                        Auto-Allocate Free Rack
                       </button>
                     </div>
-                  </div>
-                  <select
-                    value={bookForm.rackNo}
-                    onChange={e => setBookForm(prev => ({ ...prev, rackNo: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
-                  >
-                    {racks.map(r => {
-                      const info = getRackCapacityInfo(r, books);
-                      const rackVal = `${r.rackNo} (${r.shelfNo})`;
-                      const statusText = info.isFull ? '🔴 FULL (0 space left)' : `🟢 Available (${info.remainingSpace} spaces left)`;
-                      return (
-                        <option 
-                          key={r.id} 
-                          value={rackVal}
-                          className={info.isFull ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}
-                        >
-                          {r.rackNo} ({r.shelfNo}) {r.section ? `• ${r.section}` : ''} — {statusText}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  {/* Selected Rack Status Indicator */}
-                  {(() => {
-                    const matchedR = racks.find(r => `${r.rackNo} (${r.shelfNo})`.toLowerCase() === (bookForm.rackNo || '').toLowerCase() || (bookForm.rackNo || '').toLowerCase().includes(r.rackNo.toLowerCase()));
-                    if (!matchedR) return null;
-                    const info = getRackCapacityInfo(matchedR, books);
-                    return info.isFull ? (
-                      <div className="mt-1.5 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] font-bold text-rose-800 dark:text-rose-300 flex items-center justify-between">
-                        <span>🛑 Rack Full (0 spaces left)</span>
-                        <button type="button" onClick={handleAutoAllocateRack} className="underline text-sky-600 dark:text-sky-400 cursor-pointer">
-                          Auto-Allocate Free Rack
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
-                        <span>✅ Space Available: {info.remainingSpace} spaces left (Capacity: {info.capacity})</span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-black">AVAILABLE</span>
-                      </div>
-                    );
-                  })()}
-                </div>
+                  ) : (
+                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                      <span>✅ Space Available: {info.remainingSpace} spaces left (Capacity: {info.capacity})</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-black">AVAILABLE</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -2555,7 +2574,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         <th className="py-3 px-4 text-center">Total Copies</th>
                         <th className="py-3 px-4 text-center">Available</th>
                         <th className="py-3 px-4 text-center">Issued Out</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -2580,16 +2599,18 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                             <td className="py-3 px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400">
                               {issuedCount} Copies
                             </td>
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => {
-                                  setSelectedRackForInspect(null);
-                                  handleOpenAddOrEditBook(b);
-                                }}
-                                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-[11px] cursor-pointer transition-colors"
-                              >
-                                Edit Book
-                              </button>
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedRackForInspect(null);
+                                    handleOpenAddOrEditBook(b);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-[11px] cursor-pointer transition-colors"
+                                >
+                                  Edit Book
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
