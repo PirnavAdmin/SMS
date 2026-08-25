@@ -793,7 +793,7 @@ export const VehicleAssignmentView: React.FC = () => {
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
 
               <div>
-                <label className="block font-semibold mb-1">Select Route *</label>
+                <label className="block font-semibold mb-1">Select Route <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={form.routeId}
                   onChange={e => setForm(prev => ({ ...prev, routeId: e.target.value }))}
@@ -812,7 +812,7 @@ export const VehicleAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Active Vehicle *</label>
+                <label className="block font-semibold mb-1">Select Active Vehicle <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={form.vehicleId}
                   onChange={e => setForm(prev => ({ ...prev, vehicleId: e.target.value }))}
@@ -832,7 +832,7 @@ export const VehicleAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Licensed Driver *</label>
+                <label className="block font-semibold mb-1">Select Licensed Driver <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={form.driverId}
                   onChange={e => {
@@ -860,7 +860,7 @@ export const VehicleAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Bus Attendant *</label>
+                <label className="block font-semibold mb-1">Select Bus Attendant <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={form.attendantId}
                   onChange={e => {

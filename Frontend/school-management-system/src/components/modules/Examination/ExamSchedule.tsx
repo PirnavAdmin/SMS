@@ -534,7 +534,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-sky-400 dark:border-sky-500 bg-slate-50/50 dark:bg-slate-950/60 shadow-xs">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class *</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={selectedClass}
                     onChange={e => {
@@ -551,7 +551,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section *</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={selectedSection}
                     onChange={e => setSelectedSection(e.target.value)}

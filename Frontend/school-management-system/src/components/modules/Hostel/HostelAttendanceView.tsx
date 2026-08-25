@@ -319,7 +319,7 @@ export const HostelAttendanceView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Attendance Date *</label>
+            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Attendance Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <input
               type="date"
               value={selectedDate}

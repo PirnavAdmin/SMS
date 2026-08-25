@@ -445,7 +445,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">First Name *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">First Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -456,7 +456,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Last Name *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Last Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -470,7 +470,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={formData.className}
                   onChange={e => {
@@ -510,7 +510,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 </select>
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={formData.gender}
                   onChange={e => setFormData({ ...formData, gender: e.target.value as any })}
@@ -532,7 +532,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 </select>
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Status *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={formData.status === 'Active' ? 'Active' : 'Inactive'}
                   onChange={e => setFormData({ ...formData, status: e.target.value as any })}
@@ -546,7 +546,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD-MM-YYYY) *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD-MM-YYYY) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <DateInput
                   required
                   placeholder="15-08-2012"
@@ -567,7 +567,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 {dobError && <p className="text-[10px] text-rose-500 font-semibold mt-0.5">{dobError}</p>}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Blood Group *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Blood Group <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={formData.bloodGroup}
                   onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })}
@@ -587,7 +587,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Caste Category *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Caste Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={
                     CASTE_CATEGORIES.includes(formData.casteCategory as any) || formData.casteCategory === 'Other'
@@ -625,7 +625,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             {/* Admission / Joining Date & Late Admission Configuration */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Admission *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Admission <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <DateInput
                   required
                   value={formData.joiningDate || new Date().toISOString().split('T')[0]}
@@ -661,8 +661,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   <div className="w-full p-3 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 flex items-center justify-between shadow-xs">
                     <div>
                       <label className="block font-extrabold text-sky-900 dark:text-sky-200 text-xs">
-                        Fee Calculation Method (Late Admission) *
-                      </label>
+                        Fee Calculation Method (Late Admission) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <span className="text-xs font-bold text-sky-600 dark:text-sky-400">
                         Selected: {formData.feeCalculationMethod || 'Term-wise'}
                       </span>
@@ -760,7 +759,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Father Full Name *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Father Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -779,7 +778,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Father Mobile Number (10 Digits) *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Father Mobile Number (10 Digits) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -854,8 +853,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <div className="space-y-4 pt-3 border-t border-sky-100 dark:border-sky-900/40">
                   <div className="max-w-xs">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                      Number of Siblings *
-                    </label>
+                      Number of Siblings <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="number"
                       min={1}
@@ -917,8 +915,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                         {entry.isExisting ? (
                           <div>
                             <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                              Select Existing Student *
-                            </label>
+                              Select Existing Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                             <div className="relative">
                               <button
                                 type="button"
@@ -1007,8 +1004,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                           /* If Existing = No: Manual Name Input */
                           <div>
                             <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                              Sibling Name *
-                            </label>
+                              Sibling Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                             <input
                               type="text"
                               placeholder="Enter sibling name"
@@ -1032,7 +1028,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <Bus className="w-3.5 h-3.5" /> 5. Student Type & Facility Allocation
             </h4>
             <div>
-              <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Student Type *</label>
+              <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Student Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <select
                 value={formData.studentType}
                 onChange={e => setFormData({ ...formData, studentType: e.target.value as StudentType })}

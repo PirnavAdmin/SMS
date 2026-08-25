@@ -3124,7 +3124,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               {!editingClass ? (
                 <>
                   <div>
-                    <label className="block text-slate-750 dark:text-slate-350 mb-1">Select Class *</label>
+                    <label className="block text-slate-750 dark:text-slate-350 mb-1">Select Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <div className="relative">
                       <button
                         type="button"
@@ -3175,7 +3175,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                   {classForm.name === 'Other' && (
                     <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <label className="block text-slate-750 dark:text-slate-350 mb-1">Custom Class Name *</label>
+                      <label className="block text-slate-750 dark:text-slate-350 mb-1">Custom Class Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         placeholder="e.g. Class 11 - Science"
@@ -3299,7 +3299,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             
             <form onSubmit={handleSaveSection} className="space-y-4 text-xs font-bold">
               <div>
-                <label className="block text-slate-707 mb-1">Section Name (A-Z) *</label>
+                <label className="block text-slate-707 mb-1">Section Name (A-Z) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   disabled={!!editingSectionName && students.filter(s => s.className === activeClass?.name && s.section === editingSectionName).length > 0}
                   value={sectionForm.name}

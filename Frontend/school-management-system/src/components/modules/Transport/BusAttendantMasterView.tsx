@@ -299,7 +299,7 @@ export const BusAttendantMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Employee ID *</label>
+                  <label className="block font-semibold mb-1">Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
                 </div>
                 <div>
@@ -313,14 +313,14 @@ export const BusAttendantMasterView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Attendant Full Name *</label>
+                <label className="block font-semibold mb-1">Attendant Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required value={form.attendantName} onChange={e => setForm({ ...form, attendantName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Mobile Number *</label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
+                <div><label className="block font-semibold mb-1">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
                 <div>
-                  <label className="block font-semibold mb-1">Gender *</label>
+                  <label className="block font-semibold mb-1">Gender <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select value={form.gender || ''} onChange={e => setForm({ ...form, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none cursor-pointer">
                     <option value="">Select Gender</option>
                     <option value="Female">Female</option>

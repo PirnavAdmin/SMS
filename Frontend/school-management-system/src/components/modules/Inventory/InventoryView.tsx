@@ -94,7 +94,7 @@ export const InventoryView: React.FC = () => {
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Add Inventory Asset</h3>
             <form onSubmit={handleAdd} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Item Name *</label>
+                <label className="block font-semibold mb-1">Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required value={newItem.itemName} onChange={e => setNewItem({ ...newItem, itemName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -1035,7 +1035,7 @@ export const SubjectsView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Subject Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Subject Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1059,7 +1059,7 @@ export const SubjectsView: React.FC = () => {
 
               {/* Department Selection (Mandatory) */}
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   required
                   value={formData.department}
@@ -1105,7 +1105,7 @@ export const SubjectsView: React.FC = () => {
 
             <form onSubmit={handleDeptSubmit} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1139,7 +1139,7 @@ export const SubjectsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Status *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={deptFormData.status}
                   onChange={e => setDeptFormData({ ...deptFormData, status: e.target.value as 'Active' | 'Inactive' })}
@@ -1177,11 +1177,11 @@ export const SubjectsView: React.FC = () => {
             </div>
             <form onSubmit={handleDesigSubmit} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Designation Name *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Designation Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="text" required placeholder="e.g. Senior Teacher" value={desigFormData.designationName} onChange={e => setDesigFormData({ ...desigFormData, designationName: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold" />
               </div>
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Category *</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select required value={desigFormData.employeeCategory} onChange={e => setDesigFormData({ ...desigFormData, employeeCategory: e.target.value as any })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold">
                   <option value="Teaching">Teaching</option>
                   <option value="Non-Teaching">Non-Teaching</option>

@@ -450,7 +450,7 @@ export const PickupPointsView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Route *</label>
+                <label className="block font-semibold mb-1">Select Route <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   required
                   value={form.routeId || ''}
@@ -477,7 +477,7 @@ export const PickupPointsView: React.FC = () => {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold mb-1">Pickup Point Name *</label>
+                      <label className="block font-semibold mb-1">Pickup Point Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         required
@@ -488,7 +488,7 @@ export const PickupPointsView: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold mb-1">Sequence Number *</label>
+                      <label className="block font-semibold mb-1">Sequence Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -508,7 +508,7 @@ export const PickupPointsView: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold mb-1">Distance from School (KM) *</label>
+                      <label className="block font-semibold mb-1">Distance from School (KM) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -527,7 +527,7 @@ export const PickupPointsView: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold mb-1">Monthly Fare (Auto-Calculated) *</label>
+                      <label className="block font-semibold mb-1">Monthly Fare (Auto-Calculated) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -579,7 +579,7 @@ export const PickupPointsView: React.FC = () => {
                 </>
               ) : (
                 <div className="space-y-3">
-                  <label className="block font-semibold">Pickup Points, Distances & Timings *</label>
+                  <label className="block font-semibold">Pickup Points, Distances & Timings <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <div className="max-h-[45vh] overflow-y-auto space-y-3.5 pr-1">
                     {newPickupPoints.map((point, index) => (
                       <div key={index} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-2 relative">
@@ -596,7 +596,7 @@ export const PickupPointsView: React.FC = () => {
                         )}
                         
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Pickup Point Name #{index + 1} *</label>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Pickup Point Name #{index + 1} <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                           <input
                             type="text"
                             required
@@ -613,7 +613,7 @@ export const PickupPointsView: React.FC = () => {
 
                         <div className="grid grid-cols-3 gap-2.5">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Distance (KM) *</label>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Distance (KM) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                             <input
                               type="text"
                               inputMode="decimal"

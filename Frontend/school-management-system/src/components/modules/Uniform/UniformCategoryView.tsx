@@ -173,7 +173,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Uniform Category</h3>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Category Name *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required

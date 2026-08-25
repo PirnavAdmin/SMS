@@ -468,7 +468,7 @@ export const HomeworkView: React.FC = () => {
             <form className="space-y-4 text-xs overflow-y-auto py-3 pr-1">
               
               <div>
-                <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Homework Title *</label>
+                <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Homework Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required

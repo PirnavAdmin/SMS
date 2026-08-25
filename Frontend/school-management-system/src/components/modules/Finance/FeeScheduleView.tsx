@@ -374,7 +374,7 @@ export const FeeScheduleView: React.FC = () => {
             <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Term / Quarterly Setup</h4>
             
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Number of Installment Terms *</label>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Number of Installment Terms <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <select
                 value={schedule.numberOfTerms}
                 onChange={e => handleNumTermsChange(Number(e.target.value))}

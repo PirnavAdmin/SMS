@@ -1061,7 +1061,7 @@ export const TrainingContainerView: React.FC = () => {
 
             <form onSubmit={handleAddWorkshopSubmit} className="flex-1 overflow-y-auto space-y-3 pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <div>
-                <label className="block font-bold text-slate-900 dark:text-white mb-1">Workshop Name *</label>
+                <label className="block font-bold text-slate-900 dark:text-white mb-1">Workshop Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -1074,7 +1074,7 @@ export const TrainingContainerView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">Category *</label>
+                  <label className="block font-bold mb-1">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={workshopForm.category}
                     onChange={e => setWorkshopForm({ ...workshopForm, category: e.target.value as any })}
@@ -1092,7 +1092,7 @@ export const TrainingContainerView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Target Role Type *</label>
+                  <label className="block font-bold mb-1">Target Role Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={workshopForm.targetRoleType}
                     onChange={e => setWorkshopForm({ ...workshopForm, targetRoleType: e.target.value as any })}
@@ -1291,7 +1291,7 @@ export const TrainingContainerView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Name *</label>
+                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required
@@ -1304,7 +1304,7 @@ export const TrainingContainerView: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Type *</label>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <select
                         required
                         value={wizardStep1.assessmentType}
@@ -1328,7 +1328,7 @@ export const TrainingContainerView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Category *</label>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <select
                         required
                         value={wizardStep1.category}
@@ -1349,7 +1349,7 @@ export const TrainingContainerView: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Total Marks *</label>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Total Marks <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="number"
                         min={1}
@@ -1360,7 +1360,7 @@ export const TrainingContainerView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Passing Marks *</label>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Passing Marks <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="number"
                         min={1}
@@ -1428,7 +1428,7 @@ export const TrainingContainerView: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Branch *</label>
+                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Branch <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <select
                           value={wizardStep2.branch}
                           onChange={e => setWizardStep2({ ...wizardStep2, branch: e.target.value })}
@@ -1442,7 +1442,7 @@ export const TrainingContainerView: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Department *</label>
+                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Department <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <select
                           value={wizardStep2.department}
                           onChange={e => setWizardStep2({ ...wizardStep2, department: e.target.value })}
@@ -1576,7 +1576,7 @@ export const TrainingContainerView: React.FC = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block font-bold mb-1">Assessment Date *</label>
+                        <label className="block font-bold mb-1">Assessment Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
                           type="date"
                           required
@@ -1587,7 +1587,7 @@ export const TrainingContainerView: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block font-bold mb-1">Start Time *</label>
+                        <label className="block font-bold mb-1">Start Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
                           type="text"
                           required
@@ -1599,7 +1599,7 @@ export const TrainingContainerView: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block font-bold mb-1">End Time *</label>
+                        <label className="block font-bold mb-1">End Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
                           type="text"
                           required
@@ -1642,7 +1642,7 @@ export const TrainingContainerView: React.FC = () => {
                   {/* Evaluator Assignment & Options */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-bold mb-1">Main Evaluator *</label>
+                      <label className="block font-bold mb-1">Main Evaluator <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                       <input
                         type="text"
                         required

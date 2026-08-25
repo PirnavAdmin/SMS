@@ -384,8 +384,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Collection Amount (₹) *
-              </label>
+                Collection Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <input
                 type="number"
                 required
@@ -396,8 +395,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
             </div>
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Payment Mode *
-              </label>
+                Payment Mode <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <select
                 value={paymentMode}
                 onChange={(e) => setPaymentMode(e.target.value as any)}

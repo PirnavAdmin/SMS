@@ -238,7 +238,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
             <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-sm flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class / Grade *</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={selectedClass}
                     onChange={e => {
@@ -255,7 +255,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section *</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={selectedSection}
                     onChange={e => setSelectedSection(e.target.value)}

@@ -157,7 +157,7 @@ export const RefundManagementView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Student *</label>
+                <label className="block font-semibold mb-1">Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   <option value="">-- Choose Student --</option>
                   {students.map(st => (
@@ -168,7 +168,7 @@ export const RefundManagementView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Receipt Ref No</label><input type="text" value={receiptNo} onChange={e => setReceiptNo(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">Refund Amount (₹) *</label><input type="number" required value={amount} onChange={e => setAmount(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
+                <div><label className="block font-semibold mb-1">Refund Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="number" required value={amount} onChange={e => setAmount(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

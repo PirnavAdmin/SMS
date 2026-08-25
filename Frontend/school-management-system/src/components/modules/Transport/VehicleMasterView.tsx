@@ -360,7 +360,7 @@ export const VehicleMasterView: React.FC = () => {
               <div className="flex-1 overflow-y-auto space-y-3.5 pr-2 pb-4 scrollbar-thin">
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Vehicle Number *</label>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Vehicle Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required
@@ -371,7 +371,7 @@ export const VehicleMasterView: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Reg Number *</label>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Reg Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required
@@ -410,7 +410,7 @@ export const VehicleMasterView: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Seating Capacity *</label>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Seating Capacity <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -536,7 +536,7 @@ export const VehicleMasterView: React.FC = () => {
                 <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">Add / Renew Vehicle Certificate</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1">Document Category *</label>
+                    <label className="block font-semibold mb-1">Document Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
                       value={docForm.docType}
                       onChange={e => setDocForm({ ...docForm, docType: e.target.value as any })}
@@ -551,7 +551,7 @@ export const VehicleMasterView: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">Document Number *</label>
+                    <label className="block font-semibold mb-1">Document Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="text"
                       required
@@ -574,7 +574,7 @@ export const VehicleMasterView: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">Expiry Date *</label>
+                    <label className="block font-semibold mb-1">Expiry Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
                       type="date"
                       required

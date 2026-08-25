@@ -548,8 +548,7 @@ export const FinanceHostelConfigView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                  Hostel Block *
-                </label>
+                  Hostel Block <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <SearchableCombobox
                   value={form.hostelId || ""}
                   placeholder="Search or type Hostel Block..."
@@ -574,8 +573,7 @@ export const FinanceHostelConfigView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Room Type *
-                  </label>
+                    Room Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <SearchableCombobox
                     value={form.roomTypeId || ""}
                     placeholder="Search or type Room Type..."
@@ -599,8 +597,7 @@ export const FinanceHostelConfigView: React.FC = () => {
 
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Fee Frequency *
-                  </label>
+                    Fee Frequency <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={form.feePlan}
                     onChange={(e) =>
@@ -619,8 +616,7 @@ export const FinanceHostelConfigView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Hostel Fee (₹) *
-                  </label>
+                    Hostel Fee (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="number"
                     required

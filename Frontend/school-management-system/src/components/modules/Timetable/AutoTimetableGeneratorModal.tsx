@@ -717,7 +717,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Break Name *</label>
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Break Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
                           type="text"
                           value={newBreakData.name}
@@ -727,7 +727,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Duration (Mins) *</label>
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Duration (Mins) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
                           type="number"
                           min="5"

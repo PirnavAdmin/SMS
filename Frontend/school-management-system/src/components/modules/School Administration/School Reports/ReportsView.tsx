@@ -233,7 +233,7 @@ export const ReportsView: React.FC = () => {
           
           {/* 1. Report Module Dropdown */}
           <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Report Module *</label>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Report Module <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={selectedModule}
               onChange={e => {

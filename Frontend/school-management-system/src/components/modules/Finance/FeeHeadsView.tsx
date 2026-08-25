@@ -266,7 +266,7 @@ export const FeeHeadsView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Fee Type Name *</label>
+                  <label className="block font-semibold mb-1">Fee Type Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -277,7 +277,7 @@ export const FeeHeadsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Fee Code *</label>
+                  <label className="block font-semibold mb-1">Fee Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -337,8 +337,7 @@ export const FeeHeadsView: React.FC = () => {
               <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200">
-                    Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) *
-                  </label>
+                    Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <div className="flex items-center gap-2 text-[11px]">
                     <button
                       type="button"

@@ -233,7 +233,7 @@ export const FinanceUniformConfigView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class / Grade *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={form.className || ''}
@@ -250,7 +250,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender Segregation *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender Segregation <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={form.gender || ''}
@@ -266,7 +266,7 @@ export const FinanceUniformConfigView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 {(() => {
                   const basePackages = [
                     'Boys Uniform Package (Admission Kit)',
@@ -318,7 +318,7 @@ export const FinanceUniformConfigView: React.FC = () => {
               {/* Fabric Measurement Specification Dropdown (if Cloth/Fabric item selected) */}
               {(form.uniformPackage?.toLowerCase().includes('cloth') || form.uniformPackage?.toLowerCase().includes('fabric') || form.uniformPackage?.toLowerCase().includes('unstitched')) && (
                 <div className="p-3 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl space-y-1.5 animate-in fade-in">
-                  <label className="block text-[11px] font-extrabold text-amber-900 dark:text-amber-300">Fabric Measurement Specification *</label>
+                  <label className="block text-[11px] font-extrabold text-amber-900 dark:text-amber-300">Fabric Measurement Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={(form as any).fabricMeterage || '3.0 Meters'}
                     onChange={e => setForm({ ...form, fabricMeterage: e.target.value } as any)}
@@ -334,7 +334,7 @@ export const FinanceUniformConfigView: React.FC = () => {
               )}
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Package Fee Amount (₹) *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Package Fee Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="number"
                   required

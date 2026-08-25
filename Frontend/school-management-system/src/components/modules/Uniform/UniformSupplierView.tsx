@@ -212,7 +212,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Supplier Master</h3>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier / Company Name *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier / Company Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -225,7 +225,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contact Person *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contact Person <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -236,7 +236,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Mobile Number *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -273,7 +273,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier Status *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={form.status}
                     onChange={e => setForm({ ...form, status: e.target.value as any })}

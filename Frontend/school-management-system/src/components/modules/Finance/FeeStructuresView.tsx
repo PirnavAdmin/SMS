@@ -459,8 +459,7 @@ export const FeeStructuresView: React.FC = () => {
             >
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                  Class Grade *
-                </label>
+                  Class Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={className}
                   onChange={(e) => handleClassChange(e.target.value)}

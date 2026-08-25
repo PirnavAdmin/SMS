@@ -135,7 +135,7 @@ export const StudentTransportView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Student *</label>
+                <label className="block font-semibold mb-1">Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   <option value="">-- Choose Student --</option>
                   {students.map(st => (
@@ -145,7 +145,7 @@ export const StudentTransportView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Transport Route *</label>
+                <label className="block font-semibold mb-1">Select Transport Route <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={routeId} onChange={e => setRouteId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {erpTransportRoutes.map(rt => (
                     <option key={rt.id} value={rt.id}>{rt.routeName} ({rt.pickupPoint} • {formatCurrency(rt.quarterlyFee)}/qtr)</option>

@@ -2067,7 +2067,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               {modalType === 'Issue' && (
                 <>
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Transaction Type *</label>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Transaction Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
                       value={form.type}
                       onChange={e => {
@@ -2083,8 +2083,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                   <div className="relative">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Select Student *
-                    </label>
+                      Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     
                     <div className="relative p-0.5">
                       <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-400 z-10 pointer-events-none" />
@@ -2203,8 +2202,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 <div className="space-y-3 animate-in fade-in">
                   <div>
                     <label className="block font-semibold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                      Select Extra Uniform Items to Purchase *
-                    </label>
+                      Select Extra Uniform Items to Purchase <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   </div>
 
                   <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3 bg-slate-50/50 dark:bg-slate-800/40">
@@ -2375,7 +2373,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               ) : (
                 <div>
                   {modalType !== 'Replace' && (
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Primary Base Package / Main Item *</label>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Primary Base Package / Main Item <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   )}
                   {(() => {
                     const selStudentForFee = form.studentId
@@ -2531,8 +2529,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 <div className="space-y-3">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                      Reason for Exchange *
-                    </label>
+                      Reason for Exchange <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
                       value={exchangeReason}
                       onChange={e => setExchangeReason(e.target.value)}
@@ -2566,7 +2563,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Specification *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={form.size || ''}
                     onChange={e => setForm({ ...form, size: e.target.value })}
@@ -2588,7 +2585,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Quantity *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Quantity <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     disabled={modalType === 'Replace'}
                     type="number"

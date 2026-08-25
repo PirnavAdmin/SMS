@@ -100,8 +100,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* Examination Title */}
         <div className="space-y-1 md:col-span-2">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Examination Name *
-          </label>
+            Examination Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           <input
             required
             value={name || ''}
@@ -114,8 +113,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* Assessment Type */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Assessment Type *
-          </label>
+            Assessment Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           {isCustomType ? (
             <div className="relative">
               <input
@@ -167,8 +165,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* Academic Term */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Academic Term *
-          </label>
+            Academic Term <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           <input
             type="text"
             required
@@ -182,8 +179,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* Start Date */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Start Date *
-          </label>
+            Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           <DatePickerInput
             value={startDate || ''}
             onChange={(val: string) => onChange({ startDate: val })}
@@ -195,8 +191,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* End Date */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            End Date *
-          </label>
+            End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           <DatePickerInput
             value={endDate || ''}
             onChange={(val: string) => onChange({ endDate: val })}
@@ -208,8 +203,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* Start Time */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Start Time *
-          </label>
+            Start Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           <input
             type="time"
             value={defaultStartTime || '09:00'}
@@ -221,8 +215,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* End Time */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            End Time *
-          </label>
+            End Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
           <input
             type="time"
             value={defaultEndTime || '12:00'}

@@ -520,7 +520,7 @@ export const TeacherProfileView: React.FC = () => {
             <form onSubmit={handleSaveProfile} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Full Name *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -531,7 +531,7 @@ export const TeacherProfileView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Email Address *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Email Address <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="email"
                     required
@@ -555,7 +555,7 @@ export const TeacherProfileView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Mobile Number *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="tel"
                     required
@@ -566,7 +566,7 @@ export const TeacherProfileView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Emergency Contact *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Emergency Contact <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="tel"
                     required

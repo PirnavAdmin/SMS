@@ -353,7 +353,7 @@ export const HostelReportsView: React.FC = () => {
           
           {/* 1. Report Category Select */}
           <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Report Category *</label>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Report Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={selectedReport}
               onChange={e => {

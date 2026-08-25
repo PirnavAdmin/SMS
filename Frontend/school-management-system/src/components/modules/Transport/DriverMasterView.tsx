@@ -437,22 +437,22 @@ export const DriverMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Driver Full Name *</label>
+                  <label className="block font-semibold mb-1">Driver Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={form.driverName} onChange={e => setForm({ ...form, driverName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Employee ID *</label>
+                  <label className="block font-semibold mb-1">Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" placeholder="e.g. EMP-DRV-101" value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Mobile Number *</label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
+                <div><label className="block font-semibold mb-1">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
                 <div><label className="block font-semibold mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Commercial License No *</label><input type="text" required value={form.licenseNumber} onChange={e => setForm({ ...form, licenseNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
+                <div><label className="block font-semibold mb-1">Commercial License No <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" required value={form.licenseNumber} onChange={e => setForm({ ...form, licenseNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
                 <div><label className="block font-semibold mb-1">License Expiry Date</label><input type="date" value={form.licenseExpiryDate?.split('T')[0] || ''} onChange={e => setForm({ ...form, licenseExpiryDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
               </div>
 
@@ -498,7 +498,7 @@ export const DriverMasterView: React.FC = () => {
               <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">Upload Driver Verification Document</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Document Category *</label>
+                  <label className="block font-semibold mb-1">Document Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={docForm.docType}
                     onChange={e => setDocForm({ ...docForm, docType: e.target.value as any })}
@@ -511,7 +511,7 @@ export const DriverMasterView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Document / Certificate No *</label>
+                  <label className="block font-semibold mb-1">Document / Certificate No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -534,7 +534,7 @@ export const DriverMasterView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Expiry Date *</label>
+                  <label className="block font-semibold mb-1">Expiry Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="date"
                     required

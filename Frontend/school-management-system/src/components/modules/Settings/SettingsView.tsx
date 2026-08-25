@@ -424,7 +424,7 @@ export const SettingsView: React.FC = () => {
           <h3 className="font-bold text-sm text-slate-900 dark:text-white">School Profile Setup</h3>
           <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
             <div>
-              <label className="block font-semibold mb-1">School Name *</label>
+              <label className="block font-semibold mb-1">School Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <input
                 type="text"
                 required
@@ -727,7 +727,7 @@ export const SettingsView: React.FC = () => {
 
             <form onSubmit={handleSaveCampus} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Campus Name *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Campus Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required
@@ -739,7 +739,7 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Campus Code *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Campus Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
                   type="text"
                   required

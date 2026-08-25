@@ -256,11 +256,11 @@ export const ScholarshipsView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Scholarship Name *</label>
+                  <label className="block font-semibold mb-1">Scholarship Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Scholarship Code *</label>
+                  <label className="block font-semibold mb-1">Scholarship Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
                 </div>
               </div>
@@ -312,7 +312,7 @@ export const ScholarshipsView: React.FC = () => {
 
             <form onSubmit={handleAllocSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Student *</label>
+                <label className="block font-semibold mb-1">Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={allocStudentId} onChange={e => setAllocStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   <option value="">-- Choose Student --</option>
                   {students.map(st => (
@@ -322,7 +322,7 @@ export const ScholarshipsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Scholarship Scheme *</label>
+                <label className="block font-semibold mb-1">Select Scholarship Scheme <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select value={allocScholarshipId} onChange={e => setAllocScholarshipId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {scholarships.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `${formatCurrency(s.fixedAmount || 0)}`})</option>

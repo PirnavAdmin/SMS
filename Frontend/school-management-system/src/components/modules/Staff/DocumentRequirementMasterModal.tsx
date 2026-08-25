@@ -137,7 +137,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Department *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Department <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
@@ -149,7 +149,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Designation *</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Designation <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required

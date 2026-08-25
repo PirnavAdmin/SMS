@@ -147,7 +147,7 @@ export const TransportView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Bus Number *</label>
+                  <label className="block font-semibold mb-1">Bus Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.busNumber} onChange={e => setFormData({ ...formData, busNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
@@ -165,7 +165,7 @@ export const TransportView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Driver Name *</label>
+                  <label className="block font-semibold mb-1">Driver Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input type="text" required value={formData.driverName} onChange={e => setFormData({ ...formData, driverName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>

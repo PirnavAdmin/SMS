@@ -222,7 +222,7 @@ export const FinanceTransportConfigView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               {/* Route Dropdown */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Select Route (Transport Master) *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Select Route (Transport Master) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={form.routeId}
                   onChange={e => handleRouteSelect(e.target.value)}
@@ -252,7 +252,7 @@ export const FinanceTransportConfigView: React.FC = () => {
 
               {/* Pickup Point Dropdown */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Pickup Point Stop *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Pickup Point Stop <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   value={form.pickupPointId}
                   onChange={e => handlePickupSelect(e.target.value)}
@@ -271,7 +271,7 @@ export const FinanceTransportConfigView: React.FC = () => {
               {/* Global Frequency & Fee Amount */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Global Frequency *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Global Frequency <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={form.feePlan}
                     onChange={e => setForm({ ...form, feePlan: e.target.value as any })}
@@ -285,7 +285,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Fee Amount (₹) *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Fee Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="number"
                     required
