@@ -320,6 +320,41 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const saveRacks = (data: BookRack[]) => { setRacks(data); localStorage.setItem(RACKS_KEY, JSON.stringify(data)); };
   const saveMembers = (data: LibraryMember[]) => { setMembers(data); localStorage.setItem(MEMBERS_KEY, JSON.stringify(data)); };
   const saveReservations = (data: BookReservation[]) => { setReservations(data); localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(data)); };
+
+  // Load real backend data on mount
+  useEffect(() => {
+    const loadBackendData = async () => {
+      try {
+        const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
+          LibraryAPI.fetchBooksApi(),
+          LibraryAPI.fetchCategoriesApi(),
+          LibraryAPI.fetchMembersApi(),
+          LibraryAPI.fetchIssuedBooksApi(),
+          LibraryAPI.fetchFinesApi()
+        ]);
+
+        if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
+          const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
+          if (fetchedBooks.length > 0) {
+            setBooks(fetchedBooks.map((b: any) => ({
+              id: String(b.bookId || b.id),
+              title: b.title || b.bookTitle || '',
+              author: b.author || '',
+              isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
+              category: b.category || 'Science',
+              rackNo: b.rackLocation || b.rack || 'Rack A-01',
+              totalCopies: b.totalCopies || 10,
+              availableCopies: b.availableCopies || 10,
+              status: b.availableCopies > 0 ? 'Available' : 'Issued'
+            })));
+          }
+        }
+      } catch (err) {
+        console.warn("Backend API fetch notice:", err);
+      }
+    };
+    loadBackendData();
+  }, []);
   const saveLibrarianAttendance = (data: LibrarianAttendanceRecord[]) => {
     setLibrarianAttendance(data);
     localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(data));
