@@ -12,22 +12,35 @@ export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
   const { staff = [], teacherAssignments = [], timetable = [], updateStaff } = useData();
   const { addToast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Find logged in teacher from DataContext staff list matching email or name
+  // Find logged in teacher from DataContext staff list matching email, name, or ID
   const dbTeacher = useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
 
-    const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-    if (byEmail) return byEmail;
+    if (userEmail) {
+      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) return byEmail;
+    }
 
-    const byName = staff.find(s => {
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-      return sFullName && userName && (sFullName.includes(userName) || userName.includes(sFullName));
-    });
-    if (byName) return byName;
+    if (userName) {
+      const byName = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && (sFullName.includes(userName) || userName.includes(sFullName))) ||
+               (sName && (sName.includes(userName) || userName.includes(sName)));
+      });
+      if (byName) return byName;
+    }
 
-    return staff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || null;
+    if (user?.id) {
+      const byId = staff.find(s => s.id === user.id);
+      if (byId) return byId;
+    }
+
+    return null;
   }, [user, staff]);
 
   // Dynamically compute assigned classes (clean class name without section suffix)
@@ -97,8 +110,8 @@ export const TeacherProfileView: React.FC = () => {
   // Reactive teacher profile construction merging Admin master data & teacher edits
   const profile = useMemo(() => {
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || 'Rajesh rayudu').split(' ');
-    const defaultFullName = dbFullName || `${nameParts[0] || 'Rajesh'} ${nameParts.slice(1).join(' ') || 'rayudu'}`.trim();
+    const nameParts = (user?.name || 'Robert Teacher').split(' ');
+    const defaultFullName = dbFullName || `${nameParts[0] || 'Robert'} ${nameParts.slice(1).join(' ') || 'Teacher'}`.trim();
 
     return {
       staffId: dbTeacher?.id || 'STF-2026-0001',

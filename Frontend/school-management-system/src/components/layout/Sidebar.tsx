@@ -106,6 +106,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeModule.startsWith("parent-transport-");
   const isUniformActive =
     activeModule.startsWith("uniform-") || activeModule === "uniforms";
+  const isLibraryActive =
+    activeModule === "library" ||
+    activeModule === "librarian-attendance" ||
+    activeModule === "library-timetable";
   const isStaffActive =
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
@@ -121,6 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [hostelExpanded, setHostelExpanded] = useState(isHostelActive);
   const [transportExpanded, setTransportExpanded] = useState(isTransportActive);
   const [uniformExpanded, setUniformExpanded] = useState(isUniformActive);
+  const [libraryExpanded, setLibraryExpanded] = useState(isLibraryActive);
   const [staffExpanded, setStaffExpanded] = useState(isStaffActive);
   const [academicsExpanded, setAcademicsExpanded] = useState(isAcademicsActive);
 
@@ -312,6 +317,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: UserPlus,
     },
     { id: "uniform-reports", label: "Uniform Reports", icon: FileSpreadsheet },
+  ];
+
+  const librarySubItems = [
+    { id: "library", label: "Digital Library", icon: Library },
+    { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
+    { id: "library-timetable", label: "Library Timetable", icon: Clock },
   ];
 
   const staffSubItems =
@@ -923,12 +934,96 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </div>
                   )}
+
+                  {(role.toLowerCase() === "admin" ||
+                    role.toLowerCase() === "super admin" ||
+                    role.toLowerCase() === "principal") &&
+                    hasModuleAccess(role, "library") && (
+                    <div className="space-y-1 pt-1">
+                      <button
+                        onClick={() => {
+                          const newExpanded = !libraryExpanded;
+                          setLibraryExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                            setAcademicsExpanded(false);
+                          }
+                          if (!isLibraryActive) {
+                            setActiveModule("library");
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isLibraryActive
+                            ? libraryExpanded &&
+                              librarySubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <Library
+                            className={`w-4 h-4 shrink-0 ${isLibraryActive ? (libraryExpanded && librarySubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-slate-400"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              Library Management
+                            </span>
+                          )}
+                        </div>
+                        {!collapsed && (
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${libraryExpanded ? "rotate-180" : ""}`}
+                          />
+                        )}
+                      </button>
+
+                      {!collapsed && libraryExpanded && (
+                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                          {librarySubItems.map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive = activeModule === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                }`}
+                              >
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
               {visibleItems.map((item) => {
                 if (
                   (item.id === "subjects" || item.id === "timetable") &&
+                  (role.toLowerCase() === "admin" ||
+                    role.toLowerCase() === "super admin" ||
+                    role.toLowerCase() === "principal")
+                ) {
+                  return null;
+                }
+
+                if (
+                  (item.id === "library" || item.id === "librarian-attendance" || item.id === "library-timetable") &&
                   (role.toLowerCase() === "admin" ||
                     role.toLowerCase() === "super admin" ||
                     role.toLowerCase() === "principal")

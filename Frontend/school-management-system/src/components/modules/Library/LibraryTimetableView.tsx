@@ -1,10 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { Clock, Calendar, BookOpen, User, Users, Search, Printer, Download, Sparkles, School, Layers, RefreshCw, CheckCircle2, ChevronRight, Filter } from 'lucide-react';
+import { Clock, Calendar, BookOpen, User, Users, Search, Printer, Download, Sparkles, School, Layers, RefreshCw, CheckCircle2, ChevronRight, Filter, Eye } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot } from '../../../types';
 
 export const LibraryTimetableView: React.FC = () => {
+  const { role } = useAuth();
+  const isLibrarian = (role || '').toLowerCase().includes('librarian');
+  const isReadOnlyAccess = !isLibrarian;
+
   const { timetable, academicClasses, students, addTimetableSlot } = useData();
   const { addToast } = useToast();
 
@@ -344,19 +349,24 @@ export const LibraryTimetableView: React.FC = () => {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-sky-600 text-white rounded-2xl shadow-lg shadow-sky-500/20">
-            <Clock className="w-7 h-7" />
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-200/80 dark:border-sky-800 shadow-xs flex items-center justify-center">
+            <Clock className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Library Timetable</h2>
-            <p className="text-xs text-slate-500 font-medium">Daily & Weekly Class Reading Period Schedules (Synced from Admin Timetable)</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={handleAutoPopulateLibrarySchedule} className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm">
-            <RefreshCw className="w-4 h-4" /> Sync Admin Timetable
-          </button>
+          {isReadOnlyAccess ? (
+            <span className="px-3 py-2 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-extrabold text-xs flex items-center gap-1.5 border border-amber-200 dark:border-amber-800">
+              <Eye className="w-3.5 h-3.5" /> View-Only Mode (Main Admin)
+            </span>
+          ) : (
+            <button onClick={handleAutoPopulateLibrarySchedule} className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm">
+              <RefreshCw className="w-4 h-4" /> Sync Admin Timetable
+            </button>
+          )}
           <button onClick={handlePrintSchedule} className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 font-extrabold text-xs text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-sky-500/20">
             <Printer className="w-4 h-4" /> Print Schedule
           </button>
@@ -392,42 +402,42 @@ export const LibraryTimetableView: React.FC = () => {
 
       {/* Main View Mode Selector Tabs */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-card p-3 rounded-3xl bg-white dark:bg-slate-900 border shadow-xs">
-        <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border flex items-center gap-1 w-full sm:w-auto">
+        <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border flex flex-wrap items-center gap-1 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('today')}
-            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'today'
                 ? 'bg-sky-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Clock className="w-4 h-4" /> Today's Daily Schedule (Morning to Evening)
+            <Clock className="w-4 h-4 shrink-0" /> Today's Daily Schedule
           </button>
           <button
             onClick={() => setActiveTab('weekly-matrix')}
-            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'weekly-matrix'
                 ? 'bg-sky-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Calendar className="w-4 h-4" /> Weekly Master Matrix (Mon-Sat)
+            <Calendar className="w-4 h-4 shrink-0" /> Weekly Master Matrix
           </button>
           <button
             onClick={() => setActiveTab('class-view')}
-            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'class-view'
                 ? 'bg-sky-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <School className="w-4 h-4" /> Class & Section Schedule
+            <School className="w-4 h-4 shrink-0" /> Class & Section Schedule
           </button>
         </div>
 
         {activeTab === 'today' && (
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <span className="text-xs font-bold text-slate-500">Select Day:</span>
+            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Select Day:</span>
             <select
               value={selectedDay}
               onChange={e => setSelectedDay(e.target.value)}
@@ -471,44 +481,50 @@ export const LibraryTimetableView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-4.5 h-4.5 text-sky-500" /> Morning to Evening Library Schedule for <span className="text-sky-600 font-black">{selectedDay}</span>
+              <Clock className="w-4.5 h-4.5 text-sky-500 shrink-0" /> Morning to Evening Library Schedule for <span className="text-sky-600 font-black">{selectedDay}</span>
             </h3>
-            <span className="text-xs text-slate-500 font-medium">8 Periods (08:30 AM - 03:30 PM)</span>
+            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">8 Periods (08:30 AM - 03:30 PM)</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {dayChronologicalSchedule.map(({ period, timeSlot, slot }) => (
               <div
                 key={period}
-                className={`glass-card p-5 rounded-3xl border transition-all space-y-3 relative overflow-hidden ${
+                className={`glass-card p-5 rounded-3xl border transition-all space-y-3.5 relative overflow-hidden ${
                   slot
                     ? 'bg-white dark:bg-slate-900 border-sky-200 dark:border-sky-800 shadow-sm hover:shadow-md'
                     : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 opacity-60'
                 }`}
               >
-                <div className="flex items-center justify-between border-b pb-2.5">
-                  <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px] uppercase">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-2">
+                  <span className="px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-extrabold text-[11px] uppercase tracking-wider whitespace-nowrap shrink-0">
                     Period {period}
                   </span>
-                  <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {timeSlot}
+                  <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {timeSlot}
                   </span>
                 </div>
 
                 {slot ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-base font-black text-slate-900 dark:text-white">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <h4 className="text-base font-black text-slate-900 dark:text-white truncate" title={`${slot.className} - Section ${slot.section}`}>
                         {slot.className} - Section {slot.section}
                       </h4>
-                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[10px] whitespace-nowrap shrink-0">
                         Active Class
                       </span>
                     </div>
-                    <div className="space-y-1 text-xs font-medium text-slate-600 dark:text-slate-400">
-                      <p className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" /> <span className="font-bold text-slate-800 dark:text-slate-200">{slot.subject}</span></p>
-                      <p className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> In-Charge: <span className="font-bold text-emerald-700 dark:text-emerald-300">{slot.teacherName || 'Bhanu Prakash'}</span></p>
-                      <p className="flex items-center gap-1.5"><School className="w-3.5 h-3.5 text-purple-500 shrink-0" /> {slot.roomNo || 'Central Library Hall'}</p>
+                    <div className="space-y-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 pt-0.5">
+                      <p className="flex items-center gap-2 truncate">
+                        <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" /> <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{slot.subject}</span>
+                      </p>
+                      <p className="flex items-center gap-2 truncate">
+                        <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> <span className="text-slate-500 shrink-0">In-Charge:</span> <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">{slot.teacherName || 'Bhanu Prakash'}</span>
+                      </p>
+                      <p className="flex items-center gap-2 truncate">
+                        <School className="w-3.5 h-3.5 text-purple-500 shrink-0" /> <span className="text-slate-700 dark:text-slate-300 font-semibold truncate">{slot.roomNo || 'Central Library Hall'}</span>
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -617,18 +633,18 @@ export const LibraryTimetableView: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {classWeeklySchedule.map(slot => (
-                <div key={slot.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-3 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px] uppercase">
+                <div key={slot.id} className="glass-card p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-3 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-extrabold text-[11px] uppercase tracking-wide whitespace-nowrap shrink-0">
                       {slot.day} • Period {slot.periodNumber || '4'}
                     </span>
-                    <span className="font-mono text-xs font-bold text-amber-600">{slot.timeSlot || `${slot.startTime} - ${slot.endTime}`}</span>
+                    <span className="font-mono text-[11px] font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap shrink-0">{slot.timeSlot || `${slot.startTime} - ${slot.endTime}`}</span>
                   </div>
-                  <h4 className="text-base font-black text-slate-900 dark:text-white">{slot.className} - Section {slot.section}</h4>
-                  <div className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                    <p><span className="text-slate-400">Subject:</span> {slot.subject}</p>
-                    <p><span className="text-slate-400">Librarian:</span> <span className="text-emerald-600">{slot.teacherName || 'Bhanu Prakash'}</span></p>
-                    <p><span className="text-slate-400">Location:</span> {slot.roomNo || 'Central Library Hall'}</p>
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate" title={`${slot.className} - Section ${slot.section}`}>{slot.className} - Section {slot.section}</h4>
+                  <div className="space-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
+                    <p className="truncate"><span className="text-slate-400 shrink-0">Subject:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{slot.subject}</span></p>
+                    <p className="truncate"><span className="text-slate-400 shrink-0">Librarian:</span> <span className="text-emerald-600 font-bold">{slot.teacherName || 'Bhanu Prakash'}</span></p>
+                    <p className="truncate"><span className="text-slate-400 shrink-0">Location:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{slot.roomNo || 'Central Library Hall'}</span></p>
                   </div>
                 </div>
               ))}

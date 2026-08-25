@@ -11491,43 +11491,15 @@ export const initialScholarships: Scholarship[] = [
   }
 ];
 
-export const initialStudents: Student[] = [];
-export const initialStaff: Staff[] = [];
-export const initialAdmissions: AdmissionApplication[] = [];
-export const initialFeeStructures: FeeStructure[] = [];
-export const initialFeePayments: FeePayment[] = [];
-export const initialExamSetups: ExamSetup[] = [];
-export const initialExamMarks: ExamMark[] = [];
-export const initialTimetable: TimetableSlot[] = [];
-export const initialHomework: Homework[] = [];
-export const initialBooks: BookItem[] = [];
-export const initialBookIssues: BookIssue[] = [];
-export const initialTransportRoutes: TransportRoute[] = [];
-export const initialHostelBlocks: HostelBlock[] = [];
-export const initialHostelRooms: HostelRoom[] = [];
-export const initialHostelBeds: HostelBed[] = [];
-export const initialBuses: Bus[] = [];
-export const initialUniforms: UniformItem[] = [];
-export const initialCustomRoles: CustomRole[] = [];
-export const initialInventory: InventoryItem[] = [];
-export const initialAnnouncements: Announcement[] = [];
-export const initialHolidays: Holiday[] = [];
-export const initialBirthdays: Birthday[] = [];
-export const initialAuditLogs: AuditLog[] = [];
-export const initialSubjects: SubjectItem[] = [];
-export const initialFeeHeads: FeeHead[] = [];
-export const initialDynamicFeeStructures: DynamicFeeStructure[] = [];
-export const initialStudentFeeAssignments: StudentFeeAssignment[] = [];
-export const initialScholarships: Scholarship[] = [];
 export const initialStudentScholarships: StudentScholarship[] = [];
 export const initialDiscounts: Discount[] = [];
 export const initialStudentDiscounts: StudentDiscount[] = [];
 export const initialFineRules: FineRule[] = [];
 export const initialERPTransportRoutes: ERPTransportRoute[] = [];
 export const initialStudentTransports: StudentTransport[] = [];
-export const initialHostelMasters: HostelMaster[] = [];
 export const initialStudentHostels: StudentHostel[] = [];
 export const initialRefunds: Refund[] = [];
+
 export const initialFinanceSettings: FinanceSettings = {
   activeAcademicYear: '2026-2027',
   currency: 'INR',
@@ -11544,7 +11516,6 @@ export const initialFinanceSettings: FinanceSettings = {
   lateFeeDailyAmount: 10,
   lateFeeGraceDays: 5
 };
-<<<<<<< HEAD
 
 export const initialRouteMasters: RouteMaster[] = [
   {
@@ -20879,19 +20850,6 @@ export const initialStudentHostelAssignments: StudentHostelAssignment[] = [
   }
 ];
 
-=======
-export const initialRouteMasters: RouteMaster[] = [];
-export const initialPickupPoints: PickupPoint[] = [];
-export const initialVehicleMasters: VehicleMaster[] = [];
-export const initialDriverMasters: DriverMaster[] = [];
-export const initialVehicleAssignments: VehicleAssignment[] = [];
-export const initialVehicleMaintenances: VehicleMaintenance[] = [];
-export const initialFinanceTransportConfigs: FinanceTransportConfig[] = [];
-export const initialStudentFeeLedgers: StudentFeeLedger[] = [];
-export const initialRoomTypeMasters: RoomTypeMaster[] = [];
-export const initialRoomMasters: RoomMaster[] = [];
-export const initialStudentHostelAssignments: StudentHostelAssignment[] = [];
->>>>>>> b5b4cbdead38c51d41070b89e29229c7ee569121
 export const initialHostelVisitorLogs: any[] = [];
 export const initialHostelAttendanceLogs: HostelAttendanceLog[] = [];
 export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [];
@@ -20911,6 +20869,4 @@ export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [];
 export const initialPayrollRuns: PayrollRun[] = [];
 export const initialQuestionPapers: QuestionPaper[] = [];
 export const initialMeetings: SchoolMeeting[] = [];
-export const initialDepartments: Department[] = [];
-export const initialDesignations: Designation[] = [];
 export const initialCertificateTemplates: CertificateTemplateConfig[] = [];

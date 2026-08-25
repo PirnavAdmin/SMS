@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Library, BookOpen, Plus, Search, Edit, Trash2, Users, Layers, Bookmark,
   FileText, CheckCircle2, XCircle, AlertTriangle, Clock, RotateCcw,
-  ShieldAlert, DollarSign, Sliders, Printer, Download, ChevronDown,
+  ShieldAlert, IndianRupee, Sliders, Printer, Download, ChevronDown,
   RefreshCw, AlertOctagon, FileSpreadsheet, Sparkles, Home, UserCheck, Calendar, CalendarCheck
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
@@ -93,8 +93,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const { role, user } = useAuth();
   const isAdmin = (role || '').toLowerCase().includes('admin');
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
-  const isStudentOrParent = (role || '').toLowerCase() === 'student' || (role || '').toLowerCase() === 'parent';
-  const canManageLibrary = isLibrarian || isAdmin || !isStudentOrParent;
+  // Main Admin is View-Only; ONLY Librarian / Library Admin has management & edit authority
+  const canManageLibrary = isLibrarian;
   const isReadOnlyAccess = !canManageLibrary;
 
   const { books, bookIssues, addBook, deleteBook, issueBook, returnBook, students, staff, admissions } = useData();
@@ -475,7 +475,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       phaseId: 'phase3',
       title: 'Fines & Management',
       tabs: [
-        { id: 'fines', label: 'Fines Management', icon: DollarSign },
+        { id: 'fines', label: 'Fines Management', icon: IndianRupee },
         { id: 'lost-damaged', label: 'Lost / Damaged Books', icon: AlertTriangle },
         { id: 'rules', label: 'Library Rules', icon: Sliders }
       ]
@@ -536,26 +536,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             </div>
           </div>
 
-          {/* Operational Quick Actions Banner */}
-          <div className="glass-card p-5 rounded-3xl bg-gradient-to-r from-sky-600 to-indigo-700 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h3 className="text-lg font-black flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" /> Library Operations Hub
-              </h3>
-              <p className="text-xs text-sky-100 font-medium">Issue books, return active loans, manage member fines, and run book audits.</p>
+          {/* Operational Quick Actions Banner - Shown ONLY in Librarian Panel */}
+          {!isReadOnlyAccess && (
+            <div className="glass-card p-5 rounded-3xl bg-gradient-to-r from-sky-600 to-indigo-700 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-black flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" /> Library Operations Hub
+                </h3>
+                <p className="text-xs text-sky-100 font-medium">Issue books, return active loans, manage member fines, and run book audits.</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button onClick={() => switchTab('phase2', 'issue')} className="px-4 py-2 rounded-xl bg-white text-sky-700 font-extrabold text-xs hover:bg-sky-50 transition-all shadow-md flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" /> Issue Book
+                </button>
+                <button onClick={() => switchTab('phase2', 'return')} className="px-4 py-2 rounded-xl bg-sky-950/40 text-white font-extrabold text-xs border border-white/30 hover:bg-sky-900/60 transition-all flex items-center gap-1.5">
+                  <RotateCcw className="w-4 h-4" /> Return Book
+                </button>
+                <button onClick={() => switchTab('phase3', 'fines')} className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs hover:bg-emerald-400 transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
+                  <IndianRupee className="w-4 h-4" /> Manage Fines
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
-              <button onClick={() => switchTab('phase2', 'issue')} className="px-4 py-2 rounded-xl bg-white text-sky-700 font-extrabold text-xs hover:bg-sky-50 transition-all shadow-md flex items-center gap-1.5">
-                <Plus className="w-4 h-4" /> Issue Book
-              </button>
-              <button onClick={() => switchTab('phase2', 'return')} className="px-4 py-2 rounded-xl bg-sky-950/40 text-white font-extrabold text-xs border border-white/30 hover:bg-sky-900/60 transition-all flex items-center gap-1.5">
-                <RotateCcw className="w-4 h-4" /> Return Book
-              </button>
-              <button onClick={() => switchTab('phase3', 'fines')} className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs hover:bg-emerald-400 transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
-                <DollarSign className="w-4 h-4" /> Manage Fines
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Quick Overview Grid: Categories & Recent Issues */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1341,7 +1343,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-500" /> Library Fines & Fee Integration
+                <IndianRupee className="w-4 h-4 text-emerald-500" /> Library Fines & Fee Integration
               </h3>
               <p className="text-[11px] text-slate-500 font-medium">Overdue & Damage fines automatically sync to Finance Fee Collection reports.</p>
             </div>
@@ -1624,12 +1626,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-sky-600 text-white rounded-2xl shadow-lg shadow-sky-500/20">
-            <Library className="w-7 h-7" />
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-200/80 dark:border-sky-800 shadow-xs flex items-center justify-center">
+            <BookOpen className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Library</h2>
-            <p className="text-xs text-slate-500 font-medium">Digital Library Catalog, Circulation & Inventory Master</p>
           </div>
         </div>
 

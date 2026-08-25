@@ -34,37 +34,45 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const userName = (user?.name || '').toLowerCase().trim();
 
     // Direct email match
-    const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-    if (byEmail) return byEmail;
+    if (userEmail) {
+      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) return byEmail;
+    }
 
     // Direct name match
-    const byName = staff.find(s => {
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-      return sFullName && userName && (sFullName.includes(userName) || userName.includes(sFullName));
-    });
-    if (byName) return byName;
+    if (userName) {
+      const byName = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && (sFullName.includes(userName) || userName.includes(sFullName))) || 
+               (sName && (sName.includes(userName) || userName.includes(sName)));
+      });
+      if (byName) return byName;
+    }
 
-    // Category / Role match
-    const byRole = staff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher'));
-    if (byRole) return byRole;
+    // Direct staff ID match (if user has staff id)
+    if (user?.id) {
+      const byId = staff.find(s => s.id === user.id);
+      if (byId) return byId;
+    }
 
-    // Construct dynamic fallback from logged-in user context
-    const nameParts = (user?.name || 'Robert Miller').split(' ');
+    // Construct dynamic profile from logged-in user context
+    const rawName = user?.name || 'Robert Teacher';
+    const nameParts = rawName.split(' ');
     const firstName = nameParts[0] || 'Robert';
-    const lastName = nameParts.slice(1).join(' ') || 'Teacher Miller';
+    const lastName = nameParts.slice(1).join(' ') || 'Teacher';
 
-    // Get first academic class from data context if available
     const firstClassObj = academicClasses[0];
-    const defaultClassName = firstClassObj ? `Class ${firstClassObj.className}-${firstClassObj.section}` : 'Class 10-A';
+    const defaultClassName = firstClassObj ? `Class ${firstClassObj.className}-${firstClassObj.section}` : 'Class Nursery-A';
 
     return {
       id: user?.id || 'STF-101',
       firstName,
       lastName,
-      assignedClasses: [defaultClassName, 'Class 11-B'],
+      assignedClasses: [defaultClassName, 'Class 10-A'],
       assignedSubjects: ['Mathematics'],
       department: 'Mathematics',
-      designation: 'Class Teacher'
+      designation: (user as any)?.role || 'Teacher'
     };
   }, [user, staff, academicClasses]);
 
@@ -286,7 +294,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
               <span>Class Teacher Dashboard</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Welcome back, {teacher.firstName || 'Rajesh'} {teacher.lastName || 'rayudu'}
+              Welcome back, {teacher.firstName} {teacher.lastName}
             </h1>
             <p className="text-xs sm:text-sm text-sky-100 max-w-xl leading-relaxed font-medium">
               Designated as <span className="font-extrabold text-white bg-white/20 px-2 py-0.5 rounded-lg border border-white/20">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-white underline decoration-amber-300 decoration-2">{mainClass}</span>. Today is {todayDay}, {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.

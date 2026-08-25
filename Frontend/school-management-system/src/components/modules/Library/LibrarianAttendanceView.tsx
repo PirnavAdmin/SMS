@@ -35,6 +35,10 @@ export const LibrarianAttendanceView: React.FC = () => {
   const { staff } = useData();
   const { addToast } = useToast();
 
+  const isLibrarian = (role || '').toLowerCase().includes('librarian');
+  const canManageAttendance = isLibrarian;
+  const isReadOnlyAccess = !canManageAttendance;
+
   const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>(() => {
     const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
     return s ? JSON.parse(s) : DEFAULT_LIBRARIAN_ATTENDANCE;
@@ -84,12 +88,11 @@ export const LibrarianAttendanceView: React.FC = () => {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-lg shadow-amber-500/20">
-            <CalendarCheck className="w-7 h-7" />
+          <div className="p-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200/80 dark:border-amber-800 shadow-xs flex items-center justify-center">
+            <CalendarCheck className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Librarian Attendance</h2>
-            <p className="text-xs text-slate-500 font-medium">Digital Shift Punch Desk & Master Attendance Log Registry</p>
           </div>
         </div>
 
@@ -103,87 +106,89 @@ export const LibrarianAttendanceView: React.FC = () => {
         </div>
       </div>
 
-      {/* Daily Shift Punch Control Banner */}
-      <div className="glass-card p-6 rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="space-y-2 text-center md:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-extrabold tracking-wider uppercase text-sky-200">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Daily Shift Punch Desk
-          </div>
-          <h3 className="text-xl font-black">{currentStaffName} ({role || 'Librarian'})</h3>
-          <p className="text-xs text-sky-100 font-medium">
-            Today: <span className="font-mono font-bold">{todayStr}</span> • Shift: Morning Shift (08:30 AM - 05:00 PM)
-          </p>
-          {todayRecord && (
-            <div className="flex items-center gap-3 pt-1 text-xs justify-center md:justify-start">
-              <span className="px-3 py-1 rounded-xl bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 font-bold flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Checked In: {todayRecord.checkInTime}
-              </span>
-              {todayRecord.checkOutTime && (
-                <span className="px-3 py-1 rounded-xl bg-amber-500/30 border border-amber-400/40 text-amber-200 font-bold flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" /> Checked Out: {todayRecord.checkOutTime}
+      {/* Daily Shift Punch Control Banner - Shown ONLY in Librarian Panel */}
+      {!isReadOnlyAccess && (
+        <div className="glass-card p-6 rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-extrabold tracking-wider uppercase text-sky-200">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Daily Shift Punch Desk
+            </div>
+            <h3 className="text-xl font-black">{currentStaffName} ({role || 'Librarian'})</h3>
+            <p className="text-xs text-sky-100 font-medium">
+              Today: <span className="font-mono font-bold">{todayStr}</span> • Shift: Morning Shift (08:30 AM - 05:00 PM)
+            </p>
+            {todayRecord && (
+              <div className="flex items-center gap-3 pt-1 text-xs justify-center md:justify-start">
+                <span className="px-3 py-1 rounded-xl bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Checked In: {todayRecord.checkInTime}
                 </span>
-              )}
-            </div>
-          )}
-        </div>
+                {todayRecord.checkOutTime && (
+                  <span className="px-3 py-1 rounded-xl bg-amber-500/30 border border-amber-400/40 text-amber-200 font-bold flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" /> Checked Out: {todayRecord.checkOutTime}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          {!todayRecord ? (
-            <button
-              onClick={() => {
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const isLate = now.getHours() >= 9 && now.getMinutes() > 0;
-                const newRec: LibrarianAttendanceRecord = {
-                  id: `ATT-LIB-${Date.now()}`,
-                  staffId: currentStaffId,
-                  staffName: currentStaffName,
-                  role: role || 'Librarian',
-                  date: todayStr,
-                  checkInTime: timeStr,
-                  shift: 'Morning Shift (08:30 - 17:00)',
-                  status: isLate ? 'Late' : 'Present',
-                  remarks: isLate ? 'Late arrival check-in' : 'On-time shift arrival'
-                };
-                localStorage.setItem('teacher_check_in_time', now.toISOString());
-                saveLibrarianAttendance([newRec, ...librarianAttendance]);
-                addToast('success', 'Checked In', `Successfully checked in at ${timeStr}`);
-              }}
-              className="w-full md:w-auto px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <CheckCircle2 className="w-4.5 h-4.5" /> Check In Now
-            </button>
-          ) : !todayRecord.checkOutTime ? (
-            <button
-              onClick={() => {
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const updated = librarianAttendance.map(r => {
-                  if (r.id === todayRecord.id) {
-                    return {
-                      ...r,
-                      checkOutTime: timeStr,
-                      workingHours: '8.5 Hours',
-                      remarks: (r.remarks || '') + ` • Checked out at ${timeStr}`
-                    };
-                  }
-                  return r;
-                });
-                localStorage.setItem('teacher_check_out_time', now.toISOString());
-                saveLibrarianAttendance(updated);
-                addToast('success', 'Checked Out', `Successfully checked out at ${timeStr}`);
-              }}
-              className="w-full md:w-auto px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Clock className="w-4.5 h-4.5" /> Check Out Shift
-            </button>
-          ) : (
-            <div className="px-5 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-xs font-black text-emerald-200 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Shift Completed ({todayRecord.workingHours || '8.5 Hours'})
-            </div>
-          )}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {!todayRecord ? (
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const isLate = now.getHours() >= 9 && now.getMinutes() > 0;
+                  const newRec: LibrarianAttendanceRecord = {
+                    id: `ATT-LIB-${Date.now()}`,
+                    staffId: currentStaffId,
+                    staffName: currentStaffName,
+                    role: role || 'Librarian',
+                    date: todayStr,
+                    checkInTime: timeStr,
+                    shift: 'Morning Shift (08:30 - 17:00)',
+                    status: isLate ? 'Late' : 'Present',
+                    remarks: isLate ? 'Late arrival check-in' : 'On-time shift arrival'
+                  };
+                  localStorage.setItem('teacher_check_in_time', now.toISOString());
+                  saveLibrarianAttendance([newRec, ...librarianAttendance]);
+                  addToast('success', 'Checked In', `Successfully checked in at ${timeStr}`);
+                }}
+                className="w-full md:w-auto px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <CheckCircle2 className="w-4.5 h-4.5" /> Check In Now
+              </button>
+            ) : !todayRecord.checkOutTime ? (
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const updated = librarianAttendance.map(r => {
+                    if (r.id === todayRecord.id) {
+                      return {
+                        ...r,
+                        checkOutTime: timeStr,
+                        workingHours: '8.5 Hours',
+                        remarks: (r.remarks || '') + ` • Checked out at ${timeStr}`
+                      };
+                    }
+                    return r;
+                  });
+                  localStorage.setItem('teacher_check_out_time', now.toISOString());
+                  saveLibrarianAttendance(updated);
+                  addToast('success', 'Checked Out', `Successfully checked out at ${timeStr}`);
+                }}
+                className="w-full md:w-auto px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Clock className="w-4.5 h-4.5" /> Check Out Shift
+              </button>
+            ) : (
+              <div className="px-5 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-xs font-black text-emerald-200 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Shift Completed ({todayRecord.workingHours || '8.5 Hours'})
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Filter Bar & Summary Cards */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border">
@@ -225,25 +230,27 @@ export const LibrarianAttendanceView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
-          <button
-            onClick={() => {
-              setModalData({
-                staffId: 'EMP-LIB-01',
-                staffName: 'Bhanu Prakash',
-                date: todayStr,
-                checkInTime: '',
-                checkOutTime: '',
-                workingHours: '',
-                shift: 'Morning Shift (08:30 - 17:00)',
-                status: 'Present',
-                remarks: ''
-              });
-              setModalType('addAttendance');
-            }}
-            className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all"
-          >
-            <Plus className="w-4 h-4" /> Add Punch Entry
-          </button>
+          {!isReadOnlyAccess && (
+            <button
+              onClick={() => {
+                setModalData({
+                  staffId: 'EMP-LIB-01',
+                  staffName: 'Bhanu Prakash',
+                  date: todayStr,
+                  checkInTime: '',
+                  checkOutTime: '',
+                  workingHours: '',
+                  shift: 'Morning Shift (08:30 - 17:00)',
+                  status: 'Present',
+                  remarks: ''
+                });
+                setModalType('addAttendance');
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add Punch Entry
+            </button>
+          )}
           <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs">
             Present: {totalPresent}
           </span>
