@@ -1,5 +1,4 @@
-import React from 'react';
-import { AlertTriangle, CheckCircle2, Info, UserCheck, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, UserCheck, X, Loader2 } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -12,6 +11,7 @@ interface ConfirmModalProps {
   icon?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -24,7 +24,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   variant = 'danger',
   icon,
   onConfirm,
-  onCancel
+  onCancel,
+  isLoading = false
 }) => {
   if (!isOpen) return null;
 
@@ -92,7 +93,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
           <button 
             onClick={onCancel} 
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            disabled={isLoading}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-5 h-5" />
           </button>
@@ -104,16 +106,19 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200/80 dark:border-slate-700 cursor-pointer"
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200/80 dark:border-slate-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all cursor-pointer ${variantBtn[variant]}`}
+            disabled={isLoading}
+            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${variantBtn[variant]} disabled:opacity-75 disabled:cursor-not-allowed`}
           >
-            {confirmLabel}
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            <span>{confirmLabel}</span>
           </button>
         </div>
       </div>
