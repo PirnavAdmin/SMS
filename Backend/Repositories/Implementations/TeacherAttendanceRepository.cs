@@ -25,11 +25,7 @@ public class TeacherAttendanceRepository
             .FirstOrDefaultAsync(x =>
                 x.Email != null &&
                 x.Email.ToLower() == normalizedEmail &&
-                x.IsActive == true &&
-                (
-                    x.SystemRole == "Teacher" ||
-                    x.EmployeeCategory == "Teaching Staff"
-                ));
+                (x.IsActive == null || x.IsActive == true));
     }
 
     public async Task<StaffAttendance?> GetTodayAttendanceAsync(

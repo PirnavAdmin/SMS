@@ -139,3 +139,27 @@ export const fetchStudentAttendanceRegisterApi = async (query: {
     method: 'GET'
   });
 };
+
+// ============================
+// TEACHER PERSONAL ATTENDANCE API
+// ============================
+
+export const fetchTeacherTodayAttendanceApi = async () => {
+  return apiClient('/api/teacher/attendance/today', {
+    method: 'GET'
+  });
+};
+
+export const teacherCheckInApi = async (remarks?: string) => {
+  return apiClient('/api/teacher/attendance/check-in', {
+    method: 'POST',
+    body: JSON.stringify({ remarks: remarks || '' })
+  });
+};
+
+export const teacherCheckOutApi = async (remarks?: string) => {
+  return apiClient('/api/teacher/attendance/check-out', {
+    method: 'POST',
+    body: JSON.stringify({ remarks: remarks || '' })
+  });
+};
