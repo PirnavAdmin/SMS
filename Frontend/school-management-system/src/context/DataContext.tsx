@@ -6747,10 +6747,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Admission CRUD
+  const inFlightAdmissionSubmissions = new Set<string>();
+  const inFlightStatusUpdates = new Set<string>();
+
   const addAdmission = async (
     appData: Omit<AdmissionApplication, "id" | "applicationNo">,
     options?: { silent?: boolean },
   ) => {
+    const signature = `${(appData.applicantName || "").toLowerCase().trim()}_${(appData.phone || "").trim()}_${(appData.appliedClass || "").toLowerCase().trim()}`;
+    if (signature.length > 5 && inFlightAdmissionSubmissions.has(signature)) {
+      console.warn(`[addAdmission] Duplicate submission blocked for signature: ${signature}`);
+      return null;
+    }
+    if (signature.length > 5) inFlightAdmissionSubmissions.add(signature);
+
     try {
       let isoDob = new Date().toISOString();
       if (appData.dob) {
@@ -6902,6 +6912,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
       return null;
+    } finally {
+      setTimeout(() => {
+        if (signature.length > 5) inFlightAdmissionSubmissions.delete(signature);
+      }, 3000);
     }
   };
 
@@ -7013,6 +7027,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<string | null> => {
     const app = admissions.find((a) => a.id === id);
     if (!app) return null;
+
+    if (status === "Enrolled" && app.status === "Enrolled") {
+      console.warn(`[updateAdmissionStatus] Application ${id} is already enrolled.`);
+      return null;
+    }
+
+    if (inFlightStatusUpdates.has(id)) {
+      console.warn(`[updateAdmissionStatus] Status update already in progress for application ${id}`);
+      return null;
+    }
+    inFlightStatusUpdates.add(id);
 
     const appIdNumeric = parseInt(id, 10);
 
@@ -7476,6 +7501,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         "Network Error",
         err.message || "Failed to update application status.",
       );
+    } finally {
+      setTimeout(() => {
+        inFlightStatusUpdates.delete(id);
+      }, 3000);
     }
     return null;
   };

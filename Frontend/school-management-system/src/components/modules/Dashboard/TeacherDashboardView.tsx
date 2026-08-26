@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
+import { teacherCheckInApi, teacherCheckOutApi, fetchTeacherTodayAttendanceApi } from '../../../api/attendance';
 
 interface TeacherDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -25,7 +26,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     meetings = [], 
     announcements = [],
     academicClasses = [],
-    exams = []
+    exams = [],
+    fetchDailyAttendance
   } = useData();
 
   // 1. Dynamic Teacher Profile Resolution
@@ -219,7 +221,32 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     }
   }, [checkInTime, checkOutTime, isCheckedOut, isTeacherAttendanceMarkedToday, todayStr]);
 
-  const handleCheckIn = (e: React.MouseEvent) => {
+  // Load today's check-in / check-out from backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadTodayStatus = async () => {
+      try {
+        const res: any = await fetchTeacherTodayAttendanceApi();
+        if (isMounted && res && res.inTime) {
+          const todayDateStr = new Date().toLocaleDateString('en-CA');
+          setCheckInTime(`${todayDateStr}T${res.inTime}`);
+          localStorage.setItem('teacher_check_in_time', `${todayDateStr}T${res.inTime}`);
+          if (res.outTime) {
+            setCheckOutTime(`${todayDateStr}T${res.outTime}`);
+            localStorage.setItem('teacher_check_out_time', `${todayDateStr}T${res.outTime}`);
+            localStorage.setItem('teacher_is_checked_out', 'true');
+            setIsCheckedOut(true);
+          }
+        }
+      } catch {
+        /* Ignored */
+      }
+    };
+    loadTodayStatus();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleCheckIn = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const nowIso = new Date().toISOString();
     localStorage.setItem('teacher_check_in_time', nowIso);
@@ -228,15 +255,33 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     setCheckInTime(nowIso);
     setCheckOutTime(null);
     setIsCheckedOut(false);
+
+    try {
+      await teacherCheckInApi();
+      if (fetchDailyAttendance) {
+        fetchDailyAttendance(todayStr);
+      }
+    } catch (err) {
+      console.warn('Teacher check-in API error:', err);
+    }
   };
 
-  const handleCheckOut = (e: React.MouseEvent) => {
+  const handleCheckOut = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const nowIso = new Date().toISOString();
     localStorage.setItem('teacher_check_out_time', nowIso);
     localStorage.setItem('teacher_is_checked_out', 'true');
     setCheckOutTime(nowIso);
     setIsCheckedOut(true);
+
+    try {
+      await teacherCheckOutApi();
+      if (fetchDailyAttendance) {
+        fetchDailyAttendance(todayStr);
+      }
+    } catch (err) {
+      console.warn('Teacher check-out API error:', err);
+    }
   };
 
   // Helper: parse timeSlot string to period status (Active Now / Upcoming / Completed)

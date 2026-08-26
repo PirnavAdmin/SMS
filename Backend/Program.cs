@@ -144,6 +144,7 @@ builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
 
 builder.Services.AddScoped<ISchoolService, SchoolService>();
 builder.Services.AddScoped<IStaffService, StaffService>();
+builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 
 // Transport Management
 builder.Services.AddScoped<ITransportRepository, TransportRepository>();
@@ -2650,6 +2651,68 @@ using (var scope = app.Services.CreateScope())
 
             await context.SalaryStructures.AddRangeAsync(teacherScale, adminScale);
             await context.SaveChangesAsync();
+        }
+
+        // --- BACKFILL: Sync existing staff into users table for login ---
+        try
+        {
+            var existingStaff = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(context.Staff);
+            foreach (var stf in existingStaff)
+            {
+                var isTeach = (stf.EmployeeCategory ?? "").ToLower().Contains("teach");
+                var role = isTeach ? "Teacher" : (!string.IsNullOrWhiteSpace(stf.Designation) ? stf.Designation : "Staff");
+                var name = $"{stf.FirstName} {stf.LastName}".Trim();
+                var phone = !string.IsNullOrWhiteSpace(stf.Phone) ? stf.Phone.Trim() : (!string.IsNullOrWhiteSpace(stf.AlternateMobile) ? stf.AlternateMobile.Trim() : $"STF{stf.StaffId}");
+
+                var userExists = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.Users, u =>
+                    (!string.IsNullOrWhiteSpace(stf.Email) && u.Email != null && u.Email.ToLower() == stf.Email.ToLower()) ||
+                    (!string.IsNullOrWhiteSpace(phone) && u.MobileNumber == phone));
+
+                if (!userExists)
+                {
+                    context.Users.Add(new User
+                    {
+                        FullName = name,
+                        Email = stf.Email,
+                        MobileNumber = phone,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+                        Role = role,
+                        IsEmailVerified = true,
+                        IsMobileVerified = true,
+                        CreatedAt = DateTime.UtcNow,
+                        SchoolId = null
+                    });
+                }
+            }
+
+            // Sync Robert Teacher into staff table if missing
+            var robertUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(context.Users, u => u.Email == "teacher@pirnavschools.com");
+            if (robertUser != null && !await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.Staff, s => s.Email == "teacher@pirnavschools.com"))
+            {
+                context.Staff.Add(new Staff
+                {
+                    EmployeeId = "STF-2026-0000",
+                    EmployeeCategory = "Teaching Staff",
+                    FirstName = "Robert",
+                    LastName = "Teacher",
+                    Email = "teacher@pirnavschools.com",
+                    Phone = "9876543221",
+                    Gender = "Male",
+                    Department = "Mathematics",
+                    Designation = "Subject Teacher",
+                    JoiningDate = DateTime.UtcNow.AddMonths(-6),
+                    IsActive = true,
+                    CasualLeaveBalance = 10,
+                    SickLeaveBalance = 10,
+                    EarnedLeaveBalance = 15
+                });
+            }
+
+            await context.SaveChangesAsync();
+        }
+        catch (Exception syncEx)
+        {
+            Console.WriteLine($"[Startup Backfill] Error syncing staff/users: {syncEx.Message}");
         }
       }
     }

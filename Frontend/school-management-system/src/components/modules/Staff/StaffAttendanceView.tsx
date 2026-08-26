@@ -41,9 +41,13 @@ import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
-import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import { DateInput } from "../../common/DateInput";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import {
+  teacherCheckInApi,
+  teacherCheckOutApi,
+  fetchTeacherTodayAttendanceApi,
+} from "../../../api/attendance";
 
 type AttendanceTab = "teaching" | "non-teaching";
 
@@ -88,16 +92,24 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       (s) =>
         s.email &&
         user?.email &&
-        s.email === user.email &&
-        s.employeeCategory === "Teacher",
+        s.email.toLowerCase().trim() === user.email.toLowerCase().trim(),
     ) ||
     staff.find(
       (s) =>
-        s.email &&
-        (s.email.toLowerCase().includes("jenkins") ||
-          s.email.toLowerCase().includes("miller")),
+        (s.name &&
+          user?.name &&
+          s.name.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+        (`${s.firstName || ""}`.trim().toLowerCase() ===
+          (user?.name || "").trim().toLowerCase()) ||
+        (`${s.firstName || ""} ${s.lastName || ""}`.trim().toLowerCase() ===
+          (user?.name || "").trim().toLowerCase()),
     ) ||
-    staff.find((s) => s.employeeCategory === "Teacher");
+    staff.find(
+      (s) =>
+        s.employeeCategory === "Teaching Staff" ||
+        s.employeeCategory === "Teacher" ||
+        (s.designation || "").toLowerCase().includes("teacher"),
+    );
 
   // Fallback to static mock data if no teacher profile is found
   const teacher = dbTeacher || {
@@ -192,18 +204,62 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return () => clearInterval(interval);
   }, [persCheckInTime, persCheckOutTime]);
 
-  const handlePersCheckIn = () => {
+  // Load today's check-in / check-out from backend on mount for personal view
+  useEffect(() => {
+    if (isPersonalView) {
+      let isMounted = true;
+      const loadPersonalAttendance = async () => {
+        try {
+          const res: any = await fetchTeacherTodayAttendanceApi();
+          if (isMounted && res && res.inTime) {
+            const todayDateStr = new Date().toLocaleDateString("en-CA");
+            setPersCheckInTime(`${todayDateStr}T${res.inTime}`);
+            localStorage.setItem(
+              "teacher_check_in_time",
+              `${todayDateStr}T${res.inTime}`,
+            );
+            if (res.outTime) {
+              setPersCheckOutTime(`${todayDateStr}T${res.outTime}`);
+              localStorage.setItem(
+                "teacher_check_out_time",
+                `${todayDateStr}T${res.outTime}`,
+              );
+            }
+          }
+        } catch {
+          /* Ignored */
+        }
+      };
+      loadPersonalAttendance();
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isPersonalView]);
+
+  const handlePersCheckIn = async () => {
     const nowIso = new Date().toISOString();
     localStorage.setItem("teacher_check_in_time", nowIso);
+    localStorage.removeItem("teacher_check_out_time");
     setPersCheckInTime(nowIso);
+    setPersCheckOutTime(null);
     addToast(
       "success",
       "Checked In Successfully",
       `Recorded check-in at ${new Date(nowIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
     );
+
+    try {
+      await teacherCheckInApi();
+      if (fetchDailyAttendance) {
+        fetchDailyAttendance(attendanceDate);
+      }
+    } catch (err) {
+      console.warn("Personal check-in error:", err);
+    }
   };
 
-  const handlePersCheckOut = () => {
+  const handlePersCheckOut = async () => {
     const nowIso = new Date().toISOString();
     localStorage.setItem("teacher_check_out_time", nowIso);
     setPersCheckOutTime(nowIso);
@@ -212,6 +268,15 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       "Checked Out Successfully",
       `Recorded check-out at ${new Date(nowIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
     );
+
+    try {
+      await teacherCheckOutApi();
+      if (fetchDailyAttendance) {
+        fetchDailyAttendance(attendanceDate);
+      }
+    } catch (err) {
+      console.warn("Personal check-out error:", err);
+    }
   };
 
   const todayStatus = useMemo(() => {
@@ -1232,12 +1297,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     );
   };
 
-  // Fetch daily attendance logs from API when filters change
+  // Fetch daily attendance logs from API when filters change, and poll every 5s for live auto-reflection
   useEffect(() => {
     if (viewMode === "daily" && fetchDailyAttendance) {
       const activeDept =
         activeTab === "teaching" ? teachingDept : nonTeachingDept;
       fetchDailyAttendance(attendanceDate, activeDept);
+
+      const pollInterval = setInterval(() => {
+        fetchDailyAttendance(attendanceDate, activeDept);
+      }, 5000);
+
+      return () => clearInterval(pollInterval);
     }
   }, [
     attendanceDate,
@@ -1267,9 +1338,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Stable hash representation of relevant recorded attendance items to prevent unnecessary reset of edited state maps
   const attendanceHash = useMemo(() => {
-    const relevant = (attendance || []).filter(
-      (r) => r.entityType === "Staff" && r.date === attendanceDate,
-    );
+    const targetDate = String(attendanceDate || "").split("T")[0].split(" ")[0];
+    const relevant = (attendance || []).filter((r) => {
+      const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+      return (!r.entityType || r.entityType.toLowerCase() === "staff") && rDate === targetDate;
+    });
     return JSON.stringify(relevant);
   }, [attendance, attendanceDate]);
 
@@ -1314,16 +1387,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (existing) {
         const normSt = normalizeStatus(existing.status);
         newStatusMap[s.id] = normSt;
-        newInTimeMap[s.id] =
-          existing.inTime ||
-          (normSt === "Present" || normSt === "Late"
-            ? "08:30 AM"
-            : "");
-        newOutTimeMap[s.id] =
-          existing.outTime ||
-          (normSt === "Present" || normSt === "Late"
-            ? "04:30 PM"
-            : "");
+        newInTimeMap[s.id] = existing.inTime || "";
+        newOutTimeMap[s.id] = existing.outTime || "";
         newRemarksMap[s.id] = existing.remarks || "";
       } else if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? "HalfDay" : "Leave";
@@ -1333,8 +1398,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"}`;
       } else {
         newStatusMap[s.id] = "Present";
-        newInTimeMap[s.id] = "08:30 AM";
-        newOutTimeMap[s.id] = "04:30 PM";
+        newInTimeMap[s.id] = "";
+        newOutTimeMap[s.id] = "";
         newRemarksMap[s.id] = "";
       }
     });

@@ -79,17 +79,12 @@ public class TeacherAttendanceService : ITeacherAttendanceService
 
         if (existingAttendance != null)
         {
-            if (!string.IsNullOrWhiteSpace(
-                    existingAttendance.InTime))
-            {
-                throw new InvalidOperationException(
-                    "You have already checked in today.");
-            }
-
-            existingAttendance.InTime =
-                now.ToString("HH:mm:ss");
-
+            existingAttendance.InTime = now.ToString("hh:mm tt");
             existingAttendance.Status = "Present";
+            if (string.IsNullOrWhiteSpace(existingAttendance.Department)) existingAttendance.Department = teacher.Department;
+            if (string.IsNullOrWhiteSpace(existingAttendance.Designation)) existingAttendance.Designation = teacher.Designation;
+            if (string.IsNullOrWhiteSpace(existingAttendance.Branch)) existingAttendance.Branch = "Main Campus";
+            if (string.IsNullOrWhiteSpace(existingAttendance.AcademicYear)) existingAttendance.AcademicYear = "2026-2027";
 
             if (!string.IsNullOrWhiteSpace(dto.Remarks))
             {
@@ -108,8 +103,12 @@ public class TeacherAttendanceService : ITeacherAttendanceService
             StaffId = teacher.StaffId,
             Date = today,
             Status = "Present",
-            InTime = now.ToString("HH:mm:ss"),
+            InTime = now.ToString("hh:mm tt"),
             OutTime = null,
+            AcademicYear = "2026-2027",
+            Branch = "Main Campus",
+            Department = teacher.Department ?? "Teaching Staff",
+            Designation = teacher.Designation ?? "Teacher",
             Remarks = string.IsNullOrWhiteSpace(dto.Remarks)
                 ? null
                 : dto.Remarks.Trim()
@@ -135,30 +134,38 @@ public class TeacherAttendanceService : ITeacherAttendanceService
                 teacher.StaffId,
                 DateTime.Today);
 
-        if (attendance == null ||
-            string.IsNullOrWhiteSpace(attendance.InTime))
+        if (attendance == null)
         {
-            throw new InvalidOperationException(
-                "You must check in before checking out.");
+            attendance = new StaffAttendance
+            {
+                StaffId = teacher.StaffId,
+                Date = DateTime.Today,
+                Status = "Present",
+                InTime = "08:30 AM",
+                OutTime = DateTime.Now.ToString("hh:mm tt"),
+                AcademicYear = "2026-2027",
+                Branch = "Main Campus",
+                Department = teacher.Department ?? "Teaching Staff",
+                Designation = teacher.Designation ?? "Teacher",
+                Remarks = string.IsNullOrWhiteSpace(dto.Remarks) ? null : dto.Remarks.Trim()
+            };
+            var created = await _repository.CreateAttendanceAsync(attendance);
+            return MapAttendance(created);
         }
-
-        if (!string.IsNullOrWhiteSpace(attendance.OutTime))
+        else
         {
-            throw new InvalidOperationException(
-                "You have already checked out today.");
+            attendance.OutTime = DateTime.Now.ToString("hh:mm tt");
+            if (string.IsNullOrWhiteSpace(attendance.InTime)) attendance.InTime = "08:30 AM";
+            attendance.Status = "Present";
+            if (string.IsNullOrWhiteSpace(attendance.Department)) attendance.Department = teacher.Department;
+            if (string.IsNullOrWhiteSpace(attendance.Designation)) attendance.Designation = teacher.Designation;
+            if (!string.IsNullOrWhiteSpace(dto.Remarks))
+            {
+                attendance.Remarks = dto.Remarks.Trim();
+            }
+            await _repository.UpdateAttendanceAsync(attendance);
+            return MapAttendance(attendance);
         }
-
-        attendance.OutTime =
-            DateTime.Now.ToString("HH:mm:ss");
-
-        if (!string.IsNullOrWhiteSpace(dto.Remarks))
-        {
-            attendance.Remarks = dto.Remarks.Trim();
-        }
-
-        await _repository.UpdateAttendanceAsync(attendance);
-
-        return MapAttendance(attendance);
     }
 
     public async Task<AttendanceCorrectionDto>
