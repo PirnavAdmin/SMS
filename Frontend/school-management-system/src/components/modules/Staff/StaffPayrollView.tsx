@@ -3005,18 +3005,23 @@ const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`<html><head><title>Payslip</title><style>
-      body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; }
-      .container { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 32px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
-      .header { display: flex; justify-content: space-between; border-b: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; }
-      .school-title { font-size: 24px; font-weight: 800; color: #0284c7; }
-      .info-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 16px; font-size: 13px; margin-bottom: 24px; }
-      .section-title { font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-      th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
-      th { bg-color: #f8fafc; font-weight: 800; }
-      .net-salary { font-size: 22px; font-weight: 900; color: #16a34a; text-align: right; margin-top: 24px; border-top: 2px solid #e2e8f0; padding-top: 12px; }
-      .footer-grid { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; font-size: 12px; }
-      .sig-block { text-align: center; border-t: 1px border #cbd5e1; width: 180px; padding-top: 8px; }
+      @page { size: A4 portrait; margin: 8mm; }
+      @media print {
+        html, body { height: 100vh; margin: 0 !important; padding: 5px !important; box-sizing: border-box; page-break-inside: avoid !important; }
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, sans-serif; padding: 20px 24px; color: #0f172a; line-height: 1.3; font-size: 11px; }
+      .container { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; }
+      .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px; }
+      .school-title { font-size: 18px; font-weight: 800; color: #0284c7; }
+      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 11px; margin-bottom: 14px; }
+      .section-title { font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+      th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+      th { background-color: #f8fafc; font-weight: 800; }
+      .net-salary { font-size: 18px; font-weight: 900; color: #16a34a; text-align: right; margin-top: 14px; border-top: 2px solid #e2e8f0; padding-top: 8px; }
+      .footer-grid { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; font-size: 11px; }
+      .sig-block { text-align: center; border-top: 1px solid #cbd5e1; width: 180px; padding-top: 6px; }
     </style></head><body><div class="container">${element.innerHTML}</div><script>window.print()</script></body></html>`);
     win.document.close();
   };

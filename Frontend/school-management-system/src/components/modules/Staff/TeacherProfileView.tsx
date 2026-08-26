@@ -20,27 +20,47 @@ export const TeacherProfileView: React.FC = () => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
 
+    // Filter staff to teaching & academic faculty ONLY (exclude drivers, peons, conductors, security guards)
+    const teachingStaff = staff.filter(s => {
+      const desig = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      if (desig.includes('driver') || desig.includes('conductor') || desig.includes('peon') || desig.includes('cleaner') || desig.includes('guard') || dept.includes('transport')) {
+        return false;
+      }
+      return true;
+    });
+
     if (userEmail) {
-      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (byEmail) return byEmail;
     }
 
-    if (userName) {
-      const byName = staff.find(s => {
+    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
+      const byName = teachingStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && (sFullName.includes(userName) || userName.includes(sFullName))) ||
-               (sName && (sName.includes(userName) || userName.includes(sName)));
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
       });
       if (byName) return byName;
     }
 
     if (user?.id) {
-      const byId = staff.find(s => s.id === user.id);
+      const byId = teachingStaff.find(s => s.id === user.id);
       if (byId) return byId;
     }
 
-    return null;
+    const rawName = user?.name || 'Robert Teacher';
+    const nameParts = rawName.split(' ');
+    return {
+      id: user?.id || 'STF-2026-0001',
+      empId: (user as any)?.empId || 'STF-2026-0001',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['Mathematics', 'Advanced Algebra'],
+      department: 'Mathematics',
+      designation: 'Class Teacher'
+    };
   }, [user, staff]);
 
   // Dynamically compute assigned classes (clean class name without section suffix)
@@ -61,7 +81,7 @@ export const TeacherProfileView: React.FC = () => {
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.split('-')[0].trim());
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-    return merged.length > 0 ? merged : ['Class 10', 'Class 9'];
+    return merged.length > 0 ? merged : ['Class 10', 'Class 9', 'Class 6'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
@@ -76,7 +96,9 @@ export const TeacherProfileView: React.FC = () => {
       .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
       .map(t => t.section ? (t.section.startsWith('Section ') ? t.section : `Section ${t.section}`) : null);
 
-    const merged = Array.from(new Set([...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
+    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.includes('-') ? `Section ${ac.split('-')[1].trim()}` : 'Section A');
+
+    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
     return merged.length > 0 ? merged : ['Section A', 'Section B'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
@@ -271,7 +293,7 @@ export const TeacherProfileView: React.FC = () => {
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
       
       {/* Header Banner & Hero Card - Vibrant Pirnav Brand Sky Blue Theme */}
-      <div className="relative bg-gradient-to-r from-sky-600 via-sky-700 to-blue-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-sky-500/25 overflow-hidden border border-sky-400/30">
+      <div className="relative bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-sky-500/20 overflow-hidden border border-sky-400/40">
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
@@ -328,20 +350,18 @@ export const TeacherProfileView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Grid Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Grid Content: 2x2 Equal-Sized Card Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Left Column: Personal & Contact Info */}
-        <div className="space-y-6 lg:col-span-1">
-          
-          {/* Contact Details Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-4">
+        {/* Card 1: Contact Information */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
+          <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
               <Phone className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               Contact Information
             </h2>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3.5 text-xs mt-4">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Email Address</span>
                 <span className="text-slate-900 dark:text-white font-bold flex items-center gap-2">
@@ -375,15 +395,17 @@ export const TeacherProfileView: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Personal Details Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-4">
+        {/* Card 2: Personal Details */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
+          <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
               <User className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               Personal Details
             </h2>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-2 gap-4 text-xs mt-4">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Gender</span>
                 <span className="text-slate-900 dark:text-white font-bold">{profile.gender}</span>
@@ -403,34 +425,42 @@ export const TeacherProfileView: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Role</span>
                 <span className="text-slate-900 dark:text-white font-bold">Teacher</span>
               </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Employee ID</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">{profile.employeeId}</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Joined Date</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">{profile.joiningDate}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Professional & Assigned Workloads */}
-        <div className="space-y-6 lg:col-span-2">
-          
-          {/* Teaching Assignments Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-5">
+        {/* Card 3: Teaching Assignments */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
+          <div>
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                 Teaching Assignments
               </h2>
-              <span className="text-[10px] bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold px-3 py-1 rounded-full border border-sky-100 dark:border-sky-800">
+              <span className="text-[10px] bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800">
                 Active Academic Year
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
               {/* Assigned Classes */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800 space-y-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
                   ASSIGNED CLASSES
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedClasses.map((cls, idx) => (
-                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1 rounded-xl border border-sky-200 dark:border-sky-800">
+                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                       {cls.split('-')[0].trim()}
                     </span>
                   ))}
@@ -438,13 +468,13 @@ export const TeacherProfileView: React.FC = () => {
               </div>
 
               {/* Assigned Sections */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800 space-y-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
                   ASSIGNED SECTIONS
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedSections.map((sec, idx) => (
-                    <span key={idx} className="bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 text-xs font-extrabold px-3 py-1 rounded-xl border border-purple-200 dark:border-purple-800">
+                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                       {sec}
                     </span>
                   ))}
@@ -452,13 +482,13 @@ export const TeacherProfileView: React.FC = () => {
               </div>
 
               {/* Assigned Subjects */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800 space-y-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
                   ASSIGNED SUBJECTS
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedSubjects.map((sbj, idx) => (
-                    <span key={idx} className="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 text-xs font-extrabold px-3 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                       {sbj}
                     </span>
                   ))}
@@ -466,29 +496,31 @@ export const TeacherProfileView: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Qualification & Experience Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-4">
+        {/* Card 4: Qualifications & Background */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
+          <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
               <GraduationCap className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               Qualifications & Background
             </h2>
 
-            <div className="space-y-4">
+            <div className="space-y-3 mt-4">
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">
                   ACADEMIC QUALIFICATIONS
                 </span>
-                <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs sm:text-sm border border-slate-200/60 dark:border-slate-800">
+                <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
                   {profile.qualification}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">
                   WORK EXPERIENCE
                 </span>
-                <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs sm:text-sm border border-slate-200/60 dark:border-slate-800">
+                <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
                   {profile.experience}
                 </p>
               </div>
@@ -520,24 +552,28 @@ export const TeacherProfileView: React.FC = () => {
             <form onSubmit={handleSaveProfile} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Full Name</span>
+                    <span className="text-[10px] text-slate-400 font-semibold">🔒 Official Record</span>
+                  </label>
                   <input
                     type="text"
-                    required
+                    disabled
                     value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-500 font-bold outline-none cursor-not-allowed"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Email Address <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Email Address</span>
+                    <span className="text-[10px] text-slate-400 font-semibold">🔒 Login Identity</span>
+                  </label>
                   <input
                     type="email"
-                    required
+                    disabled
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-500 font-medium outline-none cursor-not-allowed"
                   />
                 </div>
               </div>

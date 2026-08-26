@@ -43,8 +43,8 @@ const mockStudents: Student[] = Array.from({ length: 65 }, (_, i) => ({
   rollNo: `20${(i + 1).toString().padStart(2, '0')}`,
   firstName: ['shiva', 'Rahul', 'Alexander', 'Gokul', 'venkat', 'Aisha', 'Rohan', 'Sneha', 'Liam', 'Emma'][i % 10],
   lastName: ['sai', 'Sharma', 'Wright', 'Raj', 'javvadi', 'Khan', 'Verma', 'Patel', 'Smith', 'Johnson'][i % 10],
-  className: `Class ${(i % 3) + 1}`,
-  section: ['A', 'B', 'C'][i % 3],
+  className: ['Class 10', 'Class 9', 'Class 6', 'Class 1', 'Class 2', 'Class 3'][i % 6],
+  section: ['A', 'B', 'A', 'A', 'B', 'A'][i % 6],
   admissionNo: `ADM${(i + 1).toString().padStart(3, '0')}`,
   avatar: `https://i.pravatar.cc/150?u=${i + 1}`
 }));
@@ -73,59 +73,88 @@ export const AttendanceView = () => {
 
   // Find teacher record in staff list
   const dbTeacher = useMemo(() => {
-    return staff.find(s => 
-      (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
-      (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
-    ) || staff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || staff[0];
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
+
+    // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
+    const teachingStaff = staff.filter(s => {
+      const desig = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
+    });
+
+    if (userEmail) {
+      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) return byEmail;
+    }
+
+    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
+      const byName = teachingStaff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
+      });
+      if (byName) return byName;
+    }
+
+    if (user?.id) {
+      const byId = teachingStaff.find(s => s.id === user.id);
+      if (byId) return byId;
+    }
+
+    const rawName = user?.name || 'Robert Teacher';
+    const nameParts = rawName.split(' ');
+    return {
+      id: user?.id || 'STF-2026-0001',
+      empId: (user as any)?.empId || 'STF-2026-0001',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['Mathematics'],
+      department: 'Mathematics',
+      designation: 'Class Teacher'
+    };
   }, [staff, user]);
 
   // Extract assigned classes/sections for teacher
   const teacherClasses = useMemo(() => {
-    if (!dbTeacher || !dbTeacher.assignedClasses || !Array.isArray(dbTeacher.assignedClasses) || dbTeacher.assignedClasses.length === 0) {
-      // Static fallback data so there is ALWAYS something to test with if DB is empty or unassigned!
+    let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
+    if (typeof raw === 'string') raw = [raw];
+    if (!Array.isArray(raw) || raw.length === 0) {
       return [
-        { className: 'Class 1', section: 'A' },
-        { className: 'Class 2', section: 'B' }
+        { className: 'Class 10', section: 'A' },
+        { className: 'Class 9', section: 'B' }
       ];
     }
-    return dbTeacher.assignedClasses.map((c: any) => {
+    return raw.map((c: any) => {
       if (typeof c === 'object' && c !== null) {
         return {
-          className: c.class || c.className || '',
-          section: c.section || ''
+          className: c.class || c.className || 'Class 10',
+          section: c.section || 'A'
         };
       }
       if (typeof c === 'string') {
         const parts = c.split('-');
         if (parts.length > 1) {
           return {
-            className: parts[0]?.trim() || '',
-            section: parts[1]?.trim() || ''
+            className: parts[0]?.trim().startsWith('Class') ? parts[0]?.trim() : `Class ${parts[0]?.trim()}`,
+            section: parts[1]?.trim() || 'A'
           };
         }
-        // Maybe it's like "Class 1 A"
-        const spaceParts = c.split(' ');
-        if (spaceParts.length > 1) {
-          const sec = spaceParts[spaceParts.length - 1];
-          const cls = spaceParts.slice(0, spaceParts.length - 1).join(' ');
-          if (sec.length === 1) { // Single character section
-            return { className: cls, section: sec };
-          }
-        }
         return {
-          className: c,
+          className: c.startsWith('Class') ? c : `Class ${c}`,
           section: 'A'
         };
       }
-      return { className: '', section: '' };
+      return { className: 'Class 10', section: 'A' };
     }).filter((c: any) => c.className !== '');
   }, [dbTeacher]);
+
+  const teacherFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : 'Robert Teacher';
 
   const allStudents = useMemo(() => {
     return students && students.length > 0 ? students : mockStudents;
   }, [students]);
-
-
 
   // Strictly filter student records to only teacher's assigned classes/sections
   const teacherFilteredStudents = useMemo(() => {
@@ -136,9 +165,10 @@ export const AttendanceView = () => {
   }, [allStudents, isTeacher, teacherClasses]);
 
   const classList = useMemo(() => {
-    if (isTeacher) {
+    if (isTeacher && teacherClasses.length > 0) {
       const names = teacherClasses.map(c => c.className);
-      return Array.from(new Set(names));
+      const uniqueNames = Array.from(new Set(names));
+      return uniqueNames.length > 0 ? uniqueNames : ['Class 10', 'Class 9', 'Class 6'];
     } else {
       const dbClasses = academicClasses.map(c => c.name).filter(Boolean) as string[];
       if (dbClasses.length > 0) return dbClasses;
@@ -147,6 +177,7 @@ export const AttendanceView = () => {
   }, [isTeacher, teacherClasses, academicClasses, allStudents]);
 
   // Global View State
+  const [hasSearched, setHasSearched] = useState(false);
   const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
   const [date, setDate] = useState<string>(getLocalDateString(new Date()));
   const [month, setMonth] = useState<string>(getLocalDateString(new Date()).slice(0, 7));
@@ -156,11 +187,13 @@ export const AttendanceView = () => {
   });
   const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
 
-  const teacherFullName = dbTeacher ? `${dbTeacher.firstName} ${dbTeacher.lastName}` : 'Class Teacher';
-
   // Context Selection State
-  const [selectedClass, setSelectedClass] = useState('All Classes');
-  const [selectedSection, setSelectedSection] = useState('All Sections');
+  const [selectedClass, setSelectedClass] = useState(() => {
+    return teacherClasses[0]?.className || 'Class 10';
+  });
+  const [selectedSection, setSelectedSection] = useState(() => {
+    return teacherClasses[0]?.section || 'A';
+  });
   const [selectedSubject, setSelectedSubject] = useState('Mathematics');
   const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
 
@@ -446,28 +479,27 @@ export const AttendanceView = () => {
   });
 
   const sectionList = useMemo(() => {
-    if (isTeacher) {
-      return teacherClasses
+    if (isTeacher && teacherClasses.length > 0) {
+      const teacherSecs = teacherClasses
         .filter(c => c.className === selectedClass)
         .map(c => c.section);
-    } else {
-      if (selectedClass === 'All Classes') {
-        return Array.from(new Set(allStudents.map(s => s.section)));
-      }
-      return Array.from(new Set(allStudents.filter(s => s.className === selectedClass).map(s => s.section)));
+      if (teacherSecs.length > 0) return Array.from(new Set(teacherSecs));
     }
+    const matchingSecs = Array.from(new Set(allStudents.filter(s => selectedClass === 'All Classes' || s.className === selectedClass).map(s => s.section)));
+    return matchingSecs.length > 0 ? matchingSecs : ['A', 'B', 'C'];
   }, [isTeacher, teacherClasses, selectedClass, allStudents]);
 
   const classStudents = useMemo(() => {
     if (isTeacher && apiStudents.length > 0) {
       return mappedApiStudents;
     }
-    return teacherFilteredStudents.filter(s => {
+    const pool = (isTeacher && teacherFilteredStudents.length > 0) ? teacherFilteredStudents : allStudents;
+    return pool.filter(s => {
       const classMatch = selectedClass === 'All Classes' || s.className === selectedClass;
       const sectionMatch = selectedSection === 'All Sections' || s.section === selectedSection;
       return classMatch && sectionMatch;
     });
-  }, [isTeacher, apiStudents, mappedApiStudents, selectedClass, selectedSection, teacherFilteredStudents]);
+  }, [isTeacher, apiStudents, mappedApiStudents, selectedClass, selectedSection, teacherFilteredStudents, allStudents]);
 
   // Unique key for the current register
   const registerKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
@@ -826,33 +858,20 @@ export const AttendanceView = () => {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
             <div className="relative">
-              {isTeacher && branches.length > 0 ? (
-                <select
-                  value={selectedClassId || ""}
-                  onChange={e => {
-                    const val = Number(e.target.value);
-                    setSelectedClassId(val);
-                    const matched = apiClasses.find(c => c.id === val);
-                    if (matched) setSelectedClass(matched.name);
-                  }}
-                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-                >
-                  {apiClasses.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  value={selectedClass}
-                  onChange={e => setSelectedClass(e.target.value)}
-                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-                >
-                  {!isTeacher && <option value="All Classes">All Classes</option>}
-                  {classList.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={selectedClass}
+                onChange={e => {
+                  setSelectedClass(e.target.value);
+                  const matched = apiClasses.find(c => c.name === e.target.value);
+                  if (matched) setSelectedClassId(matched.id);
+                }}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              >
+                {!isTeacher && <option value="All Classes">All Classes</option>}
+                {classList.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
@@ -860,84 +879,69 @@ export const AttendanceView = () => {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
             <div className="relative">
-              {isTeacher && branches.length > 0 ? (
-                <select
-                  value={selectedSectionId || ""}
-                  onChange={e => {
-                    const val = Number(e.target.value);
-                    setSelectedSectionId(val);
-                    const matched = apiSections.find(s => s.id === val);
-                    if (matched) setSelectedSection(matched.name);
-                  }}
-                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-                >
-                  {apiSections.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  value={selectedSection}
-                  onChange={e => setSelectedSection(e.target.value)}
-                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-                >
-                  {!isTeacher && <option value="All Sections">All Sections</option>}
-                  {sectionList.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={selectedSection}
+                onChange={e => {
+                  setSelectedSection(e.target.value);
+                  const matched = apiSections.find(s => s.name === e.target.value);
+                  if (matched) setSelectedSectionId(matched.id);
+                }}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              >
+                {!isTeacher && <option value="All Sections">All Sections</option>}
+                {sectionList.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
-          {isTeacher && branches.length > 0 && (
-            <>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
-                <div className="relative">
-                  <select
-                    value={selectedSubjectId || ""}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setSelectedSubjectId(val);
-                      const matched = apiSubjects.find(s => s.id === val);
-                      if (matched) setSelectedSubject(matched.name);
-                    }}
-                    className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-                  >
-                    {apiSubjects.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
+            <div className="relative">
+              <select
+                value={selectedSubject}
+                onChange={e => {
+                  setSelectedSubject(e.target.value);
+                  const matched = apiSubjects.find(s => s.name === e.target.value);
+                  if (matched) setSelectedSubjectId(matched.id);
+                }}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              >
+                {(apiSubjects.length > 0 ? apiSubjects.map(s => s.name) : ['Mathematics', 'Science', 'English', 'Social Studies', 'Physics', 'Chemistry']).map(sbj => (
+                  <option key={sbj} value={sbj}>{sbj}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400">Period</label>
-                <div className="relative">
-                  <select
-                    value={selectedPeriodId || ""}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setSelectedPeriodId(val);
-                      const matched = apiPeriods.find(p => p.periodId === val);
-                      if (matched) setSelectedPeriod(matched.periodName);
-                    }}
-                    className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-                  >
-                    {apiPeriods.map(p => (
-                      <option key={p.periodId} value={p.periodId}>
-                        {p.periodName} {p.startTime ? `(${p.startTime.slice(0, 5)} - ${p.endTime ? p.endTime.slice(0, 5) : ''})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-            </>
-          )}
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400">Period</label>
+            <div className="relative">
+              <select
+                value={selectedPeriod}
+                onChange={e => {
+                  setSelectedPeriod(e.target.value);
+                  const matched = apiPeriods.find(p => p.periodName === e.target.value);
+                  if (matched) setSelectedPeriodId(matched.periodId);
+                }}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              >
+                {(apiPeriods.length > 0 ? apiPeriods.map(p => p.periodName) : [
+                  'Period 1 (09:00 AM - 09:45 AM)',
+                  'Period 2 (09:45 AM - 10:30 AM)',
+                  'Period 3 (10:45 AM - 11:30 AM)',
+                  'Period 4 (11:30 AM - 12:15 PM)',
+                  'Period 5 (01:00 PM - 01:45 PM)'
+                ]).map(prd => (
+                  <option key={prd} value={prd}>{prd}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
 
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
@@ -956,84 +960,120 @@ export const AttendanceView = () => {
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Horizontal Summary Strip */}
-      <div className="glass-card rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between overflow-x-auto">
-        <div className="flex items-center gap-8 lg:gap-16 pl-2">
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-slate-400 font-bold uppercase">Total Students</span>
-            <span className="text-lg font-black text-slate-855 dark:text-white">{summaryMetrics.total}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Present</span>
-            <span className="text-lg font-black text-emerald-700 dark:text-emerald-455">{summaryMetrics.present}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-rose-600 dark:text-rose-455 font-bold uppercase">Absent</span>
-            <span className="text-lg font-black text-rose-700 dark:text-rose-455">{summaryMetrics.absent}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
-            <span className="text-lg font-black text-blue-700 dark:text-blue-455">{summaryMetrics.halfDay}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late</span>
-            <span className="text-lg font-black text-amber-700 dark:text-amber-455">{summaryMetrics.late}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 pl-4 lg:border-l border-slate-200 dark:border-slate-800">
-          <div className="text-right">
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Attendance Rate</p>
-            <p className="text-xl font-black text-brand-600 dark:text-brand-400">{summaryMetrics.percentage}%</p>
+          <div className="space-y-1 flex items-end">
+            <button
+              type="button"
+              onClick={() => {
+                setHasSearched(true);
+                fetchAttendanceSheet();
+              }}
+              className="w-full py-1.5 px-4 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Search Data</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Attendance marking sheet table (Full Screen Width) */}
-      <div className="w-full space-y-6">
-        <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            
-            {/* Sheet Actions Header */}
-            <div className="flex flex-col gap-3 pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="font-extrabold text-sm text-slate-855 dark:text-slate-200">
-                  Attendance ({classStudents.length} Students)
-                </span>
-
-                <div className="flex items-center gap-2">
-                  {isTeacher && isEditable && (
-                    <button
-                      onClick={() => markAllClass('Present')}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350 font-bold transition-colors cursor-pointer"
-                    >
-                      Mark All Present
-                    </button>
-                  )}
-                  <button
-                    onClick={handleExportCSV}
-                    disabled={isDownloading}
-                    className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-955/40 dark:text-sky-350 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isDownloading ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-sky-600 dark:text-sky-400" />
-                    ) : (
-                      <FileSpreadsheet className="w-4 h-4" />
-                    )}
-                    {isDownloading ? 'Downloading...' : 'Download'}
-                  </button>
-                  {isTeacher && isEditable && (
-                    <button
-                      onClick={handleSaveAttendance}
-                      className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-[10.5px] font-black cursor-pointer"
-                    >
-                      <Save className="w-4 h-4" /> Save Attendance
-                    </button>
-                  )}
-                </div>
+      {!hasSearched ? (
+        <div className="glass-card rounded-3xl p-12 text-center border border-sky-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4 my-4">
+          <div className="w-16 h-16 rounded-2xl bg-sky-50 dark:bg-slate-800 border border-sky-200 dark:border-slate-700 flex items-center justify-center mx-auto text-sky-600 dark:text-sky-400 shadow-xs">
+            <Search className="w-8 h-8" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h3 className="text-base font-black text-slate-800 dark:text-white">Select Filters & Click Search Data</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Please select your desired Date, Class, Section, Subject, and Period above, then click the <strong className="text-sky-600 dark:text-sky-400 font-bold">Search Data</strong> button to view attendance records.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setHasSearched(true);
+              fetchAttendanceSheet();
+            }}
+            className="px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-md transition-all inline-flex items-center gap-2 cursor-pointer active:scale-95"
+          >
+            <Search className="w-4 h-4" />
+            <span>Search Data</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Horizontal Summary Strip */}
+          <div className="glass-card rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between overflow-x-auto">
+            <div className="flex items-center gap-8 lg:gap-16 pl-2">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Total Students</span>
+                <span className="text-lg font-black text-slate-855 dark:text-white">{summaryMetrics.total}</span>
               </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Present</span>
+                <span className="text-lg font-black text-emerald-700 dark:text-emerald-455">{summaryMetrics.present}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-rose-600 dark:text-rose-455 font-bold uppercase">Absent</span>
+                <span className="text-lg font-black text-rose-700 dark:text-rose-455">{summaryMetrics.absent}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
+                <span className="text-lg font-black text-blue-700 dark:text-blue-455">{summaryMetrics.halfDay}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late</span>
+                <span className="text-lg font-black text-amber-700 dark:text-amber-455">{summaryMetrics.late}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pl-4 lg:border-l border-slate-200 dark:border-slate-800">
+              <div className="text-right">
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Attendance Rate</p>
+                <p className="text-xl font-black text-brand-600 dark:text-brand-400">{summaryMetrics.percentage}%</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Attendance marking sheet table (Full Screen Width) */}
+          <div className="w-full space-y-6">
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                
+                {/* Sheet Actions Header */}
+                <div className="flex flex-col gap-3 pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="font-extrabold text-sm text-slate-855 dark:text-slate-200">
+                      Attendance ({classStudents.length} Students)
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      {isTeacher && isEditable && (
+                        <button
+                          onClick={() => markAllClass('Present')}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350 font-bold transition-colors cursor-pointer"
+                        >
+                          Mark All Present
+                        </button>
+                      )}
+                      <button
+                        onClick={handleExportCSV}
+                        disabled={isDownloading}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Export CSV</span>
+                      </button>
+                      {isTeacher && isEditable && (
+                        <button
+                          onClick={handleSaveAttendance}
+                          className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-[10.5px] font-black cursor-pointer"
+                        >
+                          <Save className="w-4 h-4" /> Save Attendance
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
               {!isTeacher ? (
                 <div className="p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all bg-indigo-50/50 dark:bg-indigo-955/10 border-indigo-200/50 dark:border-indigo-900/30 text-indigo-800 dark:text-indigo-300">
@@ -1315,7 +1355,8 @@ export const AttendanceView = () => {
               </div>
             )}
           </div>
-        </div>
+        </>
+      )}
 
       {/* ----------------- MODAL: Student Profile Detailed Viewer ----------------- */}
       {profileStudent && (
