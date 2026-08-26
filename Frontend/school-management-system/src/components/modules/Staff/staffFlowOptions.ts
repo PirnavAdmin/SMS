@@ -166,6 +166,7 @@ export const departmentDesignationMap: Record<string, string[]> = {
     "Fleet Supervisor",
     "Driver",
     "Bus Conductor",
+    "Bus Attendant",
     "Vehicle Mechanic",
     "Transport Manager",
     "Cleaner / Helper",
@@ -666,137 +667,7 @@ export const nonTeachingDesignationNames = new Set([
   "Attender",
   "School Doctor",
   "School Nurse",
-  "Medical Officer",
-  "First Aid Attendant",
 ]);
-
-const departmentDesignationMap: Record<string, string[]> = {
-  transport: [
-    "Transport Coordinator",
-    "Transport Manager",
-    "Fleet Supervisor",
-    "Driver",
-    "Bus Conductor",
-    "Bus Attendant",
-    "Vehicle Mechanic",
-    "Cleaner / Helper",
-  ],
-  account: [
-    "Accountant",
-    "Senior Accountant",
-    "Finance Manager",
-    "Finance Executive",
-    "Cashier",
-    "Billing Clerk",
-    "Accounts Assistant",
-    "Bursar",
-  ],
-  finance: [
-    "Accountant",
-    "Senior Accountant",
-    "Finance Manager",
-    "Finance Executive",
-    "Cashier",
-    "Billing Clerk",
-    "Accounts Assistant",
-    "Bursar",
-  ],
-  library: [
-    "Librarian",
-    "Assistant Librarian",
-    "Library Assistant",
-    "Library Attendant",
-    "Resource Center Executive",
-  ],
-  lab: [
-    "Lab Assistant",
-    "Lab Technician",
-    "Lab In-charge",
-    "Lab Attendant",
-    "Physics Lab Assistant",
-    "Chemistry Lab Assistant",
-    "Biology Lab Assistant",
-    "Computer Lab Assistant",
-  ],
-  admin: [
-    "Administrator",
-    "Office Manager",
-    "Administrative Executive",
-    "Office Assistant",
-    "Store Keeper",
-    "Receptionist",
-    "Front Desk Executive",
-  ],
-  reception: [
-    "Receptionist",
-    "Front Desk Executive",
-    "Information Desk Officer",
-    "Telecaller / Helpdesk Executive",
-  ],
-  hr: [
-    "HR Manager",
-    "HR Executive",
-  ],
-  admission: [
-    "Admissions Head",
-    "Admission Officer",
-    "Admissions Counselor",
-  ],
-  hostel: [
-    "Chief Warden",
-    "Hostel Warden",
-    "Assistant Warden",
-    "Hostel Caretaker",
-    "Mess Manager",
-    "Hostel Attendant",
-  ],
-  it: [
-    "IT Executive",
-    "Network Administrator",
-    "System Administrator",
-    "IT Support Specialist",
-    "Hardware Engineer",
-    "EDP Manager",
-  ],
-  secur: [
-    "Chief Security Officer",
-    "Security Officer",
-    "Security Supervisor",
-    "Head Guard",
-    "Security Guard",
-    "Gate Keeper",
-    "Night Guard",
-  ],
-  housekeep: [
-    "Head Housekeeper",
-    "Housekeeping Supervisor",
-    "Housekeeping Staff",
-    "Cleaning Attendant",
-    "Sanitation Worker",
-    "Sweeper",
-    "Attender",
-  ],
-  maintenance: [
-    "Facility Supervisor",
-    "Electrician",
-    "Plumber",
-    "Gardener",
-    "Maintenance Mechanic",
-    "Carpenter",
-    "Painter",
-    "Estate Officer",
-  ],
-  medical: [
-    "School Doctor",
-    "School Nurse",
-    "Medical Officer",
-    "First Aid Attendant",
-  ],
-  store: [
-    "Store Keeper",
-    "Office Assistant",
-  ],
-};
 
 const lowerTeachingDesignations = new Set(Array.from(teachingDesignationNames).map(n => n.toLowerCase()));
 const lowerNonTeachingDesignations = new Set(Array.from(nonTeachingDesignationNames).map(n => n.toLowerCase()));
@@ -829,8 +700,10 @@ export function getDesignationOptions(
     // If department is selected for non-teaching staff, try to find matching department-specific designations
     if (selectedDepartment && selectedDepartment.trim()) {
       const cleanDept = selectedDepartment.toLowerCase().trim();
-      const matchedKey = Object.keys(departmentDesignationMap).find(key => cleanDept.includes(key));
-      if (matchedKey) {
+      const matchedKey = Object.keys(departmentDesignationMap).find(key => 
+        cleanDept.includes(key.toLowerCase()) || key.toLowerCase().includes(cleanDept)
+      );
+      if (matchedKey && departmentDesignationMap[matchedKey]) {
         baseDesignations = departmentDesignationMap[matchedKey];
       } else {
         baseDesignations = Array.from(nonTeachingDesignationNames);
