@@ -20,5 +20,8 @@ namespace SMS.Api.Dtos.AcademicManagement
 
         [MaxLength(150)]
         public string? HeadOfDepartment { get; set; }
+
+        [MaxLength(50)]
+        public string? Category { get; set; } = "Teaching";
     }
 }

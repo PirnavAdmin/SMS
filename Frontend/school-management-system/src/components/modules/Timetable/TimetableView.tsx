@@ -298,7 +298,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
 
-  const [selectedTeacherName, setSelectedTeacherName] = useState<string>(teacherFullName);
+  const [selectedTeacherName, setSelectedTeacherName] = useState<string>('');
 
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
   const [periodFormData, setPeriodFormData] = useState<Partial<PeriodSetting>>({
@@ -1196,13 +1196,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
         {/* Global Timetable Filters */}
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
-          <button
-            onClick={() => setIsAutoGeneratorOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
-          >
-            <Clock className="w-4 h-4" />
-            <span>Auto-Generate Timetable</span>
-          </button>
+          {activeTab === 'period-settings' && (
+            <button
+              onClick={() => setIsAutoGeneratorOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+            >
+              <Clock className="w-4 h-4" />
+              <span>Auto-Generate Timetable</span>
+            </button>
+          )}
 
           {/* Print Button */}
           {activeTab !== 'period-settings' && (
@@ -1739,7 +1741,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               {!selectedClass || !selectedSection ? (
-                <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-905/10">
+                <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
                   <div className="w-12 h-12 mx-auto mb-3 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
                     <SlidersHorizontal className="w-5 h-5 text-sky-650 dark:text-sky-400" />
                   </div>
@@ -1871,6 +1873,22 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                     </div>
                     
                     <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTeacherName('');
+                          setIsTeacherDropdownOpen(false);
+                          setTeacherSearchQuery('');
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
+                          !selectedTeacherName
+                            ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <span>-- Select Teacher --</span>
+                      </button>
+
                       {teachingStaff.filter(st => {
                         const name = `${st.firstName} ${st.lastName}`;
                         const empId = st.empId || st.id;
@@ -1924,205 +1942,187 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             <span className="text-xs font-bold text-sky-600 dark:text-sky-400">Auto Generated from Published Timetables</span>
           </div>
 
-          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <User className="w-5 h-5 text-sky-600" />
-                  <span>Daily Schedule Timeline: {selectedTeacherName}</span>
-                </h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Full period-by-period schedule from School Opening (08:30 AM) to School Dismissal (04:30 PM) synced live with Admin Master Database.
-                </p>
+          {!selectedTeacherName ? (
+            <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 text-left">
+              <div className="w-12 h-12 mx-auto mb-3 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
+                <User className="w-5 h-5 text-sky-650 dark:text-sky-400" />
+              </div>
+              <p className="text-sm font-black text-slate-850 dark:text-white text-center">Please Select a Teacher</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto leading-relaxed text-center">
+                Use the dropdown filter located in the header above to load the teacher's weekly schedule.
+              </p>
+            </div>
+          ) : (
+            <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <User className="w-5 h-5 text-sky-600" />
+                    <span>Daily Schedule Timeline: {selectedTeacherName}</span>
+                  </h3>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const targetStaff = teachingStaff.find(s => `${s.firstName} ${s.lastName}` === selectedTeacherName);
+                    setFormData({
+                      day: 'Monday',
+                      timeSlot: '08:30 AM - 09:15 AM',
+                      className: targetStaff?.assignedClasses?.[0] || 'Class 10',
+                      section: 'A',
+                      subject: targetStaff?.assignedSubjects?.[0] || 'Mathematics',
+                      teacherName: selectedTeacherName,
+                      roomNo: 'Room 204'
+                    });
+                    setIsFormOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" /> Assign Class / Subject Period
+                </button>
               </div>
 
-              <button
-                onClick={() => {
-                  const targetStaff = teachingStaff.find(s => `${s.firstName} ${s.lastName}` === selectedTeacherName);
-                  setFormData({
-                    day: 'Monday',
-                    timeSlot: '08:30 AM - 09:15 AM',
-                    className: targetStaff?.assignedClasses?.[0] || 'Class 10',
-                    section: 'A',
-                    subject: targetStaff?.assignedSubjects?.[0] || 'Mathematics',
-                    teacherName: selectedTeacherName,
-                    roomNo: 'Room 204'
-                  });
-                  setIsFormOpen(true);
-                }}
-                className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" /> Assign Class / Subject Period
-              </button>
-            </div>
+              {(() => {
+                const teacherAllSlots = timetable.filter(t => t.teacherName === selectedTeacherName);
+                const clashingSlotIds = new Set(
+                  teacherAllSlots
+                    .filter(s1 => teacherAllSlots.some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
+                    .map(s => s.id)
+                );
 
-            {(() => {
-              const teacherAllSlots = timetable.filter(t => t.teacherName === selectedTeacherName);
-              const clashingSlotIds = new Set(
-                teacherAllSlots
-                  .filter(s1 => teacherAllSlots.some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
-                  .map(s => s.id)
-              );
+                // Standard master period timeline covering school open (08:30 AM) to school end (04:30 PM)
+                const masterSchoolTimeline = [
+                  { name: 'Period 1', slot: '08:30 AM - 09:15 AM', type: 'Teaching' },
+                  { name: 'Period 2', slot: '09:15 AM - 10:00 AM', type: 'Teaching' },
+                  { name: 'Period 3', slot: '10:00 AM - 10:45 AM', type: 'Teaching' },
+                  { name: 'Morning Break', slot: '10:45 AM - 11:00 AM', type: 'Break' },
+                  { name: 'Period 4', slot: '11:00 AM - 11:45 AM', type: 'Teaching' },
+                  { name: 'Period 5', slot: '11:45 AM - 12:30 PM', type: 'Teaching' },
+                  { name: 'Lunch Break', slot: '12:30 PM - 01:15 PM', type: 'Lunch' },
+                  { name: 'Period 6', slot: '01:15 PM - 02:00 PM', type: 'Teaching' },
+                  { name: 'Period 7', slot: '02:00 PM - 02:45 PM', type: 'Teaching' },
+                  { name: 'Period 8', slot: '02:45 PM - 03:30 PM', type: 'Teaching' },
+                  { name: 'Dispersal & Activity', slot: '03:30 PM - 04:15 PM', type: 'Other' },
+                ];
 
-              // Standard master period timeline covering school open (08:30 AM) to school end (04:30 PM)
-              const masterSchoolTimeline = [
-                { name: 'Period 1', slot: '08:30 AM - 09:15 AM', type: 'Teaching' },
-                { name: 'Period 2', slot: '09:15 AM - 10:00 AM', type: 'Teaching' },
-                { name: 'Period 3', slot: '10:00 AM - 10:45 AM', type: 'Teaching' },
-                { name: 'Morning Break', slot: '10:45 AM - 11:00 AM', type: 'Break' },
-                { name: 'Period 4', slot: '11:00 AM - 11:45 AM', type: 'Teaching' },
-                { name: 'Period 5', slot: '11:45 AM - 12:30 PM', type: 'Teaching' },
-                { name: 'Lunch Break', slot: '12:30 PM - 01:15 PM', type: 'Lunch' },
-                { name: 'Period 6', slot: '01:15 PM - 02:00 PM', type: 'Teaching' },
-                { name: 'Period 7', slot: '02:00 PM - 02:45 PM', type: 'Teaching' },
-                { name: 'Period 8', slot: '02:45 PM - 03:30 PM', type: 'Teaching' },
-                { name: 'Dispersal & Activity', slot: '03:30 PM - 04:15 PM', type: 'Other' },
-              ];
-
-              return (
-                <>
-                  {clashingSlotIds.size > 0 && (
-                    <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-start gap-2.5 animate-in fade-in">
-                      <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                      <div className="text-xs">
-                        <p className="font-extrabold text-rose-800 dark:text-rose-200">
-                          Schedule Clash Detected ({clashingSlotIds.size} Conflicting Slots)
-                        </p>
-                        <p className="mt-0.5 leading-relaxed text-rose-600 dark:text-rose-300">
-                          {selectedTeacherName} is assigned to teach multiple classes simultaneously during the same time slot (highlighted in red below). Re-run <strong>Auto-Generate Timetable</strong> to automatically resolve this clash conflict-free.
-                        </p>
+                return (
+                  <>
+                    {clashingSlotIds.size > 0 && (
+                      <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-start gap-2.5 animate-in fade-in">
+                        <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                        <div className="text-xs">
+                          <p className="font-extrabold text-rose-800 dark:text-rose-200">
+                            Schedule Clash Detected ({clashingSlotIds.size} Conflicting Slots)
+                          </p>
+                          <p className="mt-0.5 leading-relaxed text-rose-600 dark:text-rose-300">
+                            {selectedTeacherName} is assigned to teach multiple classes simultaneously during the same time slot (highlighted in red below). Re-run <strong>Auto-Generate Timetable</strong> to automatically resolve this clash conflict-free.
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {baseDays.map(day => {
-                      const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-left">
+                      {baseDays.map(day => {
+                        const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
 
-                      return (
-                        <div key={day} className="space-y-3 p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80">
-                          <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
-                            <h4 className="font-black text-xs uppercase tracking-wider text-sky-700 dark:text-sky-400">
-                              {day}
-                            </h4>
-                            <span className="text-[10px] font-bold text-slate-400">
-                              {teacherSlots.length} Teaching Period{teacherSlots.length !== 1 ? 's' : ''}
-                            </span>
-                          </div>
+                        return (
+                          <div key={day} className="space-y-3 p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80">
+                            <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
+                              <h4 className="font-black text-xs uppercase tracking-wider text-sky-700 dark:text-sky-400">
+                                {day}
+                              </h4>
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {teacherSlots.length} Teaching Period{teacherSlots.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
 
-                          <div className="space-y-2">
-                            {masterSchoolTimeline.map((timelinePeriod) => {
-                              const matchSlot = teacherSlots.find(s => s.timeSlot === timelinePeriod.slot);
-                              const isClashing = matchSlot ? clashingSlotIds.has(matchSlot.id) : false;
-                              const status = getPeriodStatus(timelinePeriod.slot);
+                            <div className="space-y-2">
+                              {masterSchoolTimeline.map((timelinePeriod) => {
+                                const matchSlot = teacherSlots.find(s => s.timeSlot === timelinePeriod.slot);
+                                const isClashing = matchSlot ? clashingSlotIds.has(matchSlot.id) : false;
+                                const status = getPeriodStatus(timelinePeriod.slot);
 
-                              if (timelinePeriod.type === 'Break' || timelinePeriod.type === 'Lunch') {
+                                if (timelinePeriod.type === 'Break' || timelinePeriod.type === 'Lunch') {
+                                  return (
+                                    <div
+                                      key={timelinePeriod.slot}
+                                      className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-center space-y-0.5"
+                                    >
+                                      <p className="text-[9.5px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider">{timelinePeriod.name}</p>
+                                      <p className="text-[8.5px] font-mono text-amber-600 dark:text-amber-500 font-bold">{timelinePeriod.slot}</p>
+                                    </div>
+                                  );
+                                }
+
+                                if (matchSlot) {
+                                  const classSec = `${matchSlot.className}-${matchSlot.section}`;
+                                  const subject = matchSlot.subject;
+                                  const room = matchSlot.roomNo;
+
+                                  return (
+                                    <div
+                                      key={timelinePeriod.slot}
+                                      className={`p-2.5 rounded-2xl border transition-all space-y-1 relative group ${
+                                        isClashing
+                                          ? 'bg-rose-50 dark:bg-rose-950/25 border-rose-200 dark:border-rose-900/50'
+                                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400">
+                                        <span>{timelinePeriod.name}</span>
+                                        <span className={isClashing ? 'text-rose-600 font-extrabold' : 'text-sky-600'}>
+                                          {classSec}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{subject}</p>
+                                      {room && <p className="text-[9px] text-slate-500 font-bold">🏫 {room}</p>}
+                                      <p className="text-[9px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
+
+                                      <div className="absolute right-1.5 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white/90 dark:bg-slate-900/90 rounded-lg p-0.5 shadow-sm border border-slate-100 dark:border-slate-800">
+                                        <button
+                                          onClick={() => {
+                                            setEditingSlot(matchSlot);
+                                            setFormData(matchSlot);
+                                            setIsFormOpen(true);
+                                          }}
+                                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 rounded transition-colors"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => setDeletingSlot(matchSlot)}
+                                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
                                 return (
                                   <div
                                     key={timelinePeriod.slot}
-                                    className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-center space-y-0.5"
+                                    className="p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 space-y-1"
                                   >
-                                    <p className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 flex items-center justify-center gap-1">
-                                      <span>{timelinePeriod.type === 'Lunch' ? '🍱' : '☕'}</span> {timelinePeriod.name}
-                                    </p>
-                                    <p className="text-[9px] font-mono font-bold text-amber-600 dark:text-amber-400">{timelinePeriod.slot}</p>
+                                    <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400">
+                                      <span>{timelinePeriod.name}</span>
+                                      <span>Free / Prep</span>
+                                    </div>
+                                    <p className="text-[9.5px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
                                   </div>
                                 );
-                              }
-
-                              if (matchSlot) {
-                                const globalSub = subjects.find(s => s.name.toLowerCase().trim() === matchSlot.subject.toLowerCase().trim());
-                                const codeStr = globalSub?.code ? ` (${globalSub.code})` : '';
-
-                                return (
-                                  <div
-                                    key={matchSlot.id}
-                                    className={`p-3 rounded-2xl border space-y-1 relative overflow-hidden transition-all shadow-xs ${
-                                      isClashing
-                                        ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-700'
-                                        : 'bg-white dark:bg-slate-900 border-sky-200 dark:border-sky-800'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
-                                        {timelinePeriod.name}
-                                      </span>
-                                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                        status === 'Current' ? 'bg-blue-100 text-blue-700 animate-pulse' :
-                                        status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                                      }`}>
-                                        {status === 'Current' ? '● Active' : status === 'Completed' ? '✓ Done' : 'Scheduled'}
-                                      </span>
-                                    </div>
-
-                                    <p className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">
-                                      {matchSlot.subject}{codeStr}
-                                    </p>
-
-                                    <div className="flex items-center justify-between text-[10px] font-bold">
-                                      <span className="text-sky-700 dark:text-sky-300 font-extrabold">
-                                        Class {matchSlot.className.replace(/^Class\s*/i, '')}-{matchSlot.section}
-                                      </span>
-                                      <span className="text-slate-500 font-mono">
-                                        🚪 {matchSlot.roomNo || 'Room 101'}
-                                      </span>
-                                    </div>
-
-                                    <p className="text-[9.5px] font-mono text-slate-400 font-bold border-t pt-1 border-slate-100 dark:border-slate-800">
-                                      {matchSlot.timeSlot}
-                                    </p>
-
-                                    <div className="flex items-center justify-end gap-1 pt-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setEditingSlot(matchSlot);
-                                          setFormData(matchSlot);
-                                          setIsFormOpen(true);
-                                        }}
-                                        className="p-1 text-slate-400 hover:text-sky-600 cursor-pointer"
-                                        title="Edit Period Slot"
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          deleteTimetableSlot(matchSlot.id);
-                                          addToast('success', 'Period Slot Removed', `Removed ${matchSlot.subject} from ${day}`);
-                                        }}
-                                        className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
-                                        title="Delete Period Slot"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              return (
-                                <div
-                                  key={timelinePeriod.slot}
-                                  className="p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 space-y-1"
-                                >
-                                  <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400">
-                                    <span>{timelinePeriod.name}</span>
-                                    <span>Free / Prep</span>
-                                  </div>
-                                  <p className="text-[9.5px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
-                                </div>
-                              );
-                            })}
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 

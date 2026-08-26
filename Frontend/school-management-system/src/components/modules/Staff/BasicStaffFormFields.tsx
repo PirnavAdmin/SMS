@@ -286,6 +286,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   // Dynamic Staff Type change handler
   const handleStaffTypeSelect = (staffType: string) => {
     onCategoryChange(staffType);
+    const nextAllowedDepts = getDepartmentOptions(staffType, departments);
+    if (value.department && !nextAllowedDepts.includes(value.department)) {
+      onChange('department', '');
+      onChange('designation', '');
+    }
   };
 
   // Same as Present Address handler

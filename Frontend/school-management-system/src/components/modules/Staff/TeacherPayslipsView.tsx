@@ -40,43 +40,18 @@ export const TeacherPayslipsView: React.FC = () => {
   });
 
   // Match current logged in teacher staff record
-  const teacherStaffMember = useMemo(() => {
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
+  const teachingStaff = staff.filter(s => {
+    const des = (s.designation || '').toLowerCase();
+    const dept = (s.department || '').toLowerCase();
+    const cat = (s.employeeCategory || '').toLowerCase();
+    return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
+  });
 
-    if (userEmail) {
-      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
-    }
-
-    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
-      const byName = teachingStaff.find(s => {
-        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-        const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName);
-      });
-      if (byName) return byName;
-    }
-
-    if (user?.id) {
-      const byId = teachingStaff.find(s => s.id === user.id);
-      if (byId) return byId;
-    }
-
-    // Dynamic fallback matching logged-in user context
-    const rawName = user?.name || 'Robert Teacher';
-    const nameParts = rawName.split(' ');
-    return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      department: 'Mathematics',
-      designation: 'Class Teacher',
-      branch: 'Main Campus',
-      bankDetails: { accountNumber: 'XXXX-XXXX-4829' }
-    };
-  }, [user, teachingStaff]);
+  const teacherStaffMember = teachingStaff.find(s =>
+    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+    (s.phone && user?.phone && s.phone === user.phone) ||
+    (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
+  ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
 
   // Synthesize realistic historical payslips for the teacher if none or few exist in state
   const teacherPayslips: Payslip[] = useMemo(() => {

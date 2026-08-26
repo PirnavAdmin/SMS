@@ -52,7 +52,8 @@ public class SchoolService : ISchoolService
 		{
 			DepartmentId = d.DepartmentId,
 			DepartmentName = d.DepartmentName,
-			DepartmentCode = d.DepartmentCode
+			DepartmentCode = d.DepartmentCode,
+			Category = d.Category ?? "Teaching"
 		}).ToList();
 	}
 
@@ -86,6 +87,7 @@ public class SchoolService : ISchoolService
 			Description = dto.Description?.Trim(),
 			Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
 			HeadOfDepartment = dto.HeadOfDepartment?.Trim(),
+			Category = string.IsNullOrWhiteSpace(dto.Category) ? "Teaching" : dto.Category.Trim(),
 			CreatedDate = System.DateTime.UtcNow
 		};
 
@@ -107,6 +109,7 @@ public class SchoolService : ISchoolService
 		dept.Description = dto.Description?.Trim();
 		dept.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
 		dept.HeadOfDepartment = dto.HeadOfDepartment?.Trim();
+		dept.Category = string.IsNullOrWhiteSpace(dto.Category) ? (dept.Category ?? "Teaching") : dto.Category.Trim();
 
 		await _schoolRepository.SaveChangesAsync();
 		return MapToDepartmentDto(dept);
@@ -125,6 +128,7 @@ public class SchoolService : ISchoolService
 		dept.Description = dto.Description?.Trim();
 		dept.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
 		dept.HeadOfDepartment = dto.HeadOfDepartment?.Trim();
+		dept.Category = string.IsNullOrWhiteSpace(dto.Category) ? (dept.Category ?? "Teaching") : dto.Category.Trim();
 
 		await _schoolRepository.SaveChangesAsync();
 		return MapToDepartmentDto(dept);
@@ -170,6 +174,7 @@ public class SchoolService : ISchoolService
 		Description = d.Description,
 		Status = d.Status,
 		HeadOfDepartment = d.HeadOfDepartment,
+		Category = d.Category ?? "Teaching",
 		CreatedDate = d.CreatedDate,
 		NumberOfSubjects = d.Subjects?.Count ?? 0
 	};

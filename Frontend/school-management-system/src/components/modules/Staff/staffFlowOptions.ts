@@ -166,6 +166,7 @@ export const departmentDesignationMap: Record<string, string[]> = {
     "Fleet Supervisor",
     "Driver",
     "Bus Conductor",
+    "Bus Attendant",
     "Vehicle Mechanic",
     "Transport Manager",
     "Cleaner / Helper",
@@ -407,45 +408,45 @@ export function getDepartmentOptions(
   staffTypeCategory?: string,
   settingsDepts?: any[],
 ): string[] {
-  if (!settingsDepts || settingsDepts.length === 0) return [];
   const staffType = normalizeStaffType(staffTypeCategory);
   const isTeaching = staffType === "Teaching Staff";
-  
-  return settingsDepts
-    .filter((d) => {
-      const name = typeof d === "string" ? d : d.name || d.departmentName;
-      if (!name) return false;
 
-      const status = typeof d === "object" ? d.status : "Active";
-      if (status === "Inactive") return false;
+  if (!Array.isArray(settingsDepts) || settingsDepts.length === 0) {
+    return [];
+  }
 
+  const customFilteredDepts: string[] = [];
+  settingsDepts.forEach((d) => {
+    const name = typeof d === "string" ? d : d.departmentName || d.name;
+    if (!name) return;
+
+    const status = typeof d === "object" ? d.status : "Active";
+    if (status === "Inactive") return;
+
+    const cat = typeof d === "object" ? d.category || d.departmentType || '' : '';
+    const cleanCat = String(cat).toLowerCase().trim();
+
+    if (cleanCat.includes("non-teach") || cleanCat.includes("non teach")) {
+      if (!isTeaching) customFilteredDepts.push(name);
+    } else if (cleanCat.includes("teach")) {
+      if (isTeaching) customFilteredDepts.push(name);
+    } else {
       const cleanName = name.toLowerCase().trim();
-      
-      // 1. Exact match in our known sets first
-      if (lowerTeachingDepts.has(cleanName)) {
-        return isTeaching;
-      }
-      if (lowerNonTeachingDepts.has(cleanName)) {
-        return !isTeaching;
-      }
-      
-      // 2. Keyword heuristic for custom/typoed names
       const nonTeachingKeywords = [
         'admin', 'account', 'hr', 'admission', 'lib', 'lab', 'transport', 'transp', 
         'hostel', 'recept', 'it', 'support', 'secur', 'clean', 'housekeep', 'maintenance', 
-        'store', 'inv', 'oper', 'ops', 'non-teach', 'non teaching'
+        'store', 'inv', 'oper', 'ops', 'non-teach', 'non teaching', 'canteen', 'cafeteria', 'medical', 'nurse'
       ];
-      
       const isNonTeachingKeyword = nonTeachingKeywords.some(kw => cleanName.includes(kw));
       if (isNonTeachingKeyword) {
-        return !isTeaching;
+        if (!isTeaching) customFilteredDepts.push(name);
+      } else {
+        if (isTeaching) customFilteredDepts.push(name);
       }
-      
-      // Default fallback: assume it is a teaching department (subjects, grades) unless it's a known non-teaching keyword
-      return isTeaching;
-    })
-    .map((d) => (typeof d === "string" ? d : d.name || d.departmentName))
-    .filter(Boolean);
+    }
+  });
+
+  return Array.from(new Set(customFilteredDepts));
 }
 
 export function getDepartmentCode(name: string, customCode?: string): string {
@@ -515,20 +516,23 @@ export function getDepartmentSelectOptions(
 }
 
 export const teachingDesignationNames = new Set([
-  "Principal",
-  "Vice Principal",
+  "Subject Teacher",
   "Head of Department (HOD)",
   "PGT Teacher",
   "TGT Teacher",
   "PRT Teacher",
   "Pre-Primary / Nursery Teacher",
-  "Subject Teacher",
   "Assistant Teacher",
+  "Principal",
+  "Vice Principal",
   "Physical Education Teacher",
   "Music Teacher",
   "Art Teacher",
   "Activity Teacher",
   "Special Educator",
+  "Lecturer",
+  "Faculty",
+  "Lab Instructor",
 ]);
 
 export const nonTeachingDesignationNames = new Set([
@@ -561,6 +565,7 @@ export const nonTeachingDesignationNames = new Set([
   "Fleet Supervisor",
   "Driver",
   "Bus Conductor",
+  "Bus Attendant",
   "Vehicle Mechanic",
   "Transport Manager",
   "Cleaner / Helper",
@@ -608,6 +613,8 @@ export const nonTeachingDesignationNames = new Set([
   "Painter",
   "Estate Officer",
   "Attender",
+  "School Doctor",
+  "School Nurse",
 ]);
 
 const lowerTeachingDesignations = new Set(Array.from(teachingDesignationNames).map(n => n.toLowerCase()));
@@ -618,52 +625,62 @@ export function getDesignationOptions(
   selectedDepartment?: string,
   settingsDesignations?: any[],
 ): string[] {
-  if (!settingsDesignations || settingsDesignations.length === 0) return [];
   const staffType = normalizeStaffType(staffTypeCategory);
   const isTeachingStaff = staffType === "Teaching Staff";
 
-  return settingsDesignations
-    .filter((d) => {
-      const name = typeof d === "string" ? d : d.designationName || d.name;
-      if (!name) return false;
-      const status = typeof d === "object" ? d.status : "Active";
-      if (status === "Inactive") return false;
+  if (!Array.isArray(settingsDesignations) || settingsDesignations.length === 0) {
+    return [];
+  }
 
-      // Filter by staff type category (Teaching vs Non-Teaching)
-      const targetCategory = typeof d === "object" ? d.staffType || d.employeeCategory || 'Both' : 'Both';
-      const cleanTarget = targetCategory.toLowerCase();
-      if (cleanTarget !== "both" && cleanTarget !== "all" && cleanTarget !== "") {
-        const isNonTeachingCat = cleanTarget.includes('non');
-        const isTeachingCat = !isNonTeachingCat && (cleanTarget.includes('teach') || cleanTarget.includes('teacher'));
-        if (isTeachingStaff !== isTeachingCat) return false;
-      } else {
-        // Fallback to our case-insensitive sets
-        const lowerName = name.toLowerCase().trim();
-        const isTeachingFallback = lowerTeachingDesignations.has(lowerName);
-        const isNonTeachingFallback = lowerNonTeachingDesignations.has(lowerName);
-        
-        if (isTeachingStaff) {
-          if (isNonTeachingFallback && !isTeachingFallback) return false;
-        } else {
-          if (isTeachingFallback && !isNonTeachingFallback) return false;
-        }
+  const customDesignations: string[] = [];
+  settingsDesignations.forEach((d) => {
+    const name = typeof d === "string" ? d : d.designationName || d.name;
+    if (!name) return;
+
+    const status = typeof d === "object" ? d.status : "Active";
+    if (status === "Inactive") return;
+
+    const category = typeof d === "object" ? d.employeeCategory || d.staffType || '' : '';
+    const cleanCat = String(category).toLowerCase().trim();
+
+    if (cleanCat.includes("non-teach") || cleanCat.includes("non teach")) {
+      if (isTeachingStaff) return;
+    } else if (cleanCat.includes("teach")) {
+      if (!isTeachingStaff) return;
+    } else {
+      const cleanName = name.toLowerCase().trim();
+      const nonTeachingKeywords = [
+        'driver', 'attendant', 'conductor', 'guard', 'sweeper', 'cleaner', 
+        'accountant', 'clerk', 'cashier', 'librarian', 'warden', 'electrician', 
+        'plumber', 'gardener', 'mechanic', 'receptionist', 'attender', 'caretaker', 
+        'helper', 'security', 'housekeep', 'peon', 'cook', 'kitchen', 'bus'
+      ];
+      const isNonTeachingName = nonTeachingKeywords.some(kw => cleanName.includes(kw));
+      if (isTeachingStaff && isNonTeachingName) return;
+      if (!isTeachingStaff && !isNonTeachingName) {
+        const teachingKeywords = [
+          'teacher', 'pgt', 'tgt', 'prt', 'principal', 'vice principal', 'hod', 'faculty', 'lecturer'
+        ];
+        const isTeachingName = teachingKeywords.some(kw => cleanName.includes(kw));
+        if (isTeachingName) return;
       }
+    }
 
-      // Filter by selected department if provided
-      const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
-      if (
-        selectedDepartment &&
-        targetDept &&
-        targetDept !== "All" &&
-        targetDept !== "Both" &&
-        targetDept.toLowerCase() !== selectedDepartment.toLowerCase()
-      ) {
-        return false;
-      }
+    const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
+    if (
+      selectedDepartment &&
+      targetDept &&
+      targetDept !== "All" &&
+      targetDept !== "Both" &&
+      targetDept.toLowerCase() !== selectedDepartment.toLowerCase()
+    ) {
+      return;
+    }
 
-      return true;
-    })
-    .map((d) => (typeof d === "string" ? d : d.designationName || d.name));
+    customDesignations.push(name);
+  });
+
+  return Array.from(new Set(customDesignations));
 }
 
 export interface DocumentRequirementSlot {
@@ -965,6 +982,8 @@ export function buildBasicStaffCreatePayload(
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",
+    qualifications: form.qualifications as any,
+    experienceRecords: form.experiences as any,
     documents: form.documents.map((d) => ({
       id: d.id,
       title: d.fileName,
@@ -988,7 +1007,7 @@ export function buildBasicStaffCreatePayload(
       sick: 10,
       paid: 15,
     },
-    profileStatus: (form.email && form.email.trim() && form.email !== "N/A" && form.presentAddress && form.presentAddress.trim() && form.documents && form.documents.length > 0)
+    profileStatus: (form.firstName && form.lastName && form.dob && form.mobileNumber && form.department && form.designation)
       ? "Completed"
       : "Incomplete",
     employmentType: form.employmentType || "Full-Time",
@@ -1006,6 +1025,13 @@ export function buildBasicStaffUpdatePayload(
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
+
+  const formattedQual =
+    form.qualifications.length > 0
+      ? form.qualifications
+          .map((q) => `${q.qualification} (${q.specialization || "General"})`)
+          .join(", ")
+      : "";
 
   return {
     empId: form.empId,
@@ -1026,6 +1052,19 @@ export function buildBasicStaffUpdatePayload(
     dob: form.dob,
     bloodGroup: form.bloodGroup,
     joiningDate: form.joiningDate,
+    qualification: formattedQual,
+    qualifications: form.qualifications as any,
+    experienceRecords: form.experiences as any,
+    documents: form.documents.map((d) => ({
+      id: d.id,
+      title: d.fileName,
+      name: d.fileName,
+      type: d.docType as any,
+      fileUrl: d.fileUrl,
+      uploadDate: d.uploadedAt,
+      uploadedDate: d.uploadedAt,
+      verified: true,
+    })) as any,
     status: form.status === "Active" ? "Active" : "Inactive",
     employmentType: form.employmentType || "Full-Time",
     address: form.presentAddress,
@@ -1040,7 +1079,7 @@ export function buildBasicStaffUpdatePayload(
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",
-    profileStatus: (form.email && form.email.trim() && form.email !== "N/A" && form.presentAddress && form.presentAddress.trim() && form.documents && form.documents.length > 0)
+    profileStatus: (form.firstName && form.lastName && form.dob && form.mobileNumber && form.department && form.designation)
       ? "Completed"
       : "Incomplete",
   };

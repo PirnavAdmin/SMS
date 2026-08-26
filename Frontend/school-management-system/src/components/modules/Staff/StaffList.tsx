@@ -295,25 +295,13 @@ export const StaffList: React.FC<{
       ...getDepartmentOptions(activeCategory, departments),
       ...categoryStaffList.map((s) => s.department).filter(Boolean),
     ]),
-  ).filter(dept => {
-    if (activeCategory === "Teaching Staff") {
-      return !nonTeachingDeptNames.has(dept);
-    } else {
-      return !teachingDeptNames.has(dept);
-    }
-  });
+  );
   const uniqueDesignations = Array.from(
     new Set([
       ...getDesignationOptions(activeCategory, "", designations),
       ...categoryStaffList.map((s) => s.designation).filter(Boolean),
     ]),
-  ).filter(desig => {
-    if (activeCategory === "Teaching Staff") {
-      return !nonTeachingDesignationNames.has(desig);
-    } else {
-      return !teachingDesignationNames.has(desig);
-    }
-  });
+  );
 
   const handleTabChange = (cat: string) => {
     setActiveCategory(cat);

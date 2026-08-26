@@ -69,11 +69,13 @@ export const SubjectsView: React.FC = () => {
     departmentName: string;
     departmentCode: string;
     description: string;
+    category: 'Teaching' | 'Non-Teaching';
     status: 'Active' | 'Inactive';
   }>({
     departmentName: '',
     departmentCode: '',
     description: '',
+    category: 'Teaching',
     status: 'Active'
   });
 
@@ -168,6 +170,7 @@ export const SubjectsView: React.FC = () => {
           departmentName: item.departmentName || '',
           departmentCode: item.departmentCode || '',
           description: item.description || '',
+          category: item.category || 'Teaching',
           status: item.status || 'Active'
         }));
         setDepartments(mappedData);
@@ -449,6 +452,7 @@ export const SubjectsView: React.FC = () => {
       departmentName: '',
       departmentCode: '',
       description: '',
+      category: 'Teaching',
       status: 'Active'
     });
     setIsDeptModalOpen(true);
@@ -460,6 +464,7 @@ export const SubjectsView: React.FC = () => {
       departmentName: dept.departmentName,
       departmentCode: dept.departmentCode || '',
       description: dept.description || '',
+      category: (dept.category as 'Teaching' | 'Non-Teaching') || 'Teaching',
       status: dept.status
     });
     setIsDeptModalOpen(true);
@@ -490,6 +495,7 @@ export const SubjectsView: React.FC = () => {
         departmentName: name,
         departmentCode: deptFormData.departmentCode.trim() || undefined,
         description: deptFormData.description.trim() || undefined,
+        category: deptFormData.category,
         status: deptFormData.status
       });
 
@@ -508,6 +514,7 @@ export const SubjectsView: React.FC = () => {
           departmentName: name,
           departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
           description: deptFormData.description.trim(),
+          category: deptFormData.category,
           status: deptFormData.status
         });
         await loadDepartments();
@@ -521,6 +528,7 @@ export const SubjectsView: React.FC = () => {
         departmentName: name,
         departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
         description: deptFormData.description.trim(),
+        category: deptFormData.category,
         status: deptFormData.status
       });
 
@@ -529,6 +537,7 @@ export const SubjectsView: React.FC = () => {
           departmentName: name,
           departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
           description: deptFormData.description.trim(),
+          category: deptFormData.category,
           status: deptFormData.status
         });
         await loadDepartments();
@@ -770,6 +779,7 @@ export const SubjectsView: React.FC = () => {
                       <th className="py-3 px-2">S.No</th>
                       <th className="py-3 px-2">Department Name</th>
                       <th className="py-3 px-2">Department Code</th>
+                      <th className="py-3 px-2">Department Type</th>
                       <th className="py-3 px-2">Assigned Staff</th>
                       <th className="py-3 px-2">Status</th>
                       <th className="py-3 px-2 text-right">Actions</th>
@@ -777,7 +787,7 @@ export const SubjectsView: React.FC = () => {
                   </thead>
                   <tbody className="font-medium">
                     {paginatedDepartments.length === 0 ? (
-                      <tr><td colSpan={6} className="text-center py-8 text-slate-500 font-bold">No departments found.</td></tr>
+                      <tr><td colSpan={7} className="text-center py-8 text-slate-500 font-bold">No departments found.</td></tr>
                     ) : (
                       paginatedDepartments.map((dept, index) => {
                         const deptStaff = (contextStaff || []).filter(st => {
@@ -787,6 +797,7 @@ export const SubjectsView: React.FC = () => {
                           return sDept === dName || sDept === dCode || (dName && sDept.includes(dName)) || (dCode && sDept.includes(dCode));
                         });
                         const count = deptStaff.length;
+                        const isNonTeaching = dept.category === 'Non-Teaching' || (!dept.category && (dept.departmentName.toLowerCase().includes('transport') || dept.departmentName.toLowerCase().includes('admin') || dept.departmentName.toLowerCase().includes('account')));
 
                         return (
                           <tr key={dept.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
@@ -799,6 +810,15 @@ export const SubjectsView: React.FC = () => {
                             </td>
                             <td className="py-3.5 px-2 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
                               {dept.departmentCode || '-'}
+                            </td>
+                            <td className="py-3.5 px-2">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                isNonTeaching
+                                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
+                                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                              }`}>
+                                {isNonTeaching ? 'Non-Teaching' : 'Teaching'}
+                              </span>
                             </td>
                             <td className="py-3.5 px-2">
                               <button
@@ -1136,6 +1156,21 @@ export const SubjectsView: React.FC = () => {
                   onChange={e => setDeptFormData({ ...deptFormData, description: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium"
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <select
+                  value={deptFormData.category}
+                  onChange={e => setDeptFormData({ ...deptFormData, category: e.target.value as 'Teaching' | 'Non-Teaching' })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                >
+                  <option value="Teaching">Teaching (Academic / Subject Department)</option>
+                  <option value="Non-Teaching">Non-Teaching (Administrative / Support Department)</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400 font-normal">
+                  Determines whether this department appears in Add Teaching Staff or Add Non-Teaching Staff forms.
+                </p>
               </div>
 
               <div>

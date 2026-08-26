@@ -26,6 +26,7 @@ export const createDepartmentApi = async (payload: {
   departmentName: string;
   departmentCode: string;
   description?: string;
+  category?: string;
   status: string;
 }) => {
   return apiClient('/api/departments', {
@@ -38,6 +39,7 @@ export const updateDepartmentApi = async (id: number | string, payload: {
   departmentName: string;
   departmentCode: string;
   description?: string;
+  category?: string;
   status: string;
 }) => {
   return apiClient(`/api/departments/${id}`, {
