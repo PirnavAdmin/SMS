@@ -485,6 +485,11 @@ namespace SMS.Api.Data
                     .HasColumnName("HeadOfDepartment")
                     .HasMaxLength(150);
 
+                entity.Property(x => x.Category)
+                    .HasColumnName("category")
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Teaching");
+
                 entity.HasIndex(x => x.DepartmentCode)
                     .IsUnique();
             });

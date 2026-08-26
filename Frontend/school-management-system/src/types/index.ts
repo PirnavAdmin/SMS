@@ -1117,6 +1117,7 @@ export interface Department {
   departmentName: string;
   departmentCode?: string;
   description?: string;
+  category?: 'Teaching' | 'Non-Teaching' | string;
   status: 'Active' | 'Inactive';
 }
 

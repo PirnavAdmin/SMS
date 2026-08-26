@@ -26,6 +26,9 @@ public class Department
     [MaxLength(150)]
     public string? HeadOfDepartment { get; set; }
 
+    [MaxLength(50)]
+    public string? Category { get; set; } = "Teaching";
+
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
     public ICollection<Subject> Subjects { get; set; } = new List<Subject>();

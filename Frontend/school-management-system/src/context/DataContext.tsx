@@ -5020,6 +5020,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           departmentName: item.departmentName || "",
           departmentCode: item.departmentCode || "",
           description: item.description || "",
+          category: item.category || (item.departmentType || "Teaching"),
           status: item.status || "Active",
         }));
         setDepartments(mapped);
@@ -5133,6 +5134,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ifscCode: item.ifscCode || "",
                 upiId: item.upiId || "",
               },
+              qualifications: item.qualifications || existing?.qualifications || [],
+              experienceRecords: item.experienceRecords || existing?.experienceRecords || [],
+              documents: item.documents || existing?.documents || [],
               branch: item.branchName || existing?.branch || "Main Campus",
             };
           });
@@ -6242,18 +6246,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       upiId: staffData.bankDetails?.upiId || "",
       assignedClasses: staffData.assignedClasses || [],
       assignedSubjects: staffData.assignedSubjects || [],
+      qualifications: (staffData.qualifications || []).map((q: any) => ({
+        qualificationDegree: q.qualification || q.qualificationDegree || "",
+        specializationSubject: q.specialization || q.specializationSubject || "",
+        institutionCollege: q.institution || q.institutionCollege || "",
+        boardUniversity: q.boardUniversity || q.university || "",
+        passingYear: (q.passingYear || q.year || "").toString(),
+        percentageCgpa: (q.percentageCgpa || q.percentage || "").toString(),
+      })),
+      experienceRecords: (staffData.experienceRecords || []).map((e: any) => ({
+        previousOrganization: e.previousOrganization || e.school || e.organization || "",
+        designationHeld: e.designationHeld || e.designation || e.role || "",
+        fromDate: e.fromDate || null,
+        toDate: e.toDate || null,
+        totalExperience: e.totalExperience || "",
+        reasonForLeaving: e.reasonForLeaving || "",
+      })),
+      documents: (staffData.documents || []).map((d: any) => ({
+        documentTitle: d.title || d.fileName || d.name || "",
+        documentType: d.type || d.docType || "Certificate",
+        fileUrl: d.fileUrl || "",
+        uploadedDate: d.uploadDate || d.uploadedDate || new Date().toISOString(),
+      })),
     })
       .then((response) => {
         if (response && response.success && response.data) {
+          const actualId = response.data.staffId?.toString() || response.data.id?.toString() || newStaff.id;
           setStaff((prev) =>
             prev.map((s) =>
               s.empId === newStaff.empId
                 ? {
                     ...s,
-                    id:
-                      response.data.staffId?.toString() ||
-                      response.data.id?.toString() ||
-                      s.id,
+                    id: actualId,
                   }
                 : s,
             ),
@@ -6325,6 +6349,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           upiId: fullStaff.bankDetails?.upiId || "",
           assignedClasses: fullStaff.assignedClasses || [],
           assignedSubjects: fullStaff.assignedSubjects || [],
+          qualifications: (fullStaff.qualifications || []).map((q: any) => ({
+            qualificationDegree: q.qualification || q.qualificationDegree || "",
+            specializationSubject: q.specialization || q.specializationSubject || "",
+            institutionCollege: q.institution || q.institutionCollege || "",
+            boardUniversity: q.boardUniversity || q.university || "",
+            passingYear: (q.passingYear || q.year || "").toString(),
+            percentageCgpa: (q.percentageCgpa || q.percentage || "").toString(),
+          })),
+          experienceRecords: (fullStaff.experienceRecords || []).map((e: any) => ({
+            previousOrganization: e.previousOrganization || e.school || e.organization || "",
+            designationHeld: e.designationHeld || e.designation || e.role || "",
+            fromDate: e.fromDate || null,
+            toDate: e.toDate || null,
+            totalExperience: e.totalExperience || "",
+            reasonForLeaving: e.reasonForLeaving || "",
+          })),
+          documents: (fullStaff.documents || []).map((d: any) => ({
+            documentTitle: d.title || d.fileName || d.name || "",
+            documentType: d.type || d.docType || "Certificate",
+            fileUrl: d.fileUrl || "",
+            uploadedDate: d.uploadDate || d.uploadedDate || new Date().toISOString(),
+          })),
         }).catch((err) => {
           console.error("Failed to update staff in backend", err);
         });
