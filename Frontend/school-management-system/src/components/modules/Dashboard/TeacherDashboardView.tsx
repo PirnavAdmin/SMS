@@ -101,14 +101,20 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const firstName = nameParts[0] || 'Robert';
     const lastName = nameParts.slice(1).join(' ') || 'Teacher';
 
-    const firstClassObj = academicClasses[0];
-    const defaultClassName = firstClassObj ? `Class ${firstClassObj.className}-${firstClassObj.section}` : 'Class 10-A';
+    let defaultClassName = 'Class 10-A';
+    if (academicClasses && academicClasses.length > 0) {
+      const first = academicClasses[0];
+      const nameStr = first.name || (first as any).className || '10';
+      const secStr = first.section || (Array.isArray((first as any).sections) ? (first as any).sections[0] : 'A') || 'A';
+      const cleanName = nameStr.startsWith('Class ') ? nameStr : `Class ${nameStr}`;
+      defaultClassName = cleanName.includes('-') ? cleanName : `${cleanName}-${secStr}`;
+    }
 
     return {
       id: user?.id || 'STF-101',
       firstName,
       lastName,
-      assignedClasses: [defaultClassName, 'Class 10-A'],
+      assignedClasses: Array.from(new Set([defaultClassName, 'Class 10-A', 'Class 9-B', 'Class 6-A'])),
       assignedSubjects: ['Mathematics'],
       department: 'Mathematics Dept',
       designation: 'Class Teacher'
@@ -119,27 +125,40 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayDay = days[new Date().getDay()] as any;
 
-  // Normalize assigned classes (e.g. ensure 'Class 10-A' format)
+  // Normalize assigned classes from Admin Staff Database
   const assignedClasses = useMemo(() => {
-    const rawClasses = teacher.assignedClasses || ['Class 10-A'];
-    return rawClasses.map(c => {
-      if (!c) return 'Class 10-A';
-      if (c.startsWith('Class ')) return c;
-      return `Class ${c}`;
-    });
-  }, [teacher.assignedClasses]);
+    let rawClasses = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
+    if (typeof rawClasses === 'string') rawClasses = [rawClasses];
+    if (!Array.isArray(rawClasses) || rawClasses.length === 0) {
+      rawClasses = ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    }
+
+    const cleaned = rawClasses.map(c => {
+      if (!c || typeof c !== 'string' || c.includes('undefined')) return 'Class 10-A';
+      let formatted = c.trim();
+      if (!formatted.toLowerCase().startsWith('class')) {
+        formatted = `Class ${formatted}`;
+      }
+      if (!formatted.includes('-')) {
+        formatted = `${formatted}-A`;
+      }
+      return formatted;
+    }).filter(c => !c.includes('undefined'));
+
+    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+  }, [teacher]);
 
   // Primary Main Class for Class Teacher summary
   const mainClass = assignedClasses[0] || 'Class 10-A';
 
-  // Helper to match student class & section against assigned class string (e.g. 'Class 10-A')
+  // Helper to match student class & section against assigned class string (e.g. 'Class 6-A')
   const isStudentInAssignedClass = (s: any, classKey: string) => {
-    if (!s || !s.className || !s.section) return false;
-    const cleanStudentClass = s.className.replace(/^Class\s*/i, '').trim();
-    const cleanStudentSec = s.section.trim();
-    const targetKey = classKey.replace(/^Class\s*/i, '').trim(); // e.g. '10-A'
-    const studentKey = `${cleanStudentClass}-${cleanStudentSec}`;
-    return targetKey.toLowerCase() === studentKey.toLowerCase();
+    if (!s || !s.className) return false;
+    const cleanStudentClass = s.className.replace(/^Class\s*/i, '').trim().toLowerCase();
+    const cleanStudentSec = (s.section || '').trim().toLowerCase();
+    const cleanKey = classKey.replace(/^Class\s*/i, '').trim().toLowerCase();
+    const studentKey = cleanStudentSec ? `${cleanStudentClass}-${cleanStudentSec}` : cleanStudentClass;
+    return cleanKey === studentKey || cleanKey === cleanStudentClass || cleanKey.startsWith(cleanStudentClass);
   };
 
   // Retrieve all students in this teacher's assigned classes
@@ -340,7 +359,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Welcome Dashboard Cockpit Header - Vibrant Pirnav Brand Sky Theme */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-600 via-sky-700 to-blue-700 p-6 sm:p-8 text-white shadow-xl shadow-sky-500/25 border border-sky-400/30">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 p-6 sm:p-8 text-white shadow-lg shadow-sky-500/20 border border-sky-400/40">
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
@@ -423,7 +442,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
                 onClick={handleCheckOut}
                 className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:border-rose-100 text-xs font-black transition-colors flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-xs"
               >
-                <LogOut className="w-4 h-4 text-rose-500" /> Check Out Shift
+                <LogOut className="w-4 h-4 text-rose-500" /> Check Out
               </button>
             ) : (
               <button 

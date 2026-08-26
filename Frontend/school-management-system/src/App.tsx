@@ -516,7 +516,7 @@ const MainLayout: React.FC = () => {
       />
 
       <main
-        className={`pt-20 pb-12 px-4 sm:px-6 transition-all duration-300 ${
+        className={`pt-22 pb-12 px-4 sm:px-6 transition-all duration-300 ${
           collapsed ? "ml-20" : "ml-64"
         }`}
       >

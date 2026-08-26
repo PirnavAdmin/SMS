@@ -25,6 +25,33 @@ public class LibraryTimetableController : ControllerBase
         _context = context;
     }
 
+    private bool IsAdminUser()
+    {
+        string? role = User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                       ?? User?.FindFirst("role")?.Value
+                       ?? Request.Headers["X-User-Role"].FirstOrDefault()
+                       ?? Request.Headers["User-Role"].FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(role)) return false;
+
+        return role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+               role.Equals("Administrator", StringComparison.OrdinalIgnoreCase) || 
+               role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IActionResult? CheckAdminReadOnly()
+    {
+        if (IsAdminUser())
+        {
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "Administrator is in Read-Only Mode (View Purpose Only). Only Librarians can modify library timetable slots."
+            });
+        }
+        return null;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetLibraryTimetable(
         [FromQuery] string? day = "Tuesday",
@@ -131,9 +158,38 @@ public class LibraryTimetableController : ControllerBase
         return Ok(new { success = true, className, section, totalCount = slots.Count, data = slots });
     }
 
+    [HttpPost("sync")]
+    public async Task<IActionResult> SyncAdminTimetable()
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        var seededSlots = new List<LibraryTimetableSlot>
+        {
+            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 5", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 3", Section = "B", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 4", Section = "A", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 7", Section = "B", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 10", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 5", Section = "A", Subject = "Library & Storytelling", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 11", Section = "B", Subject = "Library & Reference", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
+            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 9", Section = "B", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false }
+        };
+
+        var existing = await _context.LibraryTimetableSlots.ToListAsync();
+        _context.LibraryTimetableSlots.RemoveRange(existing);
+        await _context.LibraryTimetableSlots.AddRangeAsync(seededSlots);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true, message = $"Successfully synced {seededSlots.Count} Library Period slots from Admin Master Timetable.", totalSynced = seededSlots.Count });
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateTimetableSlot([FromBody] CreateLibraryTimetableSlotDto dto)
     {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
         var slot = new LibraryTimetableSlot
         {
             DayOfWeek = !string.IsNullOrWhiteSpace(dto.DayOfWeek) ? dto.DayOfWeek.Trim() : "Tuesday",
@@ -157,6 +213,9 @@ public class LibraryTimetableController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateTimetableSlot(int id, [FromBody] CreateLibraryTimetableSlotDto dto)
     {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
         var slot = await _context.LibraryTimetableSlots.FindAsync(id);
         if (slot == null) return NotFound(new { success = false, message = "Timetable slot not found." });
 
@@ -174,6 +233,9 @@ public class LibraryTimetableController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTimetableSlot(int id)
     {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
         var slot = await _context.LibraryTimetableSlots.FindAsync(id);
         if (slot != null)
         {

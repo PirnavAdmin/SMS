@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot } from '../../../types';
+import * as LibraryAPI from '../../../api/library';
 
 export const LibraryTimetableView: React.FC = () => {
   const { role } = useAuth();
@@ -124,8 +125,12 @@ export const LibraryTimetableView: React.FC = () => {
     return Array.from(set).sort();
   }, [academicClasses, students, timetable]);
 
-  // Auto-Generate Standard Library Schedule
-  const handleAutoPopulateLibrarySchedule = () => {
+  // Auto-Generate / Sync Standard Library Schedule from Admin Timetable
+  const handleAutoPopulateLibrarySchedule = async () => {
+    try {
+      await LibraryAPI.syncLibraryTimetableApi();
+    } catch (e) {}
+
     const defaultLibraryPeriods: Omit<TimetableSlot, 'id'>[] = [
       { day: "Monday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 5", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "08:30", endTime: "09:15" },
       { day: "Monday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 3", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "09:15", endTime: "10:00" },

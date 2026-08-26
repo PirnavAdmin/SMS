@@ -3105,7 +3105,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   >(() => getStored("erp_transport_routes", initialERPTransportRoutes));
   const [studentTransports, setStudentTransports] = useState<
     StudentTransport[]
-  >(() => getStored("student_transports", initialStudentTransports));
+  >(() => getStored("edu_db_student_transports", []));
   const [hostelMasters, setHostelMasters] = useState<HostelMaster[]>(() =>
     getStored("hostel_masters", initialHostelMasters),
   );
@@ -3121,26 +3121,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Transport ERP System States
   const [routeMasters, setRouteMasters] = useState<RouteMaster[]>(() =>
-    getStored("route_masters", initialRouteMasters),
+    getStored("edu_db_route_masters", []),
   );
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(() =>
-    getStored("pickup_points", initialPickupPoints),
+    getStored("edu_db_pickup_points", []),
   );
   const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>(() =>
-    getStored("vehicle_masters", initialVehicleMasters),
+    getStored("edu_db_vehicle_masters", []),
   );
   const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
-    getStored("driver_masters", initialDriverMasters),
+    getStored("edu_db_driver_masters", []),
   );
   const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
-    getStored("bus_attendants", initialBusAttendants),
+    getStored("edu_db_bus_attendants", []),
   );
   const [vehicleAssignments, setVehicleAssignments] = useState<
     VehicleAssignment[]
-  >(() => getStored("vehicle_assignments", initialVehicleAssignments));
+  >(() => getStored("edu_db_vehicle_assignments", []));
   const [vehicleMaintenances, setVehicleMaintenances] = useState<
     VehicleMaintenance[]
-  >(() => getStored("vehicle_maintenances", initialVehicleMaintenances));
+  >(() => getStored("edu_db_vehicle_maintenances", []));
 
   // Hostel ERP System States
   const [roomTypeMasters, setRoomTypeMasters] = useState<RoomTypeMaster[]>(() =>
@@ -4351,13 +4351,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               r.routeName.trim() !== "" &&
               r.routeName.toUpperCase() !== "N/A",
           );
-          setRouteMasters(
-            mergeApiAndLocal(
-              validRoutes,
-              "edu_db_route_masters",
-              initialRouteMasters,
-            ),
-          );
+          setRouteMasters(validRoutes);
         }
         if (points) {
           const mappedPoints = points.map((p: any) => ({
@@ -4394,13 +4388,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ),
             status: normalizeStatus(p.status),
           }));
-          setPickupPoints(
-            mergeApiAndLocal(
-              mappedPoints,
-              "edu_db_pickup_points",
-              initialPickupPoints,
-            ),
-          );
+          setPickupPoints(mappedPoints);
         }
         if (vehicles) {
           const mappedVehicles = vehicles.map((v: any) => ({
@@ -4421,13 +4409,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             isAC: v.isAC === true,
             status: normalizeStatus(v.status),
           }));
-          setVehicleMasters(
-            mergeApiAndLocal(
-              mappedVehicles,
-              "edu_db_vehicle_masters",
-              initialVehicleMasters,
-            ),
-          );
+          setVehicleMasters(mappedVehicles);
         }
         if (drivers) {
           const mappedDrivers = drivers.map((d: any) => ({
@@ -4446,13 +4428,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             experienceYears: Number(d.experienceYears || 0),
             status: normalizeStatus(d.status),
           }));
-          setDriverMasters(
-            mergeApiAndLocal(
-              mappedDrivers,
-              "edu_db_driver_masters",
-              initialDriverMasters,
-            ),
-          );
+          setDriverMasters(mappedDrivers);
         }
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
@@ -4511,13 +4487,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(a.status),
             };
           });
-          setVehicleAssignments(
-            mergeApiAndLocal(
-              mappedAssignments,
-              "edu_db_vehicle_assignments",
-              initialVehicleAssignments,
-            ),
-          );
+          setVehicleAssignments(mappedAssignments);
         }
         if (maintenance) {
           const mappedMaintenance = maintenance.map((m: any) => {
@@ -4545,13 +4515,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(m.status),
             };
           });
-          setVehicleMaintenances(
-            mergeApiAndLocal(
-              mappedMaintenance,
-              "edu_db_vehicle_maintenances",
-              initialVehicleMaintenances,
-            ),
-          );
+          setVehicleMaintenances(mappedMaintenance);
         }
         if (attendants) {
           const mappedAttendants = attendants.map((a: any) => ({
@@ -4568,13 +4532,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             branch: a.branch || "",
             status: normalizeStatus(a.status),
           }));
-          setBusAttendants(
-            mergeApiAndLocal(
-              mappedAttendants,
-              "edu_db_bus_attendants",
-              initialBusAttendants,
-            ),
-          );
+          setBusAttendants(mappedAttendants);
         }
         const studentTransportsData = extractData(results[7]);
         if (studentTransportsData) {
@@ -4610,13 +4568,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(t.status),
             };
           });
-          setStudentTransports(
-            mergeApiAndLocal(
-              mappedTransports,
-              "edu_db_student_transports",
-              initialStudentTransports,
-            ),
-          );
+          setStudentTransports(mappedTransports);
         }
 
         if (results.some((r) => r.status === "rejected")) {
@@ -5042,7 +4994,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           designationName: item.designationName || "",
           designationCode: item.designationCode || "",
           description: item.description || "",
-          employeeCategory: item.employeeCategory || "Both",
+          employeeCategory: (item.employeeCategory === "Both" || !item.employeeCategory) ? "Non-Teaching" : item.employeeCategory,
           status: item.status || "Active",
         }));
         setDesignations(mapped);
@@ -12707,20 +12659,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : a,
         ),
       );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setDriverMasters((prev) => prev.filter((d) => d.id !== id));
-      setVehicleAssignments((prev) =>
-        prev.map((a) =>
-          a.driverId === id
-            ? {
-                ...a,
-                driverId: "",
-                driverName: "Unassigned",
-                driverEmployeeId: "",
-              }
-            : a,
-        ),
+    } catch (err: any) {
+      addToast(
+        "error",
+        "Delete Failed",
+        err.message || "Failed to delete driver from backend API. Please make sure the driver is unassigned first."
       );
     }
   };
@@ -12846,24 +12789,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ),
         );
       }
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const att = busAttendants.find((x) => x.id === id);
-      setBusAttendants((prev) => prev.filter((a) => a.id !== id));
-      if (att) {
-        setVehicleAssignments((prev) =>
-          prev.map((a) =>
-            a.attendantId === id || a.attendantName === att.attendantName
-              ? {
-                  ...a,
-                  attendantId: "",
-                  attendantName: "Unassigned",
-                  attendantEmployeeId: "",
-                }
-              : a,
-          ),
-        );
-      }
+    } catch (err: any) {
+      addToast(
+        "error",
+        "Delete Failed",
+        err.message || "Failed to delete attendant from backend API. Please make sure the attendant is unassigned first."
+      );
     }
   };
 

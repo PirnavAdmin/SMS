@@ -87,6 +87,30 @@ export const createMemberApi = async (payload: any) => {
   });
 };
 
+export const deleteCategoryApi = async (id: string | number) => {
+  return apiClient(`/api/library/categories/${id}`, { method: 'DELETE' });
+};
+
+export const deleteAuthorApi = async (id: string | number) => {
+  return apiClient(`/api/library/authors/${id}`, { method: 'DELETE' });
+};
+
+export const deleteRackApi = async (id: string | number) => {
+  return apiClient(`/api/library/racks/${id}`, { method: 'DELETE' });
+};
+
+export const deleteMemberApi = async (id: string | number) => {
+  return apiClient(`/api/library/members/${id}`, { method: 'DELETE' });
+};
+
+export const deleteReservationApi = async (id: string | number) => {
+  return apiClient(`/api/library/reservations/${id}`, { method: 'DELETE' });
+};
+
+export const deleteLostDamagedApi = async (id: string | number) => {
+  return apiClient(`/api/library/lost-damaged/${id}`, { method: 'DELETE' });
+};
+
 // ============================
 // BOOK ISSUE, RETURN & RENEWAL API
 // ============================
@@ -193,9 +217,27 @@ export const fetchLibrarianAttendanceApi = async (view = 'daily', date?: string,
   return apiClient(`/api/librarian-attendance?${params.toString()}`, { method: 'GET' });
 };
 
+export const logLibrarianAttendanceApi = async (payload: any) => {
+  return apiClient('/api/librarian-attendance', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateLibrarianAttendanceApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/librarian-attendance/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
 export const fetchLibraryTimetableApi = async (day = 'Tuesday', view = 'daily') => {
   const params = new URLSearchParams();
   if (day) params.append('day', day);
   if (view) params.append('view', view);
   return apiClient(`/api/library-timetable?${params.toString()}`, { method: 'GET' });
+};
+
+export const syncLibraryTimetableApi = async () => {
+  return apiClient('/api/library-timetable/sync', { method: 'POST' });
 };

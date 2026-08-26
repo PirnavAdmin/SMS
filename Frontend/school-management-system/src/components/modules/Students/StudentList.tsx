@@ -24,7 +24,7 @@ import { BRANCHES } from '../../../utils/validation';
 
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
-  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents } = useData();
+  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, applications = [] } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
@@ -32,20 +32,53 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   const isTeacherRole = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
 
-  // Teacher setup
-  const dbTeacher = staff.find(s => s.email && user?.email && s.email === user.email && s.employeeCategory === 'Teacher') ||
-                     staff.find(s => s.employeeCategory === 'Teacher');
+  // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
+  const teachingStaff = useMemo(() => {
+    return staff.filter(s => {
+      const desig = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
+    });
+  }, [staff]);
 
-  const teacher = dbTeacher || {
-    id: 'STF-002',
-    empId: 'EMP002',
-    firstName: user?.name || 'Jonathan',
-    lastName: 'Miller',
-    assignedClasses: ['Class 10-A', 'Class 9-B'],
-    assignedSubjects: ['Mathematics'],
-    department: 'Mathematics',
-    designation: 'Class Teacher'
-  };
+  // Match current logged in teacher staff record
+  const teacher = useMemo(() => {
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
+
+    if (userEmail) {
+      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) return byEmail;
+    }
+
+    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
+      const byName = teachingStaff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
+      });
+      if (byName) return byName;
+    }
+
+    if (user?.id) {
+      const byId = teachingStaff.find(s => s.id === user.id);
+      if (byId) return byId;
+    }
+
+    // Dynamic fallback matching logged-in user context
+    const rawName = user?.name || 'Robert Teacher';
+    const nameParts = rawName.split(' ');
+    return {
+      id: user?.id || 'STF-2026-0001',
+      empId: (user as any)?.empId || 'STF-2026-0001',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 10-A', 'Class 9-B'],
+      assignedSubjects: ['Mathematics'],
+      department: 'Mathematics',
+      designation: 'Class Teacher'
+    };
+  }, [user, teachingStaff]);
 
   const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
 
@@ -125,7 +158,36 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Dynamically map student record overlay for selected Academic Year without mutating master profile
   const displayStudents = useMemo(() => {
-    return students.map((s) => {
+    // Merge admissions applications from main admin panel into student directory
+    const admittedFromApps: Student[] = (applications || [])
+      .filter(app => (app.status === 'Approved' || app.status === 'Admitted' || app.status === 'Enrolled'))
+      .map(app => ({
+        id: app.id || `ADM-${Date.now()}`,
+        firstName: app.studentName ? app.studentName.split(' ')[0] : (app.firstName || 'Student'),
+        lastName: app.studentName ? app.studentName.split(' ').slice(1).join(' ') : (app.lastName || ''),
+        className: app.applyingForClass || app.className || 'Class 1',
+        section: app.section || 'A',
+        rollNo: app.rollNo || app.applicationNumber?.replace(/\D/g, '').slice(-3) || '01',
+        admissionNo: app.applicationNumber || app.admissionNo || `ADM2026-${app.id?.slice(-4) || '001'}`,
+        fatherName: app.parentName || app.fatherName || 'Parent / Guardian',
+        fatherPhone: app.phone || app.parentPhone || '+91 9876543210',
+        email: app.email || '',
+        phone: app.phone || '',
+        address: app.address || '',
+        joiningDate: app.applicationDate || '2026-06-01',
+        status: 'Active',
+        dueFee: 0,
+        branch: app.branch || 'Main Campus',
+        gender: app.gender || 'Male',
+        dob: app.dob || '2012-01-01',
+        bloodGroup: app.bloodGroup || 'O+'
+      }));
+
+    const existingIds = new Set(students.map(s => s.id || s.admissionNo));
+    const newAdmissions = admittedFromApps.filter(s => !existingIds.has(s.id) && !existingIds.has(s.admissionNo));
+    const allCombined = [...students, ...newAdmissions];
+
+    return allCombined.map((s) => {
       if (!selectedAcademicYear || selectedAcademicYear === 'All') return s;
       const historyItem = s.academicHistory?.find((h) => h.academicYear === selectedAcademicYear);
       if (historyItem) {
@@ -139,7 +201,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       }
       return s;
     });
-  }, [students, selectedAcademicYear]);
+  }, [students, applications, selectedAcademicYear]);
 
   // Overall Class Overview dataset dynamically computed from Class Management module & sorted in ascending order
   const classOverviewList = useMemo(() => {
@@ -239,25 +301,33 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
 
-  // Teacher Portal Filter States
-  const [teacherSelectedClass, setTeacherSelectedClass] = useState('All');
-  const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
+  // Teacher Portal Filter States - STRICTLY assigned classes from Admin Staff Database
+  const teacherAssignedClasses = useMemo(() => {
+    let raw = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
+    if (typeof raw === 'string') raw = [raw];
+    if (Array.isArray(raw) && raw.length > 0) return raw;
+    return ['Class 6-A', 'Class 10-A', 'Class 9-B'];
+  }, [teacher]);
 
-  // Dynamic Class options for Teacher Filter
+  const [teacherSelectedClass, setTeacherSelectedClass] = useState('All Assigned Classes');
+  const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
+  const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
+  const teacherPageSize = 9;
+
+  // Dynamic Class options for Teacher Filter - PURE Class names only (sections filtered separately)
   const teacherClassOptions = useMemo(() => {
     const set = new Set<string>();
-    if (academicClasses && academicClasses.length > 0) {
-      academicClasses.forEach(c => set.add(c.name));
-    }
-    (teacher.assignedClasses || []).forEach(ac => {
-      const mainCls = ac.split('-')[0].trim();
-      set.add(mainCls);
-    });
-    displayStudents.forEach(s => {
-      if (s.className) set.add(s.className);
+    (teacherAssignedClasses || []).forEach(ac => {
+      let mainCls = ac.split('-')[0].trim();
+      if (mainCls) {
+        if (!mainCls.toLowerCase().startsWith('class')) {
+          mainCls = `Class ${mainCls}`;
+        }
+        set.add(mainCls);
+      }
     });
     return Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
-  }, [academicClasses, teacher, displayStudents]);
+  }, [teacherAssignedClasses]);
 
   // Dynamic Section options for Teacher Filter
   const teacherSectionOptions = useMemo(() => {
@@ -417,10 +487,26 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         (s.admissionNo || '').toLowerCase().includes(q) || 
         (s.rollNo || '').toLowerCase().includes(q);
 
-      const matchesClass = teacherSelectedClass === 'All' || 
-        s.className.toLowerCase() === teacherSelectedClass.toLowerCase() ||
-        `${s.className}-${s.section}`.toLowerCase().includes(teacherSelectedClass.toLowerCase());
+      // STRICT RULE: Student MUST belong to one of the teacher's assigned classes
+      const isAssigned = teacherAssignedClasses.some(ac => {
+        const cleanAcClass = ac.split('-')[0].replace(/^class\s*/i, '').trim().toLowerCase();
+        const sCls = (s.className || '').replace(/^class\s*/i, '').trim().toLowerCase();
+        return cleanAcClass === sCls;
+      });
 
+      if (!isAssigned) return false;
+
+      // Filter by selected pure class
+      let matchesClass = false;
+      if (teacherSelectedClass === 'All Assigned Classes') {
+        matchesClass = true;
+      } else {
+        const selectedClsNum = teacherSelectedClass.replace(/^class\s*/i, '').trim().toLowerCase();
+        const sClsNum = (s.className || '').replace(/^class\s*/i, '').trim().toLowerCase();
+        matchesClass = selectedClsNum === sClsNum;
+      }
+
+      // Filter by selected section
       const cleanStudentSection = (s.section || '').replace(/^Section\s+/i, '').trim().toLowerCase();
       const cleanFilterSection = teacherSelectedSection.replace(/^Section\s+/i, '').trim().toLowerCase();
 
@@ -429,6 +515,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
       return matchesQuery && matchesClass && matchesSection;
     });
+
+    const teacherTotalPages = Math.ceil(myStudents.length / teacherPageSize) || 1;
+    const paginatedTeacherStudents = myStudents.slice(
+      (teacherCurrentPage - 1) * teacherPageSize,
+      teacherCurrentPage * teacherPageSize
+    );
 
     return (
       <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
@@ -454,7 +546,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 type="text"
                 placeholder="Search student or roll no..."
                 value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
+                onChange={(e) => {
+                  setSearchName(e.target.value);
+                  setTeacherCurrentPage(1);
+                }}
                 className="w-full pl-9 pr-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500"
               />
             </div>
@@ -463,10 +558,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <div className="relative">
               <select
                 value={teacherSelectedClass}
-                onChange={(e) => setTeacherSelectedClass(e.target.value)}
-                className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
+                onChange={(e) => {
+                  setTeacherSelectedClass(e.target.value);
+                  setTeacherCurrentPage(1);
+                }}
+                className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500 max-w-[220px]"
               >
-                <option value="All">All Classes</option>
+                <option value="All Assigned Classes">All Assigned Classes</option>
                 {teacherClassOptions.map((cls) => (
                   <option key={cls} value={cls}>{cls}</option>
                 ))}
@@ -477,7 +575,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <div className="relative">
               <select
                 value={teacherSelectedSection}
-                onChange={(e) => setTeacherSelectedSection(e.target.value)}
+                onChange={(e) => {
+                  setTeacherSelectedSection(e.target.value);
+                  setTeacherCurrentPage(1);
+                }}
                 className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
               >
                 <option value="All">All Sections</option>
@@ -491,14 +592,14 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
         {/* Student Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {myStudents.length === 0 ? (
+          {paginatedTeacherStudents.length === 0 ? (
             <div className="col-span-full text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
               <Users className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
               <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">No Students Found</p>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">No student records match your current search query or class filter.</p>
             </div>
           ) : (
-            myStudents.map((st) => {
+            paginatedTeacherStudents.map((st) => {
               const fullName = `${st.firstName || ''} ${st.lastName || ''}`.trim() || 'Student Record';
               return (
                 <div
@@ -572,6 +673,51 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             })
           )}
         </div>
+
+        {/* Pagination Bar with Left and Right Arrows */}
+        {myStudents.length > 0 && (
+          <div className="glass-card p-4 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-sm">
+            <div className="text-slate-500 font-bold">
+              Showing <span className="text-slate-900 dark:text-white font-extrabold">{myStudents.length === 0 ? 0 : (teacherCurrentPage - 1) * teacherPageSize + 1}</span> to{' '}
+              <span className="text-slate-900 dark:text-white font-extrabold">{Math.min(teacherCurrentPage * teacherPageSize, myStudents.length)}</span> of{' '}
+              <span className="text-sky-600 dark:text-sky-400 font-extrabold">{myStudents.length}</span> students
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={teacherCurrentPage === 1}
+                onClick={() => setTeacherCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: teacherTotalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setTeacherCurrentPage(page)}
+                    className={`w-8 h-8 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      teacherCurrentPage === page
+                        ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                disabled={teacherCurrentPage === teacherTotalPages}
+                onClick={() => setTeacherCurrentPage(prev => Math.min(prev + 1, teacherTotalPages))}
+                className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Student Profile Drawer */}
         {selectedStudent && (
