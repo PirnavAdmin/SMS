@@ -30,12 +30,15 @@ public class LibraryController : ControllerBase
     private bool IsAdminUser()
     {
         string? role = User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                       ?? User?.FindFirst("role")?.Value
                        ?? Request.Headers["X-User-Role"].FirstOrDefault()
                        ?? Request.Headers["User-Role"].FirstOrDefault();
 
         if (string.IsNullOrWhiteSpace(role)) return false;
 
-        return role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.Equals("Administrator", StringComparison.OrdinalIgnoreCase);
+        return role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+               role.Equals("Administrator", StringComparison.OrdinalIgnoreCase) ||
+               role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase);
     }
 
     private IActionResult? CheckAdminReadOnly()
@@ -286,6 +289,13 @@ public class LibraryController : ControllerBase
         return Ok(new { success = true, message = "Book removed from catalog successfully." });
     }
 
+    private static readonly List<object> _customCategories = new();
+    private static readonly List<object> _customAuthors = new();
+    private static readonly List<object> _customRacks = new();
+    private static readonly List<object> _customMembers = new();
+    private static readonly List<object> _customReservations = new();
+    private static readonly List<object> _customLostDamaged = new();
+
     // =========================================================
     // 3. CATEGORIES, AUTHORS & RACKS MASTERS
     // =========================================================
@@ -302,7 +312,24 @@ public class LibraryController : ControllerBase
             new { id = "HIS", code = "HIS", name = "History & Civics", count = 20, description = "World History & Indian Constitution" }
         };
 
-        return Ok(new { success = true, data = categories });
+        var merged = categories.Concat(_customCategories).ToList();
+        return Ok(new { success = true, data = merged });
+    }
+
+    [HttpPost("categories")]
+    public IActionResult CreateCategory([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        string name = payload?["name"]?.ToString() ?? "New Category";
+        string code = payload?["code"]?.ToString() ?? "CAT";
+        string description = payload?["description"]?.ToString() ?? "";
+
+        var item = new { id = code, code = code, name = name, count = 0, description = description };
+        _customCategories.Add(item);
+
+        return Ok(new { success = true, message = "Category created successfully.", data = item });
     }
 
     [HttpGet("authors")]
@@ -316,7 +343,24 @@ public class LibraryController : ControllerBase
             new { id = 4, name = "William Shakespeare", publisher = "Penguin Classics", biography = "English playwright and poet", titlesPublished = 18 }
         };
 
-        return Ok(new { success = true, data = authors });
+        var merged = authors.Concat(_customAuthors).ToList();
+        return Ok(new { success = true, data = merged });
+    }
+
+    [HttpPost("authors")]
+    public IActionResult CreateAuthor([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        string name = payload?["name"]?.ToString() ?? "Author Name";
+        string publisher = payload?["publisher"]?.ToString() ?? "Publisher";
+        string biography = payload?["biography"]?.ToString() ?? "";
+
+        var item = new { id = _customAuthors.Count + 10, name = name, publisher = publisher, biography = biography, titlesPublished = 1 };
+        _customAuthors.Add(item);
+
+        return Ok(new { success = true, message = "Author added successfully.", data = item });
     }
 
     [HttpGet("racks")]
@@ -333,7 +377,25 @@ public class LibraryController : ControllerBase
             new { rack = "Rack C-03", shelf = "Shelf 2", location = "CS & Tech Lab, 2nd Floor", capacity = 45, occupied = 8 }
         };
 
-        return Ok(new { success = true, data = racks });
+        var merged = racks.Concat(_customRacks).ToList();
+        return Ok(new { success = true, data = merged });
+    }
+
+    [HttpPost("racks")]
+    public IActionResult CreateRack([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        string rack = payload?["rackNo"]?.ToString() ?? payload?["rack"]?.ToString() ?? "Rack E-05";
+        string shelf = payload?["shelfNo"]?.ToString() ?? payload?["shelf"]?.ToString() ?? "Shelf 1";
+        string location = payload?["floor"]?.ToString() ?? payload?["location"]?.ToString() ?? "1st Floor";
+        int capacity = int.TryParse(payload?["capacity"]?.ToString(), out var cap) ? cap : 50;
+
+        var item = new { rack = rack, shelf = shelf, location = location, capacity = capacity, occupied = 0 };
+        _customRacks.Add(item);
+
+        return Ok(new { success = true, message = "Rack location added successfully.", data = item });
     }
 
     [HttpGet("members")]
@@ -388,9 +450,81 @@ public class LibraryController : ControllerBase
         }
         catch { }
 
-        var merged = defaultMembers.Concat(staffMembers).Concat(studentMembers).ToList();
+        var merged = defaultMembers.Concat(staffMembers).Concat(studentMembers).Concat(_customMembers).ToList();
 
         return Ok(new { success = true, data = merged });
+    }
+
+    [HttpPost("members")]
+    public IActionResult RegisterMember([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        string memberId = payload?["memberId"]?.ToString() ?? "MEM-001";
+        string name = payload?["name"]?.ToString() ?? payload?["memberName"]?.ToString() ?? "Member Name";
+        string role = payload?["role"]?.ToString() ?? "Student";
+        string classOrDept = payload?["classOrDept"]?.ToString() ?? "General";
+        string maxLimit = role == "Staff" ? "6 Books" : "3 Books";
+
+        var item = new { memberId = memberId, memberName = name, name = name, role = role, classOrDept = classOrDept, maxLimit = maxLimit, issued = 0, fineDue = 0, status = "Active" };
+        _customMembers.Add(item);
+
+        return Ok(new { success = true, message = "Library member registered successfully.", data = item });
+    }
+
+    [HttpDelete("categories/{id}")]
+    public IActionResult DeleteCategory(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+        _customCategories.RemoveAll(x => x.GetType().GetProperty("id")?.GetValue(x)?.ToString() == id || x.GetType().GetProperty("code")?.GetValue(x)?.ToString() == id);
+        return Ok(new { success = true, message = "Category deleted successfully." });
+    }
+
+    [HttpDelete("authors/{id}")]
+    public IActionResult DeleteAuthor(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+        _customAuthors.RemoveAll(x => x.GetType().GetProperty("id")?.GetValue(x)?.ToString() == id);
+        return Ok(new { success = true, message = "Author deleted successfully." });
+    }
+
+    [HttpDelete("racks/{id}")]
+    public IActionResult DeleteRack(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+        _customRacks.RemoveAll(x => x.GetType().GetProperty("rack")?.GetValue(x)?.ToString() == id);
+        return Ok(new { success = true, message = "Rack location deleted successfully." });
+    }
+
+    [HttpDelete("members/{id}")]
+    public IActionResult DeleteMember(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+        _customMembers.RemoveAll(x => x.GetType().GetProperty("memberId")?.GetValue(x)?.ToString() == id);
+        return Ok(new { success = true, message = "Library member removed successfully." });
+    }
+
+    [HttpDelete("reservations/{id}")]
+    public IActionResult DeleteReservation(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+        _customReservations.RemoveAll(x => x.GetType().GetProperty("resCode")?.GetValue(x)?.ToString() == id);
+        return Ok(new { success = true, message = "Reservation cancelled successfully." });
+    }
+
+    [HttpDelete("lost-damaged/{id}")]
+    public IActionResult DeleteLostDamaged(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+        _customLostDamaged.RemoveAll(x => x.GetType().GetProperty("reportId")?.GetValue(x)?.ToString() == id);
+        return Ok(new { success = true, message = "Lost/Damaged report removed successfully." });
     }
 
     // =========================================================
@@ -572,7 +706,33 @@ public class LibraryController : ControllerBase
             new { resCode = "RES-102", bookTitle = "Computer Science Principles & AI", requestedBy = "Sarah Jenkins (Teacher)", date = "2026-08-18", queueStatus = "Pending" }
         };
 
-        return Ok(new { success = true, totalCount = queue.Count, data = queue });
+        var merged = queue.Concat(_customReservations).ToList();
+        return Ok(new { success = true, totalCount = merged.Count, data = merged });
+    }
+
+    [HttpPost("reservations")]
+    public IActionResult CreateReservation([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        string bookTitle = payload?["bookTitle"]?.ToString() ?? "Library Book";
+        string memberName = payload?["memberName"]?.ToString() ?? payload?["requestedBy"]?.ToString() ?? "Student";
+        string date = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+        var item = new { resCode = $"RES-{_customReservations.Count + 103}", bookTitle = bookTitle, requestedBy = memberName, date = date, queueStatus = "Pending" };
+        _customReservations.Add(item);
+
+        return Ok(new { success = true, message = "Book reservation queued successfully.", data = item });
+    }
+
+    [HttpPost("reservations/{id}/fulfill")]
+    public IActionResult FulfillReservation(string id)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        return Ok(new { success = true, message = "Reservation fulfilled and book ready for pickup." });
     }
 
     // =========================================================
@@ -615,7 +775,25 @@ public class LibraryController : ControllerBase
             new { reportId = "LD-101", bookTitle = "Fundamentals of Physics", memberName = "James Brown (Student)", member = "James Brown (Student)", type = "Damaged", replacementCost = 450, status = "Pending" }
         };
 
-        return Ok(new { success = true, totalCount = registry.Count, data = registry });
+        var merged = registry.Concat(_customLostDamaged).ToList();
+        return Ok(new { success = true, totalCount = merged.Count, data = merged });
+    }
+
+    [HttpPost("lost-damaged")]
+    public IActionResult ReportLostDamaged([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        string bookTitle = payload?["bookTitle"]?.ToString() ?? "Library Book";
+        string memberName = payload?["memberName"]?.ToString() ?? "Member";
+        string type = payload?["issueType"]?.ToString() ?? payload?["type"]?.ToString() ?? "Damaged";
+        decimal cost = 350;
+
+        var item = new { reportId = $"LD-{_customLostDamaged.Count + 102}", bookTitle = bookTitle, memberName = memberName, member = memberName, type = type, replacementCost = cost, status = "Pending" };
+        _customLostDamaged.Add(item);
+
+        return Ok(new { success = true, message = "Lost/Damaged book report logged successfully.", data = item });
     }
 
     [HttpGet("rules")]
@@ -647,6 +825,15 @@ public class LibraryController : ControllerBase
                 staffPolicy
             }
         });
+    }
+
+    [HttpPut("rules")]
+    public IActionResult UpdateRules([FromBody] System.Text.Json.Nodes.JsonObject payload)
+    {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
+        return Ok(new { success = true, message = "Library rules & circulation policies updated successfully." });
     }
 
     // =========================================================

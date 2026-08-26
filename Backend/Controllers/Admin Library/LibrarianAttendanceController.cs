@@ -25,6 +25,33 @@ public class LibrarianAttendanceController : ControllerBase
         _context = context;
     }
 
+    private bool IsAdminUser()
+    {
+        string? role = User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                       ?? User?.FindFirst("role")?.Value
+                       ?? Request.Headers["X-User-Role"].FirstOrDefault()
+                       ?? Request.Headers["User-Role"].FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(role)) return false;
+
+        return role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+               role.Equals("Administrator", StringComparison.OrdinalIgnoreCase) || 
+               role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IActionResult? CheckAdminReadOnly()
+    {
+        if (IsAdminUser())
+        {
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "Administrator is in Read-Only Mode (View Purpose Only). Only Librarians can modify librarian attendance and shift logs."
+            });
+        }
+        return null;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetLibrarianAttendance(
         [FromQuery] string? view = "daily",
@@ -95,6 +122,9 @@ public class LibrarianAttendanceController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> LogAttendance([FromBody] CreateLibrarianAttendanceDto dto)
     {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
         if (string.IsNullOrWhiteSpace(dto.StaffName))
         {
             return BadRequest(new { success = false, message = "Staff Name is required." });
@@ -122,6 +152,9 @@ public class LibrarianAttendanceController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateAttendance(int id, [FromBody] CreateLibrarianAttendanceDto dto)
     {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
         var item = await _context.LibrarianAttendances.FindAsync(id);
         if (item == null) return NotFound(new { success = false, message = "Attendance record not found." });
 
@@ -136,6 +169,9 @@ public class LibrarianAttendanceController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteAttendance(int id)
     {
+        var readOnlyCheck = CheckAdminReadOnly();
+        if (readOnlyCheck != null) return readOnlyCheck;
+
         var item = await _context.LibrarianAttendances.FindAsync(id);
         if (item != null)
         {

@@ -1174,50 +1174,12 @@ using (var scope = app.Services.CreateScope())
         {
             try
             {
-                var conn = context.Database.GetDbConnection();
-                bool closeConn = false;
-                if (conn.State != System.Data.ConnectionState.Open)
-                {
-                    conn.Open();
-                    closeConn = true;
-                }
-
-                bool exists = false;
-                using (var schemaTable = conn.GetSchema("Columns", new[] { null, conn.Database, table, column }))
-                {
-                    if (schemaTable.Rows.Count > 0)
-                    {
-                        exists = true;
-                    }
-                    else
-                    {
-                        // Fallback check for case differences
-                        using (var allColumns = conn.GetSchema("Columns", new[] { null, conn.Database, table, null }))
-                        {
-                            foreach (System.Data.DataRow row in allColumns.Rows)
-                            {
-                                var colName = row["COLUMN_NAME"]?.ToString();
-                                if (colName != null && colName.Equals(column, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    exists = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (closeConn)
-                {
-                    conn.Close();
-                }
-
-                if (!exists)
-                {
-#pragma warning disable EF1002
-                    context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};");
-#pragma warning restore EF1002
-                }
+                var safeDef = columnDef.Replace("'", "''");
+                var sql = $@"
+                    SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = '{table.ToLower()}' AND LOWER(COLUMN_NAME) = '{column.ToLower()}');
+                    SET @query = IF(@exist = 0, 'ALTER TABLE `{table}` ADD COLUMN `{column}` {safeDef}', 'SELECT 1');
+                    PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;";
+                context.Database.ExecuteSqlRaw(sql);
             }
             catch { }
         }
@@ -1353,6 +1315,8 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("departments", "Status", "varchar(20) NOT NULL DEFAULT 'Active'");
         EnsureColumnExists("departments", "HeadOfDepartment", "varchar(150) NULL");
         EnsureColumnExists("departments", "head_of_department", "varchar(150) NULL");
+        EnsureColumnExists("departments", "Category", "varchar(50) NULL DEFAULT 'Teaching'");
+        EnsureColumnExists("departments", "category", "varchar(50) NULL DEFAULT 'Teaching'");
         EnsureColumnExists("departments", "CreatedDate", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
 
         EnsureColumnExists("circulars", "Title", "varchar(255) NOT NULL DEFAULT ''");
@@ -1442,8 +1406,10 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("transport_routes", "NonAcRatePerKm", "decimal(18,2) NOT NULL DEFAULT 100.00");
         EnsureColumnExists("transport_routes", "AcBaseFare", "decimal(18,2) NOT NULL DEFAULT 1200.00");
         EnsureColumnExists("transport_routes", "AcRatePerKm", "decimal(18,2) NOT NULL DEFAULT 150.00");
-        EnsureColumnExists("transport_routes", "MonthlyFee", "decimal(18,2) NOT NULL DEFAULT 0.00");
-        EnsureColumnExists("transport_routes", "EstimatedDurationMinutes", "int NOT NULL DEFAULT 30");
+        EnsureColumnExists("departments", "Category", "varchar(50) NULL DEFAULT 'Teaching'");
+        EnsureColumnExists("departments", "category", "varchar(50) NULL DEFAULT 'Teaching'");
+        EnsureColumnExists("departments", "HeadOfDepartment", "varchar(150) NULL");
+        EnsureColumnExists("departments", "head_of_department", "varchar(150) NULL");
 
         // Homework table: ClassRoom column missing from MySQL but present in EF Core model
         EnsureColumnExists("homeworks", "ClassRoom", "varchar(150) NOT NULL DEFAULT 'Class 10-A'");
