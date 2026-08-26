@@ -172,6 +172,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     if (initialTab) setActiveSubTab(initialTab);
   }, [initialPhase, initialTab]);
 
+  // Issue Book Filter & Searchable Combobox States
+  const [memberRoleFilter, setMemberRoleFilter] = useState<'All' | 'Student' | 'Staff'>('All');
+  const [memberClassFilter, setMemberClassFilter] = useState<string>('All');
+  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
+  const [selectedMember, setSelectedMember] = useState<LibraryMember | null>(null);
+  const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
+
+  const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
+  const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
+  const [showBookDropdown, setShowBookDropdown] = useState<boolean>(false);
+
+  // Edit Fine State
+  const [editingFine, setEditingFine] = useState<LibraryFineRecord | null>(null);
+
   // Search & Filter & Pagination state across views
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -277,6 +291,72 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     return Array.from(map.values());
   }, [staff, students, members, bookIssues]);
 
+  const availableClassOptions = useMemo(() => {
+    const classesSet = new Set<string>();
+    (students || []).forEach(st => {
+      if (st.className) classesSet.add(st.className);
+    });
+    if (classesSet.size === 0) {
+      ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'].forEach(c => classesSet.add(c));
+    }
+    return Array.from(classesSet).sort();
+  }, [students]);
+
+  const filteredMembersForIssue = useMemo(() => {
+    return mergedMembersList.filter(m => {
+      if (memberRoleFilter === 'Student' && m.role !== 'Student') return false;
+      if (memberRoleFilter === 'Staff' && m.role === 'Student') return false;
+
+      if (memberClassFilter !== 'All') {
+        if (memberRoleFilter === 'Student' || m.role === 'Student') {
+          const clsLower = (m.className || '').toLowerCase();
+          const targetLower = memberClassFilter.toLowerCase();
+          if (!clsLower.includes(targetLower)) return false;
+        } else if (memberRoleFilter === 'Staff' || m.role !== 'Student') {
+          if (memberClassFilter !== 'Staff') return false;
+        }
+      }
+
+      if (memberSearchQuery.trim()) {
+        const q = memberSearchQuery.trim().toLowerCase();
+        const nameMatch = m.name.toLowerCase().includes(q);
+        const idMatch = (m.memberId || '').toLowerCase().includes(q);
+        const phoneMatch = (m.phone || '').toLowerCase().includes(q);
+        const classMatch = (m.className || '').toLowerCase().includes(q);
+        return nameMatch || idMatch || phoneMatch || classMatch;
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (!memberSearchQuery.trim()) return 0;
+      const q = memberSearchQuery.trim().toLowerCase();
+      const aStartsWith = a.name.toLowerCase().startsWith(q) || (a.memberId || '').toLowerCase().startsWith(q);
+      const bStartsWith = b.name.toLowerCase().startsWith(q) || (b.memberId || '').toLowerCase().startsWith(q);
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [mergedMembersList, memberRoleFilter, memberClassFilter, memberSearchQuery]);
+
+  const filteredBooksForIssue = useMemo(() => {
+    if (!bookSearchQuery.trim()) return books;
+    const q = bookSearchQuery.trim().toLowerCase();
+    return books.filter(b => {
+      const titleMatch = b.title.toLowerCase().includes(q);
+      const authorMatch = (b.author || '').toLowerCase().includes(q);
+      const isbnMatch = (b.isbn || '').toLowerCase().includes(q);
+      const catMatch = (b.category || '').toLowerCase().includes(q);
+      return titleMatch || authorMatch || isbnMatch || catMatch;
+    }).sort((a, b) => {
+      const q = bookSearchQuery.trim().toLowerCase();
+      const aStartsWith = a.title.toLowerCase().startsWith(q);
+      const bStartsWith = b.title.toLowerCase().startsWith(q);
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      return a.title.localeCompare(b.title);
+    });
+  }, [books, bookSearchQuery]);
+
   const [reservations, setReservations] = useState<BookReservation[]>(() => {
     const s = localStorage.getItem(RESERVATIONS_KEY);
     return s ? JSON.parse(s) : [
@@ -320,6 +400,41 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const saveRacks = (data: BookRack[]) => { setRacks(data); localStorage.setItem(RACKS_KEY, JSON.stringify(data)); };
   const saveMembers = (data: LibraryMember[]) => { setMembers(data); localStorage.setItem(MEMBERS_KEY, JSON.stringify(data)); };
   const saveReservations = (data: BookReservation[]) => { setReservations(data); localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(data)); };
+
+  // Load real backend data on mount
+  useEffect(() => {
+    const loadBackendData = async () => {
+      try {
+        const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
+          LibraryAPI.fetchBooksApi(),
+          LibraryAPI.fetchCategoriesApi(),
+          LibraryAPI.fetchMembersApi(),
+          LibraryAPI.fetchIssuedBooksApi(),
+          LibraryAPI.fetchFinesApi()
+        ]);
+
+        if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
+          const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
+          if (fetchedBooks.length > 0) {
+            setBooks(fetchedBooks.map((b: any) => ({
+              id: String(b.bookId || b.id),
+              title: b.title || b.bookTitle || '',
+              author: b.author || '',
+              isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
+              category: b.category || 'Science',
+              rackNo: b.rackLocation || b.rack || 'Rack A-01',
+              totalCopies: b.totalCopies || 10,
+              availableCopies: b.availableCopies || 10,
+              status: b.availableCopies > 0 ? 'Available' : 'Issued'
+            })));
+          }
+        }
+      } catch (err) {
+        console.warn("Backend API fetch notice:", err);
+      }
+    };
+    loadBackendData();
+  }, []);
   const saveLibrarianAttendance = (data: LibrarianAttendanceRecord[]) => {
     setLibrarianAttendance(data);
     localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(data));
@@ -1041,7 +1156,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   issueMode === 'catalog' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Catalog Dropdown
+                Select from Catalog
               </button>
               <button
                 type="button"
@@ -1050,7 +1165,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   issueMode === 'manual' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Manual Entry
+                Custom Entry
               </button>
             </div>
           </div>
@@ -1061,14 +1176,19 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             const dDate = form.dueDate.value;
 
             if (issueMode === 'catalog') {
-              const bId = form.bookId.value;
-              const mId = form.memberId.value;
+              const bId = selectedBook?.id || form.bookId?.value;
+              const mId = selectedMember?.memberId || form.memberId?.value;
 
-              const targetBk = books.find(b => String(b.id) === String(bId) || String(b.isbn) === String(bId) || b.title === bId);
-              const targetMem = mergedMembersList.find(m => String(m.memberId) === String(mId) || String(m.id) === String(mId)) || { name: mId, role: 'Student' };
+              const targetBk = selectedBook || books.find(b => String(b.id) === String(bId) || String(b.isbn) === String(bId) || b.title === bId);
+              const targetMem = selectedMember || mergedMembersList.find(m => String(m.memberId) === String(mId) || String(m.id) === String(mId)) || (mId ? { name: mId, role: 'Student', memberId: mId } : null);
+
+              if (!targetMem || !mId) {
+                addToast('error', 'Member Not Selected', 'Please search and select a valid student or staff member.');
+                return;
+              }
 
               if (!targetBk) {
-                addToast('error', 'Book Not Found', 'Selected book was not found in library catalog.');
+                addToast('error', 'Book Not Found', 'Please search and select a valid book from the library catalog.');
                 return;
               }
 
@@ -1080,15 +1200,19 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               issueBook({
                 bookId: targetBk.id,
                 bookTitle: targetBk.title,
-                borrowerId: mId,
+                borrowerId: targetMem.memberId || mId,
                 borrowerName: targetMem.name,
-                borrowerRole: targetMem.role as any,
+                borrowerRole: (targetMem.role || 'Student') as any,
                 issueDate: new Date().toISOString().split('T')[0],
                 dueDate: dDate,
                 fineAmount: 0,
                 status: 'Issued'
               });
               addToast('success', 'Book Issued Successfully', `Issued "${targetBk.title}" to ${targetMem.name}`);
+              setSelectedMember(null);
+              setSelectedBook(null);
+              setMemberSearchQuery('');
+              setBookSearchQuery('');
             } else {
               // Manual Entry Mode
               const manualMemId = form.manualMemberId.value;
@@ -1115,26 +1239,254 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           }} className="space-y-4 text-xs">
             {issueMode === 'catalog' ? (
               <>
-                <div>
-                  <label className="block font-bold mb-1">Select Member (Student / Staff) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select name="memberId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                    <option value="">Select Member...</option>
-                    {mergedMembersList.map(m => (
-                      <option key={m.id} value={m.memberId}>{m.name} ({m.memberId} - {m.role})</option>
-                    ))}
-                  </select>
+                {/* Member Search & Filter Container */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    {/* Role Filter Tabs */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold text-slate-500 mr-1">Filter Member:</span>
+                      {(['All', 'Student', 'Staff'] as const).map(roleOption => (
+                        <button
+                          key={roleOption}
+                          type="button"
+                          onClick={() => {
+                            setMemberRoleFilter(roleOption);
+                            setSelectedMember(null);
+                            setMemberSearchQuery('');
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                            memberRoleFilter === roleOption
+                              ? 'bg-sky-600 text-white shadow-xs'
+                              : 'bg-white dark:bg-slate-900 border text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          {roleOption === 'All' ? 'All Members' : roleOption === 'Student' ? 'Students Only' : 'Staff Only'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Class Filter Dropdown (Shown for Student or All) */}
+                    {(memberRoleFilter === 'All' || memberRoleFilter === 'Student') && (
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Filter Class:</label>
+                        <select
+                          value={memberClassFilter}
+                          onChange={e => {
+                            setMemberClassFilter(e.target.value);
+                            setSelectedMember(null);
+                            setMemberSearchQuery('');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                        >
+                          <option value="All">All Classes</option>
+                          {availableClassOptions.map(cls => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Searchable Member Input with Auto-complete Dropdown */}
+                  <div className="relative">
+                    <label className="block font-bold mb-1.5 text-xs text-slate-700 dark:text-slate-300">
+                      Select Member (Search by Name, Student Adm No, or Staff Emp Code) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={memberSearchQuery}
+                        onChange={e => {
+                          setMemberSearchQuery(e.target.value);
+                          setSelectedMember(null);
+                          setShowMemberDropdown(true);
+                        }}
+                        onFocus={() => setShowMemberDropdown(true)}
+                        placeholder="Type starting letter or code e.g. 'B', 'ADM', 'EMP'..."
+                        className="w-full px-3.5 py-2.5 pl-9 pr-8 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs shadow-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                      />
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      {memberSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMemberSearchQuery('');
+                            setSelectedMember(null);
+                            setShowMemberDropdown(true);
+                          }}
+                          className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <input type="hidden" name="memberId" value={selectedMember?.memberId || memberSearchQuery} />
+
+                    {selectedMember && (
+                      <div className="mt-2 p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white font-extrabold text-[10px]">
+                            {selectedMember.role}
+                          </span>
+                          <span className="font-extrabold text-slate-900 dark:text-white">{selectedMember.name}</span>
+                          <span className="font-mono text-sky-700 dark:text-sky-300 font-bold">({selectedMember.memberId})</span>
+                          {selectedMember.className && (
+                            <span className="text-[11px] text-slate-500">• {selectedMember.className}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                        </span>
+                      </div>
+                    )}
+
+                    {showMemberDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowMemberDropdown(false)} />
+
+                        <div className="absolute left-0 right-0 top-full mt-1 z-20 max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl divide-y divide-slate-100 dark:divide-slate-800">
+                          {filteredMembersForIssue.length === 0 ? (
+                            <div className="p-4 text-center text-slate-500 text-xs">
+                              No matching student or staff member found.
+                            </div>
+                          ) : (
+                            filteredMembersForIssue.map(m => (
+                              <div
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedMember(m);
+                                  setMemberSearchQuery(`${m.name} (${m.memberId})`);
+                                  setShowMemberDropdown(false);
+                                }}
+                                className={`p-3 hover:bg-sky-50 dark:hover:bg-slate-800/80 cursor-pointer transition-colors flex items-center justify-between text-xs ${
+                                  selectedMember?.id === m.id ? 'bg-sky-50/80 dark:bg-slate-800/80' : ''
+                                }`}
+                              >
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black text-slate-900 dark:text-white">{m.name}</span>
+                                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-[10px] border border-slate-200 dark:border-slate-700">
+                                      {m.role === 'Student' ? `ADM: ${m.memberId}` : `EMP: ${m.memberId}`}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 font-medium">
+                                    {m.role} • {m.className} • Phone: {m.phone || 'N/A'}
+                                  </p>
+                                </div>
+                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 shrink-0">
+                                  Select
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-bold mb-1">Select Book from Catalog <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                    <option value="">Select Book...</option>
-                    {books.map(b => (
-                      <option key={b.id} value={b.id} disabled={b.availableCopies <= 0}>
-                        {b.title} (Author: {b.author} • Available: {b.availableCopies}/{b.totalCopies})
-                      </option>
-                    ))}
-                  </select>
+                {/* Book Search Container */}
+                <div className="relative">
+                  <label className="block font-bold mb-1.5 text-xs text-slate-700 dark:text-slate-300">
+                    Select Book from Catalog (Search by Title, Author, or ISBN) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={bookSearchQuery}
+                      onChange={e => {
+                        setBookSearchQuery(e.target.value);
+                        setSelectedBook(null);
+                        setShowBookDropdown(true);
+                      }}
+                      onFocus={() => setShowBookDropdown(true)}
+                      placeholder="Type book title or author e.g. 'Physics', 'Halliday', 'ISBN'..."
+                      className="w-full px-3.5 py-2.5 pl-9 pr-8 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs shadow-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
+                    <BookOpen className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    {bookSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBookSearchQuery('');
+                          setSelectedBook(null);
+                          setShowBookDropdown(true);
+                        }}
+                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <input type="hidden" name="bookId" value={selectedBook?.id || bookSearchQuery} />
+
+                  {selectedBook && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-slate-900 dark:text-white">{selectedBook.title}</span>
+                        <span className="text-[11px] text-slate-500">• Author: {selectedBook.author}</span>
+                        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                          ({selectedBook.availableCopies} Copies Available)
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                      </span>
+                    </div>
+                  )}
+
+                  {showBookDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowBookDropdown(false)} />
+
+                      <div className="absolute left-0 right-0 top-full mt-1 z-20 max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl divide-y divide-slate-100 dark:divide-slate-800">
+                        {filteredBooksForIssue.length === 0 ? (
+                          <div className="p-4 text-center text-slate-500 text-xs">
+                            No matching books found in catalog.
+                          </div>
+                        ) : (
+                          filteredBooksForIssue.map(b => (
+                            <div
+                              key={b.id}
+                              onClick={() => {
+                                if (b.availableCopies <= 0) return;
+                                setSelectedBook(b);
+                                setBookSearchQuery(b.title);
+                                setShowBookDropdown(false);
+                              }}
+                              className={`p-3 cursor-pointer transition-colors flex items-center justify-between text-xs ${
+                                b.availableCopies <= 0
+                                  ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900/50'
+                                  : selectedBook?.id === b.id
+                                  ? 'bg-emerald-50/80 dark:bg-slate-800/80'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                              }`}
+                            >
+                              <div className="space-y-0.5">
+                                <p className="font-black text-slate-900 dark:text-white">{b.title}</p>
+                                <p className="text-[11px] text-slate-500 font-medium">
+                                  Author: {b.author} • Category: {b.category} • Rack: {b.rackNo}
+                                </p>
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${
+                                  b.availableCopies > 0
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                }`}
+                              >
+                                {b.availableCopies > 0 ? `${b.availableCopies} Available` : 'Out of Stock'}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             ) : (
@@ -1255,7 +1607,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                               }
                               addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
                             }} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm">
-                              Process Return
+                              Return
                             </button>
                           ) : (
                             <span className="text-[10px] font-bold text-slate-400">View Only</span>
@@ -1487,7 +1839,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                             ) : (
                               <span className="text-[11px] font-bold text-emerald-600">Paid on {f.paidDate}</span>
                             )}
-                            <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <button onClick={() => setEditingFine(f)} className="p-1 text-slate-400 hover:text-sky-600 transition-colors cursor-pointer" title="Edit Fine Record">
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer" title="Delete Fine Record">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
@@ -2595,6 +2950,132 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 Close Inspection
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Fine Record Modal */}
+      {editingFine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Edit className="w-5 h-5 text-sky-500" /> Edit Fine Record
+              </h3>
+              <button onClick={() => setEditingFine(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={e => {
+              e.preventDefault();
+              const updated = fineRecords.map(f => f.id === editingFine.id ? editingFine : f);
+              saveFines(updated);
+              addToast('success', 'Fine Record Updated', `Successfully updated fine details for ${editingFine.memberName}`);
+              setEditingFine(null);
+            }} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Member Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input
+                  type="text"
+                  value={editingFine.memberName}
+                  onChange={e => setEditingFine({ ...editingFine, memberName: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Book Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input
+                  type="text"
+                  value={editingFine.bookTitle}
+                  onChange={e => setEditingFine({ ...editingFine, bookTitle: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Overdue Days <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="number"
+                    value={editingFine.overdueDays}
+                    onChange={e => setEditingFine({ ...editingFine, overdueDays: Number(e.target.value) || 0 })}
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Fine Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="number"
+                    value={editingFine.fineAmount}
+                    onChange={e => setEditingFine({ ...editingFine, fineAmount: Number(e.target.value) || 0 })}
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 font-mono font-black outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Payment Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <select
+                    value={editingFine.paymentStatus}
+                    onChange={e => {
+                      const newStatus = e.target.value as 'Paid' | 'Unpaid';
+                      setEditingFine({
+                        ...editingFine,
+                        paymentStatus: newStatus,
+                        paidDate: newStatus === 'Paid' ? (editingFine.paidDate || new Date().toISOString().split('T')[0]) : undefined
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                  >
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Paid">Paid</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Paid Date</label>
+                  <input
+                    type="date"
+                    value={editingFine.paidDate || ''}
+                    onChange={e => setEditingFine({ ...editingFine, paidDate: e.target.value })}
+                    disabled={editingFine.paymentStatus !== 'Paid'}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Remarks / Notes</label>
+                <input
+                  type="text"
+                  value={editingFine.remarks || ''}
+                  onChange={e => setEditingFine({ ...editingFine, remarks: e.target.value })}
+                  placeholder="e.g. Adjusted fine due to leave submission"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingFine(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold cursor-pointer shadow-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -417,7 +417,15 @@ const MainLayout: React.FC = () => {
           />
         );
       case "library":
-        return <LibraryView />;
+        return <LibraryView initialPhase="phase1" initialTab="dashboard" />;
+      case "library-books":
+        return <LibraryView initialPhase="phase1" initialTab="books" />;
+      case "library-issue":
+        return <LibraryView initialPhase="phase2" initialTab="issue" />;
+      case "library-return":
+        return <LibraryView initialPhase="phase2" initialTab="return" />;
+      case "library-fines":
+        return <LibraryView initialPhase="phase3" initialTab="fines" />;
       case "librarian-attendance":
       case "library-attendance":
         return <LibrarianAttendanceView />;

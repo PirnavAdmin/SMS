@@ -8,6 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
 import { Badge } from '../../common/Badge';
+import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 interface ParentDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -18,23 +19,57 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    let isMounted = true;
+    const loadBackendChildren = async () => {
+      try {
+        const children = await getParentChildren(user?.email);
+        if (isMounted && children && children.length > 0) {
+          setApiChildren(children);
+        }
+      } catch (err) {
+        console.warn('Failed to load parent children from API:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadBackendChildren();
+    return () => { isMounted = false; };
+  }, [user?.email]);
 
-  // Unconditional calculations to determine currentWard
-  let parentWards = students.filter(s => 
-    s.status === 'Active' && 
-    (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
-  );
+  // Combined parent wards: prioritize backend API children, then local student matches, then defaults
+  let parentWards: any[] = [];
+  let hasMatchedWards = false;
 
-  const hasMatchedWards = parentWards.length > 0;
-  if (!hasMatchedWards) {
-    parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
+  if (apiChildren.length > 0) {
+    hasMatchedWards = true;
+    parentWards = apiChildren.map(c => ({
+      id: String(c.studentId),
+      studentId: c.studentId,
+      admissionNo: c.admissionNumber,
+      rollNo: c.rollNumber,
+      firstName: c.firstName || c.studentName.split(' ')[0],
+      lastName: c.lastName || '',
+      studentName: c.studentName,
+      className: c.className || 'Class 6',
+      section: c.sectionName || 'A',
+      gender: c.gender || 'Male',
+      dob: c.dateOfBirth || '2014-05-15',
+      status: 'Active'
+    }));
+  } else {
+    const localMatches = students.filter(s => 
+      s.status === 'Active' && 
+      (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
+    );
+    if (localMatches.length > 0) {
+      hasMatchedWards = true;
+      parentWards = localMatches;
+    } else {
+      parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
+    }
   }
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];

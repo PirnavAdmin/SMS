@@ -102,7 +102,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const lastName = nameParts.slice(1).join(' ') || 'Teacher';
 
     const firstClassObj = academicClasses[0];
-    const defaultClassName = firstClassObj ? `Class ${firstClassObj.className}-${firstClassObj.section}` : 'Class Nursery-A';
+    const defaultClassName = firstClassObj ? `Class ${firstClassObj.className}-${firstClassObj.section}` : 'Class 10-A';
 
     return {
       id: user?.id || 'STF-101',
@@ -110,8 +110,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       lastName,
       assignedClasses: [defaultClassName, 'Class 10-A'],
       assignedSubjects: ['Mathematics'],
-      department: 'Mathematics',
-      designation: (user as any)?.role || 'Teacher'
+      department: 'Mathematics Dept',
+      designation: 'Class Teacher'
     };
   }, [user, staff, academicClasses]);
 
@@ -174,6 +174,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
   // 3. Teacher Check-in / Check-out & Working Hours State
   const [checkInTime, setCheckInTime] = useState<string | null>(() => localStorage.getItem('teacher_check_in_time'));
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => localStorage.getItem('teacher_check_out_time'));
+  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => localStorage.getItem('teacher_is_checked_out') === 'true');
   const [workingHours, setWorkingHours] = useState<string>('0h 0m');
 
   // Check if real attendance is logged for teacher today in useData().attendance
@@ -181,46 +183,60 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     return attendance.some(a => a.date === todayStr && (a.entityId === teacher.id || a.entityId === user?.id));
   }, [attendance, todayStr, teacher.id, user?.id]);
 
+  // Live Accurate Working Hours Ticker
   useEffect(() => {
-    if (!checkInTime && !isTeacherAttendanceMarkedToday) {
-      setWorkingHours('0h 0m');
-      return;
-    }
-    const startTimeToUse = checkInTime || `${todayStr}T08:30:00.000Z`;
-
     const calculateHours = () => {
-      const parsedTime = new Date(startTimeToUse).getTime();
-      if (isNaN(parsedTime)) {
+      const startTime = checkInTime || (isTeacherAttendanceMarkedToday ? `${todayStr}T08:30:00` : null);
+      if (!startTime) {
         setWorkingHours('0h 0m');
         return;
       }
-      const diffMs = Date.now() - parsedTime;
+
+      const inMs = new Date(startTime).getTime();
+      if (isNaN(inMs)) {
+        setWorkingHours('0h 0m');
+        return;
+      }
+
+      const endMs = (isCheckedOut && checkOutTime) ? new Date(checkOutTime).getTime() : Date.now();
+      const diffMs = endMs - inMs;
+
       if (diffMs <= 0) {
         setWorkingHours('0h 0m');
         return;
       }
-      const diffMins = Math.floor(diffMs / 60000);
-      const hrs = Math.floor(diffMins / 60);
-      const mins = diffMins % 60;
+
+      const totalMins = Math.floor(diffMs / 60000);
+      const hrs = Math.floor(totalMins / 60);
+      const mins = totalMins % 60;
       setWorkingHours(`${hrs}h ${mins}m`);
     };
 
     calculateHours();
-    const interval = setInterval(calculateHours, 60000);
-    return () => clearInterval(interval);
-  }, [checkInTime, isTeacherAttendanceMarkedToday, todayStr]);
+    if (!isCheckedOut && (checkInTime || isTeacherAttendanceMarkedToday)) {
+      const interval = setInterval(calculateHours, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [checkInTime, checkOutTime, isCheckedOut, isTeacherAttendanceMarkedToday, todayStr]);
 
   const handleCheckIn = (e: React.MouseEvent) => {
     e.stopPropagation();
     const nowIso = new Date().toISOString();
     localStorage.setItem('teacher_check_in_time', nowIso);
+    localStorage.removeItem('teacher_check_out_time');
+    localStorage.setItem('teacher_is_checked_out', 'false');
     setCheckInTime(nowIso);
+    setCheckOutTime(null);
+    setIsCheckedOut(false);
   };
 
   const handleCheckOut = (e: React.MouseEvent) => {
     e.stopPropagation();
-    localStorage.removeItem('teacher_check_in_time');
-    setCheckInTime(null);
+    const nowIso = new Date().toISOString();
+    localStorage.setItem('teacher_check_out_time', nowIso);
+    localStorage.setItem('teacher_is_checked_out', 'true');
+    setCheckOutTime(nowIso);
+    setIsCheckedOut(true);
   };
 
   // Helper: parse timeSlot string to period status (Active Now / Upcoming / Completed)
@@ -374,42 +390,47 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-slate-500">Attendance Status:</span>
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                (checkInTime || isTeacherAttendanceMarkedToday)
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' 
-                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                isCheckedOut 
+                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200'
+                  : (checkInTime || isTeacherAttendanceMarkedToday)
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200' 
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200'
               }`}>
-                {(checkInTime || isTeacherAttendanceMarkedToday) ? 'CHECKED IN' : 'CHECKED OUT'}
+                {isCheckedOut ? 'CHECKED OUT' : (checkInTime || isTeacherAttendanceMarkedToday) ? 'CHECKED IN' : 'NOT CHECKED IN'}
               </span>
             </div>
 
             <div className="flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800/60 pt-2.5">
               <span className="font-bold text-slate-500">Working Hours Today:</span>
-              <span className="font-mono font-black text-slate-850 dark:text-slate-200">
+              <span className="font-mono font-black text-slate-850 dark:text-slate-200 text-sm">
                 {workingHours}
               </span>
             </div>
 
             {checkInTime && (
-              <div className="text-[10px] text-slate-400 font-medium text-center">
-                Checked in at: {new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold text-center space-y-0.5 pt-1">
+                <div>Checked in at: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></div>
+                {isCheckedOut && checkOutTime && (
+                  <div>Checked out at: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{new Date(checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></div>
+                )}
               </div>
             )}
           </div>
 
           <div className="pt-2">
-            {(checkInTime || isTeacherAttendanceMarkedToday) ? (
+            {(checkInTime || isTeacherAttendanceMarkedToday) && !isCheckedOut ? (
               <button 
                 onClick={handleCheckOut}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:border-rose-100 text-xs font-black transition-colors flex items-center justify-center gap-1.5 border border-transparent cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:border-rose-100 text-xs font-black transition-colors flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-xs"
               >
-                <LogOut className="w-4 h-4" /> Check Out
+                <LogOut className="w-4 h-4 text-rose-500" /> Check Out Shift
               </button>
             ) : (
               <button 
                 onClick={handleCheckIn}
                 className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-md shadow-blue-500/10 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <LogIn className="w-4 h-4" /> Check In
+                <LogIn className="w-4 h-4" /> {isCheckedOut ? 'Check In Again' : 'Check In Now'}
               </button>
             )}
           </div>

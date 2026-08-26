@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 namespace SMS.Api.Models.FinanceManagement;
 
+[Table("student_fee_assignments")]
 public class StudentFeeAssignment
 {
     [Key]
