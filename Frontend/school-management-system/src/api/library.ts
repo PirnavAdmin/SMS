@@ -184,3 +184,18 @@ export const updateRulesApi = async (payload: any) => {
 export const fetchLibraryReportsApi = async (reportType: string) => {
   return apiClient(`/api/library/reports?type=${reportType}`, { method: 'GET' });
 };
+
+export const fetchLibrarianAttendanceApi = async (view = 'daily', date?: string, month?: string) => {
+  const params = new URLSearchParams();
+  if (view) params.append('view', view);
+  if (date) params.append('date', date);
+  if (month) params.append('month', month);
+  return apiClient(`/api/librarian-attendance?${params.toString()}`, { method: 'GET' });
+};
+
+export const fetchLibraryTimetableApi = async (day = 'Tuesday', view = 'daily') => {
+  const params = new URLSearchParams();
+  if (day) params.append('day', day);
+  if (view) params.append('view', view);
+  return apiClient(`/api/library-timetable?${params.toString()}`, { method: 'GET' });
+};

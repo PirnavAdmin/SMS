@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IndianRupee, AlertCircle, Download, CheckCircle2, Calendar, X } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 interface ParentFinanceViewProps {
   activeTab: string;
@@ -12,19 +13,50 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
   const { students } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
+  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchChildren = async () => {
+      try {
+        const children = await getParentChildren(user?.email);
+        if (isMounted && children && children.length > 0) {
+          setApiChildren(children);
+        }
+      } catch (err) {
+        console.warn('Failed to load parent children in fee details view:', err);
+      }
+    };
+    fetchChildren();
+    return () => { isMounted = false; };
+  }, [user?.email]);
 
   // Match children by email or phone, or own ID if student
-  let parentWards = students.filter(s => 
-    s.status === 'Active' && 
-    (
-      role === 'Student' ? s.id === user?.id : 
-      (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
-    )
-  );
-
-  const hasMatchedWards = parentWards.length > 0;
-  if (!hasMatchedWards) {
-    parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
+  let parentWards: any[] = [];
+  if (apiChildren.length > 0) {
+    parentWards = apiChildren.map(c => ({
+      id: String(c.studentId),
+      studentId: c.studentId,
+      firstName: c.firstName || c.studentName.split(' ')[0],
+      lastName: c.lastName || '',
+      studentName: c.studentName,
+      className: c.className || 'Class 6',
+      section: c.sectionName || 'A',
+      status: 'Active'
+    }));
+  } else {
+    const localMatches = students.filter(s => 
+      s.status === 'Active' && 
+      (
+        role === 'Student' ? s.id === user?.id : 
+        (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
+      )
+    );
+    if (localMatches.length > 0) {
+      parentWards = localMatches;
+    } else {
+      parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
+    }
   }
 
   // We use local state to simulate the payment action for the parent
@@ -73,36 +105,44 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
 
   const pendingDuesList = childDues.filter(d => new Date(d.dueDate) < new Date(new Date().setHours(0,0,0,0)));
   const totalPending = pendingDuesList.reduce((sum, item) => sum + item.amount, 0);
-  const handlePayDue = (dueId: string) => {
+  const handlePayDue = async (dueId: string) => {
     setProcessing(dueId);
-    
-    // Simulate payment delay
-    setTimeout(() => {
+    try {
       const dueToPay = childDues.find(d => d.id === dueId);
-      if (!dueToPay) return;
+      const studentId = Number(currentWard?.studentId || currentWard?.id || 1);
+      
+      const apiRes = await payParentFee({
+        studentId: studentId,
+        feeItemIds: [dueId],
+        amountPaid: dueToPay?.amount || 45000,
+        paymentMode: 'Online (Credit Card)',
+        paymentType: 'Due'
+      });
 
-      // Remove from dues
+      const receiptNo = apiRes?.receiptNo || `REC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+
       setDuesData(prev => ({
         ...prev,
         [mockId]: prev[mockId].filter(d => d.id !== dueId)
       }));
 
-      // Add to receipts
       const newReceipt = {
-        receiptNo: `REC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-        date: new Date().toISOString().split('T')[0],
-        amount: dueToPay.amount,
+        receiptNo: receiptNo,
+        date: apiRes?.date || new Date().toISOString().split('T')[0],
+        amount: dueToPay?.amount || 45000,
         mode: 'Online (Credit Card)',
-        term: dueToPay.term
+        term: dueToPay?.term || 'Term 2 Tuition Fee'
       };
 
       setReceiptsData(prev => ({
         ...prev,
         [mockId]: [newReceipt, ...(prev[mockId] || [])]
       }));
-
+    } catch (err) {
+      console.warn('Failed to post payment API:', err);
+    } finally {
       setProcessing(null);
-    }, 1500);
+    }
   };
 
   const handlePayPending = () => {
@@ -111,14 +151,25 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
     setIsPayPendingModalOpen(true);
   };
 
-  const handleConfirmPayPending = () => {
+  const handleConfirmPayPending = async () => {
     if (selectedPendingDues.length === 0) return;
     setProcessing('modal-pending');
-    setTimeout(() => {
+    try {
+      const studentId = Number(currentWard?.studentId || currentWard?.id || 1);
       const selectedItems = pendingDuesList.filter(d => selectedPendingDues.includes(d.id));
+      const totalAmt = selectedItems.reduce((s, i) => s + i.amount, 0);
+
+      const apiRes = await payParentFee({
+        studentId: studentId,
+        feeItemIds: selectedPendingDues,
+        amountPaid: totalAmt,
+        paymentMode: 'Online (Credit Card)',
+        paymentType: 'Due'
+      });
+
       const newReceipts = selectedItems.map((dueToPay, i) => ({
-        receiptNo: `REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000) + i}`,
-        date: new Date().toISOString().split('T')[0],
+        receiptNo: apiRes?.receiptNo || `REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000) + i}`,
+        date: apiRes?.date || new Date().toISOString().split('T')[0],
         amount: dueToPay.amount,
         mode: 'Online (Credit Card)',
         term: dueToPay.term
@@ -135,40 +186,69 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
       }));
       setSelectedDues([]);
       setIsPayPendingModalOpen(false);
+    } catch (err) {
+      console.warn('Failed to post pending dues payment API:', err);
+    } finally {
       setProcessing(null);
-    }, 2000);
+    }
   };
 
-  const handlePayAll = () => {
+  const handlePayAll = async () => {
     setProcessing('all');
-    setTimeout(() => {
+    try {
+      const studentId = Number(currentWard?.studentId || currentWard?.id || 1);
+      const totalAmt = childDues.reduce((s, i) => s + i.amount, 0);
+
+      const apiRes = await payParentFee({
+        studentId: studentId,
+        feeItemIds: childDues.map(d => d.id),
+        amountPaid: totalAmt,
+        paymentMode: 'Online (Credit Card)',
+        paymentType: 'All'
+      });
+
       const newReceipts = childDues.map((dueToPay, i) => ({
-        receiptNo: `REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000) + i}`,
-        date: new Date().toISOString().split('T')[0],
+        receiptNo: apiRes?.receiptNo || `REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000) + i}`,
+        date: apiRes?.date || new Date().toISOString().split('T')[0],
         amount: dueToPay.amount,
         mode: 'Online (Credit Card)',
         term: dueToPay.term
       }));
 
-      setDuesData(prev => ({ ...prev, [mockId]: [] }));
+      setDuesData(prev => ({
+        ...prev,
+        [mockId]: []
+      }));
+
       setReceiptsData(prev => ({
         ...prev,
         [mockId]: [...newReceipts, ...(prev[mockId] || [])]
       }));
-      setSelectedDues([]);
+    } finally {
       setProcessing(null);
-    }, 2000);
+    }
   };
 
-  const handlePaySelected = () => {
+  const handlePaySelected = async () => {
     if (selectedDues.length === 0) return handlePayAll();
     
     setProcessing('selected');
-    setTimeout(() => {
+    try {
+      const studentId = Number(currentWard?.studentId || currentWard?.id || 1);
       const selectedItems = childDues.filter(d => selectedDues.includes(d.id));
+      const totalAmt = selectedItems.reduce((s, i) => s + i.amount, 0);
+
+      const apiRes = await payParentFee({
+        studentId: studentId,
+        feeItemIds: selectedDues,
+        amountPaid: totalAmt,
+        paymentMode: 'Online (Credit Card)',
+        paymentType: 'Selected'
+      });
+
       const newReceipts = selectedItems.map((dueToPay, i) => ({
-        receiptNo: `REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000) + i}`,
-        date: new Date().toISOString().split('T')[0],
+        receiptNo: apiRes?.receiptNo || `REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000) + i}`,
+        date: apiRes?.date || new Date().toISOString().split('T')[0],
         amount: dueToPay.amount,
         mode: 'Online (Credit Card)',
         term: dueToPay.term
@@ -184,8 +264,11 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
         [mockId]: [...newReceipts, ...(prev[mockId] || [])]
       }));
       setSelectedDues([]);
+    } catch (err) {
+      console.warn('Failed to post selected dues payment API:', err);
+    } finally {
       setProcessing(null);
-    }, 2000);
+    }
   };
 
   return (
