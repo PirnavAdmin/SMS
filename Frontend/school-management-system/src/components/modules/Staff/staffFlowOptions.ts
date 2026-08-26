@@ -411,47 +411,27 @@ export function getDepartmentOptions(
   const staffType = normalizeStaffType(staffTypeCategory);
   const isTeaching = staffType === "Teaching Staff";
 
-  // Base list of standard departments for each category
-  const baseStandardDepts = isTeaching
-    ? Array.from(teachingDeptNames)
-    : Array.from(nonTeachingDeptNames);
+  if (!Array.isArray(settingsDepts) || settingsDepts.length === 0) {
+    return [];
+  }
 
-  // If settingsDepts (from DB/context) is provided, filter them based on Category / Name
   const customFilteredDepts: string[] = [];
-  if (Array.isArray(settingsDepts) && settingsDepts.length > 0) {
-    settingsDepts.forEach((d) => {
-      const name = typeof d === "string" ? d : d.name || d.departmentName;
-      if (!name) return;
+  settingsDepts.forEach((d) => {
+    const name = typeof d === "string" ? d : d.departmentName || d.name;
+    if (!name) return;
 
-      const status = typeof d === "object" ? d.status : "Active";
-      if (status === "Inactive") return;
+    const status = typeof d === "object" ? d.status : "Active";
+    if (status === "Inactive") return;
 
+    const cat = typeof d === "object" ? d.category || d.departmentType || '' : '';
+    const cleanCat = String(cat).toLowerCase().trim();
+
+    if (cleanCat.includes("non-teach") || cleanCat.includes("non teach")) {
+      if (!isTeaching) customFilteredDepts.push(name);
+    } else if (cleanCat.includes("teach")) {
+      if (isTeaching) customFilteredDepts.push(name);
+    } else {
       const cleanName = name.toLowerCase().trim();
-      const cat = typeof d === "object" ? d.category : undefined;
-
-      // 1. If explicit category is set in database:
-      if (cat) {
-        const cleanCat = String(cat).toLowerCase().trim();
-        if (cleanCat.includes("non-teach") || cleanCat.includes("non teach")) {
-          if (!isTeaching) customFilteredDepts.push(name);
-          return;
-        } else if (cleanCat.includes("teach")) {
-          if (isTeaching) customFilteredDepts.push(name);
-          return;
-        }
-      }
-
-      // 2. Exact match in our known sets
-      if (lowerTeachingDepts.has(cleanName)) {
-        if (isTeaching) customFilteredDepts.push(name);
-        return;
-      }
-      if (lowerNonTeachingDepts.has(cleanName)) {
-        if (!isTeaching) customFilteredDepts.push(name);
-        return;
-      }
-
-      // 3. Keyword heuristic for custom/typoed names
       const nonTeachingKeywords = [
         'admin', 'account', 'hr', 'admission', 'lib', 'lab', 'transport', 'transp', 
         'hostel', 'recept', 'it', 'support', 'secur', 'clean', 'housekeep', 'maintenance', 
@@ -460,45 +440,13 @@ export function getDepartmentOptions(
       const isNonTeachingKeyword = nonTeachingKeywords.some(kw => cleanName.includes(kw));
       if (isNonTeachingKeyword) {
         if (!isTeaching) customFilteredDepts.push(name);
-        return;
-      }
-
-      // 4. Academic keywords
-      const teachingKeywords = [
-        'math', 'sci', 'eng', 'soc', 'lang', 'telugu', 'hindi', 'art', 'mus', 'pe', 'sport', 'comp', 'ict', 'commerce', 'human'
-      ];
-      const isTeachingKeyword = teachingKeywords.some(kw => cleanName.includes(kw));
-      if (isTeachingKeyword) {
+      } else {
         if (isTeaching) customFilteredDepts.push(name);
-        return;
       }
-
-      // Default fallback based on staff type
-      if (isTeaching) {
-        customFilteredDepts.push(name);
-      }
-    });
-  }
-
-  // Combine standard base departments and custom departments from DB without duplicates
-  const combined = Array.from(new Set([...customFilteredDepts, ...baseStandardDepts]));
-
-  // Strictly ensure no non-teaching dept leaks into Teaching and vice-versa
-  return combined.filter(name => {
-    const clean = name.toLowerCase().trim();
-    if (isTeaching) {
-      if (lowerNonTeachingDepts.has(clean)) return false;
-      const nonTeachingKeywords = [
-        'admin', 'account', 'hr', 'admission', 'lib', 'lab', 'transport', 'transp', 
-        'hostel', 'recept', 'it', 'support', 'secur', 'clean', 'housekeep', 'maintenance', 
-        'store', 'inv', 'oper', 'ops', 'non-teach', 'non teaching', 'canteen', 'cafeteria', 'medical', 'nurse'
-      ];
-      return !nonTeachingKeywords.some(kw => clean.includes(kw));
-    } else {
-      if (lowerTeachingDepts.has(clean)) return false;
-      return true;
     }
   });
+
+  return Array.from(new Set(customFilteredDepts));
 }
 
 export function getDepartmentCode(name: string, customCode?: string): string {
@@ -680,100 +628,59 @@ export function getDesignationOptions(
   const staffType = normalizeStaffType(staffTypeCategory);
   const isTeachingStaff = staffType === "Teaching Staff";
 
-  const nonTeachingKeywords = [
-    'driver', 'attendant', 'conductor', 'guard', 'sweeper', 'cleaner', 
-    'accountant', 'clerk', 'cashier', 'librarian', 'warden', 'electrician', 
-    'plumber', 'gardener', 'mechanic', 'receptionist', 'attender', 'caretaker', 
-    'helper', 'security', 'housekeep', 'peon', 'cook', 'kitchen', 'bus'
-  ];
-
-  const teachingKeywords = [
-    'teacher', 'pgt', 'tgt', 'prt', 'principal', 'vice principal', 'vice - principal', 
-    'hod', 'faculty', 'lecturer', 'educator', 'instructor'
-  ];
-
-  // 1. Determine base standard designations
-  let baseDesignations: string[] = [];
-  if (isTeachingStaff) {
-    baseDesignations = Array.from(teachingDesignationNames);
-  } else {
-    // If department is selected for non-teaching staff, try to find matching department-specific designations
-    if (selectedDepartment && selectedDepartment.trim()) {
-      const cleanDept = selectedDepartment.toLowerCase().trim();
-      const matchedKey = Object.keys(departmentDesignationMap).find(key => 
-        cleanDept.includes(key.toLowerCase()) || key.toLowerCase().includes(cleanDept)
-      );
-      if (matchedKey && departmentDesignationMap[matchedKey]) {
-        baseDesignations = departmentDesignationMap[matchedKey];
-      } else {
-        baseDesignations = Array.from(nonTeachingDesignationNames);
-      }
-    } else {
-      baseDesignations = Array.from(nonTeachingDesignationNames);
-    }
+  if (!Array.isArray(settingsDesignations) || settingsDesignations.length === 0) {
+    return [];
   }
 
-  // 2. Filter custom settings designations from backend database
   const customDesignations: string[] = [];
-  if (Array.isArray(settingsDesignations) && settingsDesignations.length > 0) {
-    settingsDesignations.forEach((d) => {
-      const name = typeof d === "string" ? d : d.designationName || d.name;
-      if (!name) return;
-      const status = typeof d === "object" ? d.status : "Active";
-      if (status === "Inactive") return;
+  settingsDesignations.forEach((d) => {
+    const name = typeof d === "string" ? d : d.designationName || d.name;
+    if (!name) return;
 
-      const cleanName = name.toLowerCase().trim();
-      const targetCategory = typeof d === "object" ? d.staffType || d.employeeCategory || '' : '';
-      const cleanTarget = targetCategory.toLowerCase().trim();
+    const status = typeof d === "object" ? d.status : "Active";
+    if (status === "Inactive") return;
 
-      // Check category metadata if present
-      if (cleanTarget && cleanTarget !== "both" && cleanTarget !== "all") {
-        const isNonTeachCat = cleanTarget.includes('non');
-        const isTeachCat = !isNonTeachCat && (cleanTarget.includes('teach') || cleanTarget.includes('teacher'));
-        if (isTeachingStaff !== isTeachCat) return;
-      }
+    const category = typeof d === "object" ? d.employeeCategory || d.staffType || '' : '';
+    const cleanCat = String(category).toLowerCase().trim();
 
-      // Check strict keyword rules
-      const isNonTeachingName = nonTeachingKeywords.some(kw => cleanName.includes(kw)) || lowerNonTeachingDesignations.has(cleanName);
-      const isTeachingName = teachingKeywords.some(kw => cleanName.includes(kw)) || lowerTeachingDesignations.has(cleanName);
-
-      if (isTeachingStaff) {
-        if (isNonTeachingName && !isTeachingName) return;
-        customDesignations.push(name);
-      } else {
-        if (isTeachingName && !isNonTeachingName) return;
-        
-        // If department is specified, check department match
-        const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
-        if (
-          selectedDepartment &&
-          targetDept &&
-          targetDept !== "All" &&
-          targetDept !== "Both" &&
-          targetDept.toLowerCase() !== selectedDepartment.toLowerCase()
-        ) {
-          return;
-        }
-
-        customDesignations.push(name);
-      }
-    });
-  }
-
-  // 3. Combine base and custom designations with deduplication
-  const combined = Array.from(new Set([...customDesignations, ...baseDesignations]));
-
-  // 4. Final safety filter
-  return combined.filter(name => {
-    const clean = name.toLowerCase().trim();
-    if (isTeachingStaff) {
-      if (lowerNonTeachingDesignations.has(clean)) return false;
-      return !nonTeachingKeywords.some(kw => clean.includes(kw));
+    if (cleanCat.includes("non-teach") || cleanCat.includes("non teach")) {
+      if (isTeachingStaff) return;
+    } else if (cleanCat.includes("teach")) {
+      if (!isTeachingStaff) return;
     } else {
-      if (lowerTeachingDesignations.has(clean)) return false;
-      return true;
+      const cleanName = name.toLowerCase().trim();
+      const nonTeachingKeywords = [
+        'driver', 'attendant', 'conductor', 'guard', 'sweeper', 'cleaner', 
+        'accountant', 'clerk', 'cashier', 'librarian', 'warden', 'electrician', 
+        'plumber', 'gardener', 'mechanic', 'receptionist', 'attender', 'caretaker', 
+        'helper', 'security', 'housekeep', 'peon', 'cook', 'kitchen', 'bus'
+      ];
+      const isNonTeachingName = nonTeachingKeywords.some(kw => cleanName.includes(kw));
+      if (isTeachingStaff && isNonTeachingName) return;
+      if (!isTeachingStaff && !isNonTeachingName) {
+        const teachingKeywords = [
+          'teacher', 'pgt', 'tgt', 'prt', 'principal', 'vice principal', 'hod', 'faculty', 'lecturer'
+        ];
+        const isTeachingName = teachingKeywords.some(kw => cleanName.includes(kw));
+        if (isTeachingName) return;
+      }
     }
+
+    const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
+    if (
+      selectedDepartment &&
+      targetDept &&
+      targetDept !== "All" &&
+      targetDept !== "Both" &&
+      targetDept.toLowerCase() !== selectedDepartment.toLowerCase()
+    ) {
+      return;
+    }
+
+    customDesignations.push(name);
   });
+
+  return Array.from(new Set(customDesignations));
 }
 
 export interface DocumentRequirementSlot {
