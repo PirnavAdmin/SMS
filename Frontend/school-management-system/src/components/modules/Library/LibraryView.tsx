@@ -47,15 +47,22 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const canManageLibrary = isLibrarian;
   const isReadOnlyAccess = !canManageLibrary;
 
-  const { books: contextBooks, bookIssues, addBook, deleteBook, issueBook, returnBook, students, staff, admissions } = useData();
+  const { books: contextBooks, bookIssues: contextBookIssues, addBook, deleteBook, issueBook: contextIssueBook, returnBook: contextReturnBook, students, staff, admissions } = useData();
   const { addToast } = useToast();
   const [books, setBooks] = useState<BookItem[]>(contextBooks || []);
+  const [bookIssues, setBookIssues] = useState<BookIssue[]>([]);
 
   useEffect(() => {
     if (contextBooks && contextBooks.length > 0) {
       setBooks(contextBooks);
     }
   }, [contextBooks]);
+
+  useEffect(() => {
+    if (contextBookIssues && contextBookIssues.length > 0) {
+      setBookIssues(contextBookIssues.filter(i => !['ISS-501', 'ISS-502', 'ISS-503', 'ISS-504'].includes(i.id)));
+    }
+  }, [contextBookIssues]);
 
   // Unified candidate list from Enrolled Students and Admission Applications
   const studentAdmissionCandidates = useMemo(() => {
@@ -412,39 +419,74 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const saveReservations = (data: BookReservation[]) => { setReservations(data); localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(data)); };
 
   // Load real backend data on mount
-  useEffect(() => {
-    const loadBackendData = async () => {
-      try {
-        const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
-          LibraryAPI.fetchBooksApi(),
-          LibraryAPI.fetchCategoriesApi(),
-          LibraryAPI.fetchMembersApi(),
-          LibraryAPI.fetchIssuedBooksApi(),
-          LibraryAPI.fetchFinesApi()
-        ]);
+  const loadBackendData = useCallback(async () => {
+    try {
+      const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
+        LibraryAPI.fetchBooksApi(),
+        LibraryAPI.fetchCategoriesApi(),
+        LibraryAPI.fetchMembersApi(),
+        LibraryAPI.fetchIssuedBooksApi(),
+        LibraryAPI.fetchFinesApi()
+      ]);
 
-        if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
-          const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
-          if (fetchedBooks.length > 0) {
-            setBooks(fetchedBooks.map((b: any) => ({
-              id: String(b.bookId || b.id),
-              title: b.title || b.bookTitle || '',
-              author: b.author || '',
-              isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
-              category: b.category || 'Science',
-              rackNo: b.rackLocation || b.rack || 'Rack A-01',
-              totalCopies: b.totalCopies || 10,
-              availableCopies: b.availableCopies || 10,
-              status: b.availableCopies > 0 ? 'Available' : 'Issued'
-            })));
-          }
+      if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
+        const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
+        if (fetchedBooks.length > 0) {
+          setBooks(fetchedBooks.map((b: any) => ({
+            id: String(b.bookId || b.id),
+            title: b.title || b.bookTitle || '',
+            author: b.author || '',
+            isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
+            category: b.category || 'Science',
+            rackNo: b.rackLocation || b.rack || 'Rack A-01',
+            totalCopies: Number(b.totalCopies) || 0,
+            availableCopies: Number(b.availableCopies) || 0,
+            status: Number(b.availableCopies) > 0 ? 'Available' : 'Issued'
+          })));
         }
-      } catch (err) {
-        console.warn("Backend API fetch notice:", err);
       }
-    };
-    loadBackendData();
+
+      if (issuesRes.status === 'fulfilled' && issuesRes.value?.data) {
+        const fetchedIssues = Array.isArray(issuesRes.value.data) ? issuesRes.value.data : (issuesRes.value.data.items || []);
+        setBookIssues(fetchedIssues.map((i: any) => ({
+          id: String(i.issueId || i.id),
+          bookId: String(i.bookId || i.id),
+          bookTitle: i.bookTitle || i.title || 'Book',
+          borrowerId: i.borrowerIdCode || i.borrowerId || i.memberId || '',
+          borrowerName: i.borrowerName || i.name || 'Member',
+          borrowerRole: (i.borrowerRole || i.role || 'Student') as any,
+          issueDate: i.issueDate ? i.issueDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          dueDate: i.dueDate ? i.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          fineAmount: Number(i.fineAmount) || 0,
+          status: i.status || 'Issued'
+        })));
+      }
+
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value?.data) {
+        const fetchedCats = Array.isArray(categoriesRes.value.data) ? categoriesRes.value.data : [];
+        if (fetchedCats.length > 0) {
+          setCategories(fetchedCats.map((c: any) => ({
+            id: String(c.id || c.code || c.categoryId),
+            name: c.name || c.categoryName || '',
+            code: c.code || c.categoryCode || 'CAT',
+            description: c.description || '',
+            totalBooksCount: c.count || c.totalBooksCount || 0
+          })));
+        }
+      }
+
+      if (finesRes.status === 'fulfilled' && finesRes.value?.data) {
+        const fetchedFines = Array.isArray(finesRes.value.data) ? finesRes.value.data : [];
+        setFineRecords(fetchedFines);
+      }
+    } catch (err) {
+      console.warn("Backend API fetch notice:", err);
+    }
   }, []);
+
+  useEffect(() => {
+    loadBackendData();
+  }, [loadBackendData]);
   const saveLibrarianAttendance = (data: LibrarianAttendanceRecord[]) => {
     setLibrarianAttendance(data);
     localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(data));
@@ -1216,14 +1258,21 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               try {
                 await LibraryAPI.issueBookApi({
                   bookId: targetBk.id,
+                  bookTitle: targetBk.title,
                   memberId: targetMem.memberId || mId,
+                  borrowerIdCode: targetMem.memberId || mId,
+                  borrowerName: targetMem.name,
                   memberType: targetMem.role || 'Student',
+                  borrowerRole: targetMem.role || 'Student',
                   issueDate: new Date().toISOString().split('T')[0],
                   dueDate: dDate
                 });
-              } catch (err) {}
+                await loadBackendData();
+              } catch (err) {
+                console.warn("issueBookApi notice:", err);
+              }
 
-              issueBook({
+              contextIssueBook({
                 bookId: targetBk.id,
                 bookTitle: targetBk.title,
                 borrowerId: targetMem.memberId || mId,
@@ -1252,14 +1301,21 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               try {
                 await LibraryAPI.issueBookApi({
                   bookId: bookIdToUse,
+                  bookTitle: manualBookTitle,
                   memberId: manualMemId,
+                  borrowerIdCode: manualMemId,
+                  borrowerName: manualMemName,
                   memberType: manualMemRole,
+                  borrowerRole: manualMemRole,
                   issueDate: new Date().toISOString().split('T')[0],
                   dueDate: dDate
                 });
-              } catch (err) {}
+                await loadBackendData();
+              } catch (err) {
+                console.warn("manual issueBookApi notice:", err);
+              }
 
-              issueBook({
+              contextIssueBook({
                 bookId: bookIdToUse,
                 bookTitle: manualBookTitle,
                 borrowerId: manualMemId,
@@ -1625,7 +1681,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                           {!isReadOnlyAccess ? (
                             <button onClick={async () => {
                               try { await LibraryAPI.returnBookApi(iss.id); } catch (err) {}
-                              returnBook(iss.id);
+                              contextReturnBook(iss.id);
+                              await loadBackendData();
                               if (calculatedFine > 0) {
                                 const newFine: LibraryFineRecord = {
                                   id: `FIN-${Date.now()}`,

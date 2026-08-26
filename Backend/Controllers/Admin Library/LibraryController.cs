@@ -62,25 +62,19 @@ public class LibraryController : ControllerBase
     [HttpGet("dashboard-metrics")]
     public async Task<IActionResult> GetLibraryDashboard()
     {
-        var totalBooks = await _context.LibraryBooks.AsNoTracking().SumAsync(b => (int?)b.TotalCopies) ?? 200;
-        var availableBooks = await _context.LibraryBooks.AsNoTracking().SumAsync(b => (int?)b.AvailableCopies) ?? 167;
-        var activeIssues = await _context.LibraryIssueRecords.AsNoTracking().CountAsync(r => r.Status == "Issued") > 0 
-            ? await _context.LibraryIssueRecords.AsNoTracking().CountAsync(r => r.Status == "Issued") 
-            : 2;
-        var overdue = await _context.LibraryIssueRecords.AsNoTracking().CountAsync(r => r.Status == "Overdue") > 0 
-            ? await _context.LibraryIssueRecords.AsNoTracking().CountAsync(r => r.Status == "Overdue") 
-            : 2;
-        var activeMembers = 7;
-        var finesCollected = 25;
-        var finesPending = 50;
+        var totalBooks = await _context.LibraryBooks.AsNoTracking().SumAsync(b => (int?)b.TotalCopies) ?? 0;
+        var availableBooks = await _context.LibraryBooks.AsNoTracking().SumAsync(b => (int?)b.AvailableCopies) ?? 0;
+        var activeIssues = await _context.LibraryIssueRecords.AsNoTracking().CountAsync(r => r.Status == "Issued");
+        var overdue = await _context.LibraryIssueRecords.AsNoTracking().CountAsync(r => r.Status == "Overdue");
+        var activeMembers = (await _context.Students.AsNoTracking().CountAsync()) + (await _context.Staff.AsNoTracking().CountAsync());
+        var finesCollected = await _context.LibraryIssueRecords.AsNoTracking().Where(r => r.Status == "Returned" && r.FineAmount > 0).SumAsync(r => (decimal?)r.FineAmount) ?? 0;
+        var finesPending = await _context.LibraryIssueRecords.AsNoTracking().Where(r => r.Status == "Overdue" && r.FineAmount > 0).SumAsync(r => (decimal?)r.FineAmount) ?? 0;
 
-        var categoryBreakdown = new List<object>
-        {
-            new { category = "Science & Physics (SCI)", copies = 35 },
-            new { category = "Mathematics (MATH)", copies = 65 },
-            new { category = "Computer Science (CS)", copies = 40 },
-            new { category = "Literature & Fiction (LIT)", copies = 40 }
-        };
+        var categoryBreakdown = await _context.LibraryBooks.AsNoTracking()
+            .GroupBy(b => b.Category)
+            .Select(g => new { category = g.Key ?? "General", copies = g.Sum(b => b.TotalCopies) })
+            .Cast<object>()
+            .ToListAsync();
 
         var recentTransactions = await _context.LibraryIssueRecords.AsNoTracking()
             .OrderByDescending(r => r.IssueDate)
@@ -401,57 +395,58 @@ public class LibraryController : ControllerBase
     [HttpGet("members")]
     public async Task<IActionResult> GetLibraryMembers()
     {
-        var defaultMembers = new List<object>
-        {
-            new { memberId = "STF-2026-0001", memberName = "Srinivas Rao", name = "Srinivas Rao", role = "Teacher", classOrDept = "Mathematics", maxLimit = "6 Books", issued = 0, fineDue = 0, status = "Active" },
-            new { memberId = "STF-2026-0002", memberName = "Surya Teja Kola", name = "Surya Teja Kola", role = "Teacher", classOrDept = "Social Studies", maxLimit = "6 Books", issued = 0, fineDue = 0, status = "Active" },
-            new { memberId = "STF-2026-0003", memberName = "Nag Sahoo", name = "Nag Sahoo", role = "Staff", classOrDept = "Transport Dept", maxLimit = "6 Books", issued = 0, fineDue = 0, status = "Active" },
-            new { memberId = "STF-2026-0004", memberName = "Blast Bobby", name = "Blast Bobby", role = "Staff", classOrDept = "Transport Dept", maxLimit = "6 Books", issued = 0, fineDue = 0, status = "Active" },
-            new { memberId = "REG-1002", memberName = "Ram Charan", name = "Ram Charan", role = "Student", classOrDept = "Class 1-A", maxLimit = "3 Books", issued = 0, fineDue = 0, status = "Active" },
-            new { memberId = "REG-1007", memberName = "Surya Teja Kola", name = "Surya Teja Kola", role = "Student", classOrDept = "Nursery-A", maxLimit = "3 Books", issued = 0, fineDue = 50, status = "Active" },
-            new { memberId = "REG-1003", memberName = "Veera Shankar Garikapati", name = "Veera Shankar Garikapati", role = "Student", classOrDept = "Class 2-A", maxLimit = "3 Books", issued = 0, fineDue = 0, status = "Active" }
-        };
+        var activeIssueCounts = await _context.LibraryIssueRecords.AsNoTracking()
+            .Where(r => r.Status == "Issued" || r.Status == "Renewed" || r.Status == "Overdue")
+            .GroupBy(r => r.BorrowerIdCode)
+            .ToDictionaryAsync(g => g.Key ?? "", g => g.Count());
 
         var staffMembers = new List<object>();
         try
         {
-            var staffList = await _context.Staff.AsNoTracking().Take(20).ToListAsync();
-            staffMembers = staffList.Select(s => new
-            {
-                memberId = !string.IsNullOrWhiteSpace(s.EmployeeId) ? s.EmployeeId : $"STF-{s.StaffId}",
-                memberName = $"{s.FirstName} {s.LastName}".Trim(),
-                name = $"{s.FirstName} {s.LastName}".Trim(),
-                role = s.EmployeeCategory ?? "Teacher",
-                classOrDept = s.Department ?? "Academics",
-                maxLimit = "6 Books",
-                issued = 0,
-                fineDue = 0,
-                status = "Active"
-            }).Cast<object>().ToList();
+            var staffList = await _context.Staff.AsNoTracking().Take(50).ToListAsync();
+            staffMembers = staffList.Select(s => {
+                string memId = !string.IsNullOrWhiteSpace(s.EmployeeId) ? s.EmployeeId : $"STF-{s.StaffId}";
+                int issuedCount = activeIssueCounts.ContainsKey(memId) ? activeIssueCounts[memId] : 0;
+                return (object)new
+                {
+                    memberId = memId,
+                    memberName = $"{s.FirstName} {s.LastName}".Trim(),
+                    name = $"{s.FirstName} {s.LastName}".Trim(),
+                    role = s.EmployeeCategory ?? "Teacher",
+                    classOrDept = s.Department ?? "Academics",
+                    maxLimit = "6 Books",
+                    issued = issuedCount,
+                    fineDue = 0,
+                    status = "Active"
+                };
+            }).ToList();
         }
         catch { }
 
         var studentMembers = new List<object>();
         try
         {
-            var studentList = await _context.Students.AsNoTracking().Take(20).ToListAsync();
-            studentMembers = studentList.Select(s => new
-            {
-                memberId = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber : $"REG-{s.StudentId}",
-                memberName = s.StudentName,
-                name = s.StudentName,
-                role = "Student",
-                classOrDept = "Class Student",
-                maxLimit = "3 Books",
-                issued = 0,
-                fineDue = 0,
-                status = "Active"
-            }).Cast<object>().ToList();
+            var studentList = await _context.Students.AsNoTracking().Take(50).ToListAsync();
+            studentMembers = studentList.Select(s => {
+                string memId = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber : $"REG-{s.StudentId}";
+                int issuedCount = activeIssueCounts.ContainsKey(memId) ? activeIssueCounts[memId] : 0;
+                return (object)new
+                {
+                    memberId = memId,
+                    memberName = s.StudentName,
+                    name = s.StudentName,
+                    role = "Student",
+                    classOrDept = "Class Student",
+                    maxLimit = "3 Books",
+                    issued = issuedCount,
+                    fineDue = 0,
+                    status = "Active"
+                };
+            }).ToList();
         }
         catch { }
 
-        var merged = defaultMembers.Concat(staffMembers).Concat(studentMembers).Concat(_customMembers).ToList();
-
+        var merged = staffMembers.Concat(studentMembers).Concat(_customMembers).ToList();
         return Ok(new { success = true, data = merged });
     }
 
