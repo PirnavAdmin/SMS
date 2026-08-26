@@ -29,37 +29,10 @@ const RULES_KEY = 'edu_db_library_rules';
 import { LibrarianAttendanceRecord, DEFAULT_LIBRARIAN_ATTENDANCE, LIBRARIAN_ATTENDANCE_KEY, calculateWorkedHours } from './LibrarianAttendanceView';
 
 // Initial Defaults
-const DEFAULT_CATEGORIES: BookCategory[] = [
-  { id: 'CAT-1', name: 'Science & Physics', code: 'SCI', description: 'Physics, Chemistry & Biology textbooks', totalBooksCount: 45 },
-  { id: 'CAT-2', name: 'Mathematics', code: 'MATH', description: 'Algebra, Geometry & Calculus reference books', totalBooksCount: 30 },
-  { id: 'CAT-3', name: 'Computer Science', code: 'CS', description: 'Programming, Data Structures & AI guides', totalBooksCount: 25 },
-  { id: 'CAT-4', name: 'Literature & Fiction', code: 'LIT', description: 'Classic & Modern English Literature', totalBooksCount: 40 },
-  { id: 'CAT-5', name: 'History & Civics', code: 'HIS', description: 'World History & Indian Constitution', totalBooksCount: 20 },
-];
-
-const DEFAULT_AUTHORS: BookAuthor[] = [
-  { id: 'ATH-1', name: 'Halliday & Resnick', publisher: 'Wiley India', biography: 'Renowned physicists and educators', booksCount: 15 },
-  { id: 'ATH-2', name: 'R.D. Sharma', publisher: 'Dhanpat Rai Publications', biography: 'Prominent Mathematics author', booksCount: 20 },
-  { id: 'ATH-3', name: 'E. Balagurusamy', publisher: 'McGraw Hill', biography: 'Computer Science & Programming pioneer', booksCount: 12 },
-  { id: 'ATH-4', name: 'William Shakespeare', publisher: 'Penguin Classics', biography: 'English playwright and poet', booksCount: 18 },
-];
-
-const DEFAULT_RACKS: BookRack[] = [
-  { id: 'RCK-1', rackNo: 'Rack A-01', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 32 },
-  { id: 'RCK-2', rackNo: 'Rack A-01', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 18 },
-  { id: 'RCK-3', rackNo: 'Rack A-01', shelfNo: 'Shelf 3', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 10 },
-  { id: 'RCK-4', rackNo: 'Rack B-02', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Mathematics Section', capacity: 40, occupiedCount: 25 },
-  { id: 'RCK-5', rackNo: 'Rack B-02', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Mathematics Section', capacity: 40, occupiedCount: 15 },
-  { id: 'RCK-6', rackNo: 'Rack C-03', shelfNo: 'Shelf 1', floor: '2nd Floor', section: 'CS & Tech Lab', capacity: 45, occupiedCount: 20 },
-  { id: 'RCK-7', rackNo: 'Rack C-03', shelfNo: 'Shelf 2', floor: '2nd Floor', section: 'CS & Tech Lab', capacity: 45, occupiedCount: 8 },
-  { id: 'RCK-8', rackNo: 'Rack D-04', shelfNo: 'Shelf 1', floor: '2nd Floor', section: 'Literature Section', capacity: 60, occupiedCount: 40 },
-  { id: 'RCK-9', rackNo: 'Rack D-04', shelfNo: 'Shelf 2', floor: '2nd Floor', section: 'Literature Section', capacity: 60, occupiedCount: 22 },
-];
-
-const DEFAULT_RULES: LibraryRule[] = [
-  { id: 'RUL-1', userRole: 'Student', maxBooks: 3, issueDurationDays: 14, dailyFineRate: 5, maxRenewals: 2 },
-  { id: 'RUL-2', userRole: 'Staff', maxBooks: 6, issueDurationDays: 30, dailyFineRate: 2, maxRenewals: 3 },
-];
+const DEFAULT_CATEGORIES: BookCategory[] = [];
+const DEFAULT_AUTHORS: BookAuthor[] = [];
+const DEFAULT_RACKS: BookRack[] = [];
+const DEFAULT_RULES: LibraryRule[] = [];
 
 interface LibraryViewProps {
   initialPhase?: 'phase1' | 'phase2' | 'phase3' | 'phase4';
@@ -74,8 +47,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const canManageLibrary = isLibrarian;
   const isReadOnlyAccess = !canManageLibrary;
 
-  const { books, bookIssues, addBook, deleteBook, issueBook, returnBook, students, staff, admissions } = useData();
+  const { books: contextBooks, bookIssues, addBook, deleteBook, issueBook, returnBook, students, staff, admissions } = useData();
   const { addToast } = useToast();
+  const [books, setBooks] = useState<BookItem[]>(contextBooks || []);
+
+  useEffect(() => {
+    if (contextBooks && contextBooks.length > 0) {
+      setBooks(contextBooks);
+    }
+  }, [contextBooks]);
 
   // Unified candidate list from Enrolled Students and Admission Applications
   const studentAdmissionCandidates = useMemo(() => {
@@ -196,38 +176,46 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   // Local Storage Dynamic States
   const [categories, setCategories] = useState<BookCategory[]>(() => {
     const s = localStorage.getItem(CATEGORIES_KEY);
-    return s ? JSON.parse(s) : DEFAULT_CATEGORIES;
+    if (!s) return [];
+    try {
+      const parsed: BookCategory[] = JSON.parse(s);
+      return parsed.filter(c => !['CAT-1', 'CAT-2', 'CAT-3', 'CAT-4', 'CAT-5'].includes(c.id));
+    } catch {
+      return [];
+    }
   });
 
   const [authors, setAuthors] = useState<BookAuthor[]>(() => {
     const s = localStorage.getItem(AUTHORS_KEY);
-    return s ? JSON.parse(s) : DEFAULT_AUTHORS;
+    if (!s) return [];
+    try {
+      const parsed: BookAuthor[] = JSON.parse(s);
+      return parsed.filter(a => !['ATH-1', 'ATH-2', 'ATH-3', 'ATH-4'].includes(a.id));
+    } catch {
+      return [];
+    }
   });
 
   const [racks, setRacks] = useState<BookRack[]>(() => {
     const s = localStorage.getItem(RACKS_KEY);
-    return s ? JSON.parse(s) : DEFAULT_RACKS;
+    if (!s) return [];
+    try {
+      const parsed: BookRack[] = JSON.parse(s);
+      return parsed.filter(r => !['RCK-1', 'RCK-2', 'RCK-3', 'RCK-4', 'RCK-5', 'RCK-6', 'RCK-7', 'RCK-8', 'RCK-9'].includes(r.id));
+    } catch {
+      return [];
+    }
   });
 
   const [members, setMembers] = useState<LibraryMember[]>(() => {
     const s = localStorage.getItem(MEMBERS_KEY);
-    if (s) return JSON.parse(s);
-    // Seed initial members from students/staff if empty
-    const stMembers: LibraryMember[] = (students || []).slice(0, 10).map((st, i) => ({
-      id: `MEM-STU-${st.id || i}`,
-      memberId: st.admissionNo || `LIB-STU-${100 + i}`,
-      name: `${st.firstName} ${st.lastName}`,
-      role: 'Student',
-      email: st.email || 'student@school.edu',
-      phone: st.phone || '9876543210',
-      className: `${st.className || 'Class 10'}-${st.section || 'A'}`,
-      maxLimit: 3,
-      issuedCount: i % 2 === 0 ? 1 : 0,
-      fineBalance: i === 1 ? 50 : 0,
-      joinedDate: '2026-06-01',
-      status: 'Active'
-    }));
-    return stMembers;
+    if (!s) return [];
+    try {
+      const parsed: LibraryMember[] = JSON.parse(s);
+      return parsed.filter(m => !String(m.id).startsWith('MEM-STU-') && !String(m.memberId).startsWith('LIB-STU-'));
+    } catch {
+      return [];
+    }
   });
 
   // Dynamic Library Members merged from DataContext students & staff + local custom members
@@ -359,35 +347,57 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
   const [reservations, setReservations] = useState<BookReservation[]>(() => {
     const s = localStorage.getItem(RESERVATIONS_KEY);
-    return s ? JSON.parse(s) : [
-      { id: 'RES-101', bookId: 'BK-01', bookTitle: 'Fundamentals of Physics', memberId: 'ADM2024-001', memberName: 'Alexander Wright', memberRole: 'Student', requestDate: '2026-08-14', status: 'Pending' },
-      { id: 'RES-102', bookId: 'BK-03', bookTitle: 'Computer Science Principles & AI', memberId: 'EMP001', memberName: 'Sarah Jenkins', memberRole: 'Teacher', requestDate: '2026-08-18', status: 'Pending' }
-    ];
+    if (!s) return [];
+    try {
+      const parsed: BookReservation[] = JSON.parse(s);
+      return parsed.filter(r => !['RES-101', 'RES-102'].includes(r.id));
+    } catch {
+      return [];
+    }
   });
 
   const [fineRecords, setFineRecords] = useState<LibraryFineRecord[]>(() => {
     const s = localStorage.getItem(FINES_KEY);
-    return s ? JSON.parse(s) : [
-      { id: 'FIN-101', issueId: 'ISS-501', memberId: 'ADM2024-001', memberName: 'Alexander Wright', memberRole: 'Student', bookTitle: 'Fundamentals of Physics', overdueDays: 5, fineAmount: 25, paidAmount: 25, paymentStatus: 'Paid', createdDate: '2026-08-10', paidDate: '2026-08-12', remarks: 'Late return fine paid at counter' },
-      { id: 'FIN-102', issueId: 'ISS-503', memberId: 'ADM2024-002', memberName: 'Emily Davis', memberRole: 'Student', bookTitle: 'Computer Science Principles & AI', overdueDays: 10, fineAmount: 50, paidAmount: 0, paymentStatus: 'Unpaid', createdDate: '2026-08-16', remarks: 'Pending overdue fine' }
-    ];
+    if (!s) return [];
+    try {
+      const parsed: LibraryFineRecord[] = JSON.parse(s);
+      return parsed.filter(f => !['FIN-101', 'FIN-102'].includes(f.id));
+    } catch {
+      return [];
+    }
   });
 
   const [lostDamagedList, setLostDamagedList] = useState<LostDamagedBook[]>(() => {
     const s = localStorage.getItem(LOST_DAMAGED_KEY);
-    return s ? JSON.parse(s) : [
-      { id: 'LD-101', bookId: 'BK-01', bookTitle: 'Fundamentals of Physics', memberId: 'ADM2024-003', memberName: 'James Brown', memberRole: 'Student', issueType: 'Damaged', fineAmount: 100, replacementCost: 450, reportDate: '2026-08-11', status: 'Pending', notes: 'Torn back cover page' }
-    ];
+    if (!s) return [];
+    try {
+      const parsed: LostDamagedBook[] = JSON.parse(s);
+      return parsed.filter(ld => !['LD-101'].includes(ld.id));
+    } catch {
+      return [];
+    }
   });
 
   const [rules, setRules] = useState<LibraryRule[]>(() => {
     const s = localStorage.getItem(RULES_KEY);
-    return s ? JSON.parse(s) : DEFAULT_RULES;
+    if (!s) return [];
+    try {
+      const parsed: LibraryRule[] = JSON.parse(s);
+      return parsed.filter(r => !['RUL-1', 'RUL-2'].includes(r.id));
+    } catch {
+      return [];
+    }
   });
 
   const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>(() => {
     const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
-    return s ? JSON.parse(s) : DEFAULT_LIBRARIAN_ATTENDANCE;
+    if (!s) return [];
+    try {
+      const parsed: LibrarianAttendanceRecord[] = JSON.parse(s);
+      return parsed.filter(a => !String(a.id).startsWith('ATT-LIB-'));
+    } catch {
+      return [];
+    }
   });
 
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
