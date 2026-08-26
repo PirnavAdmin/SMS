@@ -183,6 +183,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [showBookDropdown, setShowBookDropdown] = useState<boolean>(false);
 
+  // Edit Fine State
+  const [editingFine, setEditingFine] = useState<LibraryFineRecord | null>(null);
+
   // Search & Filter & Pagination state across views
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -1836,7 +1839,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                             ) : (
                               <span className="text-[11px] font-bold text-emerald-600">Paid on {f.paidDate}</span>
                             )}
-                            <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <button onClick={() => setEditingFine(f)} className="p-1 text-slate-400 hover:text-sky-600 transition-colors cursor-pointer" title="Edit Fine Record">
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer" title="Delete Fine Record">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
@@ -2944,6 +2950,132 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 Close Inspection
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Fine Record Modal */}
+      {editingFine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Edit className="w-5 h-5 text-sky-500" /> Edit Fine Record
+              </h3>
+              <button onClick={() => setEditingFine(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={e => {
+              e.preventDefault();
+              const updated = fineRecords.map(f => f.id === editingFine.id ? editingFine : f);
+              saveFines(updated);
+              addToast('success', 'Fine Record Updated', `Successfully updated fine details for ${editingFine.memberName}`);
+              setEditingFine(null);
+            }} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Member Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input
+                  type="text"
+                  value={editingFine.memberName}
+                  onChange={e => setEditingFine({ ...editingFine, memberName: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Book Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input
+                  type="text"
+                  value={editingFine.bookTitle}
+                  onChange={e => setEditingFine({ ...editingFine, bookTitle: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Overdue Days <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="number"
+                    value={editingFine.overdueDays}
+                    onChange={e => setEditingFine({ ...editingFine, overdueDays: Number(e.target.value) || 0 })}
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Fine Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="number"
+                    value={editingFine.fineAmount}
+                    onChange={e => setEditingFine({ ...editingFine, fineAmount: Number(e.target.value) || 0 })}
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 font-mono font-black outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Payment Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <select
+                    value={editingFine.paymentStatus}
+                    onChange={e => {
+                      const newStatus = e.target.value as 'Paid' | 'Unpaid';
+                      setEditingFine({
+                        ...editingFine,
+                        paymentStatus: newStatus,
+                        paidDate: newStatus === 'Paid' ? (editingFine.paidDate || new Date().toISOString().split('T')[0]) : undefined
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                  >
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Paid">Paid</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Paid Date</label>
+                  <input
+                    type="date"
+                    value={editingFine.paidDate || ''}
+                    onChange={e => setEditingFine({ ...editingFine, paidDate: e.target.value })}
+                    disabled={editingFine.paymentStatus !== 'Paid'}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Remarks / Notes</label>
+                <input
+                  type="text"
+                  value={editingFine.remarks || ''}
+                  onChange={e => setEditingFine({ ...editingFine, remarks: e.target.value })}
+                  placeholder="e.g. Adjusted fine due to leave submission"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingFine(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold cursor-pointer shadow-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
