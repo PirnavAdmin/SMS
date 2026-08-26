@@ -32,7 +32,6 @@ export const TeacherProfileView: React.FC = () => {
 
     if (userEmail) {
       const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (byEmail) return byEmail;
     }
 

@@ -51,13 +51,6 @@ export const LeaveManagementView: React.FC = () => {
 
   // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
   const teachingStaff = staff.filter(s => {
-    const desig = (s.designation || '').toLowerCase();
-    const dept = (s.department || '').toLowerCase();
-    return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
-  });
-
-  // Match current staff member for logged in teacher
-  const teachingStaff = staff.filter(s => {
     const des = (s.designation || '').toLowerCase();
     const dept = (s.department || '').toLowerCase();
     const cat = (s.employeeCategory || '').toLowerCase();
