@@ -309,6 +309,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     status: AdmissionApplication["status"];
   } | null>(null);
   const [isStatusUpdateLoading, setIsStatusUpdateLoading] = useState(false);
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [feeSummaryStudentId, setFeeSummaryStudentId] = useState<string | null>(
     null,
   );
@@ -1410,8 +1411,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    if (isSubmittingForm) return;
     
     // Validate Student Details Required Fields
     if (!firstName || !firstName.trim()) {
@@ -1567,167 +1569,178 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const fullApplicantName = `${firstName.trim()} ${lastName.trim()}`;
 
-    if (editingApp) {
-      updateAdmission(editingApp.id, {
-        ...formData,
-        dob: finalDob,
-        applicantName: fullApplicantName,
-        avatar,
-        hasSiblings,
-        siblingsCount: hasSiblings ? siblingsCount : 0,
-        siblingDetails: hasSiblings ? siblingDetails : [],
-        siblingStudentId: selectedStudentIds[0] || "",
-        siblingStudentIds: selectedStudentIds,
-      });
-      addToast(
-        "success",
-        "Application Updated",
-        `Updated details for ${fullApplicantName}`,
-      );
-    } else {
-      const admissionPayload = {
-        applicantName: fullApplicantName,
-        avatar,
-        appliedClass: formData.appliedClass!,
-        gender: formData.gender,
-        dob: finalDob,
-        bloodGroup: formData.bloodGroup,
-        religion: formData.religion || "General",
-        casteCategory: formData.casteCategory || "General",
-        parentName: formData.parentName,
-        motherName: formData.motherName || "N/A",
-        email:
-          formData.email ||
-          `${fullApplicantName.toLowerCase().replace(/\s+/g, ".")}@gmail.com`,
-        phone: formData.phone || "9876543210",
-        addressHouseNo: formData.addressHouseNo,
-        addressStreet: formData.addressStreet,
-        addressArea: formData.addressArea,
-        addressCity: formData.addressCity,
-        addressDistrict: formData.addressDistrict,
-        addressState: formData.addressState,
-        addressPinCode: formData.addressPinCode,
-        hasSiblings,
-        siblingsCount: hasSiblings ? siblingsCount : 0,
-        siblingDetails: hasSiblings ? siblingDetails : [],
-        siblingStudentId: selectedStudentIds[0] || "",
-        siblingStudentIds: selectedStudentIds,
-        studentType: formData.studentType as StudentType,
-        transportRequired: formData.transportRequired,
-        transportType: formData.transportType,
-        busRoute: formData.busRoute,
-        pickupPoint: formData.pickupPoint,
-        dropPoint: formData.dropPoint,
-        hostelBlock: formData.hostelBlock,
-        floor: formData.floor,
-        hostelRoom: formData.hostelRoom,
-        hostelBed: formData.hostelBed,
-        branch: formData.branch || selectedBranch || "Main Campus",
-        scholarshipId: formData.scholarshipId,
-        discountId: formData.discountId,
-        selectedOptionalFees: formData.selectedOptionalFees || [],
-        submissionDate: new Date().toISOString().split("T")[0],
-        joiningDate:
-          formData.joiningDate ||
-          formData.admissionDate ||
-          new Date().toISOString().split("T")[0],
-        admissionDate:
-          formData.joiningDate ||
-          formData.admissionDate ||
-          new Date().toISOString().split("T")[0],
-        isLateAdmission: !!formData.isLateAdmission,
-        feeCalculationMethod: formData.feeCalculationMethod || "Term-wise",
-        status: "Pending",
-        documentsSubmitted: formData.documentsSubmitted || [],
-      };
+    setIsSubmittingForm(true);
+    try {
+      if (editingApp) {
+        await updateAdmission(editingApp.id, {
+          ...formData,
+          dob: finalDob,
+          applicantName: fullApplicantName,
+          avatar,
+          hasSiblings,
+          siblingsCount: hasSiblings ? siblingsCount : 0,
+          siblingDetails: hasSiblings ? siblingDetails : [],
+          siblingStudentId: selectedStudentIds[0] || "",
+          siblingStudentIds: selectedStudentIds,
+        });
+        addToast(
+          "success",
+          "Application Updated",
+          `Updated details for ${fullApplicantName}`,
+        );
+      } else {
+        const admissionPayload = {
+          applicantName: fullApplicantName,
+          avatar,
+          appliedClass: formData.appliedClass!,
+          gender: formData.gender,
+          dob: finalDob,
+          bloodGroup: formData.bloodGroup,
+          religion: formData.religion || "General",
+          casteCategory: formData.casteCategory || "General",
+          parentName: formData.parentName,
+          motherName: formData.motherName || "N/A",
+          email:
+            formData.email ||
+            `${fullApplicantName.toLowerCase().replace(/\s+/g, ".")}@gmail.com`,
+          phone: formData.phone || "9876543210",
+          addressHouseNo: formData.addressHouseNo,
+          addressStreet: formData.addressStreet,
+          addressArea: formData.addressArea,
+          addressCity: formData.addressCity,
+          addressDistrict: formData.addressDistrict,
+          addressState: formData.addressState,
+          addressPinCode: formData.addressPinCode,
+          hasSiblings,
+          siblingsCount: hasSiblings ? siblingsCount : 0,
+          siblingDetails: hasSiblings ? siblingDetails : [],
+          siblingStudentId: selectedStudentIds[0] || "",
+          siblingStudentIds: selectedStudentIds,
+          studentType: formData.studentType as StudentType,
+          transportRequired: formData.transportRequired,
+          transportType: formData.transportType,
+          busRoute: formData.busRoute,
+          pickupPoint: formData.pickupPoint,
+          dropPoint: formData.dropPoint,
+          hostelBlock: formData.hostelBlock,
+          floor: formData.floor,
+          hostelRoom: formData.hostelRoom,
+          hostelBed: formData.hostelBed,
+          branch: formData.branch || selectedBranch || "Main Campus",
+          scholarshipId: formData.scholarshipId,
+          discountId: formData.discountId,
+          selectedOptionalFees: formData.selectedOptionalFees || [],
+          submissionDate: new Date().toISOString().split("T")[0],
+          joiningDate:
+            formData.joiningDate ||
+            formData.admissionDate ||
+            new Date().toISOString().split("T")[0],
+          admissionDate:
+            formData.joiningDate ||
+            formData.admissionDate ||
+            new Date().toISOString().split("T")[0],
+          isLateAdmission: !!formData.isLateAdmission,
+          feeCalculationMethod: formData.feeCalculationMethod || "Term-wise",
+          status: "Pending",
+          documentsSubmitted: formData.documentsSubmitted || [],
+        };
 
-      addAdmission(admissionPayload);
+        await addAdmission(admissionPayload);
 
-      // Sync Residential / Hosteller student across all Hostel & Finance pages
-      if (
-        formData.studentType === "Residential" ||
-        (formData.studentType as any) === "Hosteller" ||
-        formData.hostelBlock ||
-        formData.hostelBed
-      ) {
-        try {
-          const STORE_KEY = "edu_db_residential_students";
-          const stored = localStorage.getItem(STORE_KEY);
-          let list = stored ? JSON.parse(stored) : [];
-          if (!Array.isArray(list)) list = [];
+        // Sync Residential / Hosteller student across all Hostel & Finance pages
+        if (
+          formData.studentType === "Residential" ||
+          (formData.studentType as any) === "Hosteller" ||
+          formData.hostelBlock ||
+          formData.hostelBed
+        ) {
+          try {
+            const STORE_KEY = "edu_db_residential_students";
+            const stored = localStorage.getItem(STORE_KEY);
+            let list = stored ? JSON.parse(stored) : [];
+            if (!Array.isArray(list)) list = [];
 
-          const stId = `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-          const admNo = `ADM-2026-${Math.floor(100 + Math.random() * 900)}`;
+            const stId = `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+            const admNo = `ADM-2026-${Math.floor(100 + Math.random() * 900)}`;
 
-          const newRecord = {
-            id: stId,
-            name: fullApplicantName,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            admissionNo: admNo,
-            className: formData.appliedClass,
-            section: "A",
-            studentType: "Residential",
-            isResidential: true,
-            phone: formData.phone || "",
-            email: formData.email || "",
-            parentName: formData.parentName || "",
-            hostelBlock: formData.hostelBlock || "",
-            hostelBed: formData.hostelBed || "",
+            const newRecord = {
+              id: stId,
+              name: fullApplicantName,
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              admissionNo: admNo,
+              className: formData.appliedClass,
+              section: "A",
+              studentType: "Residential",
+              isResidential: true,
+              phone: formData.phone || "",
+              email: formData.email || "",
+              parentName: formData.parentName || "",
+              hostelBlock: formData.hostelBlock || "",
+              hostelBed: formData.hostelBed || "",
+              status: "Active",
+            };
+
+            list.push(newRecord);
+            localStorage.setItem(STORE_KEY, JSON.stringify(list));
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event("residential_students_updated"));
+            }
+          } catch (e) {}
+        }
+
+        // Auto-Allocate Hostel Room & Bed if Residential student opted for block, room & bed
+        if (
+          (formData.studentType === "Residential" ||
+            (formData.studentType as any) === "Hosteller") &&
+          formData.hostelBlock &&
+          formData.hostelRoom &&
+          formData.hostelBed
+        ) {
+          const selBlk =
+            dynamicHostelBlocks.find(
+              (b) => String(b.hostelId) === String(formData.hostelBlock),
+            ) ||
+            hostelMasters.find(
+              (h) => String(h.id) === String(formData.hostelBlock),
+            );
+          const selRm =
+            dynamicHostelRooms.find(
+              (r) => String(r.roomId) === String(formData.hostelRoom),
+            ) ||
+            roomMasters.find((r) => String(r.id) === String(formData.hostelRoom));
+
+          createAllocation({
+            studentId: `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+            studentName: fullApplicantName,
+            admissionNo: `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
+            hostelId: Number(formData.hostelBlock) || 1,
+            hostelName: selBlk?.hostelName || "Ramachandra Bhavan Block",
+            roomId: Number(formData.hostelRoom) || 201,
+            roomNumber: selRm?.roomNumber || "101",
+            bedNumber: formData.hostelBed,
+            joiningDate: new Date().toISOString().split("T")[0],
             status: "Active",
-          };
+          }).catch(() => {});
+        }
 
-          list.push(newRecord);
-          localStorage.setItem(STORE_KEY, JSON.stringify(list));
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new Event("residential_students_updated"));
-          }
-        } catch (e) {}
+        addToast(
+          "success",
+          "Application Submitted",
+          `Application registered for ${fullApplicantName}`,
+        );
       }
 
-      // Auto-Allocate Hostel Room & Bed if Residential student opted for block, room & bed
-      if (
-        (formData.studentType === "Residential" ||
-          (formData.studentType as any) === "Hosteller") &&
-        formData.hostelBlock &&
-        formData.hostelRoom &&
-        formData.hostelBed
-      ) {
-        const selBlk =
-          dynamicHostelBlocks.find(
-            (b) => String(b.hostelId) === String(formData.hostelBlock),
-          ) ||
-          hostelMasters.find(
-            (h) => String(h.id) === String(formData.hostelBlock),
-          );
-        const selRm =
-          dynamicHostelRooms.find(
-            (r) => String(r.roomId) === String(formData.hostelRoom),
-          ) ||
-          roomMasters.find((r) => String(r.id) === String(formData.hostelRoom));
-
-        createAllocation({
-          studentId: `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          studentName: fullApplicantName,
-          admissionNo: `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
-          hostelId: Number(formData.hostelBlock) || 1,
-          hostelName: selBlk?.hostelName || "Ramachandra Bhavan Block",
-          roomId: Number(formData.hostelRoom) || 201,
-          roomNumber: selRm?.roomNumber || "101",
-          bedNumber: formData.hostelBed,
-          joiningDate: new Date().toISOString().split("T")[0],
-          status: "Active",
-        }).catch(() => {});
-      }
-
+      handleCloseForm();
+    } catch (err: any) {
       addToast(
-        "success",
-        "Application Submitted",
-        `Application registered for ${fullApplicantName}`,
+        "error",
+        "Submission Error",
+        err.message || "An error occurred while saving the application."
       );
+    } finally {
+      setIsSubmittingForm(false);
     }
-
-    handleCloseForm();
   };
 
   const isItemMandatory = (item: {
@@ -3894,8 +3907,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all"
+                  disabled={isSubmittingForm}
+                  className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                 >
+                  {isSubmittingForm && <Loader2 className="w-4 h-4 animate-spin" />}
                   {editingApp
                     ? "Save Application Changes"
                     : "Submit Application"}
@@ -4214,18 +4229,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         ) : (
                           <>
                             <button
+                              disabled={isStatusUpdateLoading}
                               onClick={() =>
                                 setConfirmingApp({ app, status: "Rejected" })
                               }
-                              className="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 font-bold text-xs"
+                              className="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Reject
                             </button>
                             <button
+                              disabled={isStatusUpdateLoading}
                               onClick={() =>
                                 setConfirmingApp({ app, status: "Enrolled" })
                               }
-                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-1"
+                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <UserCheck className="w-3.5 h-3.5" /> Enroll
                               Student

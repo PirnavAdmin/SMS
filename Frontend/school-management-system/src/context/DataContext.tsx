@@ -6747,10 +6747,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Admission CRUD
+  const inFlightAdmissionSubmissions = new Set<string>();
+  const inFlightStatusUpdates = new Set<string>();
+
   const addAdmission = async (
     appData: Omit<AdmissionApplication, "id" | "applicationNo">,
     options?: { silent?: boolean },
   ) => {
+    const signature = `${(appData.applicantName || "").toLowerCase().trim()}_${(appData.phone || "").trim()}_${(appData.appliedClass || "").toLowerCase().trim()}`;
+    if (signature.length > 5 && inFlightAdmissionSubmissions.has(signature)) {
+      console.warn(`[addAdmission] Duplicate submission blocked for signature: ${signature}`);
+      return null;
+    }
+    if (signature.length > 5) inFlightAdmissionSubmissions.add(signature);
+
     try {
       let isoDob = new Date().toISOString();
       if (appData.dob) {
@@ -6902,6 +6912,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
       return null;
+    } finally {
+      setTimeout(() => {
+        if (signature.length > 5) inFlightAdmissionSubmissions.delete(signature);
+      }, 3000);
     }
   };
 
@@ -7013,6 +7027,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<string | null> => {
     const app = admissions.find((a) => a.id === id);
     if (!app) return null;
+
+    if (status === "Enrolled" && app.status === "Enrolled") {
+      console.warn(`[updateAdmissionStatus] Application ${id} is already enrolled.`);
+      return null;
+    }
+
+    if (inFlightStatusUpdates.has(id)) {
+      console.warn(`[updateAdmissionStatus] Status update already in progress for application ${id}`);
+      return null;
+    }
+    inFlightStatusUpdates.add(id);
 
     const appIdNumeric = parseInt(id, 10);
 
@@ -7476,6 +7501,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         "Network Error",
         err.message || "Failed to update application status.",
       );
+    } finally {
+      setTimeout(() => {
+        inFlightStatusUpdates.delete(id);
+      }, 3000);
     }
     return null;
   };
@@ -13876,18 +13905,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     async (date: string, department?: string) => {
       try {
         const response = await fetchDailyStaffAttendanceApi(date, department);
-        if (response && response.success && response.data) {
-          console.log(
-            "DEBUG: fetchDailyAttendance response data:",
-            response.data,
-          );
+        if (response && response.success && Array.isArray(response.data)) {
           const mappedRecords: DailyAttendance[] = response.data.map(
             (item: any) => ({
               id:
                 item.staffAttendanceId?.toString() ||
                 item.id?.toString() ||
                 Math.random().toString(),
-              date: item.date,
+              date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
               status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
@@ -13899,14 +13924,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }),
           );
 
+          const targetDate = String(date).split("T")[0].split(" ")[0];
           setAttendance((prev) => {
-            const filterDates = mappedRecords.map(
-              (r) => `${r.entityId}_${r.date}`,
-            );
             const filtered = prev.filter(
-              (r) => !filterDates.includes(`${r.entityId}_${r.date}`),
+              (r) =>
+                !(
+                  (!r.entityType || r.entityType.toLowerCase() === "staff") &&
+                  String(r.date || "").split("T")[0].split(" ")[0] === targetDate
+                ),
             );
-            return [...filtered, ...mappedRecords];
+            const updated = [...filtered, ...mappedRecords];
+            try {
+              localStorage.setItem("attendance", JSON.stringify(updated));
+            } catch {
+              /* Ignored */
+            }
+            return updated;
           });
         }
       } catch (err: any) {
@@ -13924,14 +13957,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           year,
           department,
         );
-        if (response && response.success && response.data) {
+        if (response && response.success && Array.isArray(response.data)) {
           const mappedRecords: DailyAttendance[] = response.data.map(
             (item: any) => ({
               id:
                 item.staffAttendanceId?.toString() ||
                 item.id?.toString() ||
                 Math.random().toString(),
-              date: item.date,
+              date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
               status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
@@ -13943,14 +13976,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }),
           );
 
+          const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
           setAttendance((prev) => {
-            const filterDates = mappedRecords.map(
-              (r) => `${r.entityId}_${r.date}`,
-            );
-            const filtered = prev.filter(
-              (r) => !filterDates.includes(`${r.entityId}_${r.date}`),
-            );
-            return [...filtered, ...mappedRecords];
+            const filtered = prev.filter((r) => {
+              const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+              const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+              return !(isStaff && rDate.startsWith(monthPrefix));
+            });
+            const updated = [...filtered, ...mappedRecords];
+            try {
+              localStorage.setItem("attendance", JSON.stringify(updated));
+            } catch {
+              /* Ignored */
+            }
+            return updated;
           });
         }
       } catch (err: any) {

@@ -13,15 +13,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using SMS.Api.Services.Interfaces;
+
 public class StaffService : IStaffService
 {
     private readonly ISchoolRepository _schoolRepository;
     private readonly AppDbContext _context;
+    private readonly IEmailNotificationService _emailNotificationService;
 
-    public StaffService(ISchoolRepository schoolRepository, AppDbContext context)
+    public StaffService(
+        ISchoolRepository schoolRepository,
+        AppDbContext context,
+        IEmailNotificationService emailNotificationService)
     {
         _schoolRepository = schoolRepository;
         _context = context;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<string> GetNextEmployeeIdAsync()
@@ -231,6 +238,68 @@ public class StaffService : IStaffService
         await _schoolRepository.AddStaffAsync(staff);
         await _schoolRepository.SaveChangesAsync();
         await SyncTeacherAssignmentsAsync(staff.StaffId, dto.AssignedClasses, dto.AssignedSubjects);
+
+        // Sync staff into users table for authentication
+        try
+        {
+            var isTeaching = (staff.EmployeeCategory ?? "").ToLower().Contains("teach");
+            var userRole = isTeaching ? "Teacher" : (!string.IsNullOrWhiteSpace(staff.Designation) ? staff.Designation : "Staff");
+            var fullName = $"{staff.FirstName} {staff.LastName}".Trim();
+            var mobileNo = !string.IsNullOrWhiteSpace(staff.Phone) ? staff.Phone.Trim() : (!string.IsNullOrWhiteSpace(staff.AlternateMobile) ? staff.AlternateMobile.Trim() : $"STF{staff.StaffId}");
+
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => 
+                (!string.IsNullOrWhiteSpace(staff.Email) && u.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
+                (!string.IsNullOrWhiteSpace(mobileNo) && u.MobileNumber == mobileNo));
+
+            if (existingUser == null)
+            {
+                var newUser = new User
+                {
+                    FullName = fullName,
+                    Email = staff.Email,
+                    MobileNumber = mobileNo,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+                    Role = userRole,
+                    IsEmailVerified = true,
+                    IsMobileVerified = true,
+                    CreatedAt = DateTime.UtcNow,
+                    SchoolId = null
+                };
+                await _context.Users.AddAsync(newUser);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                existingUser.FullName = fullName;
+                existingUser.Role = userRole;
+                if (!string.IsNullOrWhiteSpace(staff.Email)) existingUser.Email = staff.Email;
+                await _context.SaveChangesAsync();
+            }
+
+            // Dispatch welcome credentials email asynchronously
+            if (!string.IsNullOrWhiteSpace(staff.Email) && staff.Email.Contains('@'))
+            {
+                var loginId = staff.Email;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _emailNotificationService.SendWelcomeCredentialsAsync(
+                            recipientEmail: staff.Email!,
+                            recipientName: fullName,
+                            loginIdentifier: loginId,
+                            defaultPassword: "admin1234",
+                            roleName: userRole);
+                    }
+                    catch { /* Ignored */ }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StaffService] Failed to auto-create user or send welcome email: {ex.Message}");
+        }
+
         return MapToStaffResponseDto(staff);
     }
 
