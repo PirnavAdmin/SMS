@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter,
@@ -49,7 +49,7 @@ export const LeaveManagementView: React.FC = () => {
     hasApprovalPermission ? 'queue' : 'applications'
   );
 
-  // Match current staff member for logged in teacher
+  // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
   const teachingStaff = staff.filter(s => {
     const des = (s.designation || '').toLowerCase();
     const dept = (s.department || '').toLowerCase();
@@ -142,7 +142,7 @@ export const LeaveManagementView: React.FC = () => {
     attachments: [] as string[]
   });
 
-  const selectedStaffMember = staff.find(s => s.id === applyForm.employeeId);
+  const selectedStaffMember = (isTeacher && teacherStaffMember) ? teacherStaffMember : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
   const selectedLeaveType = leaveTypes.find(t => t.id === applyForm.leaveTypeId);
 
   const calculateDays = (from: string, to: string, half: boolean) => {
@@ -170,10 +170,12 @@ export const LeaveManagementView: React.FC = () => {
     e.preventDefault();
     const employee = (isTeacher && teacherStaffMember) 
       ? teacherStaffMember 
-      : staff.find(s => s.id === applyForm.employeeId)!;
+      : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
 
-    if (!employee || !applyForm.leaveTypeId || !applyForm.reason) {
-      addToast('warning', 'Missing Details', 'Please complete all required fields.');
+    const lType = leaveTypes.find(t => t.id === applyForm.leaveTypeId) || activeLeaveTypes[0] || { id: 'LT-01', name: 'Casual Leave', isPaid: true };
+
+    if (!employee || !applyForm.reason.trim()) {
+      addToast('warning', 'Missing Details', 'Please provide a reason for your leave request.');
       return;
     }
 
@@ -182,7 +184,6 @@ export const LeaveManagementView: React.FC = () => {
       return;
     }
 
-    const lType = leaveTypes.find(t => t.id === applyForm.leaveTypeId)!;
     const availableBal = getAvailableBalance(employee, lType.name);
 
     const appData: Omit<LeaveApplication, 'id'> = {
@@ -431,9 +432,6 @@ export const LeaveManagementView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileText className="w-6 h-6 text-brand-600" /> Leave Management
           </h2>
-          {isTeacher && (
-            <p className="text-xs text-slate-500 mt-0.5">Apply for leave, manage your leave applications, and view leave balances.</p>
-          )}
         </div>
 
         {userRole !== 'admin' && userRole !== 'superadmin' && (
@@ -883,7 +881,7 @@ export const LeaveManagementView: React.FC = () => {
       {/* MODAL: APPLY / EDIT LEAVE APPLICATION */}
       {isApplyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh] space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden space-y-4">
             
             <div className="flex items-center justify-between pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">

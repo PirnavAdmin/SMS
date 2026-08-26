@@ -25,40 +25,89 @@ export const HomeworkView: React.FC = () => {
   // RBAC checks
   const canModify = isTeacherRole || role === 'Super Admin';
   
-  const dbTeacher = staff.find(s => s.email && user?.email && s.email === user.email && s.employeeCategory === 'Teacher') || 
-                     staff.find(s => s.employeeCategory === 'Teacher');
+  // Match current logged in teacher staff record dynamically from Admin staff database
+  const dbTeacher = useMemo(() => {
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
 
-  const teacher = dbTeacher || {
-    firstName: user?.name || 'Sarah',
-    lastName: 'Jenkins',
-    assignedClasses: ['Class 10-A', 'Class 9-B'],
-    assignedSubjects: ['Mathematics', 'Science']
-  };
+    // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
+    const academicStaff = staff.filter(s => {
+      const desig = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
+    });
 
-  const assignedClasses = teacher.assignedClasses || ['Class 10-A', 'Class 9-B'];
-  const assignedSubjects = teacher.assignedSubjects || ['Mathematics', 'Science'];
-  const teacherClassNames = Array.from(new Set(assignedClasses.map(c => c.split('-')[0])));
+    if (userEmail) {
+      const byEmail = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) return byEmail;
+    }
 
-  const classOptions = isTeacherRole ? teacherClassNames : academicClasses.map(c => c.name);
-  const subjectOptions = isTeacherRole ? assignedSubjects : ['Mathematics', 'Science', 'English', 'Computer Science'];
+    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
+      const byName = academicStaff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
+      });
+      if (byName) return byName;
+    }
+
+    if (user?.id) {
+      const byId = academicStaff.find(s => s.id === user.id);
+      if (byId) return byId;
+    }
+
+    const rawName = user?.name || 'Robert Teacher';
+    const nameParts = rawName.split(' ');
+    return {
+      id: user?.id || 'STF-2026-0001',
+      empId: (user as any)?.empId || 'STF-2026-0001',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['Mathematics'],
+      department: 'Mathematics',
+      designation: 'Class Teacher'
+    };
+  }, [user, staff]);
+
+  const teacher = dbTeacher;
+
+  const teacherAssignedClasses = useMemo(() => {
+    let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
+    if (typeof raw === 'string') raw = [raw];
+    if (Array.isArray(raw) && raw.length > 0) return raw;
+    return ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+  }, [dbTeacher]);
+
+  const assignedSubjects = (dbTeacher as any)?.assignedSubjects || ['Mathematics', 'Science'];
+
+  const classOptions = useMemo(() => {
+    const set = new Set<string>();
+    teacherAssignedClasses.forEach(ac => {
+      let mainCls = ac.split('-')[0].trim();
+      if (!mainCls.toLowerCase().startsWith('class')) {
+        mainCls = `Class ${mainCls}`;
+      }
+      set.add(mainCls);
+    });
+    return Array.from(set);
+  }, [teacherAssignedClasses]);
+
+  const subjectOptions = assignedSubjects;
 
   // Clean class name helper
   const cleanClassName = (cls: string) => {
     if (!cls) return '';
-    return cls.replace('Class ', '').replace('Grade ', '').trim();
+    return cls.replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim();
   };
 
   const rbacHomework = useMemo(() => {
-    if (isTeacherRole) {
-      return homework.filter(h => 
-        assignedClasses.some(c => 
-          cleanClassName(c.split('-')[0]) === cleanClassName(h.className) && 
-          c.split('-')[1] === h.section
-        )
-      );
-    }
-    return homework;
-  }, [homework, isTeacherRole, assignedClasses]);
+    return homework.filter(h => 
+      teacherAssignedClasses.some(c => 
+        cleanClassName(c.split('-')[0]) === cleanClassName(h.className)
+      )
+    );
+  }, [homework, teacherAssignedClasses]);
 
   // Filters State
   const [query, setQuery] = useState('');
@@ -166,9 +215,9 @@ export const HomeworkView: React.FC = () => {
     setFormData({
       title: '',
       className: classOptions[0] || 'Class 10',
-      section: isTeacherRole ? assignedClasses.find(c => c.startsWith(classOptions[0]))?.split('-')[1] || 'A' : 'A',
+      section: teacherAssignedClasses[0]?.split('-')[1] || 'A',
       subject: subjectOptions[0] || 'Mathematics',
-      teacherName: `${teacher.firstName} ${teacher.lastName}`,
+      teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
       assignedDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
       description: '',
@@ -260,39 +309,41 @@ export const HomeworkView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
       
       {/* Header card */}
-      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+      <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="space-y-1">
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+          <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <FileText className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
             Homework Assignments
           </h2>
+          <p className="text-xs text-slate-400 font-medium">Create, publish, and track student assignments and homework tasks</p>
         </div>
 
         {canModify ? (
           <button
             onClick={handleOpenAdd}
-            className="btn-primary py-2 px-4 flex items-center gap-1.5 text-[10.5px] font-black"
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all shrink-0"
           >
-            <Plus className="w-4 h-4" /> Create Homework
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>Create Homework</span>
           </button>
         ) : (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-bold border border-amber-100">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-bold border border-amber-100 text-xs">
             <Lock className="w-3.5 h-3.5" /> Read-Only Admin Workspace
           </div>
         )}
       </div>
 
       {/* Search & Filters Row */}
-      <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-450 absolute left-3 top-2.5" />
+      <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="relative lg:col-span-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by title or topic..."
+              placeholder="Search title or topic..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="w-full pl-8.5 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500"
             />
           </div>
 
@@ -300,7 +351,7 @@ export const HomeworkView: React.FC = () => {
             <select
               value={filterClass}
               onChange={e => setFilterClass(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
             >
               <option value="All">All Classes</option>
               {classOptions.map(c => (
@@ -313,7 +364,7 @@ export const HomeworkView: React.FC = () => {
             <select
               value={filterSubject}
               onChange={e => setFilterSubject(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
             >
               <option value="All">All Subjects</option>
               {subjectOptions.map(s => (
@@ -326,7 +377,7 @@ export const HomeworkView: React.FC = () => {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
             >
               <option value="All">All Statuses</option>
               <option value="Published">Published</option>
@@ -336,11 +387,12 @@ export const HomeworkView: React.FC = () => {
           </div>
 
           <div>
-            <input 
+            <input
               type="date"
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              onClick={e => e.currentTarget.showPicker?.()}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
             />
           </div>
         </div>
@@ -499,10 +551,13 @@ export const HomeworkView: React.FC = () => {
                     onChange={e => setFormData({ ...formData, section: e.target.value })} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
-                    {(role === 'Teacher' ? 
-                      assignedClasses.filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || '')).map(c => c.split('-')[1]) 
-                      : ['A', 'B', 'C']
-                    ).map(sec => (
+                    {Array.from(new Set(
+                      teacherAssignedClasses
+                        .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
+                        .map(c => c.split('-')[1])
+                        .concat(['A', 'B'])
+                        .filter(Boolean)
+                    )).map(sec => (
                       <option key={sec} value={sec}>Sec {sec}</option>
                     ))}
                   </select>

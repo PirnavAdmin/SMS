@@ -38,7 +38,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   const [activeTab, setActiveTab] = useState<TimetableTab>('period-settings');
   const [academicYear, setAcademicYear] = useState('2026-2027');
-  const [includeSaturday, setIncludeSaturday] = useState(false);
+  const [includeSaturday, setIncludeSaturday] = useState(true);
 
   // Filter staff to Teaching Staff only
   const teachingStaff = useMemo(() => 
@@ -54,16 +54,44 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
 
-    const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-    if (byEmail) return byEmail;
-
-    const byName = staff.find(s => {
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-      return sFullName && userName && (sFullName.includes(userName) || userName.includes(sFullName));
+    // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
+    const academicStaff = staff.filter(s => {
+      const desig = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
     });
-    if (byName) return byName;
 
-    return staff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || null;
+    if (userEmail) {
+      const byEmail = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) return byEmail;
+    }
+
+    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
+      const byName = academicStaff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
+      });
+      if (byName) return byName;
+    }
+
+    if (user?.id) {
+      const byId = academicStaff.find(s => s.id === user.id);
+      if (byId) return byId;
+    }
+
+    const rawName = user?.name || 'Robert Teacher';
+    const nameParts = rawName.split(' ');
+    return {
+      id: user?.id || 'STF-2026-0001',
+      empId: (user as any)?.empId || 'STF-2026-0001',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['Mathematics'],
+      department: 'Mathematics',
+      designation: 'Class Teacher'
+    };
   }, [user, staff]);
 
   // Fallback to static mock data if no teacher profile is found
@@ -154,21 +182,44 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     { id: 'SUB-3', period: 'Period 5', time: '12:15 PM - 01:00 PM', classSection: 'Class 10-B', subject: teacher.assignedSubjects?.[0] || 'Mathematics', room: 'Physics Lab', status: 'Room changed from Room 101' }
   ], [teacher]);
 
-  // Derived Free Periods Today
+  // Derived Free Periods Today dynamically synced with master activePeriods and schedule
   const freePeriods = useMemo(() => {
-    const busyTimes = teacherTodaysSchedule.map(s => s.timeSlot);
-    const matchedPeriods = periodSettings.filter(p => p.status === 'Active');
+    const busySlots = (teacherTodaysSchedule || []).map(s => (s.timeSlot || '').trim().toLowerCase());
     
-    return matchedPeriods
-      .filter(p => p.periodType === 'Teaching' && !busyTimes.includes(`${p.startTime} - ${p.endTime}`))
-      .map((p, idx) => {
-        const tasks = ['Parent Sync Meetings', 'Lesson Planning', 'Additional class assignments', 'Exam evaluation'];
-        return {
-          periodName: p.periodName,
-          timeSlot: `${p.startTime} - ${p.endTime}`,
-          suggestion: tasks[idx % tasks.length]
-        };
-      });
+    // Master active periods (fallback to periodSettings if inside initial render)
+    const masterOnly = periodSettings.filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'));
+    const sourcePeriods = masterOnly.length > 0 ? masterOnly : periodSettings.filter(p => p.status === 'Active');
+
+    const uniqueMap = new Map<string, PeriodSetting>();
+    sourcePeriods.forEach(p => {
+      const key = `${p.startTime} - ${p.endTime}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, p);
+      }
+    });
+
+    const activeList = Array.from(uniqueMap.values()).sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+    // Filter to teaching periods ONLY (exclude Break & Lunch)
+    const teachingPeriods = activeList.filter(p => {
+      const pType = (p.periodType || '').toLowerCase();
+      const pName = (p.periodName || '').toLowerCase();
+      return !p.isBreak && !pType.includes('break') && !pType.includes('lunch') && !pName.includes('break') && !pName.includes('lunch');
+    });
+
+    // A period is free if teacher has no lecture in that timeSlot today
+    const free = teachingPeriods.filter(p => {
+      const slotStr = `${p.startTime} - ${p.endTime}`.trim().toLowerCase();
+      return !busySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
+    });
+
+    const tasks = ['Parent Sync Meetings', 'Lesson Planning', 'Worksheet Design', 'Exam Evaluation', 'Student Counseling', 'Academic Research'];
+
+    return free.map((p, idx) => ({
+      periodName: p.periodName,
+      timeSlot: `${p.startTime} - ${p.endTime}`,
+      suggestion: tasks[idx % tasks.length]
+    }));
   }, [teacherTodaysSchedule, periodSettings]);
 
   // Mock Lesson Plans Database
@@ -721,11 +772,42 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   if (isTeacher) {
     const weeklyDays = includeSaturday ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const activePeriods = periodSettings.filter(p => p.status === 'Active').sort((a, b) => a.sequence - b.sequence);
-    const weeklyTimeSlots = Array.from(new Set([
-      ...activePeriods.map(p => `${p.startTime} - ${p.endTime}`),
-      ...timetable.filter(t => t.teacherName === teacherFullName && t.timeSlot).map(t => t.timeSlot)
-    ])).sort((a, b) => parseSortable(a) - parseSortable(b));
+    
+    // Filter to active periods, prioritizing master periods or sequence-ordered periods
+    const allActive = periodSettings.filter(p => p.status === 'Active');
+    const masterOnly = allActive.filter(p => !p.className || p.className === 'Master' || p.className === 'All');
+    const sourceList = masterOnly.length > 0 ? masterOnly : allActive;
+
+    // Sort by sequence, then by start time
+    const sortedPeriods = [...sourceList].sort((a, b) => {
+      const seqA = a.sequence || 99;
+      const seqB = b.sequence || 99;
+      if (seqA !== seqB) return seqA - seqB;
+      return parseSortable(a.startTime) - parseSortable(b.startTime);
+    });
+
+    // Build strict non-overlapping period timeline
+    const activePeriods: PeriodSetting[] = [];
+    sortedPeriods.forEach(p => {
+      if (!p.startTime || !p.endTime) return;
+      const pStart = parseSortable(p.startTime);
+      const pEnd = parseSortable(p.endTime);
+      if (pStart >= 9999 || pEnd >= 9999 || pStart >= pEnd) return;
+
+      // Check overlap with already selected periods
+      const hasOverlap = activePeriods.some(ex => {
+        const exStart = parseSortable(ex.startTime);
+        const exEnd = parseSortable(ex.endTime);
+        return (pStart < exEnd && pEnd > exStart);
+      });
+
+      if (!hasOverlap) {
+        activePeriods.push(p);
+      }
+    });
+
+    activePeriods.sort((a, b) => parseSortable(a.startTime) - parseSortable(b.startTime));
+    const weeklyTimeSlots = activePeriods.map(p => `${p.startTime} - ${p.endTime}`);
 
     return (
       <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
@@ -741,23 +823,23 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               <span>📅 Today: <strong className="text-slate-900 dark:text-slate-200">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
             <button
               onClick={() => setViewMode('today')}
-              className={`px-4 py-1.5 rounded-lg font-black transition-all ${
+              className={`px-4 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
                 viewMode === 'today'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Today
             </button>
             <button
               onClick={() => setViewMode('week')}
-              className={`px-4 py-1.5 rounded-lg font-black transition-all ${
+              className={`px-4 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
                 viewMode === 'week'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Week
@@ -983,45 +1065,75 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         )}
 
         {viewMode === 'week' && (
-          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
-              <h3 className="font-extrabold text-sm text-slate-905 dark:text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-brand-600 dark:text-brand-400" /> Weekly Timetable
-              </h3>
+          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <div className="space-y-0.5">
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" /> Weekly Timetable
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">Complete weekly period schedule across all assigned classes</p>
+              </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setViewMode('today')} className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold">Today</button>
-                <button onClick={handlePrint} className="px-3.5 py-1.5 rounded-xl bg-sky-650 hover:bg-sky-600 text-white font-black text-[11px] flex items-center gap-1.5">
-                  <Printer className="w-3.5 h-3.5" /> Print
+                <button 
+                  onClick={handlePrint} 
+                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" /> Print Timetable
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[11px]">
+
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+              <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-2.5 px-3 min-w-[125px]">Period & Time</th>
-                    {weeklyDays.map(d => <th key={d} className="py-2.5 px-3 text-center min-w-[95px]">{d}</th>)}
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-extrabold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                    <th className="py-3.5 px-4 min-w-[140px]">Period & Time</th>
+                    {weeklyDays.map(d => (
+                      <th key={d} className="py-3.5 px-3 text-center min-w-[110px]">{d}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                  {weeklyTimeSlots.map((slot, pIdx) => {
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                  {weeklyTimeSlots.map((slot) => {
                     const matchingPeriodSetting = activePeriods.find(p => `${p.startTime} - ${p.endTime}` === slot);
                     const isBreakSlot = matchingPeriodSetting?.periodType === 'Break' || matchingPeriodSetting?.periodType === 'Lunch';
                     if (isBreakSlot) {
                       return (
-                        <tr key={slot} className="bg-amber-50/30 dark:bg-amber-950/10 text-amber-800 font-bold">
-                          <td className="py-2 px-3 font-mono text-[10.5px]">{slot}</td>
-                          <td colSpan={weeklyDays.length} className="py-2 px-3 text-center tracking-widest text-[10.5px]">☕ {matchingPeriodSetting?.periodName || 'Break'}</td>
+                        <tr key={slot} className="bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-extrabold">
+                          <td className="py-3 px-4 font-mono text-xs">{slot}</td>
+                          <td colSpan={weeklyDays.length} className="py-3 px-4 text-center tracking-widest text-xs font-black">
+                            ☕ {matchingPeriodSetting?.periodName || 'Break'}
+                          </td>
                         </tr>
                       );
                     }
                     return (
-                      <tr key={slot} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <td className="py-2.5 px-3 font-mono font-bold whitespace-nowrap text-[10.5px]">{slot}</td>
+                      <tr key={slot} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap text-xs">
+                          {slot}
+                        </td>
                         {weeklyDays.map(day => {
-                          const match = timetable.find(t => t.teacherName === teacherFullName && t.day === day && t.timeSlot === slot);
+                          const match = timetable.find(t => {
+                            if (!t || (t.day && t.day !== 'All' && t.day.toLowerCase() !== day.toLowerCase())) return false;
+                            
+                            // Match timeSlot
+                            const tSlot = (t.timeSlot || '').trim().toLowerCase();
+                            const targetSlot = slot.trim().toLowerCase();
+                            if (tSlot !== targetSlot && !tSlot.includes(targetSlot) && !targetSlot.includes(tSlot)) return false;
+
+                            // Match teacher
+                            const entryTeacher = (t.teacherName || '').toLowerCase().trim();
+                            const tFirstName = (teacher.firstName || '').toLowerCase().trim();
+                            const tLastName = (teacher.lastName || '').toLowerCase().trim();
+                            const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+
+                            return entryTeacher === tFullName || 
+                              (tFirstName && entryTeacher.includes(tFirstName)) ||
+                              (tLastName && entryTeacher.includes(tLastName)) ||
+                              tFullName.includes(entryTeacher);
+                          });
                           return (
-                            <td key={day} className="py-2 px-1 text-center align-middle">
+                            <td key={day} className="py-3 px-2 text-center align-middle">
                               {match ? (
                                 <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border space-y-0.5 text-left mx-auto w-28 shadow-xs border-slate-100 dark:border-slate-700/50">
                                    {(() => {

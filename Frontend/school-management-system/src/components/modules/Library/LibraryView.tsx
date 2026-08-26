@@ -529,7 +529,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingItem) return;
     const { type, id, title } = deletingItem;
 
@@ -537,24 +537,30 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       deleteBook(id);
       addToast('success', 'Book Deleted', `Removed "${title}" from library catalog.`);
     } else if (type === 'category') {
+      try { await LibraryAPI.deleteCategoryApi(id); } catch (e) {}
       saveCategories(categories.filter(c => c.id !== id));
       addToast('success', 'Category Deleted', `Removed category "${title}"`);
     } else if (type === 'author') {
+      try { await LibraryAPI.deleteAuthorApi(id); } catch (e) {}
       saveAuthors(authors.filter(a => a.id !== id));
       addToast('success', 'Author Deleted', `Removed author "${title}"`);
     } else if (type === 'rack') {
+      try { await LibraryAPI.deleteRackApi(id); } catch (e) {}
       saveRacks(racks.filter(r => r.id !== id));
       addToast('success', 'Rack Location Deleted', `Removed rack location "${title}"`);
     } else if (type === 'member') {
+      try { await LibraryAPI.deleteMemberApi(id); } catch (e) {}
       saveMembers(members.filter(m => m.id !== id && m.memberId !== id));
       addToast('success', 'Member Removed', `Removed library member "${title}"`);
     } else if (type === 'reservation') {
+      try { await LibraryAPI.deleteReservationApi(id); } catch (e) {}
       saveReservations(reservations.filter(r => r.id !== id));
       addToast('success', 'Reservation Cancelled', `Removed reservation for "${title}"`);
     } else if (type === 'fine') {
       saveFines(fineRecords.filter(f => f.id !== id));
       addToast('success', 'Fine Record Removed', `Removed fine record for "${title}"`);
     } else if (type === 'lostDamaged') {
+      try { await LibraryAPI.deleteLostDamagedApi(id); } catch (e) {}
       saveLostDamaged(lostDamagedList.filter(ld => ld.id !== id));
       addToast('success', 'Report Removed', `Removed report for "${title}"`);
     }
@@ -1170,7 +1176,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             </div>
           </div>
 
-          <form onSubmit={(e) => {
+          <form onSubmit={async (e) => {
             e.preventDefault();
             const form = e.target as any;
             const dDate = form.dueDate.value;
@@ -1197,6 +1203,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 return;
               }
 
+              try {
+                await LibraryAPI.issueBookApi({
+                  bookId: targetBk.id,
+                  memberId: targetMem.memberId || mId,
+                  memberType: targetMem.role || 'Student',
+                  issueDate: new Date().toISOString().split('T')[0],
+                  dueDate: dDate
+                });
+              } catch (err) {}
+
               issueBook({
                 bookId: targetBk.id,
                 bookTitle: targetBk.title,
@@ -1222,6 +1238,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
               const matchedBk = books.find(b => b.title.toLowerCase() === manualBookTitle.toLowerCase() || String(b.id) === manualBookTitle);
               const bookIdToUse = matchedBk ? matchedBk.id : `BK-MAN-${Date.now()}`;
+
+              try {
+                await LibraryAPI.issueBookApi({
+                  bookId: bookIdToUse,
+                  memberId: manualMemId,
+                  memberType: manualMemRole,
+                  issueDate: new Date().toISOString().split('T')[0],
+                  dueDate: dDate
+                });
+              } catch (err) {}
 
               issueBook({
                 bookId: bookIdToUse,
@@ -1587,7 +1613,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           {!isReadOnlyAccess ? (
-                            <button onClick={() => {
+                            <button onClick={async () => {
+                              try { await LibraryAPI.returnBookApi(iss.id); } catch (err) {}
                               returnBook(iss.id);
                               if (calculatedFine > 0) {
                                 const newFine: LibraryFineRecord = {
@@ -1663,8 +1690,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
                         {!isReadOnlyAccess ? (
-                          <button onClick={() => {
+                          <button onClick={async () => {
                             const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
+                            try { await LibraryAPI.renewBookApi(iss.id, 14); } catch (err) {}
                             iss.dueDate = newDueDate;
                             iss.renewCount = (iss.renewCount || 0) + 1;
                             iss.status = 'Renewed';
@@ -2160,7 +2188,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add Book Category</h3>
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
               const newC: BookCategory = {
@@ -2170,6 +2198,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 description: f.description.value,
                 totalBooksCount: 0
               };
+              try { await LibraryAPI.createCategoryApi(newC); } catch (err) {}
               saveCategories([...categories, newC]);
               addToast('success', 'Category Created', `Added category ${newC.name}`);
               setModalType(null);
@@ -2187,7 +2216,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add Author Record</h3>
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
               const newA: BookAuthor = {
@@ -2197,6 +2226,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 biography: f.biography.value,
                 booksCount: 0
               };
+              try { await LibraryAPI.createAuthorApi(newA); } catch (err) {}
               saveAuthors([...authors, newA]);
               addToast('success', 'Author Added', `Added ${newA.name}`);
               setModalType(null);
@@ -2214,7 +2244,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add Rack Location</h3>
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
               const newR: BookRack = {
@@ -2226,6 +2256,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 capacity: Number(f.capacity.value) || 50,
                 occupiedCount: 0
               };
+              try { await LibraryAPI.createRackApi(newR); } catch (err) {}
               saveRacks([...racks, newR]);
               addToast('success', 'Rack Added', `Added ${newR.rackNo}`);
               setModalType(null);
@@ -2289,7 +2320,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </select>
             </div>
 
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               if (!memberFormState.name.trim() || !memberFormState.memberId.trim()) {
                 addToast('warning', 'Validation Error', 'Please enter Member ID and Full Name.');
@@ -2308,6 +2339,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 joinedDate: new Date().toISOString().split('T')[0],
                 status: 'Active'
               };
+              try { await LibraryAPI.createMemberApi(newM); } catch (err) {}
               saveMembers([...members, newM]);
               addToast('success', 'Member Registered', `Registered ${newM.name} (${newM.memberId})`);
               setModalType(null);
@@ -2434,7 +2466,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Reserve Book Copy</h3>
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
               const targetBk = books.find(b => b.id === f.bookId.value);
@@ -2449,6 +2481,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 requestDate: new Date().toISOString().split('T')[0],
                 status: 'Pending'
               };
+              try { await LibraryAPI.createReservationApi(newRes); } catch (err) {}
               saveReservations([...reservations, newRes]);
               addToast('success', 'Book Reserved', `Reserved "${newRes.bookTitle}" for ${newRes.memberName}`);
               setModalType(null);
@@ -2465,7 +2498,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Report Lost / Damaged Book</h3>
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
               const targetBk = books.find(b => b.id === f.bookId.value);
@@ -2483,6 +2516,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 reportDate: new Date().toISOString().split('T')[0],
                 status: 'Pending'
               };
+              try { await LibraryAPI.createLostDamagedApi(newLD); } catch (err) {}
               saveLostDamaged([...lostDamagedList, newLD]);
               addToast('success', 'Issue Logged', `Logged ${newLD.issueType} report for "${newLD.bookTitle}"`);
               setModalType(null);
@@ -2504,7 +2538,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
               {modalType === 'editBook' ? 'Edit Book' : 'Add New Book'}
             </h3>
-            <form onSubmit={e => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               if (!bookForm.title.trim() || !bookForm.author.trim()) {
                 addToast('warning', 'Validation Error', 'Please enter Book Title and Author Name.');
@@ -2522,6 +2556,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   availableCopies: Number(bookForm.totalCopies) || 1,
                   rackNo: bookForm.rackNo
                 };
+                try { await LibraryAPI.updateBookApi(updatedBk.id, updatedBk); } catch (err) {}
                 addBook(updatedBk);
                 addToast('success', 'Book Updated', `Updated "${updatedBk.title}" in library catalog`);
               } else {
@@ -2535,6 +2570,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   availableCopies: Number(bookForm.totalCopies) || 1,
                   rackNo: bookForm.rackNo
                 };
+                try { await LibraryAPI.createBookApi(newBk); } catch (err) {}
                 addBook(newBk);
                 addToast('success', 'Book Registered', `Added "${newBk.title}" to library catalog`);
               }

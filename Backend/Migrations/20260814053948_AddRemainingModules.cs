@@ -22,184 +22,104 @@ namespace Backend.Migrations
             //     table: "classes",
             //     newName: "id");
 
-            migrationBuilder.AddColumn<string>(
-                name: "Country",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql(@"
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'Country');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `Country` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "District",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'District');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `District` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "FatherName",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'FatherName');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `FatherName` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "MaritalStatus",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'MaritalStatus');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `MaritalStatus` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "MotherName",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'MotherName');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `MotherName` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "Nationality",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'Nationality');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `Nationality` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "Religion",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'staff' AND COLUMN_NAME = 'Religion');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `staff` ADD `Religion` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "HeadOfDepartment",
-                table: "departments",
-                type: "varchar(150)",
-                maxLength: 150,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND COLUMN_NAME = 'HeadOfDepartment');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `departments` ADD `HeadOfDepartment` varchar(150) CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<int>(
-                name: "Capacity",
-                table: "classes",
-                type: "int",
-                nullable: true);
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'Capacity');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `classes` ADD `Capacity` int NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-            migrationBuilder.AddColumn<string>(
-                name: "ClassTeacher",
-                table: "classes",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+                SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'ClassTeacher');
+                SET @query = IF(@exist = 0, 'ALTER TABLE `classes` ADD `ClassTeacher` longtext CHARACTER SET utf8mb4 NULL', 'SELECT 1');
+                PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+            ");
 
-            migrationBuilder.CreateTable(
-                name: "DynamicFeeStructures",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    TargetAudience = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    AcademicYear = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Branch = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    ClassName = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Section = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    StudentCategory = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    TotalAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    Status = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DynamicFeeStructures", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS `DynamicFeeStructures` (
+                    `Id` int NOT NULL AUTO_INCREMENT,
+                    `Name` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Description` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `TargetAudience` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `AcademicYear` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Branch` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `ClassName` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Section` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `StudentCategory` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `TotalAmount` decimal(65,30) NOT NULL,
+                    `Status` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    CONSTRAINT `PK_DynamicFeeStructures` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
 
-            migrationBuilder.CreateTable(
-                name: "FeeHeads",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Frequency = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DefaultAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    IsRefundable = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    IsTaxable = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Category = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Status = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_FeeHeads", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+                CREATE TABLE IF NOT EXISTS `FeeHeads` (
+                    `Id` int NOT NULL AUTO_INCREMENT,
+                    `Name` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Description` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Frequency` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `DefaultAmount` decimal(65,30) NOT NULL,
+                    `IsRefundable` tinyint(1) NOT NULL,
+                    `IsTaxable` tinyint(1) NOT NULL,
+                    `Category` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Status` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    CONSTRAINT `PK_FeeHeads` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
 
-            migrationBuilder.CreateTable(
-                name: "FeePayments",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    ReceiptNo = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    StudentId = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Amount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    DiscountAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    FineAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    TransportFee = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    TransactionId = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PaymentDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    PaymentMethod = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Status = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_FeePayments", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+                CREATE TABLE IF NOT EXISTS `FeePayments` (
+                    `Id` int NOT NULL AUTO_INCREMENT,
+                    `ReceiptNo` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `StudentId` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Amount` decimal(65,30) NOT NULL,
+                    `DiscountAmount` decimal(65,30) NOT NULL,
+                    `FineAmount` decimal(65,30) NOT NULL,
+                    `TransportFee` decimal(65,30) NOT NULL,
+                    `TransactionId` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `PaymentDate` datetime(6) NOT NULL,
+                    `PaymentMethod` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `Status` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    CONSTRAINT `PK_FeePayments` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
 
-            migrationBuilder.CreateTable(
-                name: "StudentFeeAssignments",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    StudentId = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DynamicFeeStructureId = table.Column<int>(type: "int", nullable: true),
-                    TotalAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    PaidAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    DueAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    Status = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    FeePolicy = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StudentFeeAssignments", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+                CREATE TABLE IF NOT EXISTS `StudentFeeAssignments` (
+                    `Id` int NOT NULL AUTO_INCREMENT,
+                    `StudentId` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `DynamicFeeStructureId` int NULL,
+                    `TotalAmount` decimal(65,30) NOT NULL,
+                    `PaidAmount` decimal(65,30) NOT NULL,
+                    `DueAmount` decimal(65,30) NOT NULL,
+                    `Status` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `FeePolicy` longtext CHARACTER SET utf8mb4 NOT NULL,
+                    CONSTRAINT `PK_StudentFeeAssignments` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+            ");
         }
 
         /// <inheritdoc />

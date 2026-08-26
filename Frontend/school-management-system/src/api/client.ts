@@ -3,9 +3,25 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   const branch = localStorage.getItem('auth_branch') || 'Main Campus';
   const academicYear = localStorage.getItem('auth_academic_year') || '2026-2027';
 
+  let userRole = '';
+  try {
+    const storedUser = localStorage.getItem('auth_user');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      if (parsedUser && parsedUser.role) {
+        userRole = parsedUser.role;
+      }
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
   headers.set('ngrok-skip-browser-warning', 'true');
+  if (userRole) {
+    headers.set('X-User-Role', userRole);
+  }
   if (token && token !== 'null' && token !== 'undefined' && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
