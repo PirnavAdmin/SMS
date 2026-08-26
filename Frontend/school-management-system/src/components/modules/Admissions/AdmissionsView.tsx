@@ -308,6 +308,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     app: AdmissionApplication;
     status: AdmissionApplication["status"];
   } | null>(null);
+  const [isStatusUpdateLoading, setIsStatusUpdateLoading] = useState(false);
   const [feeSummaryStudentId, setFeeSummaryStudentId] = useState<string | null>(
     null,
   );
@@ -4658,6 +4659,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       {/* Confirmation Modal for Enrollment & Status Updates */}
       <ConfirmModal
         isOpen={!!confirmingApp}
+        isLoading={isStatusUpdateLoading}
         title={
           confirmingApp?.status === "Enrolled"
             ? "Confirm Student Enrollment"
@@ -4681,37 +4683,48 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         }
         onConfirm={async () => {
           if (confirmingApp) {
-            const studentId = await updateAdmissionStatus(
-              confirmingApp.app.id,
-              confirmingApp.status,
-            );
-            if (confirmingApp.status === "Enrolled") {
-              await fetchStudents();
-              const matchedSt = students.find(
-                (s) =>
-                  s.id === studentId ||
-                  s.admissionNo === confirmingApp.app.applicationNo ||
-                  (confirmingApp.app.applicationNo &&
-                    s.admissionNo?.includes(confirmingApp.app.applicationNo)) ||
-                  s.phone === confirmingApp.app.phone,
+            setIsStatusUpdateLoading(true);
+            try {
+              const studentId = await updateAdmissionStatus(
+                confirmingApp.app.id,
+                confirmingApp.status,
               );
-              const targetId =
-                matchedSt?.id ||
-                studentId ||
-                confirmingApp.app.id ||
-                confirmingApp.app.applicationNo;
-              setFeeSummaryStudentId(targetId);
+              if (confirmingApp.status === "Enrolled") {
+                await fetchStudents();
+                const matchedSt = students.find(
+                  (s) =>
+                    s.id === studentId ||
+                    s.admissionNo === confirmingApp.app.applicationNo ||
+                    (confirmingApp.app.applicationNo &&
+                      s.admissionNo?.includes(confirmingApp.app.applicationNo)) ||
+                    s.phone === confirmingApp.app.phone,
+                );
+                const targetId =
+                  matchedSt?.id ||
+                  studentId ||
+                  confirmingApp.app.id ||
+                  confirmingApp.app.applicationNo;
+                setFeeSummaryStudentId(targetId);
+              }
+              addToast(
+                confirmingApp.status === "Enrolled" ? "success" : "info",
+                confirmingApp.status === "Enrolled"
+                  ? "Student Enrolled"
+                  : "Application Rejected",
+                confirmingApp.status === "Enrolled"
+                  ? `Student record created for ${confirmingApp.app.applicantName}`
+                  : `Application #${confirmingApp.app.applicationNo} rejected`,
+              );
+              setConfirmingApp(null);
+            } catch (err: any) {
+              addToast(
+                "error",
+                "Action Failed",
+                err.message || "Failed to update application status."
+              );
+            } finally {
+              setIsStatusUpdateLoading(false);
             }
-            addToast(
-              confirmingApp.status === "Enrolled" ? "success" : "info",
-              confirmingApp.status === "Enrolled"
-                ? "Student Enrolled"
-                : "Application Rejected",
-              confirmingApp.status === "Enrolled"
-                ? `Student record created for ${confirmingApp.app.applicantName}`
-                : `Application #${confirmingApp.app.applicationNo} rejected`,
-            );
-            setConfirmingApp(null);
           }
         }}
         onCancel={() => setConfirmingApp(null)}

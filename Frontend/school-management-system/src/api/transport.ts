@@ -61,6 +61,8 @@ const fetchListWithLookupFallback = async <T>(
         return validDetails as unknown as T;
       }
     }
+    // If the API call succeeded but both list and lookup returned empty, return empty list
+    return (Array.isArray(fallbackData) ? [] : {}) as unknown as T;
   } catch (err) {
     console.error(`Error in fetchListWithLookupFallback for ${listEndpoint}`, err);
   }
@@ -86,13 +88,13 @@ const setStoredMock = (key: string, data: any) => {
 
 // Persisted Mock Testing Store
 
-let localRoutes: RouteMaster[] = getStoredMock('route_masters', initialRouteMasters);
-let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', initialPickupPoints);
-let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', initialVehicleMasters);
-let localDrivers: DriverMaster[] = getStoredMock('driver_masters', initialDriverMasters);
-let localVehicleAssignments: VehicleAssignment[] = getStoredMock('vehicle_assignments', initialVehicleAssignments);
-let localStudentAssignments: StudentTransport[] = getStoredMock('student_transports', initialStudentTransports);
-let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', initialVehicleMaintenances);
+let localRoutes: RouteMaster[] = getStoredMock('route_masters', []);
+let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', []);
+let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', []);
+let localDrivers: DriverMaster[] = getStoredMock('driver_masters', []);
+let localVehicleAssignments: VehicleAssignment[] = getStoredMock('vehicle_assignments', []);
+let localStudentAssignments: StudentTransport[] = getStoredMock('student_transports', []);
+let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', []);
 
 // --- Routes ---
 

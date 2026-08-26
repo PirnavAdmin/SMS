@@ -70,17 +70,36 @@ export const ParentHomeworkView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
-  // Helper to normalize class names
-  const cleanClassName = (cls: string) => {
-    if (!cls) return '';
-    return cls.replace('Class ', '').replace('Grade ', '').trim();
+  // Robust parser for class and section matching across all formats
+  const parseClassAndSection = (clsStr: string, secStr?: string) => {
+    if (!clsStr) return { cls: '', sec: (secStr || 'a').toLowerCase() };
+    const cleanCls = clsStr.replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim();
+    if (cleanCls.includes('-')) {
+      const parts = cleanCls.split('-');
+      return {
+        cls: parts[0].trim().toLowerCase(),
+        sec: (secStr || parts[1] || 'a').replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim().toLowerCase()
+      };
+    }
+    return {
+      cls: cleanCls.toLowerCase(),
+      sec: (secStr || 'a').replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim().toLowerCase()
+    };
   };
+
+  const wardInfo = parseClassAndSection(currentWard.className, currentWard.section);
 
   // Filter the global homework data for this specific ward's class and section, ensuring publication checks
   const wardHomeworkRaw = homework.filter(h => {
-    const classMatch = cleanClassName(h.className) === cleanClassName(currentWard.className) && 
-                       h.section === currentWard.section;
-    if (!classMatch) return false;
+    const hInfo = parseClassAndSection(h.className, h.section);
+    
+    // Match class (e.g. '10' === '10' or '10-a' === '10-a')
+    const classMatch = hInfo.cls === wardInfo.cls || hInfo.cls.includes(wardInfo.cls) || wardInfo.cls.includes(hInfo.cls);
+    
+    // Match section if specified
+    const sectionMatch = !h.section || !currentWard.section || hInfo.sec === wardInfo.sec;
+
+    if (!classMatch || !sectionMatch) return false;
 
     // Show homework that is published (default to published if status is not set)
     const isPublished = h.status === 'Published' || h.status === undefined;
@@ -92,7 +111,7 @@ export const ParentHomeworkView: React.FC = () => {
     }
 
     return true;
-  }).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+  }).sort((a, b) => new Date(b.dueDate || 0).getTime() - new Date(a.dueDate || 0).getTime());
 
   // Static Fallback if the mock database is empty for this class
   const staticFallbackHomework = [

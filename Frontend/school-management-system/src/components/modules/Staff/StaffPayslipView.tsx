@@ -24,14 +24,21 @@ export const StaffPayslipView: React.FC = () => {
           <head>
             <title>Salary Payslip - ${p.employeeName}</title>
             <style>
-              body { font-family: sans-serif; padding: 40px; color: #333; }
-              .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 20px; }
-              .details { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-              .table { width: 100%; border-collapse: collapse; margin-top: 30px; }
-              .table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-              .table th { bg-color: #f5f5f5; }
-              .net { font-size: 1.2em; font-weight: bold; margin-top: 20px; text-align: right; }
-              .sign { margin-top: 80px; display: flex; justify-content: space-between; }
+              @page { size: A4 portrait; margin: 8mm; }
+              @media print {
+                html, body { height: 100vh; margin: 0 !important; padding: 10px !important; box-sizing: border-box; page-break-inside: avoid !important; }
+              }
+              * { box-sizing: border-box; }
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px 24px; color: #333; font-size: 11px; line-height: 1.3; }
+              .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 12px; }
+              .header h2 { margin: 0; font-size: 18px; color: #0284c7; }
+              .header p { margin: 3px 0 0 0; font-size: 11px; color: #64748b; font-weight: 600; }
+              .details { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; }
+              .table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
+              .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+              .table th { background-color: #f1f5f9; font-weight: 700; }
+              .net { font-size: 1.1em; font-weight: bold; margin-top: 14px; text-align: right; color: #16a34a; background: #f0fdf4; padding: 8px; border-radius: 6px; border: 1px solid #bbf7d0; }
+              .sign { margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; }
             </style>
           </head>
           <body>
