@@ -211,19 +211,26 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const loadPersonalAttendance = async () => {
         try {
           const res: any = await fetchTeacherTodayAttendanceApi();
-          if (isMounted && res && res.inTime) {
-            const todayDateStr = new Date().toLocaleDateString("en-CA");
-            setPersCheckInTime(`${todayDateStr}T${res.inTime}`);
-            localStorage.setItem(
-              "teacher_check_in_time",
-              `${todayDateStr}T${res.inTime}`,
-            );
-            if (res.outTime) {
-              setPersCheckOutTime(`${todayDateStr}T${res.outTime}`);
-              localStorage.setItem(
-                "teacher_check_out_time",
-                `${todayDateStr}T${res.outTime}`,
-              );
+          if (isMounted) {
+            const attendanceData = res?.attendance || res;
+            if (attendanceData && attendanceData.inTime) {
+              const todayDateStr = new Date().toLocaleDateString("en-CA");
+              const inTimeStr = `${todayDateStr}T${attendanceData.inTime}`;
+              setPersCheckInTime(inTimeStr);
+              localStorage.setItem("teacher_check_in_time", inTimeStr);
+              if (attendanceData.outTime) {
+                const outTimeStr = `${todayDateStr}T${attendanceData.outTime}`;
+                setPersCheckOutTime(outTimeStr);
+                localStorage.setItem("teacher_check_out_time", outTimeStr);
+              } else {
+                setPersCheckOutTime(null);
+                localStorage.removeItem("teacher_check_out_time");
+              }
+            } else {
+              setPersCheckInTime(null);
+              setPersCheckOutTime(null);
+              localStorage.removeItem("teacher_check_in_time");
+              localStorage.removeItem("teacher_check_out_time");
             }
           }
         } catch {
@@ -238,44 +245,50 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [isPersonalView]);
 
   const handlePersCheckIn = async () => {
-    const nowIso = new Date().toISOString();
-    localStorage.setItem("teacher_check_in_time", nowIso);
-    localStorage.removeItem("teacher_check_out_time");
-    setPersCheckInTime(nowIso);
-    setPersCheckOutTime(null);
-    addToast(
-      "success",
-      "Checked In Successfully",
-      `Recorded check-in at ${new Date(nowIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-    );
-
     try {
-      await teacherCheckInApi();
+      const res: any = await teacherCheckInApi();
+      const attendanceData = res?.attendance || res;
+      const inTimeVal = attendanceData?.inTime || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const fullIso = `${todayStr}T${inTimeVal}`;
+      localStorage.setItem("teacher_check_in_time", fullIso);
+      localStorage.removeItem("teacher_check_out_time");
+      setPersCheckInTime(fullIso);
+      setPersCheckOutTime(null);
+      addToast(
+        "success",
+        "Checked In Successfully",
+        `Recorded check-in at ${inTimeVal}`,
+      );
+
       if (fetchDailyAttendance) {
-        fetchDailyAttendance(attendanceDate);
+        await fetchDailyAttendance(attendanceDate);
       }
-    } catch (err) {
-      console.warn("Personal check-in error:", err);
+    } catch (err: any) {
+      console.error("Personal check-in error:", err);
+      addToast("error", "Check In Failed", err.message || "Could not record check in");
     }
   };
 
   const handlePersCheckOut = async () => {
-    const nowIso = new Date().toISOString();
-    localStorage.setItem("teacher_check_out_time", nowIso);
-    setPersCheckOutTime(nowIso);
-    addToast(
-      "info",
-      "Checked Out Successfully",
-      `Recorded check-out at ${new Date(nowIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-    );
-
     try {
-      await teacherCheckOutApi();
+      const res: any = await teacherCheckOutApi();
+      const attendanceData = res?.attendance || res;
+      const outTimeVal = attendanceData?.outTime || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const fullIso = `${todayStr}T${outTimeVal}`;
+      localStorage.setItem("teacher_check_out_time", fullIso);
+      setPersCheckOutTime(fullIso);
+      addToast(
+        "info",
+        "Checked Out Successfully",
+        `Recorded check-out at ${outTimeVal}`,
+      );
+
       if (fetchDailyAttendance) {
-        fetchDailyAttendance(attendanceDate);
+        await fetchDailyAttendance(attendanceDate);
       }
-    } catch (err) {
-      console.warn("Personal check-out error:", err);
+    } catch (err: any) {
+      console.error("Personal check-out error:", err);
+      addToast("error", "Check Out Failed", err.message || "Could not record check out");
     }
   };
 
@@ -318,66 +331,25 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         }
       : null;
 
-    const base = [
-      {
-        date: "2026-07-29",
-        checkIn: "09:02 AM",
-        checkOut: "--",
-        workingHours: "3h 15m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-28",
-        checkIn: "08:55 AM",
-        checkOut: "05:32 PM",
-        workingHours: "8h 37m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-27",
-        checkIn: "09:15 AM",
-        checkOut: "05:00 PM",
-        workingHours: "7h 45m",
-        status: "Late",
-      },
-      {
-        date: "2026-07-24",
-        checkIn: "08:45 AM",
-        checkOut: "04:30 PM",
-        workingHours: "7h 45m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-23",
-        checkIn: "08:52 AM",
-        checkOut: "05:00 PM",
-        workingHours: "8h 08m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-22",
-        checkIn: "--",
-        checkOut: "--",
-        workingHours: "0h 0m",
-        status: "Leave",
-      },
-      {
-        date: "2026-07-21",
-        checkIn: "08:58 AM",
-        checkOut: "04:35 PM",
-        workingHours: "7h 37m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-20",
-        checkIn: "--",
-        checkOut: "--",
-        workingHours: "0h 0m",
-        status: "Absent",
-      },
-    ];
+    const teacherId = teacher?.id || dbTeacher?.id || "";
+    const teacherRecords = (attendance || [])
+      .filter((r) => {
+        const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const isId =
+          String(r.entityId) === String(teacherId) ||
+          String((r as any).staffId) === String(teacherId);
+        const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+        return isStaff && isId && rDate !== todayStr;
+      })
+      .map((r) => ({
+        date: String(r.date || "").split("T")[0].split(" ")[0],
+        checkIn: r.inTime || "--",
+        checkOut: r.outTime || "--",
+        workingHours: r.inTime && r.outTime ? "8h 0m" : "--",
+        status: r.status || "Present",
+      }));
 
-    const list = todayRecord ? [todayRecord, ...base] : base;
+    const list = todayRecord ? [todayRecord, ...teacherRecords] : teacherRecords;
 
     return list.filter((item) => {
       if (personalFilterDate && item.date !== personalFilterDate) return false;

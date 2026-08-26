@@ -246,15 +246,33 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const loadTodayStatus = async () => {
       try {
         const res: any = await fetchTeacherTodayAttendanceApi();
-        if (isMounted && res && res.inTime) {
-          const todayDateStr = new Date().toLocaleDateString('en-CA');
-          setCheckInTime(`${todayDateStr}T${res.inTime}`);
-          localStorage.setItem('teacher_check_in_time', `${todayDateStr}T${res.inTime}`);
-          if (res.outTime) {
-            setCheckOutTime(`${todayDateStr}T${res.outTime}`);
-            localStorage.setItem('teacher_check_out_time', `${todayDateStr}T${res.outTime}`);
-            localStorage.setItem('teacher_is_checked_out', 'true');
-            setIsCheckedOut(true);
+        if (isMounted) {
+          const attendanceData = res?.attendance || res;
+          if (attendanceData && attendanceData.inTime) {
+            const todayDateStr = new Date().toLocaleDateString('en-CA');
+            const inTimeStr = `${todayDateStr}T${attendanceData.inTime}`;
+            setCheckInTime(inTimeStr);
+            localStorage.setItem('teacher_check_in_time', inTimeStr);
+            if (attendanceData.outTime) {
+              const outTimeStr = `${todayDateStr}T${attendanceData.outTime}`;
+              setCheckOutTime(outTimeStr);
+              localStorage.setItem('teacher_check_out_time', outTimeStr);
+              localStorage.setItem('teacher_is_checked_out', 'true');
+              setIsCheckedOut(true);
+            } else {
+              setCheckOutTime(null);
+              localStorage.removeItem('teacher_check_out_time');
+              localStorage.setItem('teacher_is_checked_out', 'false');
+              setIsCheckedOut(false);
+            }
+          } else {
+            // Not marked today: clean up any stale localStorage
+            setCheckInTime(null);
+            setCheckOutTime(null);
+            setIsCheckedOut(false);
+            localStorage.removeItem('teacher_check_in_time');
+            localStorage.removeItem('teacher_check_out_time');
+            localStorage.removeItem('teacher_is_checked_out');
           }
         }
       } catch {
@@ -267,39 +285,43 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
   const handleCheckIn = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nowIso = new Date().toISOString();
-    localStorage.setItem('teacher_check_in_time', nowIso);
-    localStorage.removeItem('teacher_check_out_time');
-    localStorage.setItem('teacher_is_checked_out', 'false');
-    setCheckInTime(nowIso);
-    setCheckOutTime(null);
-    setIsCheckedOut(false);
-
     try {
-      await teacherCheckInApi();
+      const res: any = await teacherCheckInApi();
+      const attendanceData = res?.attendance || res;
+      const inTimeVal = attendanceData?.inTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const fullIso = `${todayStr}T${inTimeVal}`;
+      localStorage.setItem('teacher_check_in_time', fullIso);
+      localStorage.removeItem('teacher_check_out_time');
+      localStorage.setItem('teacher_is_checked_out', 'false');
+      setCheckInTime(fullIso);
+      setCheckOutTime(null);
+      setIsCheckedOut(false);
+
       if (fetchDailyAttendance) {
-        fetchDailyAttendance(todayStr);
+        await fetchDailyAttendance(todayStr);
       }
-    } catch (err) {
-      console.warn('Teacher check-in API error:', err);
+    } catch (err: any) {
+      console.error('Teacher check-in API error:', err);
     }
   };
 
   const handleCheckOut = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nowIso = new Date().toISOString();
-    localStorage.setItem('teacher_check_out_time', nowIso);
-    localStorage.setItem('teacher_is_checked_out', 'true');
-    setCheckOutTime(nowIso);
-    setIsCheckedOut(true);
-
     try {
-      await teacherCheckOutApi();
+      const res: any = await teacherCheckOutApi();
+      const attendanceData = res?.attendance || res;
+      const outTimeVal = attendanceData?.outTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const fullIso = `${todayStr}T${outTimeVal}`;
+      localStorage.setItem('teacher_check_out_time', fullIso);
+      localStorage.setItem('teacher_is_checked_out', 'true');
+      setCheckOutTime(fullIso);
+      setIsCheckedOut(true);
+
       if (fetchDailyAttendance) {
-        fetchDailyAttendance(todayStr);
+        await fetchDailyAttendance(todayStr);
       }
-    } catch (err) {
-      console.warn('Teacher check-out API error:', err);
+    } catch (err: any) {
+      console.error('Teacher check-out API error:', err);
     }
   };
 
