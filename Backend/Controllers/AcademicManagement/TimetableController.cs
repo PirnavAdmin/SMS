@@ -178,7 +178,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                 {
                     id = s.SlotId.ToString(),
                     day = s.DayOfWeek,
-                    timeSlot = s.PeriodName,
+                    timeSlot = $"{s.StartTime} - {s.EndTime}",
                     startTime = s.StartTime,
                     endTime = s.EndTime,
                     className = grid.ClassName,
