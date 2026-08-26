@@ -50,11 +50,18 @@ export const LeaveManagementView: React.FC = () => {
   );
 
   // Match current staff member for logged in teacher
-  const teacherStaffMember = staff.find(s => 
+  const teachingStaff = staff.filter(s => {
+    const des = (s.designation || '').toLowerCase();
+    const dept = (s.department || '').toLowerCase();
+    const cat = (s.employeeCategory || '').toLowerCase();
+    return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
+  });
+
+  const teacherStaffMember = teachingStaff.find(s => 
     (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
     (s.phone && user?.phone && s.phone === user.phone) ||
     (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
-  ) || staff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || staff[0];
+  ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
 
   // Filter applications for current user if teacher
   const myApplications = leaveApplications.filter(a => {

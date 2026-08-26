@@ -20,27 +20,53 @@ export const TeacherProfileView: React.FC = () => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
 
+    const isTeachingStaff = (s: any) => {
+      if (!s) return false;
+      const cat = (s.employeeCategory || s.category || '').toLowerCase();
+      const des = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      if (
+        dept.includes('transport') || 
+        dept.includes('hostel') || 
+        dept.includes('security') || 
+        dept.includes('maintenance') ||
+        des.includes('driver') || 
+        des.includes('attendant') || 
+        des.includes('warden') || 
+        des.includes('security') || 
+        des.includes('peon') || 
+        des.includes('sweeper') ||
+        cat.includes('non-teaching')
+      ) {
+        return false;
+      }
+      return true;
+    };
+
+    const teachingStaff = staff.filter(isTeachingStaff);
+
     if (userEmail) {
-      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (byEmail) return byEmail;
     }
 
     if (userName) {
-      const byName = staff.find(s => {
+      const byName = teachingStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && (sFullName.includes(userName) || userName.includes(sFullName))) ||
-               (sName && (sName.includes(userName) || userName.includes(sName)));
+        if (sFullName === userName || sName === userName) return true;
+        if (userName.length > 5 && sFullName && sFullName.includes(userName)) return true;
+        return false;
       });
       if (byName) return byName;
     }
 
     if (user?.id) {
-      const byId = staff.find(s => s.id === user.id);
+      const byId = teachingStaff.find(s => s.id === user.id || s.empId === user.id);
       if (byId) return byId;
     }
 
-    return null;
+    return teachingStaff[0] || null;
   }, [user, staff]);
 
   // Dynamically compute assigned classes (clean class name without section suffix)

@@ -33,11 +33,18 @@ export const TeacherPayslipsView: React.FC = () => {
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
   // Match current logged in teacher staff record
-  const teacherStaffMember = staff.find(s =>
+  const teachingStaff = staff.filter(s => {
+    const des = (s.designation || '').toLowerCase();
+    const dept = (s.department || '').toLowerCase();
+    const cat = (s.employeeCategory || '').toLowerCase();
+    return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
+  });
+
+  const teacherStaffMember = teachingStaff.find(s =>
     (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
     (s.phone && user?.phone && s.phone === user.phone) ||
     (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
-  ) || staff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || staff[0];
+  ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
 
   // Synthesize realistic historical payslips for the teacher if none or few exist in state
   const teacherPayslips: Payslip[] = useMemo(() => {
