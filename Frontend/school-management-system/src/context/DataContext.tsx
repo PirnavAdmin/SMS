@@ -16846,24 +16846,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const filteredStudents = useMemo(() => {
-    const branchFiltered = filterByBranch(students);
-    const enrolledRegNos = new Set(
-      admissions
-        .filter(
-          (a) => a.status === "Enrolled" || (a.status as string) === "enrolled",
-        )
-        .map((a) =>
-          (a.registrationNo || a.applicationNo || "").trim().toLowerCase(),
-        )
-        .filter(Boolean),
-    );
-    if (admissions.length > 0) {
-      return branchFiltered.filter((s) =>
-        enrolledRegNos.has((s.admissionNo || "").trim().toLowerCase()),
-      );
-    }
-    return branchFiltered;
-  }, [students, admissions, selectedBranch]);
+    return filterByBranch(students);
+  }, [students, selectedBranch]);
 
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);

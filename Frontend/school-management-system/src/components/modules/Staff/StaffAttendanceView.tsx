@@ -149,15 +149,33 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [dbTeacher, user]);
 
   // PERSONAL TEACHER ATTENDANCE STATES
-  const [persCheckInTime, setPersCheckInTime] = useState<string | null>(() =>
-    localStorage.getItem("teacher_check_in_time"),
-  );
-  const [persCheckOutTime, setPersCheckOutTime] = useState<string | null>(() =>
-    localStorage.getItem("teacher_check_out_time"),
-  );
-  const [persIsCheckedOut, setPersIsCheckedOut] = useState<boolean>(() =>
-    localStorage.getItem("teacher_is_checked_out") === "true",
-  );
+  const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
+
+  const [persCheckInTime, setPersCheckInTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayDateStr) {
+      localStorage.removeItem("teacher_check_in_time");
+      localStorage.removeItem("teacher_check_out_time");
+      localStorage.removeItem("teacher_is_checked_out");
+      localStorage.setItem("teacher_attendance_date", todayDateStr);
+      return null;
+    }
+    return localStorage.getItem("teacher_check_in_time");
+  });
+
+  const [persCheckOutTime, setPersCheckOutTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayDateStr) return null;
+    const isOut = localStorage.getItem("teacher_is_checked_out") === "true";
+    return isOut ? localStorage.getItem("teacher_check_out_time") : null;
+  });
+
+  const [persIsCheckedOut, setPersIsCheckedOut] = useState<boolean>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayDateStr) return false;
+    return localStorage.getItem("teacher_is_checked_out") === "true";
+  });
+
   const [persWorkingHours, setPersWorkingHours] = useState<string>("0h 0m");
   const [personalFilterDate, setPersonalFilterDate] = useState("");
   const [personalFilterMonth, setPersonalFilterMonth] = useState("All");
@@ -202,25 +220,28 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     },
   ]);
 
-const formatDisplayTime = (timeStr: string | null | undefined): string => {
-  if (!timeStr) return "--";
-  const trimmed = timeStr.trim();
-  if (!trimmed || trimmed.toLowerCase().includes("invalid")) return "--";
-  if (/^\d{1,2}:\d{2}(\:\d{2})?(\s?[AP]M)?$/i.test(trimmed)) {
-    return trimmed;
-  }
-  const d = new Date(trimmed);
-  if (!isNaN(d.getTime())) {
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  if (trimmed.includes("T")) {
-    const afterT = trimmed.split("T")[1];
-    if (afterT && afterT.trim() && !afterT.toLowerCase().includes("invalid")) {
-      return afterT.trim();
+  const formatDisplayTime = (timeStr: string | null | undefined): string => {
+    if (!timeStr) return "--:--";
+    const trimmed = timeStr.trim();
+    if (!trimmed || trimmed.toLowerCase().includes("invalid") || trimmed === "null" || trimmed === "undefined") return "--:--";
+    if (/^\d{1,2}:\d{2}(\:\d{2})?(\s?[AP]M)?$/i.test(trimmed)) {
+      return trimmed;
     }
-  }
-  return "--";
-};
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    if (trimmed.includes("T")) {
+      const afterT = trimmed.split("T")[1];
+      if (afterT && afterT.trim() && !afterT.toLowerCase().includes("invalid")) {
+        const dAfter = new Date(`1970-01-01T${afterT}`);
+        if (!isNaN(dAfter.getTime())) {
+          return dAfter.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+      }
+    }
+    return "--:--";
+  };
 
   useEffect(() => {
     if (!persCheckInTime) {
@@ -233,7 +254,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
         const afterT = persCheckInTime.split("T")[1];
         if (afterT) {
           const parts = persCheckInTime.split("T");
-          startMs = new Date(`${parts[0]} ${afterT}`).getTime();
+          startMs = new Date(`${parts[0]}T${afterT}`).getTime();
         }
       }
       if (isNaN(startMs) || startMs <= 0) {
@@ -242,16 +263,16 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       }
 
       let endMs = Date.now();
-      if (persCheckOutTime) {
+      if (persIsCheckedOut && persCheckOutTime) {
         let outD = new Date(persCheckOutTime).getTime();
         if (isNaN(outD) && persCheckOutTime.includes("T")) {
           const afterT = persCheckOutTime.split("T")[1];
           if (afterT) {
             const parts = persCheckOutTime.split("T");
-            outD = new Date(`${parts[0]} ${afterT}`).getTime();
+            outD = new Date(`${parts[0]}T${afterT}`).getTime();
           }
         }
-        if (!isNaN(outD)) endMs = outD;
+        if (!isNaN(outD) && outD > startMs) endMs = outD;
       }
 
       const diffMs = endMs - startMs;
@@ -265,9 +286,9 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       setPersWorkingHours(`${hrs}h ${mins}m`);
     };
     calcHours();
-    const interval = setInterval(calcHours, 60000);
+    const interval = setInterval(calcHours, 10000);
     return () => clearInterval(interval);
-  }, [persCheckInTime, persCheckOutTime]);
+  }, [persCheckInTime, persCheckOutTime, persIsCheckedOut]);
 
   // Load today's check-in / check-out from backend on mount for personal view
   useEffect(() => {
@@ -281,13 +302,14 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
             if (attendanceData && attendanceData.inTime) {
               const inTimeStr = attendanceData.inTime.includes("T")
                 ? attendanceData.inTime
-                : new Date().toISOString();
+                : `${todayDateStr}T${attendanceData.inTime}`;
               setPersCheckInTime(inTimeStr);
               localStorage.setItem("teacher_check_in_time", inTimeStr);
+              localStorage.setItem("teacher_attendance_date", todayDateStr);
               if (attendanceData.outTime) {
                 const outTimeStr = attendanceData.outTime.includes("T")
                   ? attendanceData.outTime
-                  : new Date().toISOString();
+                  : `${todayDateStr}T${attendanceData.outTime}`;
                 setPersCheckOutTime(outTimeStr);
                 setPersIsCheckedOut(true);
                 localStorage.setItem("teacher_check_out_time", outTimeStr);
@@ -297,15 +319,6 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                 setPersIsCheckedOut(false);
                 localStorage.removeItem("teacher_check_out_time");
                 localStorage.setItem("teacher_is_checked_out", "false");
-              }
-            } else {
-              const storedIn = localStorage.getItem("teacher_check_in_time");
-              const storedOut = localStorage.getItem("teacher_check_out_time");
-              if (storedIn && !storedIn.toLowerCase().includes("invalid")) {
-                setPersCheckInTime(storedIn);
-              }
-              if (storedOut && !storedOut.toLowerCase().includes("invalid")) {
-                setPersCheckOutTime(storedOut);
               }
             }
           }
@@ -318,15 +331,17 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
         isMounted = false;
       };
     }
-  }, [isPersonalView]);
+  }, [isPersonalView, todayDateStr]);
 
   const handlePersCheckIn = async () => {
     try {
       const res: any = await teacherCheckInApi();
       const attendanceData = res?.attendance || res;
       const now = new Date();
-      const inTimeVal = attendanceData?.inTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       const isoStr = now.toISOString();
+      const inTimeVal = attendanceData?.inTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      
+      localStorage.setItem("teacher_attendance_date", todayDateStr);
       localStorage.setItem("teacher_check_in_time", isoStr);
       localStorage.removeItem("teacher_check_out_time");
       localStorage.setItem("teacher_is_checked_out", "false");
@@ -353,8 +368,10 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       const res: any = await teacherCheckOutApi();
       const attendanceData = res?.attendance || res;
       const now = new Date();
-      const outTimeVal = attendanceData?.outTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       const isoStr = now.toISOString();
+      const outTimeVal = attendanceData?.outTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      
+      localStorage.setItem("teacher_attendance_date", todayDateStr);
       localStorage.setItem("teacher_check_out_time", isoStr);
       localStorage.setItem("teacher_is_checked_out", "true");
       setPersCheckOutTime(isoStr);

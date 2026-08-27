@@ -209,9 +209,31 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   }, [timetable, teacher, todayDay]);
 
   // 3. Teacher Check-in / Check-out & Working Hours State
-  const [checkInTime, setCheckInTime] = useState<string | null>(() => localStorage.getItem('teacher_check_in_time'));
-  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => localStorage.getItem('teacher_check_out_time'));
-  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => localStorage.getItem('teacher_is_checked_out') === 'true');
+  const [checkInTime, setCheckInTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) {
+      localStorage.removeItem("teacher_check_in_time");
+      localStorage.removeItem("teacher_check_out_time");
+      localStorage.removeItem("teacher_is_checked_out");
+      localStorage.setItem("teacher_attendance_date", todayStr);
+      return null;
+    }
+    return localStorage.getItem("teacher_check_in_time");
+  });
+
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) return null;
+    const isOut = localStorage.getItem("teacher_is_checked_out") === "true";
+    return isOut ? localStorage.getItem("teacher_check_out_time") : null;
+  });
+
+  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) return false;
+    return localStorage.getItem("teacher_is_checked_out") === "true";
+  });
+
   const [workingHours, setWorkingHours] = useState<string>('0h 0m');
 
   // Check if real attendance is logged for teacher today in useData().attendance
@@ -264,12 +286,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         if (isMounted) {
           const attendanceData = res?.attendance || res;
           if (attendanceData && attendanceData.inTime) {
-            const todayDateStr = new Date().toLocaleDateString('en-CA');
-            const inTimeStr = `${todayDateStr}T${attendanceData.inTime}`;
+            const inTimeStr = `${todayStr}T${attendanceData.inTime}`;
             setCheckInTime(inTimeStr);
             localStorage.setItem('teacher_check_in_time', inTimeStr);
+            localStorage.setItem('teacher_attendance_date', todayStr);
             if (attendanceData.outTime) {
-              const outTimeStr = `${todayDateStr}T${attendanceData.outTime}`;
+              const outTimeStr = `${todayStr}T${attendanceData.outTime}`;
               setCheckOutTime(outTimeStr);
               localStorage.setItem('teacher_check_out_time', outTimeStr);
               localStorage.setItem('teacher_is_checked_out', 'true');
@@ -280,14 +302,6 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
               localStorage.setItem('teacher_is_checked_out', 'false');
               setIsCheckedOut(false);
             }
-          } else {
-            // Not marked today: clean up any stale localStorage
-            setCheckInTime(null);
-            setCheckOutTime(null);
-            setIsCheckedOut(false);
-            localStorage.removeItem('teacher_check_in_time');
-            localStorage.removeItem('teacher_check_out_time');
-            localStorage.removeItem('teacher_is_checked_out');
           }
         }
       } catch {
@@ -296,7 +310,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     };
     loadTodayStatus();
     return () => { isMounted = false; };
-  }, []);
+  }, [todayStr]);
 
   const handleCheckIn = async (e: React.MouseEvent) => {
     e.stopPropagation();
