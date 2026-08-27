@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Check, X, AlertCircle, Save, FileSpreadsheet,
   Search, Filter, ChevronDown, Clock, CalendarCheck, User, Plus, Edit2, FileText, Loader2
 } from 'lucide-react';
- 
+import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../context/DataContext';
+
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
- 
+
 interface Student {
   id: string;
   rollNo: string;
@@ -17,42 +19,98 @@ interface Student {
   section: string;
   admissionNo: string;
 }
- 
+
 interface AttendanceState {
   [studentId: string]: AttendanceStatus;
 }
- 
+
 interface RemarksState {
   [key: string]: string;
 }
- 
+
 const mockStudents: Student[] = Array.from({ length: 65 }, (_, i) => ({
   id: `${i + 1}`,
   rollNo: `20${(i + 1).toString().padStart(2, '0')}`,
   firstName: ['shiva', 'Rahul', 'Alexander', 'Gokul', 'venkat', 'Aisha', 'Rohan', 'Sneha', 'Liam', 'Emma'][i % 10],
   lastName: ['sai', 'Sharma', 'Wright', 'Raj', 'javvadi', 'Khan', 'Verma', 'Patel', 'Smith', 'Johnson'][i % 10],
-  className: `Class ${(i % 3) + 1}`,
-  section: ['A', 'B', 'C'][i % 3],
+  className: i % 3 === 0 ? 'Class 10' : i % 3 === 1 ? 'Class 9' : 'Class 6',
+  section: i % 3 === 0 ? 'A' : i % 3 === 1 ? 'B' : 'A',
   admissionNo: `ADM${(i + 1).toString().padStart(3, '0')}`,
   avatar: `https://i.pravatar.cc/150?u=${i + 1}`
 }));
- 
-const mockTeacher = {
-  id: 'T001',
-  firstName: 'Jonathan',
-  lastName: 'Miller',
-  assignedClasses: [{ class: 'Class 1', section: 'A' }, { class: 'Class 2', section: 'B' }],
-  assignedSubjects: ['Mathematics', 'Science']
-};
- 
+
 const getLocalDateString = (d: Date) => {
   const year = d.getFullYear();
   const monthVal = String(d.getMonth() + 1).padStart(2, '0');
   const dayVal = String(d.getDate()).padStart(2, '0');
   return `${year}-${monthVal}-${dayVal}`;
 };
- 
+
 export const AttendanceView = () => {
+  const { user } = useAuth();
+  const { staff = [], students: allStudents = [], academicClasses = [], saveStudentAttendance } = useData();
+
+  const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
+
+  // Find logged in teacher record from DataContext staff
+  const dbTeacher = useMemo(() => {
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
+
+    let matchedStaff: any = null;
+
+    if (userEmail) {
+      matchedStaff = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+    }
+    if (!matchedStaff && userName) {
+      matchedStaff = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        return sFullName.includes(userName) || userName.includes(sFullName);
+      });
+    }
+    if (!matchedStaff) {
+      matchedStaff = staff.find(s => (s.firstName || '').toLowerCase().includes('robert'));
+    }
+
+    const fallback = matchedStaff || { firstName: 'Robert', lastName: 'Teacher' };
+
+    return {
+      ...fallback,
+      firstName: fallback.firstName || 'Robert',
+      lastName: fallback.lastName || 'Teacher',
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['English', 'Mathematics']
+    };
+  }, [user, staff]);
+
+  // Extract assigned classes & sections for teacher
+  const teacherClasses = useMemo(() => {
+    let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || [];
+    if (!Array.isArray(raw) || raw.length === 0) {
+      raw = ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    }
+    return raw.map((c: any) => {
+      const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : 'Class 10-A');
+      const parts = str.split('-');
+      const className = parts[0].startsWith('Class ') ? parts[0] : `Class ${parts[0]}`;
+      const section = parts[1] || 'A';
+      return { className, section };
+    });
+  }, [dbTeacher]);
+
+  const teacherFullName = `${dbTeacher.firstName || 'Robert'} ${dbTeacher.lastName || 'Teacher'}`;
+
+  // Unique list of class names for dropdown
+  const classOptions = useMemo(() => {
+    if (isTeacher && teacherClasses.length > 0) {
+      return Array.from(new Set(teacherClasses.map(c => c.className)));
+    }
+    const fromAcademic = (academicClasses || []).map(ac => ac.name ? (ac.name.startsWith('Class ') ? ac.name : `Class ${ac.name}`) : null).filter(Boolean) as string[];
+    const fromStudents = (allStudents || []).map(s => s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : null).filter(Boolean) as string[];
+    const merged = Array.from(new Set(['All Classes', ...fromAcademic, ...fromStudents, 'Class 10', 'Class 9', 'Class 6']));
+    return merged;
+  }, [isTeacher, teacherClasses, academicClasses, allStudents]);
+
   // Global View State
   const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
   const [date, setDate] = useState<string>(getLocalDateString(new Date()));
@@ -62,22 +120,39 @@ export const AttendanceView = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
   });
   const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
- 
-  const [teacher] = useState(mockTeacher);
-  const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
- 
+
   // Context Selection State
-  const [selectedClass, setSelectedClass] = useState('All Classes');
-  const [selectedSection, setSelectedSection] = useState('All Sections');
-  const [selectedSubject, setSelectedSubject] = useState(teacher.assignedSubjects?.[0] || 'Mathematics');
+  const [selectedClass, setSelectedClass] = useState<string>(() => {
+    if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].className;
+    return 'Class 10';
+  });
+
+  const [selectedSection, setSelectedSection] = useState<string>(() => {
+    if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].section;
+    return 'A';
+  });
+
+  // Auto-sync section for Teacher when class changes
+  useEffect(() => {
+    if (isTeacher && teacherClasses.length > 0) {
+      const match = teacherClasses.find(c => c.className === selectedClass);
+      if (match) {
+        setSelectedSection(match.section);
+      }
+    }
+  }, [isTeacher, teacherClasses, selectedClass]);
+
+  const [selectedSubject, setSelectedSubject] = useState((dbTeacher as any).assignedSubjects?.[0] || 'Mathematics');
   const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
- 
+
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
- 
+
   const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections';
-  const [isEditable, setIsEditable] = useState(false);
+  
+  // Class Teacher can edit by default; Admin / Supervisor is Read-Only mode by default
+  const [isEditable, setIsEditable] = useState<boolean>(() => isTeacher);
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [isDownloading, setIsDownloading] = useState(false);
  
@@ -289,10 +364,33 @@ export const AttendanceView = () => {
   };
  
   const handleSaveAttendance = () => {
-    setIsEditable(false);
-    addToast('success', 'Attendance Register Saved', 'The registers have been written and submitted to the school portal database.');
+    localStorage.setItem('sms_attendance_registry', JSON.stringify(attendanceRegistry));
+    localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
+
+    classStudents.forEach(st => {
+      const status = currentAttendance[st.id] || getAttendanceStatus(st) || 'Present';
+      const remark = remarksState[`${date}_${st.id}`] || '';
+      if (saveStudentAttendance) {
+        saveStudentAttendance({
+          studentId: st.id,
+          studentName: `${st.firstName} ${st.lastName}`,
+          className: st.className,
+          section: st.section,
+          date: date,
+          status: status,
+          remarks: remark,
+          markedBy: teacherFullName
+        });
+      }
+    });
+
+    if (!isTeacher) {
+      setIsEditable(false);
+    }
+
+    addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, and Admin panels!');
   };
- 
+
   // CSV Exporter
   const handleExportCSV = () => {
     if (filteredStudents.length === 0) {
@@ -350,7 +448,7 @@ export const AttendanceView = () => {
       addToast('success', 'Download Complete', 'Attendance data has been downloaded.');
     }, 800);
   };
- 
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
      
@@ -368,28 +466,30 @@ export const AttendanceView = () => {
             {selectedClass !== 'All Classes' && selectedSection !== 'All Sections' && (
               <span>👤 Class Teacher: <strong className="text-slate-855 dark:text-slate-200">{teacherFullName}</strong></span>
             )}
+            {!isTeacher && (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase border border-amber-200 dark:border-amber-900/50">
+                👁️ Admin View (Read-Only Mode)
+              </span>
+            )}
           </div>
         </div>
- 
-        <button
-          disabled={isAggregatedView}
-          onClick={() => {
-            if (isAggregatedView) return;
-            setIsEditable(!isEditable);
-            if (!isEditable) addToast('info', 'Edit Mode Active', 'You can now change records for the selected date. Hover or check the banner below for instructions.');
-          }}
-          className={`font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80 rounded-full ${
-            isAggregatedView
-              ? 'px-3 py-1 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-              : isEditable
-                ? 'px-4 py-1.5 bg-amber-100 text-amber-800 dark:bg-amber-955/40 dark:text-amber-300 ring-2 ring-amber-450/30'
-                : 'px-2 py-0.5 bg-slate-100 text-slate-650 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-          }`}
-        >
-          {isAggregatedView ? '🚫 Read Only' : isEditable ? '✏️ Edit Mode Active' : '🔒 Edit'}
-        </button>
+
+        <div className="flex items-center gap-2">
+          {!isTeacher && (
+            <button
+              onClick={() => setIsEditable(!isEditable)}
+              className={`font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer rounded-full ${
+                isEditable
+                  ? 'px-4 py-1.5 bg-amber-100 text-amber-800 dark:bg-amber-955/40 dark:text-amber-300 ring-2 ring-amber-450/30'
+                  : 'px-3 py-1 bg-slate-100 text-slate-650 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              {isEditable ? '✏️ Admin Override Mode' : '🔒 Read-Only (View Mode)'}
+            </button>
+          )}
+        </div>
       </div>
- 
+
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3`}>
@@ -398,14 +498,14 @@ export const AttendanceView = () => {
             <select
               value={dateMode}
               onChange={e => setDateMode(e.target.value as any)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="Daily">Daily</option>
               <option value="Monthly">Month-wise</option>
               <option value="Custom Range">Custom Range</option>
             </select>
           </div>
- 
+
           <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'lg:col-span-2' : ''}`}>
             <label className="text-[10px] font-black uppercase text-slate-400">Date Selection</label>
             {dateMode === 'Daily' && (
@@ -422,41 +522,47 @@ export const AttendanceView = () => {
               </div>
             )}
           </div>
- 
+
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
             <select
               value={selectedClass}
               onChange={e => setSelectedClass(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              <option value="All Classes">All Classes</option>
-              <option value="Class 1">Class 1</option>
-              <option value="Class 2">Class 2</option>
-              <option value="Class 3">Class 3</option>
+              {classOptions.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
             </select>
           </div>
- 
+
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              disabled={isTeacher}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
-              <option value="All Sections">All Sections</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
+              {isTeacher ? (
+                <option value={selectedSection}>Section {selectedSection}</option>
+              ) : (
+                <>
+                  <option value="All Sections">All Sections</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </>
+              )}
             </select>
           </div>
- 
+
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
             <select
               value={filterStatus || 'All'}
               onChange={e => setFilterStatus(e.target.value as any)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="All">All Statuses</option>
               <option value="Present">Present</option>

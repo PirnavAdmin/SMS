@@ -318,7 +318,6 @@ export const HomeworkView: React.FC = () => {
             <FileText className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
             Homework Assignments
           </h2>
-          <p className="text-xs text-slate-400 font-medium">Create, publish, and track student assignments and homework tasks</p>
         </div>
 
         {canModify ? (
