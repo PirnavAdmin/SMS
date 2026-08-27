@@ -1024,6 +1024,7 @@ export interface Holiday {
   applicableClasses?: string[];
   description?: string;
   status?: 'Active' | 'Inactive';
+  applicableTo?: 'All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff';
 }
 
 export type EventCategory =

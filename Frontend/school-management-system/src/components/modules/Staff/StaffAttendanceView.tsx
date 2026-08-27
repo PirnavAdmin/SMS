@@ -36,14 +36,17 @@ import {
   LogIn,
   LogOut,
   Loader2,
+  Check,
+  ChevronLeft,
+  Edit,
 } from "lucide-react";
+import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { DateInput } from "../../common/DateInput";
 import { ConfirmModal } from "../../common/ConfirmModal";
-import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import {
   teacherCheckInApi,
   teacherCheckOutApi,
@@ -59,6 +62,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     markAttendance,
     leaveApplications,
     holidays,
+    schoolEvents,
     schoolProfile,
     fetchDailyAttendance,
     fetchMonthlyAttendance,
@@ -1199,6 +1203,8 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
   const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
 
   // Teaching Staff Filters
   const [teachingDept, setTeachingDept] = useState("All");
@@ -1216,6 +1222,42 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
   const [regYear, setRegYear] = useState<number>(new Date().getFullYear());
   const [regFromDate, setRegFromDate] = useState("");
   const [regToDate, setRegToDate] = useState("");
+
+  const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
+  const [monthInputVal, setMonthInputVal] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const handleMonthInputChange = (val: string) => {
+    setMonthInputVal(val);
+    if (val) {
+      const [yearStr, monthStr] = val.split('-');
+      setRegYear(parseInt(yearStr, 10));
+      setRegMonth(parseInt(monthStr, 10) - 1);
+      setRegFromDate("");
+      setRegToDate("");
+    }
+  };
+
+  useEffect(() => {
+    if (dateMode === 'Daily') {
+      setViewMode('daily');
+    } else {
+      setViewMode('monthly');
+      if (dateMode === 'Monthly') {
+        setRegFromDate("");
+        setRegToDate("");
+      } else if (dateMode === 'Custom Range') {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const today = String(d.getDate()).padStart(2, '0');
+        setRegFromDate(`${y}-${m}-01`);
+        setRegToDate(`${y}-${m}-${today}`);
+      }
+    }
+  }, [dateMode]);
 
   const handleFromDateChange = (isoDate: string) => {
     setRegFromDate(isoDate);
@@ -1247,6 +1289,54 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
   const [overrideLeaveSet, setOverrideLeaveSet] = useState<Set<string>>(
     new Set(),
   );
+
+  const [isDirty, setIsDirty] = useState(false);
+  const [isEditingMonthly, setIsEditingMonthly] = useState(false);
+  const [isEditingDaily, setIsEditingDaily] = useState(false);
+  const [monthlyEditsMap, setMonthlyEditsMap] = useState<
+    Record<string, "Present" | "Absent" | "Leave" | "HalfDay">
+  >({});
+
+  // Pagination State
+  const [dailyPage, setDailyPage] = useState<number>(1);
+  const [monthlyPage, setMonthlyPage] = useState<number>(1);
+  const pageSize = 10;
+
+  // Reset pagination on filter changes
+  useEffect(() => {
+    setDailyPage(1);
+  }, [
+    activeTab,
+    attendanceDate,
+    teachingDept,
+    teachingDesignation,
+    teachingQuery,
+    nonTeachingDept,
+    nonTeachingDesignation,
+    nonTeachingQuery,
+  ]);
+
+  useEffect(() => {
+    setMonthlyPage(1);
+  }, [
+    activeTab,
+    regEmpId,
+    regMonth,
+    regYear,
+    regFromDate,
+    regToDate,
+    teachingDept,
+    nonTeachingDept,
+    teachingQuery,
+    nonTeachingQuery,
+    teachingDesignation,
+    nonTeachingDesignation,
+  ]);
+
+  // Reset daily edit mode on tab or date changes
+  useEffect(() => {
+    setIsEditingDaily(false);
+  }, [activeTab, attendanceDate, viewMode]);
 
   // Non-Teaching Departments List
   const nonTeachingDepartments = [
@@ -1364,6 +1454,8 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
         activeTab === "teaching" ? teachingDept : nonTeachingDept;
       fetchDailyAttendance(attendanceDate, activeDept);
 
+      if (isDirty) return;
+
       const pollInterval = setInterval(() => {
         fetchDailyAttendance(attendanceDate, activeDept);
       }, 5000);
@@ -1377,6 +1469,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
     nonTeachingDept,
     viewMode,
     fetchDailyAttendance,
+    isDirty,
   ]);
 
   // Fetch monthly attendance logs from API when filters change
@@ -1419,6 +1512,8 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
 
   // Populate / Sync local attendance maps whenever attendanceDate or staff changes
   useEffect(() => {
+    if (isDirty) return;
+
     const newStatusMap: typeof attendanceMap = {};
     const newInTimeMap: typeof inTimeMap = {};
     const newOutTimeMap: typeof outTimeMap = {};
@@ -1469,7 +1564,12 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
     setOutTimeMap(newOutTimeMap);
     setRemarksMap(newRemarksMap);
     setOverrideLeaveSet(new Set());
-  }, [attendanceDate, staff, attendanceHash, leaveApplications, normalizeStatus]);
+  }, [attendanceDate, staff, attendanceHash, leaveApplications, normalizeStatus, isDirty]);
+
+  // Reset dirty status on view filter changes to fetch fresh sync data
+  useEffect(() => {
+    setIsDirty(false);
+  }, [attendanceDate, activeTab, teachingDept, nonTeachingDept, viewMode]);
 
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
@@ -1515,6 +1615,12 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
   const currentTabStaffList =
     activeTab === "teaching" ? teachingStaffList : nonTeachingStaffList;
 
+  // Daily Pagination Calculations
+  const paginatedDailyStaffList = useMemo(() => {
+    const start = (dailyPage - 1) * pageSize;
+    return currentTabStaffList.slice(start, start + pageSize);
+  }, [currentTabStaffList, dailyPage, pageSize]);
+
   // Live Summary Metrics Computation
   const liveSummaryStats = useMemo(() => {
     let total = currentTabStaffList.length;
@@ -1551,6 +1657,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       return;
     }
 
+    setIsDirty(true);
     setAttendanceMap((prev) => ({ ...prev, [empId]: newStatus }));
 
     // Set default times based on status
@@ -1584,6 +1691,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       return;
     }
 
+    setIsDirty(true);
     setAttendanceMap((prev) => {
       const next = { ...prev };
       currentTabStaffList.forEach((s) => {
@@ -1682,6 +1790,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
 
       const success = await markAttendance(recordsToSave);
       if (success) {
+        setIsDirty(false);
         addToast(
           "success",
           "Attendance Saved Successfully",
@@ -1728,12 +1837,247 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
     }
   };
 
-  // Check if existing attendance entries exist for date
-  const isExistingAttendanceForDate = useMemo(() => {
-    return (attendance || []).some(
-      (r) => r.entityType === "Staff" && r.date === attendanceDate,
+  // Weekend Check
+  const getIsWeekend = (dateStr: string) => {
+    const day = new Date(dateStr).getDay();
+    try {
+      const stored = localStorage.getItem('edu_db_weekend_days');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.includes(day);
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing weekend days settings:", e);
+    }
+    return day === 0; // 0 = Sunday
+  };
+
+  // Holiday Check
+  const getIsHoliday = (checkDate: string, s: any) => {
+    const isTeacher = isTeachingStaff(s);
+    const targetAudience = isTeacher ? "Teaching Staff" : "Non-Teaching Staff";
+
+    const inHolidays = (holidays || []).some(
+      (h) => {
+        if (h.status === "Inactive") return false;
+
+        const isDateMatch =
+          checkDate >= h.startDate.split("T")[0] &&
+          checkDate <= h.endDate.split("T")[0];
+
+        if (!isDateMatch) return false;
+
+        // Check if holiday is applicable to this specific employee group
+        const app = h.applicableTo;
+        return !app || app === "All" || app === targetAudience;
+      }
     );
-  }, [attendance, attendanceDate]);
+    if (inHolidays) return true;
+
+    return (schoolEvents || []).some((e) => {
+      if (e.status === "Cancelled") return false;
+      const title = (e.title || "").toLowerCase();
+      const desc = (e.description || "").toLowerCase();
+      const cat = (e.category || "").toLowerCase();
+      const isHolidayEvent =
+        title.includes("holiday") ||
+        title.includes("vacation") ||
+        title.includes("festival") ||
+        desc.includes("holiday") ||
+        desc.includes("vacation") ||
+        desc.includes("festival") ||
+        cat.includes("holiday") ||
+        cat.includes("vacation") ||
+        cat.includes("festival");
+
+      if (!isHolidayEvent) return false;
+
+      const start = e.startDate.split("T")[0];
+      const end = e.endDate.split("T")[0];
+      return checkDate >= start && checkDate <= end;
+    });
+  };
+
+  // Monthly Attendance Cell Click Handler
+  const handleCellClick = (staffId: string, dateStr: string) => {
+    if (!isEditingMonthly) {
+      addToast(
+        "warning",
+        "Edit Mode Required",
+        "Please click 'Edit Attendance' at the top right of the register to modify attendance."
+      );
+      return;
+    }
+
+    // Do not edit future days or days before joining
+    const isFuture = dateStr > todayStr;
+    const s = staff.find((x) => x.id === staffId);
+    const isBeforeJoining = s?.joiningDate && dateStr < s.joiningDate;
+    if (isFuture || isBeforeJoining) {
+      addToast(
+        "info",
+        "Invalid Action",
+        "Cannot mark attendance for upcoming days or days before the employee's joining date."
+      );
+      return;
+    }
+
+    const key = `${staffId}_${dateStr}`;
+    const localEdit = monthlyEditsMap[key];
+    const record = (attendance || []).find(
+      (r) =>
+        r.entityType === "Staff" &&
+        r.entityId === staffId &&
+        r.date === dateStr
+    );
+    const currentStatus =
+      localEdit !== undefined
+        ? localEdit
+        : record
+        ? record.status
+        : undefined;
+
+    // Cycle: default/Present -> Absent -> Leave -> HalfDay -> Present
+    let nextStatus: "Present" | "Absent" | "Leave" | "HalfDay" = "Present";
+    if (currentStatus === undefined || currentStatus === "Present") nextStatus = "Absent";
+    else if (currentStatus === "Absent") nextStatus = "Leave";
+    else if (currentStatus === "Leave") nextStatus = "HalfDay";
+    else if (currentStatus === "HalfDay" || currentStatus === "Late")
+      nextStatus = "Present";
+
+    setMonthlyEditsMap((prev) => ({
+      ...prev,
+      [key]: nextStatus,
+    }));
+  };
+
+  const handleCancelMonthlyEditing = () => {
+    setMonthlyEditsMap({});
+    setIsEditingMonthly(false);
+  };
+
+  const [isSavingMonthly, setIsSavingMonthly] = useState(false);
+
+  const handleSaveMonthlyChanges = async () => {
+    const editKeys = Object.keys(monthlyEditsMap);
+    if (editKeys.length === 0) {
+      setIsEditingMonthly(false);
+      return;
+    }
+
+    setIsSavingMonthly(true);
+    try {
+      // 1. Group edits by Date
+      const editsByDate: Record<
+        string,
+        Record<string, "Present" | "Absent" | "Leave" | "HalfDay">
+      > = {};
+      editKeys.forEach((key) => {
+        const [staffId, dateStr] = key.split("_");
+        if (!editsByDate[dateStr]) {
+          editsByDate[dateStr] = {};
+        }
+        editsByDate[dateStr][staffId] = monthlyEditsMap[key];
+      });
+
+      // 2. Prepare save promises for each date
+      const savePromises = Object.entries(editsByDate).map(
+        async ([dateStr, staffEdits]) => {
+          // Find all active staff in the current category
+          const activeStaffListForCategory = staff.filter((s) => {
+            const isTeacher = isTeachingStaff(s);
+            const isCorrectCategory =
+              activeTab === "teaching" ? isTeacher : !isTeacher;
+            return isCorrectCategory && s.status !== "Inactive";
+          });
+
+          // Map them to DailyAttendance[]
+          const recordsToSave: DailyAttendance[] = activeStaffListForCategory.map(
+            (s) => {
+              let status = staffEdits[s.id];
+              if (status === undefined) {
+                const existingRecord = (attendance || []).find(
+                  (r) =>
+                    r.entityType === "Staff" &&
+                    r.entityId === s.id &&
+                    r.date === dateStr
+                );
+                status = existingRecord
+                  ? (existingRecord.status as any)
+                  : "Present";
+              }
+
+              // Fetch the current saved in/out times or use defaults
+              const existingRecordForTimes = (attendance || []).find(
+                (r) =>
+                  r.entityType === "Staff" &&
+                  r.entityId === s.id &&
+                  r.date === dateStr
+              );
+              const inTime =
+                existingRecordForTimes?.inTime ||
+                (status === "Present" || status === "Late"
+                  ? "08:30 AM"
+                  : "");
+              const outTime =
+                existingRecordForTimes?.outTime ||
+                (status === "Present" || status === "Late"
+                  ? "04:30 PM"
+                  : "");
+              const remarks = existingRecordForTimes?.remarks || "";
+
+              return {
+                date: dateStr,
+                entityType: "Staff" as const,
+                entityId: s.id,
+                status: normalizeStatus(status),
+                inTime,
+                outTime,
+                department: s.department || "",
+                designation: s.designation || "",
+                remarks,
+              };
+            }
+          );
+
+          // Call markAttendance context function
+          return markAttendance(recordsToSave);
+        }
+      );
+
+      const results = await Promise.all(savePromises);
+      const allSuccess = results.every(Boolean);
+
+      if (allSuccess) {
+        addToast(
+          "success",
+          "Monthly Attendance Saved",
+          `Successfully saved changes for ${
+            Object.keys(editsByDate).length
+          } dates.`
+        );
+        // Refresh monthly attendance
+        if (fetchMonthlyAttendance) {
+          const activeDept =
+            activeTab === "teaching" ? teachingDept : nonTeachingDept;
+          fetchMonthlyAttendance(regMonth + 1, regYear, activeDept);
+        }
+        setMonthlyEditsMap({});
+        setIsEditingMonthly(false);
+      }
+    } catch (error) {
+      console.error("Error saving monthly attendance:", error);
+      addToast(
+        "danger",
+        "Save Failed",
+        "Failed to save monthly attendance updates."
+      );
+    } finally {
+      setIsSavingMonthly(false);
+    }
+  };
 
   // Monthly Register Computations (Tab 3)
   const monthNames = [
@@ -1762,6 +2106,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
           dateStr: string;
           dayNum: number;
           displayHeader: string;
+          dayOfWeek: string;
         }[] = [];
         const current = new Date(start);
 
@@ -1783,7 +2128,11 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
             ? `${d} ${monthShort}`
             : `${current.getDate()}`;
 
-          list.push({ dateStr, dayNum: current.getDate(), displayHeader });
+          const dayOfWeek = current.toLocaleString("en-US", {
+            weekday: "short",
+          }).toUpperCase();
+
+          list.push({ dateStr, dayNum: current.getDate(), displayHeader, dayOfWeek });
 
           current.setDate(current.getDate() + 1);
           guard++;
@@ -1794,11 +2143,14 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
 
     // Default to selected month
     const daysCount = new Date(regYear, regMonth + 1, 0).getDate();
-    const list: { dateStr: string; dayNum: number; displayHeader: string }[] =
+    const list: { dateStr: string; dayNum: number; displayHeader: string; dayOfWeek: string }[] =
       [];
     for (let d = 1; d <= daysCount; d++) {
       const dateStr = `${regYear}-${String(regMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      list.push({ dateStr, dayNum: d, displayHeader: `${d}` });
+      const dayOfWeek = new Date(regYear, regMonth, d).toLocaleString("en-US", {
+        weekday: "short",
+      }).toUpperCase();
+      list.push({ dateStr, dayNum: d, displayHeader: `${d}`, dayOfWeek });
     }
     return list;
   }, [regYear, regMonth, regFromDate, regToDate]);
@@ -1817,160 +2169,206 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       )
         return false;
 
+      const activeDesig =
+        activeTab === "teaching" ? teachingDesignation : nonTeachingDesignation;
+      if (
+        activeDesig !== "All" &&
+        (s.designation || "").toLowerCase() !== activeDesig.toLowerCase()
+      )
+        return false;
+
+      const q = (activeTab === "teaching" ? teachingQuery : nonTeachingQuery).toLowerCase().trim();
+      const searchMatch =
+        !q ||
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+        (s.empId || "").toLowerCase().includes(q);
+      if (!searchMatch) return false;
+
       if (regEmpId !== "All" && s.id !== regEmpId) return false;
       return s.status === "Active";
     });
-  }, [staff, activeTab, teachingDept, nonTeachingDept, regEmpId]);
+  }, [
+    staff,
+    activeTab,
+    teachingDept,
+    nonTeachingDept,
+    teachingDesignation,
+    nonTeachingDesignation,
+    teachingQuery,
+    nonTeachingQuery,
+    regEmpId,
+  ]);
+
+  // Monthly Pagination Calculations
+  const paginatedMonthlyStaffList = useMemo(() => {
+    const start = (monthlyPage - 1) * pageSize;
+    return registerStaffList.slice(start, start + pageSize);
+  }, [registerStaffList, monthlyPage, pageSize]);
 
   // Export Report Handler
   const handleExportReport = () => {
-    let csvRows: string[] = [];
-    let filename = "";
+    setIsExporting(true);
+    setTimeout(() => {
+      try {
+        let csvRows: string[] = [];
+        let filename = "";
 
-    if (viewMode === "daily") {
-      filename = `Staff_Daily_Attendance_${formatToDDMMYYYY(attendanceDate, "-")}`;
-      const headers = [
-        "Attendance Date",
-        "Employee ID",
-        "Employee Name",
-        "Staff Category",
-        "Department",
-        "Designation",
-        "Status",
-        "In Time",
-        "Out Time",
-        "Remarks",
-      ];
-      csvRows.push(headers.join(","));
+        if (viewMode === "daily") {
+          filename = `Staff_Daily_Attendance_${formatToDDMMYYYY(attendanceDate, "-")}`;
+          const headers = [
+            "Attendance Date",
+            "Employee ID",
+            "Employee Name",
+            "Staff Category",
+            "Department",
+            "Designation",
+            "Status",
+            "In Time",
+            "Out Time",
+            "Remarks",
+          ];
+          csvRows.push(headers.join(","));
 
-      currentTabStaffList.forEach((s) => {
-        const approvedLeave = getApprovedLeave(s.id, attendanceDate);
-        const status =
-          attendanceMap[s.id] || (approvedLeave ? "Leave" : "Present");
-        const inTime = inTimeMap[s.id] || "";
-        const outTime = outTimeMap[s.id] || "";
-        const remarks = remarksMap[s.id] || "";
+          currentTabStaffList.forEach((s) => {
+            const approvedLeave = getApprovedLeave(s.id, attendanceDate);
+            const status = String(
+              attendanceMap[s.id] || (approvedLeave ? "Leave" : "Present")
+            );
+            const inTime = String(inTimeMap[s.id] || "");
+            const outTime = String(outTimeMap[s.id] || "");
+            const remarks = String(remarksMap[s.id] || "");
 
-        const row = [
-          `"${formatToDDMMYYYY(attendanceDate, "-")}"`,
-          `"${s.empId || s.id}"`,
-          `"${s.firstName} ${s.lastName}"`,
-          `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
-          `"${s.department || "General"}"`,
-          `"${s.designation || "Staff"}"`,
-          `"${status}"`,
-          `"${inTime}"`,
-          `"${outTime}"`,
-          `"${remarks.replace(/"/g, '""')}"`,
-        ];
-        csvRows.push(row.join(","));
-      });
-    } else {
-      const rangeLabel =
-        regFromDate && regToDate
-          ? `${formatToDDMMYYYY(regFromDate, "-")}_to_${formatToDDMMYYYY(regToDate, "-")}`
-          : `${monthNames[regMonth]}_${regYear}`;
-      filename = `Staff_Attendance_Register_${rangeLabel}`;
+            const row = [
+              `"${formatToDDMMYYYY(attendanceDate, "-")}"`,
+              `"${s.empId || s.id}"`,
+              `"${s.firstName} ${s.lastName}"`,
+              `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
+              `"${s.department || "General"}"`,
+              `"${s.designation || "Staff"}"`,
+              `"${status}"`,
+              `"${inTime}"`,
+              `"${outTime}"`,
+              `"${remarks.replace(/"/g, '""')}"`,
+            ];
+            csvRows.push(row.join(","));
+          });
+        } else {
+          const rangeLabel =
+            regFromDate && regToDate
+              ? `${formatToDDMMYYYY(regFromDate, "-")}_to_${formatToDDMMYYYY(regToDate, "-")}`
+              : `${monthNames[regMonth]}_${regYear}`;
+          filename = `Staff_Attendance_Register_${rangeLabel}`;
 
-      const dateHeaders = registerDaysList.map(
-        (item) => `"${item.displayHeader}"`,
-      );
-      const headers = [
-        "Employee ID",
-        "Employee Name",
-        "Staff Category",
-        "Department",
-        "Designation",
-        ...dateHeaders,
-        "Present (P)",
-        "Absent (A)",
-        "Leave (L)",
-        "Attendance %",
-      ];
-      csvRows.push(headers.join(","));
-
-      registerStaffList.forEach((s) => {
-        let pCount = 0;
-        let aCount = 0;
-        let lCount = 0;
-
-        const dayStatuses = registerDaysList.map((item) => {
-          const record = (attendance || []).find(
-            (r) =>
-              r.entityType === "Staff" &&
-              r.entityId === s.id &&
-              r.date === item.dateStr,
+          const dateHeaders = registerDaysList.map(
+            (item) => `"${item.displayHeader}"`,
           );
-          let code = "P";
-          if (record) {
-            if (record.status === "Present") {
-              code = "P";
-              pCount++;
-            } else if (record.status === "Absent") {
-              code = "A";
-              aCount++;
-            } else if (record.status === "Leave") {
-              code = "L";
-              lCount++;
-            } else if (
-              record.status === "HalfDay" ||
-              record.status === "Late"
-            ) {
-              code = "HD";
-              pCount += 0.5;
-            }
-          } else {
-            pCount++;
-          }
-          return `"${code}"`;
+          const headers = [
+            "Employee ID",
+            "Employee Name",
+            "Staff Category",
+            "Department",
+            "Designation",
+            ...dateHeaders,
+            "Present (P)",
+            "Absent (A)",
+            "Leave (L)",
+            "Attendance %",
+          ];
+          csvRows.push(headers.join(","));
+
+          registerStaffList.forEach((s) => {
+            let pCount = 0;
+            let aCount = 0;
+            let lCount = 0;
+
+            const dayStatuses = registerDaysList.map((item) => {
+              const record = (attendance || []).find(
+                (r) =>
+                  r.entityType === "Staff" &&
+                  r.entityId === s.id &&
+                  r.date === item.dateStr,
+              );
+              let code = "P";
+              if (record) {
+                if (record.status === "Present") {
+                  code = "P";
+                  pCount++;
+                } else if (record.status === "Absent") {
+                  code = "A";
+                  aCount++;
+                } else if (record.status === "Leave") {
+                  code = "L";
+                  lCount++;
+                } else if (
+                  record.status === "HalfDay" ||
+                  record.status === "Late"
+                ) {
+                  code = "HD";
+                  pCount += 0.5;
+                }
+              } else {
+                pCount++;
+              }
+              return `"${code}"`;
+            });
+
+            const pct =
+              registerDaysList.length > 0
+                ? Math.round((pCount / registerDaysList.length) * 100)
+                : 0;
+
+            const row = [
+              `"${s.empId || s.id}"`,
+              `"${s.firstName} ${s.lastName}"`,
+              `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
+              `"${s.department || "General"}"`,
+              `"${s.designation || "Staff"}"`,
+              ...dayStatuses,
+              `"${pCount}"`,
+              `"${aCount}"`,
+              `"${lCount}"`,
+              `"${pct}%"`,
+            ];
+            csvRows.push(row.join(","));
+          });
+        }
+
+        if (csvRows.length <= 1) {
+          addToast(
+            "warning",
+            "No Records to Export",
+            "There are no staff records available for the selected criteria.",
+          );
+          return;
+        }
+
+        const blob = new Blob([csvRows.join("\n")], {
+          type: "text/csv;charset=utf-8;",
         });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${filename}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-        const pct =
-          registerDaysList.length > 0
-            ? Math.round((pCount / registerDaysList.length) * 100)
-            : 0;
-
-        const row = [
-          `"${s.empId || s.id}"`,
-          `"${s.firstName} ${s.lastName}"`,
-          `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
-          `"${s.department || "General"}"`,
-          `"${s.designation || "Staff"}"`,
-          ...dayStatuses,
-          `"${pCount}"`,
-          `"${aCount}"`,
-          `"${lCount}"`,
-          `"${pct}%"`,
-        ];
-        csvRows.push(row.join(","));
-      });
-    }
-
-    if (csvRows.length <= 1) {
-      addToast(
-        "warning",
-        "No Records to Export",
-        "There are no staff records available for the selected criteria.",
-      );
-      return;
-    }
-
-    const blob = new Blob([csvRows.join("\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${filename}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    addToast(
-      "success",
-      "Report Exported Successfully",
-      `Downloaded ${filename}.csv`,
-    );
+        addToast(
+          "success",
+          "Report Exported Successfully",
+          `Downloaded ${filename}.csv`,
+        );
+      } catch (err: any) {
+        console.error("Export failed:", err);
+        addToast(
+          "error",
+          "Export Failed",
+          err.message || "An unexpected error occurred during export."
+        );
+      } finally {
+        setIsExporting(false);
+      }
+    }, 150);
   };
 
   return (
@@ -1984,21 +2382,19 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
           </h2>
         </div>
 
-        {(activeTab === "teaching" || activeTab === "non-teaching") &&
-          canMarkAttendance && (
-            <button
-              onClick={handleSaveAttendance}
-              disabled={isFutureDate || isSaving}
-              className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-brand-600/20 flex items-center gap-2 transition-all self-start sm:self-center"
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {isSaving ? "Saving..." : "Save Attendance Log"}
-            </button>
+        <button
+          type="button"
+          onClick={handleExportReport}
+          disabled={isExporting}
+          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50 self-start sm:self-center"
+        >
+          {isExporting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4" />
           )}
+          {isExporting ? "Downloading..." : "Download"}
+        </button>
       </div>
 
       {/* Main Module Tabs (Teaching, Non-Teaching) */}
@@ -2027,36 +2423,129 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl flex items-center shadow-inner">
-            <button
-              onClick={() => setViewMode("daily")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
-                viewMode === "daily"
-                  ? "bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
-              }`}
+        {/* Search Staff Bar (Top Right corner of main module tabs line) */}
+        <div className="w-full md:w-72 shrink-0">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by name or ID..."
+              value={activeTab === "teaching" ? teachingQuery : nonTeachingQuery}
+              onChange={(e) =>
+                activeTab === "teaching"
+                  ? setTeachingQuery(e.target.value)
+                  : setNonTeachingQuery(e.target.value)
+              }
+              className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Control Filters Row */}
+      <div className="glass-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-end`}>
+          {/* Date Mode */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+              Date Mode
+            </label>
+            <select
+              value={dateMode}
+              onChange={(e) => setDateMode(e.target.value as any)}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              Daily Attendance
-            </button>
-            <button
-              onClick={() => setViewMode("monthly")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
-                viewMode === "monthly"
-                  ? "bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
-              }`}
-            >
-              Monthly Attendance
-            </button>
+              <option value="Daily">Daily</option>
+              <option value="Monthly">Monthly</option>
+              <option value="Custom Range">Custom Range</option>
+            </select>
           </div>
 
-          <button
-            onClick={handleExportReport}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4" /> Export Report
-          </button>
+          {/* Date Selection */}
+          <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2" : ""}>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+              Date Selection
+            </label>
+            {dateMode === "Daily" && (
+              <DateInput
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            )}
+            {dateMode === "Monthly" && (
+              <input
+                type="month"
+                value={monthInputVal}
+                onChange={(e) => handleMonthInputChange(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              />
+            )}
+            {dateMode === "Custom Range" && (
+              <div className="flex items-center gap-2">
+                <DateInput
+                  value={regFromDate}
+                  onChange={(e) => handleFromDateChange(e.target.value)}
+                  placeholder="From"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                />
+                <span className="text-slate-400 font-bold">-</span>
+                <DateInput
+                  value={regToDate}
+                  onChange={(e) => setRegToDate(e.target.value)}
+                  placeholder="To"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Department */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+              Department
+            </label>
+            <select
+              value={activeTab === "teaching" ? teachingDept : nonTeachingDept}
+              onChange={(e) =>
+                activeTab === "teaching"
+                  ? setTeachingDept(e.target.value)
+                  : setNonTeachingDept(e.target.value)
+              }
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+            >
+              <option value="All">All Departments</option>
+              {(activeTab === "teaching" ? teachingDepts : nonTeachingDepartments).map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Designation */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+              Designation
+            </label>
+            <select
+              value={activeTab === "teaching" ? teachingDesignation : nonTeachingDesignation}
+              onChange={(e) =>
+                activeTab === "teaching"
+                  ? setTeachingDesignation(e.target.value)
+                  : setNonTeachingDesignation(e.target.value)
+              }
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+            >
+              <option value="All">All Designations</option>
+              {(activeTab === "teaching" ? teachingDesignations : nonTeachingDesignations).map((des) => (
+                <option key={des} value={des}>
+                  {des}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -2066,17 +2555,63 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
           <div className="space-y-5">
             {/* Live Attendance Summary Card */}
             <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-brand-600" />
                   Attendance Summary
+                  <span className="text-[10px] font-bold text-slate-400 normal-case ml-1">
+                    ({attendanceDate})
+                  </span>
                 </h4>
-                <span className="text-[10px] font-bold text-slate-400">
-                  Date: {attendanceDate}
-                </span>
+
+                {/* Edit & Mode Control Buttons (Top Right of Container) */}
+                {canMarkAttendance && !isFutureDate && (
+                  <div className="flex items-center gap-2">
+                    {!isEditingDaily ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingDaily(true)}
+                        className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> Edit Attendance
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingDaily(false);
+                            setIsDirty(false);
+                            // Reset local attendance maps to match the database
+                            if (fetchDailyAttendance) {
+                              const activeDept = activeTab === "teaching" ? teachingDept : nonTeachingDept;
+                              fetchDailyAttendance(attendanceDate, activeDept);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveAttendance}
+                          disabled={isSaving}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-55"
+                        >
+                          {isSaving ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                          Save Changes
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center">
                   <p className="text-[10px] font-bold text-slate-500 uppercase">
                     Total Employees
@@ -2123,9 +2658,9 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                 </div>
               </div>
 
-              {/* Quick Bulk Actions */}
-              {canMarkAttendance && !isFutureDate && (
-                <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 gap-2">
+              {/* Quick Bulk Actions (only visible in edit mode) */}
+              {isEditingDaily && canMarkAttendance && !isFutureDate && (
+                <div className="flex flex-wrap items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     Quick Bulk Actions:
                   </span>
@@ -2163,102 +2698,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
               )}
             </div>
 
-            {/* Filters Bar */}
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                {/* Search Input Bar */}
-                <div className="lg:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Search Staff
-                  </label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder={`Search ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff by name or emp ID...`}
-                      value={
-                        activeTab === "teaching" ? teachingQuery : nonTeachingQuery
-                      }
-                      onChange={(e) =>
-                        activeTab === "teaching"
-                          ? setTeachingQuery(e.target.value)
-                          : setNonTeachingQuery(e.target.value)
-                      }
-                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                    />
-                  </div>
-                </div>
 
-                {/* Attendance Date */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Attendance Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <DateInput
-                    value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                {/* Department Select */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Department
-                  </label>
-                  <select
-                    value={
-                      activeTab === "teaching" ? teachingDept : nonTeachingDept
-                    }
-                    onChange={(e) =>
-                      activeTab === "teaching"
-                        ? setTeachingDept(e.target.value)
-                        : setNonTeachingDept(e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                  >
-                    <option value="All">All Departments</option>
-                    {(activeTab === "teaching"
-                      ? teachingDepts
-                      : nonTeachingDepartments
-                    ).map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Designation Select */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Designation (Optional)
-                  </label>
-                  <select
-                    value={
-                      activeTab === "teaching"
-                        ? teachingDesignation
-                        : nonTeachingDesignation
-                    }
-                    onChange={(e) =>
-                      activeTab === "teaching"
-                        ? setTeachingDesignation(e.target.value)
-                        : setNonTeachingDesignation(e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                  >
-                    <option value="All">All Designations</option>
-                    {(activeTab === "teaching"
-                      ? teachingDesignations
-                      : nonTeachingDesignations
-                    ).map((des) => (
-                      <option key={des} value={des}>
-                        {des}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
 
             {/* Attendance Grid Table */}
             <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
@@ -2266,8 +2706,8 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-3.5 px-4">Employee ID</th>
-                      <th className="py-3.5 px-4">Employee Name</th>
+                      <th className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800">Employee ID</th>
+                      <th className="py-3.5 px-4 sticky left-[110px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800">Employee Name</th>
                       <th className="py-3.5 px-4">Department</th>
                       <th className="py-3.5 px-4">Designation</th>
                       <th className="py-3.5 px-4 text-center">
@@ -2275,7 +2715,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                       </th>
                       <th className="py-3.5 px-4">In Time</th>
                       <th className="py-3.5 px-4">Out Time</th>
-                      <th className="py-3.5 px-4">Remarks</th>
+                      <th className="py-3.5 px-4 min-w-[260px]">Remarks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -2289,7 +2729,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                         </td>
                       </tr>
                     ) : (
-                      currentTabStaffList.map((s) => {
+                      paginatedDailyStaffList.map((s) => {
                         const approvedLeave = getApprovedLeave(
                           s.id,
                           attendanceDate,
@@ -2301,35 +2741,22 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                         return (
                           <tr
                             key={s.id}
-                            className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100"
+                            className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100"
                           >
                             {/* Emp ID */}
-                            <td className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300">
+                            <td className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[110px] min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800">
                               {s.empId || s.id}
                             </td>
 
                             {/* Employee Name */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5">
-                                {s.avatar ? (
-                                  <img
-                                    src={s.avatar}
-                                    alt=""
-                                    className="w-7 h-7 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-7 h-7 rounded-lg bg-brand-100 text-brand-800 font-bold flex items-center justify-center text-xs">
-                                    {s.firstName[0]}
-                                  </div>
-                                )}
-                                <div>
-                                  <p className="font-extrabold text-slate-900 dark:text-white">
-                                    {s.firstName} {s.lastName}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400">
-                                    {s.email}
-                                  </p>
-                                </div>
+                            <td className="py-3 px-4 sticky left-[110px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[200px] min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800">
+                              <div>
+                                <p className="font-extrabold text-slate-900 dark:text-white">
+                                  {s.firstName} {s.lastName}
+                                </p>
+                                <p className="text-[10px] text-slate-400">
+                                  {s.email}
+                                </p>
                               </div>
                             </td>
 
@@ -2374,6 +2801,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                                       key={st}
                                       type="button"
                                       disabled={
+                                        !isEditingDaily ||
                                         isLeaveLocked ||
                                         !canMarkAttendance ||
                                         isFutureDate
@@ -2428,6 +2856,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                               <input
                                 type="text"
                                 disabled={
+                                  !isEditingDaily ||
                                   isLeaveLocked ||
                                   !canMarkAttendance ||
                                   isFutureDate ||
@@ -2435,12 +2864,13 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                                   currentStatus === "Leave"
                                 }
                                 value={inTimeMap[s.id] || ""}
-                                onChange={(e) =>
+                                onChange={(e) => {
                                   setInTimeMap({
                                     ...inTimeMap,
                                     [s.id]: e.target.value,
-                                  })
-                                }
+                                  });
+                                  setIsDirty(true);
+                                }}
                                 placeholder="08:30 AM"
                                 className="w-24 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold outline-none disabled:opacity-40"
                               />
@@ -2451,6 +2881,7 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                               <input
                                 type="text"
                                 disabled={
+                                  !isEditingDaily ||
                                   isLeaveLocked ||
                                   !canMarkAttendance ||
                                   isFutureDate ||
@@ -2458,32 +2889,64 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                                   currentStatus === "Leave"
                                 }
                                 value={outTimeMap[s.id] || ""}
-                                onChange={(e) =>
+                                onChange={(e) => {
                                   setOutTimeMap({
                                     ...outTimeMap,
                                     [s.id]: e.target.value,
-                                  })
-                                }
+                                  });
+                                  setIsDirty(true);
+                                }}
                                 placeholder="04:30 PM"
                                 className="w-24 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold outline-none disabled:opacity-40"
                               />
                             </td>
 
                             {/* Remarks */}
-                            <td className="py-3 px-4">
-                              <input
-                                type="text"
-                                disabled={!canMarkAttendance || isFutureDate}
-                                value={remarksMap[s.id] || ""}
-                                onChange={(e) =>
-                                  setRemarksMap({
-                                    ...remarksMap,
-                                    [s.id]: e.target.value,
-                                  })
+                            <td className="py-3 px-4 min-w-[260px]">
+                              {isEditingDaily ? (
+                                <input
+                                  type="text"
+                                  disabled={!canMarkAttendance || isFutureDate}
+                                  value={remarksMap[s.id] || ""}
+                                  onChange={(e) => {
+                                    setRemarksMap({
+                                      ...remarksMap,
+                                      [s.id]: e.target.value,
+                                    });
+                                    setIsDirty(true);
+                                  }}
+                                  placeholder="Notes..."
+                                  className="w-full px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold outline-none"
+                                />
+                              ) : (() => {
+                                const remarkText = remarksMap[s.id] || "";
+                                if (!remarkText) {
+                                  return <span className="text-slate-400 italic font-semibold">No notes</span>;
                                 }
-                                placeholder="Notes..."
-                                className="w-full px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold outline-none"
-                              />
+                                if (remarkText.length <= 30) {
+                                  return <span className="text-slate-700 dark:text-slate-300 font-semibold">{remarkText}</span>;
+                                }
+                                const isExpanded = !!expandedRemarks[s.id];
+                                return (
+                                  <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    <span>
+                                      {isExpanded ? remarkText : `${remarkText.slice(0, 30)}...`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedRemarks({
+                                          ...expandedRemarks,
+                                          [s.id]: !isExpanded,
+                                        })
+                                      }
+                                      className="ml-1.5 text-brand-600 hover:text-brand-500 font-extrabold underline cursor-pointer inline-block"
+                                    >
+                                      {isExpanded ? "Show Less" : "Show More"}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </td>
                           </tr>
                         );
@@ -2492,6 +2955,61 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Daily Pagination Controls */}
+              {currentTabStaffList.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-4 px-6 border-t border-slate-100 dark:border-slate-800 text-xs">
+                  <span className="text-slate-500 font-medium">
+                    Showing <strong className="text-slate-800 dark:text-slate-200">{(dailyPage - 1) * pageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(dailyPage * pageSize, currentTabStaffList.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{currentTabStaffList.length}</strong> employees
+                  </span>
+
+                  {Math.ceil(currentTabStaffList.length / pageSize) > 1 && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={dailyPage === 1}
+                        onClick={() => setDailyPage((p) => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from(
+                          { length: Math.ceil(currentTabStaffList.length / pageSize) },
+                          (_, i) => i + 1,
+                        ).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setDailyPage(page)}
+                            className={`w-8 h-8 rounded-xl font-bold text-[11px] transition cursor-pointer flex items-center justify-center ${
+                              dailyPage === page
+                                ? "bg-sky-600 text-white shadow-xs"
+                                : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={dailyPage === Math.ceil(currentTabStaffList.length / pageSize)}
+                        onClick={() =>
+                          setDailyPage((p) =>
+                            Math.min(Math.ceil(currentTabStaffList.length / pageSize), p + 1),
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
+                      >
+                        Next <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2500,117 +3018,61 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
       {(activeTab === "teaching" || activeTab === "non-teaching") &&
         viewMode === "monthly" && (
           <div className="space-y-5">
-            {/* Register Filter Controls */}
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Specific Employee
-                  </label>
-                  <select
-                    value={regEmpId}
-                    onChange={(e) => setRegEmpId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
-                  >
-                    <option value="All">
-                      All Employees ({registerStaffList.length})
-                    </option>
-                    {registerStaffList.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.firstName} {s.lastName} ({s.empId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+             {/* Monthly Register Legend & Controls Bar */}
+             <div className="glass-card py-2.5 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+               <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
+                 <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-500/20">
+                   P = Present
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 text-rose-600 border border-rose-500/20">
+                   A = Absent
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 text-sky-600 border border-sky-500/20">
+                   L = Leave
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-500/20">
+                   HD = Half Day
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-500 border border-slate-200/40">
+                   W = Weekend
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-amber-100/50 dark:bg-amber-900/30 text-amber-600 border border-amber-500/20">
+                   H = Holiday
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-650 dark:text-slate-300 border border-slate-200/40">
+                   TL = Total Leaves
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-sky-100/50 dark:bg-sky-950/20 text-sky-700 border border-sky-200/40">
+                   OL = On Leave
+                 </span>
+                 <span className="px-2 py-0.5 rounded-lg bg-sky-100/50 dark:bg-sky-950/20 text-sky-700 border border-sky-200/40">
+                   UL = Used Leaves
+                 </span>
+               </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Month
-                  </label>
-                  <select
-                    value={regMonth}
-                    onChange={(e) => {
-                      setRegMonth(Number(e.target.value));
-                      setRegFromDate("");
-                      setRegToDate("");
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
-                  >
-                    {monthNames.map((m, idx) => (
-                      <option key={m} value={idx}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Year
-                  </label>
-                  <select
-                    value={regYear}
-                    onChange={(e) => {
-                      setRegYear(Number(e.target.value));
-                      setRegFromDate("");
-                      setRegToDate("");
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
-                  >
-                    <option value={2026}>2026</option>
-                    <option value={2025}>2025</option>
-                    <option value={2024}>2024</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    From Date (DD-MM-YYYY)
-                  </label>
-                  <DateInput
-                    value={regFromDate}
-                    onChange={(e) => handleFromDateChange(e.target.value)}
-                    placeholder="DD-MM-YYYY"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    To Date (DD-MM-YYYY)
-                  </label>
-                  <DateInput
-                    value={regToDate}
-                    onChange={(e) => setRegToDate(e.target.value)}
-                    placeholder="DD-MM-YYYY"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              {(regFromDate || regToDate) && (
-                <div className="flex items-center justify-between text-xs font-semibold pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-brand-600 dark:text-brand-400 font-bold">
-                    Showing custom range: {formatToDDMMYYYY(regFromDate, "-")}{" "}
-                    to {formatToDDMMYYYY(regToDate, "-")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRegFromDate("");
-                      setRegToDate("");
-                    }}
-                    className="text-rose-600 hover:text-rose-700 font-bold text-[11px]"
-                  >
-                    Clear Date Range Filter
-                  </button>
-                </div>
-              )}
-            </div>
+               <div className="flex flex-wrap items-center gap-3">
+                 {/* Specific Employee Filter */}
+                 <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-extrabold uppercase text-slate-400 whitespace-nowrap">Filter:</span>
+                   <select
+                     value={regEmpId}
+                     onChange={(e) => setRegEmpId(e.target.value)}
+                     className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                   >
+                     <option value="All">All Staff ({registerStaffList.length})</option>
+                     {registerStaffList.map((s) => (
+                       <option key={s.id} value={s.id}>
+                         {s.firstName} {s.lastName}
+                       </option>
+                     ))}
+                   </select>
+                 </div>
+               </div>
+             </div>
 
             {/* Monthly Matrix Table */}
             <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <FileSpreadsheet className="w-4 h-4 text-sky-600" />
                   Monthly Register:{" "}
@@ -2623,129 +3085,222 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                     : "Non-Teaching Staff"}
                   )
                 </h3>
-                <div className="flex items-center gap-2 text-[10px] font-bold">
-                  <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-800">
-                    P = Present
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800">
-                    A = Absent
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-sky-100 text-sky-800">
-                    L = Leave
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                    HD = Half Day
-                  </span>
+
+                {/* Edit Controls (Relocated to right corner of Monthly Register card header) */}
+                <div className="flex items-center gap-2">
+                  {isEditingMonthly ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCancelMonthlyEditing}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingMonthly}
+                        onClick={handleSaveMonthlyChanges}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-55"
+                      >
+                        {isSavingMonthly ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            Save Changes
+                          </>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingMonthly(true)}
+                      className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> Edit Attendance
+                    </button>
+                  )}
                 </div>
               </div>
 
               <div className="overflow-x-auto scrollbar-thin">
                 <table className="w-full text-left border-collapse text-[11px]">
                   <thead>
-                    <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b">
-                      <th className="py-2.5 px-3 min-w-[160px]">Employee</th>
+                    <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-550 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[110px] min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800">Employee ID</th>
+                      <th className="py-2.5 px-3 sticky left-[110px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800">Employee Name</th>
                       {registerDaysList.map((item, idx) => (
                         <th
                           key={idx}
-                          className="py-2.5 px-1 text-center min-w-[32px] font-mono text-[10px] whitespace-nowrap"
+                          className="py-2.5 px-1 text-center min-w-[36px] font-mono whitespace-nowrap"
                         >
-                          {item.displayHeader}
+                          <div className="flex flex-col items-center">
+                            <span className="font-extrabold text-[10px] text-slate-800 dark:text-slate-200">
+                              {item.displayHeader}
+                            </span>
+                            <span className="text-[8px] text-slate-400 font-bold mt-0.5">
+                              {item.dayOfWeek}
+                            </span>
+                          </div>
                         </th>
                       ))}
-                      <th className="py-2.5 px-2 text-center text-brand-600">
-                        P
-                      </th>
-                      <th className="py-2.5 px-2 text-center text-rose-600">
-                        A
-                      </th>
-                      <th className="py-2.5 px-2 text-center text-sky-600">
-                        L
-                      </th>
-                      <th className="py-2.5 px-2 text-center text-sky-600">
-                        %
-                      </th>
+                      <th className="py-2.5 px-2 text-center text-brand-600 cursor-help" title="Present days">P</th>
+                      <th className="py-2.5 px-2 text-center text-rose-600 cursor-help" title="Absent days">A</th>
+                      <th className="py-2.5 px-2 text-center text-sky-600 cursor-help" title="Leave days">L</th>
+                      <th className="py-2.5 px-2 text-center text-amber-600 cursor-help" title="Half Days">HD</th>
+                      <th className="py-2.5 px-2 text-center text-slate-600 cursor-help" title="Total Leaves">TL</th>
+                      <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="On Leave">OL</th>
+                      <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="Used Leaves">UL</th>
+                      <th className="py-2.5 px-2 text-center text-slate-600">%</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y font-semibold">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-semibold">
                     {registerStaffList.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={registerDaysList.length + 5}
+                          colSpan={registerDaysList.length + 10}
                           className="py-8 text-center text-slate-400 italic"
                         >
                           No employees found for the selected register criteria.
                         </td>
                       </tr>
                     ) : (
-                      registerStaffList.map((s) => {
+                      paginatedMonthlyStaffList.map((s) => {
                         let pCount = 0;
                         let aCount = 0;
                         let lCount = 0;
+                        let hdCount = 0;
+
+                        const rowCells = registerDaysList.map((item, idx) => {
+                          const record = (attendance || []).find(
+                            (r) =>
+                              r.entityType === "Staff" &&
+                              r.entityId === s.id &&
+                              r.date === item.dateStr,
+                          );
+
+                          const key = `${s.id}_${item.dateStr}`;
+                          const localEdit = monthlyEditsMap[key];
+
+                          const status =
+                            localEdit !== undefined
+                              ? localEdit
+                              : record
+                              ? record.status
+                              : undefined;
+
+                          const isWeekend = getIsWeekend(item.dateStr);
+                          const isHoliday = getIsHoliday(item.dateStr, s);
+                          const isFuture = item.dateStr > todayStr;
+                          const isBeforeJoining =
+                            s.joiningDate && item.dateStr < s.joiningDate;
+
+                          let code = "";
+                          let badgeStyle = "";
+
+                          if (status) {
+                            if (status === "Present" || status === "Late") {
+                              code = "P";
+                              badgeStyle =
+                                "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20";
+                              pCount++;
+                            } else if (status === "Absent") {
+                              code = "A";
+                              badgeStyle =
+                                "text-rose-500 bg-rose-50 dark:bg-rose-950/30 border border-rose-500/20";
+                              aCount++;
+                            } else if (status === "Leave") {
+                              code = "L";
+                              badgeStyle =
+                                "text-sky-500 bg-sky-50 dark:bg-sky-950/30 border border-sky-500/20";
+                              lCount++;
+                            } else if (status === "HalfDay") {
+                              code = "HD";
+                              badgeStyle =
+                                "text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-500/20";
+                              hdCount++;
+                            }
+                          } else {
+                            if (isBeforeJoining) {
+                              code = "";
+                              badgeStyle =
+                                "border border-dashed border-slate-200 dark:border-slate-800 bg-transparent text-transparent";
+                            } else if (isHoliday) {
+                              code = "H";
+                              badgeStyle =
+                                "text-amber-600 bg-amber-100/50 dark:bg-amber-900/30 font-semibold";
+                            } else if (isWeekend) {
+                              code = "W";
+                              badgeStyle =
+                                "text-slate-400 bg-slate-100 dark:bg-slate-800/60 font-semibold";
+                            } else if (isFuture) {
+                              code = "";
+                              badgeStyle =
+                                "border border-dashed border-slate-200 dark:border-slate-800 bg-transparent text-transparent";
+                            } else {
+                              code = "P";
+                              badgeStyle =
+                                "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20";
+                              pCount++;
+                            }
+                          }
+
+                          return (
+                            <td
+                              key={idx}
+                              className="py-2 px-0.5 text-center font-mono font-bold text-[10px]"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleCellClick(s.id, item.dateStr)}
+                                disabled={!isEditingMonthly || isFuture || isBeforeJoining}
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto transition-all ${
+                                  isEditingMonthly && !isFuture && !isBeforeJoining
+                                    ? "hover:scale-110 active:scale-95 cursor-pointer"
+                                    : "cursor-default"
+                                } ${badgeStyle}`}
+                                title={
+                                  isEditingMonthly && !isFuture && !isBeforeJoining
+                                    ? `Click to toggle status for ${s.firstName} on ${item.dateStr}`
+                                    : undefined
+                                }
+                              >
+                                {code}
+                              </button>
+                            </td>
+                          );
+                        });
+
+                        const totalLeaves = lCount + hdCount * 0.5;
 
                         return (
-                          <tr key={s.id} className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 whitespace-nowrap">
-                              <span className="font-bold text-slate-900 dark:text-white block">
+                          <tr
+                            key={s.id}
+                            className="group hover:bg-slate-50/50 text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80"
+                          >
+                            {/* Employee ID */}
+                            <td className="py-2 px-3 font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[110px] min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                              {s.empId || s.id}
+                            </td>
+
+                            {/* Employee Name */}
+                            <td className="py-2 px-3 sticky left-[110px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                              <span className="font-extrabold text-slate-900 dark:text-white block">
                                 {s.firstName} {s.lastName}
                               </span>
-                              <span className="text-[9px] font-mono text-slate-400">
-                                {s.empId || s.id}
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                {s.email}
                               </span>
                             </td>
 
-                            {registerDaysList.map((item, idx) => {
-                              const record = (attendance || []).find(
-                                (r) =>
-                                  r.entityType === "Staff" &&
-                                  r.entityId === s.id &&
-                                  r.date === item.dateStr,
-                              );
+                            {rowCells}
 
-                              let code = "P";
-                              let badgeStyle = "text-brand-700 bg-brand-50";
-
-                              if (record) {
-                                if (record.status === "Present") {
-                                  code = "P";
-                                  pCount++;
-                                } else if (record.status === "Absent") {
-                                  code = "A";
-                                  aCount++;
-                                  badgeStyle =
-                                    "text-rose-700 bg-rose-100 font-bold";
-                                } else if (record.status === "Leave") {
-                                  code = "L";
-                                  lCount++;
-                                  badgeStyle =
-                                    "text-sky-700 bg-sky-100 font-bold";
-                                } else if (
-                                  record.status === "HalfDay" ||
-                                  record.status === "Late"
-                                ) {
-                                  code = "HD";
-                                  pCount += 0.5;
-                                  badgeStyle =
-                                    "text-amber-700 bg-amber-100 font-bold";
-                                }
-                              } else {
-                                pCount++;
-                              }
-
-                              return (
-                                <td
-                                  key={idx}
-                                  className="py-2 px-0.5 text-center font-mono font-bold text-[10px]"
-                                >
-                                  <span
-                                    className={`inline-block w-6 py-0.5 rounded ${badgeStyle}`}
-                                  >
-                                    {code}
-                                  </span>
-                                </td>
-                              );
-                            })}
-
-                            <td className="py-2 px-2 text-center font-bold text-brand-600">
+                            <td className="py-2 px-2 text-center font-bold text-emerald-600">
                               {pCount}
                             </td>
                             <td className="py-2 px-2 text-center font-bold text-rose-600">
@@ -2754,10 +3309,24 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                             <td className="py-2 px-2 text-center font-bold text-sky-600">
                               {lCount}
                             </td>
-                            <td className="py-2 px-2 text-center font-extrabold text-sky-600">
+                            <td className="py-2 px-2 text-center font-bold text-amber-600">
+                              {hdCount}
+                            </td>
+                            <td className="py-2 px-2 text-center font-bold text-slate-500">
+                              {totalLeaves}
+                            </td>
+                            <td className="py-2 px-2 text-center font-bold text-sky-700">
+                              {lCount}
+                            </td>
+                            <td className="py-2 px-2 text-center font-bold text-sky-700">
+                              {totalLeaves}
+                            </td>
+                            <td className="py-2 px-2 text-center font-extrabold text-slate-700 dark:text-slate-350">
                               {registerDaysList.length > 0
                                 ? Math.round(
-                                    (pCount / registerDaysList.length) * 100,
+                                    ((pCount + hdCount * 0.5) /
+                                      registerDaysList.length) *
+                                      100,
                                   )
                                 : 0}
                               %
@@ -2769,6 +3338,61 @@ const formatDisplayTime = (timeStr: string | null | undefined): string => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Monthly Pagination Controls */}
+              {registerStaffList.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-4 px-6 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold">
+                  <span className="text-slate-500 font-medium">
+                    Showing <strong className="text-slate-800 dark:text-slate-200">{(monthlyPage - 1) * pageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(monthlyPage * pageSize, registerStaffList.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{registerStaffList.length}</strong> employees
+                  </span>
+
+                  {Math.ceil(registerStaffList.length / pageSize) > 1 && (
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <button
+                        type="button"
+                        disabled={monthlyPage === 1}
+                        onClick={() => setMonthlyPage((p) => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from(
+                          { length: Math.ceil(registerStaffList.length / pageSize) },
+                          (_, i) => i + 1,
+                        ).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setMonthlyPage(page)}
+                            className={`w-8 h-8 rounded-xl font-bold text-[11px] transition cursor-pointer flex items-center justify-center ${
+                              monthlyPage === page
+                                ? "bg-sky-600 text-white shadow-xs"
+                                : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={monthlyPage === Math.ceil(registerStaffList.length / pageSize)}
+                        onClick={() =>
+                          setMonthlyPage((p) =>
+                            Math.min(Math.ceil(registerStaffList.length / pageSize), p + 1),
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
+                      >
+                        Next <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

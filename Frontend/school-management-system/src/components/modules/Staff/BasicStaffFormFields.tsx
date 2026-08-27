@@ -686,7 +686,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               {/* Email Address */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address <span className="text-rose-500">*</span></label>
                 <input
                   type="email"
                   value={value.email}

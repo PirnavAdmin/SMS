@@ -2071,6 +2071,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         const isSelected = selectedSections.includes(sec);
                         const status = detail.status || 'Active';
                         const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
+                        const roomNo = detail.roomNo || 'Unassigned';
 
                         return (
                           <div 
@@ -2105,6 +2106,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-350 font-bold">
                               <div className="flex justify-between"><span className="text-slate-450">Current Enrolled:</span> <span>{assigned} Students</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Seats Remaining:</span> <span className="text-sky-600">{free} / {cap} Seats</span></div>
+                              <div className="flex justify-between"><span className="text-slate-450">Room Number:</span> <span className="text-slate-800 dark:text-white">{roomNo}</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Class Teacher:</span> <span className="text-slate-800 dark:text-white">{classTeacher}</span></div>
                             </div>
 

@@ -86,6 +86,14 @@ export const LeaveManagementView: React.FC = () => {
   }, [query, balanceCategoryFilter]);
 
   const filteredStaffForBalance = useMemo(() => {
+    const isTeaching = (s: Staff) => {
+      return (
+        s.employeeCategory === "Teacher" ||
+        s.employeeCategory === "Teaching Staff" ||
+        s.role === "Teacher"
+      );
+    };
+
     return staff.filter(s => {
       if (isTeacher) {
         if (teacherStaffMember && s.id === teacherStaffMember.id) return true;
@@ -93,7 +101,14 @@ export const LeaveManagementView: React.FC = () => {
         return false;
       }
       const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = balanceCategoryFilter === 'All' || s.employeeCategory === balanceCategoryFilter;
+      
+      let matchesCategory = true;
+      if (balanceCategoryFilter === 'Teaching Staff') {
+        matchesCategory = isTeaching(s);
+      } else if (balanceCategoryFilter === 'Non-Teaching Staff') {
+        matchesCategory = !isTeaching(s);
+      }
+
       return matchesQuery && matchesCategory;
     });
   }, [staff, isTeacher, teacherStaffMember, user, query, balanceCategoryFilter]);
@@ -777,57 +792,29 @@ export const LeaveManagementView: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">Total Remaining Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-medium">
-                {paginatedStaffForBalance.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 font-bold italic">
-                      No staff records found.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedStaffForBalance.map((s, idx) => {
-                    const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-                    const employeeApplications = leaveApplications.filter(
-                      app => (app.employeeId === s.id || app.empId === s.empId) && app.status === 'Approved'
-                    );
-                    const usedLeaves = employeeApplications.reduce((sum, app) => sum + (app.numberOfDays || 0), 0);
-                    const totalRemaining = (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
-                    return (
-                      <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">
-                          {(balanceCurrentPage - 1) * balancePageSize + idx + 1}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex items-center justify-center gap-2.5">
-                            {s.avatar ? (
-                              <img
-                                src={s.avatar}
-                                alt=""
-                                className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-sky-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
-                                {(s.firstName?.[0] || 'T').toUpperCase()}
-                              </div>
-                            )}
-                            <div className="text-left">
-                              <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
-                              <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.casual} Days</td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.sick} Days</td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.paid} Days</td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{usedLeaves} Days</td>
-                        <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{totalRemaining} Days</td>
-                      </tr>
-                    );
-                  })
-                )}
+              <tbody className="divide-y font-medium text-slate-705 dark:text-slate-300">
+                {paginatedStaffForBalance.map((s, idx) => {
+                  const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const employeeApplications = leaveApplications.filter(
+                    app => (app.employeeId === s.id || app.empId === s.empId) && app.status === 'Approved'
+                  );
+                  const usedLeaves = employeeApplications.reduce((sum, app) => sum + (app.numberOfDays || 0), 0);
+                  const totalRemaining = (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{(balanceCurrentPage - 1) * balancePageSize + idx + 1}</td>
+                      <td className="py-3 px-4 text-center">
+                        <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
+                        <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.casual} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.sick} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.paid} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{usedLeaves} Days</td>
+                      <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{totalRemaining} Days</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
