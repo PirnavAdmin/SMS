@@ -76,10 +76,13 @@ export const HomeworkView: React.FC = () => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
     const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-    if (!list.some((c: string) => c.includes('10'))) list.push('Class 10-A');
-    if (!list.some((c: string) => c.includes('9'))) list.push('Class 9-B');
-    if (!list.some((c: string) => c.includes('6'))) list.push('Class 6-A');
-    return Array.from(new Set(list));
+    const cleaned = list.map((c: string) => {
+      let str = c.trim();
+      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
+      return str;
+    }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
+
+    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
   }, [dbTeacher]);
 
   const assignedSubjects = (dbTeacher as any)?.assignedSubjects || ['Mathematics', 'Science'];
@@ -91,9 +94,12 @@ export const HomeworkView: React.FC = () => {
       if (!mainCls.toLowerCase().startsWith('class')) {
         mainCls = `Class ${mainCls}`;
       }
-      set.add(mainCls);
+      if (!mainCls.toLowerCase().includes('nursery') && !mainCls.toLowerCase().includes('lkg') && !mainCls.toLowerCase().includes('ukg')) {
+        set.add(mainCls);
+      }
     });
-    return Array.from(set);
+    const list = Array.from(set);
+    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 6'];
   }, [teacherAssignedClasses]);
 
   const subjectOptions = assignedSubjects;
@@ -506,11 +512,11 @@ export const HomeworkView: React.FC = () => {
           onClick={() => setIsFormOpen(false)}
         >
           <div 
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col my-auto max-h-[90vh]"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-5 shadow-2xl flex flex-col my-auto max-h-[92vh] overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 shrink-0">
               <h3 className="text-sm font-black text-slate-900 dark:text-white">
                 {editingHomework ? 'Edit Homework Assignment' : 'Create New Homework Assignment'}
               </h3>
@@ -519,7 +525,7 @@ export const HomeworkView: React.FC = () => {
               </button>
             </div>
 
-            <form className="space-y-4 text-xs overflow-y-auto py-3 pr-1">
+            <form className="space-y-3 text-xs overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-2 pr-1">
               
               <div>
                 <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Homework Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -702,7 +708,7 @@ export const HomeworkView: React.FC = () => {
                 
                 {/* Clicking or selecting here opens the full big screen editor workspace */}
                 <textarea
-                  rows={4}
+                  rows={2}
                   required
                   readOnly
                   onClick={() => setIsBigScreenOpen(true)}
