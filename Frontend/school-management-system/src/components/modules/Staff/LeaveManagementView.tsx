@@ -77,6 +77,33 @@ export const LeaveManagementView: React.FC = () => {
   const [filterDept, setFilterDept] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [balanceCategoryFilter, setBalanceCategoryFilter] = useState<'All' | 'Teaching Staff' | 'Non-Teaching Staff'>('All');
+  const [balanceCurrentPage, setBalanceCurrentPage] = useState(1);
+  const balancePageSize = 8;
+
+  useEffect(() => {
+    setBalanceCurrentPage(1);
+  }, [query, balanceCategoryFilter]);
+
+  const filteredStaffForBalance = useMemo(() => {
+    return staff.filter(s => {
+      if (isTeacher) {
+        if (teacherStaffMember && s.id === teacherStaffMember.id) return true;
+        if (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
+        return false;
+      }
+      const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
+      const matchesCategory = balanceCategoryFilter === 'All' || s.employeeCategory === balanceCategoryFilter;
+      return matchesQuery && matchesCategory;
+    });
+  }, [staff, isTeacher, teacherStaffMember, user, query, balanceCategoryFilter]);
+
+  const totalBalancePages = Math.ceil(filteredStaffForBalance.length / balancePageSize) || 1;
+
+  const paginatedStaffForBalance = useMemo(() => {
+    const start = (balanceCurrentPage - 1) * balancePageSize;
+    return filteredStaffForBalance.slice(start, start + balancePageSize);
+  }, [filteredStaffForBalance, balanceCurrentPage, balancePageSize]);
 
   // Modals / Drawer triggers
   const [isApplyOpen, setIsApplyOpen] = useState(false);
@@ -696,20 +723,36 @@ export const LeaveManagementView: React.FC = () => {
       {/* TAB CONTENT: LEAVE BALANCE */}
       {activeTab === 'balance' && (
         <div className="space-y-4">
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center gap-3">
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-60">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
-                placeholder="Search staff balances..."
+                placeholder="Search by staff..."
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
               />
             </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span>
+              <div className="relative w-full sm:w-48">
+                <select
+                  value={balanceCategoryFilter}
+                  onChange={e => setBalanceCategoryFilter(e.target.value as any)}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border outline-none font-bold text-slate-700 dark:text-slate-355 cursor-pointer appearance-none pr-8"
+                >
+                  <option value="All">All Categories</option>
+                  <option value="Teaching Staff">Teaching Staff</option>
+                  <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+              </div>
+            </div>
           </div>
 
-          <div className="glass-card rounded-2xl overflow-hidden border">
+          <div className="glass-card rounded-2xl overflow-hidden border bg-white dark:bg-slate-900">
             <table className="w-full text-center border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
@@ -718,10 +761,37 @@ export const LeaveManagementView: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">Casual Leave Balance</th>
                   <th className="py-3.5 px-4 text-center">Sick Leave Balance</th>
                   <th className="py-3.5 px-4 text-center">Earned Leave Balance</th>
+                  <th className="py-3.5 px-4 text-center">Used Leave Balance</th>
                   <th className="py-3.5 px-4 text-center">Total Remaining Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y font-medium">
+                {paginatedStaffForBalance.map((s, idx) => {
+                  const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const employeeApplications = leaveApplications.filter(
+                    app => (app.employeeId === s.id || app.empId === s.empId) && app.status === 'Approved'
+                  );
+                  const usedLeaves = employeeApplications.reduce((sum, app) => sum + (app.numberOfDays || 0), 0);
+                  const totalRemaining = (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{(balanceCurrentPage - 1) * balancePageSize + idx + 1}</td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2.5">
+                          <div className="text-center">
+                            <p className="font-bold text-slate-800">{s.firstName} {s.lastName}</p>
+                            <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.casual} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.sick} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.paid} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{usedLeaves} Days</td>
+                      <td className="py-3 px-4 font-mono font-black text-brand-600 text-center">{totalRemaining} Days</td>
+                    </tr>
+                  );
+                })}
                 {staff
                   .filter(s => {
                     if (isTeacher) {
@@ -768,6 +838,32 @@ export const LeaveManagementView: React.FC = () => {
                   })}
               </tbody>
             </table>
+
+            {/* Pagination bar */}
+            <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
+              <span className="text-slate-500 font-medium">
+                Showing {filteredStaffForBalance.length > 0 ? (balanceCurrentPage - 1) * balancePageSize + 1 : 0} to {Math.min(balanceCurrentPage * balancePageSize, filteredStaffForBalance.length)} of {filteredStaffForBalance.length} records
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={balanceCurrentPage === 1}
+                  onClick={() => setBalanceCurrentPage((prev) => prev - 1)}
+                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border disabled:opacity-40 hover:bg-slate-50 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="font-bold text-slate-700 dark:text-slate-355">
+                  Page {balanceCurrentPage} of {totalBalancePages}
+                </span>
+                <button
+                  disabled={balanceCurrentPage === totalBalancePages}
+                  onClick={() => setBalanceCurrentPage((prev) => prev + 1)}
+                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border disabled:opacity-40 hover:bg-slate-50 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

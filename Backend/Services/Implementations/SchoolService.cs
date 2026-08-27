@@ -17,11 +17,16 @@ public class SchoolService : ISchoolService
 {
 	private readonly ISchoolRepository _schoolRepository;
 	private readonly Data.AppDbContext _context;
+	private readonly IEmailNotificationService _emailNotificationService;
 
-	public SchoolService(ISchoolRepository schoolRepository, Data.AppDbContext context)
+	public SchoolService(
+		ISchoolRepository schoolRepository,
+		Data.AppDbContext context,
+		IEmailNotificationService emailNotificationService)
 	{
 		_schoolRepository = schoolRepository;
 		_context = context;
+		_emailNotificationService = emailNotificationService;
 	}
 
 	// --- DEPARTMENTS ---
@@ -775,6 +780,24 @@ public class SchoolService : ISchoolService
 			}
 		}
 
+		// Prevent rapid duplicate submission within same student, parent contact and class
+		if (!string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(dto.FatherContact))
+		{
+			var recentDuplicate = await _context.AdmissionApplications
+				.Where(a => !a.IsDeleted &&
+							a.FirstName == dto.FirstName &&
+							a.LastName == (dto.LastName ?? "") &&
+							a.FatherContact == dto.FatherContact &&
+							a.AppliedClassId == targetClassId)
+				.OrderByDescending(a => a.Id)
+				.FirstOrDefaultAsync();
+
+			if (recentDuplicate != null)
+			{
+				return MapToAdmissionResponseDto(recentDuplicate);
+			}
+		}
+
 		string nextRegNo = $"REG-{maxSeq + 1}";
 
 		var app = new AdmissionApplication
@@ -932,7 +955,7 @@ public class SchoolService : ISchoolService
 		var app = await _schoolRepository.GetApplicationByIdAsync(id)
 			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
 
-		if (app.Status == "Enrolled") throw new BadRequestException("Student is already enrolled.");
+		if (app.Status == "Enrolled") return true;
 
 		app.Status = "Enrolled";
 		await _schoolRepository.SaveChangesAsync();
@@ -1069,6 +1092,63 @@ public class SchoolService : ISchoolService
 								await _context.Students.AddAsync(newStudent);
 							}
 							await _context.SaveChangesAsync();
+
+							// Automatically create Student User in users table and send Welcome Credentials Email
+							if (app.Status == "Enrolled")
+							{
+								try
+								{
+									var studentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
+									var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(admission.FatherMobile) ? admission.FatherMobile.Trim() : $"STU{admission.AdmissionId}");
+									var studentFullName = $"{app.FirstName} {app.LastName}".Trim();
+
+									var existingUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+										_context.Users, u => 
+											(!string.IsNullOrWhiteSpace(studentEmail) && u.Email != null && u.Email.ToLower() == studentEmail.ToLower()) ||
+											(!string.IsNullOrWhiteSpace(studentMobile) && u.MobileNumber == studentMobile));
+
+									if (existingUser == null)
+									{
+										var newUser = new User
+										{
+											FullName = studentFullName,
+											Email = studentEmail,
+											MobileNumber = studentMobile,
+											PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+											Role = "Student",
+											IsEmailVerified = true,
+											IsMobileVerified = true,
+											CreatedAt = DateTime.UtcNow,
+											SchoolId = null
+										};
+										await _context.Users.AddAsync(newUser);
+										await _context.SaveChangesAsync();
+									}
+
+									// Send Welcome Credentials Email to student / parent email
+									if (!string.IsNullOrWhiteSpace(studentEmail) && studentEmail.Contains('@'))
+									{
+										var loginId = studentEmail;
+										_ = Task.Run(async () =>
+										{
+											try
+											{
+												await _emailNotificationService.SendWelcomeCredentialsAsync(
+													recipientEmail: studentEmail,
+													recipientName: studentFullName,
+													loginIdentifier: loginId,
+													defaultPassword: "admin1234",
+													roleName: "Student");
+											}
+											catch { /* Ignored */ }
+										});
+									}
+								}
+								catch (Exception userSyncEx)
+								{
+									Console.WriteLine($"[SchoolService] Failed to auto-create user or send welcome email for student: {userSyncEx.Message}");
+								}
+							}
 						}
 					}
 				}

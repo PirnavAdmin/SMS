@@ -11186,11 +11186,7 @@ export const initialBooks: BookItem[] = [
   { id: "BK-01", isbn: "978-0134685991", title: "Fundamentals of Physics", author: "Halliday & Resnick", category: "Science & Physics", totalCopies: 15, availableCopies: 11, rackNo: "Rack A-01 (Shelf 1)" },
   { id: "BK-02", isbn: "978-8121903425", title: "Advanced Mathematics Vol 1", author: "R.D. Sharma", category: "Mathematics", totalCopies: 30, availableCopies: 25, rackNo: "Rack B-02 (Shelf 1)" },
   { id: "BK-03", isbn: "978-0070141698", title: "Computer Science Principles & AI", author: "E. Balagurusamy", category: "Computer Science", totalCopies: 25, availableCopies: 20, rackNo: "Rack C-03 (Shelf 1)" },
-  { id: "BK-04", isbn: "978-0141395852", title: "Complete Works of Shakespeare", author: "William Shakespeare", category: "Literature & Fiction", totalCopies: 40, availableCopies: 35, rackNo: "Rack D-04 (Shelf 1)" },
-  { id: "BK-05", isbn: "978-8177091976", title: "Concepts of Physics Part 1", author: "H.C. Verma", category: "Science & Physics", totalCopies: 20, availableCopies: 18, rackNo: "Rack A-01 (Shelf 2)" },
-  { id: "BK-06", isbn: "978-8121906273", title: "Quantitative Aptitude & Logic", author: "R.S. Aggarwal", category: "Mathematics", totalCopies: 35, availableCopies: 30, rackNo: "Rack B-02 (Shelf 2)" },
-  { id: "BK-07", isbn: "978-0262033848", title: "Introduction to Algorithms", author: "Cormen & Leiserson", category: "Computer Science", totalCopies: 15, availableCopies: 12, rackNo: "Rack C-03 (Shelf 2)" },
-  { id: "BK-08", isbn: "978-0140449136", title: "History of Ancient & Medieval World", author: "NCERT & Oxford", category: "History & Civics", totalCopies: 20, availableCopies: 16, rackNo: "Rack E-05 (Shelf 1)" }
+  { id: "BK-04", isbn: "978-0141395852", title: "Complete Works of Shakespeare", author: "William Shakespeare", category: "Literature & Fiction", totalCopies: 40, availableCopies: 35, rackNo: "Rack D-04 (Shelf 1)" }
 ];
 
 export const initialBookIssues: BookIssue[] = [

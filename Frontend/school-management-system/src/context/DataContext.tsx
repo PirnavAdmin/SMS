@@ -312,6 +312,8 @@ import {
   fetchAcademicPeriodsApi,
   fetchTimetableForClassSectionApi,
   mapSubjectApi,
+  saveTimetableSlotApi,
+  deleteTimetableSlotApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -1169,9 +1171,10 @@ interface DataContextType {
   ) => void;
 
   timetable: TimetableSlot[];
-  addTimetableSlot: (slot: Omit<TimetableSlot, "id">) => void;
-  updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => void;
-  deleteTimetableSlot: (id: string) => void;
+  addTimetableSlot: (slot: Omit<TimetableSlot, "id">) => Promise<void>;
+  updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => Promise<void>;
+  deleteTimetableSlot: (id: string) => Promise<void>;
+  clearClassTimetable: (className: string, section: string) => Promise<void>;
   publishClassTimetable: (
     className: string,
     section: string,
@@ -1185,9 +1188,9 @@ interface DataContextType {
   ) => Promise<void>;
 
   periodSettings: PeriodSetting[];
-  addPeriodSetting: (data: Omit<PeriodSetting, "id">) => void;
-  updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => void;
-  deletePeriodSetting: (id: string) => void;
+  addPeriodSetting: (data: Omit<PeriodSetting, "id">) => Promise<void>;
+  updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => Promise<void>;
+  deletePeriodSetting: (id: string) => Promise<void>;
   bulkAssignPeriods: (classKeys: string[]) => void;
   resetClassPeriods: (className: string, section: string) => void;
 
@@ -4718,7 +4721,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: classIdStr,
                 name: c.className || c.name,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-                sectionTeachers: c.sectionTeachers || {},
+                sectionTeachers:
+                  c.sectionTeachers &&
+                  Object.keys(c.sectionTeachers).length > 0
+                    ? c.sectionTeachers
+                    : localCls?.sectionTeachers || {},
                 teacher: c.teacher || "Unassigned",
                 subjects: Array.isArray(c.curriculumSubjects)
                   ? c.curriculumSubjects.map(
@@ -6156,12 +6163,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStaff: Staff = {
       ...staffData,
       id,
+      status: staffData.status || "Active",
       branch: staffData.branch || selectedBranch || "Main Campus",
       profileStatus: staffData.profileStatus || "Incomplete",
     };
 
     createStaffApi({
       employeeId: staffData.empId,
+      isActive: staffData.status === "Active" || staffData.status === undefined,
       employeeCategory:
         staffData.employeeCategory === "Teacher"
           ? "Teaching Staff"
@@ -6299,6 +6308,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           branchName: fullStaff.bankDetails?.branch || "",
           ifscCode: fullStaff.bankDetails?.ifscCode || "",
           upiId: fullStaff.bankDetails?.upiId || "",
+          isActive: fullStaff.status === "Active",
           assignedClasses: fullStaff.assignedClasses || [],
           assignedSubjects: fullStaff.assignedSubjects || [],
           qualifications: (fullStaff.qualifications || []).map((q: any) => ({
@@ -6747,10 +6757,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Admission CRUD
+  const inFlightAdmissionSubmissions = new Set<string>();
+  const inFlightStatusUpdates = new Set<string>();
+
   const addAdmission = async (
     appData: Omit<AdmissionApplication, "id" | "applicationNo">,
     options?: { silent?: boolean },
   ) => {
+    const signature = `${(appData.applicantName || "").toLowerCase().trim()}_${(appData.phone || "").trim()}_${(appData.appliedClass || "").toLowerCase().trim()}`;
+    if (signature.length > 5 && inFlightAdmissionSubmissions.has(signature)) {
+      console.warn(`[addAdmission] Duplicate submission blocked for signature: ${signature}`);
+      return null;
+    }
+    if (signature.length > 5) inFlightAdmissionSubmissions.add(signature);
+
     try {
       let isoDob = new Date().toISOString();
       if (appData.dob) {
@@ -6902,6 +6922,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
       return null;
+    } finally {
+      setTimeout(() => {
+        if (signature.length > 5) inFlightAdmissionSubmissions.delete(signature);
+      }, 3000);
     }
   };
 
@@ -7013,6 +7037,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<string | null> => {
     const app = admissions.find((a) => a.id === id);
     if (!app) return null;
+
+    if (status === "Enrolled" && app.status === "Enrolled") {
+      console.warn(`[updateAdmissionStatus] Application ${id} is already enrolled.`);
+      return null;
+    }
+
+    if (inFlightStatusUpdates.has(id)) {
+      console.warn(`[updateAdmissionStatus] Status update already in progress for application ${id}`);
+      return null;
+    }
+    inFlightStatusUpdates.add(id);
 
     const appIdNumeric = parseInt(id, 10);
 
@@ -7476,6 +7511,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         "Network Error",
         err.message || "Failed to update application status.",
       );
+    } finally {
+      setTimeout(() => {
+        inFlightStatusUpdates.delete(id);
+      }, 3000);
     }
     return null;
   };
@@ -7683,7 +7722,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [periodSettings]);
 
-  const addPeriodSetting = (data: Omit<PeriodSetting, "id">) => {
+  const addPeriodSetting = async (data: Omit<PeriodSetting, "id">) => {
     // Check duplicate
     const isDuplicate = periodSettings.some((p) => {
       if (p.status !== "Active") return false;
@@ -7702,16 +7741,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (isDuplicate) return;
 
-    const id = "PS-" + Math.floor(100 + Math.random() * 900);
-    const newPs: PeriodSetting = { ...data, id };
+    const tempId = "PS-" + Math.floor(100 + Math.random() * 900);
+    const newPs: PeriodSetting = { ...data, id: tempId };
     setPeriodSettings((prev) => [...prev, newPs]);
+
+    try {
+      const res: any = await savePeriodApi({
+        periodName: data.periodName,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        periodType: data.periodType,
+        displayOrder: Number(data.sequence),
+      });
+
+      if (res?.success && res.data) {
+        const created = res.data;
+        setPeriodSettings((prev) =>
+          prev.map((p) =>
+            p.id === tempId
+              ? {
+                  ...p,
+                  id: created.periodId?.toString() || p.id,
+                }
+              : p,
+          ),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to save period template to backend", err);
+    }
+
     logActivity(
       "Created Period Setting",
       `Added ${newPs.periodName} (${newPs.startTime}-${newPs.endTime})`,
     );
   };
 
-  const updatePeriodSetting = (id: string, updates: Partial<PeriodSetting>) => {
+  const updatePeriodSetting = async (id: string, updates: Partial<PeriodSetting>) => {
     // Check duplicate if updates contains fields that can duplicate
     if (
       updates.periodName ||
@@ -7746,10 +7812,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setPeriodSettings((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
     );
+
+    try {
+      const existing = periodSettings.find((p) => p.id === id);
+      if (!existing) return;
+      const merged = { ...existing, ...updates };
+      const numericId = id.startsWith("PS-") ? 0 : Number(id);
+
+      await savePeriodApi({
+        periodId: numericId > 0 ? numericId : undefined,
+        periodName: merged.periodName,
+        startTime: merged.startTime,
+        endTime: merged.endTime,
+        periodType: merged.periodType,
+        displayOrder: Number(merged.sequence),
+      });
+    } catch (err) {
+      console.warn("Failed to update period template on backend", err);
+    }
   };
 
-  const deletePeriodSetting = (id: string) => {
+  const deletePeriodSetting = async (id: string) => {
     setPeriodSettings((prev) => prev.filter((p) => p.id !== id));
+
+    try {
+      const numericId = id.startsWith("PS-") ? id.replace("PS-", "") : id;
+      await deletePeriodApi(numericId);
+    } catch (err) {
+      console.warn("Failed to delete period setting from backend", err);
+    }
   };
 
   const bulkAssignPeriods = (classKeys: string[]) => {
@@ -12818,15 +12909,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (normalizedAssignment.status !== "Active") return existing;
 
         const isActiveConflict =
-          existing.status === "Active" &&
-          (existing.vehicleId === normalizedAssignment.vehicleId ||
+          (existing.status === "Active" || (existing.status as any) === true || String(existing.status).toLowerCase() === "true") &&
+          (String(existing.vehicleId) === String(normalizedAssignment.vehicleId) ||
             existing.vehicleNumber === normalizedAssignment.vehicleNumber ||
-            existing.routeId === normalizedAssignment.routeId ||
+            String(existing.routeId) === String(normalizedAssignment.routeId) ||
             existing.routeName === normalizedAssignment.routeName ||
-            existing.driverId === normalizedAssignment.driverId ||
+            String(existing.driverId) === String(normalizedAssignment.driverId) ||
             existing.driverName === normalizedAssignment.driverName ||
             (normalizedAssignment.attendantId &&
-              existing.attendantId === normalizedAssignment.attendantId) ||
+              String(existing.attendantId) === String(normalizedAssignment.attendantId)) ||
             (normalizedAssignment.attendantName &&
               existing.attendantName === normalizedAssignment.attendantName));
 
@@ -12902,20 +12993,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         "Vehicle Assigned",
         `Assigned ${normalizedAssignment.vehicleNumber} to ${normalizedAssignment.routeName} with ${normalizedAssignment.driverName}${normalizedAssignment.attendantName ? ` and ${normalizedAssignment.attendantName}` : ""}`,
       );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const id = "VA-" + Math.floor(100 + Math.random() * 900);
-      const newAssign: VehicleAssignment = {
-        ...normalizedAssignment,
-        id,
-        branch: effectiveBranch,
-        academicYear: effectiveAcademicYear,
-        status: normalizedAssignment.status,
-      } as any;
-      setVehicleAssignments((prev) => [
-        ...deactivateConflicts(prev),
-        newAssign,
-      ]);
+    } catch (err: any) {
+      console.error(err);
+      addToast("error", "Assignment Failed", err.message || "Failed to create vehicle assignment on the server.");
+      throw err;
     }
   };
 
@@ -12923,83 +13004,83 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<VehicleAssignment>,
   ) => {
-    try {
-      const current = vehicleAssignments.find((a) => a.id === id);
-      const merged: VehicleAssignment = {
-        ...(current as VehicleAssignment),
-        ...(updates as VehicleAssignment),
-        id,
-        branch:
-          updates.branch || current?.branch || selectedBranch || "Main Campus",
-        academicYear:
-          updates.academicYear ||
-          current?.academicYear ||
-          schoolProfile.academicYear ||
-          "2026-2027",
-        status: (updates.status || current?.status || "Active") as
-          | "Active"
-          | "Inactive",
-      };
-      const payload: any = {};
-      if (updates.routeId !== undefined) {
-        payload.routeId = Number(updates.routeId) || 0;
-      }
-      if (updates.vehicleId !== undefined) {
-        payload.vehicleId = Number(updates.vehicleId) || 0;
-      }
-      if (updates.driverId !== undefined) {
-        payload.driverId = Number(updates.driverId) || 0;
-      }
-      if (updates.attendantId !== undefined) {
-        payload.attendantId = updates.attendantId
-          ? Number(updates.attendantId)
-          : null;
-      }
-      if (updates.routeName !== undefined) {
-        payload.selectRoute = updates.routeName;
-      }
-      if (updates.vehicleNumber !== undefined) {
-        payload.selectActiveVehicle = updates.vehicleNumber;
-      }
-      if (updates.driverName !== undefined) {
-        payload.selectLicensedDriver = updates.driverName;
-      }
-      if (updates.attendantName !== undefined) {
-        payload.selectBusAttendant = updates.attendantName;
-      }
-      if (updates.branch !== undefined) {
-        payload.branchName = updates.branch;
-        payload.branch = updates.branch;
-      }
-      if (updates.academicYear !== undefined) {
-        payload.academicYear = updates.academicYear;
-      }
-      if (updates.morningTripTime !== undefined) {
-        payload.morningTripTime = updates.morningTripTime;
-        payload.morningTrip = updates.morningTripTime;
-      }
-      if (updates.eveningTripTime !== undefined) {
-        payload.eveningTripTime = updates.eveningTripTime;
-        payload.eveningTrip = updates.eveningTripTime;
-      }
-      if (updates.effectiveFrom !== undefined) {
-        payload.effectiveFrom = updates.effectiveFrom
-          ? new Date(updates.effectiveFrom).toISOString()
-          : new Date().toISOString();
-        payload.effectiveFromDate = updates.effectiveFrom
-          ? new Date(updates.effectiveFrom).toISOString()
-          : new Date().toISOString();
-      }
-      if (updates.effectiveTo !== undefined) {
-        payload.effectiveTo = updates.effectiveTo
-          ? new Date(updates.effectiveTo).toISOString()
-          : null;
-      }
-      if (updates.status !== undefined) {
-        payload.status =
-          updates.status === "Active" || (updates.status as any) === true;
-      }
+    const current = vehicleAssignments.find((a) => a.id === id);
+    const merged: VehicleAssignment = {
+      ...(current as VehicleAssignment),
+      ...(updates as VehicleAssignment),
+      id,
+      branch:
+        updates.branch || current?.branch || selectedBranch || "Main Campus",
+      academicYear:
+        updates.academicYear ||
+        current?.academicYear ||
+        schoolProfile.academicYear ||
+        "2026-2027",
+      status: (updates.status || current?.status || "Active") as
+        | "Active"
+        | "Inactive",
+    };
+    const payload: any = {};
+    if (updates.routeId !== undefined) {
+      payload.routeId = Number(updates.routeId) || 0;
+    }
+    if (updates.vehicleId !== undefined) {
+      payload.vehicleId = Number(updates.vehicleId) || 0;
+    }
+    if (updates.driverId !== undefined) {
+      payload.driverId = Number(updates.driverId) || 0;
+    }
+    if (updates.attendantId !== undefined) {
+      payload.attendantId = updates.attendantId
+        ? Number(updates.attendantId)
+        : null;
+    }
+    if (updates.routeName !== undefined) {
+      payload.selectRoute = updates.routeName;
+    }
+    if (updates.vehicleNumber !== undefined) {
+      payload.selectActiveVehicle = updates.vehicleNumber;
+    }
+    if (updates.driverName !== undefined) {
+      payload.selectLicensedDriver = updates.driverName;
+    }
+    if (updates.attendantName !== undefined) {
+      payload.selectBusAttendant = updates.attendantName;
+    }
+    if (updates.branch !== undefined) {
+      payload.branchName = updates.branch;
+      payload.branch = updates.branch;
+    }
+    if (updates.academicYear !== undefined) {
+      payload.academicYear = updates.academicYear;
+    }
+    if (updates.morningTripTime !== undefined) {
+      payload.morningTripTime = updates.morningTripTime;
+      payload.morningTrip = updates.morningTripTime;
+    }
+    if (updates.eveningTripTime !== undefined) {
+      payload.eveningTripTime = updates.eveningTripTime;
+      payload.eveningTrip = updates.eveningTripTime;
+    }
+    if (updates.effectiveFrom !== undefined) {
+      payload.effectiveFrom = updates.effectiveFrom
+        ? new Date(updates.effectiveFrom).toISOString()
+        : new Date().toISOString();
+      payload.effectiveFromDate = updates.effectiveFrom
+        ? new Date(updates.effectiveFrom).toISOString()
+        : new Date().toISOString();
+    }
+    if (updates.effectiveTo !== undefined) {
+      payload.effectiveTo = updates.effectiveTo
+        ? new Date(updates.effectiveTo).toISOString()
+        : null;
+    }
+    if (updates.status !== undefined) {
+      payload.status =
+        updates.status === "Active" || (updates.status as any) === true;
+    }
 
+    try {
       await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
       setVehicleAssignments((prev) => {
         const deactivateConflicts = (
@@ -13008,16 +13089,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           items.map((existing) => {
             const isActiveConflict =
               existing.id !== id &&
-              existing.status === "Active" &&
-              merged.status === "Active" &&
-              (existing.vehicleId === merged.vehicleId ||
+              (existing.status === "Active" || (existing.status as any) === true || String(existing.status).toLowerCase() === "true") &&
+              (merged.status === "Active" || (merged.status as any) === true || String(merged.status).toLowerCase() === "true") &&
+              (String(existing.vehicleId) === String(merged.vehicleId) ||
                 existing.vehicleNumber === merged.vehicleNumber ||
-                existing.routeId === merged.routeId ||
+                String(existing.routeId) === String(merged.routeId) ||
                 existing.routeName === merged.routeName ||
-                existing.driverId === merged.driverId ||
+                String(existing.driverId) === String(merged.driverId) ||
                 existing.driverName === merged.driverName ||
                 (merged.attendantId &&
-                  existing.attendantId === merged.attendantId) ||
+                  String(existing.attendantId) === String(merged.attendantId)) ||
                 (merged.attendantName &&
                   existing.attendantName === merged.attendantName));
 
@@ -13042,65 +13123,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           a.id === id ? sanitized : a,
         );
       });
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const current = vehicleAssignments.find((a) => a.id === id);
-      const merged: VehicleAssignment = {
-        ...(current as VehicleAssignment),
-        ...(updates as VehicleAssignment),
-        id,
-        branch:
-          updates.branch || current?.branch || selectedBranch || "Main Campus",
-        academicYear:
-          updates.academicYear ||
-          current?.academicYear ||
-          schoolProfile.academicYear ||
-          "2026-2027",
-        status: (updates.status || current?.status || "Active") as
-          | "Active"
-          | "Inactive",
-      };
-      setVehicleAssignments((prev) => {
-        const deactivateConflicts = (
-          items: VehicleAssignment[],
-        ): VehicleAssignment[] =>
-          items.map((existing) => {
-            const isActiveConflict =
-              existing.id !== id &&
-              existing.status === "Active" &&
-              merged.status === "Active" &&
-              (existing.vehicleId === merged.vehicleId ||
-                existing.vehicleNumber === merged.vehicleNumber ||
-                existing.routeId === merged.routeId ||
-                existing.routeName === merged.routeName ||
-                existing.driverId === merged.driverId ||
-                existing.driverName === merged.driverName ||
-                (merged.attendantId &&
-                  existing.attendantId === merged.attendantId) ||
-                (merged.attendantName &&
-                  existing.attendantName === merged.attendantName));
-
-            if (!isActiveConflict) return existing;
-
-            return {
-              ...existing,
-              status: "Inactive" as const,
-              effectiveTo:
-                existing.effectiveTo ||
-                merged.effectiveFrom ||
-                new Date().toISOString().split("T")[0],
-            } as VehicleAssignment;
-          });
-
-        const sanitized: VehicleAssignment =
-          merged.status === "Inactive" && !merged.effectiveTo
-            ? { ...merged, effectiveTo: new Date().toISOString().split("T")[0] }
-            : merged;
-
-        return deactivateConflicts(prev).map((a) =>
-          a.id === id ? sanitized : a,
-        );
-      });
+    } catch (err: any) {
+      console.error(err);
+      addToast("error", "Update Failed", err.message || "Failed to update vehicle assignment on the server.");
+      throw err;
     }
   };
 
@@ -13108,9 +13134,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await TransportAPI.deleteVehicleAssignmentApi(id);
       setVehicleAssignments((prev) => prev.filter((a) => a.id !== id));
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setVehicleAssignments((prev) => prev.filter((a) => a.id !== id));
+      addToast("success", "Assignment Deleted", "Successfully removed vehicle assignment.");
+    } catch (err: any) {
+      console.error(err);
+      addToast(
+        "error",
+        "Delete Failed",
+        err.message || "Failed to delete vehicle assignment. Please make sure no students are active on this route first."
+      );
+      throw err;
     }
   };
 
@@ -13876,18 +13908,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     async (date: string, department?: string) => {
       try {
         const response = await fetchDailyStaffAttendanceApi(date, department);
-        if (response && response.success && response.data) {
-          console.log(
-            "DEBUG: fetchDailyAttendance response data:",
-            response.data,
-          );
+        if (response && response.success && Array.isArray(response.data)) {
           const mappedRecords: DailyAttendance[] = response.data.map(
             (item: any) => ({
               id:
                 item.staffAttendanceId?.toString() ||
                 item.id?.toString() ||
                 Math.random().toString(),
-              date: item.date,
+              date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
               status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
@@ -13899,14 +13927,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }),
           );
 
+          const targetDate = String(date).split("T")[0].split(" ")[0];
           setAttendance((prev) => {
-            const filterDates = mappedRecords.map(
-              (r) => `${r.entityId}_${r.date}`,
-            );
             const filtered = prev.filter(
-              (r) => !filterDates.includes(`${r.entityId}_${r.date}`),
+              (r) =>
+                !(
+                  (!r.entityType || r.entityType.toLowerCase() === "staff") &&
+                  String(r.date || "").split("T")[0].split(" ")[0] === targetDate
+                ),
             );
-            return [...filtered, ...mappedRecords];
+            const updated = [...filtered, ...mappedRecords];
+            try {
+              localStorage.setItem("attendance", JSON.stringify(updated));
+            } catch {
+              /* Ignored */
+            }
+            return updated;
           });
         }
       } catch (err: any) {
@@ -13924,14 +13960,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           year,
           department,
         );
-        if (response && response.success && response.data) {
+        if (response && response.success && Array.isArray(response.data)) {
           const mappedRecords: DailyAttendance[] = response.data.map(
             (item: any) => ({
               id:
                 item.staffAttendanceId?.toString() ||
                 item.id?.toString() ||
                 Math.random().toString(),
-              date: item.date,
+              date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
               status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
@@ -13943,14 +13979,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }),
           );
 
+          const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
           setAttendance((prev) => {
-            const filterDates = mappedRecords.map(
-              (r) => `${r.entityId}_${r.date}`,
-            );
-            const filtered = prev.filter(
-              (r) => !filterDates.includes(`${r.entityId}_${r.date}`),
-            );
-            return [...filtered, ...mappedRecords];
+            const filtered = prev.filter((r) => {
+              const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+              const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+              return !(isStaff && rDate.startsWith(monthPrefix));
+            });
+            const updated = [...filtered, ...mappedRecords];
+            try {
+              localStorage.setItem("attendance", JSON.stringify(updated));
+            } catch {
+              /* Ignored */
+            }
+            return updated;
           });
         }
       } catch (err: any) {
@@ -14653,24 +14695,112 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const addTimetableSlot = (slotData: Omit<TimetableSlot, "id">) => {
-    const id = "TT-" + Math.floor(100 + Math.random() * 900);
+  const addTimetableSlot = async (slotData: Omit<TimetableSlot, "id">) => {
+    const tempId = "TT-" + Math.floor(100 + Math.random() * 900);
     const newSlot: TimetableSlot = {
       ...slotData,
-      id,
+      id: tempId,
       branch: (slotData as any).branch || selectedBranch || "Main Campus",
     } as any;
     setTimetable((prev) => [...prev, newSlot]);
+
+    try {
+      const times = slotData.timeSlot.split('-');
+      const startTime = times[0]?.trim() || '';
+      const endTime = times[1]?.trim() || '';
+
+      const res: any = await saveTimetableSlotApi({
+        className: slotData.className,
+        sectionName: slotData.section,
+        academicYear: slotData.academicYear,
+        dayOfWeek: slotData.day,
+        startTime,
+        endTime,
+        subjectName: slotData.subject,
+        teacherName: slotData.teacherName,
+        roomNo: slotData.roomNo,
+      });
+
+      if (res?.success && res.data) {
+        const created = res.data;
+        setTimetable((prev) =>
+          prev.map((s) =>
+            s.id === tempId
+              ? {
+                  ...s,
+                  id: created.slotId?.toString() || s.id,
+                  subjectId: created.subjectId?.toString(),
+                  teacherId: created.teacherId?.toString(),
+                }
+              : s,
+          ),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to save timetable slot to backend", err);
+    }
   };
 
-  const updateTimetableSlot = (id: string, updates: Partial<TimetableSlot>) => {
+  const updateTimetableSlot = async (id: string, updates: Partial<TimetableSlot>) => {
     setTimetable((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     );
+
+    try {
+      const existingSlot = timetable.find((t) => t.id === id);
+      if (!existingSlot) return;
+
+      const merged = { ...existingSlot, ...updates };
+      const times = merged.timeSlot.split('-');
+      const startTime = times[0]?.trim() || '';
+      const endTime = times[1]?.trim() || '';
+
+      await saveTimetableSlotApi({
+        className: merged.className,
+        sectionName: merged.section,
+        academicYear: merged.academicYear,
+        dayOfWeek: merged.day,
+        startTime,
+        endTime,
+        subjectName: merged.subject,
+        teacherName: merged.teacherName,
+        roomNo: merged.roomNo,
+      });
+    } catch (err) {
+      console.warn("Failed to update timetable slot on backend", err);
+    }
   };
 
-  const deleteTimetableSlot = (id: string) => {
+  const deleteTimetableSlot = async (id: string) => {
     setTimetable((prev) => prev.filter((t) => t.id !== id));
+
+    try {
+      const numericId = id.startsWith("TT-") ? id.replace("TT-", "") : id;
+      await deleteTimetableSlotApi(numericId);
+    } catch (err) {
+      console.warn("Failed to delete slot from backend", err);
+    }
+  };
+
+  const clearClassTimetable = async (className: string, section: string) => {
+    const existing = timetable.filter(
+      (t) => t.className === className && t.section === section,
+    );
+
+    setTimetable((prev) =>
+      prev.filter((t) => !(t.className === className && t.section === section)),
+    );
+
+    try {
+      await Promise.all(
+        existing.map(async (t) => {
+          const numericId = t.id.startsWith("TT-") ? t.id.replace("TT-", "") : t.id;
+          await deleteTimetableSlotApi(numericId);
+        }),
+      );
+    } catch (err) {
+      console.warn("Failed to clear timetable slots from backend", err);
+    }
   };
 
   const addHomework = (hwData: Omit<Homework, "id">) => {
@@ -16513,7 +16643,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         sectionName,
         academicYear,
       );
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res?.success && Array.isArray(res.data)) {
         setTimetable(res.data);
       }
     } catch (err) {
@@ -17161,6 +17291,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         addTimetableSlot,
         updateTimetableSlot,
         deleteTimetableSlot,
+        clearClassTimetable,
         publishClassTimetable,
         periodSettings,
         addPeriodSetting,
@@ -17170,6 +17301,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         resetClassPeriods,
         teacherAssignments,
         addTeacherAssignment,
+        updateTeacherAssignment,
         deleteTeacherAssignment,
         homework: filteredHomework,
         addHomework,

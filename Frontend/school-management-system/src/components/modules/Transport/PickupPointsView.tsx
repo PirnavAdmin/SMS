@@ -154,12 +154,18 @@ export const PickupPointsView: React.FC = () => {
 
     const r = routeMasters.find(rt => rt.id == form.routeId);
     const routeName = r ? r.routeName : form.routeName || '';
+    const maxLimit = r ? Number(r.totalDistanceKm) : Infinity;
 
     if (editingPoint) {
       if (!form.pickupName) return;
       const seqNum = Number(form.sequenceNumber) || 1;
       const distKm = Number(form.distanceFromSchoolKm) || 0;
       const feeAmt = Number(form.monthlyFee) || calculateFeeForDistance(form.routeId, distKm);
+
+      if (r && distKm > maxLimit) {
+        addToast('error', 'Distance Limit Crossed', `Pickup point distance (${distKm} KM) cannot exceed total route distance (${maxLimit} KM).`);
+        return;
+      }
 
       const routeSequence = pickupPoints.filter(p => p.routeId === form.routeId && p.id !== editingPoint.id);
       const isDuplicateSequence = routeSequence.some(p => p.sequenceNumber === seqNum);
@@ -191,6 +197,16 @@ export const PickupPointsView: React.FC = () => {
       if (validPoints.length === 0) {
         addToast('warning', 'Validation Error', 'Please enter at least one pickup point name.');
         return;
+      }
+
+      if (r) {
+        for (const item of validPoints) {
+          const distKm = Number(item.distance) || 0;
+          if (distKm > maxLimit) {
+            addToast('error', 'Distance Limit Crossed', `Pickup point "${item.name}" distance (${distKm} KM) cannot exceed total route distance (${maxLimit} KM).`);
+            return;
+          }
+        }
       }
 
       const existingForRoute = pickupPoints.filter(p => p.routeId == form.routeId);
@@ -230,6 +246,8 @@ export const PickupPointsView: React.FC = () => {
     }
     return true;
   });
+
+  const selectedRouteObj = routeMasters.find(rt => rt.id == form.routeId);
 
   return (
     <div className="space-y-5 animate-in fade-in">
@@ -523,8 +541,15 @@ export const PickupPointsView: React.FC = () => {
                             setForm({ ...form, distanceFromSchoolKm: val as any, monthlyFee: autoFee });
                           }
                         }}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none"
+                        className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
+                          form.routeId && selectedRouteObj && Number(form.distanceFromSchoolKm || 0) > Number(selectedRouteObj.totalDistanceKm) ? 'border-rose-500 focus:border-rose-500' : ''
+                        }`}
                       />
+                      {form.routeId && selectedRouteObj && Number(form.distanceFromSchoolKm || 0) > Number(selectedRouteObj.totalDistanceKm) && (
+                        <p className="text-[10px] text-rose-500 font-bold mt-1">
+                          * Distance exceeds route limit ({selectedRouteObj.totalDistanceKm} KM)
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block font-semibold mb-1">Monthly Fare (Auto-Calculated) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -609,9 +634,7 @@ export const PickupPointsView: React.FC = () => {
                             }}
                             className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-slate-900 dark:text-white outline-none"
                           />
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2.5">
+                        </div>                         <div className="grid grid-cols-3 gap-2.5">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Distance (KM) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                             <input
@@ -628,8 +651,15 @@ export const PickupPointsView: React.FC = () => {
                                   setNewPickupPoints(copy);
                                 }
                               }}
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono text-[11px] font-semibold text-slate-900 dark:text-white outline-none"
+                              className={`w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono text-[11px] font-semibold text-slate-900 dark:text-white outline-none ${
+                                form.routeId && selectedRouteObj && Number(point.distance || 0) > Number(selectedRouteObj.totalDistanceKm) ? 'border-rose-500 focus:border-rose-500' : ''
+                              }`}
                             />
+                            {form.routeId && selectedRouteObj && Number(point.distance || 0) > Number(selectedRouteObj.totalDistanceKm) && (
+                              <p className="text-[9px] text-rose-500 font-bold mt-0.5">
+                                * Exceeds {selectedRouteObj.totalDistanceKm} KM Limit
+                              </p>
+                            )}
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Morning Pickup</label>

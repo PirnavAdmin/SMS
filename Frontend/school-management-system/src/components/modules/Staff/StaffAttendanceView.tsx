@@ -41,9 +41,13 @@ import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
-import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import { DateInput } from "../../common/DateInput";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import {
+  teacherCheckInApi,
+  teacherCheckOutApi,
+  fetchTeacherTodayAttendanceApi,
+} from "../../../api/attendance";
 
 type AttendanceTab = "teaching" | "non-teaching";
 
@@ -82,72 +86,50 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     userRole === "class-teacher" ||
     !canMarkAttendance;
 
-  // Filter teaching staff ONLY (exclude drivers, peons, conductors, security guards)
-  const teachingStaff = useMemo(() => {
-    return staff.filter(s => {
-      const desig = (s.designation || '').toLowerCase();
-      const dept = (s.department || '').toLowerCase();
-      if (desig.includes('driver') || desig.includes('conductor') || desig.includes('peon') || desig.includes('cleaner') || desig.includes('guard') || dept.includes('transport')) {
-        return false;
-      }
-      return true;
-    });
-  }, [staff]);
-
   // Find logged-in teacher profile
-  const dbTeacher = useMemo(() => {
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
+  const dbTeacher =
+    staff.find(
+      (s) =>
+        s.email &&
+        user?.email &&
+        s.email.toLowerCase().trim() === user.email.toLowerCase().trim(),
+    ) ||
+    staff.find(
+      (s) =>
+        (s.name &&
+          user?.name &&
+          s.name.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+        (`${s.firstName || ""}`.trim().toLowerCase() ===
+          (user?.name || "").trim().toLowerCase()) ||
+        (`${s.firstName || ""} ${s.lastName || ""}`.trim().toLowerCase() ===
+          (user?.name || "").trim().toLowerCase()),
+    ) ||
+    staff.find(
+      (s) =>
+        s.employeeCategory === "Teaching Staff" ||
+        s.employeeCategory === "Teacher" ||
+        (s.designation || "").toLowerCase().includes("teacher"),
+    );
 
-    if (userEmail) {
-      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
-    }
+  // Fallback to static mock data if no teacher profile is found
+  const teacher = dbTeacher || {
+    id: "STF-002",
+    empId: "EMP002",
+    firstName: user?.name || "Jonathan",
+    lastName: "Miller",
+    assignedClasses: ["Class 10-A", "Class 11-B"],
+    assignedSubjects: ["Mathematics"],
+    department: "Mathematics",
+    designation: "Class Teacher",
+    leaveBalance: { casual: 8, sick: 10, paid: 15 },
+  };
 
-    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
-      const byName = teachingStaff.find(s => {
-        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-        const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName);
-      });
-      if (byName) return byName;
-    }
-
-    if (user?.id) {
-      const byId = teachingStaff.find(s => s.id === user.id);
-      if (byId) return byId;
-    }
-
-    return null;
-  }, [user, teachingStaff]);
-
-  // Dynamic teacher object from logged-in user context
-  const teacher = useMemo(() => {
-    if (dbTeacher) return dbTeacher;
-    const rawName = user?.name || 'Robert Teacher';
-    const nameParts = rawName.split(' ');
-    return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 11-B'],
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics',
-      designation: 'Class Teacher',
-      leaveBalance: { casual: 8, sick: 10, paid: 15 },
-    };
-  }, [dbTeacher, user]);
-
-  // PERSONAL TEACHER ATTENDANCE STATES (Synchronized with Teacher Dashboard)
+  // PERSONAL TEACHER ATTENDANCE STATES
   const [persCheckInTime, setPersCheckInTime] = useState<string | null>(() =>
     localStorage.getItem("teacher_check_in_time"),
   );
   const [persCheckOutTime, setPersCheckOutTime] = useState<string | null>(() =>
     localStorage.getItem("teacher_check_out_time"),
-  );
-  const [persIsCheckedOut, setPersIsCheckedOut] = useState<boolean>(() =>
-    localStorage.getItem("teacher_is_checked_out") === "true",
   );
   const [persWorkingHours, setPersWorkingHours] = useState<string>("0h 0m");
   const [personalFilterDate, setPersonalFilterDate] = useState("");
@@ -204,7 +186,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         setPersWorkingHours("0h 0m");
         return;
       }
-      const end = (persIsCheckedOut && persCheckOutTime)
+      const end = persCheckOutTime
         ? new Date(persCheckOutTime).getTime()
         : Date.now();
       const diffMs = end - start;
@@ -218,38 +200,96 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       setPersWorkingHours(`${hrs}h ${mins}m`);
     };
     calcHours();
-    if (!persIsCheckedOut && persCheckInTime) {
-      const interval = setInterval(calcHours, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [persCheckInTime, persCheckOutTime, persIsCheckedOut]);
+    const interval = setInterval(calcHours, 60000);
+    return () => clearInterval(interval);
+  }, [persCheckInTime, persCheckOutTime]);
 
-  const handlePersCheckIn = () => {
-    const nowIso = new Date().toISOString();
-    localStorage.setItem("teacher_check_in_time", nowIso);
-    localStorage.removeItem("teacher_check_out_time");
-    localStorage.setItem("teacher_is_checked_out", "false");
-    setPersCheckInTime(nowIso);
-    setPersCheckOutTime(null);
-    setPersIsCheckedOut(false);
-    addToast(
-      "success",
-      "Checked In Successfully",
-      `Recorded check-in at ${new Date(nowIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-    );
+  // Load today's check-in / check-out from backend on mount for personal view
+  useEffect(() => {
+    if (isPersonalView) {
+      let isMounted = true;
+      const loadPersonalAttendance = async () => {
+        try {
+          const res: any = await fetchTeacherTodayAttendanceApi();
+          if (isMounted) {
+            const attendanceData = res?.attendance || res;
+            if (attendanceData && attendanceData.inTime) {
+              const todayDateStr = new Date().toLocaleDateString("en-CA");
+              const inTimeStr = `${todayDateStr}T${attendanceData.inTime}`;
+              setPersCheckInTime(inTimeStr);
+              localStorage.setItem("teacher_check_in_time", inTimeStr);
+              if (attendanceData.outTime) {
+                const outTimeStr = `${todayDateStr}T${attendanceData.outTime}`;
+                setPersCheckOutTime(outTimeStr);
+                localStorage.setItem("teacher_check_out_time", outTimeStr);
+              } else {
+                setPersCheckOutTime(null);
+                localStorage.removeItem("teacher_check_out_time");
+              }
+            } else {
+              setPersCheckInTime(null);
+              setPersCheckOutTime(null);
+              localStorage.removeItem("teacher_check_in_time");
+              localStorage.removeItem("teacher_check_out_time");
+            }
+          }
+        } catch {
+          /* Ignored */
+        }
+      };
+      loadPersonalAttendance();
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isPersonalView]);
+
+  const handlePersCheckIn = async () => {
+    try {
+      const res: any = await teacherCheckInApi();
+      const attendanceData = res?.attendance || res;
+      const inTimeVal = attendanceData?.inTime || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const fullIso = `${todayStr}T${inTimeVal}`;
+      localStorage.setItem("teacher_check_in_time", fullIso);
+      localStorage.removeItem("teacher_check_out_time");
+      setPersCheckInTime(fullIso);
+      setPersCheckOutTime(null);
+      addToast(
+        "success",
+        "Checked In Successfully",
+        `Recorded check-in at ${inTimeVal}`,
+      );
+
+      if (fetchDailyAttendance) {
+        await fetchDailyAttendance(attendanceDate);
+      }
+    } catch (err: any) {
+      console.error("Personal check-in error:", err);
+      addToast("error", "Check In Failed", err.message || "Could not record check in");
+    }
   };
 
-  const handlePersCheckOut = () => {
-    const nowIso = new Date().toISOString();
-    localStorage.setItem("teacher_check_out_time", nowIso);
-    localStorage.setItem("teacher_is_checked_out", "true");
-    setPersCheckOutTime(nowIso);
-    setPersIsCheckedOut(true);
-    addToast(
-      "info",
-      "Checked Out Successfully",
-      `Recorded check-out at ${new Date(nowIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-    );
+  const handlePersCheckOut = async () => {
+    try {
+      const res: any = await teacherCheckOutApi();
+      const attendanceData = res?.attendance || res;
+      const outTimeVal = attendanceData?.outTime || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const fullIso = `${todayStr}T${outTimeVal}`;
+      localStorage.setItem("teacher_check_out_time", fullIso);
+      setPersCheckOutTime(fullIso);
+      addToast(
+        "info",
+        "Checked Out Successfully",
+        `Recorded check-out at ${outTimeVal}`,
+      );
+
+      if (fetchDailyAttendance) {
+        await fetchDailyAttendance(attendanceDate);
+      }
+    } catch (err: any) {
+      console.error("Personal check-out error:", err);
+      addToast("error", "Check Out Failed", err.message || "Could not record check out");
+    }
   };
 
   const todayStatus = useMemo(() => {
@@ -292,7 +332,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             hour: "2-digit",
             minute: "2-digit",
           }),
-          checkOut: (persIsCheckedOut && persCheckOutTime)
+          checkOut: persCheckOutTime
             ? new Date(persCheckOutTime).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -303,66 +343,25 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         }
       : null;
 
-    const base = [
-      {
-        date: "2026-07-29",
-        checkIn: "09:02 AM",
-        checkOut: "--",
-        workingHours: "3h 15m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-28",
-        checkIn: "08:55 AM",
-        checkOut: "05:32 PM",
-        workingHours: "8h 37m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-27",
-        checkIn: "09:15 AM",
-        checkOut: "05:00 PM",
-        workingHours: "7h 45m",
-        status: "Late",
-      },
-      {
-        date: "2026-07-24",
-        checkIn: "08:45 AM",
-        checkOut: "04:30 PM",
-        workingHours: "7h 45m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-23",
-        checkIn: "08:52 AM",
-        checkOut: "05:00 PM",
-        workingHours: "8h 08m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-22",
-        checkIn: "--",
-        checkOut: "--",
-        workingHours: "0h 0m",
-        status: "Leave",
-      },
-      {
-        date: "2026-07-21",
-        checkIn: "08:58 AM",
-        checkOut: "04:35 PM",
-        workingHours: "7h 37m",
-        status: "Present",
-      },
-      {
-        date: "2026-07-20",
-        checkIn: "--",
-        checkOut: "--",
-        workingHours: "0h 0m",
-        status: "Absent",
-      },
-    ];
+    const teacherId = teacher?.id || dbTeacher?.id || "";
+    const teacherRecords = (attendance || [])
+      .filter((r) => {
+        const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const isId =
+          String(r.entityId) === String(teacherId) ||
+          String((r as any).staffId) === String(teacherId);
+        const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+        return isStaff && isId && rDate !== todayStr;
+      })
+      .map((r) => ({
+        date: String(r.date || "").split("T")[0].split(" ")[0],
+        checkIn: r.inTime || "--",
+        checkOut: r.outTime || "--",
+        workingHours: r.inTime && r.outTime ? "8h 0m" : "--",
+        status: r.status || "Present",
+      }));
 
-    const list = todayRecord ? [todayRecord, ...base] : base;
+    const list = todayRecord ? [todayRecord, ...teacherRecords] : teacherRecords;
 
     return list.filter((item) => {
       if (personalFilterDate && item.date !== personalFilterDate) return false;
@@ -528,45 +527,47 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
         </div>
 
-        {/* 2. Top Section: 3 Summary Cards Side-by-Side */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Today's Attendance Card */}
-          <div className="glass-card p-6 rounded-3xl border border-sky-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800/80">
-              <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                Today's Attendance
-              </h3>
-            </div>
+        {/* 2. Main content area: two columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Today's Attendance, Monthly Summary & Leave Balance */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Today's Attendance Card */}
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-105 dark:border-slate-800/80">
+                <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  Today's Attendance
+                </h3>
+              </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 text-center space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                  Check-In
-                </span>
-                <p className="font-mono font-black text-slate-850 dark:text-white text-sm">
-                  {persCheckInTime
-                    ? new Date(persCheckInTime).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "--"}
-                </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 text-center space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Check-In
+                  </span>
+                  <p className="font-mono font-black text-slate-850 dark:text-white text-sm">
+                    {persCheckInTime
+                      ? new Date(persCheckInTime).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "--"}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 text-center space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Check-Out
+                  </span>
+                  <p className="font-mono font-black text-slate-850 dark:text-white text-sm">
+                    {persCheckOutTime
+                      ? new Date(persCheckOutTime).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "--"}
+                  </p>
+                </div>
               </div>
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 text-center space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                  Check-Out
-                </span>
-                <p className="font-mono font-black text-slate-850 dark:text-white text-sm">
-                  {(persIsCheckedOut && persCheckOutTime)
-                    ? new Date(persCheckOutTime).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "--"}
-                </p>
-              </div>
-            </div>
 
             <div className="p-3.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 space-y-2 text-xs">
               <div className="flex items-center justify-between">
@@ -620,186 +621,186 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             )}
           </div>
 
-          {/* Monthly Summary Card */}
-          <div className="glass-card p-6 rounded-3xl border border-sky-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800/80">
-              <BarChart3 className="w-5 h-5 text-sky-500" />
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                Monthly Summary
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 flex flex-col justify-center">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">
-                  Present Days
-                </span>
-                <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                  20 Days
-                </span>
-              </div>
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 flex flex-col justify-center">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">
-                  Absent Days
-                </span>
-                <span className="text-base font-black text-rose-600 dark:text-rose-400">
-                  0 Days
-                </span>
-              </div>
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 flex flex-col justify-center">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">
-                  Late Days
-                </span>
-                <span className="text-base font-black text-amber-600 dark:text-amber-400">
-                  2 Days
-                </span>
-              </div>
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 flex flex-col justify-center">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">
-                  Leave Days
-                </span>
-                <span className="text-base font-black text-sky-600 dark:text-sky-400">
-                  1 Day
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-sky-200/60 dark:border-slate-800/50 flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-500">
-                Total Hours (Month):
-              </span>
-              <span className="font-black text-slate-850 dark:text-white">
-                168 hrs
-              </span>
-            </div>
-          </div>
-
-          {/* Leave Balance Card */}
-          <div className="glass-card p-6 rounded-3xl border border-sky-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800/80">
-              <div className="flex items-center gap-2">
-                <CalendarCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+            {/* Monthly Summary */}
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-105 dark:border-slate-800/80">
+                <BarChart3 className="w-5 h-5 text-sky-500" />
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                  Leave Balance
+                  Monthly Summary
                 </h3>
               </div>
-              <span className="text-[10px] font-extrabold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2.5 py-0.5 rounded-full border border-sky-200 dark:border-sky-800">
-                Active
-              </span>
-            </div>
 
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="p-2.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/40 text-center space-y-0.5">
-                <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-400 uppercase">
-                  Casual
-                </span>
-                <p className="font-black text-indigo-900 dark:text-white text-sm">
-                  {leaveBalance.casual}
-                </p>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100/50 dark:border-amber-900/40 text-center space-y-0.5">
-                <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 uppercase">
-                  Sick
-                </span>
-                <p className="font-black text-amber-900 dark:text-white text-sm">
-                  {leaveBalance.sick}
-                </p>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-900/40 text-center space-y-0.5">
-                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
-                  Earned
-                </span>
-                <p className="font-black text-emerald-900 dark:text-white text-sm">
-                  {leaveBalance.paid}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (onNavigate) {
-                  onNavigate("staff-leave");
-                } else {
-                  setShowApplyLeaveModal(true);
-                }
-              }}
-              className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-md shadow-sky-600/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Calendar className="w-4 h-4" /> Go to Leave Management
-            </button>
-          </div>
-        </div>
-
-        {/* 3. Bottom Section: 2 Main Tables Stacked Full Width */}
-        <div className="space-y-6">
-          {/* Attendance History Card */}
-          <div className="glass-card p-6 rounded-3xl border border-sky-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 flex flex-col justify-between space-y-4 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
-              <div className="space-y-0.5">
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-brand-600 dark:text-brand-400" />{" "}
-                  Attendance History
-                </h3>
-                <p className="text-[10px] text-slate-400">
-                  View personal daily registers and search records
-                </p>
-              </div>
-
-              <button
-                onClick={handleDownloadReport}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-[11px] font-bold text-slate-750 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all"
-              >
-                <Download className="w-3.5 h-3.5" /> Export Report
-              </button>
-            </div>
-
-            {/* Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Search
-                </label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={personalSearchQuery}
-                    onChange={(e) => setPersonalSearchQuery(e.target.value)}
-                    placeholder="Search status (e.g. Present, Late)..."
-                    className="w-full pl-8.5 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">
+                    Present Days
+                  </span>
+                  <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
+                    20 Days
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">
+                    Absent Days
+                  </span>
+                  <span className="text-base font-black text-rose-600 dark:text-rose-400">
+                    0 Days
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">
+                    Late Days
+                  </span>
+                  <span className="text-base font-black text-amber-600 dark:text-amber-400">
+                    2 Days
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">
+                    Leave Days
+                  </span>
+                  <span className="text-base font-black text-sky-600 dark:text-sky-400">
+                    1 Day
+                  </span>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Filter by Month
-                </label>
-                <select
-                  value={personalFilterMonth}
-                  onChange={(e) => setPersonalFilterMonth(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                >
-                  <option value="All">All Months</option>
-                  <option value="6">July 2026</option>
-                  <option value="5">June 2026</option>
-                  <option value="4">May 2026</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Filter by Date
-                </label>
-                <input
-                  type="date"
-                  value={personalFilterDate}
-                  onChange={(e) => setPersonalFilterDate(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-                />
+              <div className="p-3.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-500">
+                  Total Hours (Month):
+                </span>
+                <span className="font-black text-slate-850 dark:text-white">
+                  168 hrs
+                </span>
               </div>
             </div>
+
+            {/* Leave Balance Overview & Quick Link */}
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-105 dark:border-slate-800/80">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="w-5 h-5 text-purple-500" />
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                    Leave Balance
+                  </h3>
+                </div>
+                <span className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md">
+                  Active
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/40 text-center space-y-0.5">
+                  <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-400 uppercase">
+                    Casual
+                  </span>
+                  <p className="font-black text-indigo-900 dark:text-white text-sm">
+                    {leaveBalance.casual}
+                  </p>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100/50 dark:border-amber-900/40 text-center space-y-0.5">
+                  <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 uppercase">
+                    Sick
+                  </span>
+                  <p className="font-black text-amber-900 dark:text-white text-sm">
+                    {leaveBalance.sick}
+                  </p>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-900/40 text-center space-y-0.5">
+                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
+                    Earned
+                  </span>
+                  <p className="font-black text-emerald-900 dark:text-white text-sm">
+                    {leaveBalance.paid}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate("staff-leave");
+                  } else {
+                    setShowApplyLeaveModal(true);
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Calendar className="w-4 h-4" /> Go to Leave Management
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Attendance History & Attendance Requests */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Attendance History */}
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col justify-between space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-105 dark:border-slate-800/80 pb-3">
+                <div className="space-y-0.5">
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-brand-600 dark:text-brand-400" />{" "}
+                    Attendance History
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    View personal daily registers and search records
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleDownloadReport}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-[11px] font-bold text-slate-750 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Report
+                </button>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Search
+                  </label>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={personalSearchQuery}
+                      onChange={(e) => setPersonalSearchQuery(e.target.value)}
+                      placeholder="Search status (e.g. Present)..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Filter by Month
+                  </label>
+                  <select
+                    value={personalFilterMonth}
+                    onChange={(e) => setPersonalFilterMonth(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                  >
+                    <option value="All">All Months</option>
+                    <option value="6">July 2026</option>
+                    <option value="5">June 2026</option>
+                    <option value="4">May 2026</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Filter by Date
+                  </label>
+                  <input
+                    type="date"
+                    value={personalFilterDate}
+                    onChange={(e) => setPersonalFilterDate(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
+                  />
+                </div>
+              </div>
 
             {/* Attendance History Table */}
             <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
@@ -853,39 +854,39 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             </div>
           </div>
 
-          {/* Attendance Correction Requests Card */}
-          <div className="glass-card p-6 rounded-3xl border border-sky-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
-              <div className="space-y-0.5">
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5 text-sky-600 dark:text-sky-400" />{" "}
-                  Attendance Requests
-                </h3>
-                <p className="text-[10px] text-slate-400 font-medium">
-                  Request correction logs for missed check-in or checkout
-                  scanners
-                </p>
+            {/* Attendance Correction Requests */}
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-105 dark:border-slate-800/80 pb-3">
+                <div className="space-y-0.5">
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-500" />{" "}
+                    Attendance Requests
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    Request correction logs for missed check-in or checkout
+                    scanners
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowCorrectionModal(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-[11px] shadow-md transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" /> Request Correction
+                </button>
               </div>
 
-              <button
-                onClick={() => setShowCorrectionModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-[11px] shadow-md shadow-sky-600/20 transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" /> Request Correction
-              </button>
-            </div>
-
-            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase border-b border-slate-200 dark:border-slate-800 text-[11px]">
-                    <th className="py-2.5 px-4">Request Date</th>
-                    <th className="py-2.5 px-4">Type</th>
-                    <th className="py-2.5 px-4">Reason</th>
-                    <th className="py-2.5 px-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+              <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-505 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-2.5 px-4">Request Date</th>
+                      <th className="py-2.5 px-4">Type</th>
+                      <th className="py-2.5 px-4">Reason</th>
+                      <th className="py-2.5 px-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                     {requests.map((req, idx) => (
                       <tr
                         key={idx}
@@ -923,6 +924,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
             </div>
           </div>
+        </div>
 
         {/* 3. Apply Leave Modal */}
         {showApplyLeaveModal && (
@@ -1286,12 +1288,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     );
   };
 
-  // Fetch daily attendance logs from API when filters change
+  // Fetch daily attendance logs from API when filters change, and poll every 5s for live auto-reflection
   useEffect(() => {
     if (viewMode === "daily" && fetchDailyAttendance) {
       const activeDept =
         activeTab === "teaching" ? teachingDept : nonTeachingDept;
       fetchDailyAttendance(attendanceDate, activeDept);
+
+      const pollInterval = setInterval(() => {
+        fetchDailyAttendance(attendanceDate, activeDept);
+      }, 5000);
+
+      return () => clearInterval(pollInterval);
     }
   }, [
     attendanceDate,
@@ -1321,9 +1329,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Stable hash representation of relevant recorded attendance items to prevent unnecessary reset of edited state maps
   const attendanceHash = useMemo(() => {
-    const relevant = (attendance || []).filter(
-      (r) => r.entityType === "Staff" && r.date === attendanceDate,
-    );
+    const targetDate = String(attendanceDate || "").split("T")[0].split(" ")[0];
+    const relevant = (attendance || []).filter((r) => {
+      const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+      return (!r.entityType || r.entityType.toLowerCase() === "staff") && rDate === targetDate;
+    });
     return JSON.stringify(relevant);
   }, [attendance, attendanceDate]);
 
@@ -1368,16 +1378,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (existing) {
         const normSt = normalizeStatus(existing.status);
         newStatusMap[s.id] = normSt;
-        newInTimeMap[s.id] =
-          existing.inTime ||
-          (normSt === "Present" || normSt === "Late"
-            ? "08:30 AM"
-            : "");
-        newOutTimeMap[s.id] =
-          existing.outTime ||
-          (normSt === "Present" || normSt === "Late"
-            ? "04:30 PM"
-            : "");
+        newInTimeMap[s.id] = existing.inTime || "";
+        newOutTimeMap[s.id] = existing.outTime || "";
         newRemarksMap[s.id] = existing.remarks || "";
       } else if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? "HalfDay" : "Leave";
@@ -1387,8 +1389,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"}`;
       } else {
         newStatusMap[s.id] = "Present";
-        newInTimeMap[s.id] = "08:30 AM";
-        newOutTimeMap[s.id] = "04:30 PM";
+        newInTimeMap[s.id] = "";
+        newOutTimeMap[s.id] = "";
         newRemarksMap[s.id] = "";
       }
     });
