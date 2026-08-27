@@ -306,7 +306,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-3">
                 <button
                   type="submit"
                   disabled={loading}
@@ -320,6 +320,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                     </>
                   )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLoading(true);
+                    await login('admin@pirnav.edu', 'bypass', 'Admin');
+                    addToast('info', 'Offline Admin Mode Active', 'Logged in as Admin (Offline/Dev Mode).');
+                    setLoading(false);
+                  }}
+                  className="w-full py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-300 dark:border-amber-700/60 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  ⚡ Bypass Admin Login (Offline Dev Mode)
                 </button>
               </div>
               

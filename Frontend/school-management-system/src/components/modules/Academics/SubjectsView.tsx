@@ -1088,7 +1088,10 @@ export const SubjectsView: React.FC = () => {
                 >
                   <option value="" disabled>Select Department</option>
                   {departments
-                    .filter(d => d.status === 'Active' || d.departmentName === formData.department)
+                    .filter(d => {
+                      const isNonTeaching = d.category === 'Non-Teaching' || (!d.category && (d.departmentName.toLowerCase().includes('transport') || d.departmentName.toLowerCase().includes('admin') || d.departmentName.toLowerCase().includes('account')));
+                      return (d.status === 'Active' || d.departmentName === formData.department) && !isNonTeaching;
+                    })
                     .map(dept => (
                       <option key={dept.id} value={dept.departmentName}>
                         {dept.departmentName} {dept.departmentCode ? `(${dept.departmentCode})` : ''}

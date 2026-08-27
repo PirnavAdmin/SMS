@@ -20,7 +20,8 @@ type TripStopView = {
   id: string;
   label: string;
   order: number;
-  time: string;
+  morningTime: string;
+  eveningTime: string;
   distanceKm: number;
   status: 'Active' | 'Inactive';
 };
@@ -53,7 +54,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     driverMasters,
     routeMasters,
     pickupPoints,
-    busAttendants
+    busAttendants,
+    vehicleAssignments
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'morning' | 'evening' | 'students' | 'history'>(defaultTab);
@@ -97,61 +99,26 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   let displayStops: TripStopView[] = [];
 
   if (route) {
-    const originName = route.routeStart?.trim() || 'Route Start';
-    const destinationName = route.routeEnd?.trim() || 'School Campus';
-
     if (configuredStops.length > 0) {
-      const hasOrigin = configuredStops.some(p => p.pickupName.toLowerCase() === originName.toLowerCase());
-      const hasDest = configuredStops.some(p => p.pickupName.toLowerCase() === destinationName.toLowerCase());
-
       let seq = 1;
-      if (!hasOrigin) {
-        displayStops.push({
-          id: `origin-${route.id}`,
-          label: originName,
-          order: seq++,
-          time: morningTripTime,
-          distanceKm: 0,
-          status: 'Active'
-        });
-      }
-
       configuredStops.forEach(p => {
         displayStops.push({
           id: p.id,
           label: p.pickupName,
           order: seq++,
-          time: formatTripTime(p.morningPickupTime || p.arrivalTime || morningTripTime),
+          morningTime: formatTripTime(p.morningPickupTime || p.arrivalTime || morningTripTime),
+          eveningTime: formatTripTime(p.eveningDropTime || p.dropTime || eveningTripTime),
           distanceKm: p.distanceFromSchoolKm || 5,
           status: p.status || 'Active'
         });
       });
-
-      if (!hasDest) {
-        displayStops.push({
-          id: `dest-${route.id}`,
-          label: destinationName,
-          order: seq++,
-          time: '08:15 AM',
-          distanceKm: route.totalDistanceKm || 15,
-          status: 'Active'
-        });
-      }
     } else {
-      displayStops = [
-        { id: `origin-${route.id}`, label: originName, order: 1, time: morningTripTime, distanceKm: 0, status: 'Active' },
-        { id: `mid-${route.id}`, label: `${route.routeName} (Waypoint)`, order: 2, time: '07:40 AM', distanceKm: Math.round((route.totalDistanceKm || 10) / 2), status: 'Active' },
-        { id: `dest-${route.id}`, label: destinationName, order: 3, time: '08:15 AM', distanceKm: route.totalDistanceKm || 15, status: 'Active' }
-      ];
+      displayStops = [];
     }
   } else {
-    displayStops = [
-      { id: 'st-1', label: 'School Campus', order: 1, time: morningTripTime, distanceKm: 0, status: 'Active' },
-      { id: 'st-2', label: 'Temple Road', order: 2, time: morningTripTime, distanceKm: 3.5, status: 'Active' },
-      { id: 'st-3', label: 'Bus Stand', order: 3, time: morningTripTime, distanceKm: 7.2, status: 'Active' },
-      { id: 'st-4', label: 'Lakshmi Nagar', order: 4, time: morningTripTime, distanceKm: 12.0, status: 'Active' }
-    ];
+    displayStops = [];
   }
+
   const routeStudents = studentTransports.filter(st => st.routeId === route?.id || st.routeName === route?.routeName);
 
   const assignedStudentsList = routeStudents.map(st => {
@@ -173,15 +140,25 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     };
   });
 
-  const fallbackStudents = [
-    { id: '1', admissionNo: 'ADM2026-413', studentName: 'Ethan Hunt', gender: 'Male' as const, className: 'Class 10', section: 'A', rollNo: '01', pickupPoint: 'Central Park West', parentName: 'John Hunt', parentMobile: '+1 555-019-283', morningTime: morningTripTime, eveningTime: eveningTripTime },
-    { id: '2', admissionNo: 'ADM2026-102', studentName: 'Jane Doe', gender: 'Female' as const, className: 'Class 9', section: 'B', rollNo: '14', pickupPoint: 'Temple Road', parentName: 'Robert Doe', parentMobile: '+1 555-019-284', morningTime: morningTripTime, eveningTime: eveningTripTime },
-    { id: '3', admissionNo: 'ADM2026-204', studentName: 'Rahul Verma', gender: 'Male' as const, className: 'Class 5', section: 'A', rollNo: '12', pickupPoint: 'Temple Road', parentName: 'Suresh Verma', parentMobile: '+1 555-019-285', morningTime: morningTripTime, eveningTime: eveningTripTime },
-    { id: '4', admissionNo: 'ADM2026-305', studentName: 'Anjali Sharma', gender: 'Female' as const, className: 'Class 5', section: 'A', rollNo: '18', pickupPoint: 'Temple Road', parentName: 'Ramesh Sharma', parentMobile: '+1 555-019-286', morningTime: morningTripTime, eveningTime: eveningTripTime },
-    { id: '5', admissionNo: 'ADM2026-109', studentName: 'Kiran Kumar', gender: 'Male' as const, className: 'Class 6', section: 'B', rollNo: '05', pickupPoint: 'Lakshmi Nagar', parentName: 'Venkat Kumar', parentMobile: '+1 555-019-287', morningTime: morningTripTime, eveningTime: eveningTripTime }
-  ];
+  const displayStudentsList = assignedStudentsList;
 
-  const displayStudentsList = assignedStudentsList.length > 0 ? assignedStudentsList : fallbackStudents;
+  const historyLogs = vehicleAssignments.filter(va =>
+    (String(va.vehicleId) === String(assignment.vehicleId) || va.vehicleNumber === assignment.vehicleNumber) &&
+    (va.status === 'Inactive' || (va.status as any) === false || String(va.status).toLowerCase() === 'false')
+  );
+
+  const displayHistoryLogs = historyLogs.map(log => ({
+    date: log.effectiveFrom || 'N/A',
+    veh: log.vehicleNumber,
+    route: log.routeName,
+    driver: log.driverName,
+    att: log.attendantName || 'Unassigned',
+    mStart: formatTripTime(log.morningTripTime || '07:00'),
+    mEnd: formatTripTime(log.morningTripTime || '07:00'),
+    eStart: formatTripTime(log.eveningTripTime || '15:45'),
+    eEnd: formatTripTime(log.eveningTripTime || '15:45'),
+    status: 'Inactive' as const
+  }));
 
   const totalAssignedStudents = displayStudentsList.length;
   const availableSeats = Math.max(0, seatingCapacity - totalAssignedStudents);
@@ -382,74 +359,80 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Morning Pickup Journey Sequence</h3>
                   <p className="text-[11px] text-slate-500">Sequential pickup timeline from origin to school campus arrival</p>
                 </div>
-                <Badge variant="success" size="sm">Morning Departure: {morningTripTime}</Badge>
+                <Badge variant="success" size="sm">Morning Departure: {displayStops.length > 0 ? displayStops[0].morningTime : morningTripTime}</Badge>
               </div>
 
-              <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-sky-200 dark:before:bg-sky-900">
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-sky-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
-                    START
-                  </div>
-                  <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Departure / Depot Origin</span>
-                    <span className="text-xs font-mono font-bold text-sky-600 ml-3">{morningTripTime}</span>
-                  </div>
+              {displayStops.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-slate-400 text-xs font-bold">No pickup points / stops configured for this route yet.</p>
                 </div>
-
-                {displayStops.map(stop => (
-                  <div key={stop.id} className="flex items-start gap-4 relative z-10">
-                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-sky-500 font-mono font-black text-sky-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
-                      #{stop.order}
+              ) : (
+                <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-sky-200 dark:before:bg-sky-900">
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full bg-sky-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
+                      START
                     </div>
+                    <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1">
+                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Departure / Depot Origin</span>
+                      <span className="text-xs font-mono font-bold text-sky-600 ml-3">{displayStops[0].morningTime}</span>
+                    </div>
+                  </div>
 
-                    <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                        <div>
-                          <span className="font-black text-sm text-slate-900 dark:text-white">{stop.label}</span>
-                          <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono font-extrabold text-emerald-600 text-xs flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" /> {stop.time}
-                          </span>
-                          <Badge variant="info" size="sm">{stop.status}</Badge>
-                        </div>
+                  {displayStops.map(stop => (
+                    <div key={stop.id} className="flex items-start gap-4 relative z-10">
+                      <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-sky-500 font-mono font-black text-sky-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
+                        #{stop.order}
                       </div>
 
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Boarding at Stop</span>
-                        {displayStudentsList.filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase())).length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">No Students Assigned</p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {displayStudentsList
-                              .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
-                              .map(student => (
-                                <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
-                                  <div>
-                                    <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
-                                    <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
-                                  </div>
-                                  <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
-                                </div>
-                              ))}
+                      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                          <div>
+                            <span className="font-black text-sm text-slate-900 dark:text-white">{stop.label}</span>
+                            <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
                           </div>
-                        )}
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-extrabold text-emerald-600 text-xs flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" /> {stop.morningTime}
+                            </span>
+                            <Badge variant="info" size="sm">{stop.status}</Badge>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Boarding at Stop</span>
+                          {displayStudentsList.filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase())).length === 0 ? (
+                            <p className="text-xs text-slate-400 italic">No Students Assigned</p>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {displayStudentsList
+                                .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
+                                .map(student => (
+                                  <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
+                                    <div>
+                                      <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
+                                      <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
+                                    </div>
+                                    <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
-                    END
-                  </div>
-                  <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Arrival</span>
-                    <span className="text-xs font-mono font-black text-emerald-600">{morningTripTime}</span>
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
+                      END
+                    </div>
+                    <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
+                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Arrival</span>
+                      <span className="text-xs font-mono font-black text-emerald-600">{displayStops[displayStops.length - 1].morningTime}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -460,74 +443,80 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Evening Return Journey Sequence</h3>
                   <p className="text-[11px] text-slate-500">Reverse drop journey sequence from school campus to student stops</p>
                 </div>
-                <Badge variant="warning" size="sm">Evening Departure: {eveningTripTime}</Badge>
+                <Badge variant="warning" size="sm">Evening Departure: {displayStops.length > 0 ? displayStops[displayStops.length - 1].eveningTime : eveningTripTime}</Badge>
               </div>
 
-              <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-amber-200 dark:before:bg-amber-900">
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-amber-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
-                    START
-                  </div>
-                  <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Departure</span>
-                    <span className="text-xs font-mono font-black text-amber-600">{eveningTripTime}</span>
-                  </div>
+              {displayStops.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-slate-400 text-xs font-bold">No pickup points / stops configured for this route yet.</p>
                 </div>
-
-                {[...displayStops].reverse().map((stop, idx) => (
-                  <div key={stop.id} className="flex items-start gap-4 relative z-10">
-                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-amber-500 font-mono font-black text-amber-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
-                      #{displayStops.length - idx}
+              ) : (
+                <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-amber-200 dark:before:bg-amber-900">
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full bg-amber-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
+                      START
                     </div>
+                    <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
+                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Departure</span>
+                      <span className="text-xs font-mono font-black text-amber-600">{displayStops[displayStops.length - 1].eveningTime}</span>
+                    </div>
+                  </div>
 
-                    <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                        <div>
-                          <span className="font-black text-sm text-slate-900 dark:text-white">{stop.label}</span>
-                          <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono font-extrabold text-sky-600 text-xs flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" /> {eveningTripTime}
-                          </span>
-                          <Badge variant="warning" size="sm">Drop Stop</Badge>
-                        </div>
+                  {[...displayStops].reverse().map((stop, idx) => (
+                    <div key={stop.id} className="flex items-start gap-4 relative z-10">
+                      <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-amber-500 font-mono font-black text-amber-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
+                        #{displayStops.length - idx}
                       </div>
 
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Alighting at Stop</span>
-                        {displayStudentsList.filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase())).length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">No Students Assigned</p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {displayStudentsList
-                              .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
-                              .map(student => (
-                                <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
-                                  <div>
-                                    <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
-                                    <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
-                                  </div>
-                                  <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
-                                </div>
-                              ))}
+                      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                          <div>
+                            <span className="font-black text-sm text-slate-900 dark:text-white">{stop.label}</span>
+                            <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
                           </div>
-                        )}
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-extrabold text-sky-600 text-xs flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" /> {stop.eveningTime}
+                            </span>
+                            <Badge variant="warning" size="sm">Drop Stop</Badge>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Alighting at Stop</span>
+                          {displayStudentsList.filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase())).length === 0 ? (
+                            <p className="text-xs text-slate-400 italic">No Students Assigned</p>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {displayStudentsList
+                                .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
+                                .map(student => (
+                                  <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
+                                    <div>
+                                      <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
+                                      <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
+                                    </div>
+                                    <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
-                    DONE
-                  </div>
-                  <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-white">Trip Completed / Depot Arrival</span>
-                    <span className="text-xs font-mono font-black text-emerald-600">{eveningTripTime}</span>
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
+                      DONE
+                    </div>
+                    <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
+                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">Trip Completed / Depot Arrival</span>
+                      <span className="text-xs font-mono font-black text-emerald-600">{displayStops[0].eveningTime}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -571,38 +560,48 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                 </div>
               </div>
 
-              <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                        <th className="py-3 px-4">Adm No</th>
-                        <th className="py-3 px-4">Student Name</th>
-                        <th className="py-3 px-4">Class-Sec</th>
-                        <th className="py-3 px-4">Pickup Point</th>
-                        <th className="py-3 px-4">Morning Pickup</th>
-                        <th className="py-3 px-4">Evening Drop</th>
-                        <th className="py-3 px-4">Parent Name</th>
-                        <th className="py-3 px-4 text-right">Parent Mobile</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                      {filteredStudents.map(student => (
-                        <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.admissionNo}</td>
-                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
-                          <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{student.className}-{student.section}</td>
-                          <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
-                          <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{student.morningTime}</td>
-                          <td className="py-3 px-4 font-mono text-amber-600 font-bold">{student.eveningTime}</td>
-                          <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{student.parentName}</td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-sky-600">{student.parentMobile}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {displayStudentsList.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-slate-400 text-xs font-bold">No students assigned to this route yet.</p>
                 </div>
-              </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-slate-400 text-xs font-bold">No students match the current filters.</p>
+                </div>
+              ) : (
+                <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                          <th className="py-3 px-4">Adm No</th>
+                          <th className="py-3 px-4">Student Name</th>
+                          <th className="py-3 px-4">Class-Sec</th>
+                          <th className="py-3 px-4">Pickup Point</th>
+                          <th className="py-3 px-4">Morning Pickup</th>
+                          <th className="py-3 px-4">Evening Drop</th>
+                          <th className="py-3 px-4">Parent Name</th>
+                          <th className="py-3 px-4 text-right">Parent Mobile</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                        {filteredStudents.map(student => (
+                          <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                            <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.admissionNo}</td>
+                            <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{student.className}-{student.section}</td>
+                            <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
+                            <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{student.morningTime}</td>
+                            <td className="py-3 px-4 font-mono text-amber-600 font-bold">{student.eveningTime}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{student.parentName}</td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-sky-600">{student.parentMobile}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -613,48 +612,50 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                 <span className="text-xs text-slate-500 font-semibold">Vehicle: {vehicle?.vehicleNumber || assignment.vehicleNumber}</span>
               </div>
 
-              <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                        <th className="py-3.5 px-4">Date</th>
-                        <th className="py-3.5 px-4">Vehicle</th>
-                        <th className="py-3.5 px-4">Route</th>
-                        <th className="py-3.5 px-4">Driver</th>
-                        <th className="py-3.5 px-4">Attendant</th>
-                        <th className="py-3.5 px-4">Morning Start</th>
-                        <th className="py-3.5 px-4">Morning End</th>
-                        <th className="py-3.5 px-4">Evening Start</th>
-                        <th className="py-3.5 px-4">Evening End</th>
-                        <th className="py-3.5 px-4 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                      {[
-                        { date: '28/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: attendantName, mStart: morningTripTime, mEnd: morningTripTime, eStart: eveningTripTime, eEnd: eveningTripTime, status: 'Completed' },
-                        { date: '27/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: attendantName, mStart: morningTripTime, mEnd: morningTripTime, eStart: eveningTripTime, eEnd: eveningTripTime, status: 'Completed' },
-                        { date: '26/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: attendantName, mStart: morningTripTime, mEnd: morningTripTime, eStart: eveningTripTime, eEnd: eveningTripTime, status: 'Completed' }
-                      ].map((log, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <td className="py-3 px-4 font-mono text-slate-500">{log.date}</td>
-                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.veh}</td>
-                          <td className="py-3 px-4 font-bold text-sky-600">{log.route}</td>
-                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driver}</td>
-                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.att}</td>
-                          <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{log.mStart}</td>
-                          <td className="py-3 px-4 font-mono text-emerald-600">{log.mEnd}</td>
-                          <td className="py-3 px-4 font-mono text-amber-600 font-bold">{log.eStart}</td>
-                          <td className="py-3 px-4 font-mono text-amber-600">{log.eEnd}</td>
-                          <td className="py-3 px-4 text-right">
-                            <Badge variant="success" size="sm">{log.status}</Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {displayHistoryLogs.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-slate-400 text-xs font-bold">No previous assignment history logs found for this vehicle.</p>
                 </div>
-              </div>
+              ) : (
+                <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                          <th className="py-3.5 px-4">Date</th>
+                          <th className="py-3.5 px-4">Vehicle</th>
+                          <th className="py-3.5 px-4">Route</th>
+                          <th className="py-3.5 px-4">Driver</th>
+                          <th className="py-3.5 px-4">Attendant</th>
+                          <th className="py-3.5 px-4">Morning Start</th>
+                          <th className="py-3.5 px-4">Morning End</th>
+                          <th className="py-3.5 px-4">Evening Start</th>
+                          <th className="py-3.5 px-4">Evening End</th>
+                          <th className="py-3.5 px-4 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                        {displayHistoryLogs.map((log, index) => (
+                          <tr key={index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                            <td className="py-3 px-4 font-mono text-slate-500">{log.date}</td>
+                            <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.veh}</td>
+                            <td className="py-3 px-4 font-bold text-sky-600">{log.route}</td>
+                            <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driver}</td>
+                            <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.att}</td>
+                            <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{log.mStart}</td>
+                            <td className="py-3 px-4 font-mono text-emerald-600">{log.mEnd}</td>
+                            <td className="py-3 px-4 font-mono text-amber-600 font-bold">{log.eStart}</td>
+                            <td className="py-3 px-4 font-mono text-amber-600">{log.eEnd}</td>
+                            <td className="py-3 px-4 text-right">
+                              <Badge variant="success" size="sm">{log.status}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

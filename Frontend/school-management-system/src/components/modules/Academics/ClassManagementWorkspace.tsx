@@ -20,6 +20,7 @@ import {
   mapSubjectApi, 
   removeSubjectApi, 
   assignTeacherApi,
+  unassignTeacherApi,
   fetchClassStudentsApi, 
   allocateStudentApi, 
   autoAllocateApi 
@@ -1296,15 +1297,24 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     
     let updated: string[];
     if (currentMapped.includes(subjectName)) {
-      // Check if teacher assignments exist for this subject in any section of this class
-      const hasTeacher = teacherAssignments.some(ta => ta.className === activeClass.name && ta.subject === subjectName);
-      if (hasTeacher) {
-        addToast('warning', 'Mapping Locked', `Cannot remove subject ${subjectName} because subject teachers are assigned in sections.`);
-        return;
-      }
-      
       const subObj = subjects.find(s => s.name === subjectName);
       const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
+
+      // Check if teacher assignments exist for this subject in any section of this class
+      const classTeacherAssignments = teacherAssignments.filter(ta => ta.className === activeClass.name && ta.subject === subjectName);
+      if (classTeacherAssignments.length > 0) {
+        addToast('info', 'Unmapping Teachers', `Unassigning subject teachers from sections first...`);
+        try {
+          await Promise.all(classTeacherAssignments.map(async (ta) => {
+            await unassignTeacherApi(activeClass.id, ta.section, numericSubId).catch((err) => {
+              console.error(`Failed to unassign teacher for section ${ta.section}:`, err);
+            });
+            deleteTeacherAssignment(ta.id);
+          }));
+        } catch (error) {
+          console.error('Error unassigning teachers:', error);
+        }
+      }
       
       try {
         const res = await removeSubjectApi(activeClass.id, numericSubId);
@@ -2909,7 +2919,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Total Capacity</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Total Seats</span>
                     <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.totalCapacity}</span>
                   </div>
                 </div>
