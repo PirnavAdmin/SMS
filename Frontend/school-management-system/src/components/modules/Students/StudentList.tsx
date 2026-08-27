@@ -305,12 +305,16 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const teacherAssignedClasses = useMemo(() => {
     let raw = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    if (Array.isArray(raw) && raw.length > 0) return raw;
-    return ['Class 6-A', 'Class 10-A', 'Class 9-B'];
+    const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    if (!list.some((c: string) => c.includes('10'))) list.push('Class 10-A');
+    if (!list.some((c: string) => c.includes('9'))) list.push('Class 9-B');
+    if (!list.some((c: string) => c.includes('6'))) list.push('Class 6-A');
+    return Array.from(new Set(list));
   }, [teacher]);
 
   const [teacherSelectedClass, setTeacherSelectedClass] = useState('All Assigned Classes');
   const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
+  const [teacherHasSearched, setTeacherHasSearched] = useState(false);
   const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
   const teacherPageSize = 9;
 
@@ -587,11 +591,40 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 ))}
               </select>
             </div>
+            {/* Search Data Trigger Button */}
+            <button
+              onClick={() => setTeacherHasSearched(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              <Search className="w-4 h-4" /> Search Data
+            </button>
           </div>
         </div>
 
-        {/* Student Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {!teacherHasSearched ? (
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 my-4 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 bg-sky-50 dark:bg-sky-950/50 rounded-2xl flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
+              <Search className="w-8 h-8 text-sky-600 dark:text-sky-400" />
+            </div>
+            <div className="space-y-1 max-w-md mx-auto">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Select Filters & Click Search Data
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                Please select your desired Class and Section above, then click the <strong className="text-sky-600 dark:text-sky-400 font-extrabold">Search Data</strong> button to view student records.
+              </p>
+            </div>
+            <button
+              onClick={() => setTeacherHasSearched(true)}
+              className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+            >
+              <Search className="w-4 h-4" /> Search Data
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Student Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {paginatedTeacherStudents.length === 0 ? (
             <div className="col-span-full text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
               <Users className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
@@ -718,6 +751,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
           </div>
         )}
+      </>
+    )}
 
         {/* Student Profile Drawer */}
         {selectedStudent && (

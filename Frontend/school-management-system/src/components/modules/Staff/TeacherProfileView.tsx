@@ -292,49 +292,45 @@ export const TeacherProfileView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
       
-      {/* Header Banner & Hero Card - Vibrant Pirnav Brand Sky Blue Theme */}
-      <div className="relative bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-sky-500/20 overflow-hidden border border-sky-400/40">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Header Banner & Hero Card - Compact Vibrant Pirnav Brand Sky Blue Theme */}
+      <div className="relative bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-4 sm:p-5 text-white shadow-md shadow-sky-500/15 overflow-hidden border border-sky-400/40">
+        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         
-        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4">
           <div className="relative group shrink-0">
             <img
               src={activePhoto}
               alt={profile.fullName}
-              className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl object-cover border-4 border-white/20 shadow-2xl"
+              className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl object-cover border-3 border-white/20 shadow-xl"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80';
               }}
             />
-            <span className="absolute bottom-2 right-2 w-4 h-4 bg-emerald-400 border-2 border-white rounded-full shadow" />
+            <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow" />
           </div>
 
-          <div className="flex-1 text-center sm:text-left space-y-2">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{profile.fullName}</h1>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 text-xs font-black uppercase border border-emerald-400/30 backdrop-blur-sm">
+          <div className="flex-1 text-center sm:text-left space-y-1.5">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">{profile.fullName}</h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 text-[10px] font-black uppercase border border-emerald-400/30 backdrop-blur-sm">
                 {profile.employmentStatus || 'ACTIVE'}
               </span>
-              <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-black uppercase border border-white/30 backdrop-blur-sm">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase border border-white/30 backdrop-blur-sm">
                 {profile.profileStatus || 'COMPLETED'}
               </span>
             </div>
 
-            <p className="text-sky-100 font-extrabold text-base sm:text-lg">
+            <p className="text-sky-100 font-extrabold text-xs sm:text-sm">
               {profile.designation} • <span className="text-white font-bold">{profile.department}</span>
             </p>
 
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs sm:text-sm text-sky-100/90 pt-1 font-semibold">
-              <span className="flex items-center gap-1.5 bg-white/10 px-3.5 py-1.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-xs">
-                <Shield className="w-4 h-4 text-sky-200" />
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-sky-100/90 pt-0.5 font-semibold">
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-white/10 shadow-2xs">
+                <Shield className="w-3.5 h-3.5 text-sky-200" />
                 ID: {profile.employeeId}
               </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-3.5 py-1.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-xs">
-                <Building className="w-4 h-4 text-sky-200" />
-                {profile.branch || 'Main Campus'}
-              </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-3.5 py-1.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-xs">
-                <Calendar className="w-4 h-4 text-sky-200" />
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-white/10 shadow-2xs">
+                <Calendar className="w-3.5 h-3.5 text-sky-200" />
                 Joined: {profile.joiningDate}
               </span>
             </div>
@@ -342,9 +338,9 @@ export const TeacherProfileView: React.FC = () => {
 
           <button
             onClick={handleOpenEditModal}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-sky-800 font-black rounded-2xl shadow-lg hover:shadow-xl transition transform active:scale-95 cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-sky-800 font-black rounded-xl text-xs shadow-md hover:shadow-lg transition transform active:scale-95 cursor-pointer whitespace-nowrap self-center sm:self-start"
           >
-            <Edit2 className="w-4 h-4 text-sky-600" />
+            <Edit2 className="w-3.5 h-3.5 text-sky-600" />
             Edit My Profile
           </button>
         </div>

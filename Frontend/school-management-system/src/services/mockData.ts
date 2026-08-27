@@ -11083,7 +11083,30 @@ export const initialExamMarks: ExamMark[] = [
 ];
 
 export const initialTimetable: TimetableSlot[] = [
-  // Jonathan Miller Schedule (Math)
+  // Robert Teacher Schedule (Math & Advanced Algebra - Classes 10-A, 9-B, 6-A)
+  { id: "TT-ROB-M1", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-ROB-M2", day: "Monday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 9", section: "B", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 102", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-ROB-M4", day: "Monday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 6", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 103", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-ROB-M6", day: "Monday", timeSlot: "01:15 PM - 02:00 PM", className: "Class 10", section: "A", subject: "Advanced Algebra", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "13:15", endTime: "14:00" },
+
+  { id: "TT-ROB-T1", day: "Tuesday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 9", section: "B", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 102", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-ROB-T2", day: "Tuesday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-ROB-T5", day: "Tuesday", timeSlot: "11:45 AM - 12:30 PM", className: "Class 6", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 103", startTime: "11:45", endTime: "12:30" },
+
+  { id: "TT-ROB-W1", day: "Wednesday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-ROB-W3", day: "Wednesday", timeSlot: "10:00 AM - 10:45 AM", className: "Class 6", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 103", startTime: "10:00", endTime: "10:45" },
+  { id: "TT-ROB-W6", day: "Wednesday", timeSlot: "01:15 PM - 02:00 PM", className: "Class 9", section: "B", subject: "Advanced Algebra", teacherName: "Robert Teacher", roomNo: "Room 102", startTime: "13:15", endTime: "14:00" },
+
+  { id: "TT-ROB-TH2", day: "Thursday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-ROB-TH4", day: "Thursday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 9", section: "B", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 102", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-ROB-TH7", day: "Thursday", timeSlot: "02:00 PM - 02:45 PM", className: "Class 6", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 103", startTime: "14:00", endTime: "14:45" },
+
+  { id: "TT-ROB-F1", day: "Friday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 6", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 103", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-ROB-F2", day: "Friday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-ROB-F5", day: "Friday", timeSlot: "11:45 AM - 12:30 PM", className: "Class 9", section: "B", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 102", startTime: "11:45", endTime: "12:30" },
+
+  { id: "TT-ROB-S1", day: "Saturday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-ROB-S3", day: "Saturday", timeSlot: "10:00 AM - 10:45 AM", className: "Class 9", section: "B", subject: "Mathematics", teacherName: "Robert Teacher", roomNo: "Room 102", startTime: "10:00", endTime: "10:45" },
   { id: "TT-01", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
   { id: "TT-02", day: "Monday", timeSlot: "10:15 AM - 11:00 AM", className: "Class 11", section: "B", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 104", startTime: "10:15", endTime: "11:00" },
   

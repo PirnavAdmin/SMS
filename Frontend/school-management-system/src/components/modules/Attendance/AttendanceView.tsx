@@ -116,17 +116,15 @@ export const AttendanceView = () => {
     };
   }, [staff, user]);
 
-  // Extract assigned classes/sections for teacher
+  // Extract assigned classes/sections for teacher (Guarantees Class 10, Class 9, Class 6)
   const teacherClasses = useMemo(() => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return [
-        { className: 'Class 10', section: 'A' },
-        { className: 'Class 9', section: 'B' }
-      ];
-    }
-    return raw.map((c: any) => {
+    const initialList = (Array.isArray(raw) && raw.length > 0)
+      ? raw
+      : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+
+    const parsed = initialList.map((c: any) => {
       if (typeof c === 'object' && c !== null) {
         return {
           className: c.class || c.className || 'Class 10',
@@ -148,6 +146,14 @@ export const AttendanceView = () => {
       }
       return { className: 'Class 10', section: 'A' };
     }).filter((c: any) => c.className !== '');
+
+    // Ensure Class 10, Class 9, and Class 6 are ALL explicitly included
+    const existingClasses = parsed.map(p => p.className);
+    if (!existingClasses.includes('Class 10')) parsed.push({ className: 'Class 10', section: 'A' });
+    if (!existingClasses.includes('Class 9')) parsed.push({ className: 'Class 9', section: 'B' });
+    if (!existingClasses.includes('Class 6')) parsed.push({ className: 'Class 6', section: 'A' });
+
+    return parsed;
   }, [dbTeacher]);
 
   const teacherFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : 'Robert Teacher';
@@ -428,8 +434,10 @@ export const AttendanceView = () => {
   // Sync state on mount/assignment change
   useEffect(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      const isAssigned = teacherClasses.some(c => c.className === selectedClass && c.section === selectedSection);
-      if (!isAssigned) {
+      const match = teacherClasses.find(c => c.className === selectedClass);
+      if (match && match.section !== selectedSection) {
+        setSelectedSection(match.section);
+      } else if (!match) {
         setSelectedClass(teacherClasses[0].className);
         setSelectedSection(teacherClasses[0].section);
       }
@@ -437,7 +445,7 @@ export const AttendanceView = () => {
       setSelectedClass('All Classes');
       setSelectedSection('All Sections');
     }
-  }, [isTeacher, teacherClasses]);
+  }, [isTeacher, teacherClasses, selectedClass]);
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -861,8 +869,15 @@ export const AttendanceView = () => {
               <select
                 value={selectedClass}
                 onChange={e => {
-                  setSelectedClass(e.target.value);
-                  const matched = apiClasses.find(c => c.name === e.target.value);
+                  const newClass = e.target.value;
+                  setSelectedClass(newClass);
+                  if (isTeacher && teacherClasses.length > 0) {
+                    const classSec = teacherClasses.find(c => c.className === newClass);
+                    if (classSec) {
+                      setSelectedSection(classSec.section);
+                    }
+                  }
+                  const matched = apiClasses.find(c => c.name === newClass);
                   if (matched) setSelectedClassId(matched.id);
                 }}
                 className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"

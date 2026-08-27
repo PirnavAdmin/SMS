@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
-  FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter,
+  FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter, X,
   User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, ChevronDown, GraduationCap
 } from 'lucide-react';
 import { LeaveApplication, LeaveType, Holiday, Staff } from '../../../types';
@@ -792,6 +792,50 @@ export const LeaveManagementView: React.FC = () => {
                     </tr>
                   );
                 })}
+                {staff
+                  .filter(s => {
+                    if (isTeacher) {
+                      if (teacherStaffMember && s.id === teacherStaffMember.id) return true;
+                      if (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
+                      return false;
+                    }
+                    return `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
+                  })
+                  .map((s, idx) => {
+                    const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                    const totalRemaining = (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{idx + 1}</td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2.5">
+                            {s.avatar ? (
+                              <img
+                                src={s.avatar}
+                                alt=""
+                                className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-sky-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
+                                {(s.firstName?.[0] || 'T').toUpperCase()}
+                              </div>
+                            )}
+                            <div className="text-left">
+                              <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
+                              <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.casual} Days</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.sick} Days</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.paid} Days</td>
+                        <td className="py-3 px-4 font-mono font-black text-brand-600 text-center">{totalRemaining} Days</td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
 
@@ -943,36 +987,45 @@ export const LeaveManagementView: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: APPLY / EDIT LEAVE APPLICATION */}
+      {/* MODAL: APPLY / EDIT LEAVE APPLICATION - COMPACT SINGLE-FRAME */}
       {isApplyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl space-y-2.5 my-auto">
             
-            <div className="flex items-center justify-between pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-brand-600" />
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                 {editingApplication ? 'Edit Leave Application' : 'Apply For Leave'}
               </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsApplyOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <form onSubmit={handleApplySubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleApplySubmit} className="space-y-2.5 text-xs">
               
               {/* Employee Selection */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700">Applicant Employee <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                  Applicant Employee <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 {isTeacher && teacherStaffMember ? (
                   <input
                     type="text"
                     disabled
                     value={`${teacherStaffMember.firstName} ${teacherStaffMember.lastName} (${teacherStaffMember.empId} - ${teacherStaffMember.designation || 'Teacher'})`}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-100 border text-slate-700 font-semibold cursor-not-allowed outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold cursor-not-allowed outline-none text-xs"
                   />
                 ) : (
                   <select
                     required
                     value={applyForm.employeeId}
                     onChange={e => setApplyForm({ ...applyForm, employeeId: e.target.value })}
-                    className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-xs"
                   >
                     <option value="">Select Staff Member</option>
                     {staff.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.empId} - {s.designation})</option>)}
@@ -981,108 +1034,128 @@ export const LeaveManagementView: React.FC = () => {
               </div>
 
               {selectedStaffMember && (
-                <div className="p-3 bg-slate-50 rounded-2xl border grid grid-cols-2 gap-2 text-[10px]">
-                  <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || 'Main Campus'}</span></div>
-                  <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
-                  <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
-                  <div className="col-span-2 pt-1.5 mt-1 border-t text-brand-700 font-bold flex gap-3">
-                    <span>Casual Leave: {selectedStaffMember.leaveBalance?.casual || 0}</span>
-                    <span>Sick Leave: {selectedStaffMember.leaveBalance?.sick || 0}</span>
-                    <span>Paid Leave: {selectedStaffMember.leaveBalance?.paid || 0}</span>
-                  </div>
-                </div>
+                (() => {
+                  const bal = selectedStaffMember.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  return (
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || 'Main Campus'}</span></div>
+                      <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
+                      <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
+                      <div className="col-span-2 pt-1 mt-0.5 border-t border-slate-200 dark:border-slate-700 text-brand-700 dark:text-brand-400 font-bold flex gap-3">
+                        <span>Casual: {bal.casual ?? 10}</span>
+                        <span>Sick: {bal.sick ?? 10}</span>
+                        <span>Paid: {bal.paid ?? 15}</span>
+                      </div>
+                    </div>
+                  );
+                })()
               )}
 
-              {/* Leave Type */}
-              <div>
-                <label className="block font-semibold mb-1 text-slate-700">Leave Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <select
-                  required
-                  value={applyForm.leaveTypeId}
-                  onChange={e => setApplyForm({ ...applyForm, leaveTypeId: e.target.value })}
-                  className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
-                >
-                  <option value="">Select Leave Type</option>
-                  {activeLeaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
-                </select>
+              {/* Leave Type & Half Day Inline */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                    Leave Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select
+                    required
+                    value={applyForm.leaveTypeId}
+                    onChange={e => setApplyForm({ ...applyForm, leaveTypeId: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-xs"
+                  >
+                    <option value="">Select Leave Type</option>
+                    {activeLeaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                    Duration Type
+                  </label>
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 dark:text-slate-300 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={applyForm.isHalfDay}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setApplyForm({
+                            ...applyForm,
+                            isHalfDay: checked,
+                            toDate: checked ? applyForm.fromDate : applyForm.toDate
+                          });
+                        }}
+                        className="rounded text-brand-600"
+                      />
+                      <span>Half Day</span>
+                    </label>
+
+                    {applyForm.isHalfDay && (
+                      <select
+                        value={applyForm.halfDayPeriod}
+                        onChange={e => setApplyForm({ ...applyForm, halfDayPeriod: e.target.value as any })}
+                        className="px-2 py-0.5 text-[10px] rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer outline-none font-bold"
+                      >
+                        <option value="First Half">First Half</option>
+                        <option value="Second Half">Second Half</option>
+                      </select>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700">From Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                    From Date <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="date"
                     required
                     value={applyForm.fromDate}
                     onChange={e => setApplyForm({ ...applyForm, fromDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700">To Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                    To Date <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="date"
                     required
                     value={applyForm.toDate}
                     disabled={applyForm.isHalfDay}
                     onChange={e => setApplyForm({ ...applyForm, toDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
 
-              {/* Half Day Option */}
-              <div className="flex items-center gap-4 py-1">
-                <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={applyForm.isHalfDay}
-                    onChange={e => {
-                      const checked = e.target.checked;
-                      setApplyForm({
-                        ...applyForm,
-                        isHalfDay: checked,
-                        toDate: checked ? applyForm.fromDate : applyForm.toDate
-                      });
-                    }}
-                    className="rounded text-brand-600"
-                  />
-                  <span>Apply Half Day Leave</span>
-                </label>
-
-                {applyForm.isHalfDay && (
-                  <select
-                    value={applyForm.halfDayPeriod}
-                    onChange={e => setApplyForm({ ...applyForm, halfDayPeriod: e.target.value as any })}
-                    className="pl-2.5 pr-7 py-1 text-[11px] rounded-lg bg-slate-50 border cursor-pointer outline-none"
-                  >
-                    <option value="First Half">First Half Session</option>
-                    <option value="Second Half">Second Half Session</option>
-                  </select>
-                )}
-              </div>
-
               {/* Reason */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700">Reason for Request <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
+                  Reason for Request <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <textarea
                   required
                   placeholder="Explain why you are applying for leave..."
                   value={applyForm.reason}
                   onChange={e => setApplyForm({ ...applyForm, reason: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border h-20 resize-none outline-none"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-14 resize-none outline-none text-xs"
                 />
               </div>
 
-              {/* Submissions */}
-              <div className="flex items-center justify-between pt-3">
-                <span className="font-bold text-slate-900 text-[11px]">
-                  Total Leave duration: <span className="text-sky-600">{requestedDays} Days</span>
+              {/* Submissions Footer */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="font-bold text-slate-900 dark:text-white text-[11px]">
+                  Total duration: <span className="text-sky-600 font-extrabold">{requestedDays} Days</span>
                 </span>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setIsApplyOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                  <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-md">
-                    {editingApplication ? 'Save Changes' : 'Submit Leave Request'}
+                  <button type="button" onClick={() => setIsApplyOpen(false)} className="px-3.5 py-1.5 font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs transition-colors">Cancel</button>
+                  <button type="submit" className="px-4 py-1.5 font-extrabold text-white bg-brand-600 hover:bg-brand-500 rounded-lg text-xs shadow-md transition-all active:scale-95">
+                    {editingApplication ? 'Save Changes' : 'Submit Request'}
                   </button>
                 </div>
               </div>
