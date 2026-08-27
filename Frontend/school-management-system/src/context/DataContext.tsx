@@ -1266,6 +1266,7 @@ interface DataContextType {
   deleteUniformInventory: (id: string) => void;
 
   studentUniformIssues: StudentUniformIssue[];
+  setStudentUniformIssues: React.Dispatch<React.SetStateAction<StudentUniformIssue[]>>;
   addStudentUniformIssue: (issue: Omit<StudentUniformIssue, "id">) => void;
   updateStudentUniformIssue: (
     id: string,
@@ -2504,23 +2505,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("tc_register", []),
   );
   const [students, setStudents] = useState<Student[]>(() => {
-    const hasSyncedOnlyEnrolled = localStorage.getItem(
-      "edu_db_students_enrolled_only_v8",
-    );
-    if (!hasSyncedOnlyEnrolled) {
-      localStorage.setItem("edu_db_students_enrolled_only_v8", "true");
+    const versionKey = "edu_db_students_enrolled_only_v14_configured_classes";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
       localStorage.setItem("students", JSON.stringify(initialStudents));
       return initialStudents;
     }
     const stored = getStored("students", initialStudents);
-    const version = localStorage.getItem("edu_db_full_data_v60");
-    if (!version || stored.length < initialStudents.length) {
-      localStorage.setItem("edu_db_full_data_v60", "true");
-      localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
-      localStorage.setItem("students", JSON.stringify(initialStudents));
-      return initialStudents;
-    }
     return stored && stored.length > 0 ? stored : initialStudents;
   });
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
@@ -2528,11 +2520,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("edu_db_staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => {
-    const hasSyncedOnlyEnrolled = localStorage.getItem(
-      "edu_db_admissions_enrolled_only_v8",
-    );
-    if (!hasSyncedOnlyEnrolled) {
-      localStorage.setItem("edu_db_admissions_enrolled_only_v8", "true");
+    const versionKey = "edu_db_admissions_enrolled_only_v14_configured_classes";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
       localStorage.setItem(
         "edu_db_admissions",
         JSON.stringify(initialAdmissions),
@@ -2593,32 +2583,244 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (stored && stored.length > 0) {
       return stored;
     }
-    const initialIds = new Set([
-      "UNI-01",
-      "UNI-02",
-      "UNI-03",
-      "UNI-04",
-      "UNI-05",
-      "UNI-06",
-    ]);
-    const sanitizePrice = (u: UniformItem): UniformItem => {
-      let p = u.price;
-      const nameLower = (u.name || u.category || "").toLowerCase();
-      if (nameLower.includes("blazer") && (p < 500 || p === 85)) p = 1500;
-      else if (nameLower.includes("shirt") && (p < 100 || p === 35)) p = 350;
-      else if (nameLower.includes("tracksuit") && p < 300) p = 1200;
-      else if (
-        nameLower.includes("pant") ||
-        nameLower.includes("trouser") ||
-        nameLower.includes("skirt")
-      ) {
-        if (p < 200) p = 500;
+    const defaultSeedItems: UniformItem[] = [
+      // Shirt
+      { id: 'UNI-SHIRT-S', category: 'Shirt', name: 'Shirt', size: 'S', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
+      { id: 'UNI-SHIRT-M', category: 'Shirt', name: 'Shirt', size: 'M', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
+      { id: 'UNI-SHIRT-L', category: 'Shirt', name: 'Shirt', size: 'L', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
+
+      // Pant
+      { id: 'UNI-PANT-S', category: 'Pant', name: 'Pant', size: 'S', gender: 'Male', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-PANT-M', category: 'Pant', name: 'Pant', size: 'M', gender: 'Male', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-PANT-L', category: 'Pant', name: 'Pant', size: 'L', gender: 'Male', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+
+      // Skirt
+      { id: 'UNI-SKIRT-S', category: 'Skirt', name: 'Skirt', size: 'S', gender: 'Female', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-SKIRT-M', category: 'Skirt', name: 'Skirt', size: 'M', gender: 'Female', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-SKIRT-L', category: 'Skirt', name: 'Skirt', size: 'L', gender: 'Female', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+
+      // Sports Dress
+      { id: 'UNI-SPORTS-S', category: 'Sports Dress', name: 'Sports Dress', size: 'S', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-SPORTS-M', category: 'Sports Dress', name: 'Sports Dress', size: 'M', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-SPORTS-L', category: 'Sports Dress', name: 'Sports Dress', size: 'L', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+
+      // Cap
+      { id: 'UNI-CAP-S', category: 'Cap', name: 'Cap', size: 'S', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
+      { id: 'UNI-CAP-M', category: 'Cap', name: 'Cap', size: 'M', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
+      { id: 'UNI-CAP-L', category: 'Cap', name: 'Cap', size: 'L', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
+
+      // Sports Tracksuit Kit
+      { id: 'UNI-TRACK-S', category: 'Sports Tracksuit Kit', name: 'Sports Tracksuit Kit', size: 'S', gender: 'Unisex', className: 'All Wings', price: 1200, availableStock: 100, isPackage: false },
+      { id: 'UNI-TRACK-M', category: 'Sports Tracksuit Kit', name: 'Sports Tracksuit Kit', size: 'M', gender: 'Unisex', className: 'All Wings', price: 1200, availableStock: 100, isPackage: false },
+      { id: 'UNI-TRACK-L', category: 'Sports Tracksuit Kit', name: 'Sports Tracksuit Kit', size: 'L', gender: 'Unisex', className: 'All Wings', price: 1200, availableStock: 100, isPackage: false },
+
+      // Socks (Pair)
+      { id: 'UNI-SOCKS-S', category: 'Socks (Pair)', name: 'Socks (Pair)', size: 'S', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
+      { id: 'UNI-SOCKS-M', category: 'Socks (Pair)', name: 'Socks (Pair)', size: 'M', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
+      { id: 'UNI-SOCKS-L', category: 'Socks (Pair)', name: 'Socks (Pair)', size: 'L', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
+
+      // Black Shoes (Pair)
+      { id: 'UNI-SHOES-S', category: 'Black Shoes (Pair)', name: 'Black Shoes (Pair)', size: 'S', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
+      { id: 'UNI-SHOES-M', category: 'Black Shoes (Pair)', name: 'Black Shoes (Pair)', size: 'M', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
+      { id: 'UNI-SHOES-L', category: 'Black Shoes (Pair)', name: 'Black Shoes (Pair)', size: 'L', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
+
+      // Tie & Crest
+      { id: 'UNI-TIE-S', category: 'Tie & Crest', name: 'Tie & Crest', size: 'S', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
+      { id: 'UNI-TIE-M', category: 'Tie & Crest', name: 'Tie & Crest', size: 'M', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
+      { id: 'UNI-TIE-L', category: 'Tie & Crest', name: 'Tie & Crest', size: 'L', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
+
+      // Belt
+      { id: 'UNI-BELT-S', category: 'Belt', name: 'Belt', size: 'S', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
+      { id: 'UNI-BELT-M', category: 'Belt', name: 'Belt', size: 'M', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
+      { id: 'UNI-BELT-L', category: 'Belt', name: 'Belt', size: 'L', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
+
+      // Cloth (meterage)
+      { id: 'UNI-CLOTH-10', category: 'Cloth', name: 'Cloth', size: '1.0m - 1.5m', meterRange: '1.0m - 1.5m', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
+      { id: 'UNI-CLOTH-15', category: 'Cloth', name: 'Cloth', size: '1.5m - 2.0m', meterRange: '1.5m - 2.0m', gender: 'Unisex', className: 'All Wings', price: 400, availableStock: 100, isPackage: false },
+      { id: 'UNI-CLOTH-20', category: 'Cloth', name: 'Cloth', size: '2.0m - 2.5m', meterRange: '2.0m - 2.5m', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
+      { id: 'UNI-CLOTH-25', category: 'Cloth', name: 'Cloth', size: '2.5m - 3.0m', meterRange: '2.5m - 3.0m', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
+
+      // Boys Uniform Package(Base Admission kit)
+      {
+        id: 'UNI-PKG-BOYS-S',
+        category: 'Boys Uniform Package(Base Admission kit)',
+        name: 'Boys Uniform Package(Base Admission kit)',
+        size: 'S',
+        gender: 'Male',
+        className: 'All Wings',
+        price: 3000,
+        availableStock: 150,
+        isPackage: true,
+        packageComponents: [
+          { categoryName: 'Shirt', quantity: '2', size: 'S' },
+          { categoryName: 'Pant', quantity: '2', size: 'S' },
+          { categoryName: 'Cap', quantity: '1', size: 'S' },
+          { categoryName: 'Socks (Pair)', quantity: '1', size: 'S' },
+          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'S' },
+          { categoryName: 'Tie & Crest', quantity: '1', size: 'S' },
+          { categoryName: 'Belt', quantity: '1', size: 'S' }
+        ]
+      },
+      {
+        id: 'UNI-PKG-BOYS-M',
+        category: 'Boys Uniform Package(Base Admission kit)',
+        name: 'Boys Uniform Package(Base Admission kit)',
+        size: 'M',
+        gender: 'Male',
+        className: 'All Wings',
+        price: 3000,
+        availableStock: 150,
+        isPackage: true,
+        packageComponents: [
+          { categoryName: 'Shirt', quantity: '2', size: 'M' },
+          { categoryName: 'Pant', quantity: '2', size: 'M' },
+          { categoryName: 'Cap', quantity: '1', size: 'M' },
+          { categoryName: 'Socks (Pair)', quantity: '1', size: 'M' },
+          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'M' },
+          { categoryName: 'Tie & Crest', quantity: '1', size: 'M' },
+          { categoryName: 'Belt', quantity: '1', size: 'M' }
+        ]
+      },
+      {
+        id: 'UNI-PKG-BOYS-L',
+        category: 'Boys Uniform Package(Base Admission kit)',
+        name: 'Boys Uniform Package(Base Admission kit)',
+        size: 'L',
+        gender: 'Male',
+        className: 'All Wings',
+        price: 3000,
+        availableStock: 150,
+        isPackage: true,
+        packageComponents: [
+          { categoryName: 'Shirt', quantity: '2', size: 'L' },
+          { categoryName: 'Pant', quantity: '2', size: 'L' },
+          { categoryName: 'Cap', quantity: '1', size: 'L' },
+          { categoryName: 'Socks (Pair)', quantity: '1', size: 'L' },
+          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'L' },
+          { categoryName: 'Tie & Crest', quantity: '1', size: 'L' },
+          { categoryName: 'Belt', quantity: '1', size: 'L' }
+        ]
+      },
+
+      // Girls Uniform Package(Base Admission kit)
+      {
+        id: 'UNI-PKG-GIRLS-S',
+        category: 'Girls Uniform Package(Base Admission kit)',
+        name: 'Girls Uniform Package(Base Admission kit)',
+        size: 'S',
+        gender: 'Female',
+        className: 'All Wings',
+        price: 3000,
+        availableStock: 150,
+        isPackage: true,
+        packageComponents: [
+          { categoryName: 'Shirt', quantity: '2', size: 'S' },
+          { categoryName: 'Skirt', quantity: '2', size: 'S' },
+          { categoryName: 'Cap', quantity: '1', size: 'S' },
+          { categoryName: 'Socks (Pair)', quantity: '1', size: 'S' },
+          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'S' },
+          { categoryName: 'Tie & Crest', quantity: '1', size: 'S' },
+          { categoryName: 'Belt', quantity: '1', size: 'S' }
+        ]
+      },
+      {
+        id: 'UNI-PKG-GIRLS-M',
+        category: 'Girls Uniform Package(Base Admission kit)',
+        name: 'Girls Uniform Package(Base Admission kit)',
+        size: 'M',
+        gender: 'Female',
+        className: 'All Wings',
+        price: 3000,
+        availableStock: 150,
+        isPackage: true,
+        packageComponents: [
+          { categoryName: 'Shirt', quantity: '2', size: 'M' },
+          { categoryName: 'Skirt', quantity: '2', size: 'M' },
+          { categoryName: 'Cap', quantity: '1', size: 'M' },
+          { categoryName: 'Socks (Pair)', quantity: '1', size: 'M' },
+          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'M' },
+          { categoryName: 'Tie & Crest', quantity: '1', size: 'M' },
+          { categoryName: 'Belt', quantity: '1', size: 'M' }
+        ]
+      },
+      {
+        id: 'UNI-PKG-GIRLS-L',
+        category: 'Girls Uniform Package(Base Admission kit)',
+        name: 'Girls Uniform Package(Base Admission kit)',
+        size: 'L',
+        gender: 'Female',
+        className: 'All Wings',
+        price: 3000,
+        availableStock: 150,
+        isPackage: true,
+        packageComponents: [
+          { categoryName: 'Shirt', quantity: '2', size: 'L' },
+          { categoryName: 'Skirt', quantity: '2', size: 'L' },
+          { categoryName: 'Cap', quantity: '1', size: 'L' },
+          { categoryName: 'Socks (Pair)', quantity: '1', size: 'L' },
+          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'L' },
+          { categoryName: 'Tie & Crest', quantity: '1', size: 'L' },
+          { categoryName: 'Belt', quantity: '1', size: 'L' }
+        ]
       }
-      return { ...u, price: p };
-    };
-    const sanitized = (initialUniforms || []).map(sanitizePrice);
-    localStorage.setItem("edu_db_uniforms", JSON.stringify(sanitized));
-    return sanitized;
+    ];
+
+    const initFlagKey = "edu_db_uniforms_initialized_v9900_boys_girls_pkg_kept";
+    if (!localStorage.getItem(initFlagKey)) {
+      localStorage.setItem(initFlagKey, "true");
+      localStorage.setItem("edu_db_uniforms", JSON.stringify(defaultSeedItems));
+      localStorage.setItem("uniforms", JSON.stringify(defaultSeedItems));
+      return defaultSeedItems;
+    }
+
+    const saved = localStorage.getItem("edu_db_uniforms") || localStorage.getItem("uniforms");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sanitized = parsed
+            .filter((u: any) => {
+              if (!u) return false;
+              const catLower = (u.category || u.name || '').toLowerCase().trim();
+              const szLower = (u.size || '').toLowerCase();
+              // Remove ONLY generic standalone "Uniform Package" items (without Boys or Girls)
+              if ((catLower === 'uniform package' || catLower === 'package') && !catLower.includes('boys') && !catLower.includes('girls')) {
+                return false;
+              }
+              // Remove rogue Cloth Medium / M items
+              if ((catLower.includes('cloth') || catLower.includes('fabric')) && (szLower === 'medium' || szLower === 'm' || !u.size || (!u.size.includes('m') && !u.meterRange))) {
+                return false;
+              }
+              return true;
+            })
+            .map((u: any) => {
+              if (!u) return u;
+              const catLower = (u.category || u.name || '').toLowerCase();
+              if (catLower.includes('cloth') || catLower.includes('fabric')) {
+                return {
+                  ...u,
+                  openingStock: 100,
+                  availableStock: Math.min(100, Number(u.availableStock ?? 100))
+                };
+              }
+              return u;
+            });
+
+          try {
+            localStorage.setItem("edu_db_uniforms", JSON.stringify(sanitized));
+            localStorage.setItem("uniforms", JSON.stringify(sanitized));
+          } catch (e) {}
+          return sanitized;
+        }
+      } catch (e) {}
+    }
+
+    try {
+      localStorage.setItem("edu_db_uniforms", JSON.stringify(defaultSeedItems));
+      localStorage.setItem("uniforms", JSON.stringify(defaultSeedItems));
+    } catch (e) {}
+
+    return defaultSeedItems;
   });
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() =>
     getStored("custom_roles", initialCustomRoles),
@@ -2626,9 +2828,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(() =>
     getStored("fee_structures", initialFeeStructures),
   );
-  const [feePayments, setFeePayments] = useState<FeePayment[]>(() =>
-    getStored("fee_payments", initialFeePayments),
-  );
+  const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
+    const versionKey = "edu_db_fee_payments_wipe_uniform_v600";
+    const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
+    const cleaned = (stored || []).filter(p => {
+      if (!p) return false;
+      const notesLower = (p.notes || '').toLowerCase();
+      const recLower = (p.receiptNo || '').toLowerCase();
+      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || '').toLowerCase().includes('uniform'));
+      const isUniformPayment = notesLower.includes('uniform') || recLower.includes('uni') || hasAlloc;
+      return !isUniformPayment;
+    });
+
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.setItem("edu_db_fee_payments", JSON.stringify(cleaned));
+      localStorage.setItem("fee_payments", JSON.stringify(cleaned));
+    }
+    return cleaned;
+  });
   const [attendance, setAttendance] = useState<DailyAttendance[]>(() =>
     getStored("attendance", []),
   );
@@ -2850,9 +3068,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     },
   );
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => {
-    const vKey = "edu_db_uniform_sizes_v20";
-    const hasV20 = localStorage.getItem(vKey);
-    if (!hasV20) {
+    const vKey = "edu_db_uniform_sizes_v21";
+    const hasV21 = localStorage.getItem(vKey);
+    if (!hasV21) {
       localStorage.setItem(vKey, "true");
       localStorage.setItem(
         "edu_db_uniform_sizes",
@@ -2924,13 +3142,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [uniformInventory, setUniformInventory] = useState<
     UniformInventoryItem[]
   >(() => {
+    const versionKey = "edu_db_uniform_inventory_reset_cloth_v101";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.removeItem("edu_db_uniform_inventory");
+      localStorage.removeItem("uniform_inventory");
+    }
     try {
       const saved =
         localStorage.getItem("edu_db_uniform_inventory") ||
         localStorage.getItem("uniform_inventory");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed
+            .filter(inv => {
+              if (!inv) return false;
+              const catLower = (inv.category || inv.itemName || '').toLowerCase().trim();
+              const szLower = (inv.size || '').toLowerCase();
+              if ((catLower === 'uniform package' || catLower === 'package') && !catLower.includes('boys') && !catLower.includes('girls')) {
+                return false;
+              }
+              if ((catLower.includes('cloth') || catLower.includes('fabric')) && (szLower === 'medium' || szLower === 'm')) {
+                return false;
+              }
+              return true;
+            })
+            .map(inv => {
+              if (!inv) return inv;
+              const catLower = (inv.category || inv.itemName || '').toLowerCase();
+              if (catLower.includes('cloth') || catLower.includes('fabric')) {
+                return {
+                  ...inv,
+                  openingStock: 100,
+                  currentStock: Math.min(100, Number(inv.currentStock ?? 100)),
+                  status: 'In Stock'
+                };
+              }
+              return inv;
+            });
+        }
       }
     } catch (e) {
       console.warn("Failed to load uniform_inventory from localStorage", e);
@@ -2946,6 +3197,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
+    const versionKey = "edu_db_student_uniform_issues_wipe_v9500_fresh_wipe";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
+      localStorage.setItem("student_uniform_issues", JSON.stringify([]));
+      return [];
+    }
     try {
       const saved =
         localStorage.getItem("edu_db_student_uniform_issues") ||
@@ -3559,6 +3817,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     localStorage.setItem("edu_db_uniforms", JSON.stringify(uniforms));
   }, [uniforms]);
+
+  // Auto-reconcile uniform package stocks in real-time based on active non-returned student uniform issues
+  useEffect(() => {
+    if (!studentUniformIssues || studentUniformIssues.length === 0) return;
+
+    setUniforms((prevU) => {
+      let changed = false;
+      const reconciled = prevU.map((u) => {
+        const isPkg = u.isPackage || (u.category || "").toLowerCase().includes("package");
+        if (!isPkg) return u;
+
+        const opening = u.openingStock !== undefined ? u.openingStock : (u.initialStock !== undefined ? u.initialStock : 150);
+        const uCatClean = (u.category || u.name || "").toLowerCase().trim();
+        const uSizeClean = (u.size || "").toLowerCase().trim();
+
+        const activeCount = studentUniformIssues.reduce((sum, issue) => {
+          if (!issue || issue.status === "Returned" || (issue.notes || "").toLowerCase().includes("returned")) {
+            return sum;
+          }
+          const iCatClean = (issue.itemName || "").replace(/\s*\(extra\)/gi, "").toLowerCase().trim();
+          const iSizeClean = (issue.size || "").toLowerCase().trim();
+
+          const isCatMatch = iCatClean === uCatClean || uCatClean.includes(iCatClean) || iCatClean.includes(uCatClean);
+          const isSizeMatch = !uSizeClean || !iSizeClean || uSizeClean === iSizeClean;
+
+          if (isCatMatch && isSizeMatch) {
+            return sum + (issue.quantity || 1);
+          }
+          return sum;
+        }, 0);
+
+        const correctAvail = Math.max(0, opening - activeCount);
+        if (u.availableStock !== correctAvail) {
+          changed = true;
+          return { ...u, availableStock: correctAvail };
+        }
+        return u;
+      });
+
+      return changed ? reconciled : prevU;
+    });
+  }, [studentUniformIssues]);
+
   useEffect(() => {
     localStorage.setItem("edu_db_custom_roles", JSON.stringify(customRoles));
   }, [customRoles]);
@@ -3877,7 +4178,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [financeUniformConfigs]);
 
-  // Auto-sync uniform inventory items with uniforms list, deduplicate, and sanitize
+  // Persist Uniform ERP State
   useEffect(() => {
     setUniformInventory((prevInv) => {
       if (!prevInv) return [];
@@ -4039,22 +4340,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [uniformCategories, financeUniformConfigs]);
 
-  // Auto-sync uniformInventory with uniforms list (Strict deduplication)
+  // Auto-sync uniformInventory with uniforms list (Strict deduplication - preserves saved stock)
   useEffect(() => {
     if (!uniforms || uniforms.length === 0) return;
 
-    const validItems = uniforms
-      .map((u) => ({
-        id: u.id,
-        name: u.category || u.name || "",
-        norm: (u.category || u.name || "").toLowerCase().trim(),
-        stock: u.availableStock !== undefined ? Number(u.availableStock) : 100,
-      }))
-      .filter((x) => x.name !== "");
-
-    const validNorms = new Set(validItems.map((x) => x.norm));
-
     setUniformInventory((prevInv) => {
+      // If uniformInventory already exists and has stock data, keep it stable (don't fluctuate on refresh)
+      if (prevInv && prevInv.length > 0) return prevInv;
+
+      const validItems = uniforms.map(u => ({
+        id: u.id,
+        name: u.category || u.name || '',
+        norm: (u.category || u.name || '').toLowerCase().trim(),
+        stock: u.availableStock !== undefined ? Number(u.availableStock) : 100
+      })).filter(x => x.name !== '');
+
+      const validNorms = new Set(validItems.map(x => x.norm));
       const seenNorms = new Set<string>();
       const deduplicated: UniformInventoryItem[] = [];
 
@@ -4686,6 +4987,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(studentAttendance),
     );
   }, [studentAttendance]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_uniforms", JSON.stringify(uniforms));
+    localStorage.setItem("uniforms", JSON.stringify(uniforms));
+  }, [uniforms]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(studentUniformIssues));
+    localStorage.setItem("student_uniform_issues", JSON.stringify(studentUniformIssues));
+  }, [studentUniformIssues]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(financeUniformConfigs));
+    localStorage.setItem("finance_uniform_configs", JSON.stringify(financeUniformConfigs));
+  }, [financeUniformConfigs]);
   useEffect(() => {
     localStorage.setItem(
       "edu_db_co_scholastic_assessments",
@@ -5443,10 +5759,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : "Additional Purchase",
           price: Number(d.totalAmount || 0),
         }));
+        const deletedTrack = new Set(JSON.parse(localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]"));
+        const validMappedDists = mappedDists.filter((d: any) => !deletedTrack.has(d.id));
         setStudentUniformIssues((prev) => {
-          const apiIds = new Set(mappedDists.map((d: any) => d.id));
-          const localOnly = (prev || []).filter((d: any) => !apiIds.has(d.id));
-          return [...mappedDists, ...localOnly];
+          const apiIds = new Set(validMappedDists.map((d: any) => d.id));
+          const localOnly = (prev || []).filter((d: any) => !apiIds.has(d.id) && !deletedTrack.has(d.id));
+          return [...validMappedDists, ...localOnly];
         });
       }
     } catch (err) {
@@ -7971,6 +8289,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const id = "UNI-" + Date.now();
     const createdAt = new Date().toISOString();
     const catName = itemData.category || itemData.name || "Uniform Item";
+    const stockVal = itemData.availableStock !== undefined ? Number(itemData.availableStock) : (itemData.openingStock !== undefined ? Number((itemData as any).openingStock) : 150);
     const newItem: UniformItem = {
       ...itemData,
       id,
@@ -7979,31 +8298,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     setUniforms((prev) => [newItem, ...prev]);
 
-    // Automatically sync with uniformCategories so it appears in category lists & dropdowns
-    setUniformCategories((prev) => {
-      if (
-        prev.some(
-          (c) => c.name === catName || (c as any).categoryName === catName,
-        )
-      )
-        return prev;
-      const ucId = "UC-" + Date.now();
-      return [
-        {
-          id: ucId,
-          createdAt,
-          name: catName,
-          categoryName: catName,
-          description: `Uniform ${catName}`,
-          status: "Active",
-          branch: (itemData as any).branch || selectedBranch || "Main Campus",
-        } as any,
-        ...prev,
-      ];
-    });
-
     // Automatically sync with uniformInventory so Dashboard Available Stock updates immediately
-    const stockVal = Number(itemData.availableStock) || 0;
     const invId = "UINV-" + Math.floor(100 + Math.random() * 900);
     const newInvItem: UniformInventoryItem = {
       id: invId,
@@ -14939,57 +15234,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: (cData as any).branch || selectedBranch || "Main Campus",
     };
     setUniformCategories((prev) => [newCat as any, ...prev]);
-
-    // Automatically sync with uniforms list so it shows in all uniform configuration dropdowns immediately
-    setUniforms((prev) => {
-      if (prev.some((u) => u.category === catName || u.name === catName))
-        return prev;
-      const uId = "UNI-" + Date.now();
-      const isPkg = catName.includes("Package") || catName.includes("Kit");
-      return [
-        {
-          id: uId,
-          createdAt,
-          category: catName,
-          name: catName,
-          gender: catName.toLowerCase().includes("boys")
-            ? "Male"
-            : catName.toLowerCase().includes("girls")
-              ? "Female"
-              : "Unisex",
-          size: "M",
-          className: "All Wings",
-          color: "Standard",
-          price: isPkg ? 3000 : 350,
-          availableStock: 50,
-          branch: selectedBranch || "Main Campus",
-        },
-        ...prev,
-      ];
-    });
-
-    setUniformInventory((prev) => {
-      if (prev.some((i) => i.itemName === catName || i.category === catName))
-        return prev;
-      const invId = "UINV-" + Date.now();
-      return [
-        {
-          id: invId,
-          createdAt,
-          itemId: "UNI-" + Date.now(),
-          itemName: catName,
-          category: catName,
-          size: "M",
-          openingStock: 50,
-          currentStock: 50,
-          minimumStock: 10,
-          reorderLevel: 15,
-          status: "In Stock",
-          branch: selectedBranch || "Main Campus",
-        } as any,
-        ...prev,
-      ];
-    });
   };
   const updateUniformCategory = (
     id: string,
@@ -15215,24 +15459,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           Boolean(issueData.itemId && u.id === issueData.itemId),
         );
         if (idx === -1 && issueItemName) {
+          const normIssueSize = (issueData.size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
           idx = prevU.findIndex((u) => {
-            const uCat = (u.category || "").toLowerCase().trim();
-            const uName = (u.name || "").toLowerCase().trim();
-            return (
-              uCat === issueItemName ||
-              uName === issueItemName ||
-              uCat.includes(issueItemName) ||
-              issueItemName.includes(uCat)
-            );
+            const uCat = (u.category || u.name || "").toLowerCase().trim();
+            const isCatMatch = uCat === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
+            if (!isCatMatch) return false;
+            if (normIssueSize) {
+              const uSizeNorm = (u.size || (u as any).meterRange || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+              return uSizeNorm === normIssueSize || uSizeNorm.includes(normIssueSize) || normIssueSize.includes(uSizeNorm);
+            }
+            return true;
           });
         }
         if (idx === -1) return prevU;
         return prevU.map((u, index) => {
           if (index === idx) {
-            const nextAvail =
-              calculatedNewStock !== null
-                ? calculatedNewStock
-                : Math.max(0, (u.availableStock || 0) - issueData.quantity);
+            const nextAvail = Math.max(0, (u.availableStock || 0) - issueData.quantity);
             return { ...u, availableStock: nextAvail };
           }
           return u;
@@ -15262,13 +15504,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<StudentUniformIssue>,
   ) => {
-    const issueToUpdate = studentUniformIssues.find((i) => i.id === id);
-    if (!issueToUpdate) {
-      setStudentUniformIssues((prev) =>
-        prev.map((issue) =>
-          issue.id === id ? { ...issue, ...updates } : issue,
-        ),
+    let issueToUpdate = studentUniformIssues.find((i) => i.id === id);
+    if (!issueToUpdate && id) {
+      const idLower = id.toLowerCase().trim();
+      issueToUpdate = studentUniformIssues.find(
+        (i) =>
+          (i.studentId && i.studentId.toLowerCase().trim() === idLower) ||
+          (i.admissionNo && i.admissionNo.toLowerCase().trim() === idLower) ||
+          (i.studentName && i.studentName.toLowerCase().trim().includes(idLower)),
       );
+    }
+    if (!issueToUpdate) {
+      setStudentUniformIssues((prev) => {
+        const updated = prev.map((issue) =>
+          issue.id === id ? { ...issue, ...updates } : issue,
+        );
+        try {
+          localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
+          localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
       return;
     }
 
@@ -15276,6 +15532,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStatus = updates.status;
     const qty = issueToUpdate.quantity;
     const issueItemName = (issueToUpdate.itemName || "").toLowerCase();
+    const cleanIssueItemName = issueItemName.replace(/\s*\(extra\)/gi, "").trim();
     const itemId = issueToUpdate.itemId;
 
     // Returning an item (increases stock by exact quantity)
@@ -15286,11 +15543,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         let idx = prevInv.findIndex((i) =>
           Boolean(itemId && (i.itemId === itemId || i.id === itemId)),
         );
-        if (idx === -1 && issueItemName) {
+        if (idx === -1 && cleanIssueItemName) {
           idx = prevInv.findIndex((i) => {
             const itemCat = (i.category || "").toLowerCase();
             const itemName = (i.itemName || "").toLowerCase();
-            return itemName === issueItemName || itemCat === issueItemName;
+            return itemName === cleanIssueItemName || itemCat === cleanIssueItemName || itemName.includes(cleanIssueItemName) || cleanIssueItemName.includes(itemName);
           });
         }
         if (idx === -1) return prevInv;
@@ -15311,20 +15568,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setUniforms((prevU) => {
         let idx = prevU.findIndex((u) => Boolean(itemId && u.id === itemId));
-        if (idx === -1 && issueItemName) {
+        if (idx === -1 && cleanIssueItemName) {
           idx = prevU.findIndex((u) => {
-            const uCat = (u.category || "").toLowerCase();
-            const uName = (u.name || "").toLowerCase();
-            return uCat === issueItemName || uName === issueItemName;
+            const uCat = (u.category || u.name || "").toLowerCase().trim();
+            const isCatMatch = uCat === cleanIssueItemName || uCat.includes(cleanIssueItemName) || cleanIssueItemName.includes(uCat);
+            if (!isCatMatch) return false;
+            if (issueToUpdate.size) {
+              return (u.size || u.meterRange || "").toLowerCase().trim() === issueToUpdate.size.toLowerCase().trim();
+            }
+            return true;
           });
         }
         if (idx === -1) return prevU;
         return prevU.map((u, index) => {
           if (index === idx) {
-            const nextAvail =
-              calculatedNewStock !== null
-                ? calculatedNewStock
-                : (u.availableStock || 0) + qty;
+            const maxCap = u.openingStock !== undefined ? u.openingStock : (u.initialStock !== undefined ? u.initialStock : 150);
+            const nextAvail = Math.min(maxCap, (u.availableStock || 0) + qty);
             return { ...u, availableStock: nextAvail };
           }
           return u;
@@ -15387,45 +15646,120 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       });
     }
+    // Handling Size Exchange (e.g. exchanging from Size L to Size M)
+    else if (updates.size && updates.size !== issueToUpdate.size) {
+      const oldSize = issueToUpdate.size;
+      const newSize = updates.size;
+      let newCardId = itemId;
 
-    setStudentUniformIssues((prev) =>
-      prev.map((issue) => (issue.id === id ? { ...issue, ...updates } : issue)),
-    );
+      setUniforms((prevU) => {
+        let oldIdx = prevU.findIndex((u) => Boolean(itemId && u.id === itemId));
+        if (oldIdx === -1 && issueItemName) {
+          oldIdx = prevU.findIndex((u) => {
+            const uCat = (u.category || u.name || "").toLowerCase().trim();
+            const isCatMatch = uCat === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
+            if (!isCatMatch) return false;
+            return oldSize ? (u.size || u.meterRange || "").toLowerCase().trim() === oldSize.toLowerCase().trim() : true;
+          });
+        }
+
+        let newIdx = prevU.findIndex((u) => {
+          const uCat = (u.category || u.name || "").toLowerCase().trim();
+          const isCatMatch = uCat === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
+          if (!isCatMatch) return false;
+          return (u.size || u.meterRange || "").toLowerCase().trim() === newSize.toLowerCase().trim();
+        });
+
+        if (newIdx !== -1) {
+          newCardId = prevU[newIdx].id;
+        }
+
+        return prevU.map((u, index) => {
+          if (index === oldIdx) {
+            const maxCap = u.openingStock !== undefined ? u.openingStock : (u.initialStock !== undefined ? u.initialStock : 150);
+            const restored = Math.min(maxCap, (u.availableStock || 0) + qty);
+            return { ...u, availableStock: restored };
+          }
+          if (index === newIdx) {
+            const deducted = Math.max(0, (u.availableStock || 0) - qty);
+            return { ...u, availableStock: deducted };
+          }
+          return u;
+        });
+      });
+
+      if (newCardId) {
+        updates.itemId = newCardId;
+      }
+    }
+
+    setStudentUniformIssues((prev) => {
+      const updated = prev.map((issue) => (issue.id === id ? { ...issue, ...updates } : issue));
+      try {
+        localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
+        localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
-  const deleteStudentUniformIssue = (id: string) => {
-    const issueToDelete = studentUniformIssues.find((i) => i.id === id);
-    if (
-      issueToDelete &&
-      (issueToDelete.status === "Issued" || issueToDelete.status === "Replaced")
-    ) {
+  const deleteStudentUniformIssue = (idOrQuery: string) => {
+    if (!idOrQuery) return;
+    const targetLower = idOrQuery.toLowerCase().trim();
+
+    // Find all issues matching id, studentId, admissionNo, or studentName
+    const issuesToDelete = (studentUniformIssues || []).filter((i) => {
+      if (!i) return false;
+      const iId = (i.id || "").toLowerCase().trim();
+      const iStdId = (i.studentId || "").toLowerCase().trim();
+      const iAdmNo = (i.admissionNo || "").toLowerCase().trim();
+      const iName = (i.studentName || "").toLowerCase().trim();
+
+      return (
+        iId === targetLower ||
+        iStdId === targetLower ||
+        iAdmNo === targetLower ||
+        iName === targetLower ||
+        (targetLower.length >= 3 && iName.includes(targetLower)) ||
+        (targetLower.length >= 3 && targetLower.includes(iName))
+      );
+    });
+
+    const idsToRemove = new Set(issuesToDelete.map(i => i.id));
+    if (idsToRemove.size === 0) {
+      idsToRemove.add(idOrQuery);
+    }
+
+    // Track deleted IDs in localStorage so API refetches don't re-add them
+    try {
+      const deletedTrack = JSON.parse(localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]");
+      idsToRemove.forEach(id => deletedTrack.push(id));
+      localStorage.setItem("edu_db_deleted_uniform_issue_ids", JSON.stringify(deletedTrack));
+    } catch (e) {}
+
+    // Restore inventory stock for each matching issue
+    issuesToDelete.forEach(issueToDelete => {
       const issueItemName = (issueToDelete.itemName || "").toLowerCase();
-      let calculatedNewStock: number | null = null;
+      const cleanIssueItemName = issueItemName.replace(/\s*\(extra\)/gi, "").trim();
 
       setUniformInventory((prevInv) => {
         let idx = prevInv.findIndex((i) =>
           Boolean(
             issueToDelete.itemId &&
-            (i.itemId === issueToDelete.itemId ||
-              i.id === issueToDelete.itemId),
-          ),
+            (i.itemId === issueToDelete.itemId || i.id === issueToDelete.itemId)
+          )
         );
-        if (idx === -1 && issueItemName) {
+        if (idx === -1 && cleanIssueItemName) {
           idx = prevInv.findIndex((i) => {
             const itemCat = (i.category || "").toLowerCase();
             const itemName = (i.itemName || "").toLowerCase();
-            return itemName === issueItemName || itemCat === issueItemName;
+            return itemName === cleanIssueItemName || itemCat === cleanIssueItemName || itemName.includes(cleanIssueItemName) || cleanIssueItemName.includes(itemName);
           });
         }
         if (idx === -1) return prevInv;
         return prevInv.map((item, index) => {
           if (index === idx) {
-            calculatedNewStock = item.currentStock + issueToDelete.quantity;
-            const st =
-              calculatedNewStock === 0
-                ? "Out of Stock"
-                : calculatedNewStock <= (item.minimumStock || 10)
-                  ? "Low Stock"
-                  : "In Stock";
+            const calculatedNewStock = item.currentStock + (issueToDelete.quantity || 1);
+            const st = calculatedNewStock === 0 ? "Out of Stock" : calculatedNewStock <= (item.minimumStock || 10) ? "Low Stock" : "In Stock";
             return { ...item, currentStock: calculatedNewStock, status: st };
           }
           return item;
@@ -15434,29 +15768,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setUniforms((prevU) => {
         let idx = prevU.findIndex((u) =>
-          Boolean(issueToDelete.itemId && u.id === issueToDelete.itemId),
+          Boolean(issueToDelete.itemId && u.id === issueToDelete.itemId)
         );
-        if (idx === -1 && issueItemName) {
+        if (idx === -1 && cleanIssueItemName) {
           idx = prevU.findIndex((u) => {
-            const uCat = (u.category || "").toLowerCase();
-            const uName = (u.name || "").toLowerCase();
-            return uCat === issueItemName || uName === issueItemName;
+            const uCat = (u.category || u.name || "").toLowerCase().trim();
+            const isCatMatch = uCat === cleanIssueItemName || uCat.includes(cleanIssueItemName) || cleanIssueItemName.includes(uCat);
+            if (!isCatMatch) return false;
+            if (issueToDelete.size) {
+              return (u.size || u.meterRange || "").toLowerCase().trim() === issueToDelete.size.toLowerCase().trim();
+            }
+            return true;
           });
         }
         if (idx === -1) return prevU;
         return prevU.map((u, index) => {
           if (index === idx) {
-            const nextAvail =
-              calculatedNewStock !== null
-                ? calculatedNewStock
-                : (u.availableStock || 0) + issueToDelete.quantity;
+            const nextAvail = (u.availableStock || 0) + (issueToDelete.quantity || 1);
             return { ...u, availableStock: nextAvail };
           }
           return u;
         });
       });
-    }
-    setStudentUniformIssues((prev) => prev.filter((issue) => issue.id !== id));
+    });
+
+    setStudentUniformIssues((prev) => {
+      const updated = prev.filter((issue) => {
+        if (!issue) return false;
+        if (idsToRemove.has(issue.id)) return false;
+
+        const iStdId = (issue.studentId || "").toLowerCase().trim();
+        const iAdmNo = (issue.admissionNo || "").toLowerCase().trim();
+        const iName = (issue.studentName || "").toLowerCase().trim();
+
+        if (iStdId === targetLower || iAdmNo === targetLower || iName === targetLower) return false;
+        if (targetLower.length >= 3 && iName.includes(targetLower)) return false;
+        if (targetLower.length >= 3 && targetLower.includes(iName)) return false;
+
+        return true;
+      });
+
+      try {
+        localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
+        localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
+      } catch (e) {}
+
+      return updated;
+    });
   };
 
   // Finance Uniform configurations CRUD with automatic Sync to Fee Setup & Dynamic Fee Structures
@@ -15562,14 +15920,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
-      const filtered = current.filter(
-        (c) =>
-          !(
-            c.className?.toLowerCase() ===
-              (newConfig.className || "").toLowerCase() &&
-            c.gender === newConfig.gender &&
-            c.uniformPackage === newConfig.uniformPackage
-          ),
+      const filtered = current.filter(c => 
+        !(c.className?.toLowerCase() === (newConfig.className || '').toLowerCase() &&
+          c.gender === newConfig.gender &&
+          c.uniformPackage === newConfig.uniformPackage &&
+          ((c as any).fabricMeterage || '') === ((newConfig as any).fabricMeterage || ''))
       );
       const updated = [newConfig, ...filtered];
       try {
@@ -16516,10 +16871,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const filteredBusAttendants = filterByBranch(busAttendants);
   const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
   const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
-  const filteredUniformCategories = filterByBranch(uniformCategories);
+  const filteredUniformCategories = filterByBranch(uniformCategories).filter(c => {
+    const name = (c?.name || (c as any)?.categoryName || '').toLowerCase().trim();
+    return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
+  });
+  const filteredUniforms = filterByBranch(uniforms).filter(u => {
+    if (!u) return false;
+    const name = (u.name || u.category || '').toLowerCase().trim();
+    return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
+  });
   const filteredUniformSizes = filterByBranch(uniformSizes);
   const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
-  const filteredUniformInventory = filterByBranch(uniformInventory);
+  const filteredUniformInventory = filterByBranch(uniformInventory).filter(inv => {
+    if (!inv) return false;
+    const name = (inv.itemName || inv.category || '').toLowerCase().trim();
+    return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
+  });
   const filteredStudentUniformIssues = filterByBranch(
     studentUniformIssues,
   ).filter((i) => {
@@ -17106,7 +17473,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         addHostelBed,
         updateHostelBed,
         deleteHostelBed,
-        uniforms,
+        uniforms: filteredUniforms,
         addUniform,
         updateUniform,
         deleteUniform,
@@ -17344,6 +17711,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateUniformInventory,
         deleteUniformInventory,
         studentUniformIssues: filteredStudentUniformIssues,
+        setStudentUniformIssues,
         addStudentUniformIssue,
         updateStudentUniformIssue,
         deleteStudentUniformIssue,
