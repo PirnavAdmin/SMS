@@ -53,14 +53,7 @@ export const calculateWorkedHours = (checkInTime?: string, checkOutTime?: string
 
 export const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
 
-export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [
-  { id: 'ATT-LIB-101', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-20', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Catalog audit & inventory completed' },
-  { id: 'ATT-LIB-102', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-20', checkInTime: '08:45 AM', checkOutTime: '05:15 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Circulation desk duty' },
-  { id: 'ATT-LIB-103', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-19', checkInTime: '08:28 AM', checkOutTime: '05:05 PM', workingHours: '8.6 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Book issue renewals' },
-  { id: 'ATT-LIB-104', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-19', checkInTime: '09:15 AM', checkOutTime: '05:00 PM', workingHours: '7.75 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Late', remarks: 'Traffic delay' },
-  { id: 'ATT-LIB-105', staffId: 'EMP-LIB-01', staffName: 'Bhanu Prakash', role: 'Librarian', date: '2026-08-18', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'New book arrivals cataloging' },
-  { id: 'ATT-LIB-106', staffId: 'EMP-LIB-02', staffName: 'Rachel Green', role: 'Assistant Librarian', date: '2026-08-18', checkInTime: '08:30 AM', checkOutTime: '05:00 PM', workingHours: '8.5 Hours', shift: 'Morning Shift (08:30 - 17:00)', status: 'Present', remarks: 'Fine collection reconciliation' }
-];
+export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [];
 
 export const LibrarianAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
@@ -73,7 +66,13 @@ export const LibrarianAttendanceView: React.FC = () => {
 
   const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>(() => {
     const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
-    return s ? JSON.parse(s) : DEFAULT_LIBRARIAN_ATTENDANCE;
+    if (!s) return [];
+    try {
+      const parsed: LibrarianAttendanceRecord[] = JSON.parse(s);
+      return parsed.filter(a => !String(a.id).startsWith('ATT-LIB-'));
+    } catch {
+      return [];
+    }
   });
 
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');

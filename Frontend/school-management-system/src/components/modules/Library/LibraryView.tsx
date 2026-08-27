@@ -29,37 +29,10 @@ const RULES_KEY = 'edu_db_library_rules';
 import { LibrarianAttendanceRecord, DEFAULT_LIBRARIAN_ATTENDANCE, LIBRARIAN_ATTENDANCE_KEY, calculateWorkedHours } from './LibrarianAttendanceView';
 
 // Initial Defaults
-const DEFAULT_CATEGORIES: BookCategory[] = [
-  { id: 'CAT-1', name: 'Science & Physics', code: 'SCI', description: 'Physics, Chemistry & Biology textbooks', totalBooksCount: 45 },
-  { id: 'CAT-2', name: 'Mathematics', code: 'MATH', description: 'Algebra, Geometry & Calculus reference books', totalBooksCount: 30 },
-  { id: 'CAT-3', name: 'Computer Science', code: 'CS', description: 'Programming, Data Structures & AI guides', totalBooksCount: 25 },
-  { id: 'CAT-4', name: 'Literature & Fiction', code: 'LIT', description: 'Classic & Modern English Literature', totalBooksCount: 40 },
-  { id: 'CAT-5', name: 'History & Civics', code: 'HIS', description: 'World History & Indian Constitution', totalBooksCount: 20 },
-];
-
-const DEFAULT_AUTHORS: BookAuthor[] = [
-  { id: 'ATH-1', name: 'Halliday & Resnick', publisher: 'Wiley India', biography: 'Renowned physicists and educators', booksCount: 15 },
-  { id: 'ATH-2', name: 'R.D. Sharma', publisher: 'Dhanpat Rai Publications', biography: 'Prominent Mathematics author', booksCount: 20 },
-  { id: 'ATH-3', name: 'E. Balagurusamy', publisher: 'McGraw Hill', biography: 'Computer Science & Programming pioneer', booksCount: 12 },
-  { id: 'ATH-4', name: 'William Shakespeare', publisher: 'Penguin Classics', biography: 'English playwright and poet', booksCount: 18 },
-];
-
-const DEFAULT_RACKS: BookRack[] = [
-  { id: 'RCK-1', rackNo: 'Rack A-01', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 32 },
-  { id: 'RCK-2', rackNo: 'Rack A-01', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 18 },
-  { id: 'RCK-3', rackNo: 'Rack A-01', shelfNo: 'Shelf 3', floor: '1st Floor', section: 'Science Section', capacity: 50, occupiedCount: 10 },
-  { id: 'RCK-4', rackNo: 'Rack B-02', shelfNo: 'Shelf 1', floor: '1st Floor', section: 'Mathematics Section', capacity: 40, occupiedCount: 25 },
-  { id: 'RCK-5', rackNo: 'Rack B-02', shelfNo: 'Shelf 2', floor: '1st Floor', section: 'Mathematics Section', capacity: 40, occupiedCount: 15 },
-  { id: 'RCK-6', rackNo: 'Rack C-03', shelfNo: 'Shelf 1', floor: '2nd Floor', section: 'CS & Tech Lab', capacity: 45, occupiedCount: 20 },
-  { id: 'RCK-7', rackNo: 'Rack C-03', shelfNo: 'Shelf 2', floor: '2nd Floor', section: 'CS & Tech Lab', capacity: 45, occupiedCount: 8 },
-  { id: 'RCK-8', rackNo: 'Rack D-04', shelfNo: 'Shelf 1', floor: '2nd Floor', section: 'Literature Section', capacity: 60, occupiedCount: 40 },
-  { id: 'RCK-9', rackNo: 'Rack D-04', shelfNo: 'Shelf 2', floor: '2nd Floor', section: 'Literature Section', capacity: 60, occupiedCount: 22 },
-];
-
-const DEFAULT_RULES: LibraryRule[] = [
-  { id: 'RUL-1', userRole: 'Student', maxBooks: 3, issueDurationDays: 14, dailyFineRate: 5, maxRenewals: 2 },
-  { id: 'RUL-2', userRole: 'Staff', maxBooks: 6, issueDurationDays: 30, dailyFineRate: 2, maxRenewals: 3 },
-];
+const DEFAULT_CATEGORIES: BookCategory[] = [];
+const DEFAULT_AUTHORS: BookAuthor[] = [];
+const DEFAULT_RACKS: BookRack[] = [];
+const DEFAULT_RULES: LibraryRule[] = [];
 
 interface LibraryViewProps {
   initialPhase?: 'phase1' | 'phase2' | 'phase3' | 'phase4';
@@ -74,8 +47,22 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const canManageLibrary = isLibrarian;
   const isReadOnlyAccess = !canManageLibrary;
 
-  const { books, bookIssues, addBook, deleteBook, issueBook, returnBook, students, staff, admissions } = useData();
+  const { books: contextBooks, bookIssues: contextBookIssues, addBook, deleteBook, issueBook: contextIssueBook, returnBook: contextReturnBook, students, staff, admissions } = useData();
   const { addToast } = useToast();
+  const [books, setBooks] = useState<BookItem[]>(contextBooks || []);
+  const [bookIssues, setBookIssues] = useState<BookIssue[]>([]);
+
+  useEffect(() => {
+    if (contextBooks && contextBooks.length > 0) {
+      setBooks(contextBooks);
+    }
+  }, [contextBooks]);
+
+  useEffect(() => {
+    if (contextBookIssues && contextBookIssues.length > 0) {
+      setBookIssues(contextBookIssues.filter(i => !['ISS-501', 'ISS-502', 'ISS-503', 'ISS-504'].includes(i.id)));
+    }
+  }, [contextBookIssues]);
 
   // Unified candidate list from Enrolled Students and Admission Applications
   const studentAdmissionCandidates = useMemo(() => {
@@ -196,38 +183,46 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   // Local Storage Dynamic States
   const [categories, setCategories] = useState<BookCategory[]>(() => {
     const s = localStorage.getItem(CATEGORIES_KEY);
-    return s ? JSON.parse(s) : DEFAULT_CATEGORIES;
+    if (!s) return [];
+    try {
+      const parsed: BookCategory[] = JSON.parse(s);
+      return parsed.filter(c => !['CAT-1', 'CAT-2', 'CAT-3', 'CAT-4', 'CAT-5'].includes(c.id));
+    } catch {
+      return [];
+    }
   });
 
   const [authors, setAuthors] = useState<BookAuthor[]>(() => {
     const s = localStorage.getItem(AUTHORS_KEY);
-    return s ? JSON.parse(s) : DEFAULT_AUTHORS;
+    if (!s) return [];
+    try {
+      const parsed: BookAuthor[] = JSON.parse(s);
+      return parsed.filter(a => !['ATH-1', 'ATH-2', 'ATH-3', 'ATH-4'].includes(a.id));
+    } catch {
+      return [];
+    }
   });
 
   const [racks, setRacks] = useState<BookRack[]>(() => {
     const s = localStorage.getItem(RACKS_KEY);
-    return s ? JSON.parse(s) : DEFAULT_RACKS;
+    if (!s) return [];
+    try {
+      const parsed: BookRack[] = JSON.parse(s);
+      return parsed.filter(r => !['RCK-1', 'RCK-2', 'RCK-3', 'RCK-4', 'RCK-5', 'RCK-6', 'RCK-7', 'RCK-8', 'RCK-9'].includes(r.id));
+    } catch {
+      return [];
+    }
   });
 
   const [members, setMembers] = useState<LibraryMember[]>(() => {
     const s = localStorage.getItem(MEMBERS_KEY);
-    if (s) return JSON.parse(s);
-    // Seed initial members from students/staff if empty
-    const stMembers: LibraryMember[] = (students || []).slice(0, 10).map((st, i) => ({
-      id: `MEM-STU-${st.id || i}`,
-      memberId: st.admissionNo || `LIB-STU-${100 + i}`,
-      name: `${st.firstName} ${st.lastName}`,
-      role: 'Student',
-      email: st.email || 'student@school.edu',
-      phone: st.phone || '9876543210',
-      className: `${st.className || 'Class 10'}-${st.section || 'A'}`,
-      maxLimit: 3,
-      issuedCount: i % 2 === 0 ? 1 : 0,
-      fineBalance: i === 1 ? 50 : 0,
-      joinedDate: '2026-06-01',
-      status: 'Active'
-    }));
-    return stMembers;
+    if (!s) return [];
+    try {
+      const parsed: LibraryMember[] = JSON.parse(s);
+      return parsed.filter(m => !String(m.id).startsWith('MEM-STU-') && !String(m.memberId).startsWith('LIB-STU-'));
+    } catch {
+      return [];
+    }
   });
 
   // Dynamic Library Members merged from DataContext students & staff + local custom members
@@ -359,35 +354,57 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
   const [reservations, setReservations] = useState<BookReservation[]>(() => {
     const s = localStorage.getItem(RESERVATIONS_KEY);
-    return s ? JSON.parse(s) : [
-      { id: 'RES-101', bookId: 'BK-01', bookTitle: 'Fundamentals of Physics', memberId: 'ADM2024-001', memberName: 'Alexander Wright', memberRole: 'Student', requestDate: '2026-08-14', status: 'Pending' },
-      { id: 'RES-102', bookId: 'BK-03', bookTitle: 'Computer Science Principles & AI', memberId: 'EMP001', memberName: 'Sarah Jenkins', memberRole: 'Teacher', requestDate: '2026-08-18', status: 'Pending' }
-    ];
+    if (!s) return [];
+    try {
+      const parsed: BookReservation[] = JSON.parse(s);
+      return parsed.filter(r => !['RES-101', 'RES-102'].includes(r.id));
+    } catch {
+      return [];
+    }
   });
 
   const [fineRecords, setFineRecords] = useState<LibraryFineRecord[]>(() => {
     const s = localStorage.getItem(FINES_KEY);
-    return s ? JSON.parse(s) : [
-      { id: 'FIN-101', issueId: 'ISS-501', memberId: 'ADM2024-001', memberName: 'Alexander Wright', memberRole: 'Student', bookTitle: 'Fundamentals of Physics', overdueDays: 5, fineAmount: 25, paidAmount: 25, paymentStatus: 'Paid', createdDate: '2026-08-10', paidDate: '2026-08-12', remarks: 'Late return fine paid at counter' },
-      { id: 'FIN-102', issueId: 'ISS-503', memberId: 'ADM2024-002', memberName: 'Emily Davis', memberRole: 'Student', bookTitle: 'Computer Science Principles & AI', overdueDays: 10, fineAmount: 50, paidAmount: 0, paymentStatus: 'Unpaid', createdDate: '2026-08-16', remarks: 'Pending overdue fine' }
-    ];
+    if (!s) return [];
+    try {
+      const parsed: LibraryFineRecord[] = JSON.parse(s);
+      return parsed.filter(f => !['FIN-101', 'FIN-102'].includes(f.id));
+    } catch {
+      return [];
+    }
   });
 
   const [lostDamagedList, setLostDamagedList] = useState<LostDamagedBook[]>(() => {
     const s = localStorage.getItem(LOST_DAMAGED_KEY);
-    return s ? JSON.parse(s) : [
-      { id: 'LD-101', bookId: 'BK-01', bookTitle: 'Fundamentals of Physics', memberId: 'ADM2024-003', memberName: 'James Brown', memberRole: 'Student', issueType: 'Damaged', fineAmount: 100, replacementCost: 450, reportDate: '2026-08-11', status: 'Pending', notes: 'Torn back cover page' }
-    ];
+    if (!s) return [];
+    try {
+      const parsed: LostDamagedBook[] = JSON.parse(s);
+      return parsed.filter(ld => !['LD-101'].includes(ld.id));
+    } catch {
+      return [];
+    }
   });
 
   const [rules, setRules] = useState<LibraryRule[]>(() => {
     const s = localStorage.getItem(RULES_KEY);
-    return s ? JSON.parse(s) : DEFAULT_RULES;
+    if (!s) return [];
+    try {
+      const parsed: LibraryRule[] = JSON.parse(s);
+      return parsed.filter(r => !['RUL-1', 'RUL-2'].includes(r.id));
+    } catch {
+      return [];
+    }
   });
 
   const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>(() => {
     const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
-    return s ? JSON.parse(s) : DEFAULT_LIBRARIAN_ATTENDANCE;
+    if (!s) return [];
+    try {
+      const parsed: LibrarianAttendanceRecord[] = JSON.parse(s);
+      return parsed.filter(a => !String(a.id).startsWith('ATT-LIB-'));
+    } catch {
+      return [];
+    }
   });
 
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -402,39 +419,74 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const saveReservations = (data: BookReservation[]) => { setReservations(data); localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(data)); };
 
   // Load real backend data on mount
-  useEffect(() => {
-    const loadBackendData = async () => {
-      try {
-        const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
-          LibraryAPI.fetchBooksApi(),
-          LibraryAPI.fetchCategoriesApi(),
-          LibraryAPI.fetchMembersApi(),
-          LibraryAPI.fetchIssuedBooksApi(),
-          LibraryAPI.fetchFinesApi()
-        ]);
+  const loadBackendData = useCallback(async () => {
+    try {
+      const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
+        LibraryAPI.fetchBooksApi(),
+        LibraryAPI.fetchCategoriesApi(),
+        LibraryAPI.fetchMembersApi(),
+        LibraryAPI.fetchIssuedBooksApi(),
+        LibraryAPI.fetchFinesApi()
+      ]);
 
-        if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
-          const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
-          if (fetchedBooks.length > 0) {
-            setBooks(fetchedBooks.map((b: any) => ({
-              id: String(b.bookId || b.id),
-              title: b.title || b.bookTitle || '',
-              author: b.author || '',
-              isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
-              category: b.category || 'Science',
-              rackNo: b.rackLocation || b.rack || 'Rack A-01',
-              totalCopies: b.totalCopies || 10,
-              availableCopies: b.availableCopies || 10,
-              status: b.availableCopies > 0 ? 'Available' : 'Issued'
-            })));
-          }
+      if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
+        const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
+        if (fetchedBooks.length > 0) {
+          setBooks(fetchedBooks.map((b: any) => ({
+            id: String(b.bookId || b.id),
+            title: b.title || b.bookTitle || '',
+            author: b.author || '',
+            isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
+            category: b.category || 'Science',
+            rackNo: b.rackLocation || b.rack || 'Rack A-01',
+            totalCopies: Number(b.totalCopies) || 0,
+            availableCopies: Number(b.availableCopies) || 0,
+            status: Number(b.availableCopies) > 0 ? 'Available' : 'Issued'
+          })));
         }
-      } catch (err) {
-        console.warn("Backend API fetch notice:", err);
       }
-    };
-    loadBackendData();
+
+      if (issuesRes.status === 'fulfilled' && issuesRes.value?.data) {
+        const fetchedIssues = Array.isArray(issuesRes.value.data) ? issuesRes.value.data : (issuesRes.value.data.items || []);
+        setBookIssues(fetchedIssues.map((i: any) => ({
+          id: String(i.issueId || i.id),
+          bookId: String(i.bookId || i.id),
+          bookTitle: i.bookTitle || i.title || 'Book',
+          borrowerId: i.borrowerIdCode || i.borrowerId || i.memberId || '',
+          borrowerName: i.borrowerName || i.name || 'Member',
+          borrowerRole: (i.borrowerRole || i.role || 'Student') as any,
+          issueDate: i.issueDate ? i.issueDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          dueDate: i.dueDate ? i.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          fineAmount: Number(i.fineAmount) || 0,
+          status: i.status || 'Issued'
+        })));
+      }
+
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value?.data) {
+        const fetchedCats = Array.isArray(categoriesRes.value.data) ? categoriesRes.value.data : [];
+        if (fetchedCats.length > 0) {
+          setCategories(fetchedCats.map((c: any) => ({
+            id: String(c.id || c.code || c.categoryId),
+            name: c.name || c.categoryName || '',
+            code: c.code || c.categoryCode || 'CAT',
+            description: c.description || '',
+            totalBooksCount: c.count || c.totalBooksCount || 0
+          })));
+        }
+      }
+
+      if (finesRes.status === 'fulfilled' && finesRes.value?.data) {
+        const fetchedFines = Array.isArray(finesRes.value.data) ? finesRes.value.data : [];
+        setFineRecords(fetchedFines);
+      }
+    } catch (err) {
+      console.warn("Backend API fetch notice:", err);
+    }
   }, []);
+
+  useEffect(() => {
+    loadBackendData();
+  }, [loadBackendData]);
   const saveLibrarianAttendance = (data: LibrarianAttendanceRecord[]) => {
     setLibrarianAttendance(data);
     localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(data));
@@ -1206,14 +1258,21 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               try {
                 await LibraryAPI.issueBookApi({
                   bookId: targetBk.id,
+                  bookTitle: targetBk.title,
                   memberId: targetMem.memberId || mId,
+                  borrowerIdCode: targetMem.memberId || mId,
+                  borrowerName: targetMem.name,
                   memberType: targetMem.role || 'Student',
+                  borrowerRole: targetMem.role || 'Student',
                   issueDate: new Date().toISOString().split('T')[0],
                   dueDate: dDate
                 });
-              } catch (err) {}
+                await loadBackendData();
+              } catch (err) {
+                console.warn("issueBookApi notice:", err);
+              }
 
-              issueBook({
+              contextIssueBook({
                 bookId: targetBk.id,
                 bookTitle: targetBk.title,
                 borrowerId: targetMem.memberId || mId,
@@ -1242,14 +1301,21 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               try {
                 await LibraryAPI.issueBookApi({
                   bookId: bookIdToUse,
+                  bookTitle: manualBookTitle,
                   memberId: manualMemId,
+                  borrowerIdCode: manualMemId,
+                  borrowerName: manualMemName,
                   memberType: manualMemRole,
+                  borrowerRole: manualMemRole,
                   issueDate: new Date().toISOString().split('T')[0],
                   dueDate: dDate
                 });
-              } catch (err) {}
+                await loadBackendData();
+              } catch (err) {
+                console.warn("manual issueBookApi notice:", err);
+              }
 
-              issueBook({
+              contextIssueBook({
                 bookId: bookIdToUse,
                 bookTitle: manualBookTitle,
                 borrowerId: manualMemId,
@@ -1615,7 +1681,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                           {!isReadOnlyAccess ? (
                             <button onClick={async () => {
                               try { await LibraryAPI.returnBookApi(iss.id); } catch (err) {}
-                              returnBook(iss.id);
+                              contextReturnBook(iss.id);
+                              await loadBackendData();
                               if (calculatedFine > 0) {
                                 const newFine: LibraryFineRecord = {
                                   id: `FIN-${Date.now()}`,
