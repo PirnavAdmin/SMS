@@ -14,8 +14,12 @@ import {
   ChevronDown,
   Upload,
   User,
+  UserX,
+  UserMinus,
+  UserCheck,
   X,
   Download,
+  Loader2,
   UploadCloud,
   FileSpreadsheet,
 } from "lucide-react";
@@ -65,6 +69,23 @@ const StaffListRowAvatar: React.FC<{ st: Staff }> = ({ st }) => {
   );
 };
 
+const formatMobileNeatly = (phoneStr: string = '') => {
+  if (!phoneStr) return "N/A";
+  const cleaned = phoneStr.replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+91')) {
+    const digits = cleaned.slice(3);
+    if (digits.length === 10) {
+      return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+    }
+  } else if (cleaned.startsWith('91') && cleaned.length === 12) {
+    const digits = cleaned.slice(2);
+    return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+  } else if (cleaned.length === 10) {
+    return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
+  }
+  return phoneStr;
+};
+
 export const StaffList: React.FC<{
   initialCategory?: string;
   onNavigate?: (module: string) => void;
@@ -90,17 +111,10 @@ export const StaffList: React.FC<{
     normalizeStaffType(initialCategory || "Teaching Staff"),
   );
 
-  const subjectDropdownRef = useRef<HTMLDivElement>(null);
   const deptDropdownRef = useRef<HTMLDivElement>(null);
   const designationDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        subjectDropdownRef.current &&
-        !subjectDropdownRef.current.contains(event.target as Node)
-      ) {
-        setSubjectDropdownOpen(false);
-      }
       if (
         deptDropdownRef.current &&
         !deptDropdownRef.current.contains(event.target as Node)
@@ -123,9 +137,6 @@ export const StaffList: React.FC<{
   const [filterDept, setFilterDept] = useState("All");
   const [deptSearch, setDeptSearch] = useState("");
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
-  const [filterSubject, setFilterSubject] = useState("All");
-  const [subjectSearch, setSubjectSearch] = useState("");
-  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const [filterDesignation, setFilterDesignation] = useState("All");
   const [designationSearch, setDesignationSearch] = useState("");
   const [designationDropdownOpen, setDesignationDropdownOpen] = useState(false);
@@ -141,6 +152,8 @@ export const StaffList: React.FC<{
   const [staffToEdit, setStaffToEdit] = useState<Staff | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
+  const [statusConfirmTarget, setStatusConfirmTarget] = useState<{ staff: Staff; nextStatus: "Active" | "Inactive" | "Resigned" } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [isRuleMasterOpen, setIsRuleMasterOpen] = useState(false);
 
   // Bulk upload modal state
@@ -206,11 +219,6 @@ export const StaffList: React.FC<{
       s.empId.toLowerCase().includes(query.toLowerCase());
     const deptMatch = filterDept === "All" || s.department === filterDept;
 
-    const subjectMatch =
-      activeCategory !== "Teaching Staff" ||
-      filterSubject === "All" ||
-      s.assignedSubjects?.includes(filterSubject);
-
     const desigMatch =
       filterDesignation === "All" || s.designation === filterDesignation;
 
@@ -224,15 +232,11 @@ export const StaffList: React.FC<{
       (s.branch || "Main Campus").toLowerCase() === filterBranch.toLowerCase();
 
     const statusMatch =
-      filterStatus === "All" ||
-      (filterStatus === "Inactive"
-        ? s.status !== "Active"
-        : s.status === filterStatus);
+      filterStatus === "All" || s.status === filterStatus;
 
     return (
       nameMatch &&
       deptMatch &&
-      subjectMatch &&
       desigMatch &&
       empTypeMatch &&
       branchMatch &&
@@ -289,6 +293,119 @@ export const StaffList: React.FC<{
     addToast("info", "Status Updated", `${s.firstName} is now ${nextStatus}`);
   };
 
+  const handleExportStaffExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    setTimeout(async () => {
+      try {
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.utils.book_new();
+
+        // 1. Personal Details Sheet
+        const personalData = filtered.map((st) => ({
+          "Employee ID": st.empId || "",
+          "Category": st.employeeCategory || "",
+          "First Name": st.firstName || "",
+          "Middle Name": st.middleName || "",
+          "Last Name": st.lastName || "",
+          "Email": st.email || "",
+          "Phone": st.phone || "",
+          "Alternate Mobile": st.alternateMobile || "",
+          "Gender": st.gender || "",
+          "Date of Birth": st.dob || "",
+          "Blood Group": st.bloodGroup || "",
+          "Aadhaar Number": st.aadhaarNumber || "",
+          "PAN Number": st.panNumber || "",
+          "Present Address": st.presentAddress || "",
+          "Permanent Address": st.permanentAddress || "",
+          "City": st.city || "",
+          "State": st.state || "",
+          "PIN Code": st.pinCode || "",
+          "Department": st.department || "",
+          "Designation": st.designation || "",
+          "Joining Date": st.joiningDate || "",
+          "Employment Type": st.employmentType || "",
+          "Salary": st.salary || 0,
+          "Status": st.status || "Active"
+        }));
+        const personalSheet = XLSX.utils.json_to_sheet(personalData);
+        XLSX.utils.book_append_sheet(workbook, personalSheet, "Personal Details");
+
+        // 2. Qualifications Sheet
+        const qualificationsData: any[] = [];
+        filtered.forEach((st) => {
+          const qList = st.qualifications || [];
+          qList.forEach((q: any) => {
+            qualificationsData.push({
+              "Employee ID": st.empId || "",
+              "Employee Name": `${st.firstName || ""} ${st.lastName || ""}`.trim(),
+              "Degree/Qualification": q.qualification || q.qualificationDegree || "",
+              "Specialization": q.specialization || q.specializationSubject || "",
+              "Institution": q.institution || q.institutionCollege || "",
+              "Board/University": q.boardUniversity || "",
+              "Passing Year": q.passingYear || "",
+              "Percentage/CGPA": q.percentageCgpa || ""
+            });
+          });
+        });
+        // Fallback if empty
+        if (qualificationsData.length === 0) {
+          qualificationsData.push({ "Employee ID": "N/A", "Employee Name": "N/A", "Degree/Qualification": "No qualifications recorded" });
+        }
+        const qualificationsSheet = XLSX.utils.json_to_sheet(qualificationsData);
+        XLSX.utils.book_append_sheet(workbook, qualificationsSheet, "Qualifications");
+
+        // 3. Documents Sheet
+        const documentsData: any[] = [];
+        filtered.forEach((st) => {
+          const docList = st.documents || [];
+          docList.forEach((d: any) => {
+            documentsData.push({
+              "Employee ID": st.empId || "",
+              "Employee Name": `${st.firstName || ""} ${st.lastName || ""}`.trim(),
+              "Document Title": d.title || d.documentTitle || "",
+              "Document Type": d.type || d.documentType || "",
+              "Uploaded Date": d.uploadDate || d.uploadedDate || "",
+              "File URL": d.fileUrl || ""
+            });
+          });
+        });
+        if (documentsData.length === 0) {
+          documentsData.push({ "Employee ID": "N/A", "Employee Name": "N/A", "Document Title": "No documents uploaded" });
+        }
+        const documentsSheet = XLSX.utils.json_to_sheet(documentsData);
+        XLSX.utils.book_append_sheet(workbook, documentsSheet, "Documents");
+
+        // 4. Bank Details Sheet
+        const bankData = filtered.map((st) => {
+          const bank = st.bankDetails || {};
+          return {
+            "Employee ID": st.empId || "",
+            "Employee Name": `${st.firstName || ""} ${st.lastName || ""}`.trim(),
+            "Account Holder Name": bank.accountHolderName || "",
+            "Account Number": bank.accountNumber || "",
+            "Bank Name": bank.bankName || "",
+            "Branch": bank.branch || bank.branchName || "",
+            "IFSC Code": bank.ifscCode || "",
+            "UPI ID": bank.upiId || ""
+          };
+        });
+        const bankSheet = XLSX.utils.json_to_sheet(bankData);
+        XLSX.utils.book_append_sheet(workbook, bankSheet, "Bank Details");
+
+        // Write File
+        XLSX.writeFile(workbook, `${activeCategory.toLowerCase()}_directory.xlsx`);
+        addToast("success", "Export Successful", `Downloaded ${filtered.length} staff records as tabbed Excel file.`);
+      } catch (err) {
+        console.error(err);
+        addToast("danger", "Export Failed", "Could not export staff data.");
+      } finally {
+        setIsExporting(false);
+      }
+    }, 600);
+  };
+
   // Derive filter lists using getDepartmentOptions and getDesignationOptions
   const uniqueDepts = Array.from(
     new Set([
@@ -306,7 +423,6 @@ export const StaffList: React.FC<{
   const handleTabChange = (cat: string) => {
     setActiveCategory(cat);
     setFilterDept("All");
-    setFilterSubject("All");
     setFilterDesignation("All");
     setFilterStatus("All");
     setCurrentPage(1);
@@ -514,10 +630,19 @@ export const StaffList: React.FC<{
           >
             <Upload className="w-4 h-4" /> Upload Excel
           </button>
-          <ExportButton
-            data={filtered}
-            filename={`${activeCategory.toLowerCase()}_directory`}
-          />
+          <button
+            onClick={handleExportStaffExcel}
+            disabled={isExporting}
+            className="px-4 py-2.5 flex items-center gap-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+            title="Download tabbed Excel directory report"
+          >
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span>{isExporting ? "Downloading..." : "Download"}</span>
+          </button>
           <button
             onClick={openStaffRegistration}
             className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
@@ -660,6 +785,7 @@ export const StaffList: React.FC<{
                 <option value="All">All Statuses</option>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
+                <option value="Resigned">Resigned</option>
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -685,82 +811,9 @@ export const StaffList: React.FC<{
             </div>
           </div>
 
-          {/* Dynamic Second Filter (Subject/Designation) */}
-          {activeCategory === "Teacher" && subjects.length > 0 && (
-            <div
-              ref={subjectDropdownRef}
-              className="relative flex-1 min-w-[140px] w-full"
-            >
-              <div
-                className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
-                onClick={() => setSubjectDropdownOpen(!subjectDropdownOpen)}
-              >
-                <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
-                  {filterSubject === "All" ? "All Subjects" : filterSubject}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
-              </div>
 
-              {subjectDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
-                  <div className="p-2 border-b border-slate-100 dark:border-slate-700">
-                    <input
-                      type="text"
-                      placeholder="Search subjects..."
-                      value={subjectSearch}
-                      onChange={(e) => setSubjectSearch(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-[160px] overflow-y-auto py-1">
-                    <div
-                      className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterSubject === "All" ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
-                      onClick={() => {
-                        setFilterSubject("All");
-                        setCurrentPage(1);
-                        setSubjectDropdownOpen(false);
-                        setSubjectSearch("");
-                      }}
-                    >
-                      All Subjects
-                    </div>
-                    {subjects
-                      .filter(
-                        (s) =>
-                          s.name
-                            .toLowerCase()
-                            .includes(subjectSearch.toLowerCase()) ||
-                          (s.code || "")
-                            .toLowerCase()
-                            .includes(subjectSearch.toLowerCase()),
-                      )
-                      .map((sub) => (
-                        <div
-                          key={sub.id}
-                          className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterSubject === sub.name ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
-                          onClick={() => {
-                            setFilterSubject(sub.name);
-                            setCurrentPage(1);
-                            setSubjectDropdownOpen(false);
-                            setSubjectSearch("");
-                          }}
-                        >
-                          <div className="flex flex-col gap-0.5">
-                            <span>{sub.name}</span>
-                            <span className="text-[10px] text-slate-400 font-normal">
-                              Code: {sub.code}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
-          {activeCategory === "Staff" && uniqueDesignations.length > 0 && (
+          {activeCategory === "Non-Teaching Staff" && uniqueDesignations.length > 0 && (
             <div
               ref={designationDropdownRef}
               className="relative flex-1 min-w-[140px] w-full"
@@ -838,17 +891,21 @@ export const StaffList: React.FC<{
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4 whitespace-nowrap">Photo</th>
-                <th className="py-3.5 px-4 font-mono whitespace-nowrap">
+                <th
+                  className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 font-mono text-center whitespace-nowrap"
+                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                >
                   Employee ID
                 </th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Employee Name</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Department</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Designation</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Email</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Mobile</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">
+                <th className="sticky left-[120px] bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none">
+                  Employee Name
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Department</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Designation</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Email</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Mobile</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
                   Profile Status
                 </th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">
@@ -859,7 +916,7 @@ export const StaffList: React.FC<{
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-8 text-slate-400">
+                  <td colSpan={9} className="text-center py-8 text-slate-400">
                     No {activeCategory.toLowerCase()} records match search
                     filters.
                   </td>
@@ -871,26 +928,19 @@ export const StaffList: React.FC<{
                   return (
                     <tr
                       key={st.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                      className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                     >
-                      <td className="py-3 px-4">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedStaff(st)}
-                          className="shrink-0"
-                          title="Open staff profile"
-                        >
-                          <StaffListRowAvatar st={st} />
-                        </button>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">
+                      <td
+                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 text-center"
+                        style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                      >
                         {st.empId}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="sticky left-[120px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center">
                         <button
                           type="button"
                           onClick={() => setSelectedStaff(st)}
-                          className="text-left"
+                          className="text-center w-full"
                           title="Open staff profile"
                         >
                           <p className="font-bold text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
@@ -905,42 +955,48 @@ export const StaffList: React.FC<{
                           </p>
                         </button>
                       </td>
-                      <td className="py-3 px-4">{st.department || "N/A"}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">
+                      <td className="py-3 px-4 text-center">{st.department || "N/A"}</td>
+                      <td className="py-3 px-4 text-center font-semibold text-slate-600 dark:text-slate-300">
                         {st.designation || "N/A"}
                       </td>
-                      <td className="py-3 px-4">{st.email || "N/A"}</td>
-                      <td className="py-3 px-4">{st.phone || "N/A"}</td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={
-                            st.status === "Active"
-                              ? "success"
-                              : "neutral"
-                          }
-                          size="sm"
-                        >
-                          {st.status}
-                        </Badge>
+                      <td className="py-3 px-4 text-center">{st.email || "N/A"}</td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">{formatMobileNeatly(st.phone)}</td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="inline-flex justify-center w-full">
+                          <Badge
+                            variant={
+                              st.status === "Active"
+                                ? "success"
+                                : st.status === "Resigned"
+                                  ? "danger"
+                                  : "neutral"
+                            }
+                            size="sm"
+                          >
+                            {st.status}
+                          </Badge>
+                        </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={
-                            profileStatus === "Completed"
-                              ? "success"
-                              : "warning"
-                          }
-                          size="sm"
-                        >
-                          {profileStatus}
-                        </Badge>
+                      <td className="py-3 px-4 text-center">
+                        <div className="inline-flex justify-center w-full">
+                          <Badge
+                            variant={
+                              profileStatus === "Completed"
+                                ? "success"
+                                : "warning"
+                            }
+                            size="sm"
+                          >
+                            {profileStatus}
+                          </Badge>
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => setSelectedStaff(st)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                            title="View Profile Details"
+                            title={`View Profile Details - ${st.firstName} ${st.lastName}`}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -950,15 +1006,42 @@ export const StaffList: React.FC<{
                               setIsAddOpen(true);
                             }}
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600"
-                            title="Edit Basic Details"
+                            title={`Edit Basic Details - ${st.firstName} ${st.lastName}`}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
 
+                          {st.status === "Active" ? (
+                            <>
+                              <button
+                                onClick={() => setStatusConfirmTarget({ staff: st, nextStatus: "Inactive" })}
+                                className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-600 dark:text-amber-400"
+                                title={`Mark Inactive - ${st.firstName} ${st.lastName}`}
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setStatusConfirmTarget({ staff: st, nextStatus: "Resigned" })}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400"
+                                title={`Mark Resigned - ${st.firstName} ${st.lastName}`}
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => setStatusConfirmTarget({ staff: st, nextStatus: "Active" })}
+                              className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+                              title={`Mark Active - ${st.firstName} ${st.lastName}`}
+                            >
+                              <UserCheck className="w-4 h-4" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => setStaffToDelete(st)}
                             className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"
-                            title="Delete Record"
+                            title={`Delete Record - ${st.firstName} ${st.lastName}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1024,6 +1107,21 @@ export const StaffList: React.FC<{
           }
         }}
         onCancel={() => setStaffToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!statusConfirmTarget}
+        title={`Change Status to ${statusConfirmTarget?.nextStatus}`}
+        message={`Are you sure you want to change the status of ${statusConfirmTarget?.staff?.firstName} ${statusConfirmTarget?.staff?.lastName} to ${statusConfirmTarget?.nextStatus}?`}
+        onConfirm={() => {
+          if (statusConfirmTarget) {
+            const { staff: s, nextStatus } = statusConfirmTarget;
+            updateStaff(s.id, { status: nextStatus });
+            addToast("success", "Status Updated", `${s.firstName} is now ${nextStatus}`);
+            setStatusConfirmTarget(null);
+          }
+        }}
+        onCancel={() => setStatusConfirmTarget(null)}
       />
 
       <DocumentRequirementMasterModal

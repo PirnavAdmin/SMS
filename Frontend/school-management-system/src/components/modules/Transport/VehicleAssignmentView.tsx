@@ -298,12 +298,16 @@ export const VehicleAssignmentView: React.FC = () => {
       return;
     }
 
+    const isAssignmentActive = (va: VehicleAssignment) => {
+      return va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
+    };
+
     // Strict Rule 1: A route can only be assigned to ONE active bus
     const routeAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      (va.routeId === route.id || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase())) &&
-      va.status === 'Active'
+      isAssignmentActive(va) &&
+      (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase()))
     );
     if (routeAlreadyAssigned) {
       addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}. A route cannot have multiple active buses.`);
@@ -314,8 +318,8 @@ export const VehicleAssignmentView: React.FC = () => {
     const vehicleAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      (va.vehicleId === vehicle.id || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase())) &&
-      va.status === 'Active'
+      isAssignmentActive(va) &&
+      (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase()))
     );
     if (vehicleAlreadyAssigned) {
       addToast('warning', 'Vehicle Already Assigned', `Bus "${vehicle.vehicleNumber}" is already assigned to route "${vehicleAlreadyAssigned.routeName}".`);
@@ -326,8 +330,8 @@ export const VehicleAssignmentView: React.FC = () => {
     const driverAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      (va.driverId === driver.id || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase())) &&
-      va.status === 'Active'
+      isAssignmentActive(va) &&
+      (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase()))
     );
     if (driverAlreadyAssigned) {
       addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}). A driver cannot be assigned to two buses.`);
@@ -339,8 +343,8 @@ export const VehicleAssignmentView: React.FC = () => {
       const attendantAlreadyAssigned = vehicleAssignments.find(va =>
         va.id !== editingAssignment?.id &&
         va.id !== reassignSource?.id &&
-        (va.attendantId === attendant.id || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase())) &&
-        va.status === 'Active'
+        isAssignmentActive(va) &&
+        (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase()))
       );
       if (attendantAlreadyAssigned) {
         addToast('warning', 'Attendant Already Assigned', `Bus Attendant "${attendant.attendantName}" is already assigned to bus ${attendantAlreadyAssigned.vehicleNumber}.`);
@@ -801,7 +805,12 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Route --</option>
                   {routeMasters.filter(route => route.status === 'Active').map(route => {
-                    const activeOther = vehicleAssignments.find(va => va.routeId === route.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      String(va.routeId) === String(route.id) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
                     return (
                       <option key={route.id} value={route.id} disabled={!!activeOther}>
                         {route.routeName} ({route.routeCode}) {activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ' [Available]'}
@@ -820,7 +829,12 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Vehicle --</option>
                   {vehicleMasters.filter(vehicle => vehicle.status === 'Active').map(vehicle => {
-                    const activeOther = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      String(va.vehicleId) === String(vehicle.id) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
                     return (
                       <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther}>
                         {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats)
@@ -847,7 +861,12 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Driver --</option>
                   {driverMasters.filter(driver => driver.status === 'Active').map(driver => {
-                    const activeOther = vehicleAssignments.find(va => va.driverId === driver.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      String(va.driverId) === String(driver.id) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
                     const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
                     return (
                       <option key={driver.id} value={driver.id} disabled={!!activeOther}>
@@ -875,7 +894,12 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Bus Attendant --</option>
                   {busAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
-                    const activeOther = vehicleAssignments.find(va => va.attendantId === attendant.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      String(va.attendantId) === String(attendant.id) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
                     return (
                       <option key={attendant.id} value={attendant.id} disabled={!!activeOther}>
                         {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber})
@@ -959,14 +983,18 @@ export const VehicleAssignmentView: React.FC = () => {
         onCancel={() => setDeletingAssignment(null)}
         onConfirm={async () => {
           if (!deletingAssignment) return;
-          await removeVehicleAssignment(deletingAssignment.id);
-          setAssignmentLogs(prev => prev.map(log =>
-            log.vehicleNumber === deletingAssignment.vehicleNumber && log.status === 'Active'
-              ? { ...log, status: 'Historical' as const, effectiveTo: new Date().toISOString().split('T')[0] }
-              : log
-          ));
-          addToast('info', 'Assignment Removed');
-          setDeletingAssignment(null);
+          try {
+            await removeVehicleAssignment(deletingAssignment.id);
+            setAssignmentLogs(prev => prev.map(log =>
+              log.vehicleNumber === deletingAssignment.vehicleNumber && log.status === 'Active'
+                ? { ...log, status: 'Historical' as const, effectiveTo: new Date().toISOString().split('T')[0] }
+                : log
+            ));
+          } catch (err) {
+            // Error is already toasted by Context
+          } finally {
+            setDeletingAssignment(null);
+          }
         }}
         title="Remove Vehicle Assignment"
         message={`Remove assignment of ${deletingAssignment?.vehicleNumber} from ${deletingAssignment?.routeName}?`}

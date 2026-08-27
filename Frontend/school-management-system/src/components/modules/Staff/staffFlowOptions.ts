@@ -838,7 +838,7 @@ export const defaultBasicStaffFormState = (
   joiningDate: new Date().toISOString().split("T")[0],
   employmentType: "",
   reportingManager: "",
-  status: "",
+  status: "Active",
 
   academicYear: "2026-2027",
   assignedClasses: [],

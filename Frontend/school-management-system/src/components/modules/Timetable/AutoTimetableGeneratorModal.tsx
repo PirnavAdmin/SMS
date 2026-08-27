@@ -159,40 +159,85 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
   // Target Class-Section combinations (e.g., ["Class 1-A", "Class 1-B"])
   const [selectedClassSections, setSelectedClassSections] = useState<string[]>([]);
-  const [classGroupFilter, setClassGroupFilter] = useState<'all' | 'primary' | 'middle' | 'high' | 'senior'>('primary');
+  const [classGroupFilter, setClassGroupFilter] = useState<string>('primary');
+
+  const classGroups = useMemo(() => {
+    const groups: { key: string; label: string; match: (name: string) => boolean }[] = [];
+    
+    const hasNursery = academicClasses.some(c => /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup/i.test(c.name));
+    const hasPrimary = academicClasses.some(c => /class\s*[1-5]\b/i.test(c.name) || /grade\s*[1-5]\b/i.test(c.name) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(c.name));
+    const hasMiddle = academicClasses.some(c => /class\s*[6-8]\b/i.test(c.name) || /grade\s*[6-8]\b/i.test(c.name) || ['Class 6', 'Class 7', 'Class 8'].includes(c.name));
+    const hasHigh = academicClasses.some(c => /class\s*(9|10)\b/i.test(c.name) || ['Class 9', 'Class 10'].includes(c.name));
+    const hasSenior = academicClasses.some(c => /class\s*(11|12)\b/i.test(c.name) || ['Class 11', 'Class 12'].includes(c.name));
+
+    if (hasNursery) {
+      groups.push({
+        key: 'nursery',
+        label: 'Nursery & KG',
+        match: (name: string) => /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup/i.test(name)
+      });
+    }
+    if (hasPrimary) {
+      groups.push({
+        key: 'primary',
+        label: 'Class 1-5',
+        match: (name: string) => /class\s*[1-5]\b/i.test(name) || /grade\s*[1-5]\b/i.test(name) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(name)
+      });
+    }
+    if (hasMiddle) {
+      groups.push({
+        key: 'middle',
+        label: 'Class 6-8',
+        match: (name: string) => /class\s*[6-8]\b/i.test(name) || /grade\s*[6-8]\b/i.test(name) || ['Class 6', 'Class 7', 'Class 8'].includes(name)
+      });
+    }
+    if (hasHigh) {
+      groups.push({
+        key: 'high',
+        label: 'Class 9-10',
+        match: (name: string) => /class\s*(9|10)\b/i.test(name) || ['Class 9', 'Class 10'].includes(name)
+      });
+    }
+    if (hasSenior) {
+      groups.push({
+        key: 'senior',
+        label: 'Class 11-12',
+        match: (name: string) => /class\s*(11|12)\b/i.test(name) || ['Class 11', 'Class 12'].includes(name)
+      });
+    }
+
+    return groups;
+  }, [academicClasses]);
 
   const displayedClasses = useMemo(() => {
     return academicClasses.filter(c => {
-      const n = c.name;
-      if (classGroupFilter === 'primary') {
-        return /class\s*[1-5]\b/i.test(n) || /grade\s*[1-5]\b/i.test(n) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(n);
-      }
-      if (classGroupFilter === 'middle') {
-        return /class\s*[6-8]\b/i.test(n) || /grade\s*[6-8]\b/i.test(n) || ['Class 6', 'Class 7', 'Class 8'].includes(n);
-      }
-      if (classGroupFilter === 'high') {
-        return /class\s*(9|10)\b/i.test(n) || ['Class 9', 'Class 10'].includes(n);
-      }
-      if (classGroupFilter === 'senior') {
-        return /class\s*(11|12)\b/i.test(n) || ['Class 11', 'Class 12'].includes(n);
-      }
-      return true;
+      if (classGroupFilter === 'all') return true;
+      const group = classGroups.find(g => g.key === classGroupFilter);
+      return group ? group.match(c.name) : true;
     });
-  }, [academicClasses, classGroupFilter]);
+  }, [academicClasses, classGroupFilter, classGroups]);
+
+  useEffect(() => {
+    if (classGroups.length > 0 && !classGroups.some(g => g.key === classGroupFilter) && classGroupFilter !== 'all') {
+      setClassGroupFilter(classGroups[0].key);
+    }
+  }, [classGroups, classGroupFilter]);
 
   useEffect(() => {
     if (academicClasses.length > 0 && selectedClassSections.length === 0) {
       const initial: string[] = [];
       academicClasses.forEach(c => {
         const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-        // By default, select all sections of Class 1-5 (Primary)
-        if (['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(c.name)) {
+        const firstGroup = classGroups[0];
+        if (firstGroup && firstGroup.match(c.name)) {
+          sections.forEach(sec => initial.push(`${c.name}-${sec}`));
+        } else if (!firstGroup) {
           sections.forEach(sec => initial.push(`${c.name}-${sec}`));
         }
       });
       setSelectedClassSections(initial);
     }
-  }, [academicClasses, selectedClassSections]);
+  }, [academicClasses, selectedClassSections, classGroups]);
 
   // Auto-populate timetable with mapped subjects/teachers
   const [autoAssignMappedSubjects, setAutoAssignMappedSubjects] = useState(true);
@@ -366,14 +411,16 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   }, [schoolStartTime, schoolEndTime, periodDurationMinutes, breaks]);
 
   // Quick Class & Section Group Selector
-  const handleSelectClassGroup = (group: 'primary' | 'middle' | 'high' | 'senior' | 'all' | 'none' | 'sec-A' | 'sec-B') => {
+  const handleSelectClassGroup = (group: string) => {
     const allSections: string[] = [];
     academicClasses.forEach(c => {
       const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
       sections.forEach(sec => allSections.push(`${c.name}-${sec}`));
     });
 
-    if (group === 'primary' || group === 'middle' || group === 'high' || group === 'senior' || group === 'all') {
+    if (group === 'all' || group === 'none' || group === 'sec-A' || group === 'sec-B') {
+      // Keep action filters
+    } else if (classGroups.some(g => g.key === group)) {
       setClassGroupFilter(group);
     }
 
@@ -395,29 +442,17 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       return;
     }
 
-    let classNamesToSelect: string[] = [];
-    if (group === 'primary') {
-      classNamesToSelect = academicClasses
+    const activeGroup = classGroups.find(g => g.key === group);
+    if (activeGroup) {
+      const classNamesToSelect = academicClasses
         .map(c => c.name)
-        .filter(n => /class\s*[1-5]\b/i.test(n) || /grade\s*[1-5]\b/i.test(n) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(n));
-    } else if (group === 'middle') {
-      classNamesToSelect = academicClasses
-        .map(c => c.name)
-        .filter(n => /class\s*[6-8]\b/i.test(n) || /grade\s*[6-8]\b/i.test(n) || ['Class 6', 'Class 7', 'Class 8'].includes(n));
-    } else if (group === 'high') {
-      classNamesToSelect = academicClasses
-        .map(c => c.name)
-        .filter(n => /class\s*(9|10)\b/i.test(n) || ['Class 9', 'Class 10'].includes(n));
-    } else if (group === 'senior') {
-      classNamesToSelect = academicClasses
-        .map(c => c.name)
-        .filter(n => /class\s*(11|12)\b/i.test(n) || ['Class 11', 'Class 12'].includes(n));
-    }
+        .filter(n => activeGroup.match(n));
 
-    setSelectedClassSections(allSections.filter(k => {
-      const clsName = k.split('-')[0];
-      return classNamesToSelect.includes(clsName);
-    }));
+      setSelectedClassSections(allSections.filter(k => {
+        const clsName = k.split('-')[0];
+        return classNamesToSelect.includes(clsName);
+      }));
+    }
   };
 
   const toggleSection = (className: string, section: string) => {
@@ -1018,38 +1053,36 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
                   {/* Quick Select Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
+                    {classGroups.map(g => (
+                      <button
+                        key={g.key}
+                        type="button"
+                        onClick={() => handleSelectClassGroup(g.key)}
+                        className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+                          classGroupFilter === g.key
+                            ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+
+                    <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
+
                     <button
                       type="button"
-                      onClick={() => handleSelectClassGroup('primary')}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                        classGroupFilter === 'primary'
-                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                      }`}
+                      onClick={() => handleSelectClassGroup('sec-A')}
+                      className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-slate-100 hover:bg-slate-200 dark:bg-slate-805 text-slate-750 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
                     >
-                      Class 1-5
+                      All Sec A
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleSelectClassGroup('middle')}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                        classGroupFilter === 'middle'
-                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                      }`}
+                      onClick={() => handleSelectClassGroup('sec-B')}
+                      className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-slate-100 hover:bg-slate-200 dark:bg-slate-805 text-slate-750 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
                     >
-                      Class 6-8
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectClassGroup('high')}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                        classGroupFilter === 'high'
-                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      Class 9-10
+                      All Sec B
                     </button>
 
                     <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
@@ -1057,10 +1090,10 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                     <button
                       type="button"
                       onClick={() => handleSelectClassGroup('all')}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
                         classGroupFilter === 'all'
                           ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
                       }`}
                     >
                       All
@@ -1076,7 +1109,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 </div>
 
                 {/* Section-Wise Class Checkbox Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto p-1 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                   {displayedClasses.map(cls => {
                     const sections = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
                     const sectionKeys = sections.map(sec => `${cls.name}-${sec}`);
@@ -1086,7 +1119,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                     return (
                       <div
                         key={cls.id || cls.name}
-                        className="p-3 rounded-2xl border bg-white dark:bg-slate-800 transition-all space-y-2.5 shadow-xs border-slate-200 dark:border-slate-750"
+                        className="p-3 rounded-2xl border bg-white dark:bg-slate-800 hover:border-brand-350 dark:hover:border-slate-700 hover:shadow-xs transition-all space-y-2.5 border-slate-200 dark:border-slate-750"
                       >
                         {/* Class Header */}
                         <div className="flex items-center justify-between">
@@ -1125,13 +1158,14 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                                 key={section}
                                 type="button"
                                 onClick={() => toggleSection(cls.name, section)}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all border ${
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all border cursor-pointer flex items-center gap-1 ${
                                   isSectionSelected
-                                    ? 'bg-sky-500/10 dark:bg-sky-500/20 border-sky-400 dark:border-sky-500 text-sky-600 dark:text-sky-300'
+                                    ? 'bg-sky-500/10 dark:bg-sky-500/20 border-sky-400 dark:border-sky-500 text-sky-600 dark:text-sky-300 shadow-xs'
                                     : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-750 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
                                 }`}
                               >
-                                Sec {section}
+                                {isSectionSelected && <Check className="w-2.5 h-2.5 stroke-[3.5]" />}
+                                <span>Sec {section}</span>
                               </button>
                             );
                           })}
