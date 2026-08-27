@@ -100,7 +100,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     empId: 'EMP002',
     firstName: user?.name || 'Rajesh',
     lastName: 'rayudu',
-    assignedClasses: ['Class 10-A', 'Class 9-B'],
+    assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
     assignedSubjects: ['Mathematics'],
     department: 'Mathematics',
     designation: 'Class Teacher'

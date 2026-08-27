@@ -75,8 +75,11 @@ export const HomeworkView: React.FC = () => {
   const teacherAssignedClasses = useMemo(() => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    if (Array.isArray(raw) && raw.length > 0) return raw;
-    return ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    if (!list.some((c: string) => c.includes('10'))) list.push('Class 10-A');
+    if (!list.some((c: string) => c.includes('9'))) list.push('Class 9-B');
+    if (!list.some((c: string) => c.includes('6'))) list.push('Class 6-A');
+    return Array.from(new Set(list));
   }, [dbTeacher]);
 
   const assignedSubjects = (dbTeacher as any)?.assignedSubjects || ['Mathematics', 'Science'];
