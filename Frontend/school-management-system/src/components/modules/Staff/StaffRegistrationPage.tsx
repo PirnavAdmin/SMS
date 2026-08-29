@@ -91,7 +91,6 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     require('designation', !!form.designation.trim(), 'Designation is required.');
     require('joiningDate', !!form.joiningDate.trim(), 'Date of Joining is required.');
     require('employmentType', !!form.employmentType.trim(), 'Employment Type is required.');
-    require('status', !!form.status.trim(), 'Status is required.');
     require('presentAddress', !!form.presentAddress.trim(), 'Present Address is required.');
     if (!form.sameAsPresentAddress) {
       require('permanentAddress', !!form.permanentAddress.trim(), 'Permanent Address is required.');
@@ -149,14 +148,18 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
       nextErrors.designation = `"${form.designation}" is not a valid designation for ${form.department || form.employeeCategory}.`;
     }
 
+    console.log("Full Submission Validation Errors:", nextErrors);
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    return nextErrors;
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!validate()) {
-      addToast('warning', 'Please complete required fields', 'Check missing or invalid entries.');
+    const validationErrors = validate();
+    const errorKeys = Object.keys(validationErrors);
+    if (errorKeys.length > 0) {
+      const firstErrorMsg = validationErrors[errorKeys[0]];
+      addToast('warning', 'Please complete required fields', firstErrorMsg || 'Check missing or invalid entries.');
       return;
     }
 
@@ -164,7 +167,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
     const isTeaching = normalizeStaffType(form.employeeCategory) === 'Teaching Staff';
     let duplicateConflict: any = null;
-    if (isTeaching && form.designation && form.assignedSubjects && form.assignedSubjects.length > 0) {
+    if (isTeaching && form.designation && form.assignedSubjects && form.assignedSubjects.length > 0 && form.assignedClasses && form.assignedClasses.length > 0) {
       duplicateConflict = staff.find(s => {
         const category = s.employeeCategory || s.role || '';
         const isTeachingStaff = category === 'Teacher' || category === 'Teaching Staff';
@@ -172,8 +175,14 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
         if (s.designation?.trim().toLowerCase() !== form.designation.trim().toLowerCase()) return false;
         
         const otherSubjects = s.assignedSubjects || [];
-        return (form.assignedSubjects || []).some(subj => 
+        const hasCommonSubject = (form.assignedSubjects || []).some(subj => 
           otherSubjects.some(os => os.trim().toLowerCase() === subj.trim().toLowerCase())
+        );
+        if (!hasCommonSubject) return false;
+
+        const otherClasses = s.assignedClasses || [];
+        return (form.assignedClasses || []).some(cls =>
+          otherClasses.some(oc => oc.trim().toLowerCase() === cls.trim().toLowerCase())
         );
       });
     }

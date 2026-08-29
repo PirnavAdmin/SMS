@@ -825,6 +825,12 @@ export interface HostelBed {
   studentName?: string;
 }
 
+export interface PackageComponentItem {
+  categoryId?: string;
+  categoryName: string;
+  quantity: string | number;
+}
+
 export interface UniformItem {
   id: string;
   name?: string;
@@ -832,11 +838,13 @@ export interface UniformItem {
   gender: 'Male' | 'Female' | 'Unisex';
   className: string;
   size: string;
-  color: string;
+  color?: string;
   price: number;
   availableStock: number;
   branch?: string;
   createdAt?: string;
+  isPackage?: boolean;
+  packageComponents?: PackageComponentItem[];
 }
 
 export interface BookItem {
@@ -1016,6 +1024,7 @@ export interface Holiday {
   applicableClasses?: string[];
   description?: string;
   status?: 'Active' | 'Inactive';
+  applicableTo?: 'All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff';
 }
 
 export type EventCategory =
@@ -1897,8 +1906,9 @@ export interface StudentUniformIssue {
   academicYear?: string;
   branch?: string;
   notes?: string;
-  type?: 'Base Package' | 'Additional Purchase';
+  type?: 'Base Package' | 'Additional Purchase' | 'Additional Base Package' | string;
   price?: number;
+  gender?: string;
   transactionType?: string;
   itemCategory?: string;
   totalAmount?: number;

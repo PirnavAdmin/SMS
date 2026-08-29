@@ -22,10 +22,10 @@ export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialS
 
   const subTabs = [
     { id: 'categories', label: 'Categories', icon: Layers },
-    { id: 'items', label: 'Uniform Type', icon: Shirt },
     { id: 'sizes', label: 'Sizes', icon: Ruler },
-    { id: 'suppliers', label: 'Suppliers', icon: Users },
-    { id: 'inventory', label: 'Inventory', icon: Package }
+    { id: 'items', label: 'Add Uniform Type', icon: Shirt },
+    { id: 'inventory', label: 'Inventory Registry', icon: Package },
+    { id: 'suppliers', label: 'Suppliers', icon: Users }
   ] as const;
 
   const tabsNode = (

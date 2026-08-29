@@ -305,16 +305,23 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const teacherAssignedClasses = useMemo(() => {
     let raw = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    if (Array.isArray(raw) && raw.length > 0) return raw;
-    return ['Class 6-A', 'Class 10-A', 'Class 9-B'];
+    const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    const cleaned = list.map((c: string) => {
+      let str = c.trim();
+      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
+      return str;
+    }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
+
+    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
   }, [teacher]);
 
-  const [teacherSelectedClass, setTeacherSelectedClass] = useState('All Assigned Classes');
-  const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
+  const [teacherSelectedClass, setTeacherSelectedClass] = useState('Class 10');
+  const [teacherSelectedSection, setTeacherSelectedSection] = useState('A');
+  const [teacherHasSearched, setTeacherHasSearched] = useState(false);
   const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
   const teacherPageSize = 9;
 
-  // Dynamic Class options for Teacher Filter - PURE Class names only (sections filtered separately)
+  // Dynamic Class options for Teacher Filter - PURE Class names ONLY for assigned workload
   const teacherClassOptions = useMemo(() => {
     const set = new Set<string>();
     (teacherAssignedClasses || []).forEach(ac => {
@@ -323,24 +330,42 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         if (!mainCls.toLowerCase().startsWith('class')) {
           mainCls = `Class ${mainCls}`;
         }
-        set.add(mainCls);
+        if (!mainCls.toLowerCase().includes('nursery') && !mainCls.toLowerCase().includes('lkg') && !mainCls.toLowerCase().includes('ukg')) {
+          set.add(mainCls);
+        }
       }
     });
-    return Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
+    const list = Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
+    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 6'];
   }, [teacherAssignedClasses]);
 
-  // Dynamic Section options for Teacher Filter
+  // Dynamic Section options for Teacher Filter - STRICTLY assigned sections for selected class
   const teacherSectionOptions = useMemo(() => {
-    const sectionsSet = new Set<string>();
-    ['A', 'B', 'C', 'D', 'E'].forEach(sec => sectionsSet.add(sec));
-    displayStudents.forEach(s => {
-      if (s.section) {
-        const cleanSec = s.section.replace(/^Section\s+/i, '').trim();
-        if (cleanSec) sectionsSet.add(cleanSec);
+    const sections = new Set<string>();
+    (teacherAssignedClasses || []).forEach(ac => {
+      const parts = ac.split('-');
+      let clsName = parts[0].trim();
+      if (!clsName.toLowerCase().startsWith('class')) clsName = `Class ${clsName}`;
+      const sec = parts[1] ? parts[1].trim() : 'A';
+
+      const selectedClsNum = teacherSelectedClass.replace(/^class\s*/i, '').trim().toLowerCase();
+      const clsNum = clsName.replace(/^class\s*/i, '').trim().toLowerCase();
+
+      if (teacherSelectedClass === 'All Assigned Classes' || selectedClsNum === clsNum) {
+        sections.add(sec);
       }
     });
-    return Array.from(sectionsSet).sort();
-  }, [displayStudents]);
+
+    const list = Array.from(sections).sort();
+    return list.length > 0 ? list : ['A'];
+  }, [teacherAssignedClasses, teacherSelectedClass]);
+
+  // Auto-sync section selection when class changes to default directly to assigned section
+  useEffect(() => {
+    if (teacherSectionOptions.length > 0) {
+      setTeacherSelectedSection(teacherSectionOptions[0]);
+    }
+  }, [teacherSelectedClass, teacherSectionOptions]);
 
   // Roster View Filters
   const [searchName, setSearchName] = useState('');
@@ -581,7 +606,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 }}
                 className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
               >
-                <option value="All">All Sections</option>
                 {teacherSectionOptions.map((sec) => (
                   <option key={sec} value={sec}>Section {sec}</option>
                 ))}

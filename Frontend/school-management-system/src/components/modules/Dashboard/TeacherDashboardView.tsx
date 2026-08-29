@@ -64,7 +64,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     // Direct email match in teaching staff
     if (userEmail) {
       const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
+      if (byEmail) {
+        return {
+          ...byEmail,
+          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
+        };
+      }
     }
 
     // Direct name match in teaching staff
@@ -76,25 +81,36 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         if (userName.length > 5 && sFullName && sFullName.includes(userName)) return true;
         return false;
       });
-      if (byName) return byName;
+      if (byName) {
+        return {
+          ...byName,
+          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
+        };
+      }
     }
 
     // Direct staff ID match in teaching staff
     if (user?.id) {
       const byId = teachingStaff.find(s => s.id === user.id || s.empId === user.id);
-      if (byId) return byId;
-    }
-
-    // Fallback to first teaching staff member if available
-    if (teachingStaff.length > 0) {
-      const fallback = teachingStaff[0];
-      if (fallback) {
+      if (byId) {
         return {
-          ...fallback,
-          designation: fallback.designation && !fallback.designation.toLowerCase().includes('driver') ? fallback.designation : 'Class Teacher',
-          department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'Mathematics'
+          ...byId,
+          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
         };
       }
+    }
+
+    // Fallback to Robert Teacher staff record or teaching staff member
+    const robertRecord = teachingStaff.find(s => (s.firstName || '').toLowerCase().includes('robert') || (s.lastName || '').toLowerCase().includes('teacher'));
+    const fallback = robertRecord || teachingStaff[0];
+
+    if (fallback) {
+      return {
+        ...fallback,
+        assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+        designation: fallback.designation && !fallback.designation.toLowerCase().includes('driver') ? fallback.designation : 'Junior Teacher',
+        department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'English'
+      };
     }
 
     // Construct dynamic profile from logged-in user context
@@ -103,25 +119,16 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const firstName = nameParts[0] || 'Robert';
     const lastName = nameParts.slice(1).join(' ') || 'Teacher';
 
-    let defaultClassName = 'Class 10-A';
-    if (academicClasses && academicClasses.length > 0) {
-      const first = academicClasses[0];
-      const nameStr = first.name || (first as any).className || '10';
-      const secStr = first.section || (Array.isArray((first as any).sections) ? (first as any).sections[0] : 'A') || 'A';
-      const cleanName = nameStr.startsWith('Class ') ? nameStr : `Class ${nameStr}`;
-      defaultClassName = cleanName.includes('-') ? cleanName : `${cleanName}-${secStr}`;
-    }
-
     return {
-      id: user?.id || 'STF-101',
+      id: user?.id || 'STF-2026-0000',
       firstName,
       lastName,
-      assignedClasses: Array.from(new Set([defaultClassName, 'Class 10-A', 'Class 9-B', 'Class 6-A'])),
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics Dept',
-      designation: 'Class Teacher'
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['English', 'Mathematics'],
+      department: 'English',
+      designation: 'Junior Teacher'
     };
-  }, [user, staff, academicClasses]);
+  }, [user, staff]);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -149,6 +156,14 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
     return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
   }, [teacher]);
+
+  // Formatted string listing all assigned classes (e.g. Class 10-A, Class 9-B & Class 6-A)
+  const assignedClassesFormatted = useMemo(() => {
+    if (!assignedClasses || assignedClasses.length === 0) return 'Class 10-A';
+    if (assignedClasses.length === 1) return assignedClasses[0];
+    if (assignedClasses.length === 2) return `${assignedClasses[0]} & ${assignedClasses[1]}`;
+    return `${assignedClasses.slice(0, -1).join(', ')} & ${assignedClasses[assignedClasses.length - 1]}`;
+  }, [assignedClasses]);
 
   // Primary Main Class for Class Teacher summary
   const mainClass = assignedClasses[0] || 'Class 10-A';
@@ -194,9 +209,31 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   }, [timetable, teacher, todayDay]);
 
   // 3. Teacher Check-in / Check-out & Working Hours State
-  const [checkInTime, setCheckInTime] = useState<string | null>(() => localStorage.getItem('teacher_check_in_time'));
-  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => localStorage.getItem('teacher_check_out_time'));
-  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => localStorage.getItem('teacher_is_checked_out') === 'true');
+  const [checkInTime, setCheckInTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) {
+      localStorage.removeItem("teacher_check_in_time");
+      localStorage.removeItem("teacher_check_out_time");
+      localStorage.removeItem("teacher_is_checked_out");
+      localStorage.setItem("teacher_attendance_date", todayStr);
+      return null;
+    }
+    return localStorage.getItem("teacher_check_in_time");
+  });
+
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) return null;
+    const isOut = localStorage.getItem("teacher_is_checked_out") === "true";
+    return isOut ? localStorage.getItem("teacher_check_out_time") : null;
+  });
+
+  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) return false;
+    return localStorage.getItem("teacher_is_checked_out") === "true";
+  });
+
   const [workingHours, setWorkingHours] = useState<string>('0h 0m');
 
   // Check if real attendance is logged for teacher today in useData().attendance
@@ -249,12 +286,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         if (isMounted) {
           const attendanceData = res?.attendance || res;
           if (attendanceData && attendanceData.inTime) {
-            const todayDateStr = new Date().toLocaleDateString('en-CA');
-            const inTimeStr = `${todayDateStr}T${attendanceData.inTime}`;
+            const inTimeStr = `${todayStr}T${attendanceData.inTime}`;
             setCheckInTime(inTimeStr);
             localStorage.setItem('teacher_check_in_time', inTimeStr);
+            localStorage.setItem('teacher_attendance_date', todayStr);
             if (attendanceData.outTime) {
-              const outTimeStr = `${todayDateStr}T${attendanceData.outTime}`;
+              const outTimeStr = `${todayStr}T${attendanceData.outTime}`;
               setCheckOutTime(outTimeStr);
               localStorage.setItem('teacher_check_out_time', outTimeStr);
               localStorage.setItem('teacher_is_checked_out', 'true');
@@ -265,14 +302,6 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
               localStorage.setItem('teacher_is_checked_out', 'false');
               setIsCheckedOut(false);
             }
-          } else {
-            // Not marked today: clean up any stale localStorage
-            setCheckInTime(null);
-            setCheckOutTime(null);
-            setIsCheckedOut(false);
-            localStorage.removeItem('teacher_check_in_time');
-            localStorage.removeItem('teacher_check_out_time');
-            localStorage.removeItem('teacher_is_checked_out');
           }
         }
       } catch {
@@ -281,19 +310,17 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     };
     loadTodayStatus();
     return () => { isMounted = false; };
-  }, []);
+  }, [todayStr]);
 
   const handleCheckIn = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res: any = await teacherCheckInApi();
-      const attendanceData = res?.attendance || res;
-      const inTimeVal = attendanceData?.inTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const fullIso = `${todayStr}T${inTimeVal}`;
-      localStorage.setItem('teacher_check_in_time', fullIso);
+      await teacherCheckInApi();
+      const isoStr = new Date().toISOString();
+      localStorage.setItem('teacher_check_in_time', isoStr);
       localStorage.removeItem('teacher_check_out_time');
       localStorage.setItem('teacher_is_checked_out', 'false');
-      setCheckInTime(fullIso);
+      setCheckInTime(isoStr);
       setCheckOutTime(null);
       setIsCheckedOut(false);
 
@@ -308,13 +335,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   const handleCheckOut = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res: any = await teacherCheckOutApi();
-      const attendanceData = res?.attendance || res;
-      const outTimeVal = attendanceData?.outTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const fullIso = `${todayStr}T${outTimeVal}`;
-      localStorage.setItem('teacher_check_out_time', fullIso);
+      await teacherCheckOutApi();
+      const isoStr = new Date().toISOString();
+      localStorage.setItem('teacher_check_out_time', isoStr);
       localStorage.setItem('teacher_is_checked_out', 'true');
-      setCheckOutTime(fullIso);
+      setCheckOutTime(isoStr);
       setIsCheckedOut(true);
 
       if (fetchDailyAttendance) {
@@ -367,12 +392,20 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     return { active, upcoming, remainingCount };
   }, [todaysSchedule]);
 
-  // 5. Class Summary Panel Calculations (for main class e.g. Class 10-A)
-  const classSummary = useMemo(() => {
-    const mainClassStudents = students.filter(s => isStudentInAssignedClass(s, mainClass));
-    const totalClassStudents = mainClassStudents.length || 33; // Default 33 if initial student seed is small
+  // 5. Class Summary Panel Calculations (for selected class or all assigned classes)
+  const [selectedSummaryClass, setSelectedSummaryClass] = useState<string>('All');
 
-    const classAttendanceRecords = attendance.filter(a => a.date === todayStr && mainClassStudents.some(s => s.id === a.entityId));
+  const classSummary = useMemo(() => {
+    let targetStudents = students;
+    if (selectedSummaryClass === 'All') {
+      targetStudents = students.filter(s => assignedClasses.some(clsKey => isStudentInAssignedClass(s, clsKey)));
+    } else {
+      targetStudents = students.filter(s => isStudentInAssignedClass(s, selectedSummaryClass));
+    }
+
+    const totalClassStudents = targetStudents.length || (selectedSummaryClass === 'All' ? 65 : 22);
+
+    const classAttendanceRecords = attendance.filter(a => a.date === todayStr && targetStudents.some(s => s.id === a.entityId));
     const markedCount = classAttendanceRecords.length;
     const presentClassCount = classAttendanceRecords.filter(a => ['Present', 'Late', 'HalfDay', 'Leave'].includes(a.status)).length;
     const absentClassCount = markedCount > 0 ? (totalClassStudents - presentClassCount) : 0;
@@ -381,7 +414,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       : 100;
 
     return { totalClassStudents, markedCount, presentClassCount, absentClassCount, mainClassAttendancePct };
-  }, [students, attendance, mainClass, todayStr]);
+  }, [students, attendance, selectedSummaryClass, assignedClasses, todayStr]);
 
   // 6. Academic Tasks Panel Calculations
   const pendingAttendanceCount = useMemo(() => {
@@ -425,102 +458,37 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Welcome Dashboard Cockpit Header - Vibrant Pirnav Brand Sky Theme */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 p-6 sm:p-8 text-white shadow-lg shadow-sky-500/20 border border-sky-400/40">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold text-white border border-white/30 shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+      {/* Welcome Dashboard Cockpit Header - Compact Vibrant Pirnav Brand Sky Theme */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 p-4 sm:p-5 text-white shadow-md shadow-sky-500/15 border border-sky-400/40">
+        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/30 shadow-2xs">
+              <Sparkles className="w-3 h-3 text-amber-300" />
               <span>Class Teacher Dashboard</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
               Welcome back, {teacher.firstName} {teacher.lastName}
             </h1>
-            <p className="text-xs sm:text-sm text-sky-100 max-w-xl leading-relaxed font-medium">
-              Designated as <span className="font-extrabold text-white bg-white/20 px-2 py-0.5 rounded-lg border border-white/20">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-white underline decoration-amber-300 decoration-2">{mainClass}</span>. Today is {todayDay}, {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.
+            <p className="text-xs text-sky-100 max-w-2xl leading-normal font-medium">
+              Designated as <span className="font-extrabold text-white bg-white/20 px-1.5 py-0.5 rounded border border-white/20">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-white underline decoration-amber-300 decoration-2">{assignedClassesFormatted}</span>. Today is {todayDay}, {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.
             </p>
           </div>
 
-          <div className="bg-white/15 border border-white/25 backdrop-blur-md px-5 py-3.5 rounded-2xl flex items-center gap-3.5 shadow-lg">
-            <div className="w-11 h-11 bg-white/25 rounded-xl flex items-center justify-center font-black text-white text-xl border border-white/30 shadow-inner">
+          <div className="bg-white/15 border border-white/25 backdrop-blur-md px-3.5 py-2 rounded-xl flex items-center gap-2.5 shadow-md shrink-0 self-start md:self-auto">
+            <div className="w-8 h-8 bg-white/25 rounded-lg flex items-center justify-center font-black text-white text-sm border border-white/30 shadow-inner">
               {teacher.firstName ? teacher.firstName.charAt(0) : 'R'}
             </div>
             <div>
-              <p className="text-[10px] text-sky-200 font-extrabold uppercase tracking-wider">Primary Department</p>
-              <p className="font-extrabold text-sm text-white">{teacher.department || 'Mathematics'}</p>
+              <p className="text-[9px] text-sky-200 font-extrabold uppercase tracking-wider">Primary Department</p>
+              <p className="font-extrabold text-xs text-white">{teacher.department || 'Mathematics'}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Grid: 6 Dashboard Sections */}
+      {/* Grid: 5 Dashboard Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-        {/* 1. Teacher Attendance Card */}
-        <div 
-          onClick={() => handleCardClick('staff-attendance')}
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-blue-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40">
-                <Clock className="w-5 h-5" />
-              </div>
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Teacher Attendance</h3>
-            </div>
-            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors shrink-0" />
-          </div>
-
-          <div className="space-y-3 flex-grow pt-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-500">Attendance Status:</span>
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                isCheckedOut 
-                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200'
-                  : (checkInTime || isTeacherAttendanceMarkedToday)
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200' 
-                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200'
-              }`}>
-                {isCheckedOut ? 'CHECKED OUT' : (checkInTime || isTeacherAttendanceMarkedToday) ? 'CHECKED IN' : 'NOT CHECKED IN'}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800/60 pt-2.5">
-              <span className="font-bold text-slate-500">Working Hours Today:</span>
-              <span className="font-mono font-black text-slate-850 dark:text-slate-200 text-sm">
-                {workingHours}
-              </span>
-            </div>
-
-            {checkInTime && (
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold text-center space-y-0.5 pt-1">
-                <div>Checked in at: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></div>
-                {isCheckedOut && checkOutTime && (
-                  <div>Checked out at: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{new Date(checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2">
-            {(checkInTime || isTeacherAttendanceMarkedToday) && !isCheckedOut ? (
-              <button 
-                onClick={handleCheckOut}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:border-rose-100 text-xs font-black transition-colors flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-xs"
-              >
-                <LogOut className="w-4 h-4 text-rose-500" /> Check Out
-              </button>
-            ) : (
-              <button 
-                onClick={handleCheckIn}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-md shadow-blue-500/10 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" /> {isCheckedOut ? 'Check In Again' : 'Check In Now'}
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* 2. Today's Schedule Card */}
         <div 
@@ -547,7 +515,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
                     <p className="font-black text-slate-850 dark:text-slate-100">{scheduleData.active.subject}</p>
                     <p className="text-[10px] text-slate-400">Class {scheduleData.active.className}-{scheduleData.active.section} &bull; Room {scheduleData.active.roomNo}</p>
                   </div>
-                  <span className="text-[10px] text-blue-600 font-black animate-pulse">Active</span>
+                  <span className="text-[10px] text-blue-600 font-black">Active</span>
                 </div>
               ) : (
                 <p className="text-xs font-bold text-slate-500">No active lecture at this moment</p>
@@ -583,18 +551,34 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 shrink-0">
                 <Users className="w-5 h-5" />
               </div>
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Class Summary</h3>
+              <h3 className="font-black text-sm text-slate-900 dark:text-white whitespace-nowrap">Class Summary</h3>
             </div>
             <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0" />
           </div>
 
-          <div className="flex-grow pt-2">
-            <p className="text-xs font-black text-slate-850 dark:text-slate-200 mb-3">
-              Section Status for <span className="text-emerald-600 dark:text-emerald-400">{mainClass}</span>
-            </p>
+          <div className="flex-grow pt-1">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-black text-slate-850 dark:text-slate-200 whitespace-nowrap">
+                Section Status:
+              </span>
+              <select
+                value={selectedSummaryClass}
+                onChange={e => {
+                  e.stopPropagation();
+                  setSelectedSummaryClass(e.target.value);
+                }}
+                className="px-2.5 py-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-emerald-600 dark:text-emerald-400 outline-none cursor-pointer focus:border-emerald-500 shadow-2xs max-w-[170px] truncate"
+                onClick={e => e.stopPropagation()}
+              >
+                <option value="All">All Classes ({assignedClasses.length})</option>
+                {assignedClasses.map(clsKey => (
+                  <option key={clsKey} value={clsKey}>{clsKey}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
@@ -632,7 +616,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
         {/* 4. Academic Tasks Card */}
         <div 
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm flex flex-col justify-between space-y-4"
+          onClick={() => handleCardClick('examination')}
+          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group space-y-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -641,6 +626,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
               </div>
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Academic Tasks</h3>
             </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors shrink-0" />
           </div>
 
           <div className="space-y-2.5 flex-grow pt-2">
@@ -696,7 +682,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40">
-                <Bell className="w-5 h-5 animate-pulse" />
+                <Bell className="w-5 h-5" />
               </div>
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Notifications</h3>
             </div>
@@ -739,7 +725,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
-                <Zap className="w-5 h-5 animate-bounce" />
+                <Zap className="w-5 h-5" />
               </div>
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Quick Actions</h3>
             </div>
@@ -781,7 +767,6 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
             <span>Administrative shortcut grid</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
           </div>
         </div>
 

@@ -115,9 +115,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       require("designation", !!value.designation.trim(), "Designation is required.");
       require("joiningDate", !!value.joiningDate.trim(), "Joining date is required.");
       require("employmentType", !!value.employmentType.trim(), "Employment type is required.");
-      require("status", !!value.status.trim(), "Status is required.");
     }
 
+    console.log("Validation Errors for Step " + step + ":", stepErrors);
     setLocalErrors(stepErrors);
     return Object.keys(stepErrors).length === 0;
   };
@@ -185,7 +185,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   }, [subjects, value.department]);
 
   const duplicateTeacher = React.useMemo(() => {
-    if (normalizedCategory !== 'Teaching Staff' || !value.designation || !value.assignedSubjects || value.assignedSubjects.length === 0) {
+    if (normalizedCategory !== 'Teaching Staff' || !value.designation || !value.assignedSubjects || value.assignedSubjects.length === 0 || !value.assignedClasses || value.assignedClasses.length === 0) {
       return null;
     }
     
@@ -201,23 +201,33 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       const hasCommonSubject = (value.assignedSubjects || []).some((subj: string) => 
         otherSubjects.some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
       );
+      if (!hasCommonSubject) return false;
+
+      const otherClasses = s.assignedClasses || [];
+      const hasCommonClass = (value.assignedClasses || []).some((cls: string) =>
+        otherClasses.some((oc: string) => oc.trim().toLowerCase() === cls.trim().toLowerCase())
+      );
       
-      return hasCommonSubject;
+      return hasCommonClass;
     });
 
     if (match) {
       const commonSubjects = (value.assignedSubjects || []).filter((subj: string) =>
         (match.assignedSubjects || []).some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
       );
+      const commonClasses = (value.assignedClasses || []).filter((cls: string) =>
+        (match.assignedClasses || []).some((oc: string) => oc.trim().toLowerCase() === cls.trim().toLowerCase())
+      );
       return {
         teacherName: match.name || `${match.firstName} ${match.lastName}`,
         designation: match.designation,
-        subjects: commonSubjects
+        subjects: commonSubjects,
+        classes: commonClasses
       };
     }
     
     return null;
-  }, [staff, value.designation, value.assignedSubjects, staffToEdit, normalizedCategory]);
+  }, [staff, value.designation, value.assignedSubjects, value.assignedClasses, staffToEdit, normalizedCategory]);
 
   const [classSearch, setClassSearch] = useState('');
   const [subjectSearch, setSubjectSearch] = useState('');
@@ -236,6 +246,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
   // Stepper state (Step 1 to Step 5)
   const [activeStep, setActiveStep] = useState<number>(1);
+  const [selectedDocType, setSelectedDocType] = useState<string>("");
 
   // Qualification inline form state
   const [isAddingQual, setIsAddingQual] = useState(false);
@@ -388,41 +399,70 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       // Remove existing doc of same type if present
       const filteredDocs = value.documents.filter(d => d.docType !== docType);
       onChange('documents', [...filteredDocs, newDoc]);
+
+      if (docType === 'Passport Size Photo') {
+        onChange('photoUrl', reader.result as string);
+      }
     };
     reader.readAsDataURL(file);
   };
 
   const handleDeleteDocument = (docId: string) => {
+    const docToDelete = value.documents.find(d => d.id === docId);
+    if (docToDelete && docToDelete.docType === 'Passport Size Photo') {
+      onChange('photoUrl', '');
+    }
     onChange('documents', value.documents.filter(d => d.id !== docId));
   };
 
   // Default Standard Document Slots
-  const STANDARD_DOC_TYPES = [
-    'Passport Size Photo',
-    'Aadhaar Card',
-    'PAN Card',
-    'Educational Certificates',
-    'Experience Certificates',
-    'Resume',
-    'Appointment Letter',
-    'Joining Letter',
-    'Signature'
+  const DOCUMENT_GROUPS = [
+    {
+      label: "Study Certificates",
+      types: [
+        'SSC or 10th Certificate',
+        'Intermediate or 12th Certificate',
+        'Degree Certificate',
+        'Post-Graduation Certificate'
+      ]
+    },
+    {
+      label: "Identity Documents",
+      types: [
+        'Aadhar Card',
+        'Passport',
+        'PAN Card',
+        'Passport Size Photo'
+      ]
+    },
+    {
+      label: "Employment Documents",
+      types: [
+        'Signed Offer Letter'
+      ]
+    },
+    {
+      label: "Others",
+      types: [
+        'Other Document'
+      ]
+    }
   ];
 
   const steps = [
-    { number: 1, title: '1. Basic Information', icon: User },
+    { number: 1, title: '1. Personal Info', icon: User },
     { number: 2, title: '2. Employment Details', icon: Briefcase },
     { number: 3, title: '3. Qualification', icon: GraduationCap },
     { number: 4, title: '4. Experience', icon: Award },
-    { number: 5, title: '5. Upload Documents', icon: Upload }
+    { number: 5, title: '5. Upload Documents', icon: Upload },
+    { number: 6, title: '6. Preview', icon: CheckCircle2 }
   ];
 
   return (
     <div className="space-y-3.5 animate-in fade-in duration-200 text-xs">
       
-      {/* ----------------- STEPPER NAVIGATION TABS ----------------- */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xs overflow-x-auto">
+        <div className="flex flex-row gap-1.5 w-full pr-2">
           {steps.map(step => {
             const Icon = step.icon;
             const isActive = activeStep === step.number;
@@ -431,23 +471,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               <button
                 type="button"
                 key={step.number}
-                onClick={() => {
-                  if (step.number < activeStep) {
-                    setActiveStep(step.number);
-                  } else {
-                    let isValid = true;
-                    for (let s = activeStep; s < step.number; s++) {
-                      if (!validateStep(s)) {
-                        isValid = false;
-                        break;
-                      }
-                    }
-                    if (isValid) {
-                      setActiveStep(step.number);
-                    }
-                  }
-                }}
-                className={`flex items-center justify-center gap-2 py-2 px-2.5 rounded-xl font-bold transition-all ${
+                onClick={() => setActiveStep(step.number)}
+                className={`flex-auto shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold transition-all ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-xs'
                     : isCompleted
@@ -456,8 +481,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="truncate text-[11px]">{step.title}</span>
-                {isCompleted && <Check className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 ml-auto shrink-0" />}
+                <span className="text-[11px] whitespace-nowrap">{step.title}</span>
+                {isCompleted && <Check className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 ml-1.5 shrink-0" />}
               </button>
             );
           })}
@@ -661,7 +686,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               {/* Email Address */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address <span className="text-rose-500">*</span></label>
                 <input
                   type="email"
                   value={value.email}
@@ -669,53 +694,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   className={fieldClass}
                 />
                 {errors.email && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.email}</p>}
-              </div>
-
-              {/* Staff Photo Upload */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Profile Photo</label>
-                <div className="relative">
-                  {value.photoUrl ? (
-                    <div className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={value.photoUrl}
-                          alt="Staff Preview"
-                          className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
-                        />
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">Photo selected</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onChange('photoUrl', '')}
-                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-                        title="Remove photo"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors">
-                      <span>Choose File</span>
-                      <Upload className="w-4 h-4 text-slate-400" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              onChange('photoUrl', reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -1002,22 +980,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 />
               </div>
 
-              {/* Status */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Status <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative mt-1.5">
-                  <select value={value.status || ''} onChange={e => onChange('status', e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10">
-                    <option value="">Select Status</option>
-                    <option value="Active">Active</option>
-                    <option value="Resigned">Resigned</option>
-                    <option value="Retired">Retired</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                {errors.status && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.status}</p>}
-              </div>
             </div>
 
             {normalizedCategory === 'Teaching Staff' && (
@@ -1141,7 +1103,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     <div>
                       <p className="font-bold text-[11px]">Potential Workload Conflict</p>
                       <p className="text-[10px] mt-0.5 leading-relaxed">
-                        <strong>{duplicateTeacher.teacherName}</strong> is already registered with the designation <strong>"{duplicateTeacher.designation}"</strong> and teaches <strong>{duplicateTeacher.subjects.join(', ')}</strong>. You can proceed with registration, but this might conflict in timetable auto-generation.
+                        <strong>{duplicateTeacher.teacherName}</strong> is already registered with the designation <strong>"{duplicateTeacher.designation}"</strong> and teaches <strong>{duplicateTeacher.subjects.join(', ')}</strong> in <strong>{duplicateTeacher.classes.join(', ')}</strong>. You can proceed with registration, but this might conflict in timetable auto-generation.
                       </p>
                     </div>
                   </div>
@@ -1486,7 +1448,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
       {/* ---------------------------------------------------- */}
       {/* SECTION 5: UPLOAD DOCUMENTS                          */}
-      {/* ---------------------------------------------------- */}
       {activeStep === 5 && (
         <div className="space-y-4 animate-in fade-in duration-150">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 space-y-4">
@@ -1500,72 +1461,309 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {STANDARD_DOC_TYPES.map(docType => {
-                const uploaded = value.documents.find(d => d.docType === docType);
-                return (
-                  <div key={docType} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 dark:text-white text-xs">{docType}</span>
-                      {uploaded ? (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                          ✓ Uploaded
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 text-[10px] font-bold">
-                          Pending
-                        </span>
-                      )}
-                    </div>
-
-                    {uploaded ? (
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                        <div className="min-w-0 pr-2">
-                          <p className="truncate text-xs font-extrabold text-slate-800 dark:text-slate-200">{uploaded.fileName}</p>
-                          <p className="text-[10px] text-slate-400">{uploaded.fileSize} • {uploaded.uploadedAt}</p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewDoc(uploaded)}
-                            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600"
-                            title="Preview Document"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <a
-                            href={uploaded.fileUrl}
-                            download={uploaded.fileName}
-                            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600"
-                            title="Download Document"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDocument(uploaded.id)}
-                            className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600"
-                            title="Delete Document"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className="flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 hover:bg-brand-50/50 cursor-pointer transition text-slate-500 text-xs font-bold">
-                        <Upload className="w-3.5 h-3.5 text-brand-600" />
-                        <span>Upload File</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                          onChange={e => handleDocumentFileUpload(e, docType)}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
+            {/* Document Selection & Upload Form */}
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-905 space-y-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Select Document Type <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedDocType}
+                      onChange={(e) => setSelectedDocType(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                    >
+                      <option value="">Select Document Type</option>
+                      {DOCUMENT_GROUPS.map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.types.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
-                );
-              })}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Choose File <span className="text-slate-400 font-normal">(Max Size: 3MB)</span>
+                  </label>
+                  <label
+                    className={`flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 hover:bg-brand-50/50 cursor-pointer transition text-slate-500 text-xs font-bold ${!selectedDocType ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
+                  >
+                    <Upload className="w-3.5 h-3.5 text-brand-600" />
+                    <span>Choose File</span>
+                    <input
+                      type="file"
+                      disabled={!selectedDocType}
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && file.size > 3 * 1024 * 1024) {
+                          addToast("warning", "File Too Large", "Maximum allowed file size is 3MB.");
+                          e.target.value = ""; // Reset
+                          return;
+                        }
+                        if (file) {
+                          handleDocumentFileUpload(e, selectedDocType);
+                          setSelectedDocType(""); // Reset selection
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* List of Uploaded Documents */}
+            <div className="space-y-2">
+              <h4 className="font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase tracking-wider">Uploaded Documents List</h4>
+              {value.documents.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20 text-slate-400 text-xs">
+                  No documents uploaded yet. Select a type and choose a file to upload.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {value.documents.map((uploaded) => (
+                    <div
+                      key={uploaded.id}
+                      className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900 flex items-center justify-between"
+                    >
+                      <div className="min-w-0 pr-2 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-slate-900 dark:text-white text-xs">{uploaded.docType}</span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[9px] font-bold">
+                            ✓ Uploaded
+                          </span>
+                        </div>
+                        <p className="truncate text-[10px] font-medium text-slate-550 dark:text-slate-400">{uploaded.fileName}</p>
+                        <p className="text-[9px] text-slate-400 font-bold">{uploaded.fileSize} • {uploaded.uploadedAt}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewDoc(uploaded)}
+                          className="p-1.5 rounded-lg hover:bg-slate-250 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                          title="Preview Document"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <a
+                          href={uploaded.fileUrl}
+                          download={uploaded.fileName}
+                          className="p-1.5 rounded-lg hover:bg-slate-250 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                          title="Download Document"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDocument(uploaded.id)}
+                          className="p-1.5 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* SECTION 6: REVIEW & SUBMIT                           */}
+      {/* ---------------------------------------------------- */}
+      {activeStep === 6 && (
+        <div className="space-y-4 animate-in fade-in duration-150 text-left">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 space-y-6">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm">Review Employee Details</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Personal Information */}
+              <div className="space-y-3 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40">
+                <h4 className="font-extrabold text-xs text-brand-600 dark:text-brand-400 uppercase tracking-wider border-b pb-1.5 border-slate-200/60 dark:border-slate-800">
+                  Personal Information
+                </h4>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 font-medium">Staff Type:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.employeeCategory || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Staff ID (Emp ID):</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.empId || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Full Name:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">
+                      {[value.firstName, value.middleName, value.lastName].filter(Boolean).join(" ")}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Gender:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.gender || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Date of Birth:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.dob || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Blood Group:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.bloodGroup || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Mobile Number:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.mobileNumber || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Email Address:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5 truncate">{value.email || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Identity & Address */}
+              <div className="space-y-3 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40">
+                <h4 className="font-extrabold text-xs text-brand-600 dark:text-brand-400 uppercase tracking-wider border-b pb-1.5 border-slate-200/60 dark:border-slate-800">
+                  Identity & Address Details
+                </h4>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 font-medium">Aadhaar Number:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.aadhaarNumber || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">PAN Number:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.panNumber || "N/A"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 font-medium">Present Address:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5 leading-relaxed">
+                      {[value.presentAddress, value.city, value.state, value.pinCode, value.country].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 font-medium">Permanent Address:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5 leading-relaxed">
+                      {value.sameAsPresentAddress
+                        ? "Same as Present Address"
+                        : [value.permanentAddress, value.city, value.state, value.pinCode, value.country].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Employment Information */}
+              <div className="space-y-3 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40 col-span-1 md:col-span-2">
+                <h4 className="font-extrabold text-xs text-brand-600 dark:text-brand-400 uppercase tracking-wider border-b pb-1.5 border-slate-200/60 dark:border-slate-800">
+                  Employment Details
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-4 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 font-medium">Branch/Campus:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.branch || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Department:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.department || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Designation:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.designation || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Employment Type:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.employmentType || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Date of Joining:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.joiningDate || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Is Class Teacher:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">{value.isClassTeacher || "No"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 font-medium">Allocated Classes & Subjects:</span>
+                    <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5 leading-relaxed">
+                      {value.assignedClasses?.length > 0
+                        ? `Classes: ${value.assignedClasses.join(", ")} | Subjects: ${value.assignedSubjects?.join(", ") || "None"}`
+                        : "None Allocated"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Qualifications & Past Experience */}
+              <div className="space-y-4 col-span-1 md:col-span-2">
+                <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40">
+                  <h4 className="font-extrabold text-xs text-brand-600 dark:text-brand-400 uppercase tracking-wider border-b pb-1.5 border-slate-200/60 dark:border-slate-800 mb-2">
+                    Qualifications ({value.qualifications.length})
+                  </h4>
+                  {value.qualifications.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 italic">No qualifications added.</p>
+                  ) : (
+                    <div className="space-y-1.5 text-[11px]">
+                      {value.qualifications.map((q, idx) => (
+                        <div key={q.id || idx} className="flex justify-between border-b border-slate-200/40 dark:border-slate-800/40 pb-1">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{q.qualification} in {q.specialization || 'General'}</span>
+                          <span className="text-slate-450">{q.institution} ({q.passingYear}) • {q.percentageCgpa}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40">
+                  <h4 className="font-extrabold text-xs text-brand-600 dark:text-brand-400 uppercase tracking-wider border-b pb-1.5 border-slate-200/60 dark:border-slate-800 mb-2">
+                    Work Experience ({value.experiences.length})
+                  </h4>
+                  {value.experiences.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 italic">No prior experience added.</p>
+                  ) : (
+                    <div className="space-y-1.5 text-[11px]">
+                      {value.experiences.map((exp, idx) => (
+                        <div key={exp.id || idx} className="flex justify-between border-b border-slate-200/40 dark:border-slate-800/40 pb-1">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{exp.designation} at {exp.previousOrganization}</span>
+                          <span className="text-slate-450">{exp.fromDate} to {exp.toDate} ({exp.totalExperience} Year(s))</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Uploaded Documents */}
+              <div className="space-y-3 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40 col-span-1 md:col-span-2">
+                <h4 className="font-extrabold text-xs text-brand-600 dark:text-brand-400 uppercase tracking-wider border-b pb-1.5 border-slate-200/60 dark:border-slate-800">
+                  Uploaded Documents ({value.documents.length})
+                </h4>
+                {value.documents.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">No files uploaded.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    {value.documents.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200/65 dark:border-slate-800/65">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{doc.docType}</span>
+                        <span className="text-slate-400 truncate max-w-[150px]">{doc.fileName}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1583,10 +1781,10 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
         </button>
 
         <span className="text-[11px] font-bold text-slate-400">
-          Step {activeStep} of 5
+          Step {activeStep} of 6
         </span>
 
-        {activeStep === 5 ? (
+        {activeStep === 6 ? (
           <button
             key="submit-staff-btn"
             type="submit"
@@ -1599,13 +1797,26 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 ? 'Save Changes'
                 : 'Create Employee Record'}
           </button>
+        ) : activeStep === 5 ? (
+          <button
+            key="preview-staff-btn"
+            type="button"
+            onClick={() => {
+              if (validateStep(activeStep)) {
+                setActiveStep(6);
+              }
+            }}
+            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
+          >
+            Preview Details
+          </button>
         ) : (
           <button
             key="next-staff-btn"
             type="button"
             onClick={() => {
               if (validateStep(activeStep)) {
-                setActiveStep(prev => Math.min(5, prev + 1));
+                setActiveStep(prev => Math.min(6, prev + 1));
               }
             }}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"

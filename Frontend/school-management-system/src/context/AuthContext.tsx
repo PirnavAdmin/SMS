@@ -34,6 +34,13 @@ const defaultAdminUser: User = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const formatEmailToName = (email: string): string => {
+  if (!email) return "Admin User";
+  const username = email.split('@')[0];
+  const parts = username.split(/[._-]/);
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+};
+
 const getDefaultAcademicYear = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -45,13 +52,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('auth_user');
-      if (saved) {
+      const savedToken = localStorage.getItem('auth_token');
+      if (saved && savedToken && savedToken !== 'offline-bypass-dev-token') {
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
-          if ((parsed.name === 'Administrator' || !parsed.name) && parsed.email && parsed.email.includes('@')) {
-            const parts = parsed.email.split('@')[0].split('.');
-            parsed.name = parts.map((p: any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          if (parsed.email && (parsed.name === 'Administrator' || parsed.name === 'Admin User' || !parsed.name)) {
+            parsed.name = formatEmailToName(parsed.email);
           }
           localStorage.setItem('auth_user', JSON.stringify(parsed));
         }
@@ -59,7 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return null;
     } catch {
-      localStorage.removeItem('auth_user');
       return null;
     }
   });
@@ -69,7 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || null;
+    const t = localStorage.getItem('auth_token');
+    return (t && t !== 'offline-bypass-dev-token') ? t : null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -120,9 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
-      if (userName === 'Administrator' && emailOrPhone.includes('@')) {
-        const parts = emailOrPhone.split('@')[0].split('.');
-        userName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      if (emailOrPhone.includes('@') && (userName === 'Administrator' || userName === 'Admin User' || userName === 'User')) {
+        userName = formatEmailToName(emailOrPhone);
       }
 
       const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
@@ -148,11 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return true;
     } catch (err: any) {
-      console.error('Login error:', err);
-      // Clean up any stale data just in case
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('roles');
+      console.error('Login failed:', err);
       throw err;
     }
   };
@@ -190,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token, selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token && token !== 'offline-bypass-dev-token', selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
   );
 };
 

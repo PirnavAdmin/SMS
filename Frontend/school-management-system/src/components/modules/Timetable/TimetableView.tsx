@@ -21,7 +21,7 @@ type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
 
 export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
-    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable, loadTimetableForClassSection,
+    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, clearClassTimetable, publishClassTimetable, loadTimetableForClassSection,
     periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     staff, academicClasses, rawClasses, subjects, holidays,
@@ -100,7 +100,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     empId: 'EMP002',
     firstName: user?.name || 'Rajesh',
     lastName: 'rayudu',
-    assignedClasses: ['Class 10-A', 'Class 9-B'],
+    assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
     assignedSubjects: ['Mathematics'],
     department: 'Mathematics',
     designation: 'Class Teacher'
@@ -341,7 +341,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [academicClasses, selectedClass]
   );
 
-  const lastLoadedTimetableKey = useRef<string>('');
+  const classTimetable = useMemo(() => 
+    timetable.filter(t => t.className === selectedClass && t.section === selectedSection),
+    [timetable, selectedClass, selectedSection]
+  );
 
   useEffect(() => {
     if (selectedClass && selectedSection && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
@@ -353,16 +356,28 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     if (selectedClass && selectedSection) {
       const clsObj = academicClasses.find(c => c.name === selectedClass);
       if (clsObj) {
-        const key = `${clsObj.id}_${selectedSection}_${academicYear}`;
-        if (lastLoadedTimetableKey.current === key) return;
-        lastLoadedTimetableKey.current = key;
-        const timer = setTimeout(() => {
-          loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
-        }, 150);
-        return () => clearTimeout(timer);
+        loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
       }
     }
-  }, [selectedClass, selectedSection, academicYear]);
+  }, [selectedClass, selectedSection, academicYear, academicClasses]);
+
+  const lastLoadedClassSec = useRef<string>('');
+
+  useEffect(() => {
+    if (selectedClass && selectedSection) {
+      const key = `${selectedClass}-${selectedSection}`;
+      const hasSaturdaySlots = classTimetable.some(t => t.day === 'Saturday');
+      
+      // Auto-enable Saturday if slots exist
+      if (hasSaturdaySlots) {
+        setIncludeSaturday(true);
+      } else if (lastLoadedClassSec.current !== key) {
+        // Only auto-disable Saturday when switching class/section
+        setIncludeSaturday(false);
+        lastLoadedClassSec.current = key;
+      }
+    }
+  }, [selectedClass, selectedSection, classTimetable]);
 
   useEffect(() => {
     if (isBulkAssignModalOpen) {
@@ -420,10 +435,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     return `${hr.toString().padStart(2, '0')}:${m} ${ampm}`;
   };
 
-  const classTimetable = useMemo(() => 
-    timetable.filter(t => t.className === selectedClass && t.section === selectedSection),
-    [timetable, selectedClass, selectedSection]
-  );
+
 
   const timetableStatus = useMemo(() => {
     if (classTimetable.length === 0) return 'Draft';
@@ -1334,10 +1346,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                     <Plus className="w-3.5 h-3.5" /> Add Period Slot
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!selectedClass || !selectedSection) return;
-                      const existing = timetable.filter(t => t.className === selectedClass && t.section === selectedSection);
-                      existing.forEach(t => deleteTimetableSlot(t.id));
+                      await clearClassTimetable(selectedClass, selectedSection);
                       addToast('info', 'Timetable Cleared', `Cleared schedule for ${selectedClass} - Section ${selectedSection}`);
                     }}
                     disabled={!selectedClass || !selectedSection || classTimetable.length === 0}
@@ -2012,6 +2023,20 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   { name: 'Period 8', slot: '02:45 PM - 03:30 PM', type: 'Teaching' },
                   { name: 'Dispersal & Activity', slot: '03:30 PM - 04:15 PM', type: 'Other' },
                 ];
+
+                if (teacherAllSlots.length === 0) {
+                  return (
+                    <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center border border-slate-200/60 dark:border-slate-700/60 shadow-xs">
+                        <Calendar className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 text-center">No Timetable Slots Assigned</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed text-center">
+                        {selectedTeacherName} has not been assigned to teach any classes or subject periods yet. Click "Assign Class / Subject Period" to create the first assignment.
+                      </p>
+                    </div>
+                  );
+                }
 
                 return (
                   <>
@@ -2692,6 +2717,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         isOpen={isAutoGeneratorOpen}
         onClose={() => setIsAutoGeneratorOpen(false)}
         initialAcademicYear={academicYear}
+        onSuccess={() => {
+          const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === selectedClass.toLowerCase().trim());
+          if (clsObj && selectedSection) {
+            loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
+          }
+        }}
       />
     </div>
   );

@@ -306,7 +306,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-3">
                 <button
                   type="submit"
                   disabled={loading}

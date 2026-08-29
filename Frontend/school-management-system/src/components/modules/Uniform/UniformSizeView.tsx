@@ -189,7 +189,37 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Size</h3>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Size Configuration</h3>
+            
+            {/* Quick Fabric Meterage Presets */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400">📏 Fabric Meterage Presets</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { name: '1.0m - 1.5m', age: '5-9 yrs' },
+                  { name: '1.5m - 2.0m', age: '10-14 yrs' },
+                  { name: '2.0m - 2.5m', age: '15-18 yrs' },
+                  { name: '2.5m - 3.0m', age: 'Adult / Custom' }
+                ].map(preset => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => setForm({
+                      sizeName: preset.name,
+                      chest: 'N/A (Fabric)',
+                      waist: 'N/A (Fabric)',
+                      shoulder: 'N/A (Fabric)',
+                      ageGroup: preset.age,
+                      gender: 'Unisex'
+                    })}
+                    className="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-sky-600 hover:text-white dark:hover:bg-sky-600 transition-all cursor-pointer"
+                  >
+                    + {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>

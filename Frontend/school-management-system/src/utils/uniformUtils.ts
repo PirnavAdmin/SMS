@@ -5,6 +5,21 @@ export interface UniformSizeOption {
   label: string;
 }
 
+export const normalizeUniformCategoryName = (rawName: string = ''): string => {
+  if (!rawName) return '';
+  const lower = rawName.toLowerCase().trim();
+  if (lower.includes('boys') && lower.includes('package')) {
+    return 'Boys Uniform Package(Base Admission kit)';
+  }
+  if (lower.includes('girls') && lower.includes('package')) {
+    return 'Girls Uniform Package(Base Admission kit)';
+  }
+  if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
+    return 'Cloth';
+  }
+  return rawName.replace(/\s*\(base\s*uniform\s*package\)/gi, '').trim();
+};
+
 export const getCategorySizes = (
   itemNameOrCategory: string = '',
   customSizes?: UniformSize[]
@@ -13,10 +28,6 @@ export const getCategorySizes = (
 
   // Helper to format configured custom sizes from Size Configurations
   const formatConfiguredSizes = (sizes: UniformSize[], categoryName: string = ''): UniformSizeOption[] => {
-    const itemLow = categoryName.toLowerCase();
-    const isTop = itemLow.includes('shirt') || itemLow.includes('blazer') || itemLow.includes('sweater') || itemLow.includes('t-shirt') || itemLow.includes('jacket') || itemLow.includes('top') || itemLow.includes('package') || !itemLow;
-    const isBottom = itemLow.includes('pant') || itemLow.includes('trouser') || itemLow.includes('skirt') || itemLow.includes('short') || itemLow.includes('lower');
-
     const seen = new Set<string>();
     const list: UniformSizeOption[] = [];
 
@@ -25,14 +36,7 @@ export const getCategorySizes = (
       if (!name || seen.has(name.toLowerCase().trim())) return;
       seen.add(name.toLowerCase().trim());
 
-      const specs: string[] = [];
-      if (isTop && s.chest) specs.push(`Chest: ${s.chest}`);
-      if (isBottom && s.waist) specs.push(`Waist: ${s.waist}`);
-      if (isTop && s.shoulder) specs.push(`Shoulder: ${s.shoulder}`);
-      if (s.ageGroup) specs.push(s.ageGroup);
-
-      const specStr = specs.length > 0 ? ` (${specs.join(', ')})` : '';
-      list.push({ value: name, label: `${name}${specStr}` });
+      list.push({ value: name, label: name });
     });
 
     if (!seen.has('others')) {
@@ -40,6 +44,28 @@ export const getCategorySizes = (
     }
     return list;
   };
+
+  if (Array.isArray(customSizes) && customSizes.length > 0) {
+    return formatConfiguredSizes(customSizes, itemNameOrCategory);
+  }
+
+  // 0. Cloth / Fabric / Unstitched Material
+  if (
+    itemLower.includes('cloth') ||
+    itemLower.includes('fabric') ||
+    itemLower.includes('unstitched') ||
+    itemLower.includes('meter') ||
+    itemLower.includes('shirting') ||
+    itemLower.includes('suiting')
+  ) {
+    return [
+      { value: '1.0m - 1.5m', label: '1.0m - 1.5m' },
+      { value: '1.5m - 2.0m', label: '1.5m - 2.0m' },
+      { value: '2.0m - 2.5m', label: '2.0m - 2.5m' },
+      { value: '2.5m - 3.0m', label: '2.5m - 3.0m' },
+      { value: 'Others', label: 'Others' }
+    ];
+  }
 
   // 1. Cap / Hat / Headwear
   if (
@@ -403,7 +429,10 @@ export const getStudentUniformFeeStatus = (
 
   const isOptedAtAdmission = isExplicitlyNotOptedInNotes
     ? false
-    : (optList === null || optList === undefined ? true : (Array.isArray(optList) && (optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit')))));
+    : Boolean(
+        (optList && Array.isArray(optList) && optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit'))) ||
+        (admMatch as any)?.isUniformOpted === true
+      );
 
   const baseUniformPayment = (feePayments || []).find(p => {
     if (!p || !p.amountPaid || p.amountPaid <= 0) return false;

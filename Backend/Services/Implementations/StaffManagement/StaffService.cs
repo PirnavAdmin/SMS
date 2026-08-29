@@ -180,7 +180,7 @@ public class StaffService : IStaffService
             BranchName = dto.BranchName,
             IfscCode = dto.IfscCode,
             UpiId = dto.UpiId,
-            IsActive = true
+            IsActive = dto.IsActive ?? true
         };
 
         if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) staff.DateOfBirth = parsedDob;
@@ -333,6 +333,7 @@ public class StaffService : IStaffService
         staff.ReportingManager = dto.ReportingManager;
         staff.AcademicYear = dto.AcademicYear;
         staff.IsClassTeacherEligible = dto.IsClassTeacherEligible;
+        if (dto.IsActive.HasValue) staff.IsActive = dto.IsActive.Value;
         if (dto.PrimarySubject != null) staff.PrimarySubject = dto.PrimarySubject;
         if (dto.Specialization != null) staff.Specialization = dto.Specialization;
         staff.MonthlySalary = dto.MonthlySalary;
