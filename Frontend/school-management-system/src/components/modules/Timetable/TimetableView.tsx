@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,
   Copy, User, BookOpen, AlertTriangle, Layers, SlidersHorizontal, Check, RefreshCw,
@@ -341,6 +341,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [academicClasses, selectedClass]
   );
 
+  const lastLoadedTimetableKey = useRef<string>('');
+
   useEffect(() => {
     if (selectedClass && selectedSection && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
@@ -351,10 +353,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     if (selectedClass && selectedSection) {
       const clsObj = academicClasses.find(c => c.name === selectedClass);
       if (clsObj) {
-        loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
+        const key = `${clsObj.id}_${selectedSection}_${academicYear}`;
+        if (lastLoadedTimetableKey.current === key) return;
+        lastLoadedTimetableKey.current = key;
+        const timer = setTimeout(() => {
+          loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
+        }, 150);
+        return () => clearTimeout(timer);
       }
     }
-  }, [selectedClass, selectedSection, academicYear, academicClasses]);
+  }, [selectedClass, selectedSection, academicYear]);
 
   useEffect(() => {
     if (isBulkAssignModalOpen) {

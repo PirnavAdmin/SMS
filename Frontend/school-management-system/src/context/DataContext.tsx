@@ -2688,10 +2688,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("homework", initialHomework),
   );
   const [books, setBooks] = useState<BookItem[]>(() =>
-    getStored("books", initialBooks),
+    getStored("books", []),
   );
   const [bookIssues, setBookIssues] = useState<BookIssue[]>(() =>
-    getStored("book_issues", initialBookIssues),
+    getStored("book_issues", []),
   );
   const [transportRoutes, setTransportRoutes] = useState<TransportRoute[]>(() =>
     getStored("transport", initialTransportRoutes),
@@ -5183,12 +5183,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setBooks((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
-        });
+      if (Array.isArray(items)) {
+        const mapped = items.map((b: any) => ({
+          id: String(b.bookId || b.id),
+          title: b.title || b.bookTitle || "",
+          author: b.author || "",
+          isbn: b.isbn || "",
+          category: b.category || "",
+          rackNo: b.rackLocation || b.rack || "",
+          totalCopies: b.totalCopies || 0,
+          availableCopies: b.availableCopies ?? b.totalCopies ?? 0,
+          status: (b.availableCopies ?? b.totalCopies ?? 0) > 0 ? "Available" : "Issued",
+        }));
+        setBooks(mapped);
+        localStorage.setItem("books", JSON.stringify(mapped));
       }
     } catch (err) {
       console.warn("Failed to fetch books from API", err);
@@ -5201,12 +5209,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setBookIssues((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
-        });
+      if (Array.isArray(items)) {
+        const mapped = items.map((i: any) => ({
+          id: String(i.issueId || i.id),
+          bookId: String(i.bookId),
+          bookTitle: i.bookTitle || i.title || "",
+          borrowerId: String(i.borrowerId || i.studentId || i.staffId || ""),
+          borrowerName: i.borrowerName || i.studentName || i.staffName || "",
+          borrowerType: i.borrowerType || (i.studentId ? "Student" : "Staff"),
+          issueDate: String(i.issueDate || "").split("T")[0],
+          dueDate: String(i.dueDate || "").split("T")[0],
+          returnDate: i.returnDate ? String(i.returnDate).split("T")[0] : undefined,
+          status: i.status || "Issued",
+          fineAmount: i.fineAmount || 0,
+          remarks: i.remarks || "",
+        }));
+        setBookIssues(mapped);
+        localStorage.setItem("book_issues", JSON.stringify(mapped));
       }
     } catch (err) {
       console.warn("Failed to fetch issued books from API", err);
@@ -16546,18 +16565,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     sectionName: string,
     academicYear: string,
   ) => {
-    try {
-      const res: any = await fetchTimetableForClassSectionApi(
-        classId,
-        sectionName,
-        academicYear,
-      );
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-        setTimetable(res.data);
-      }
-    } catch (err) {
-      console.warn("Failed to load timetable for class section", err);
+    const cacheKey = `timetable_${classId}_${sectionName}_${academicYear}`;
+    if (activeRequests.current[cacheKey]) {
+      return activeRequests.current[cacheKey];
     }
+    const promise = (async () => {
+      try {
+        const res: any = await fetchTimetableForClassSectionApi(
+          classId,
+          sectionName,
+          academicYear,
+        );
+        if (res?.success && Array.isArray(res.data)) {
+          setTimetable((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(res.data)) {
+              return prev;
+            }
+            return res.data;
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load timetable for class section", err);
+      } finally {
+        delete activeRequests.current[cacheKey];
+      }
+    })();
+    activeRequests.current[cacheKey] = promise;
+    return promise;
   };
 
   const addAcademicHistoryRecord = (
