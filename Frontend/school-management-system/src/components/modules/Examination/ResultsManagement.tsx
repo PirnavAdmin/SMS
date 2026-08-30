@@ -140,31 +140,46 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     addToast('success', 'Results Released', 'Results have been published and are now visible on Parent/Student portals.');
   };
 
-  const handleLockToggle = () => {
-    if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
-    const currentStatus = visibleResults[0]?.status;
-    const nextStatus: ProcessedResult['status'] = currentStatus === 'Locked' ? 'Calculated' : 'Locked';
-    updateResultStatus(exam.id, selectedClass, selectedSection, nextStatus);
-    addToast('info', nextStatus === 'Locked' ? 'Results Locked' : 'Results Unlocked', `Successfully set results status to ${nextStatus}.`);
-  };
-
   // Stats calculation
   const totalCount = visibleResults.length;
   const passCount = visibleResults.filter(r => r.passStatus === 'Pass').length;
   const failCount = visibleResults.filter(r => r.passStatus === 'Fail').length;
-  const publishedCount = visibleResults.filter(r => r.status === 'Published').length;
+  const publishedCount = visibleResults.filter(r => r.status === 'Published' || !!r.publishedAt).length;
   const averagePercentage = totalCount > 0 ? visibleResults.reduce((a, b) => a + b.percentage, 0) / totalCount : 0;
+
+  const isPublished = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Published' || !!r.publishedAt);
+  const isApproved = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Approved' || r.status === 'Published' || !!r.approvedAt || !!r.publishedAt);
+  const isLocked = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Locked' || !!r.lockedAt);
+
+  const displayStatusLabel = useMemo(() => {
+    if (!visibleResults.length) return 'Draft';
+    if (isPublished) return isLocked ? 'Published (Locked)' : 'Published';
+    if (isApproved) return isLocked ? 'Approved (Locked)' : 'Approved';
+    if (isLocked) return 'Locked';
+    if (visibleResults[0]?.status === 'Verified') return 'Verified';
+    return visibleResults[0]?.status || 'Calculated';
+  }, [visibleResults, isPublished, isApproved, isLocked]);
 
   const currentResultStatus = visibleResults[0]?.status || 'Draft';
 
   const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'Published': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-250';
-      case 'Approved': return 'bg-sky-100 text-sky-850 dark:bg-sky-950 dark:text-sky-300 border-sky-200';
-      case 'Locked': return 'bg-slate-900 text-white dark:bg-slate-800 border-slate-700';
-      case 'Verified': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200';
-      case 'Calculated': return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200';
-      default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 border-slate-700';
+    if (status.includes('Published')) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-250';
+    if (status.includes('Approved')) return 'bg-sky-100 text-sky-850 dark:bg-sky-950 dark:text-sky-300 border-sky-200';
+    if (status.includes('Locked')) return 'bg-slate-900 text-white dark:bg-slate-800 border-slate-700';
+    if (status.includes('Verified')) return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200';
+    if (status.includes('Calculated')) return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200';
+    return 'bg-slate-100 text-slate-600 dark:bg-slate-800 border-slate-700';
+  };
+
+  const handleLockToggle = () => {
+    if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
+    
+    if (isLocked) {
+      updateResultStatus(exam.id, selectedClass, selectedSection, 'Calculated');
+      addToast('info', 'Results Unlocked', 'Results unlocked for recalculation and edits.');
+    } else {
+      updateResultStatus(exam.id, selectedClass, selectedSection, 'Locked');
+      addToast('info', 'Results Locked', 'Results locked against further recalculations.');
     }
   };
 
@@ -174,7 +189,6 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     <div className="space-y-4 text-left">
       <Panel
         title="Results Verification & Publishing"
-        //description="Verify overall student performance, approve result summaries, lock evaluations, and publish report cards."
         action={
           <div className="flex items-center gap-2">
             {isCalculated && (
@@ -187,7 +201,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
             )}
 
             <button
-              disabled={!exam || validationIssues.length > 0 || (isCalculated && (currentResultStatus === 'Locked' || currentResultStatus === 'Approved' || currentResultStatus === 'Published'))}
+              disabled={!exam || validationIssues.length > 0 || (isCalculated && isLocked)}
               onClick={handleCalculate}
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition disabled:opacity-60 cursor-pointer"
             >
@@ -256,11 +270,11 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
               {/* Status workflow quick buttons */}
               {selectedClass && selectedSection && isCalculated && (
                 <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase border ${getStatusBadgeColor(currentResultStatus)}`}>
-                    Status: {currentResultStatus}
+                  <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase border ${getStatusBadgeColor(displayStatusLabel)}`}>
+                    Status: {displayStatusLabel}
                   </span>
                   
-                  {currentResultStatus === 'Approved' && (
+                  {isApproved && !isPublished && (
                     <button
                       onClick={handlePublish}
                       className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm transition flex items-center gap-1 cursor-pointer"
@@ -269,15 +283,21 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                     </button>
                   )}
 
+                  {isPublished && (
+                    <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-extrabold text-xs border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 shadow-2xs">
+                      <Send className="w-3.5 h-3.5 text-emerald-600" /> Released to Portal
+                    </span>
+                  )}
+
                   <button
                     onClick={handleLockToggle}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition shadow-xs flex items-center gap-1 cursor-pointer ${
-                      currentResultStatus === 'Locked'
+                      isLocked
                         ? 'border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
                         : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
                     }`}
                   >
-                    {currentResultStatus === 'Locked' ? (
+                    {isLocked ? (
                       <>
                         <LockOpen className="w-3.5 h-3.5" /> Unlock
                       </>
@@ -315,6 +335,8 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                 <ResultVerification
                   issues={validationIssues}
                   isVerified={isVerified}
+                  isApproved={isApproved}
+                  isPublished={isPublished}
                   onVerify={handleVerify}
                   onApprove={handleApprove}
                   status={currentResultStatus}

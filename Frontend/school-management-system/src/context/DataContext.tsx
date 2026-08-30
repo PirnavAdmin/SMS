@@ -14907,12 +14907,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           r.className === className &&
           (!section || section === "All" || rSec === cleanSec || r.section === section)
         ) {
+          const isPublishing = status === "Published";
+          const isApproving = status === "Approved";
+          const isVerifying = status === "Verified";
+          const isLocking = status === "Locked";
+          const isResetting = status === "Draft";
+
           return {
             ...r,
             status,
-            processedAt: stamp,
-            publishedAt: status === "Published" ? stamp : (status === "Calculated" || status === "Draft" ? undefined : r.publishedAt),
-            lockedAt: status === "Locked" ? stamp : (status === "Calculated" || status === "Draft" ? undefined : r.lockedAt),
+            processedAt: r.processedAt || stamp,
+            verifiedBy: isVerifying || isApproving || isPublishing ? (r.verifiedBy || "Administrator") : r.verifiedBy,
+            verifiedAt: isVerifying || isApproving || isPublishing ? (r.verifiedAt || stamp) : r.verifiedAt,
+            approvedBy: isApproving || isPublishing ? (r.approvedBy || "Administrator") : r.approvedBy,
+            approvedAt: isApproving || isPublishing ? (r.approvedAt || stamp) : r.approvedAt,
+            publishedAt: isPublishing ? (r.publishedAt || stamp) : (isResetting ? undefined : r.publishedAt),
+            lockedAt: isLocking ? stamp : undefined,
           };
         }
         return r;
