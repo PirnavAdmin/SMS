@@ -6086,17 +6086,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStudent: Student = {
       ...stData,
       id,
+      section: stData.section || "",
+      rollNo: stData.rollNo || "",
       branch: stData.branch || selectedBranch || "Main Campus",
       studentType: stData.studentType || "Day Scholar",
       promotionHistory: stData.promotionHistory || [],
     };
 
     if (!skipApiCall) {
+      const targetClass = academicClasses.find(
+        (c) => c.name === newStudent.className || c.name === `Class ${newStudent.className}` || c.name.replace("Class ", "") === (newStudent.className || "").replace("Class ", "")
+      );
+      const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
+
+      let targetSectionId: number | undefined = undefined;
+      if (newStudent.section && newStudent.section !== "Unassigned" && targetClass) {
+        const cleanSecName = newStudent.section.replace("Section ", "").trim();
+        const secDetail = (targetClass as any).sectionDetails?.[cleanSecName] || (targetClass as any).sectionDetails?.[newStudent.section];
+        if (secDetail?.id) {
+          targetSectionId = parseInt(secDetail.id);
+        }
+      }
+
       createStudentApi({
         admissionNumber:
           newStudent.admissionNo ||
           `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
-        rollNumber: newStudent.rollNo || "00",
+        rollNumber: newStudent.rollNo || "",
         studentName:
           `${newStudent.firstName || ""} ${newStudent.lastName || ""}`.trim(),
         dateOfBirth: newStudent.dob || undefined,
@@ -6110,8 +6126,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         address: newStudent.address || "",
         branchId: 1,
         academicYearId: 1,
-        classId: 1,
-        sectionId: 1,
+        classId: targetClassId,
+        sectionId: targetSectionId as any,
         status: newStudent.status || "Active",
       })
         .then((response: any) => {
@@ -6149,9 +6165,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (!isNaN(numericId) && oldStudent) {
       const fullStudent = { ...oldStudent, ...updates };
+      const targetClass = academicClasses.find(
+        (c) => c.name === fullStudent.className || c.name === `Class ${fullStudent.className}` || c.name.replace("Class ", "") === (fullStudent.className || "").replace("Class ", "")
+      );
+      const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
+
+      let targetSectionId: number | undefined = undefined;
+      if (fullStudent.section && fullStudent.section !== "Unassigned" && targetClass) {
+        const cleanSecName = fullStudent.section.replace("Section ", "").trim();
+        const secDetail = (targetClass as any).sectionDetails?.[cleanSecName] || (targetClass as any).sectionDetails?.[fullStudent.section];
+        if (secDetail?.id) {
+          targetSectionId = parseInt(secDetail.id);
+        }
+      }
+
       updateStudentApi(numericId, {
         admissionNumber: fullStudent.admissionNo || "ADM-00",
-        rollNumber: fullStudent.rollNo || "00",
+        rollNumber: fullStudent.rollNo || "",
         studentName:
           `${fullStudent.firstName || ""} ${fullStudent.lastName || ""}`.trim(),
         dateOfBirth: fullStudent.dob || undefined,
@@ -6165,8 +6195,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         address: fullStudent.address || "",
         branchId: 1,
         academicYearId: 1,
-        classId: 1,
-        sectionId: 1,
+        classId: targetClassId,
+        sectionId: targetSectionId as any,
         status: fullStudent.status || "Active",
       }).catch((err) => console.error("Failed to update student", err));
     }

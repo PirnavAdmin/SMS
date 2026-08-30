@@ -2404,7 +2404,7 @@ using (var scope = app.Services.CreateScope())
                                     Caste = admApp.Caste,
                                     BranchId = appBranch.BranchId,
                                     ClassId = targetClassId,
-                                    SectionLetter = "A",
+                                    SectionLetter = null,
                                     AdmissionType = "Regular",
                                     Status = admApp.Status ?? "",
                                     IsDeleted = false,
@@ -2433,10 +2433,13 @@ using (var scope = app.Services.CreateScope())
                         if (admission.ClassId == null)
                             continue;
 
-                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
-                        var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
-                        
+                        ClassSection? sectionObj = null;
+                        if (!string.IsNullOrEmpty(admission.SectionLetter))
+                        {
+                            sectionObj = await context.ClassSections
+                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                        }
+
                         if (sectionObj == null)
                         {
                             sectionObj = await context.ClassSections

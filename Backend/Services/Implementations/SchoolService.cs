@@ -1024,7 +1024,7 @@ public class SchoolService : ISchoolService
 					Caste = app.Caste,
 					BranchId = branchId,
 					ClassId = targetClassId,
-					SectionLetter = "A",
+					SectionLetter = null,
 					AdmissionType = "Regular",
 					Status = app.Status ?? "",
 					IsDeleted = isDeleted,
@@ -1046,10 +1046,6 @@ public class SchoolService : ISchoolService
 				existing.Status = app.Status ?? "";
 				existing.IsDeleted = isDeleted;
 				existing.ModifiedDate = DateTime.UtcNow;
-				if (string.IsNullOrEmpty(existing.SectionLetter))
-				{
-					existing.SectionLetter = "A";
-				}
 			}
 			await _context.SaveChangesAsync();
 
@@ -1061,9 +1057,12 @@ public class SchoolService : ISchoolService
 
 				if (admission != null && admission.ClassId.HasValue)
 				{
-					var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
-					var sectionObj = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-						_context.ClassSections, s => s.ClassId == admission.ClassId.Value && s.SectionName.ToLower() == sectionLetter.ToLower());
+					ClassSection? sectionObj = null;
+					if (!string.IsNullOrEmpty(admission.SectionLetter))
+					{
+						sectionObj = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+							_context.ClassSections, s => s.ClassId == admission.ClassId.Value && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+					}
 
 					if (sectionObj == null)
 					{
