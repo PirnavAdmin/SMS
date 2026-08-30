@@ -33,7 +33,8 @@ builder.Services.AddCors(options =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .WithExposedHeaders("Content-Disposition", "X-Branch-Id", "X-Academic-Year-Id", "X-User-Role");
     });
 });
 
@@ -290,9 +291,8 @@ var app = builder.Build();
 // 5. MIDDLEWARE PIPELINE
 // =========================================================
 
-app.UseMiddleware<ExceptionMiddleware>();
-
 app.UseCors();
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Enable Swagger UI unconditionally
 app.UseSwagger();

@@ -673,12 +673,25 @@ public class StaffService : IStaffService
 
         await _context.SaveChangesAsync();
 
-        if (classes == null || !classes.Any() || subjects == null || !subjects.Any())
+        if (classes == null || !classes.Any())
         {
             return;
         }
 
-        // 2. Parse and map each class and subject combination
+        var staff = await _context.Staff.FindAsync(staffId);
+        if (staff == null) return;
+
+        var resolvedSubjects = subjects != null ? new List<string>(subjects) : new List<string>();
+        if (!resolvedSubjects.Any())
+        {
+            if (!string.IsNullOrWhiteSpace(staff.PrimarySubject)) resolvedSubjects.Add(staff.PrimarySubject.Trim());
+            if (!string.IsNullOrWhiteSpace(staff.Specialization)) resolvedSubjects.Add(staff.Specialization.Trim());
+        }
+
+        bool isClassTeacherEligible = staff.IsClassTeacherEligible == true ||
+                                     (staff.Designation != null && staff.Designation.Contains("Class Teacher", StringComparison.OrdinalIgnoreCase));
+
+        // 2. Parse and map each class and section combination
         foreach (var classStr in classes)
         {
             if (string.IsNullOrWhiteSpace(classStr)) continue;
@@ -693,8 +706,11 @@ public class StaffService : IStaffService
                 sectionLetter = parts[1].Trim();
             }
 
+            var cleanClassName = className.ToLower().Replace("class", "").Trim();
             var classGrade = await _context.Classes
-                .FirstOrDefaultAsync(cg => cg.ClassName != null && cg.ClassName.ToLower() == className.ToLower());
+                .FirstOrDefaultAsync(cg => cg.ClassName != null && 
+                    (cg.ClassName.ToLower() == className.ToLower() || 
+                     cg.ClassName.ToLower().Replace("class", "").Trim() == cleanClassName));
 
             if (classGrade == null) continue;
 
@@ -703,7 +719,56 @@ public class StaffService : IStaffService
 
             int sectionId = classSection?.SectionId ?? 0;
 
-            foreach (var subjectStr in subjects)
+            // If teacher is eligible/designated as Class Teacher, create or update Class Teacher assignment for this section
+            if (isClassTeacherEligible)
+            {
+                var existingCt = await _context.TeacherAssignments
+                    .FirstOrDefaultAsync(a => a.ClassId == classGrade.ClassId && a.SectionLetter.ToLower() == sectionLetter.ToLower() && a.Role == "Class Teacher");
+
+                var ctSubjectId = (await _context.ClassSubjectMappings
+                    .Where(sm => sm.ClassId == classGrade.ClassId)
+                    .Select(sm => (int?)sm.SubjectId)
+                    .FirstOrDefaultAsync()) ?? (await _context.Subjects.Select(s => (int?)s.SubjectId).FirstOrDefaultAsync()) ?? 1;
+
+                if (existingCt != null)
+                {
+                    existingCt.TeacherId = staffId;
+                    existingCt.Status = "Active";
+                    if (existingCt.SubjectId <= 0) existingCt.SubjectId = ctSubjectId;
+                }
+                else
+                {
+                    var ctAssignment = new TeacherAssignment
+                    {
+                        ClassId = classGrade.ClassId,
+                        SectionLetter = sectionLetter,
+                        SubjectId = ctSubjectId,
+                        TeacherId = staffId,
+                        Role = "Class Teacher",
+                        Status = "Active"
+                    };
+                    await _context.TeacherAssignments.AddAsync(ctAssignment);
+                }
+            }
+
+            // If no subjects were selected, pick from class curriculum
+            var activeClassSubjects = new List<string>(resolvedSubjects);
+            if (!activeClassSubjects.Any())
+            {
+                var curriculumSubs = await _context.ClassSubjectMappings
+                    .Where(csm => csm.ClassId == classGrade.ClassId)
+                    .Include(csm => csm.Subject)
+                    .Select(csm => csm.Subject.SubjectName)
+                    .Where(sn => sn != null)
+                    .ToListAsync();
+
+                if (curriculumSubs.Any())
+                {
+                    activeClassSubjects.AddRange(curriculumSubs.Cast<string>());
+                }
+            }
+
+            foreach (var subjectStr in activeClassSubjects)
             {
                 if (string.IsNullOrWhiteSpace(subjectStr)) continue;
 
@@ -712,29 +777,55 @@ public class StaffService : IStaffService
 
                 if (subject == null) continue;
 
-                // Create general assignment
-                var ta = new TeacherAssignment
-                {
-                    ClassId = classGrade.ClassId,
-                    SectionLetter = sectionLetter,
-                    SubjectId = subject.SubjectId,
-                    TeacherId = staffId,
-                    Role = "Subject Teacher",
-                    Status = "Active"
-                };
-                await _context.TeacherAssignments.AddAsync(ta);
+                // Check if an existing assignment exists for this class/section/subject/role
+                var existingTaForSub = await _context.TeacherAssignments
+                    .FirstOrDefaultAsync(a => a.ClassId == classGrade.ClassId && 
+                                              a.SectionLetter.ToLower() == sectionLetter.ToLower() && 
+                                              a.SubjectId == subject.SubjectId && 
+                                              a.Role == "Subject Teacher");
 
-                // Create schedule subject assignment (if section exists)
-                if (sectionId > 0)
+                if (existingTaForSub != null)
                 {
-                    var tsa = new TeacherSubjectAssignment
+                    existingTaForSub.TeacherId = staffId;
+                    existingTaForSub.Status = "Active";
+                }
+                else
+                {
+                    var ta = new TeacherAssignment
                     {
                         ClassId = classGrade.ClassId,
-                        SectionId = sectionId,
+                        SectionLetter = sectionLetter,
                         SubjectId = subject.SubjectId,
-                        StaffId = staffId
+                        TeacherId = staffId,
+                        Role = "Subject Teacher",
+                        Status = "Active"
                     };
-                    await _context.TeacherSubjectAssignments.AddAsync(tsa);
+                    await _context.TeacherAssignments.AddAsync(ta);
+                }
+
+                // Create or update schedule subject assignment (if section exists)
+                if (sectionId > 0)
+                {
+                    var existingTsaForSub = await _context.TeacherSubjectAssignments
+                        .FirstOrDefaultAsync(tsa => tsa.ClassId == classGrade.ClassId && 
+                                                    tsa.SectionId == sectionId && 
+                                                    tsa.SubjectId == subject.SubjectId);
+
+                    if (existingTsaForSub != null)
+                    {
+                        existingTsaForSub.StaffId = staffId;
+                    }
+                    else
+                    {
+                        var tsa = new TeacherSubjectAssignment
+                        {
+                            ClassId = classGrade.ClassId,
+                            SectionId = sectionId,
+                            SubjectId = subject.SubjectId,
+                            StaffId = staffId
+                        };
+                        await _context.TeacherSubjectAssignments.AddAsync(tsa);
+                    }
                 }
             }
         }

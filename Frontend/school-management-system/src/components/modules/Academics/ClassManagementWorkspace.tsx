@@ -77,7 +77,13 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedTeacher = useMemo(() => {
-    return teachers.find(t => t.id === value || (t.name || `${t.firstName} ${t.lastName}`) === value);
+    if (!value) return null;
+    const valStr = String(value).trim().toLowerCase();
+    return teachers.find(t => 
+      String(t.id).trim().toLowerCase() === valStr ||
+      (t.name || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase() === valStr ||
+      (t.empId && (t.empId.toLowerCase() === valStr || valStr.includes(t.empId.toLowerCase())))
+    );
   }, [teachers, value]);
 
   useEffect(() => {
@@ -2348,10 +2354,18 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     
                     const cleanName = currentSectionClassTeacherName.trim().toLowerCase();
                     if (fullName.toLowerCase() === cleanName) return true;
+                    if (String(t.id).toLowerCase() === cleanName) return true;
                     if (isNameEquivalent(fullName, currentSectionClassTeacherName)) return true;
-                    if (empCode && cleanName.includes(empCode.toLowerCase())) return true;
+                    if (empCode && (cleanName.includes(String(empCode).toLowerCase()) || String(empCode).toLowerCase() === cleanName)) return true;
                     if (cleanName.startsWith(fullName.toLowerCase())) return true;
                     return false;
+                  }) || teachersList.find(t => {
+                    return teacherAssignments.some(ta => 
+                      (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) &&
+                      ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() &&
+                      ta.role === 'Class Teacher' &&
+                      (String(ta.teacherId) === String(t.id) || (ta.teacherName && (t.name || `${t.firstName} ${t.lastName}`).toLowerCase() === ta.teacherName.toLowerCase()))
+                    );
                   });
                   const mappedSubjectsForClass = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
 
@@ -2462,9 +2476,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   const subCode = sub.code || sub.subjectId;
                                   const deptName = sub.department || 'General Academics';
                                   const mapping = teacherAssignments.find(ta => 
-                                    ta.className === activeClass.name && 
-                                    ta.section === activeWorkspaceSection && 
-                                    ta.subject === subName
+                                    (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) && 
+                                    ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() && 
+                                    ta.subject?.toLowerCase() === subName?.toLowerCase()
                                   );
 
                                   const qualifiedTeachers = teachersList.filter(t => isTeacherForSubject(t, subName));

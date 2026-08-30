@@ -90,7 +90,9 @@ namespace SMS.Api.Controllers.AcademicManagement
                 Sections = c.Sections.Select(s =>
                 {
                     var classTeacherAssign = c.TeacherAssignments
-                        .FirstOrDefault(ta => ta.SectionLetter == s.SectionName && ta.Role == "Class Teacher");
+                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Role == "Class Teacher")
+                        ?? c.TeacherAssignments
+                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Teacher != null && ta.Teacher.IsClassTeacherEligible == true);
 
                     return new SectionResponseDto
                     {
@@ -145,7 +147,9 @@ namespace SMS.Api.Controllers.AcademicManagement
                 Sections = classObj.Sections.Select(s =>
                 {
                     var classTeacherAssign = classObj.TeacherAssignments
-                        .FirstOrDefault(ta => ta.SectionLetter == s.SectionName && ta.Role == "Class Teacher");
+                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Role == "Class Teacher")
+                        ?? classObj.TeacherAssignments
+                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Teacher != null && ta.Teacher.IsClassTeacherEligible == true);
 
                     return new SectionResponseDto
                     {

@@ -1053,22 +1053,22 @@ public class SchoolService : ISchoolService
 			}
 			await _context.SaveChangesAsync();
 
-			// Sync to students table if enrolled/active/approved and not deleted
-			if (!isDeleted && (app.Status == "Enrolled" || app.Status == "Active" || app.Status == "Approved"))
-			{
-				var admission = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.Admissions, x => x.ApplicationNo == app.RegistrationNo);
+			// Sync to students table if student already exists OR application is active/enrolled/approved/admitted
+			var matchedStudent = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.Students, s => s.AdmissionNumber == (existing != null ? existing.ApplicationNo : app.RegistrationNo) || s.AdmissionNumber == app.RegistrationNo);
 
-				if (admission != null && admission.ClassId.HasValue)
+			if (!isDeleted && (matchedStudent != null || app.Status == "Enrolled" || app.Status == "Active" || app.Status == "Approved" || app.Status == "Admitted"))
+			{
+				if (existing != null && existing.ClassId.HasValue)
 				{
-					var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
+					var sectionLetter = string.IsNullOrEmpty(existing.SectionLetter) ? "A" : existing.SectionLetter;
 					var sectionObj = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-						_context.ClassSections, s => s.ClassId == admission.ClassId.Value && s.SectionName.ToLower() == sectionLetter.ToLower());
+						_context.ClassSections, s => s.ClassId == existing.ClassId.Value && s.SectionName.ToLower() == sectionLetter.ToLower());
 
 					if (sectionObj == null)
 					{
 						sectionObj = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-							_context.ClassSections, s => s.ClassId == admission.ClassId.Value);
+							_context.ClassSections, s => s.ClassId == existing.ClassId.Value);
 					}
 
 					if (sectionObj != null)
@@ -1077,37 +1077,34 @@ public class SchoolService : ISchoolService
 
 						if (defaultAcademicYear != null)
 						{
-							var existingStudent = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-								_context.Students, s => s.AdmissionNumber == admission.ApplicationNo);
-
-							if (existingStudent != null)
+							if (matchedStudent != null)
 							{
-								existingStudent.StudentName = admission.StudentName ?? string.Empty;
-								existingStudent.DateOfBirth = admission.Dob;
-								existingStudent.Gender = admission.Gender;
-								existingStudent.FatherName = admission.FatherName;
-								existingStudent.FatherMobile = admission.FatherMobile;
-								existingStudent.ClassId = admission.ClassId.Value;
-								existingStudent.SectionId = sectionObj.SectionId;
-								existingStudent.RollNumber = admission.RollNo ?? existingStudent.RollNumber;
-								existingStudent.BranchId = (int)admission.BranchId;
-								existingStudent.Status = "Active";
-								existingStudent.UpdatedAt = DateTime.UtcNow;
+								matchedStudent.StudentName = existing.StudentName ?? string.Empty;
+								matchedStudent.DateOfBirth = existing.Dob;
+								matchedStudent.Gender = existing.Gender;
+								matchedStudent.FatherName = existing.FatherName;
+								matchedStudent.FatherMobile = existing.FatherMobile;
+								matchedStudent.ClassId = existing.ClassId.Value;
+								matchedStudent.SectionId = sectionObj.SectionId;
+								matchedStudent.RollNumber = existing.RollNo ?? matchedStudent.RollNumber;
+								matchedStudent.BranchId = (int)existing.BranchId;
+								matchedStudent.Status = "Active";
+								matchedStudent.UpdatedAt = DateTime.UtcNow;
 							}
 							else
 							{
 								var newStudent = new Student
 								{
-									AdmissionNumber = admission.ApplicationNo ?? $"ADM-{admission.AdmissionId}",
-									RollNumber = admission.RollNo ?? $"R-{admission.AdmissionId}",
-									StudentName = admission.StudentName ?? string.Empty,
-									DateOfBirth = admission.Dob,
-									Gender = admission.Gender,
-									FatherName = admission.FatherName,
-									FatherMobile = admission.FatherMobile,
-									BranchId = (int)admission.BranchId,
+									AdmissionNumber = existing.ApplicationNo ?? $"ADM-{existing.AdmissionId}",
+									RollNumber = existing.RollNo ?? $"R-{existing.AdmissionId}",
+									StudentName = existing.StudentName ?? string.Empty,
+									DateOfBirth = existing.Dob,
+									Gender = existing.Gender,
+									FatherName = existing.FatherName,
+									FatherMobile = existing.FatherMobile,
+									BranchId = (int)existing.BranchId,
 									AcademicYearId = defaultAcademicYear.AcademicYearId,
-									ClassId = admission.ClassId.Value,
+									ClassId = existing.ClassId.Value,
 									SectionId = sectionObj.SectionId,
 									Status = "Active",
 									CreatedAt = DateTime.UtcNow
@@ -1122,7 +1119,7 @@ public class SchoolService : ISchoolService
 								try
 								{
 									var studentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
-									var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(admission.FatherMobile) ? admission.FatherMobile.Trim() : $"STU{admission.AdmissionId}");
+									var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing.FatherMobile) ? existing.FatherMobile.Trim() : $"STU{existing.AdmissionId}");
 									var studentFullName = $"{app.FirstName} {app.LastName}".Trim();
 
 									var existingUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(

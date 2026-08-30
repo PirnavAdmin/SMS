@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Services.Implementations.Dashboard;
+namespace SMS.Api.Services.Implementations.Dashboard;
 
 using System;
 using System.Collections.Generic;
@@ -148,6 +148,18 @@ public class DashboardService : IDashboardService
         }
 
         var staffRecords = await staffAttQuery.ToListAsync(cancellationToken);
+
+        var teachingStaffIds = await staffQuery
+            .Where(s => s.Department == "Teaching" || s.EmployeeCategory == "Teaching Staff" || s.EmployeeCategory == "Teacher")
+            .Select(s => s.StaffId)
+            .ToListAsync(cancellationToken);
+
+        var nonTeachingStaffIds = await staffQuery
+            .Where(s => s.Department != "Teaching" && s.EmployeeCategory != "Teaching Staff" && s.EmployeeCategory != "Teacher")
+            .Select(s => s.StaffId)
+            .ToListAsync(cancellationToken);
+
+        // Overall Staff Attendance
         var staffAttendanceSummary = new StaffAttendanceSummaryDto();
         if (staffRecords.Count > 0)
         {
@@ -155,9 +167,39 @@ public class DashboardService : IDashboardService
             staffAttendanceSummary.Absent = staffRecords.Count(r => r.Status.Equals("Absent", StringComparison.OrdinalIgnoreCase));
             staffAttendanceSummary.Late = staffRecords.Count(r => r.Status.Equals("Late", StringComparison.OrdinalIgnoreCase));
             staffAttendanceSummary.HalfDay = staffRecords.Count(r => r.Status.Equals("Half Day", StringComparison.OrdinalIgnoreCase) || r.Status.Equals("HalfDay", StringComparison.OrdinalIgnoreCase));
-            staffAttendanceSummary.Total = staffRecords.Count;
+            staffAttendanceSummary.Total = (teachingStaff + nonTeachingStaff) > 0 ? (teachingStaff + nonTeachingStaff) : staffRecords.Count;
             staffAttendanceSummary.PresentPct = staffAttendanceSummary.Total > 0
                 ? (int)Math.Round((double)staffAttendanceSummary.Present / staffAttendanceSummary.Total * 100)
+                : 0;
+        }
+
+        // Teaching Staff Attendance
+        var teachingRecords = staffRecords.Where(r => teachingStaffIds.Contains(r.StaffId)).ToList();
+        var teachingAttendanceSummary = new StaffAttendanceSummaryDto();
+        if (teachingRecords.Count > 0 || teachingStaff > 0)
+        {
+            teachingAttendanceSummary.Present = teachingRecords.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase));
+            teachingAttendanceSummary.Absent = teachingRecords.Count(r => r.Status.Equals("Absent", StringComparison.OrdinalIgnoreCase));
+            teachingAttendanceSummary.Late = teachingRecords.Count(r => r.Status.Equals("Late", StringComparison.OrdinalIgnoreCase));
+            teachingAttendanceSummary.HalfDay = teachingRecords.Count(r => r.Status.Equals("Half Day", StringComparison.OrdinalIgnoreCase) || r.Status.Equals("HalfDay", StringComparison.OrdinalIgnoreCase));
+            teachingAttendanceSummary.Total = teachingStaff > 0 ? teachingStaff : teachingRecords.Count;
+            teachingAttendanceSummary.PresentPct = teachingAttendanceSummary.Total > 0
+                ? (int)Math.Round((double)teachingAttendanceSummary.Present / teachingAttendanceSummary.Total * 100)
+                : 0;
+        }
+
+        // Non-Teaching Staff Attendance
+        var nonTeachingRecords = staffRecords.Where(r => nonTeachingStaffIds.Contains(r.StaffId)).ToList();
+        var nonTeachingAttendanceSummary = new StaffAttendanceSummaryDto();
+        if (nonTeachingRecords.Count > 0 || nonTeachingStaff > 0)
+        {
+            nonTeachingAttendanceSummary.Present = nonTeachingRecords.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase));
+            nonTeachingAttendanceSummary.Absent = nonTeachingRecords.Count(r => r.Status.Equals("Absent", StringComparison.OrdinalIgnoreCase));
+            nonTeachingAttendanceSummary.Late = nonTeachingRecords.Count(r => r.Status.Equals("Late", StringComparison.OrdinalIgnoreCase));
+            nonTeachingAttendanceSummary.HalfDay = nonTeachingRecords.Count(r => r.Status.Equals("Half Day", StringComparison.OrdinalIgnoreCase) || r.Status.Equals("HalfDay", StringComparison.OrdinalIgnoreCase));
+            nonTeachingAttendanceSummary.Total = nonTeachingStaff > 0 ? nonTeachingStaff : nonTeachingRecords.Count;
+            nonTeachingAttendanceSummary.PresentPct = nonTeachingAttendanceSummary.Total > 0
+                ? (int)Math.Round((double)nonTeachingAttendanceSummary.Present / nonTeachingAttendanceSummary.Total * 100)
                 : 0;
         }
 
@@ -194,6 +236,8 @@ public class DashboardService : IDashboardService
             OtherAdmissions = otherAdmissions,
             StudentAttendance = studentAttendanceSummary,
             StaffAttendance = staffAttendanceSummary,
+            TeachingStaffAttendance = teachingAttendanceSummary,
+            NonTeachingStaffAttendance = nonTeachingAttendanceSummary,
             ClassWiseStrength = classWiseStrength
         };
     }

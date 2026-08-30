@@ -113,7 +113,11 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
     {
         try
         {
-            var classes = await _context.Classes.AsNoTracking().Select(c => c.Name).Distinct().ToListAsync();
+            var classes = await _context.Classes.AsNoTracking()
+                .Where(c => c.ClassName != null)
+                .Select(c => c.ClassName!)
+                .Distinct()
+                .ToListAsync();
             if (classes != null && classes.Any()) return classes;
         }
         catch { }
@@ -125,7 +129,12 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
         try
         {
             var subs = await _context.Subjects.AsNoTracking()
-                .Select(s => new SMS.Api.Dtos.Examination.SubjectOptionItemDto { SubjectCode = s.Code ?? s.Name, SubjectName = s.Name })
+                .Where(s => s.SubjectName != null)
+                .Select(s => new SMS.Api.Dtos.Examination.SubjectOptionItemDto 
+                { 
+                    SubjectCode = s.SubjectCode ?? s.SubjectName ?? "", 
+                    SubjectName = s.SubjectName ?? "" 
+                })
                 .Distinct()
                 .ToListAsync();
             if (subs != null && subs.Any()) return subs;

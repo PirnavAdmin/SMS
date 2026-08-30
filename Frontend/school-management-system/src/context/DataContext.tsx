@@ -314,6 +314,7 @@ import {
   mapSubjectApi,
   saveTimetableSlotApi,
   deleteTimetableSlotApi,
+  fetchClassTeacherAssignmentsApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -5009,13 +5010,63 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [coScholasticAssessments]);
 
+  const fetchTeacherAssignments = async () => {
+    try {
+      const res: any = await fetchClassTeacherAssignmentsApi();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      if (Array.isArray(list)) {
+        const mapped: TeacherAssignment[] = list.map((ta: any) => ({
+          id: ta.id ? String(ta.id) : `TA-${Math.floor(100 + Math.random() * 900)}`,
+          academicYear: ta.academicYear || "2026-2027",
+          branch: ta.branch || "Main Campus",
+          className: ta.className || "",
+          section: ta.section || "A",
+          subject: ta.subject || "",
+          teacherId: ta.teacherId ? String(ta.teacherId) : "",
+          teacherName: ta.teacherName || "",
+          status: ta.status || "Active",
+          role: ta.role || "Subject Teacher",
+        }));
+        setTeacherAssignments(mapped);
+        localStorage.setItem("edu_db_teacher_assignments", JSON.stringify(mapped));
+        return mapped;
+      }
+    } catch (err) {
+      console.warn("Error fetching teacher assignments", err);
+    }
+    return [];
+  };
+
   const fetchAcademicClasses = async () => {
     if (activeRequests.current["classes"]) {
       return activeRequests.current["classes"];
     }
     const promise = (async () => {
       try {
-        const data = await fetchClassesApi();
+        const [data, taData]: [any, any] = await Promise.all([
+          fetchClassesApi(),
+          fetchClassTeacherAssignmentsApi().catch(() => null),
+        ]);
+
+        let liveAssignments: TeacherAssignment[] = [];
+        const rawTaList = Array.isArray(taData) ? taData : taData?.data || [];
+        if (Array.isArray(rawTaList) && rawTaList.length > 0) {
+          liveAssignments = rawTaList.map((ta: any) => ({
+            id: ta.id ? String(ta.id) : `TA-${Math.floor(100 + Math.random() * 900)}`,
+            academicYear: ta.academicYear || "2026-2027",
+            branch: ta.branch || "Main Campus",
+            className: ta.className || "",
+            section: ta.section || "A",
+            subject: ta.subject || "",
+            teacherId: ta.teacherId ? String(ta.teacherId) : "",
+            teacherName: ta.teacherName || "",
+            status: ta.status || "Active",
+            role: ta.role || "Subject Teacher",
+          }));
+          setTeacherAssignments(liveAssignments);
+          localStorage.setItem("edu_db_teacher_assignments", JSON.stringify(liveAssignments));
+        }
+
         if (data) {
           // Handle array response or object wrapper response
           const classList = Array.isArray(data)
@@ -5032,10 +5083,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const mapped: AcademicClass[] = classList.map((c: any) => {
               const classIdStr = c.classId?.toString() || c.id?.toString();
               const localCls = localClasses.find((lc) => lc.id === classIdStr);
+              const classNameStr = c.className || c.name || "";
 
               const secDetails: Record<string, any> = {
                 ...(localCls?.sectionDetails || c.sectionDetails || {}),
               };
+
+              const sectionTeachersMap: Record<string, string> = {
+                ...(localCls?.sectionTeachers || {}),
+                ...(c.sectionTeachers || {}),
+              };
+
               if (Array.isArray(c.sections)) {
                 c.sections.forEach((s: any) => {
                   const sName =
@@ -5057,20 +5115,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       secDetails[sName].roomNo =
                         s.roomNo || s.RoomNo || s.room_number;
                     }
+                    if (s.classTeacherName) {
+                      sectionTeachersMap[sName] = s.classTeacherName;
+                    }
                   }
                 });
               }
 
+              // Also populate sectionTeachers from liveAssignments where role is Class Teacher
+              liveAssignments
+                .filter((ta) => (ta.className === classNameStr || ta.className?.toLowerCase().replace(/class/gi, "").trim() === classNameStr.toLowerCase().replace(/class/gi, "").trim()) && ta.role === "Class Teacher" && ta.teacherName)
+                .forEach((ta) => {
+                  if (ta.section) {
+                    sectionTeachersMap[ta.section] = ta.teacherName;
+                  }
+                });
+
               return {
                 id: classIdStr,
-                name: c.className || c.name,
+                name: classNameStr,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-                sectionTeachers:
-                  c.sectionTeachers &&
-                  Object.keys(c.sectionTeachers).length > 0
-                    ? c.sectionTeachers
-                    : localCls?.sectionTeachers || {},
-                teacher: c.teacher || "Unassigned",
+                sectionTeachers: sectionTeachersMap,
+                teacher: c.teacher || Object.values(sectionTeachersMap)[0] || "Unassigned",
                 subjects: Array.isArray(c.curriculumSubjects)
                   ? c.curriculumSubjects.map(
                       (cs: any) => cs.subjectName || cs.name || "",
@@ -6147,6 +6213,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const oldStudent = students.find((s) => s.id === id);
     const numericId = parseInt(id, 10);
 
+    const targetClassName = updates.className || oldStudent?.className || "";
+    const matchedClass = academicClasses.find(
+      (c) =>
+        c.name?.toLowerCase().trim() === targetClassName.toLowerCase().trim() ||
+        c.name?.toLowerCase().replace(/class/gi, "").trim() ===
+          targetClassName.toLowerCase().replace(/class/gi, "").trim(),
+    );
+    const resolvedClassId = matchedClass
+      ? Number(String(matchedClass.id).replace(/\D/g, "")) || 1
+      : 1;
+
     if (!isNaN(numericId) && oldStudent) {
       const fullStudent = { ...oldStudent, ...updates };
       updateStudentApi(numericId, {
@@ -6165,14 +6242,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         address: fullStudent.address || "",
         branchId: 1,
         academicYearId: 1,
-        classId: 1,
+        classId: resolvedClassId,
         sectionId: 1,
         status: fullStudent.status || "Active",
-      }).catch((err) => console.error("Failed to update student", err));
+      })
+        .then(() => {
+          fetchStudents();
+        })
+        .catch((err) => console.error("Failed to update student", err));
     }
 
     setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+      prev.map((s) => (s.id === id ? { ...s, ...updates, className: targetClassName } : s)),
     );
 
     if ((updates as any).feeCalculationMethod || (updates as any).feePolicy) {
@@ -6216,6 +6297,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     targetYear = "2026-2027",
     targetBranch = "Main Campus",
   ) => {
+    const numericId = parseInt(id, 10);
+    const targetStudent = students.find((s) => s.id === id);
+
+    const matchedClass = academicClasses.find(
+      (c) =>
+        c.name?.toLowerCase().trim() === targetClass.toLowerCase().trim() ||
+        c.name?.toLowerCase().replace(/class/gi, "").trim() ===
+          targetClass.toLowerCase().replace(/class/gi, "").trim(),
+    );
+    const resolvedClassId = matchedClass
+      ? Number(String(matchedClass.id).replace(/\D/g, "")) || 1
+      : 1;
+
+    if (!isNaN(numericId) && targetStudent) {
+      updateStudentApi(numericId, {
+        admissionNumber: targetStudent.admissionNo || "ADM-00",
+        rollNumber: targetStudent.rollNo || "00",
+        studentName:
+          `${targetStudent.firstName || ""} ${targetStudent.lastName || ""}`.trim(),
+        dateOfBirth: targetStudent.dob || undefined,
+        gender: targetStudent.gender || "Male",
+        fatherName: targetStudent.parentName || "",
+        fatherMobile:
+          (targetStudent as any).parentPhone || (targetStudent as any).mobile || "",
+        email: targetStudent.email || undefined,
+        mobileNumber:
+          (targetStudent as any).parentPhone || (targetStudent as any).mobile || "",
+        address: targetStudent.address || "",
+        branchId: 1,
+        academicYearId: 1,
+        classId: resolvedClassId,
+        sectionId: 1,
+        status: "Promoted",
+      })
+        .then(() => {
+          fetchStudents();
+        })
+        .catch((err) => console.error("Failed to persist promoted student", err));
+    }
+
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id === id) {
@@ -6400,7 +6521,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Staff CRUD
   const syncTeacherAssignments = (teacher: Staff) => {
     const classes = teacher.assignedClasses || [];
-    const subjects = teacher.assignedSubjects || [];
+    let subjects = teacher.assignedSubjects || [];
+    if (subjects.length === 0) {
+      if (teacher.primarySubject) subjects = [teacher.primarySubject];
+      else if (teacher.specialization) subjects = [teacher.specialization];
+    }
     const teacherFullName =
       teacher.name || `${teacher.firstName} ${teacher.lastName}`;
 
@@ -6410,10 +6535,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTeacherAssignments((prev) => {
       // 1. Filter out assignments for this teacher that are no longer in their workload lists
       let next = prev.filter((ta) => {
-        if (ta.teacherId !== teacher.id) return true;
+        if (String(ta.teacherId) !== String(teacher.id)) return true;
         const classSecKey = `${ta.className}-${ta.section}`;
-        const hasClass = classes.includes(classSecKey);
-        const hasSubject = subjects.includes(ta.subject);
+        const hasClass = classes.some((c) => norm(c) === norm(classSecKey));
+        const hasSubject = subjects.length === 0 || subjects.some((s) => s.toLowerCase() === ta.subject?.toLowerCase());
         return hasClass && hasSubject;
       });
 
@@ -6423,18 +6548,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const className = parts[0]?.trim();
         const section = parts[1]?.trim() || "A";
 
+        // If teacher is eligible as class teacher, upsert Class Teacher role
+        if (teacher.isClassTeacherEligible || (teacher.designation && teacher.designation.toLowerCase().includes("class teacher"))) {
+          const existingCtIdx = next.findIndex(
+            (ta) =>
+              norm(ta.className) === norm(className) &&
+              ta.section.toLowerCase() === section.toLowerCase() &&
+              ta.role === "Class Teacher",
+          );
+          if (existingCtIdx > -1) {
+            next[existingCtIdx] = {
+              ...next[existingCtIdx],
+              teacherId: String(teacher.id),
+              teacherName: teacherFullName,
+              status: "Active",
+            };
+          } else {
+            next.push({
+              id: "TA-" + Math.floor(100 + Math.random() * 900),
+              academicYear: "2026-2027",
+              branch: teacher.branch || "Main Campus",
+              className,
+              section,
+              subject: "",
+              teacherId: String(teacher.id),
+              teacherName: teacherFullName,
+              role: "Class Teacher",
+              status: "Active",
+            });
+          }
+        }
+
         subjects.forEach((subject) => {
           const existingIdx = next.findIndex(
             (ta) =>
-              ta.className === className &&
-              ta.section === section &&
-              ta.subject === subject,
+              norm(ta.className) === norm(className) &&
+              ta.section.toLowerCase() === section.toLowerCase() &&
+              ta.subject?.toLowerCase() === subject.toLowerCase(),
           );
 
           if (existingIdx > -1) {
             next[existingIdx] = {
               ...next[existingIdx],
-              teacherId: teacher.id,
+              teacherId: String(teacher.id),
               teacherName: teacherFullName,
               status: "Active",
             };
@@ -6447,8 +6603,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               className,
               section,
               subject,
-              teacherId: teacher.id,
+              teacherId: String(teacher.id),
               teacherName: teacherFullName,
+              role: "Subject Teacher",
               status: "Active",
             });
           }
@@ -6458,7 +6615,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    // 3. Auto-map subjects to class curriculum
+    // 3. Update academicClasses state with sectionTeachers map
+    setAcademicClasses((prevClasses) => {
+      return prevClasses.map((cls) => {
+        const matchingSec = classes.find((cs) => {
+          const [cName] = cs.split("-");
+          return norm(cName) === norm(cls.name);
+        });
+        if (matchingSec) {
+          const parts = matchingSec.split("-");
+          const secLetter = parts[1]?.trim() || "A";
+          const currentSecTeachers = { ...(cls.sectionTeachers || {}) };
+          if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
+            currentSecTeachers[secLetter] = teacherFullName;
+          }
+          return {
+            ...cls,
+            sectionTeachers: currentSecTeachers,
+          };
+        }
+        return cls;
+      });
+    });
+
+    // 4. Auto-map subjects to class curriculum
     classes.forEach((classSec) => {
       const parts = classSec.split("-");
       const className = parts[0]?.trim();
@@ -6594,6 +6774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           if (isTeachingStaff(newStaff)) {
             syncTeacherAssignments({ ...newStaff, id: actualId });
           }
+          fetchAcademicClasses();
         }
       })
       .catch((err) => {
@@ -6682,6 +6863,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: d.status || "Attached",
             uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
           })),
+        }).then(() => {
+          fetchAcademicClasses();
         }).catch((err) => {
           console.error("Failed to update staff in backend", err);
         });
@@ -7355,6 +7538,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setAdmissions((prev) =>
         prev.map((a) => (a.id === id ? (appData as AdmissionApplication) : a)),
       );
+
+      // Also update any matching student in students state immediately
+      setStudents((prev) =>
+        prev.map((s) => {
+          const isMatch =
+            (appData.applicationNo && (s.admissionNo === appData.applicationNo || s.registrationNumber === appData.applicationNo)) ||
+            (appData.id && (s.id === appData.id || s.admissionNo === `ADM-${appData.id}`)) ||
+            (s.firstName?.toLowerCase() === appData.applicantName?.toLowerCase().split(" ")[0] && 
+             s.parentName?.toLowerCase() === appData.parentName?.toLowerCase());
+
+          if (isMatch) {
+            return {
+              ...s,
+              className: appData.appliedClass || s.className,
+              gender: (appData.gender as any) || s.gender,
+              parentName: appData.parentName || s.parentName,
+              phone: appData.phone || s.phone,
+              studentType: appData.studentType || s.studentType,
+            };
+          }
+          return s;
+        }),
+      );
+
+      fetchStudents();
       logActivity("Updated Admission Record", `Updated application ID ${id}`);
     } catch (err) {
       console.error(err);

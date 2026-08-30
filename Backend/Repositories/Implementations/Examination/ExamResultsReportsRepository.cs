@@ -138,7 +138,11 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
     {
         try
         {
-            var classes = await _context.Classes.AsNoTracking().Select(c => c.Name).Distinct().ToListAsync();
+            var classes = await _context.Classes.AsNoTracking()
+                .Where(c => c.ClassName != null)
+                .Select(c => c.ClassName!)
+                .Distinct()
+                .ToListAsync();
             if (classes != null && classes.Any()) return classes;
         }
         catch { }
