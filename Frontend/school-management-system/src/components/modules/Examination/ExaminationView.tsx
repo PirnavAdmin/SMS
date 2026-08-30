@@ -57,7 +57,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       const response = await fetchExamOptionsApi();
       if (response && response.success && response.data) {
         setOptions(response.data);
-        const mapped = (response.data.existingExams || []).map((e: any) => ({
+        const serverExams = (response.data.existingExams || []).map((e: any) => ({
           id: e.examId.toString(),
           name: e.examName,
           status: e.status || 'Scheduled',
@@ -68,36 +68,58 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
           academicTerm: e.academicTerm || e.term || '',
           startDate: e.startDate || '',
           endDate: e.endDate || '',
-          applicableClasses: Array.isArray(e.applicableClasses) && e.applicableClasses.length > 0 ? e.applicableClasses : ['Class 10', 'Class 9', 'Class 8']
+          applicableClasses: Array.isArray(e.applicableClasses) ? e.applicableClasses : []
         }));
         
-        const finalExams = mapped.length > 0 ? mapped : [
-          { id: '1', name: 'Formative Assessment 1 (FA-1)', examType: 'Unit Test', term: 'Term 1', status: 'Scheduled', applicableClasses: ['Class 10', 'Class 9', 'Class 8'] },
-          { id: '2', name: 'Summative Assessment 1 (SA-1)', examType: 'Term Exam', term: 'Term 1', status: 'Scheduled', applicableClasses: ['Class 10', 'Class 9', 'Class 8'] }
-        ];
+        setExams(serverExams);
+        if (serverExams.length > 0) {
+          setSelectedExamId(serverExams[0].id);
+        } else {
+          setSelectedExamId('');
+          const dynamicClasses = response.data.applicableClasses && response.data.applicableClasses.length > 0
+            ? response.data.applicableClasses
+            : (academicClasses || []).map(c => c.name).filter(Boolean);
 
-        setExams(finalExams);
-        if (finalExams.length > 0) {
-          setSelectedExamId(prev => prev || finalExams[0].id);
+          setActiveExam({
+            id: '',
+            name: '',
+            examType: response.data.assessmentTypes?.[0] || 'Unit Test',
+            term: response.data.academicTerms?.[0] || 'Term 1',
+            academicTerm: response.data.academicTerms?.[0] || 'Term 1',
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+            applicableClasses: dynamicClasses,
+            status: 'Draft',
+            marksConfig: {
+              maxMarks: 100,
+              passMarks: 35,
+              classWiseConfig: {},
+              subjectWiseConfig: {}
+            }
+          });
         }
       } else {
-        const fallbackList = [
-          { id: '1', name: 'Formative Assessment 1 (FA-1)', examType: 'Unit Test', term: 'Term 1', status: 'Scheduled', applicableClasses: ['Class 10', 'Class 9', 'Class 8'] },
-          { id: '2', name: 'Summative Assessment 1 (SA-1)', examType: 'Term Exam', term: 'Term 1', status: 'Scheduled', applicableClasses: ['Class 10', 'Class 9', 'Class 8'] }
-        ];
-        setExams(fallbackList);
-        setSelectedExamId(prev => prev || fallbackList[0].id);
+        setExams([]);
+        setSelectedExamId('');
       }
     } catch (err: any) {
-      addToast('error', 'API Connection Error', err.message || 'Could not connect to the examination API server.');
+      // Clean fallback on connection issue
+      setExams([]);
+      setSelectedExamId('');
     } finally {
       if (showProgress) setLoading(false);
     }
   };
 
   const loadExamDetails = async (id: string) => {
-    if (!id) {
-      setActiveExam(null);
+    if (!id || id === 'new' || !/^\d+$/.test(id)) {
+      const local = exams.find(e => e.id === id);
+      if (local) {
+        setActiveExam({
+          ...local,
+          marksConfig: local.marksConfig || { maxMarks: 100, passMarks: 35, classWiseConfig: {}, subjectWiseConfig: {} }
+        });
+      }
       return;
     }
     setLoadingDetails(true);
@@ -163,10 +185,22 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
           }
         });
       } else {
-        addToast('error', 'Error Loading Exam Details', response?.message || 'Failed to fetch exam properties.');
+        const matched = exams.find(e => e.id === id);
+        if (matched) {
+          setActiveExam({
+            ...matched,
+            marksConfig: (matched as any).marksConfig || { maxMarks: 100, passMarks: 35, classWiseConfig: {}, subjectWiseConfig: {} }
+          });
+        }
       }
     } catch (err: any) {
-      addToast('error', 'API Error', err.message || 'Failed to load exam details.');
+      const matched = exams.find(e => e.id === id);
+      if (matched) {
+        setActiveExam({
+          ...matched,
+          marksConfig: (matched as any).marksConfig || { maxMarks: 100, passMarks: 35, classWiseConfig: {}, subjectWiseConfig: {} }
+        });
+      }
     } finally {
       setLoadingDetails(false);
     }

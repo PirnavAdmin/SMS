@@ -13,14 +13,7 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
 {
     private readonly AppDbContext _context;
 
-    private static readonly List<NewStudentExamResult> _inMemoryResults = new List<NewStudentExamResult>
-    {
-        new NewStudentExamResult { ResultId = 1, ExamId = 1, ClassName = "Class 1", SectionName = "Section A", StudentId = 101, RollNo = "101", StudentName = "Alex Morgan", AdmissionNo = "ADM-2026-01", TotalMarksObtained = 560, TotalMaxMarks = 600, Percentage = 93.33m, Grade = "A+", Rank = 1, ResultStatus = "Pass" },
-        new NewStudentExamResult { ResultId = 2, ExamId = 1, ClassName = "Class 1", SectionName = "Section A", StudentId = 102, RollNo = "102", StudentName = "Emma Watson", AdmissionNo = "ADM-2026-05", TotalMarksObtained = 540, TotalMaxMarks = 600, Percentage = 90.00m, Grade = "A+", Rank = 2, ResultStatus = "Pass" },
-        new NewStudentExamResult { ResultId = 3, ExamId = 1, ClassName = "Class 1", SectionName = "Section A", StudentId = 103, RollNo = "103", StudentName = "Ethan Hunt", AdmissionNo = "ADM-2026-02", TotalMarksObtained = 490, TotalMaxMarks = 600, Percentage = 81.67m, Grade = "A", Rank = 3, ResultStatus = "Pass" },
-        new NewStudentExamResult { ResultId = 4, ExamId = 1, ClassName = "Class 1", SectionName = "Section A", StudentId = 104, RollNo = "104", StudentName = "Sophia Loren", AdmissionNo = "ADM-2026-03", TotalMarksObtained = 430, TotalMaxMarks = 600, Percentage = 71.67m, Grade = "B", Rank = 4, ResultStatus = "Pass" },
-        new NewStudentExamResult { ResultId = 5, ExamId = 1, ClassName = "Class 1", SectionName = "Section A", StudentId = 105, RollNo = "105", StudentName = "James Bond", AdmissionNo = "ADM-2026-04", TotalMarksObtained = 180, TotalMaxMarks = 600, Percentage = 30.00m, Grade = "F", Rank = 5, ResultStatus = "Fail" }
-    };
+    private static readonly List<NewStudentExamResult> _inMemoryResults = new List<NewStudentExamResult>();
 
     public ExamResultsReportsRepository(AppDbContext context)
     {
@@ -139,6 +132,17 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
         {
             return true;
         }
+    }
+
+    public async Task<List<string>> GetClassNamesAsync()
+    {
+        try
+        {
+            var classes = await _context.Classes.AsNoTracking().Select(c => c.Name).Distinct().ToListAsync();
+            if (classes != null && classes.Any()) return classes;
+        }
+        catch { }
+        return new List<string>();
     }
 }
 

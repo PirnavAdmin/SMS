@@ -26,8 +26,15 @@ public class ExamMarksEntryController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetMarksEntryOptions()
     {
-        var result = await _service.GetMarksEntryOptionsAsync();
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetMarksEntryOptionsAsync();
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to load marks entry options.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -36,13 +43,20 @@ public class ExamMarksEntryController : ControllerBase
     [HttpGet("students")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetStudentMarksSheet(
-        [FromQuery] string className = "Class 1",
-        [FromQuery] string sectionName = "Section A",
-        [FromQuery] string subjectCode = "MTH-101",
+        [FromQuery] string className = "",
+        [FromQuery] string sectionName = "",
+        [FromQuery] string subjectCode = "",
         [FromQuery] string? search = null)
     {
-        var result = await _service.GetStudentMarksSheetAsync(className, sectionName, subjectCode, search);
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetStudentMarksSheetAsync(className, sectionName, subjectCode, search);
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch student marks sheet.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -52,16 +66,23 @@ public class ExamMarksEntryController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> SaveDraft([FromBody] SaveMarksSheetRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
-            return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
+                return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
 
-        request.IsFinalSubmit = false;
-        var success = await _service.SaveMarksSheetAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Student marks draft saved successfully.", 
-            data = success 
-        });
+            request.IsFinalSubmit = false;
+            var success = await _service.SaveMarksSheetAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Student marks draft saved successfully.", 
+                data = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to save marks draft.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -71,17 +92,24 @@ public class ExamMarksEntryController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> SubmitMarks([FromBody] SaveMarksSheetRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
-            return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
+                return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
 
-        request.IsFinalSubmit = true;
-        var success = await _service.SaveMarksSheetAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Student marks submitted successfully. Proceeding to Results & Reports.", 
-            redirectTo = "ResultsAndReports",
-            data = success 
-        });
+            request.IsFinalSubmit = true;
+            var success = await _service.SaveMarksSheetAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Student marks submitted successfully. Proceeding to Results & Reports.", 
+                redirectTo = "ResultsAndReports",
+                data = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to submit marks.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -91,15 +119,22 @@ public class ExamMarksEntryController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> UpdateMarks([FromBody] SaveMarksSheetRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
-            return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
+                return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
 
-        var success = await _service.SaveMarksSheetAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Student marks updated successfully.", 
-            updated = success 
-        });
+            var success = await _service.SaveMarksSheetAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Student marks updated successfully.", 
+                updated = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to update marks.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -112,11 +147,18 @@ public class ExamMarksEntryController : ControllerBase
         [FromQuery] string sectionName,
         [FromQuery] string subjectCode)
     {
-        var success = await _service.ClearMarksEntriesAsync(className, sectionName, subjectCode);
-        return Ok(new { 
-            success = true, 
-            message = $"Marks entries for {className} - {sectionName} ({subjectCode}) cleared successfully." 
-        });
+        try
+        {
+            var success = await _service.ClearMarksEntriesAsync(className, sectionName, subjectCode);
+            return Ok(new { 
+                success = true, 
+                message = $"Marks entries for {className} - {sectionName} ({subjectCode}) cleared successfully." 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to clear marks.", error = ex.Message });
+        }
     }
 }
 

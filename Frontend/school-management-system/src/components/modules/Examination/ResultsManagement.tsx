@@ -43,8 +43,8 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
   const availableSections = useMemo(() => {
     if (!selectedClass) return [];
     const matched = academicClasses.find(c => c.name === selectedClass);
-    if (!matched || !matched.sections || matched.sections.length === 0) return ['A'];
-    const raw = matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+    if (!matched || !matched.sections || matched.sections.length === 0) return [];
+    const raw = matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || ''));
     return Array.from(new Set(raw.filter(Boolean)));
   }, [academicClasses, selectedClass]);
 
@@ -264,7 +264,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                   >
                     <option value="">-- Select Section --</option>
                     {availableSections.map(sec => (
-                      <option key={sec} value={sec}>Section {sec}</option>
+                      <option key={sec} value={sec}>{sec.startsWith('Section') ? sec : `Section ${sec}`}</option>
                     ))}
                   </select>
                 </div>

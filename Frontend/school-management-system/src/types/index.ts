@@ -453,10 +453,10 @@ export interface Staff {
   address: string;
   assignedClasses: string[];
   assignedSubjects: string[];
-  documents: StaffDocument[];
+  documents?: StaffDocument[];
   qualifications?: StaffEducationRecord[];
   experienceRecords?: StaffExperienceRecord[];
-  bankDetails: BankDetails;
+  bankDetails?: BankDetails;
   leaveBalance: {
     casual: number;
     sick: number;
@@ -625,6 +625,7 @@ export interface FeePayment {
   selectedInstallmentIds?: string[];
   amount?: number;
   feeHeadName?: string;
+  notes?: string;
 }
 
 export interface DailyAttendance {
@@ -730,6 +731,7 @@ export interface TimetableSlot {
   timeSlot: string;
   startTime?: string;
   endTime?: string;
+  periodNumber?: number;
   className: string;
   section: string;
   subject: string;
@@ -829,6 +831,7 @@ export interface PackageComponentItem {
   categoryId?: string;
   categoryName: string;
   quantity: string | number;
+  size?: string;
 }
 
 export interface UniformItem {
@@ -838,9 +841,12 @@ export interface UniformItem {
   gender: 'Male' | 'Female' | 'Unisex';
   className: string;
   size: string;
+  meterRange?: string;
   color?: string;
   price: number;
   availableStock: number;
+  openingStock?: number;
+  initialStock?: number;
   branch?: string;
   createdAt?: string;
   isPackage?: boolean;
@@ -868,7 +874,7 @@ export interface BookIssue {
   bookTitle: string;
   borrowerId: string;
   borrowerName: string;
-  borrowerRole: 'Student' | 'Staff';
+  borrowerRole: 'Student' | 'Staff' | 'Teacher' | string;
   issueDate: string;
   dueDate: string;
   returnDate?: string;
@@ -1140,6 +1146,15 @@ export interface DesignationMaster {
   createdAt?: string;
 }
 
+export interface Designation {
+  id: string;
+  name?: string;
+  title?: string;
+  designationName?: string;
+  department?: string;
+  status?: string;
+}
+
 export interface SubjectItem {
   id: string;
   subjectId: string;
@@ -1203,6 +1218,7 @@ export interface FeeStructureItem {
   category?: string;
   amount: number;
   frequency?: string;
+  dueMonth?: string;
 }
 
 export interface DynamicFeeStructure {
@@ -1402,6 +1418,7 @@ export interface Refund {
 
 export interface FinanceSettings {
   academicYear: string;
+  activeAcademicYear?: string;
   defaultCurrency: string;
   receiptFormat: string;
   lateFeeRuleId: string;
@@ -1913,7 +1930,6 @@ export interface StudentUniformIssue {
   itemCategory?: string;
   totalAmount?: number;
   unitPrice?: number;
-  gender?: string;
 }
 
 export interface FinanceUniformConfig {
@@ -1956,6 +1972,7 @@ export interface LeaveApplication {
   department: string;
   designation: string;
   branch: string;
+  branchId?: string;
   employeeCategory: 'Teacher' | 'Staff';
   leaveTypeId: string;
   leaveTypeName: string;

@@ -96,13 +96,15 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
 
           // Fetch previously saved subjects from API if available
           let apiSubs: any[] = [];
-          try {
-            const apiRes = await fetchExamSubjectsApi(exam.id, cls);
-            if (apiRes && apiRes.success && Array.isArray(apiRes.data?.subjects)) {
-              apiSubs = apiRes.data.subjects;
+          if (exam?.id && /^\d+$/.test(exam.id)) {
+            try {
+              const apiRes = await fetchExamSubjectsApi(exam.id, cls);
+              if (apiRes && apiRes.success && Array.isArray(apiRes.data?.subjects)) {
+                apiSubs = apiRes.data.subjects;
+              }
+            } catch (e) {
+              // Ignore fetch error
             }
-          } catch (e) {
-            // Ignore fetch error
           }
 
           const existingClassWise = (exam.marksConfig as any)?.classWiseConfig?.[cls];
@@ -631,15 +633,17 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                 Select an existing examination from the dropdown above to edit, or click <strong>+ Create New Exam</strong> to start configuring exam details and subjects.
               </p>
             </div>
-            {/* {onCreateNewExam && (
-              <button
-                type="button"
-                onClick={onCreateNewExam}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> Create New Exam
-              </button>
-            )} */}
+            {onCreateNewExam && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onCreateNewExam}
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-sm shadow-sky-600/20 cursor-pointer inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Create New Exam
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>

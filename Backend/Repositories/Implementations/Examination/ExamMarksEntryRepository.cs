@@ -13,14 +13,7 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
 {
     private readonly AppDbContext _context;
 
-    private static readonly List<NewStudentMarksEntry> _inMemoryMarks = new List<NewStudentMarksEntry>
-    {
-        new NewStudentMarksEntry { EntryId = 1, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "MTH-101", SubjectName = "Mathematics", RollNo = "101", StudentName = "Alex Morgan", AdmissionNo = "ADM-2026-01", AttendanceStatus = "Present", MarksObtained = 92.5m, MaxMarks = 100, Grade = "A+", EvaluatorRemarks = "Excellent in Algebra", Status = "Draft" },
-        new NewStudentMarksEntry { EntryId = 2, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "MTH-101", SubjectName = "Mathematics", RollNo = "102", StudentName = "Ethan Hunt", AdmissionNo = "ADM-2026-02", AttendanceStatus = "Present", MarksObtained = 88.0m, MaxMarks = 100, Grade = "A", EvaluatorRemarks = "Good problem solving", Status = "Draft" },
-        new NewStudentMarksEntry { EntryId = 3, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "MTH-101", SubjectName = "Mathematics", RollNo = "103", StudentName = "Sophia Loren", AdmissionNo = "ADM-2026-03", AttendanceStatus = "Present", MarksObtained = 75.0m, MaxMarks = 100, Grade = "B", EvaluatorRemarks = "Needs focus on geometry", Status = "Draft" },
-        new NewStudentMarksEntry { EntryId = 4, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "MTH-101", SubjectName = "Mathematics", RollNo = "104", StudentName = "James Bond", AdmissionNo = "ADM-2026-04", AttendanceStatus = "Absent", MarksObtained = 0.0m, MaxMarks = 100, Grade = "F", EvaluatorRemarks = "Absent for exam", Status = "Draft" },
-        new NewStudentMarksEntry { EntryId = 5, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "MTH-101", SubjectName = "Mathematics", RollNo = "105", StudentName = "Emma Watson", AdmissionNo = "ADM-2026-05", AttendanceStatus = "Present", MarksObtained = 95.0m, MaxMarks = 100, Grade = "A+", EvaluatorRemarks = "Outstanding", Status = "Draft" }
-    };
+    private static readonly List<NewStudentMarksEntry> _inMemoryMarks = new List<NewStudentMarksEntry>();
 
     public ExamMarksEntryRepository(AppDbContext context)
     {
@@ -114,6 +107,31 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
         {
             return true;
         }
+    }
+
+    public async Task<List<string>> GetClassNamesAsync()
+    {
+        try
+        {
+            var classes = await _context.Classes.AsNoTracking().Select(c => c.Name).Distinct().ToListAsync();
+            if (classes != null && classes.Any()) return classes;
+        }
+        catch { }
+        return new List<string>();
+    }
+
+    public async Task<List<SMS.Api.Dtos.Examination.SubjectOptionItemDto>> GetSubjectsAsync()
+    {
+        try
+        {
+            var subs = await _context.Subjects.AsNoTracking()
+                .Select(s => new SMS.Api.Dtos.Examination.SubjectOptionItemDto { SubjectCode = s.Code ?? s.Name, SubjectName = s.Name })
+                .Distinct()
+                .ToListAsync();
+            if (subs != null && subs.Any()) return subs;
+        }
+        catch { }
+        return new List<SMS.Api.Dtos.Examination.SubjectOptionItemDto>();
     }
 }
 

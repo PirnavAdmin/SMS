@@ -79,7 +79,7 @@ export function useResults() {
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
         className,
-        section: student.section || 'A',
+        section: student.section || section,
         rollNo: student.rollNo || '',
         admissionNo: student.admissionNo || student.id,
         totalMaxMarks: res.totalMax,
