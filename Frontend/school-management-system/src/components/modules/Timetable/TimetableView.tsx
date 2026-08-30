@@ -276,7 +276,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     setSelectedClassInfo({
       className: classSec,
       subject: subject,
-      room: room || 'Room 101',
+      room: room || 'No Classroom Assigned',
       studentStrength: 38,
       classTeacher: teacherFullName
     });
@@ -497,6 +497,45 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       setFormData(prev => ({ ...prev, teacherName: autoAssignedTeacher }));
     }
   }, [autoAssignedTeacher, formData.subject]);
+
+  const getDisplayRoom = (slotRoom?: string, className?: string, section?: string): string => {
+    const trimmedSlot = (slotRoom || '').trim();
+    if (
+      trimmedSlot &&
+      trimmedSlot.toLowerCase() !== 'classroom' &&
+      trimmedSlot.toLowerCase() !== 'unassigned' &&
+      trimmedSlot.toLowerCase() !== 'undefined' &&
+      trimmedSlot.toLowerCase() !== 'null'
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
+        return `Room ${trimmedSlot}`;
+      }
+      return trimmedSlot;
+    }
+
+    // Lookup from section details in academicClasses
+    const targetClass = className || selectedClass;
+    const targetSection = section || selectedSection;
+    const cls = academicClasses.find(
+      c => c.name?.toLowerCase().trim() === targetClass?.toLowerCase().trim()
+    );
+    const secRoom = cls?.sectionDetails?.[targetSection]?.roomNo?.trim();
+
+    if (
+      secRoom &&
+      secRoom.toLowerCase() !== 'classroom' &&
+      secRoom.toLowerCase() !== 'unassigned' &&
+      secRoom.toLowerCase() !== 'undefined' &&
+      secRoom.toLowerCase() !== 'null'
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(secRoom)) {
+        return `Room ${secRoom}`;
+      }
+      return secRoom;
+    }
+
+    return 'No Classroom Assigned';
+  };
 
   const runValidationEngine = (testSlot: Partial<TimetableSlot>, currentId?: string): string[] => {
     const errors: string[] = [];
@@ -935,7 +974,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                             </td>
                             <td className="py-3.5 px-4">
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold font-mono text-slate-605 dark:text-slate-350">
-                                🚪 {slot.roomNo || 'Room 101'}
+                                🚪 {getDisplayRoom(slot.roomNo, slot.className, slot.section)}
                               </span>
                             </td>
                             <td className="py-3.5 px-4">
@@ -1432,9 +1471,22 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                     })()}
                                     <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName}</p>
                                     <div className="flex items-center justify-between pt-1">
-                                      <span className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                        {match.roomNo || 'Classroom'}
-                                      </span>
+                                      {(() => {
+                                        const displayRoom = getDisplayRoom(match.roomNo, match.className, match.section);
+                                        const isUnassigned = displayRoom === 'No Classroom Assigned';
+                                        return (
+                                          <span
+                                            title={isUnassigned ? 'No Classroom Assigned to this period or section' : `Room: ${displayRoom}`}
+                                            className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border truncate max-w-[110px] ${
+                                              isUnassigned
+                                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/70 dark:border-amber-900/50'
+                                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                            }`}
+                                          >
+                                            {displayRoom}
+                                          </span>
+                                        );
+                                      })()}
                                       {!isTeacher && (
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
                                           <button onClick={() => handleOpenEdit(match)} className="p-1 text-sky-600 hover:text-sky-700"><Edit className="w-3.5 h-3.5" /></button>
@@ -1991,7 +2043,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                       section: 'A',
                       subject: targetStaff?.assignedSubjects?.[0] || 'Mathematics',
                       teacherName: selectedTeacherName,
-                      roomNo: 'Room 204'
+                      roomNo: ''
                     });
                     setIsFormOpen(true);
                   }}
@@ -2090,7 +2142,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                 if (matchSlot) {
                                   const classSec = `${matchSlot.className}-${matchSlot.section}`;
                                   const subject = matchSlot.subject;
-                                  const room = matchSlot.roomNo;
+                                  const room = getDisplayRoom(matchSlot.roomNo, matchSlot.className, matchSlot.section);
 
                                   return (
                                     <div
@@ -2108,7 +2160,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                         </span>
                                       </div>
                                       <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{subject}</p>
-                                      {room && <p className="text-[9px] text-slate-500 font-bold">🏫 {room}</p>}
+                                      {room && (
+                                        <p className={`text-[9px] font-bold truncate ${room === 'No Classroom Assigned' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
+                                          🏫 {room}
+                                        </p>
+                                      )}
                                       <p className="text-[9px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
 
                                       <div className="absolute right-1.5 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white/90 dark:bg-slate-900/90 rounded-lg p-0.5 shadow-sm border border-slate-100 dark:border-slate-800">
@@ -2653,7 +2709,21 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Room / Lab No (Optional)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold">Room / Lab No</label>
+                  {(() => {
+                    const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === formData.className?.toLowerCase().trim());
+                    const secDefault = clsObj?.sectionDetails?.[formData.section || selectedSection]?.roomNo;
+                    if (secDefault) {
+                      return (
+                        <span className="text-[10px] text-brand-600 dark:text-brand-400 font-medium">
+                          Section Assigned: {secDefault}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
                 <input
                   type="text"
                   placeholder="e.g. Room 101 or Physics Lab"
