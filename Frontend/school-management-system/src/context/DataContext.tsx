@@ -6543,9 +6543,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       })),
       documents: (staffData.documents || []).map((d: any) => ({
         documentTitle: d.title || d.fileName || d.name || "",
-        documentType: d.type || d.docType || "Certificate",
+        documentType: d.documentType || d.docType || d.type || d.title || "Document",
         fileUrl: d.fileUrl || "",
-        uploadedDate: d.uploadDate || d.uploadedDate || new Date().toISOString(),
+        isRequired: d.isRequired ?? true,
+        status: d.status || "Attached",
+        uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
       })),
     })
       .then((response) => {
@@ -6647,9 +6649,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           })),
           documents: (fullStaff.documents || []).map((d: any) => ({
             documentTitle: d.title || d.fileName || d.name || "",
-            documentType: d.type || d.docType || "Certificate",
+            documentType: d.documentType || d.docType || d.type || d.title || "Document",
             fileUrl: d.fileUrl || "",
-            uploadedDate: d.uploadDate || d.uploadedDate || new Date().toISOString(),
+            isRequired: d.isRequired ?? true,
+            status: d.status || "Attached",
+            uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
           })),
         }).catch((err) => {
           console.error("Failed to update staff in backend", err);

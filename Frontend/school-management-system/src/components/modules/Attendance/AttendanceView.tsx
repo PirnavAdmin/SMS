@@ -28,17 +28,6 @@ interface RemarksState {
   [key: string]: string;
 }
 
-const mockStudents: Student[] = Array.from({ length: 65 }, (_, i) => ({
-  id: `${i + 1}`,
-  rollNo: `20${(i + 1).toString().padStart(2, '0')}`,
-  firstName: ['shiva', 'Rahul', 'Alexander', 'Gokul', 'venkat', 'Aisha', 'Rohan', 'Sneha', 'Liam', 'Emma'][i % 10],
-  lastName: ['sai', 'Sharma', 'Wright', 'Raj', 'javvadi', 'Khan', 'Verma', 'Patel', 'Smith', 'Johnson'][i % 10],
-  className: i % 3 === 0 ? 'Class 10' : i % 3 === 1 ? 'Class 9' : 'Class 6',
-  section: i % 3 === 0 ? 'A' : i % 3 === 1 ? 'B' : 'A',
-  admissionNo: `ADM${(i + 1).toString().padStart(3, '0')}`,
-  avatar: `https://i.pravatar.cc/150?u=${i + 1}`
-}));
-
 const getLocalDateString = (d: Date) => {
   const year = d.getFullYear();
   const monthVal = String(d.getMonth() + 1).padStart(2, '0');
@@ -51,6 +40,26 @@ export const AttendanceView = () => {
   const { staff = [], students: allStudents = [], academicClasses = [], saveStudentAttendance } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
+
+  // Real students mapped from DataContext
+  const realStudents: Student[] = useMemo(() => {
+    return (allStudents || []).map((s: any) => {
+      const nameParts = (s.name || '').trim().split(' ');
+      const firstName = s.firstName || nameParts[0] || 'Student';
+      const lastName = s.lastName || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
+      const studentClass = s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : '';
+      return {
+        id: String(s.id),
+        rollNo: s.rollNo || s.admissionNo || s.admissionNumber || String(s.id),
+        firstName,
+        lastName,
+        className: studentClass || s.className || '',
+        section: s.section || 'A',
+        admissionNo: s.admissionNo || s.admissionNumber || s.rollNo || `ADM-${s.id}`,
+        avatar: s.avatar || s.profilePhotoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${firstName} ${lastName}`)}&background=random`
+      };
+    });
+  }, [allStudents]);
 
   // Find logged in teacher record from DataContext staff
   const dbTeacher = useMemo(() => {
@@ -72,14 +81,14 @@ export const AttendanceView = () => {
       matchedStaff = staff.find(s => (s.firstName || '').toLowerCase().includes('robert'));
     }
 
-    const fallback = matchedStaff || { firstName: 'Robert', lastName: 'Teacher' };
+    const fallback = matchedStaff || { firstName: 'Teacher', lastName: 'Admin' };
 
     return {
       ...fallback,
-      firstName: fallback.firstName || 'Robert',
-      lastName: fallback.lastName || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['English', 'Mathematics']
+      firstName: fallback.firstName || 'Teacher',
+      lastName: fallback.lastName || 'Admin',
+      assignedClasses: fallback.assignedClasses || [],
+      assignedSubjects: fallback.assignedSubjects || ['Mathematics', 'English']
     };
   }, [user, staff]);
 
@@ -87,28 +96,39 @@ export const AttendanceView = () => {
   const teacherClasses = useMemo(() => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || [];
     if (!Array.isArray(raw) || raw.length === 0) {
-      raw = ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+      return [];
     }
     return raw.map((c: any) => {
-      const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : 'Class 10-A');
+      const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : '');
       const parts = str.split('-');
       const className = parts[0].startsWith('Class ') ? parts[0] : `Class ${parts[0]}`;
       const section = parts[1] || 'A';
       return { className, section };
-    });
+    }).filter((c: any) => Boolean(c.className));
   }, [dbTeacher]);
 
-  const teacherFullName = `${dbTeacher.firstName || 'Robert'} ${dbTeacher.lastName || 'Teacher'}`;
+  const teacherFullName = `${dbTeacher.firstName || 'Teacher'} ${dbTeacher.lastName || 'Staff'}`.trim();
 
-  // Unique list of class names for dropdown
+  // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {
     if (isTeacher && teacherClasses.length > 0) {
       return Array.from(new Set(teacherClasses.map(c => c.className)));
     }
     const fromAcademic = (academicClasses || []).map(ac => ac.name ? (ac.name.startsWith('Class ') ? ac.name : `Class ${ac.name}`) : null).filter(Boolean) as string[];
     const fromStudents = (allStudents || []).map(s => s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : null).filter(Boolean) as string[];
-    const merged = Array.from(new Set(['All Classes', ...fromAcademic, ...fromStudents, 'Class 10', 'Class 9', 'Class 6']));
-    return merged;
+    const merged = Array.from(new Set([...fromAcademic, ...fromStudents])).filter(Boolean);
+
+    const getGradeWeight = (name: string) => {
+      const normalized = name.toLowerCase().trim();
+      if (normalized.includes('nursery')) return 0.1;
+      if (normalized.includes('lkg')) return 0.2;
+      if (normalized.includes('ukg')) return 0.3;
+      const match = normalized.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 99;
+    };
+    merged.sort((a, b) => getGradeWeight(a) - getGradeWeight(b));
+
+    return ['All Classes', ...merged];
   }, [isTeacher, teacherClasses, academicClasses, allStudents]);
 
   // Global View State
@@ -124,13 +144,34 @@ export const AttendanceView = () => {
   // Context Selection State
   const [selectedClass, setSelectedClass] = useState<string>(() => {
     if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].className;
-    return 'Class 10';
+    return 'All Classes';
   });
 
   const [selectedSection, setSelectedSection] = useState<string>(() => {
     if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].section;
-    return 'A';
+    return 'All Sections';
   });
+
+  // Dynamic list of section options for selected class
+  const sectionOptions = useMemo(() => {
+    if (isTeacher && teacherClasses.length > 0) {
+      const matched = teacherClasses.filter(c => c.className === selectedClass);
+      return matched.length > 0 ? matched.map(c => c.section) : ['A'];
+    }
+    if (selectedClass === 'All Classes') {
+      const sections = Array.from(new Set((allStudents || []).map(s => s.section).filter(Boolean)));
+      return ['All Sections', ...(sections.length > 0 ? sections : ['A', 'B'])];
+    }
+    const fromAcademic = (academicClasses || [])
+      .find(ac => (ac.name ? (ac.name.startsWith('Class ') ? ac.name : `Class ${ac.name}`) : '') === selectedClass || ac.name === selectedClass);
+    const academicSections = (fromAcademic?.sections || []).map((s: any) => typeof s === 'string' ? s : s.name || s.sectionName || 'A');
+    const fromStudents = (allStudents || [])
+      .filter(s => (s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : '') === selectedClass || s.className === selectedClass)
+      .map(s => s.section)
+      .filter(Boolean);
+    const merged = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
+    return ['All Sections', ...(merged.length > 0 ? merged : ['A'])];
+  }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
   // Auto-sync section for Teacher when class changes
   useEffect(() => {
@@ -184,12 +225,13 @@ export const AttendanceView = () => {
   });
  
   const classStudents = React.useMemo(() => {
-    return mockStudents.filter(s => {
-      const classMatch = selectedClass === 'All Classes' || s.className === selectedClass;
-      const sectionMatch = selectedSection === 'All Sections' || s.section === selectedSection;
+    return realStudents.filter(s => {
+      const selectedClassNormalized = selectedClass.startsWith('Class ') ? selectedClass : `Class ${selectedClass}`;
+      const classMatch = selectedClass === 'All Classes' || s.className.toLowerCase() === selectedClassNormalized.toLowerCase() || s.className.toLowerCase() === selectedClass.toLowerCase();
+      const sectionMatch = selectedSection === 'All Sections' || s.section.toUpperCase() === selectedSection.toUpperCase();
       return classMatch && sectionMatch;
     });
-  }, [selectedClass, selectedSection]);
+  }, [realStudents, selectedClass, selectedSection]);
  
   // Unique key for the current register
   const registerKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
@@ -351,7 +393,7 @@ export const AttendanceView = () => {
       present, absent, halfDay, late,
       percentage
     };
-  }, [classStudents, currentAttendance]);
+  }, [filteredStudents, currentAttendance, attendanceRegistry, date, selectedSubject]);
  
  
   const [toasts, setToasts] = useState<Array<{id: number, type: 'success' | 'warning' | 'info', title: string, message: string}>>([]);
@@ -541,19 +583,12 @@ export const AttendanceView = () => {
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              disabled={isTeacher}
+              disabled={isTeacher && sectionOptions.length <= 1}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
-              {isTeacher ? (
-                <option value={selectedSection}>Section {selectedSection}</option>
-              ) : (
-                <>
-                  <option value="All Sections">All Sections</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                </>
-              )}
+              {sectionOptions.map(sec => (
+                <option key={sec} value={sec}>{sec === 'All Sections' ? 'All Sections' : `Section ${sec}`}</option>
+              ))}
             </select>
           </div>
 

@@ -14,17 +14,19 @@ namespace Backend.Tests.Services
     public class StaffServiceTests
     {
         private readonly Mock<ISchoolRepository> _repoMock;
+        private readonly Mock<SMS.Api.Services.Interfaces.IEmailNotificationService> _emailMock;
         private readonly SMS.Api.Data.AppDbContext _context;
         private readonly StaffService _service;
 
         public StaffServiceTests()
         {
             _repoMock = new Mock<ISchoolRepository>();
+            _emailMock = new Mock<SMS.Api.Services.Interfaces.IEmailNotificationService>();
             var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<SMS.Api.Data.AppDbContext>()
                 .UseInMemoryDatabase(databaseName: System.Guid.NewGuid().ToString())
                 .Options;
             _context = new SMS.Api.Data.AppDbContext(options);
-            _service = new StaffService(_repoMock.Object, _context);
+            _service = new StaffService(_repoMock.Object, _context, _emailMock.Object);
         }
 
         [Fact]

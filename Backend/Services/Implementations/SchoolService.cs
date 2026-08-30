@@ -955,7 +955,10 @@ public class SchoolService : ISchoolService
 		var app = await _schoolRepository.GetApplicationByIdAsync(id)
 			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
 
-		if (app.Status == "Enrolled") return true;
+		if (app.Status == "Enrolled")
+		{
+			throw new BadRequestException("Application is already enrolled.");
+		}
 
 		app.Status = "Enrolled";
 		await _schoolRepository.SaveChangesAsync();
@@ -986,6 +989,27 @@ public class SchoolService : ISchoolService
 			var appBranch = branches.Find(b => b.BranchName.ToLower() == (app.BranchName ?? "").ToLower()) ?? defaultBranch;
 			var branchId = appBranch != null ? appBranch.BranchId : 1;
 
+			var allClasses = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(_context.Classes);
+			int targetClassId = 1;
+			if (app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 && allClasses.Any(c => c.ClassId == app.AppliedClassId.Value))
+			{
+				targetClassId = app.AppliedClassId.Value;
+			}
+			else if (app.AppliedClass != null && !string.IsNullOrWhiteSpace(app.AppliedClass.ClassName))
+			{
+				var normalized = app.AppliedClass.ClassName.Trim().ToLower();
+				var matchedClass = allClasses.FirstOrDefault(c => 
+					(!string.IsNullOrEmpty(c.ClassName) && c.ClassName.Trim().ToLower() == normalized) ||
+					(!string.IsNullOrEmpty(c.ClassName) && (normalized == c.ClassName.Trim().ToLower().Replace("class ", "") || normalized == $"class {c.ClassName.Trim().ToLower()}"))
+				) ?? allClasses.FirstOrDefault(c => 
+					!string.IsNullOrEmpty(c.ClassName) && (normalized.Contains(c.ClassName.Trim().ToLower()) || c.ClassName.Trim().ToLower().Contains(normalized))
+				);
+				if (matchedClass != null)
+				{
+					targetClassId = matchedClass.ClassId;
+				}
+			}
+
 			if (existing == null)
 			{
 				var newAdmission = new Admission
@@ -999,7 +1023,7 @@ public class SchoolService : ISchoolService
 					BloodGroup = app.BloodGroup,
 					Caste = app.Caste,
 					BranchId = branchId,
-					ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1,
+					ClassId = targetClassId,
 					SectionLetter = "A",
 					AdmissionType = "Regular",
 					Status = app.Status ?? "",
@@ -1018,7 +1042,7 @@ public class SchoolService : ISchoolService
 				existing.BloodGroup = app.BloodGroup;
 				existing.Caste = app.Caste;
 				existing.BranchId = branchId;
-				existing.ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1;
+				existing.ClassId = targetClassId;
 				existing.Status = app.Status ?? "";
 				existing.IsDeleted = isDeleted;
 				existing.ModifiedDate = DateTime.UtcNow;
@@ -1027,7 +1051,6 @@ public class SchoolService : ISchoolService
 					existing.SectionLetter = "A";
 				}
 			}
-
 			await _context.SaveChangesAsync();
 
 			// Sync to students table if enrolled/active/approved and not deleted
@@ -1843,6 +1866,25 @@ public class SchoolService : ISchoolService
 		student.IsDeleted = true;
 		student.Status = "Inactive";
 		student.UpdatedAt = DateTime.UtcNow;
+
+		if (!string.IsNullOrWhiteSpace(student.AdmissionNumber))
+		{
+			var app = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.AdmissionApplications, a => a.RegistrationNo == student.AdmissionNumber);
+			if (app != null)
+			{
+				app.Status = "Deleted";
+				app.IsDeleted = true;
+			}
+
+			var admission = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.Admissions, a => a.ApplicationNo == student.AdmissionNumber);
+			if (admission != null)
+			{
+				admission.Status = "Deleted";
+				admission.IsDeleted = true;
+			}
+		}
 
 		await _schoolRepository.SaveChangesAsync();
 		return true;

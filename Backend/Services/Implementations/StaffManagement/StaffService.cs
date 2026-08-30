@@ -224,12 +224,16 @@ public class StaffService : IStaffService
         {
             foreach (var d in dto.Documents)
             {
+                var docType = !string.IsNullOrWhiteSpace(d.DocumentType) 
+                    ? d.DocumentType 
+                    : (!string.IsNullOrWhiteSpace(d.DocumentTitle) ? d.DocumentTitle : "Document");
+
                 staff.Documents.Add(new StaffDocument
                 {
-                    DocumentType = d.DocumentType,
+                    DocumentType = docType,
                     FileUrl = d.FileUrl,
                     IsRequired = d.IsRequired,
-                    Status = d.Status,
+                    Status = string.IsNullOrWhiteSpace(d.Status) ? "Attached" : d.Status,
                     UploadedAt = DateTime.TryParse(d.UploadedAt, out var ua) ? ua : DateTime.UtcNow
                 });
             }
@@ -392,12 +396,16 @@ public class StaffService : IStaffService
         {
             foreach (var d in dto.Documents)
             {
+                var docType = !string.IsNullOrWhiteSpace(d.DocumentType) 
+                    ? d.DocumentType 
+                    : (!string.IsNullOrWhiteSpace(d.DocumentTitle) ? d.DocumentTitle : "Document");
+
                 staff.Documents.Add(new StaffDocument
                 {
-                    DocumentType = d.DocumentType,
+                    DocumentType = docType,
                     FileUrl = d.FileUrl,
                     IsRequired = d.IsRequired,
-                    Status = d.Status,
+                    Status = string.IsNullOrWhiteSpace(d.Status) ? "Attached" : d.Status,
                     UploadedAt = DateTime.TryParse(d.UploadedAt, out var ua) ? ua : DateTime.UtcNow
                 });
             }
