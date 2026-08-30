@@ -14,9 +14,13 @@ export function useResults() {
   } = useData();
 
   const getResultsForExamClass = (examId: string, className: string, section: string) => {
-    return processedResults.filter(
-      r => r.examId === examId && r.className === className && (section === 'All' || r.section === section)
-    );
+    const cleanSec = (section || '').replace('Section ', '').trim().toUpperCase();
+    return processedResults.filter(r => {
+      if (r.examId !== examId || r.className !== className) return false;
+      if (!section || section === 'All') return true;
+      const rSec = (r.section || '').replace('Section ', '').trim().toUpperCase();
+      return rSec === cleanSec || r.section === section;
+    });
   };
 
   const calculateClassResults = (

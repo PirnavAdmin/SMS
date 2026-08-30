@@ -14877,21 +14877,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const saveProcessedResults = (results: ProcessedResult[]) => {
-    const blockedLockedResults = results.filter((r) => {
-      const existing = processedResults.find(
-        (p) => p.examId === r.examId && p.studentId === r.studentId,
-      );
-      return existing?.status === "Locked";
-    });
-    if (blockedLockedResults.length > 0) {
-      addToast(
-        "error",
-        "Results Locked",
-        "Unlock results before recalculating this class.",
-      );
-      return;
-    }
-
     setProcessedResults((prev) => {
       const newKeys = results.map((r) => `${r.examId}_${r.studentId}`);
       const filtered = prev.filter(
@@ -14912,19 +14897,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     status: ProcessedResult["status"],
   ) => {
     const stamp = new Date().toISOString().split("T")[0];
+    const cleanSec = (section || "").replace("Section ", "").trim().toUpperCase();
+
     setProcessedResults((prev) =>
       prev.map((r) => {
+        const rSec = (r.section || "").replace("Section ", "").trim().toUpperCase();
         if (
           r.examId === examId &&
           r.className === className &&
-          r.section === section
+          (!section || section === "All" || rSec === cleanSec || r.section === section)
         ) {
           return {
             ...r,
             status,
             processedAt: stamp,
-            publishedAt: status === "Published" ? stamp : r.publishedAt,
-            lockedAt: status === "Locked" ? stamp : r.lockedAt,
+            publishedAt: status === "Published" ? stamp : (status === "Calculated" || status === "Draft" ? undefined : r.publishedAt),
+            lockedAt: status === "Locked" ? stamp : (status === "Calculated" || status === "Draft" ? undefined : r.lockedAt),
           };
         }
         return r;
@@ -14934,21 +14922,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setExamMarks((prev) =>
         prev.map((m) => {
           const student = students.find((s) => s.id === m.studentId);
+          const sSec = (student?.section || m.section || "").replace("Section ", "").trim().toUpperCase();
           return m.examId === examId &&
-            student?.className === className &&
-            student?.section === section
+            (student?.className === className || m.className === className) &&
+            (!section || section === "All" || sSec === cleanSec)
             ? { ...m, isLocked: true }
             : m;
         }),
       );
     }
-    if (status === "Draft") {
+    if (status === "Draft" || status === "Calculated") {
       setExamMarks((prev) =>
         prev.map((m) => {
           const student = students.find((s) => s.id === m.studentId);
+          const sSec = (student?.section || m.section || "").replace("Section ", "").trim().toUpperCase();
           return m.examId === examId &&
-            student?.className === className &&
-            student?.section === section
+            (student?.className === className || m.className === className) &&
+            (!section || section === "All" || sSec === cleanSec)
             ? { ...m, isLocked: false }
             : m;
         }),

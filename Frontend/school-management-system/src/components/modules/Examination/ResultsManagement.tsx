@@ -123,45 +123,28 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
   };
 
   const handleVerify = () => {
-    const updated = visibleResults.map(r => ({
-      ...r,
-      verifiedBy: 'Administrator',
-      verifiedAt: new Date().toISOString().split('T')[0]
-    }));
-    saveProcessedResults(updated);
+    if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
+    updateResultStatus(exam.id, selectedClass, selectedSection, 'Verified');
     addToast('info', 'Results Verified', 'Results marks roster verified. Ready for approval.');
   };
 
   const handleApprove = () => {
-    const updated = visibleResults.map(r => ({
-      ...r,
-      status: 'Approved' as const,
-      approvedBy: 'Administrator',
-      approvedAt: new Date().toISOString().split('T')[0]
-    }));
-    saveProcessedResults(updated);
+    if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
+    updateResultStatus(exam.id, selectedClass, selectedSection, 'Approved');
     addToast('success', 'Results Approved', 'Results approved by controller and locked. Ready for publishing.');
   };
 
   const handlePublish = () => {
-    const updated = visibleResults.map(r => ({
-      ...r,
-      status: 'Published' as const,
-      publishedAt: new Date().toISOString().split('T')[0]
-    }));
-    saveProcessedResults(updated);
+    if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
+    updateResultStatus(exam.id, selectedClass, selectedSection, 'Published');
     addToast('success', 'Results Released', 'Results have been published and are now visible on Parent/Student portals.');
   };
 
   const handleLockToggle = () => {
+    if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
     const currentStatus = visibleResults[0]?.status;
-    const nextStatus = currentStatus === 'Locked' ? 'Calculated' : 'Locked';
-    const updated = visibleResults.map(r => ({
-      ...r,
-      status: nextStatus as ProcessedResult['status'],
-      lockedAt: nextStatus === 'Locked' ? new Date().toISOString().split('T')[0] : undefined
-    }));
-    saveProcessedResults(updated);
+    const nextStatus: ProcessedResult['status'] = currentStatus === 'Locked' ? 'Calculated' : 'Locked';
+    updateResultStatus(exam.id, selectedClass, selectedSection, nextStatus);
     addToast('info', nextStatus === 'Locked' ? 'Results Locked' : 'Results Unlocked', `Successfully set results status to ${nextStatus}.`);
   };
 
