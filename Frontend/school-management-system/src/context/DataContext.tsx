@@ -5033,6 +5033,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               const classIdStr = c.classId?.toString() || c.id?.toString();
               const localCls = localClasses.find((lc) => lc.id === classIdStr);
 
+              const secDetails: Record<string, any> = {
+                ...(localCls?.sectionDetails || c.sectionDetails || {}),
+              };
+              if (Array.isArray(c.sections)) {
+                c.sections.forEach((s: any) => {
+                  const sName =
+                    s.sectionName || s.name || (typeof s === "string" ? s : "");
+                  if (sName) {
+                    secDetails[sName] = {
+                      capacity: s.capacity || secDetails[sName]?.capacity || 40,
+                      status: s.status || secDetails[sName]?.status || "Active",
+                      remarks: s.remarks || secDetails[sName]?.remarks || "",
+                      roomNo:
+                        s.roomNo ||
+                        s.RoomNo ||
+                        s.room_number ||
+                        secDetails[sName]?.roomNo ||
+                        "",
+                      ...(secDetails[sName] || {}),
+                    };
+                    if (s.roomNo || s.RoomNo || s.room_number) {
+                      secDetails[sName].roomNo =
+                        s.roomNo || s.RoomNo || s.room_number;
+                    }
+                  }
+                });
+              }
+
               return {
                 id: classIdStr,
                 name: c.className || c.name,
@@ -5049,8 +5077,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     )
                   : c.subjects || [],
                 weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
-                sectionDetails:
-                  localCls?.sectionDetails || c.sectionDetails || {},
+                sectionDetails: secDetails,
               };
             });
             setAcademicClasses(mapped);
