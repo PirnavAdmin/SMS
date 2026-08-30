@@ -2010,9 +2010,19 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             return isCorrectCategory && s.status !== "Inactive";
           });
 
-          // Map them to DailyAttendance[]
-          const recordsToSave: DailyAttendance[] = activeStaffListForCategory.map(
-            (s) => {
+          // Map them to DailyAttendance[] (only include staff with edits or existing records)
+          const recordsToSave: DailyAttendance[] = activeStaffListForCategory
+            .filter((s) => {
+              const hasEdit = staffEdits[s.id] !== undefined;
+              const hasExisting = (attendance || []).some(
+                (r) =>
+                  r.entityType === "Staff" &&
+                  r.entityId === s.id &&
+                  r.date === dateStr
+              );
+              return hasEdit || hasExisting;
+            })
+            .map((s) => {
               let status = staffEdits[s.id];
               if (status === undefined) {
                 const existingRecord = (attendance || []).find(
@@ -2056,8 +2066,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 designation: s.designation || "",
                 remarks,
               };
-            }
-          );
+            });
 
           // Call markAttendance context function
           return markAttendance(recordsToSave);
@@ -2297,6 +2306,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             let pCount = 0;
             let aCount = 0;
             let lCount = 0;
+            let hdCount = 0;
 
             const dayStatuses = registerDaysList.map((item) => {
               const record = (attendance || []).find(
@@ -2305,7 +2315,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   r.entityId === s.id &&
                   r.date === item.dateStr,
               );
-              let code = "P";
+              let code = "-";
               if (record) {
                 if (record.status === "Present") {
                   code = "P";
@@ -2322,16 +2332,24 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 ) {
                   code = "HD";
                   pCount += 0.5;
+                  hdCount++;
                 }
               } else {
-                pCount++;
+                const isBeforeJoining = s.joiningDate && item.dateStr < s.joiningDate;
+                const isHoliday = getIsHoliday(item.dateStr, s);
+                const isWeekend = getIsWeekend(item.dateStr);
+                if (isBeforeJoining) code = "-";
+                else if (isHoliday) code = "H";
+                else if (isWeekend) code = "W";
+                else code = "-";
               }
               return `"${code}"`;
             });
 
+            const totalRecordedDays = pCount + aCount + lCount + hdCount;
             const pct =
-              registerDaysList.length > 0
-                ? Math.round((pCount / registerDaysList.length) * 100)
+              totalRecordedDays > 0
+                ? Math.round(((pCount + hdCount * 0.5) / totalRecordedDays) * 100)
                 : 0;
 
             const row = [
@@ -3255,15 +3273,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                               code = "W";
                               badgeStyle =
                                 "text-slate-400 bg-slate-100 dark:bg-slate-800/60 font-semibold";
-                            } else if (isFuture) {
+                            } else {
                               code = "";
                               badgeStyle =
                                 "border border-dashed border-slate-200 dark:border-slate-800 bg-transparent text-transparent";
-                            } else {
-                              code = "P";
-                              badgeStyle =
-                                "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20";
-                              pCount++;
                             }
                           }
 
@@ -3294,6 +3307,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         });
 
                         const totalLeaves = lCount + hdCount * 0.5;
+                        const totalRecordedDays = pCount + aCount + lCount + hdCount;
 
                         return (
                           <tr
@@ -3339,10 +3353,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                               {totalLeaves}
                             </td>
                             <td className="py-2 px-2 text-center font-extrabold text-slate-700 dark:text-slate-350">
-                              {registerDaysList.length > 0
+                              {totalRecordedDays > 0
                                 ? Math.round(
                                     ((pCount + hdCount * 0.5) /
-                                      registerDaysList.length) *
+                                      totalRecordedDays) *
                                       100,
                                   )
                                 : 0}
