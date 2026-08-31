@@ -8461,6 +8461,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [timetable]);
 
   useEffect(() => {
+    localStorage.setItem("edu_db_homework", JSON.stringify(homework));
+  }, [homework]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_holidays", JSON.stringify(holidays));
+  }, [holidays]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_school_events", JSON.stringify(schoolEvents));
+  }, [schoolEvents]);
+
+  useEffect(() => {
     localStorage.setItem(
       "edu_db_period_settings",
       JSON.stringify(periodSettings),
@@ -15578,7 +15590,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const addHomework = (hwData: Omit<Homework, "id">) => {
+  const addHomework = async (hwData: Omit<Homework, "id">) => {
     const id = "HW-" + Math.floor(100 + Math.random() * 900);
     const newHw: Homework = {
       ...hwData,
@@ -15590,16 +15602,81 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Posted Homework",
       `Assigned ${newHw.title} for ${newHw.className}`,
     );
+
+    try {
+      const payload = {
+        title: newHw.title,
+        className: newHw.className,
+        subjectName: newHw.subject,
+        topic: newHw.title,
+        description: newHw.description,
+        dueDate: newHw.dueDate,
+        publishedTo: newHw.publishToType === 'Students' ? 'Selected Students' : 'Entire Class',
+        status: newHw.status ? newHw.status.toUpperCase() : 'PUBLISHED',
+        teacherName: newHw.teacherName || 'Suteja K',
+        attachmentFileName: newHw.attachments?.[0]?.name,
+        attachmentUrl: newHw.attachments?.[0]?.url
+      };
+      const res: any = await createHomeworkApi(payload);
+      if (res?.data?.homeworkId) {
+        const serverId = String(res.data.homeworkId);
+        setHomework((prev) =>
+          prev.map((h) => (h.id === id ? { ...h, id: serverId } : h)),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to create homework assignment on backend", err);
+    }
   };
 
-  const updateHomework = (id: string, updates: Partial<Homework>) => {
+  const updateHomework = async (id: string, updates: Partial<Homework>) => {
     setHomework((prev) =>
       prev.map((h) => (h.id === id ? { ...h, ...updates } : h)),
     );
+
+    try {
+      const numericId = id.replace(/^HW-/i, '');
+      const payload = {
+        title: updates.title,
+        className: updates.className,
+        subjectName: updates.subject,
+        topic: updates.title,
+        description: updates.description,
+        dueDate: updates.dueDate,
+        publishedTo: updates.publishToType === 'Students' ? 'Selected Students' : 'Entire Class',
+        status: updates.status ? updates.status.toUpperCase() : 'PUBLISHED',
+        teacherName: updates.teacherName || 'Suteja K',
+        attachmentFileName: updates.attachments?.[0]?.name,
+        attachmentUrl: updates.attachments?.[0]?.url
+      };
+      await updateHomeworkApi(numericId, payload);
+    } catch (err) {
+      console.warn("Failed to update homework assignment on backend", err);
+    }
   };
 
-  const deleteHomework = (id: string) => {
-    setHomework((prev) => prev.filter((h) => h.id !== id));
+  const deleteHomework = async (id: string) => {
+    const targetIdStr = String(id).toLowerCase().trim();
+    const numericIdStr = targetIdStr.replace(/^hw-/i, '');
+
+    setHomework((prev) => {
+      const updated = prev.filter((h) => {
+        const hIdStr = String(h.id).toLowerCase().trim();
+        const hNumStr = hIdStr.replace(/^hw-/i, '');
+        return hIdStr !== targetIdStr && hNumStr !== numericIdStr;
+      });
+      try {
+        localStorage.setItem("edu_db_homework", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      const numericId = id.replace(/^HW-/i, '');
+      await deleteHomeworkApi(numericId);
+    } catch (err) {
+      console.warn("Failed to delete homework assignment on backend", err);
+    }
   };
 
   const addBook = (bookData: Omit<BookItem, "id"> & { id?: string }) => {
@@ -16698,20 +16775,86 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Holiday CRUD
-  const addHoliday = (hData: Omit<Holiday, "id">) => {
+  const addHoliday = async (hData: Omit<Holiday, "id">) => {
     const id = "HOL-" + Math.floor(100 + Math.random() * 900);
-    setHolidays((prev) => [
-      ...prev,
-      { ...hData, id, branch: hData.branch || selectedBranch || "Main Campus" },
-    ]);
+    const newHoliday: Holiday = {
+      ...hData,
+      id,
+      branch: hData.branch || selectedBranch || "Main Campus",
+    };
+    setHolidays((prev) => [newHoliday, ...prev]);
+
+    try {
+      const payload = {
+        name: newHoliday.name,
+        type: newHoliday.type,
+        startDate: newHoliday.startDate,
+        endDate: newHoliday.endDate,
+        description: newHoliday.description,
+        applicableTo: newHoliday.applicableTo || 'All Students & Staff'
+      };
+      await createHolidayApi(payload);
+    } catch (err) {
+      console.warn("Failed to create holiday on backend", err);
+    }
   };
-  const updateHoliday = (id: string, updates: Partial<Holiday>) => {
-    setHolidays((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, ...updates } : h)),
-    );
+
+  const updateHoliday = async (id: string, updates: Partial<Holiday>) => {
+    const targetIdStr = String(id).toLowerCase().trim();
+    const numericIdStr = targetIdStr.replace(/^hol-/i, '');
+
+    setHolidays((prev) => {
+      const updated = prev.map((h) => {
+        const hIdStr = String(h.id).toLowerCase().trim();
+        const hNumStr = hIdStr.replace(/^hol-/i, '');
+        if (hIdStr === targetIdStr || hNumStr === numericIdStr) {
+          return { ...h, ...updates };
+        }
+        return h;
+      });
+      try {
+        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      const payload = {
+        name: updates.name,
+        type: updates.type,
+        startDate: updates.startDate,
+        endDate: updates.endDate,
+        description: updates.description,
+        applicableTo: updates.applicableTo || 'All Students & Staff'
+      };
+      await updateHolidayApi(id, payload);
+    } catch (err) {
+      console.warn("Failed to update holiday on backend", err);
+    }
   };
-  const deleteHoliday = (id: string) => {
-    setHolidays((prev) => prev.filter((h) => h.id !== id));
+
+  const deleteHoliday = async (id: string) => {
+    const targetIdStr = String(id).toLowerCase().trim();
+    const numericIdStr = targetIdStr.replace(/^hol-/i, '');
+
+    setHolidays((prev) => {
+      const updated = prev.filter((h) => {
+        const hIdStr = String(h.id).toLowerCase().trim();
+        const hNumStr = hIdStr.replace(/^hol-/i, '');
+        return hIdStr !== targetIdStr && hNumStr !== numericIdStr;
+      });
+      try {
+        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      const numericId = id.replace(/^HOL-/i, '');
+      await deleteHolidayApi(numericId);
+    } catch (err) {
+      console.warn("Failed to delete holiday on backend", err);
+    }
   };
 
   // School Events CRUD
@@ -16729,27 +16872,95 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Created School Event",
       `Scheduled event ${newEvent.title} on ${newEvent.startDate}`,
     );
+
+    try {
+      const payload = {
+        title: newEvent.title,
+        category: newEvent.category,
+        startDate: newEvent.startDate,
+        endDate: newEvent.endDate,
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime,
+        location: newEvent.location,
+        description: newEvent.description,
+        status: newEvent.status ? newEvent.status.toUpperCase() : 'PUBLISHED'
+      };
+      createSchoolEventApi(payload).catch((err) => console.warn("Failed to create school event on backend", err));
+    } catch (err) {
+      console.warn("Failed to create school event on backend", err);
+    }
+
     return newEvent;
   };
 
-  const updateSchoolEvent = (id: string, updates: Partial<SchoolEvent>) => {
-    setSchoolEvents((prev) =>
-      prev.map((e) =>
-        e.id === id
-          ? {
-              ...e,
-              ...updates,
-              updatedAt: new Date().toISOString().split("T")[0],
-            }
-          : e,
-      ),
-    );
+  const updateSchoolEvent = async (id: string, updates: Partial<SchoolEvent>) => {
+    const targetIdStr = String(id).toLowerCase().trim();
+    const numericIdStr = targetIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+
+    setSchoolEvents((prev) => {
+      const updated = prev.map((e) => {
+        const eIdStr = String(e.id).toLowerCase().trim();
+        const eNumStr = eIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+        if (eIdStr === targetIdStr || eNumStr === numericIdStr) {
+          return {
+            ...e,
+            ...updates,
+            updatedAt: new Date().toISOString().split("T")[0],
+          };
+        }
+        return e;
+      });
+      try {
+        localStorage.setItem("edu_db_school_events", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
     logActivity("Updated School Event", `Updated event ID ${id}`);
+
+    try {
+      const payload = {
+        title: updates.title,
+        category: updates.category,
+        startDate: updates.startDate,
+        endDate: updates.endDate,
+        startTime: updates.startTime,
+        endTime: updates.endTime,
+        location: updates.location || updates.venue,
+        venue: updates.venue,
+        organizer: updates.organizer,
+        description: updates.description,
+        status: updates.status ? updates.status.toUpperCase() : 'PUBLISHED'
+      };
+      await updateSchoolEventApi(id, payload);
+    } catch (err) {
+      console.warn("Failed to update school event on backend", err);
+    }
   };
 
-  const deleteSchoolEvent = (id: string) => {
-    setSchoolEvents((prev) => prev.filter((e) => e.id !== id));
+  const deleteSchoolEvent = async (id: string) => {
+    const targetIdStr = String(id).toLowerCase().trim();
+    const numericIdStr = targetIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+
+    setSchoolEvents((prev) => {
+      const updated = prev.filter((e) => {
+        const eIdStr = String(e.id).toLowerCase().trim();
+        const eNumStr = eIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+        return eIdStr !== targetIdStr && eNumStr !== numericIdStr;
+      });
+      try {
+        localStorage.setItem("edu_db_school_events", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
     logActivity("Deleted School Event", `Removed event ID ${id}`);
+
+    try {
+      await deleteSchoolEventApi(id);
+    } catch (err) {
+      console.warn("Failed to delete school event on backend", err);
+    }
   };
 
   // TRAINING & ASSESSMENTS HANDLERS

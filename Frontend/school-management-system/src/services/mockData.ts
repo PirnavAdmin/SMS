@@ -11630,16 +11630,31 @@ export const initialTimetable: TimetableSlot[] = [
 export const initialHomework: Homework[] = [
   {
     id: "HW-101",
-    title: "Quadratic Equations Problem Set",
+    title: "Indian Constitution & Fundamental Rights Assignment",
     className: "Class 10",
     section: "A",
-    subject: "Mathematics",
-    teacherName: "Jonathan Miller",
+    subject: "Social Studies",
+    teacherName: "Suteja K",
     assignedDate: "2026-07-18",
     dueDate: "2026-07-22",
-    description: "Complete Problems 1 to 25 from Chapter 4 in the textbook.",
-    totalSubmissions: 24,
-    attachments: [{ id: "ATT-1", name: "Chapter4_Guide.pdf", url: "#", type: "PDF" }]
+    description: "Write a detailed report on Fundamental Rights and Directive Principles from Chapter 3.",
+    totalSubmissions: 28,
+    status: "Published",
+    attachments: [{ id: "ATT-1", name: "Civics_Chapter3_Guide.pdf", url: "#", type: "PDF" }]
+  },
+  {
+    id: "HW-102",
+    title: "World War II Historical Analysis & Timeline",
+    className: "Class 9",
+    section: "A",
+    subject: "Social Studies",
+    teacherName: "Suteja K",
+    assignedDate: "2026-07-20",
+    dueDate: "2026-07-25",
+    description: "Complete key terms and event map timeline for Chapter 5.",
+    totalSubmissions: 32,
+    status: "Published",
+    attachments: [{ id: "ATT-2", name: "History_Chapter5_Notes.pdf", url: "#", type: "PDF" }]
   }
 ];
 

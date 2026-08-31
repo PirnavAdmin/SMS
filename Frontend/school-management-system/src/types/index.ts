@@ -1058,6 +1058,7 @@ export interface SchoolEvent {
   description: string;
   organizer: string;
   venue: string;
+  location?: string;
   startDate: string;
   endDate: string;
   startTime?: string;

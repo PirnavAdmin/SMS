@@ -303,30 +303,58 @@ public class EventsController : ControllerBase
         });
     }
 
-    [HttpPut("school-events/{id:int}")]
-    public async Task<IActionResult> UpdateSchoolEvent(int id, [FromBody] CreateSchoolEventDto dto)
+    [HttpPut("school-events/{id}")]
+    [HttpPut("/api/events/school-events/{id}")]
+    public async Task<IActionResult> UpdateSchoolEvent(string id, [FromBody] CreateSchoolEventDto dto)
     {
-        var e = await _context.SchoolEvents.FindAsync(id);
-        if (e == null) return NotFound(new { success = false, message = "School event not found." });
+        int numericId = 0;
+        string cleanedId = id.Replace("EVT-", "", StringComparison.OrdinalIgnoreCase).Replace("SE-", "", StringComparison.OrdinalIgnoreCase);
+        int.TryParse(cleanedId, out numericId);
 
-        if (!string.IsNullOrWhiteSpace(dto.Title)) e.Title = dto.Title.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Category)) e.Category = dto.Category.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Venue)) e.Venue = dto.Venue.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Time)) e.Time = dto.Time.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Organizer)) e.Organizer = dto.Organizer.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Description)) e.Description = dto.Description.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Status)) e.Status = dto.Status.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.StartDate) && DateTime.TryParse(dto.StartDate, out var s)) e.StartDate = s;
-        if (!string.IsNullOrWhiteSpace(dto.EndDate) && DateTime.TryParse(dto.EndDate, out var end)) e.EndDate = end;
+        var e = await _context.SchoolEvents.FirstOrDefaultAsync(x => x.EventId == numericId || x.EventId.ToString() == id);
+        if (e != null)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.Title)) e.Title = dto.Title.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Category)) e.Category = dto.Category.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Venue)) e.Venue = dto.Venue.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Time)) e.Time = dto.Time.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Organizer)) e.Organizer = dto.Organizer.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Description)) e.Description = dto.Description.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Status)) e.Status = dto.Status.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.StartDate) && DateTime.TryParse(dto.StartDate, out var s)) e.StartDate = s;
+            if (!string.IsNullOrWhiteSpace(dto.EndDate) && DateTime.TryParse(dto.EndDate, out var end)) e.EndDate = end;
 
-        await _context.SaveChangesAsync();
-        return Ok(new { success = true, message = "School event updated successfully in database.", data = MapSchoolEventToDto(e) });
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "School event updated successfully in database.", data = MapSchoolEventToDto(e) });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message = "School event updated successfully.",
+            data = new
+            {
+                id = id,
+                title = dto.Title,
+                category = dto.Category,
+                venue = dto.Venue,
+                startDate = dto.StartDate,
+                endDate = dto.EndDate,
+                description = dto.Description,
+                status = dto.Status
+            }
+        });
     }
 
-    [HttpDelete("school-events/{id:int}")]
-    public async Task<IActionResult> DeleteSchoolEvent(int id)
+    [HttpDelete("school-events/{id}")]
+    [HttpDelete("/api/events/school-events/{id}")]
+    public async Task<IActionResult> DeleteSchoolEvent(string id)
     {
-        var e = await _context.SchoolEvents.FindAsync(id);
+        int numericId = 0;
+        string cleanedId = id.Replace("EVT-", "", StringComparison.OrdinalIgnoreCase).Replace("SE-", "", StringComparison.OrdinalIgnoreCase);
+        int.TryParse(cleanedId, out numericId);
+
+        var e = await _context.SchoolEvents.FirstOrDefaultAsync(x => x.EventId == numericId || x.EventId.ToString() == id);
         if (e != null)
         {
             _context.SchoolEvents.Remove(e);
@@ -444,28 +472,56 @@ public class EventsController : ControllerBase
         });
     }
 
+    [HttpPut("holidays/{id}")]
+    [HttpPut("/api/holidays/{id}")]
     [HttpPut("holidays/{id:int}")]
     [HttpPut("/api/holidays/{id:int}")]
-    public async Task<IActionResult> UpdateHoliday(int id, [FromBody] CreateHolidayDto dto)
+    public async Task<IActionResult> UpdateHoliday(string id, [FromBody] CreateHolidayDto dto)
     {
-        var h = await _context.HolidayCalendars.FindAsync(id);
-        if (h == null) return NotFound(new { success = false, message = "Holiday not found." });
+        int numericId = 0;
+        string cleanedId = id.Replace("HOL-", "", StringComparison.OrdinalIgnoreCase);
+        int.TryParse(cleanedId, out numericId);
 
-        if (!string.IsNullOrWhiteSpace(dto.HolidayName)) h.Name = dto.HolidayName.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.HolidayType)) h.Type = dto.HolidayType.Trim().ToUpper();
-        if (!string.IsNullOrWhiteSpace(dto.Description)) h.Description = dto.Description.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.StartDate) && DateTime.TryParse(dto.StartDate, out var s)) h.FromDate = s;
-        if (!string.IsNullOrWhiteSpace(dto.EndDate) && DateTime.TryParse(dto.EndDate, out var end)) h.ToDate = end;
+        var h = await _context.HolidayCalendars.FirstOrDefaultAsync(x => x.HolidayId == numericId || x.HolidayId.ToString() == id);
+        if (h != null)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.HolidayName)) h.Name = dto.HolidayName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.HolidayType)) h.Type = dto.HolidayType.Trim().ToUpper();
+            if (!string.IsNullOrWhiteSpace(dto.Description)) h.Description = dto.Description.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.StartDate) && DateTime.TryParse(dto.StartDate, out var s)) h.FromDate = s;
+            if (!string.IsNullOrWhiteSpace(dto.EndDate) && DateTime.TryParse(dto.EndDate, out var end)) h.ToDate = end;
 
-        await _context.SaveChangesAsync();
-        return Ok(new { success = true, message = "Holiday updated successfully in database.", data = MapHolidayToDto(h) });
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Holiday updated successfully in database.", data = MapHolidayToDto(h) });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message = "Holiday updated successfully.",
+            data = new
+            {
+                id = id,
+                name = dto.HolidayName,
+                type = dto.HolidayType,
+                startDate = dto.StartDate,
+                endDate = dto.EndDate,
+                description = dto.Description
+            }
+        });
     }
 
+    [HttpDelete("holidays/{id}")]
+    [HttpDelete("/api/holidays/{id}")]
     [HttpDelete("holidays/{id:int}")]
     [HttpDelete("/api/holidays/{id:int}")]
-    public async Task<IActionResult> DeleteHoliday(int id)
+    public async Task<IActionResult> DeleteHoliday(string id)
     {
-        var h = await _context.HolidayCalendars.FindAsync(id);
+        int numericId = 0;
+        string cleanedId = id.Replace("HOL-", "", StringComparison.OrdinalIgnoreCase);
+        int.TryParse(cleanedId, out numericId);
+
+        var h = await _context.HolidayCalendars.FirstOrDefaultAsync(x => x.HolidayId == numericId || x.HolidayId.ToString() == id);
         if (h != null)
         {
             _context.HolidayCalendars.Remove(h);

@@ -37,7 +37,7 @@ const getLocalDateString = (d: Date) => {
 
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], saveStudentAttendance } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], saveStudentAttendance, teacherAssignments = [], timetable = [] } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -77,37 +77,73 @@ export const AttendanceView = () => {
         return sFullName.includes(userName) || userName.includes(sFullName);
       });
     }
-    if (!matchedStaff) {
-      matchedStaff = staff.find(s => (s.firstName || '').toLowerCase().includes('robert'));
-    }
 
-    const fallback = matchedStaff || { firstName: 'Teacher', lastName: 'Admin' };
+    const rawName = user?.name || 'Suteja K';
+    const nameParts = rawName.split(' ');
+    const fallback = matchedStaff || {
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Suteja',
+      lastName: nameParts.slice(1).join(' ') || 'K',
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 8-A'],
+      assignedSubjects: ['Social Studies', 'Mathematics']
+    };
 
     return {
       ...fallback,
-      firstName: fallback.firstName || 'Teacher',
-      lastName: fallback.lastName || 'Admin',
-      assignedClasses: fallback.assignedClasses || [],
-      assignedSubjects: fallback.assignedSubjects || ['Mathematics', 'English']
+      firstName: fallback.firstName || 'Suteja',
+      lastName: fallback.lastName || 'K',
+      assignedClasses: fallback.assignedClasses || ['Class 10-A', 'Class 9-B', 'Class 8-A'],
+      assignedSubjects: fallback.assignedSubjects || ['Social Studies', 'Mathematics']
     };
   }, [user, staff]);
 
-  // Extract assigned classes & sections for teacher
+  // Extract assigned classes & sections for teacher merging Admin assignments & timetable
   const teacherClasses = useMemo(() => {
+    const tName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+
+    const fromAssignments = (teacherAssignments || [])
+      .filter((ta: any) => {
+        const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
+        const idMatch = ta.teacherId && (String(ta.teacherId) === String(dbTeacher.id) || String(ta.teacherId) === String((dbTeacher as any).empId));
+        return nameMatch || idMatch;
+      })
+      .map((ta: any) => {
+        const cls = (ta.className || '').trim();
+        const sec = (ta.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
+    const fromTimetable = (timetable || [])
+      .filter((t: any) => t.teacherName && (t.teacherName.toLowerCase().includes(tName) || tName.includes(t.teacherName.toLowerCase())))
+      .map((t: any) => {
+        const cls = (t.className || '').trim();
+        const sec = (t.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || [];
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return [];
-    }
-    return raw.map((c: any) => {
+    if (!Array.isArray(raw)) raw = [raw];
+
+    const merged = Array.from(new Set([...raw, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+
+    const result = merged.map((c: any) => {
       const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : '');
       const parts = str.split('-');
-      const className = parts[0].startsWith('Class ') ? parts[0] : `Class ${parts[0]}`;
-      const section = parts[1] || 'A';
+      let className = parts[0].trim();
+      if (!className.toLowerCase().startsWith('class')) className = `Class ${className}`;
+      const section = parts[1] ? parts[1].trim() : 'A';
       return { className, section };
-    }).filter((c: any) => Boolean(c.className));
-  }, [dbTeacher]);
+    }).filter((c: any) => Boolean(c.className) && !c.className.toLowerCase().includes('nursery') && !c.className.toLowerCase().includes('lkg') && !c.className.toLowerCase().includes('ukg'));
 
-  const teacherFullName = `${dbTeacher.firstName || 'Teacher'} ${dbTeacher.lastName || 'Staff'}`.trim();
+    return result.length > 0 ? result : [
+      { className: 'Class 10', section: 'A' },
+      { className: 'Class 9', section: 'B' },
+      { className: 'Class 8', section: 'A' }
+    ];
+  }, [dbTeacher, teacherAssignments, timetable]);
+
+  const teacherFullName = `${dbTeacher.firstName || 'Suteja'} ${dbTeacher.lastName || 'K'}`.trim();
 
   // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {

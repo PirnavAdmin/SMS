@@ -224,20 +224,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     if (!timeStr) return "--:--";
     const trimmed = timeStr.trim();
     if (!trimmed || trimmed.toLowerCase().includes("invalid") || trimmed === "null" || trimmed === "undefined") return "--:--";
-    if (/^\d{1,2}:\d{2}(\:\d{2})?(\s?[AP]M)?$/i.test(trimmed)) {
-      return trimmed;
-    }
+    
+    const timeMatch = trimmed.match(/\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?\b/i);
     const d = new Date(trimmed);
     if (!isNaN(d.getTime())) {
       return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
+    if (timeMatch) {
+      return timeMatch[0].trim();
+    }
     if (trimmed.includes("T")) {
       const afterT = trimmed.split("T")[1];
-      if (afterT && afterT.trim() && !afterT.toLowerCase().includes("invalid")) {
-        const dAfter = new Date(`1970-01-01T${afterT}`);
-        if (!isNaN(dAfter.getTime())) {
-          return dAfter.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        }
+      if (afterT && afterT.trim()) {
+        const subMatch = afterT.match(/\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?\b/i);
+        if (subMatch) return subMatch[0].trim();
       }
     }
     return "--:--";
@@ -427,16 +427,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const todayRecord = persCheckInTime
       ? {
           date: todayStr,
-          checkIn: new Date(persCheckInTime).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          checkOut: persCheckOutTime
-            ? new Date(persCheckOutTime).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "--",
+          checkIn: formatDisplayTime(persCheckInTime),
+          checkOut: formatDisplayTime(persCheckOutTime),
           workingHours: persWorkingHours,
           status: todayStatus,
         }

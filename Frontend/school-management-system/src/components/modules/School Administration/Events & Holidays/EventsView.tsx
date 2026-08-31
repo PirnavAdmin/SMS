@@ -485,14 +485,29 @@ export const EventsView: React.FC = () => {
       days.push({ dayNumber: d, dateString, isCurrentMonth: false, events: [] });
     }
 
+    const normDateStr = (d?: string) => {
+      if (!d) return '';
+      const str = String(d).trim().replace(/\//g, '-');
+      const parts = str.split('-');
+      if (parts.length === 3) {
+        const y = parts[0];
+        const m = parts[1].padStart(2, '0');
+        const day = parts[2].padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+      return str;
+    };
+
     // Current Month Days
     for (let d = 1; d <= totalDaysInMonth; d++) {
       const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayEvents = filteredEvents.filter(e => {
-        if (e.endDate && e.endDate !== e.date) {
-          return dateString >= e.date && dateString <= e.endDate;
+        const eStart = normDateStr(e.date);
+        const eEnd = normDateStr(e.endDate || e.date);
+        if (eEnd && eEnd !== eStart) {
+          return dateString >= eStart && dateString <= eEnd;
         }
-        return e.date === dateString;
+        return eStart === dateString;
       });
       days.push({ dayNumber: d, dateString, isCurrentMonth: true, events: dayEvents });
     }
