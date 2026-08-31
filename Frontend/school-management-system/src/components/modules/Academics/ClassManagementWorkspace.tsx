@@ -4,7 +4,7 @@ import {
   Users, UserPlus, Clock, ShieldCheck, Plus, Edit, 
   Trash2, Search, X, Check, ChevronRight, AlertCircle, ChevronDown,
   BarChart2, CheckSquare, Copy, Archive, CheckCircle2, RefreshCw,
-  ArrowLeft, Activity, Settings, Clipboard, Download, Lock, CheckSquare as CheckSquareIcon, ArrowRightLeft, BookOpen as BookOpenIcon, UserCheck, Play
+  ArrowLeft, Activity, Settings, Clipboard, Download, Lock, CheckSquare as CheckSquareIcon, ArrowRightLeft, BookOpen as BookOpenIcon, UserCheck, Play, Info
 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useData, AcademicClass } from '../../../context/DataContext';
@@ -1737,7 +1737,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             }
             secIdx++;
           });
-          addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections.');
+          addToast('success', 'Auto-allocated Students', res?.message || `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
         } else {
           addToast('error', 'Error', res?.message || 'Failed to auto allocate students.');
         }
@@ -1760,7 +1760,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           }
           secIdx++;
         });
-        addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections (offline).');
+        addToast('success', 'Auto-allocated Students', `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
       });
   };
 
@@ -2736,6 +2736,25 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             >
                               <ArrowRightLeft className="w-3.5 h-3.5" /> Auto-Allocate Students
                             </button>
+                          </div>
+                        </div>
+
+                        {/* Auto-Allocation Explanation Banner */}
+                        <div className="p-3.5 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/80 text-xs flex items-start gap-2.5 text-sky-900 dark:text-sky-200 shadow-2xs">
+                          <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 dark:text-white">Auto-Allocation Basis & Rules:</span>
+                              <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-200 text-[10px] font-black uppercase tracking-wider">
+                                Balanced Strength Policy
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-350 leading-relaxed font-medium">
+                              Directly enrolled unassigned students are auto-allocated to active sections based on 3 rules:
+                              <span className="font-bold text-sky-800 dark:text-sky-300"> 1. Lowest Section Count</span> (equalizes student count across Section A, B, etc.),
+                              <span className="font-bold text-sky-800 dark:text-sky-300"> 2. Maximum Seat Capacity</span> (respects configured section capacity limits e.g. 40 seats), and
+                              <span className="font-bold text-sky-800 dark:text-sky-300"> 3. Sequential Roll Numbers</span> (auto-generates R-1, R-2, ...).
+                            </p>
                           </div>
                         </div>
 

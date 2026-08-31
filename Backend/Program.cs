@@ -1167,7 +1167,42 @@ using (var scope = app.Services.CreateScope())
                 `Feedback` longtext NULL,
                 PRIMARY KEY (`SubmissionId`),
                 CONSTRAINT `fk_hw_submissions_homework` FOREIGN KEY (`HomeworkId`) REFERENCES `homeworks` (`HomeworkId`) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"DROP TABLE IF EXISTS `payroll_runs`;",
+
+            @"CREATE TABLE `payroll_runs` (
+                `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                `EmployeeId` VARCHAR(100) NOT NULL,
+                `EmployeeName` VARCHAR(255) NULL,
+                `EmpId` VARCHAR(100) NULL,
+                `Branch` VARCHAR(255) NULL,
+                `Department` VARCHAR(255) NULL,
+                `EmployeeCategory` VARCHAR(100) NULL,
+                `PayrollMonth` VARCHAR(100) NOT NULL,
+                `GrossSalary` DECIMAL(18,2) NOT NULL,
+                `LeaveDeduction` DECIMAL(18,2) NOT NULL,
+                `OtherDeductions` DECIMAL(18,2) NOT NULL,
+                `NetSalary` DECIMAL(18,2) NOT NULL,
+                `Status` VARCHAR(100) NOT NULL DEFAULT 'Pending',
+                `SalaryStructureId` VARCHAR(100) NULL,
+                `ConfigurationId` VARCHAR(100) NULL,
+                `EarningsJson` LONGTEXT NULL,
+                `DeductionsJson` LONGTEXT NULL,
+                `LeaveDetailsJson` LONGTEXT NULL,
+                `ManualAdjustmentsJson` LONGTEXT NULL,
+                `Notes` TEXT NULL,
+                `ProcessedDate` VARCHAR(100) NULL,
+                `LockedDate` VARCHAR(100) NULL,
+                `PaymentDate` VARCHAR(100) NULL,
+                `WorkflowStage` VARCHAR(100) NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"ALTER TABLE `payroll_configs` ADD COLUMN `LeaveRulesJson` LONGTEXT NULL;",
+            @"ALTER TABLE `payroll_configs` ADD COLUMN `AttendanceRulesJson` LONGTEXT NULL;",
+            @"ALTER TABLE `payroll_configs` ADD COLUMN `DeductionRulesJson` LONGTEXT NULL;",
+            @"ALTER TABLE `payroll_configs` ADD COLUMN `CycleJson` LONGTEXT NULL;",
+            @"ALTER TABLE `payroll_configs` ADD COLUMN `OvertimeJson` LONGTEXT NULL;"
         };
 
         foreach (var sql in tableSqls)
@@ -2404,7 +2439,7 @@ using (var scope = app.Services.CreateScope())
                                     Caste = admApp.Caste,
                                     BranchId = appBranch.BranchId,
                                     ClassId = targetClassId,
-                                    SectionLetter = "A",
+                                    SectionLetter = null,
                                     AdmissionType = "Regular",
                                     Status = admApp.Status ?? "",
                                     IsDeleted = false,
@@ -2433,10 +2468,13 @@ using (var scope = app.Services.CreateScope())
                         if (admission.ClassId == null)
                             continue;
 
-                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
-                        var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
-                        
+                        ClassSection? sectionObj = null;
+                        if (!string.IsNullOrEmpty(admission.SectionLetter))
+                        {
+                            sectionObj = await context.ClassSections
+                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                        }
+
                         if (sectionObj == null)
                         {
                             sectionObj = await context.ClassSections

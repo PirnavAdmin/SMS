@@ -22,4 +22,10 @@ public class PayrollConfig
     public DateTime EffectiveFrom { get; set; } = DateTime.UtcNow;
 
     public DateTime EffectiveTo { get; set; } = DateTime.UtcNow.AddYears(1);
+
+    public string? LeaveRulesJson { get; set; }
+    public string? AttendanceRulesJson { get; set; }
+    public string? DeductionRulesJson { get; set; }
+    public string? CycleJson { get; set; }
+    public string? OvertimeJson { get; set; }
 }

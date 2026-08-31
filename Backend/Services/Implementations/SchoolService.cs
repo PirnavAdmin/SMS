@@ -1024,13 +1024,14 @@ public class SchoolService : ISchoolService
 					Caste = app.Caste,
 					BranchId = branchId,
 					ClassId = targetClassId,
-					SectionLetter = "A",
+					SectionLetter = null,
 					AdmissionType = "Regular",
 					Status = app.Status ?? "",
 					IsDeleted = isDeleted,
 					CreatedDate = DateTime.UtcNow
 				};
 				await _context.Admissions.AddAsync(newAdmission);
+				existing = newAdmission;
 			}
 			else
 			{
@@ -1046,10 +1047,6 @@ public class SchoolService : ISchoolService
 				existing.Status = app.Status ?? "";
 				existing.IsDeleted = isDeleted;
 				existing.ModifiedDate = DateTime.UtcNow;
-				if (string.IsNullOrEmpty(existing.SectionLetter))
-				{
-					existing.SectionLetter = "A";
-				}
 			}
 			await _context.SaveChangesAsync();
 
@@ -1073,115 +1070,115 @@ public class SchoolService : ISchoolService
 
 					if (sectionObj != null)
 					{
-						var defaultAcademicYear = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(_context.AcademicYears);
+							var defaultAcademicYear = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(_context.AcademicYears);
 
-						if (defaultAcademicYear != null)
-						{
-							if (matchedStudent != null)
+							if (defaultAcademicYear != null)
 							{
-								matchedStudent.StudentName = existing.StudentName ?? string.Empty;
-								matchedStudent.DateOfBirth = existing.Dob;
-								matchedStudent.Gender = existing.Gender;
-								matchedStudent.FatherName = existing.FatherName;
-								matchedStudent.FatherMobile = existing.FatherMobile;
-								matchedStudent.ClassId = existing.ClassId.Value;
-								matchedStudent.SectionId = sectionObj.SectionId;
-								matchedStudent.RollNumber = existing.RollNo ?? matchedStudent.RollNumber;
-								matchedStudent.BranchId = (int)existing.BranchId;
-								matchedStudent.Status = "Active";
-								matchedStudent.UpdatedAt = DateTime.UtcNow;
-							}
-							else
-							{
-								var newStudent = new Student
+								if (matchedStudent != null)
 								{
-									AdmissionNumber = existing.ApplicationNo ?? $"ADM-{existing.AdmissionId}",
-									RollNumber = existing.RollNo ?? $"R-{existing.AdmissionId}",
-									StudentName = existing.StudentName ?? string.Empty,
-									DateOfBirth = existing.Dob,
-									Gender = existing.Gender,
-									FatherName = existing.FatherName,
-									FatherMobile = existing.FatherMobile,
-									BranchId = (int)existing.BranchId,
-									AcademicYearId = defaultAcademicYear.AcademicYearId,
-									ClassId = existing.ClassId.Value,
-									SectionId = sectionObj.SectionId,
-									Status = "Active",
-									CreatedAt = DateTime.UtcNow
-								};
-								await _context.Students.AddAsync(newStudent);
-							}
-							await _context.SaveChangesAsync();
-
-							// Automatically create Student User in users table and send Welcome Credentials Email
-							if (app.Status == "Enrolled")
-							{
-								try
-								{
-									var studentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
-									var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing.FatherMobile) ? existing.FatherMobile.Trim() : $"STU{existing.AdmissionId}");
-									var studentFullName = $"{app.FirstName} {app.LastName}".Trim();
-
-									var existingUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-										_context.Users, u => 
-											(!string.IsNullOrWhiteSpace(studentEmail) && u.Email != null && u.Email.ToLower() == studentEmail.ToLower()) ||
-											(!string.IsNullOrWhiteSpace(studentMobile) && u.MobileNumber == studentMobile));
-
-									if (existingUser == null)
-									{
-										var newUser = new User
-										{
-											FullName = studentFullName,
-											Email = studentEmail,
-											MobileNumber = studentMobile,
-											PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
-											Role = "Student",
-											IsEmailVerified = true,
-											IsMobileVerified = true,
-											CreatedAt = DateTime.UtcNow,
-											SchoolId = null
-										};
-										await _context.Users.AddAsync(newUser);
-										await _context.SaveChangesAsync();
-									}
-
-									// Send Welcome Credentials Email to student / parent email
-									if (!string.IsNullOrWhiteSpace(studentEmail) && studentEmail.Contains('@'))
-									{
-										var loginId = studentEmail;
-										_ = Task.Run(async () =>
-										{
-											try
-											{
-												await _emailNotificationService.SendWelcomeCredentialsAsync(
-													recipientEmail: studentEmail,
-													recipientName: studentFullName,
-													loginIdentifier: loginId,
-													defaultPassword: "admin1234",
-													roleName: "Student");
-											}
-											catch { /* Ignored */ }
-										});
-									}
+									matchedStudent.StudentName = existing.StudentName ?? string.Empty;
+									matchedStudent.DateOfBirth = existing.Dob;
+									matchedStudent.Gender = existing.Gender;
+									matchedStudent.FatherName = existing.FatherName;
+									matchedStudent.FatherMobile = existing.FatherMobile;
+									matchedStudent.ClassId = existing.ClassId.Value;
+									matchedStudent.SectionId = sectionObj.SectionId;
+									matchedStudent.RollNumber = existing.RollNo ?? matchedStudent.RollNumber;
+									matchedStudent.BranchId = (int)existing.BranchId;
+									matchedStudent.Status = "Active";
+									matchedStudent.UpdatedAt = DateTime.UtcNow;
 								}
-								catch (Exception userSyncEx)
+								else
 								{
-									Console.WriteLine($"[SchoolService] Failed to auto-create user or send welcome email for student: {userSyncEx.Message}");
+									var newStudent = new Student
+									{
+										AdmissionNumber = existing.ApplicationNo ?? $"ADM-{existing.AdmissionId}",
+										RollNumber = existing.RollNo ?? $"R-{existing.AdmissionId}",
+										StudentName = existing.StudentName ?? string.Empty,
+										DateOfBirth = existing.Dob,
+										Gender = existing.Gender,
+										FatherName = existing.FatherName,
+										FatherMobile = existing.FatherMobile,
+										BranchId = (int)existing.BranchId,
+										AcademicYearId = defaultAcademicYear.AcademicYearId,
+										ClassId = existing.ClassId.Value,
+										SectionId = sectionObj.SectionId,
+										Status = "Active",
+										CreatedAt = DateTime.UtcNow
+									};
+									await _context.Students.AddAsync(newStudent);
+								}
+								await _context.SaveChangesAsync();
+
+								// Automatically create Student User in users table and send Welcome Credentials Email
+								if (app.Status == "Enrolled")
+								{
+									try
+									{
+										var studentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
+										var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing.FatherMobile) ? existing.FatherMobile.Trim() : $"STU{existing.AdmissionId}");
+										var studentFullName = $"{app.FirstName} {app.LastName}".Trim();
+
+										var existingUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+											_context.Users, u =>
+												(!string.IsNullOrWhiteSpace(studentEmail) && u.Email != null && u.Email.ToLower() == studentEmail.ToLower()) ||
+												(!string.IsNullOrWhiteSpace(studentMobile) && u.MobileNumber == studentMobile));
+
+										if (existingUser == null)
+										{
+											var newUser = new User
+											{
+												FullName = studentFullName,
+												Email = studentEmail,
+												MobileNumber = studentMobile,
+												PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+												Role = "Student",
+												IsEmailVerified = true,
+												IsMobileVerified = true,
+												CreatedAt = DateTime.UtcNow,
+												SchoolId = null
+											};
+											await _context.Users.AddAsync(newUser);
+											await _context.SaveChangesAsync();
+										}
+
+										// Send Welcome Credentials Email to student / parent email
+										if (!string.IsNullOrWhiteSpace(studentEmail) && studentEmail.Contains('@'))
+										{
+											var loginId = studentEmail;
+											_ = Task.Run(async () =>
+											{
+												try
+												{
+													await _emailNotificationService.SendWelcomeCredentialsAsync(
+														recipientEmail: studentEmail,
+														recipientName: studentFullName,
+														loginIdentifier: loginId,
+														defaultPassword: "admin1234",
+														roleName: "Student");
+												}
+												catch { /* Ignored */ }
+											});
+										}
+									}
+									catch (Exception userSyncEx)
+									{
+										Console.WriteLine($"[SchoolService] Failed to auto-create user or send welcome email for student: {userSyncEx.Message}");
+									}
 								}
 							}
 						}
 					}
-				}
-			}
-			else
-			{
-				var existingStudent = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.Students, s => s.AdmissionNumber == app.RegistrationNo);
-				if (existingStudent != null)
+				else
 				{
-					existingStudent.Status = "Inactive";
-					existingStudent.IsDeleted = true;
-					await _context.SaveChangesAsync();
+					var existingStudent = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+						_context.Students, s => s.AdmissionNumber == app.RegistrationNo);
+					if (existingStudent != null)
+					{
+						existingStudent.Status = "Inactive";
+						existingStudent.IsDeleted = true;
+						await _context.SaveChangesAsync();
+					}
 				}
 			}
 		}
