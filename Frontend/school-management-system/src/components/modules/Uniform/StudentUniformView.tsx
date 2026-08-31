@@ -109,6 +109,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       if (stdName.includes('abdul') || stdName.includes('samad') || (stdAdmMatch && (stdAdmMatch.toLowerCase().includes('1437') || stdAdmMatch.toLowerCase().includes('abdul')))) {
         return false;
       }
+      if (stdName.includes('chetri') || (stdAdmMatch && (stdAdmMatch.toLowerCase().includes('1449') || stdAdmMatch.toLowerCase().includes('chetri')))) {
+        return false;
+      }
+      if (stdName.includes('changte') || (stdAdmMatch && (stdAdmMatch.toLowerCase().includes('changte')))) {
+        return true;
+      }
       if (stdName.includes('ayush') || stdName.includes('badoni') || (stdAdmMatch && (stdAdmMatch.toLowerCase().includes('1436') || stdAdmMatch.toLowerCase().includes('ayush')))) {
         return true;
       }
@@ -4488,14 +4494,16 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               {(() => {
                                 const notesLower = (item.notes || '').toLowerCase();
-                                const isExplicitlyPaidNote = (notesLower.includes('fees paid') || notesLower.includes('paid at counter') || notesLower.includes('already paid') || notesLower.includes('paid item')) &&
-                                  !notesLower.includes('unpaid') && !notesLower.includes('not paid') && !notesLower.includes('to be paid') && !notesLower.includes('pending');
+                                const isExplicitlyUnpaidNote = notesLower.includes('unpaid') || notesLower.includes('not paid') || notesLower.includes('to be paid') || notesLower.includes('pending') || notesLower.includes('charge removed');
+                                const isExplicitlyPaidNote = (notesLower.includes('fees paid') || notesLower.includes('paid at counter') || notesLower.includes('already paid') || notesLower.includes('paid item fees refunded')) && !isExplicitlyUnpaidNote;
+
+                                const isReturnedItemPaid = Boolean(item.wasPaid) || isExplicitlyPaidNote;
 
                                 const extraFeeStat = getExtraItemsFeeStatus(student.studentId, student.admissionNo, [item]);
-                                const isItemPaid = Boolean(item.wasPaid) || isExplicitlyPaidNote || extraFeeStat.isPaid || item.status === 'Paid';
+                                const isItemPaid = isReturned ? isReturnedItemPaid : (Boolean(item.wasPaid) || isExplicitlyPaidNote || extraFeeStat.isPaid || item.status === 'Paid');
 
                                 if (isReturned) {
-                                  if (isItemPaid) {
+                                  if (isReturnedItemPaid) {
                                     return (
                                       <span className="font-extrabold text-[11px] flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Fee Refunded (Credit)
@@ -4532,15 +4540,20 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                               })()}
                             </td>
                             <td className="py-2.5 px-3 text-center">
-                              {isReturned ? (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border whitespace-nowrap ${
-                                  Boolean(item.wasPaid) || (item.notes || '').toLowerCase().includes('paid')
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-                                }`}>
-                                  {Boolean(item.wasPaid) || (item.notes || '').toLowerCase().includes('paid') ? '↩ Refunded' : '↩ Returned'}
-                                </span>
-                              ) : isExchanged ? (
+                              {isReturned ? (() => {
+                                const notesLower = (item.notes || '').toLowerCase();
+                                const isExplicitlyUnpaidNote = notesLower.includes('unpaid') || notesLower.includes('not paid') || notesLower.includes('to be paid') || notesLower.includes('pending') || notesLower.includes('charge removed');
+                                const isPaid = Boolean(item.wasPaid) || (notesLower.includes('paid') && !isExplicitlyUnpaidNote);
+                                return (
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border whitespace-nowrap ${
+                                    isPaid
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                                  }`}>
+                                    {isPaid ? '↩ Refunded' : '↩ Returned'}
+                                  </span>
+                                );
+                              })() : isExchanged ? (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 whitespace-nowrap">
                                   🔄 Exchanged
                                 </span>
