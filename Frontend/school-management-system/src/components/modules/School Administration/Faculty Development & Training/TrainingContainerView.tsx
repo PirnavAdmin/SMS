@@ -28,10 +28,11 @@ export const TrainingContainerView: React.FC = () => {
   }, []);
 
   const { addToast } = useToast();
-  const { role, selectedBranch } = useAuth();
-  const userRole = (role || '').toLowerCase();
+  const { user, role, selectedBranch } = useAuth();
+  const userRole = (user?.role || role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
-  const canManageTraining = (userRole.includes('admin') || userRole.includes('principal') || userRole.includes('director') || userRole.includes('coordinator')) && !isLibrarianRole;
+  const canManageTraining = !isWarden && !isLibrarianRole && (userRole.includes('admin') || userRole.includes('principal') || userRole.includes('director') || userRole.includes('coordinator') || userRole.includes('staff'));
 
   // Active Sub-Tab: 'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'
   const [activeTab, setActiveTab] = useState<'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'>('dashboard');

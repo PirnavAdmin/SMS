@@ -46,12 +46,24 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
       case 'student-assignment':
       case 'beds':
       case 'attendance':
+      case 'outpass':
+      case 'leave':
       case 'room-allocation':
       case 'room-allocations':
       case 'allocation':
       case 'allocations':
       case 'student-room-allocation':
-        return <StudentHostelContainerView />;
+        return (
+          <StudentHostelContainerView
+            initialSubTab={
+              activeTab === 'attendance'
+                ? 'attendance'
+                : activeTab === 'outpass' || activeTab === 'leave'
+                ? 'outpass'
+                : undefined
+            }
+          />
+        );
       case 'reports':
         return <HostelReportsView />;
       default:

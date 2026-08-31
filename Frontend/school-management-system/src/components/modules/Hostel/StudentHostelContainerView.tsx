@@ -1,12 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPlus, LogOut, ArrowRightLeft, UserCheck } from 'lucide-react';
 import { StudentHostelAssignmentView } from './StudentHostelAssignmentView';
 import { HostelOutpassLeaveView } from './HostelOutpassLeaveView';
 import { HostelTransferVacateView } from './HostelTransferVacateView';
 import { HostelAttendanceView } from './HostelAttendanceView';
 
-export const StudentHostelContainerView: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'allocations' | 'outpass' | 'transfers' | 'attendance'>('allocations');
+interface StudentHostelContainerViewProps {
+  initialSubTab?: 'allocations' | 'outpass' | 'transfers' | 'attendance';
+}
+
+export const StudentHostelContainerView: React.FC<StudentHostelContainerViewProps> = ({
+  initialSubTab = 'allocations'
+}) => {
+  const [activeSubTab, setActiveSubTab] = useState<'allocations' | 'outpass' | 'transfers' | 'attendance'>(initialSubTab);
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   const subTabs = [
     { id: 'allocations', label: 'Student Hostel Allocation', icon: UserPlus },
