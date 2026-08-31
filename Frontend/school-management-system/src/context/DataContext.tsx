@@ -11250,9 +11250,75 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return result;
   };
 
-  // ==========================================
-  // PERMANENT STUDENT FEE LEDGER GENERATOR & RECALCULATOR
-  // ==========================================
+  const getDynamicTransportFee = (activeTa: any) => {
+    if (!activeTa) return 0;
+    const rObj = routeMasters.find(
+      (r) =>
+        r.id?.toString() === activeTa.routeId?.toString() ||
+        r.routeName === activeTa.routeName,
+    );
+    const pObj = pickupPoints.find(
+      (p) =>
+        p.id?.toString() === (activeTa as any).pickupPointId?.toString() ||
+        (rObj &&
+          p.routeId === rObj.id &&
+          p.pickupName === activeTa.pickupPoint),
+    );
+    if (rObj && pObj) {
+      const assignment = vehicleAssignments?.find(va => va.routeId === rObj.id);
+      const vehicle = vehicleMasters?.find(v => v.id === assignment?.vehicleId);
+      const isAC = vehicle ? vehicle.isAC : activeTa.transportType === "AC";
+
+      const plan = activeTa.feePlan || "Monthly";
+      let assignedFee = 0;
+      if (plan === "Monthly" && pObj.monthlyFee && pObj.monthlyFee > 0) {
+        assignedFee = pObj.monthlyFee;
+      } else if (plan === "Quarterly" && pObj.quarterlyFee && pObj.quarterlyFee > 0) {
+        assignedFee = pObj.quarterlyFee;
+      } else if (
+        (plan === "Half Yearly" || plan === "Half-Yearly") &&
+        pObj.halfYearlyFee &&
+        pObj.halfYearlyFee > 0
+      ) {
+        assignedFee = pObj.halfYearlyFee;
+      } else if (plan === "Annual" && pObj.annualFee && pObj.annualFee > 0) {
+        assignedFee = pObj.annualFee;
+      }
+
+      if (assignedFee > 0) return assignedFee;
+
+      const baseFare = isAC
+        ? rObj.acMinBaseFare || rObj.acBaseFare || 0
+        : rObj.minBaseFare || rObj.nonAcBaseFare || 0;
+      const ratePerKm = isAC
+        ? rObj.acRatePerKm || 0
+        : rObj.ratePerKm || rObj.nonAcRatePerKm || 0;
+      const distance = pObj.distanceFromSchoolKm || pObj.distanceFromStart || 0;
+      if (baseFare > 0 || ratePerKm > 0) {
+        const monthlyRate = baseFare + distance * ratePerKm;
+        const multiplier =
+          plan === "Quarterly"
+            ? 3
+            : plan === "Half Yearly" || plan === "Half-Yearly"
+              ? 6
+              : plan === "Annual"
+                ? 12
+                : 1;
+        return monthlyRate * multiplier;
+      }
+    }
+    const transportConfig = financeTransportConfigs.find(
+      (c) =>
+        (c.routeId === activeTa.routeId ||
+          c.routeName === activeTa.routeName) &&
+        (c.pickupPointId === (activeTa as any).pickupPointId ||
+          c.pickupName === activeTa.pickupPoint) &&
+        c.status === "Active",
+    );
+    return transportConfig
+      ? transportConfig.feeAmount
+      : activeTa.feeAmount || 0;
+  };
 
   const buildStudentFeeLedgerObject = (
     studentId: string,
@@ -11808,17 +11874,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (transportApplicable && activeTransportAssign) {
       const activeTa = activeTransportAssign;
-      const transportConfig = financeTransportConfigs.find(
-        (c) =>
-          (c.routeId === activeTa.routeId ||
-            c.routeName === activeTa.routeName) &&
-          (c.pickupPointId === (activeTa as any).pickupPointId ||
-            c.pickupName === activeTa.pickupPoint) &&
-          c.status === "Active",
-      );
-      const trpAmount = transportConfig
-        ? transportConfig.feeAmount
-        : activeTa.feeAmount || 5500;
+      const trpAmount = getDynamicTransportFee(activeTa);
 
       const trpItem: LedgerFeeItem = {
         headId: "FH-TRP",
@@ -12437,7 +12493,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (student.studentType === "Day Scholar" ||
           student.studentType === "Non-Residential") &&
         transportAssign
-          ? transportAssign.feeAmount || 0
+          ? getDynamicTransportFee(transportAssign)
           : 0;
 
       // Include pending uniform extra purchase dues
@@ -12565,7 +12621,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (student.studentType === "Day Scholar" ||
             student.studentType === "Non-Residential") &&
           transportAssign
-            ? transportAssign.feeAmount || 0
+            ? getDynamicTransportFee(transportAssign)
             : 0;
 
         const hostelAssign = studentHostels.find(
@@ -14101,17 +14157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         student.studentType === "Non-Residential") &&
       transportAssign
     ) {
-      const transportConfig = financeTransportConfigs.find(
-        (c) =>
-          (c.routeId === transportAssign.routeId ||
-            c.routeName === transportAssign.routeName) &&
-          (c.pickupPointId === (transportAssign as any).pickupPointId ||
-            c.pickupName === transportAssign.pickupPoint) &&
-          c.status === "Active",
-      );
-      transportFee = transportConfig
-        ? transportConfig.feeAmount
-        : transportAssign.feeAmount || 0;
+      transportFee = getDynamicTransportFee(transportAssign);
     }
 
     const hostelAssign = studentHostels.find(

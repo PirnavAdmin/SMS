@@ -137,7 +137,43 @@ export const StudentTransportAssignmentView: React.FC = () => {
     const ftc = financeTransportConfigs.find(
       c => c.routeId === rt.id && (c.pickupPointId === pk.id || c.pickupName === pk.pickupName) && c.feePlan === feePlan && c.status === 'Active'
     );
-    const fee = (pk && (pk.monthlyFee ?? 0) > 0) ? (pk.monthlyFee ?? 0) : (ftc ? ftc.feeAmount : 5000);
+    const assignment = vehicleAssignments?.find(va => va.routeId === rt.id);
+    const vehicle = vehicleMasters?.find(v => v.id === assignment?.vehicleId);
+    const isAC = vehicle ? vehicle.isAC : false;
+
+    const baseFare = isAC 
+      ? (rt.acMinBaseFare || (rt as any).acBaseFare || 0) 
+      : (rt.minBaseFare || (rt as any).nonAcBaseFare || 0);
+    const ratePerKm = isAC 
+      ? (rt.acRatePerKm || 0) 
+      : (rt.ratePerKm || (rt as any).nonAcRatePerKm || 0);
+    const distance = pk ? (pk.distanceFromSchoolKm || pk.distanceFromStart || 0) : 0;
+
+    let calculatedFee = 0;
+    if (baseFare > 0 || ratePerKm > 0) {
+      calculatedFee = baseFare + distance * ratePerKm;
+    }
+
+    const multiplier = feePlan === 'Quarterly' ? 3 : feePlan === 'Half Yearly' || feePlan === 'Half-Yearly' ? 6 : feePlan === 'Annual' ? 12 : 1;
+
+    let assignedFee = 0;
+    if (feePlan === 'Monthly' && pk.monthlyFee && pk.monthlyFee > 0) {
+      assignedFee = pk.monthlyFee;
+    } else if (feePlan === 'Quarterly' && pk.quarterlyFee && pk.quarterlyFee > 0) {
+      assignedFee = pk.quarterlyFee;
+    } else if ((feePlan === 'Half Yearly' || feePlan === 'Half-Yearly') && pk.halfYearlyFee && pk.halfYearlyFee > 0) {
+      assignedFee = pk.halfYearlyFee;
+    } else if (feePlan === 'Annual' && pk.annualFee && pk.annualFee > 0) {
+      assignedFee = pk.annualFee;
+    }
+
+    const fee = assignedFee > 0
+      ? assignedFee
+      : calculatedFee > 0
+        ? calculatedFee * multiplier
+        : ftc
+          ? ftc.feeAmount
+          : 0;
 
     assignStudentTransport({
       studentId: st.id,
