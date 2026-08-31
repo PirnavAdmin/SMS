@@ -19,12 +19,30 @@ export const ParentBusInfoView: React.FC = () => {
     s.status === 'Active' && 
     (
       role === 'Student' ? s.id === user?.id : 
-      (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
+      (
+        s.guardianEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+        s.guardianPhone === user?.phone ||
+        s.guardianPhone === user?.email ||
+        s.contactEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+        s.contactPhone === user?.phone ||
+        s.contactPhone === user?.email ||
+        s.fatherEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+        s.fatherPhone === user?.phone ||
+        s.fatherPhone === user?.email ||
+        s.motherEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+        s.motherPhone === user?.phone ||
+        s.motherPhone === user?.email ||
+        (user?.name && (s.fatherName?.toLowerCase() === user?.name?.toLowerCase() || s.motherName?.toLowerCase() === user?.name?.toLowerCase() || s.parentName?.toLowerCase() === user?.name?.toLowerCase()))
+      )
     )
   );
 
   if (parentWards.length === 0) {
-    parentWards = students.filter(s => s.status === 'Active').slice(0, 1);
+    return (
+      <div className="p-8 text-center text-slate-500">
+        No active wards linked to this account.
+      </div>
+    );
   }
 
   const currentWard = parentWards[0];

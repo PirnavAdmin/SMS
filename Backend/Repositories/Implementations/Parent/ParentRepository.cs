@@ -27,20 +27,52 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 {
                     identifier = identifier.Trim().ToLowerInvariant();
 
+                    var parentUser = await _context.Users
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u =>
+                            (u.Email != null && u.Email.ToLower() == identifier) ||
+                            (u.MobileNumber != null && u.MobileNumber.ToLower() == identifier));
+
+                    string? parentEmail = parentUser?.Email?.ToLower() ?? (identifier.Contains("@") ? identifier : null);
+                    string? parentPhone = parentUser?.MobileNumber ?? (!identifier.Contains("@") ? identifier : null);
+                    string? parentName = parentUser?.FullName?.Trim();
+
                     var students = await _context.Students
                         .AsNoTracking()
                         .Where(s => !s.IsDeleted && s.Status == "Active")
                         .Where(s =>
-                            (s.FatherMobile != null && s.FatherMobile.ToLower() == identifier) ||
-                            (s.MotherMobile != null && s.MotherMobile.ToLower() == identifier) ||
-                            (s.MobileNumber != null && s.MobileNumber.ToLower() == identifier) ||
-                            (s.Email != null && s.Email.ToLower() == identifier) ||
-                            (identifier.Contains("parent") || identifier.Contains("kumar"))
+                            (parentPhone != null && (s.FatherMobile == parentPhone || s.MotherMobile == parentPhone || s.MobileNumber == parentPhone)) ||
+                            (parentEmail != null && s.Email != null && s.Email.ToLower() == parentEmail) ||
+                            (!string.IsNullOrEmpty(parentName) && (s.FatherName == parentName || s.MotherName == parentName))
                         )
                         .ToListAsync();
 
                     if (students.Any())
                         return students;
+
+                    // Fallback to admissions table lookup by parent mobile / father name
+                    if (parentPhone != null || !string.IsNullOrEmpty(parentName))
+                    {
+                        var matchingAdmissionNames = await _context.Admissions
+                            .AsNoTracking()
+                            .Where(a => !a.IsDeleted && (
+                                (parentPhone != null && a.FatherMobile == parentPhone) ||
+                                (!string.IsNullOrEmpty(parentName) && a.FatherName == parentName)
+                            ))
+                            .Select(a => a.StudentName)
+                            .ToListAsync();
+
+                        if (matchingAdmissionNames.Any())
+                        {
+                            students = await _context.Students
+                                .AsNoTracking()
+                                .Where(s => !s.IsDeleted && s.Status == "Active" && matchingAdmissionNames.Contains(s.StudentName))
+                                .ToListAsync();
+
+                            if (students.Any())
+                                return students;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -48,12 +80,7 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 System.Console.WriteLine($"[ParentRepository] GetChildren Exception: {ex.Message}");
             }
 
-            // High-reliability default fallback matching parent portal wards
-            return new List<Student>
-            {
-                new Student { StudentId = 1, AdmissionNumber = "ADM-2026-001", RollNumber = "101", StudentName = "Karthik Kumar", Status = "Active" },
-                new Student { StudentId = 2, AdmissionNumber = "ADM-2026-002", RollNumber = "102", StudentName = "Nikhil Sharma", Status = "Active" }
-            };
+            return new List<Student>();
         }
 
         public async Task<Student?> GetStudentByIdAsync(int studentId)

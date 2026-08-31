@@ -44,13 +44,25 @@ export const ParentTimetableView: React.FC = () => {
       s.status === 'Active' && 
       (
         role === 'Student' ? s.id === user?.id : 
-        (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
+        (
+          s.guardianEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+          s.guardianPhone === user?.phone ||
+          s.guardianPhone === user?.email ||
+          s.contactEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+          s.contactPhone === user?.phone ||
+          s.contactPhone === user?.email ||
+          s.fatherEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+          s.fatherPhone === user?.phone ||
+          s.fatherPhone === user?.email ||
+          s.motherEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+          s.motherPhone === user?.phone ||
+          s.motherPhone === user?.email ||
+          (user?.name && (s.fatherName?.toLowerCase() === user?.name?.toLowerCase() || s.motherName?.toLowerCase() === user?.name?.toLowerCase() || s.parentName?.toLowerCase() === user?.name?.toLowerCase()))
+        )
       )
     );
     if (localMatches.length > 0) {
       parentWards = localMatches;
-    } else {
-      parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
     }
   }
 
