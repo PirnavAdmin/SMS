@@ -87,23 +87,10 @@ export const ParentTimetableView: React.FC = () => {
 
   const hasDbTimetable = wardTimetableWholeWeek.length > 0;
 
-  // Extract unique timeSlots from DB or fallback
-  const dbTimeSlots = Array.from(new Set(wardTimetableWholeWeek.map(t => t.timeSlot)))
+  // Extract unique timeSlots from DB
+  const timeSlots = Array.from(new Set(wardTimetableWholeWeek.map(t => t.timeSlot)))
     .filter(Boolean)
     .sort((a, b) => (a || '').localeCompare(b || ''));
-
-  const staticFallbackTimetable = [
-    { id: 'mock-1', timeSlot: '08:30 AM - 09:15 AM', subject: 'Mathematics', subjectCode: 'MAT-101', teacherName: 'Viollet D\'Amore' },
-    { id: 'mock-2', timeSlot: '09:15 AM - 10:00 AM', subject: 'English', subjectCode: 'ENG-103', teacherName: 'Annamae Schmeler' },
-    { id: 'mock-short-break', timeSlot: '10:00 AM - 10:15 AM', subject: 'Break', isBreak: true },
-    { id: 'mock-3', timeSlot: '10:15 AM - 11:00 AM', subject: 'Chemistry', subjectCode: 'CHE-104', teacherName: 'Betsy Jast' },
-    { id: 'mock-4', timeSlot: '11:00 AM - 11:45 AM', subject: 'Mathematics', subjectCode: 'MAT-101', teacherName: 'Viollet D\'Amore' },
-    { id: 'mock-break', timeSlot: '11:45 AM - 12:30 PM', subject: 'Lunch Break', isBreak: true },
-    { id: 'mock-5', timeSlot: '12:30 PM - 01:15 PM', subject: 'English', subjectCode: 'ENG-103', teacherName: 'Annamae Schmeler' },
-    { id: 'mock-6', timeSlot: '01:15 PM - 02:00 PM', subject: 'Physics', subjectCode: 'PHY-102', teacherName: 'Robert Chen' },
-  ];
-
-  const timeSlots = hasDbTimetable ? dbTimeSlots : staticFallbackTimetable.map(s => s.timeSlot);
 
   const getSubjectCode = (subjectName: string) => {
     if (!subjectName || subjectName === 'Break' || subjectName === 'Lunch Break') return '';
@@ -236,20 +223,6 @@ export const ParentTimetableView: React.FC = () => {
                   </tr>
                 ) : (
                   timeSlots.map((slot, pIdx) => {
-                    const isFallbackBreak = !hasDbTimetable && staticFallbackTimetable.find(s => s.timeSlot === slot)?.isBreak;
-                    
-                    if (isFallbackBreak) {
-                      const breakObj = staticFallbackTimetable.find(s => s.timeSlot === slot);
-                      return (
-                        <tr key={slot} className="bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-bold">
-                          <td className="py-3 px-4 font-mono">{slot}</td>
-                          <td colSpan={days.length} className="py-3 px-4 text-center uppercase tracking-widest text-[11px]">
-                            ☕ {breakObj?.subject || 'Break Interval'}
-                          </td>
-                        </tr>
-                      );
-                    }
-
                     return (
                       <tr key={slot} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 text-slate-900 dark:text-slate-100">
                         <td className="py-3 px-4 font-mono font-bold whitespace-nowrap bg-slate-50/40 dark:bg-slate-800/10">
@@ -260,12 +233,7 @@ export const ParentTimetableView: React.FC = () => {
                         </td>
                         
                         {days.map(day => {
-                          let match: any = null;
-                          if (hasDbTimetable) {
-                            match = wardTimetableWholeWeek.find(t => t.day === day && t.timeSlot === slot);
-                          } else {
-                            match = staticFallbackTimetable.find(s => s.timeSlot === slot);
-                          }
+                          const match = wardTimetableWholeWeek.find(t => t.day === day && t.timeSlot === slot);
 
                           if (match?.isBreak) {
                             return (
