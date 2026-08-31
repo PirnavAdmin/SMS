@@ -5227,6 +5227,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const getPersistedOptionalFees = (
+    appId?: string,
+    regNo?: string,
+    name?: string,
+    phone?: string
+  ): string[] => {
+    try {
+      const raw = localStorage.getItem("edu_db_admission_optional_fees");
+      if (raw) {
+        const store = JSON.parse(raw);
+        if (appId && store[appId] && Array.isArray(store[appId])) return store[appId];
+        if (regNo && store[regNo] && Array.isArray(store[regNo])) return store[regNo];
+        if (name && phone) {
+          const key = `${name.toLowerCase().trim()}_${phone.trim()}`;
+          if (store[key] && Array.isArray(store[key])) return store[key];
+        }
+      }
+    } catch (e) {}
+    return [];
+  };
+
+  const savePersistedOptionalFees = (
+    appId?: string,
+    regNo?: string,
+    name?: string,
+    phone?: string,
+    fees?: string[]
+  ) => {
+    if (!fees || !Array.isArray(fees) || fees.length === 0) return;
+    try {
+      const raw = localStorage.getItem("edu_db_admission_optional_fees");
+      let store = raw ? JSON.parse(raw) : {};
+      if (!store || typeof store !== "object") store = {};
+      if (appId) store[appId] = fees;
+      if (regNo) store[regNo] = fees;
+      if (name && phone) {
+        const key = `${name.toLowerCase().trim()}_${phone.trim()}`;
+        store[key] = fees;
+      }
+      localStorage.setItem("edu_db_admission_optional_fees", JSON.stringify(store));
+    } catch (e) {}
+  };
+
   const fetchAdmissions = async () => {
     if (activeRequests.current["admissions"]) {
       return activeRequests.current["admissions"];
@@ -5252,6 +5295,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   (a.applicantName === item.applicantFullName &&
                     a.phone === item.fatherMobileNo),
               );
+
+              const parseFees = (val: any): string[] => {
+                if (Array.isArray(val)) return val.map((x) => String(x)).filter(Boolean);
+                if (typeof val === "string" && val.trim().length > 0) {
+                  try {
+                    const p = JSON.parse(val);
+                    if (Array.isArray(p)) return p.map((x) => String(x)).filter(Boolean);
+                  } catch (e) {}
+                  return val.split(",").map((s) => s.trim()).filter(Boolean);
+                }
+                return [];
+              };
+
+              const itemFees = parseFees(
+                item.selectedOptionalFees ??
+                  item.optionalFees ??
+                  item.selectedOptionalFee ??
+                  item.optionalFee ??
+                  item.selectedOptional
+              );
+              const existingFees = parseFees(existing?.selectedOptionalFees);
+              const persistedFees = getPersistedOptionalFees(
+                item.applicationId?.toString() || existing?.id,
+                item.registrationNo || existing?.applicationNo,
+                item.applicantFullName || existing?.applicantName,
+                item.fatherMobileNo || existing?.phone
+              );
+
+              let finalOptFees: string[] = [];
+              if (itemFees.length > 0) {
+                finalOptFees = itemFees;
+              } else if (existingFees.length > 0) {
+                finalOptFees = existingFees;
+              } else if (persistedFees.length > 0) {
+                finalOptFees = persistedFees;
+              }
+
               return {
                 id: item.applicationId
                   ? item.applicationId.toString()
@@ -5330,11 +5410,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.discount ||
                   existing?.discountId ||
                   "",
-                selectedOptionalFees:
-                  item.selectedOptionalFees ||
-                  item.optionalFees ||
-                  existing?.selectedOptionalFees ||
-                  [],
+                selectedOptionalFees: finalOptFees,
                 isLateAdmission:
                   item.isLateAdmission ??
                   item.isLate ??
@@ -7455,7 +7531,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           id:
             json?.data?.applicationId?.toString() ||
             json?.data?.id?.toString() ||
-            Math.random().toString(),
+            `ADM-${Date.now()}`,
           applicationNo:
             json?.data?.registrationNo ||
             (appData as any).applicationNo ||
@@ -7465,6 +7541,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ...appData,
           selectedOptionalFees: appData.selectedOptionalFees || [],
         } as AdmissionApplication;
+
+        savePersistedOptionalFees(
+          createdApp.id,
+          createdApp.registrationNo,
+          appData.applicantName,
+          appData.phone,
+          appData.selectedOptionalFees || []
+        );
 
         setAdmissions((prev) => [
           createdApp,
@@ -7585,6 +7669,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       await updateAdmissionApi(parseInt(id, 10), payload);
+
+      savePersistedOptionalFees(
+        id,
+        appData.registrationNo,
+        appData.applicantName,
+        appData.phone,
+        appData.selectedOptionalFees || []
+      );
 
       setAdmissions((prev) =>
         prev.map((a) => (a.id === id ? (appData as AdmissionApplication) : a)),

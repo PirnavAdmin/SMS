@@ -474,14 +474,14 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
       <div className="w-full max-w-4xl rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-sky-900 via-sky-800 to-indigo-900 text-white shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-sky-600 via-brand-600 to-blue-600 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-white/10 text-white backdrop-blur-md shadow-md">
+            <div className="p-2.5 rounded-2xl bg-white/15 text-white backdrop-blur-md shadow-md border border-white/20">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-lg font-black tracking-tight">Excel Historical Data Import</h2>
-              <p className="text-xs text-sky-200 font-medium">
+              <p className="text-xs text-sky-100 font-medium">
                 Bulk upload and validate previous academic session records with strict duplicate protection.
               </p>
             </div>
@@ -504,7 +504,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             }}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeDomain === 'academic-history'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm font-extrabold ring-1 ring-slate-200 dark:ring-slate-700'
+                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs font-black ring-1 ring-brand-200 dark:ring-brand-800'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-white/50'
             }`}
           >
@@ -519,7 +519,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             }}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeDomain === 'attendance'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm font-extrabold ring-1 ring-slate-200 dark:ring-slate-700'
+                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs font-black ring-1 ring-brand-200 dark:ring-brand-800'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-white/50'
             }`}
           >
@@ -534,7 +534,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             }}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeDomain === 'examination'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm font-extrabold ring-1 ring-slate-200 dark:ring-slate-700'
+                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs font-black ring-1 ring-brand-200 dark:ring-brand-800'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-white/50'
             }`}
           >
@@ -549,7 +549,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             }}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeDomain === 'fee-ledger'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm font-extrabold ring-1 ring-slate-200 dark:ring-slate-700'
+                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs font-black ring-1 ring-brand-200 dark:ring-brand-800'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-white/50'
             }`}
           >
@@ -607,7 +607,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
               <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-4">
                 <div>
                   <div className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-sky-600 text-white font-black text-[11px] flex items-center justify-center">1</span>
+                    <span className="w-5 h-5 rounded-full bg-brand-600 text-white font-black text-[11px] flex items-center justify-center">1</span>
                     Download {activeDomain.replace('-', ' ').toUpperCase()} Excel Template
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
@@ -616,7 +616,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                 </div>
                 <button
                   onClick={handleDownloadTemplate}
-                  className="px-4 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-100 transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-300 font-bold hover:bg-brand-100 transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
                 >
                   <Download className="w-4 h-4" /> Download Template
                 </button>
@@ -625,7 +625,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
               {/* STEP 2: Drag & Drop File Upload Box */}
               <div className="space-y-2">
                 <div className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white font-black text-[11px] flex items-center justify-center">2</span>
+                  <span className="w-5 h-5 rounded-full bg-brand-600 text-white font-black text-[11px] flex items-center justify-center">2</span>
                   Upload Filled Excel File (.xlsx, .xls, .csv)
                 </div>
 
@@ -636,13 +636,13 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                   onDrop={handleDrop}
                   className={`p-8 rounded-3xl border-2 border-dashed text-center transition-all ${
                     dragActive
-                      ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/40 scale-[1.01]'
+                      ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/40 scale-[1.01]'
                       : selectedFile
                       ? 'border-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20'
                       : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'
                   }`}
                 >
-                  <Upload className="w-10 h-10 mx-auto mb-2 text-sky-600 dark:text-sky-400" />
+                  <Upload className="w-10 h-10 mx-auto mb-2 text-brand-600 dark:text-brand-400" />
                   
                   {selectedFile ? (
                     <div className="space-y-1">
@@ -656,7 +656,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                   ) : (
                     <div>
                       <p className="font-bold text-slate-800 dark:text-slate-200">
-                        Drag and drop your Excel spreadsheet here, or <label className="text-sky-600 dark:text-sky-400 underline cursor-pointer">browse file <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" /></label>
+                        Drag and drop your Excel spreadsheet here, or <label className="text-brand-600 dark:text-brand-400 underline cursor-pointer">browse file <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" /></label>
                       </p>
                       <p className="text-[11px] text-slate-400 mt-1">Supported formats: .xlsx, .xls, .csv</p>
                     </div>
@@ -675,7 +675,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                   </button>
                   <button
                     onClick={handleValidateExcel}
-                    className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold shadow-md shadow-brand-600/20 transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" /> Validate Excel Data
                   </button>
@@ -787,7 +787,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
               <button
                 disabled={validCount === 0 || isImporting}
                 onClick={handleExecuteImport}
-                className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-extrabold shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-extrabold shadow-md shadow-brand-600/20 transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isImporting ? (
                   <>
