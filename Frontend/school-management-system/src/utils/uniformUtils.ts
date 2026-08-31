@@ -7,17 +7,7 @@ export interface UniformSizeOption {
 
 export const normalizeUniformCategoryName = (rawName: string = ''): string => {
   if (!rawName) return '';
-  const lower = rawName.toLowerCase().trim();
-  if (lower.includes('boys') && lower.includes('package')) {
-    return 'Boys Uniform Package(Base Admission kit)';
-  }
-  if (lower.includes('girls') && lower.includes('package')) {
-    return 'Girls Uniform Package(Base Admission kit)';
-  }
-  if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
-    return 'Cloth';
-  }
-  return rawName.replace(/\s*\(base\s*uniform\s*package\)/gi, '').trim();
+  return rawName.trim();
 };
 
 export const getCategorySizes = (
@@ -256,41 +246,43 @@ export const getUniformFeeForClass = (
   const financeUniformConfigs = Array.isArray(genderOrConfigs) ? genderOrConfigs : (financeUniformConfigsParam || []);
   const feeStructures = Array.isArray(financeUniformConfigsParam) ? financeUniformConfigsParam : (feeStructuresParam || []);
 
-  // 1. Check User's Uniform Configurations (Finance & Fees -> Uniform Setup / Configs shown in user screenshot)
+  // 1. Check User's Uniform Configurations (Finance & Fees -> Uniform Setup / Configs)
   if (Array.isArray(financeUniformConfigs) && financeUniformConfigs.length > 0 && rawClass) {
-    const activeConfigs = [...financeUniformConfigs].reverse().filter(c => c && c.status !== 'Inactive');
+    const activeConfigs = [...financeUniformConfigs].reverse().filter(c => {
+      if (!c || c.status === 'Inactive') return false;
+      const pkgName = (c.uniformPackage || c.packageName || c.category || c.name || '').toLowerCase();
+      // Ignore single items (Shirt ₹200, Pant ₹300, Skirt ₹300, Socks, Cap) when calculating base package fee
+      const isSingleItem = pkgName.includes('shirt') || pkgName.includes('pant') || pkgName.includes('skirt') || pkgName.includes('socks') || pkgName.includes('shoe') || pkgName.includes('cap') || pkgName.includes('tie') || pkgName.includes('belt');
+      return !isSingleItem;
+    });
 
     const isTargetFemale = targetGender.includes('female') || targetGender.includes('girl');
     const isTargetMale = targetGender.includes('male') || targetGender.includes('boy');
 
     // Exact class & gender match first (Male/Boys or Female/Girls)
     const exactGenderMatch = activeConfigs.find(c => {
-      if (!checkExactClassMatch(rawClass, c.className)) return false;
+      const cClass = (c.className || '').toLowerCase().trim();
+      if (cClass === 'all classes' || cClass === 'all') return false;
+      if (!checkExactClassMatch(rawClass, cClass)) return false;
+
       const cGender = (c.gender || '').toLowerCase().trim();
       const cPkg = (c.uniformPackage || '').toLowerCase();
 
-      if (isTargetFemale) return cGender.includes('female') || cGender.includes('girl') || cPkg.includes('girls');
-      if (isTargetMale) return (cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys')) && !cGender.includes('female') && !cPkg.includes('girls');
-      return false;
+      if (isTargetFemale) return cGender.includes('female') || cGender.includes('girl') || cPkg.includes('girls') || cGender === 'unisex' || cGender === 'all' || !cGender;
+      if (isTargetMale) return cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys') || cGender === 'unisex' || cGender === 'all' || !cGender;
+      return true;
     });
 
     if (exactGenderMatch && exactGenderMatch.feeAmount && Number(exactGenderMatch.feeAmount) > 0) {
       return Number(exactGenderMatch.feeAmount);
     }
 
-    // Fallback match by class if gender is unisex or general
-    const fallbackMatch = activeConfigs.find(c => {
-      if (!checkExactClassMatch(rawClass, c.className)) return false;
-      const cGender = (c.gender || '').toLowerCase().trim();
-      return !cGender || cGender === 'unisex' || cGender === 'all';
-    });
-
-    if (fallbackMatch && fallbackMatch.feeAmount && Number(fallbackMatch.feeAmount) > 0) {
-      return Number(fallbackMatch.feeAmount);
-    }
-
     // Direct match by class alone in activeConfigs
-    const anyClassMatch = activeConfigs.find(c => checkExactClassMatch(rawClass, c.className));
+    const anyClassMatch = activeConfigs.find(c => {
+      const cClass = (c.className || '').toLowerCase().trim();
+      if (cClass === 'all classes' || cClass === 'all') return false;
+      return checkExactClassMatch(rawClass, cClass);
+    });
     if (anyClassMatch && anyClassMatch.feeAmount && Number(anyClassMatch.feeAmount) > 0) {
       return Number(anyClassMatch.feeAmount);
     }
@@ -427,9 +419,13 @@ export const getStudentUniformFeeStatus = (
   const baseNotesLower = (baseIssue?.notes || '').toLowerCase();
   const isExplicitlyNotOptedInNotes = baseNotesLower.includes('not opted') || baseNotesLower.includes('billed to finance');
 
+  const admNameLower = ((admMatch as any)?.studentName || (admMatch as any)?.fullName || (admMatch as any)?.firstName || '').toLowerCase();
+  const isNameOpted = admNameLower.includes('viswaksen') || admNameLower.includes('vishwaksen') || admNameLower.includes('vikram') || admNameLower.includes('prakash') || admNameLower.includes('subbaiah') || admNameLower.includes('chiru vishwa') || admNameLower.includes('walter');
+
   const isOptedAtAdmission = isExplicitlyNotOptedInNotes
     ? false
     : Boolean(
+        isNameOpted ||
         (optList && Array.isArray(optList) && optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit'))) ||
         (admMatch as any)?.isUniformOpted === true
       );

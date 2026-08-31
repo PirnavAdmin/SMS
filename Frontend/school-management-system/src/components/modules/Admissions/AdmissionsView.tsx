@@ -2018,15 +2018,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const gnd = formData.gender || "Unisex";
     const matchingConfig = (financeUniformConfigs || []).find(
       (c) =>
-        c.className === clsName &&
-        c.status === "Active" &&
+        c && c.status !== "Inactive" &&
+        (c.className === clsName || (c.className && clsName && c.className.toLowerCase().replace(/[^a-z0-9]/g, '') === clsName.toLowerCase().replace(/[^a-z0-9]/g, ''))) &&
         (gnd.toLowerCase().includes("female")
-          ? c.gender === "Female"
+          ? (c.gender === "Female" || c.gender === "Unisex" || !c.gender)
           : gnd.toLowerCase().includes("male")
-            ? c.gender === "Male"
-            : c.gender === "Unisex" || !c.gender),
+            ? (c.gender === "Male" || c.gender === "Unisex" || !c.gender)
+            : true),
     ) || (financeUniformConfigs || []).find(
-      (c) => c.className === clsName && c.status === "Active"
+      (c) => c && c.status !== "Inactive" && (c.className === clsName || (c.className && clsName && c.className.toLowerCase().replace(/[^a-z0-9]/g, '') === clsName.toLowerCase().replace(/[^a-z0-9]/g, '')))
     );
     const uniFeeAmount = matchingConfig ? Number(matchingConfig.feeAmount) || 0 : 0;
 

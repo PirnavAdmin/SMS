@@ -2849,13 +2849,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("fee_structures", initialFeeStructures),
   );
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
-    const versionKey = "edu_db_fee_payments_wipe_uniform_v600";
+    const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
     const cleaned = (stored || []).filter(p => {
       if (!p) return false;
       const notesLower = (p.notes || '').toLowerCase();
       const recLower = (p.receiptNo || '').toLowerCase();
-      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || '').toLowerCase().includes('uniform'));
+      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || a.termName || '').toLowerCase().includes('uniform'));
       const isUniformPayment = notesLower.includes('uniform') || recLower.includes('uni') || hasAlloc;
       return !isUniformPayment;
     });
@@ -3217,7 +3217,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
-    const versionKey = "edu_db_student_uniform_issues_wipe_v9500_fresh_wipe";
+    const versionKey = "edu_db_student_uniform_issues_wipe_v9999_fresh_pending";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
@@ -3247,7 +3247,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               adm === "REG-1022" ||
               adm === "REG-1021";
             return !isDummy;
-          });
+          }).map(i => ({ ...i, status: (i.status === 'Paid' ? 'Pending' : i.status) as any }));
         }
       }
     } catch (e) {
@@ -4276,14 +4276,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 1. Strict deduplication of uniforms catalog and dynamic Finance Setup price sync
     setUniforms((prevU) => {
-      const seenNorms = new Set<string>();
+      const seenItemKeys = new Set<string>();
+      const seenCatNorms = new Set<string>();
       const deduplicated: UniformItem[] = [];
 
       for (const u of prevU || []) {
         if (!u) continue;
         const norm = (u.category || u.name || "").toLowerCase().trim();
-        if (validCatNorms.has(norm) && !seenNorms.has(norm)) {
-          seenNorms.add(norm);
+        if (!norm) continue;
+        seenCatNorms.add(norm);
+        const itemKey = `${u.id || ''}_${norm}_${u.size || ''}`;
+        if (!seenItemKeys.has(itemKey)) {
+          seenItemKeys.add(itemKey);
           const dynamicPrice = getItemFeeFromFinanceConfig(
             "",
             u.category || u.name,
@@ -4297,8 +4301,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Ensure every category in uniformCategories has 1 catalog item
       validCatList.forEach((cat) => {
-        if (!seenNorms.has(cat.norm)) {
-          seenNorms.add(cat.norm);
+        if (!seenCatNorms.has(cat.norm)) {
+          seenCatNorms.add(cat.norm);
           let defPrice = 350;
           if (cat.norm.includes("blazer")) defPrice = 1500;
           else if (cat.norm.includes("sweater")) defPrice = 800;
@@ -8774,7 +8778,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       category: catName,
     };
-    setUniforms((prev) => [newItem, ...prev]);
+    setUniforms((prev) => {
+      const updated = [newItem, ...prev];
+      try {
+        localStorage.setItem("edu_db_uniforms", JSON.stringify(updated));
+        localStorage.setItem("uniforms", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (catName) {
+      setUniformCategories((prevCats) => {
+        const catNorm = catName.toLowerCase().trim();
+        if (!prevCats.some(c => (c.name || (c as any).categoryName || '').toLowerCase().trim() === catNorm)) {
+          const newCat: UniformCategory = {
+            id: `UC-${Date.now()}`,
+            name: catName,
+            categoryName: catName,
+            description: `${catName} uniform item / package category`
+          };
+          const updatedCats = [...prevCats, newCat];
+          try {
+            localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
+            localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
+          } catch (e) {}
+          return updatedCats;
+        }
+        return prevCats;
+      });
+    }
 
     // Automatically sync with uniformInventory so Dashboard Available Stock updates immediately
     const invId = "UINV-" + Math.floor(100 + Math.random() * 900);
