@@ -179,6 +179,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(7);
+  const [studentTab, setStudentTab] = useState<'catalog' | 'borrowed' | 'dues'>('catalog');
 
   // Local Storage Dynamic States
   const [categories, setCategories] = useState<BookCategory[]>(() => {
@@ -2170,6 +2171,378 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       </div>
     );
   };
+
+  const renderStudentLibraryView = () => {
+    // 1. Find the logged-in student
+    const currentStudent = students.find(s => 
+      s.status === 'Active' && 
+      (s.id === user?.id || (s.email && s.email.toLowerCase() === user?.email?.toLowerCase()))
+    );
+
+    // 2. Filter issues and dues for this student
+    const myIssues = bookIssues.filter(i => 
+      currentStudent && 
+      (i.borrowerId === currentStudent.id || 
+       i.borrowerId === currentStudent.admissionNo || 
+       i.borrowerId === currentStudent.rollNo ||
+       (i.borrowerName && i.borrowerName.toLowerCase() === `${currentStudent.firstName} ${currentStudent.lastName}`.trim().toLowerCase()))
+    );
+
+    const myFines = (fineRecords || []).filter(f => 
+      currentStudent && 
+      (f.memberId === currentStudent.id || 
+       f.memberId === currentStudent.admissionNo || 
+       f.memberId === currentStudent.rollNo ||
+       (f.memberName && f.memberName.toLowerCase() === `${currentStudent.firstName} ${currentStudent.lastName}`.trim().toLowerCase()))
+    );
+
+    // active borrowed books
+    const activeBorrowed = myIssues.filter(i => i.status === 'Issued' || i.status === 'Renewed' || i.status === 'Overdue');
+    // overdue books/dues
+    const overdueIssues = activeBorrowed.filter(i => i.status === 'Overdue' || (i.dueDate && new Date(i.dueDate) < new Date()));
+    const unpaidFines = myFines.filter(f => f.paymentStatus === 'Unpaid');
+
+    // 3. Filter books catalog based on search & category
+    const filteredCatalog = books.filter(b => {
+      const matchesSearch = !searchQuery || 
+        b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.isbn.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesCategory = !filterCategory || b.category === filterCategory;
+      return matchesSearch && matchesCategory;
+    });
+
+    const studentCategories = Array.from(new Set(books.map(b => b.category))).filter(Boolean);
+
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-200/80 dark:border-sky-800 shadow-xs flex items-center justify-center">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Student Library</h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-4 shadow-2xs">
+            <div className="p-3 bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 rounded-2xl">
+              <BookOpen className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Total Books Taken</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{activeBorrowed.length}</span>
+            </div>
+          </div>
+
+          <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-4 shadow-2xs">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-2xl">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Overdue Returns</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{overdueIssues.length}</span>
+            </div>
+          </div>
+
+          <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-4 shadow-2xs">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-2xl">
+              <IndianRupee className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Outstanding Fines</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-white">
+                {formatCurrency(unpaidFines.reduce((acc, f) => acc + (f.fineAmount || 0), 0))}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="glass-card p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex gap-2">
+          <button
+            onClick={() => { setStudentTab('catalog'); setCurrentPage(1); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              studentTab === 'catalog'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            🔍 Search Library Books
+          </button>
+          <button
+            onClick={() => { setStudentTab('borrowed'); setCurrentPage(1); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              studentTab === 'borrowed'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            📖 My Borrowed Books ({activeBorrowed.length})
+          </button>
+          <button
+            onClick={() => { setStudentTab('dues'); setCurrentPage(1); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer relative ${
+              studentTab === 'dues'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            💸 Book Dues & Overdues
+            {(overdueIssues.length > 0 || unpaidFines.length > 0) && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 animate-pulse">
+                {overdueIssues.length + unpaidFines.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Tab Contents */}
+        <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+          {studentTab === 'catalog' && (
+            <div className="space-y-6">
+              {/* Catalog Filters */}
+              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by Title, Author, Category or ISBN..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                  />
+                </div>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
+                  className="w-full sm:w-64 px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                >
+                  <option value="">All Categories</option>
+                  {studentCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Books Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                      <th className="py-3 px-4">Title & Author</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">ISBN</th>
+                      <th className="py-3 px-4">Rack Location</th>
+                      <th className="py-3 px-4 text-center">Real-Time Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                    {filteredCatalog.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(book => {
+                      const isAvailable = (book.availableCopies ?? book.totalCopies ?? 0) > 0;
+                      const copies = book.availableCopies ?? book.totalCopies ?? 0;
+                      return (
+                        <tr key={book.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="py-3.5 px-4">
+                            <span className="block font-black text-slate-900 dark:text-white">{book.title}</span>
+                            <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{book.author}</span>
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300">{book.category}</td>
+                          <td className="py-3.5 px-4 font-mono text-slate-500">{book.isbn}</td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-600 dark:text-slate-400">{book.rackNo}</td>
+                          <td className="py-3.5 px-4 text-center">
+                            {isAvailable ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-extrabold text-[10px]">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Available ({copies} copies)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 font-extrabold text-[10px]">
+                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                Out of Stock
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filteredCatalog.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400 font-medium">
+                          No books found matching search parameters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {filteredCatalog.length > 0 && (
+                <div className="pt-4 border-t">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalItems={filteredCatalog.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                    label="books"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {studentTab === 'borrowed' && (
+            <div className="space-y-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                      <th className="py-3 px-4">Book Title</th>
+                      <th className="py-3 px-4">Borrow Date</th>
+                      <th className="py-3 px-4">Due Return Date</th>
+                      <th className="py-3 px-4">Status & Dues</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                    {activeBorrowed.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(issue => {
+                      const isOverdue = issue.status === 'Overdue' || (issue.dueDate && new Date(issue.dueDate) < new Date());
+                      return (
+                        <tr key={issue.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="py-4 px-4 font-black text-slate-900 dark:text-white">{issue.bookTitle}</td>
+                          <td className="py-4 px-4 font-semibold text-slate-600 dark:text-slate-400">{issue.issueDate}</td>
+                          <td className="py-4 px-4 font-semibold text-slate-600 dark:text-slate-400">{issue.dueDate}</td>
+                          <td className="py-4 px-4">
+                            {isOverdue ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 font-extrabold text-[10px]">
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                                Overdue (Fine: {formatCurrency(issue.fineAmount || 0)})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-800 dark:text-sky-300 font-extrabold text-[10px]">
+                                <Clock className="w-3.5 h-3.5 text-sky-600" />
+                                Borrowed / In Hand
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {activeBorrowed.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-400 font-medium">
+                          You do not currently have any borrowed books.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {activeBorrowed.length > 0 && (
+                <div className="pt-4 border-t">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalItems={activeBorrowed.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                    label="borrowed books"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {studentTab === 'dues' && (
+            <div className="space-y-6">
+              {/* Unreturned Overdue Books */}
+              <div>
+                <h4 className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-3">Unsubmitted Overdue Books</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="py-3 px-4">Book Title</th>
+                        <th className="py-3 px-4">Due Return Date</th>
+                        <th className="py-3 px-4">Fine Accumulating</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                      {overdueIssues.map(issue => (
+                        <tr key={issue.id} className="bg-rose-50/10 dark:bg-rose-500/5 hover:bg-rose-50/20 dark:hover:bg-rose-500/10 transition-colors">
+                          <td className="py-4 px-4 font-black text-rose-950 dark:text-rose-200">{issue.bookTitle}</td>
+                          <td className="py-4 px-4 font-semibold text-slate-600 dark:text-slate-400">{issue.dueDate}</td>
+                          <td className="py-4 px-4 font-black text-rose-700 dark:text-rose-400">
+                            {formatCurrency(issue.fineAmount || 0)}
+                          </td>
+                        </tr>
+                      ))}
+                      {overdueIssues.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="py-6 text-center text-slate-400 font-medium">
+                            No unsubmitted overdue books. Great job!
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Outstanding Fine Ledger */}
+              <div className="pt-4">
+                <h4 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Library Fines & Penalty Ledger</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="py-3 px-4">Book Title</th>
+                        <th className="py-3 px-4">Overdue Days</th>
+                        <th className="py-3 px-4">Fine Amount</th>
+                        <th className="py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                      {unpaidFines.map(fine => (
+                        <tr key={fine.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="py-4 px-4 font-black text-slate-900 dark:text-white">{fine.bookTitle}</td>
+                          <td className="py-4 px-4 font-semibold text-slate-600 dark:text-slate-400">{fine.overdueDays} Days</td>
+                          <td className="py-4 px-4 font-black text-amber-700 dark:text-amber-400">{formatCurrency(fine.fineAmount)}</td>
+                          <td className="py-4 px-4">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-extrabold text-[10px]">
+                              Unpaid Fine
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {unpaidFines.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="py-6 text-center text-slate-400 font-medium">
+                            No outstanding fines in your ledger.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if ((role || '').toLowerCase() === 'student') {
+    return renderStudentLibraryView();
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in">
