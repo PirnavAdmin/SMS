@@ -252,6 +252,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     students,
     routeMasters,
     pickupPoints,
+    vehicleAssignments,
+    vehicleMasters,
     getStudentFeeLedger,
     dynamicFeeStructures,
     financeTransportConfigs,
@@ -2135,12 +2137,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             c.status === "Active",
         ) || financeTransportConfigs[0];
 
+      const assignment = vehicleAssignments?.find(va => va.routeId === rObj?.id);
+      const vehicle = vehicleMasters?.find(v => v.id === assignment?.vehicleId);
+      const isAC = vehicle ? vehicle.isAC : false;
+
+      const baseFare = rObj
+        ? (isAC ? (rObj.acMinBaseFare || rObj.acBaseFare || 0) : (rObj.minBaseFare || rObj.nonAcBaseFare || 0))
+        : 0;
+      const ratePerKm = rObj
+        ? (isAC ? (rObj.acRatePerKm || 0) : (rObj.ratePerKm || rObj.nonAcRatePerKm || 0))
+        : 0;
+      const distance = pObj ? (pObj.distanceFromSchoolKm || pObj.distanceFromStart || 0) : 0;
+
+      let calculatedFee = 0;
+      if (baseFare > 0 || ratePerKm > 0) {
+        calculatedFee = baseFare + distance * ratePerKm;
+      }
+
       const trpFee =
         pObj && (pObj.monthlyFee ?? 0) > 0
           ? (pObj.monthlyFee ?? 0)
-          : ftc
-            ? ftc.feeAmount
-            : 5500;
+          : calculatedFee > 0
+            ? calculatedFee
+            : ftc
+              ? ftc.feeAmount
+              : 0;
 
       items.push({
         name: `Transport Fee (${rObj?.routeName || formData.busRoute || "Opted"}${formData.pickupPoint ? ` - ${formData.pickupPoint}` : ""})`,
