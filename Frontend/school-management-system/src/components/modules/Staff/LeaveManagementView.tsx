@@ -68,7 +68,7 @@ export const LeaveManagementView: React.FC = () => {
     if (!isTeacher) return true;
     if (teacherStaffMember && (a.employeeId === teacherStaffMember.id || a.empId === teacherStaffMember.empId)) return true;
     if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
-    return true;
+    return false;
   });
 
   // Filter States

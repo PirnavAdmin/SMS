@@ -24,7 +24,7 @@ import { BRANCHES } from '../../../utils/validation';
 
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
-  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, applications = [] } = useData();
+  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, applications = [], teacherAssignments = [], timetable = [] } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
@@ -301,19 +301,45 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
 
-  // Teacher Portal Filter States - STRICTLY assigned classes from Admin Staff Database
+  // Teacher Portal Filter States - STRICTLY assigned classes from Admin Staff Database, Assignments & Timetable
   const teacherAssignedClasses = useMemo(() => {
+    const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+
+    // Admin Academic Assignments (Class-Teacher or Subject-Teacher mappings)
+    const fromAssignments = (teacherAssignments || [])
+      .filter((ta: any) => {
+        const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
+        const idMatch = ta.teacherId && (String(ta.teacherId) === String(teacher.id) || String(ta.teacherId) === String((teacher as any).empId));
+        return nameMatch || idMatch;
+      })
+      .map((ta: any) => {
+        const cls = (ta.className || '').trim();
+        const sec = (ta.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
+    // Admin Timetable slots assigned to this teacher
+    const fromTimetable = (timetable || [])
+      .filter((t: any) => t.teacherName && (t.teacherName.toLowerCase().includes(tName) || tName.includes(t.teacherName.toLowerCase())))
+      .map((t: any) => {
+        const cls = (t.className || '').trim();
+        const sec = (t.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
     let raw = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-    const cleaned = list.map((c: string) => {
-      let str = c.trim();
+
+    const merged = Array.from(new Set([...raw, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+
+    const cleaned = merged.map((c: any) => {
+      let str = String(c || '').trim();
       if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
       return str;
     }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
 
-    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-  }, [teacher]);
+    return cleaned.length > 0 ? Array.from(new Set(cleaned)) : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+  }, [teacher, teacherAssignments, timetable]);
 
   const [teacherSelectedClass, setTeacherSelectedClass] = useState('Class 10');
   const [teacherSelectedSection, setTeacherSelectedSection] = useState('A');

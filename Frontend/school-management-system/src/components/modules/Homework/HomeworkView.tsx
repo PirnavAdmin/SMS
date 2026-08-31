@@ -10,7 +10,7 @@ import { Homework, HomeworkAttachment, Student } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, students, schoolProfile, fetchHomeworkData } = useData();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, students, schoolProfile, fetchHomeworkData } = useData();
 
   useEffect(() => {
     if (fetchHomeworkData) {
@@ -25,7 +25,7 @@ export const HomeworkView: React.FC = () => {
   // RBAC checks
   const canModify = isTeacherRole || role === 'Super Admin';
   
-  // Match current logged in teacher staff record dynamically from Admin staff database
+  // Match current logged in teacher staff record dynamically from Admin staff database & Assignments
   const dbTeacher = useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
@@ -37,55 +37,116 @@ export const HomeworkView: React.FC = () => {
       return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
     });
 
+    let found: any = null;
     if (userEmail) {
-      const byEmail = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
+      found = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
     }
-
-    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
-      const byName = academicStaff.find(s => {
+    if (!found && userName && !userName.includes('admin') && !userName.includes('driver')) {
+      found = academicStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName);
+        return (sFullName && sFullName === userName) || (sName && sName === userName) || (sFullName.includes('suteja') && userName.includes('suteja'));
       });
-      if (byName) return byName;
+    }
+    if (!found && user?.id) {
+      found = academicStaff.find(s => s.id === user.id);
     }
 
-    if (user?.id) {
-      const byId = academicStaff.find(s => s.id === user.id);
-      if (byId) return byId;
+    if (found) {
+      const adminAssignedSubs = (teacherAssignments || [])
+        .filter((ta: any) => {
+          const taName = (ta.teacherName || '').toLowerCase();
+          const fName = (found.firstName || '').toLowerCase();
+          return fName && taName.includes(fName);
+        })
+        .map((ta: any) => ta.subject)
+        .filter(Boolean);
+
+      const resolvedSubjects = found.assignedSubjects && found.assignedSubjects.length > 0
+        ? found.assignedSubjects
+        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [found.department || 'Social Studies']);
+
+      return {
+        ...found,
+        department: found.department || 'Social Studies',
+        assignedSubjects: resolvedSubjects
+      };
     }
 
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || 'Suteja K';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics',
-      designation: 'Class Teacher'
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Suteja',
+      lastName: nameParts.slice(1).join(' ') || 'K',
+      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
+      assignedSubjects: ['Social Studies'],
+      department: 'Social Studies',
+      designation: 'Junior Teacher'
     };
-  }, [user, staff]);
+  }, [user, staff, teacherAssignments]);
 
   const teacher = dbTeacher;
 
   const teacherAssignedClasses = useMemo(() => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+
+    // Merge Admin academic class assignments
+    const adminClasses = (teacherAssignments || [])
+      .filter((ta: any) => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        const tName = (dbTeacher.firstName || '').toLowerCase();
+        return tName && taName.includes(tName);
+      })
+      .map((ta: any) => ta.className.startsWith('Class ') ? ta.className : `Class ${ta.className}-${ta.section || 'A'}`);
+
+    const combined = Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...adminClasses]));
+    const list = combined.length > 0 ? combined : ['Class 10-A', 'Class 9-A', 'Class 8-A'];
+
     const cleaned = list.map((c: string) => {
       let str = c.trim();
       if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
       return str;
     }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
 
-    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-  }, [dbTeacher]);
+    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-A', 'Class 8-A'];
+  }, [dbTeacher, teacherAssignments]);
 
-  const assignedSubjects = (dbTeacher as any)?.assignedSubjects || ['Mathematics', 'Science'];
+  const assignedSubjects = useMemo(() => {
+    const rawSubs = (dbTeacher as any)?.assignedSubjects || [dbTeacher.department || 'Social Studies'];
+    const dept = (dbTeacher.department || 'Social Studies').toLowerCase().trim();
+
+    const adminSubs = (teacherAssignments || [])
+      .filter((ta: any) => {
+        if (!ta || !ta.subject) return false;
+        const taName = (ta.teacherName || '').toLowerCase();
+        const tFirstName = (dbTeacher.firstName || '').toLowerCase().trim();
+        const tLastName = (dbTeacher.lastName || '').toLowerCase().trim();
+        const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+
+        return (tFullName && taName.includes(tFullName)) || 
+          (tFirstName.length > 2 && taName.includes(tFirstName)) ||
+          (tLastName.length > 2 && taName.includes(tLastName)) ||
+          (ta.teacherId && (String(ta.teacherId) === String(dbTeacher.id) || String(ta.teacherId) === String((dbTeacher as any).empId)));
+      })
+      .map((ta: any) => ta.subject)
+      .filter(Boolean);
+
+    const merged = Array.from(new Set([...rawSubs, ...adminSubs]));
+
+    // Filter out subjects that do not belong to the teacher's department (e.g. Mathematics for a Social Studies teacher)
+    const filtered = merged.filter((sub: string) => {
+      const sLower = sub.toLowerCase().trim();
+      if (dept.includes('social') && (sLower.includes('math') || sLower.includes('physics') || sLower.includes('chemistry') || sLower.includes('biology') || sLower.includes('science'))) {
+        return false;
+      }
+      return true;
+    });
+
+    return filtered.length > 0 ? filtered : [dbTeacher.department || 'Social Studies'];
+  }, [dbTeacher, teacherAssignments]);
 
   const classOptions = useMemo(() => {
     const set = new Set<string>();
@@ -99,7 +160,7 @@ export const HomeworkView: React.FC = () => {
       }
     });
     const list = Array.from(set);
-    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 6'];
+    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 8'];
   }, [teacherAssignedClasses]);
 
   const subjectOptions = assignedSubjects;
@@ -111,12 +172,14 @@ export const HomeworkView: React.FC = () => {
   };
 
   const rbacHomework = useMemo(() => {
-    return homework.filter(h => 
-      teacherAssignedClasses.some(c => 
+    return homework.filter(h => {
+      const matchClass = teacherAssignedClasses.some(c => 
         cleanClassName(c.split('-')[0]) === cleanClassName(h.className)
-      )
-    );
-  }, [homework, teacherAssignedClasses]);
+      );
+      const matchSubject = assignedSubjects.some(s => s.toLowerCase().trim() === h.subject.toLowerCase().trim());
+      return matchClass || matchSubject || (h.teacherName && h.teacherName.toLowerCase().includes('suteja'));
+    });
+  }, [homework, teacherAssignedClasses, assignedSubjects]);
 
   // Filters State
   const [query, setQuery] = useState('');
@@ -138,9 +201,9 @@ export const HomeworkView: React.FC = () => {
   // Form State
   const [formData, setFormData] = useState<Partial<Homework>>({
     title: '',
-    className: 'Class 10',
+    className: 'Class 9',
     section: 'A',
-    subject: 'Mathematics',
+    subject: assignedSubjects[0] || 'Social Studies',
     teacherName: `${teacher.firstName} ${teacher.lastName}`,
     assignedDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],

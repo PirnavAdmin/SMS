@@ -27,7 +27,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     announcements = [],
     academicClasses = [],
     exams = [],
-    fetchDailyAttendance
+    fetchDailyAttendance,
+    teacherAssignments = []
   } = useData();
 
   // 1. Dynamic Teacher Profile Resolution
@@ -65,10 +66,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     if (userEmail) {
       const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (byEmail) {
-        return {
-          ...byEmail,
-          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
-        };
+        return byEmail;
       }
     }
 
@@ -82,10 +80,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         return false;
       });
       if (byName) {
-        return {
-          ...byName,
-          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
-        };
+        return byName;
       }
     }
 
@@ -93,39 +88,32 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     if (user?.id) {
       const byId = teachingStaff.find(s => s.id === user.id || s.empId === user.id);
       if (byId) {
-        return {
-          ...byId,
-          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
-        };
+        return byId;
       }
     }
 
-    // Fallback to Robert Teacher staff record or teaching staff member
-    const robertRecord = teachingStaff.find(s => (s.firstName || '').toLowerCase().includes('robert') || (s.lastName || '').toLowerCase().includes('teacher'));
-    const fallback = robertRecord || teachingStaff[0];
-
+    // Dynamic fallback matching logged-in user context
+    const fallback = teachingStaff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || teachingStaff[0];
     if (fallback) {
       return {
         ...fallback,
-        assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
         designation: fallback.designation && !fallback.designation.toLowerCase().includes('driver') ? fallback.designation : 'Junior Teacher',
-        department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'English'
+        department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'Social Studies'
       };
     }
 
     // Construct dynamic profile from logged-in user context
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || 'Suteja K';
     const nameParts = rawName.split(' ');
-    const firstName = nameParts[0] || 'Robert';
-    const lastName = nameParts.slice(1).join(' ') || 'Teacher';
+    const firstName = nameParts[0] || 'Suteja';
+    const lastName = nameParts.slice(1).join(' ') || 'K';
 
     return {
-      id: user?.id || 'STF-2026-0000',
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
       firstName,
       lastName,
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['English', 'Mathematics'],
-      department: 'English',
+      department: 'Social Studies',
       designation: 'Junior Teacher'
     };
   }, [user, staff]);
@@ -134,15 +122,39 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayDay = days[new Date().getDay()] as any;
 
-  // Normalize assigned classes from Admin Staff Database
+  // Dynamically merge assigned classes from Admin Staff Database, Academic Assignments, and Timetable
   const assignedClasses = useMemo(() => {
+    const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+    
+    // Admin Academic Assignments (Class-Teacher or Subject-Teacher mappings)
+    const fromAssignments = (teacherAssignments || [])
+      .filter((ta: any) => {
+        const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
+        const idMatch = ta.teacherId && (String(ta.teacherId) === String(teacher.id) || String(ta.teacherId) === String((teacher as any).empId));
+        return nameMatch || idMatch;
+      })
+      .map((ta: any) => {
+        const cls = (ta.className || '').trim();
+        const sec = (ta.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
+    // Admin Timetable slots assigned to this teacher
+    const fromTimetable = (timetable || [])
+      .filter((t: any) => t.teacherName && (t.teacherName.toLowerCase().includes(tName) || tName.includes(t.teacherName.toLowerCase())))
+      .map((t: any) => {
+        const cls = (t.className || '').trim();
+        const sec = (t.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
+    // Staff record direct assignedClasses
     let rawClasses = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
     if (typeof rawClasses === 'string') rawClasses = [rawClasses];
-    if (!Array.isArray(rawClasses) || rawClasses.length === 0) {
-      rawClasses = ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-    }
 
-    const cleaned = rawClasses.map(c => {
+    const merged = Array.from(new Set([...rawClasses, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+
+    const cleaned = merged.map((c: any) => {
       if (!c || typeof c !== 'string' || c.includes('undefined')) return 'Class 10-A';
       let formatted = c.trim();
       if (!formatted.toLowerCase().startsWith('class')) {
@@ -154,8 +166,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       return formatted;
     }).filter(c => !c.includes('undefined'));
 
-    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-  }, [teacher]);
+    return cleaned.length > 0 ? Array.from(new Set(cleaned)).filter(c => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) : ['Class 10-A', 'Class 9-B', 'Class 8-A'];
+  }, [teacher, teacherAssignments, timetable]);
 
   // Formatted string listing all assigned classes (e.g. Class 10-A, Class 9-B & Class 6-A)
   const assignedClassesFormatted = useMemo(() => {

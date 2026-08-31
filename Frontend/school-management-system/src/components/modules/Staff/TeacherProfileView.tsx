@@ -49,17 +49,17 @@ export const TeacherProfileView: React.FC = () => {
       if (byId) return byId;
     }
 
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || 'Suteja K';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Suteja',
+      lastName: nameParts.slice(1).join(' ') || 'K',
       assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['Mathematics', 'Advanced Algebra'],
-      department: 'Mathematics',
-      designation: 'Class Teacher'
+      assignedSubjects: ['Social Studies', 'Mathematics'],
+      department: 'Social Studies',
+      designation: 'Junior Teacher'
     };
   }, [user, staff]);
 
@@ -80,8 +80,8 @@ export const TeacherProfileView: React.FC = () => {
     // 3. From staff record directly
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.split('-')[0].trim());
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-    return merged.length > 0 ? merged : ['Class 10', 'Class 9', 'Class 6'];
+    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
+    return merged.length > 0 ? merged : ['Class 10', 'Class 9', 'Class 8'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
@@ -112,19 +112,40 @@ export const TeacherProfileView: React.FC = () => {
 
     const fromTimetable = timetable
       .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
-      .map(t => t.subject);
+      .map(ta => ta.subject);
 
     const fromStaff = dbTeacher?.assignedSubjects || [];
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
-    return merged.length > 0 ? merged : ['Mathematics', 'Advanced Algebra'];
+    return merged.length > 0 ? merged : ['Social Studies', 'Mathematics'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
-  // Local Storage state for Teacher self-edits
+  // User-scoped Local Storage key for Teacher self-edits
+  const userStorageKey = useMemo(() => {
+    const idStr = (user?.email || user?.id || user?.name || 'default').toLowerCase().trim();
+    return `teacher_self_profile_edits_${idStr}`;
+  }, [user]);
+
   const [localEdit, setLocalEdit] = useState<any>(() => {
     try {
-      const saved = localStorage.getItem('teacher_self_profile_edits');
+      const idStr = (user?.email || user?.id || user?.name || 'default').toLowerCase().trim();
+      const scopedKey = `teacher_self_profile_edits_${idStr}`;
+      const saved = localStorage.getItem(scopedKey);
       if (saved) return JSON.parse(saved);
+      
+      // Legacy check: if legacy edit exists and matches current user's name/email, use it; otherwise ignore
+      const legacy = localStorage.getItem('teacher_self_profile_edits');
+      if (legacy) {
+        const parsed = JSON.parse(legacy);
+        const currentName = (user?.name || '').toLowerCase().trim();
+        const currentEmail = (user?.email || '').toLowerCase().trim();
+        if (
+          (parsed.email && currentEmail && parsed.email.toLowerCase().trim() === currentEmail) ||
+          (parsed.fullName && currentName && parsed.fullName.toLowerCase().trim() === currentName)
+        ) {
+          return parsed;
+        }
+      }
     } catch (e) {}
     return null;
   });
@@ -132,12 +153,12 @@ export const TeacherProfileView: React.FC = () => {
   // Reactive teacher profile construction merging Admin master data & teacher edits
   const profile = useMemo(() => {
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || 'Robert Teacher').split(' ');
-    const defaultFullName = dbFullName || `${nameParts[0] || 'Robert'} ${nameParts.slice(1).join(' ') || 'Teacher'}`.trim();
+    const nameParts = (user?.name || 'Suteja K').split(' ');
+    const defaultFullName = dbFullName || `${nameParts[0] || 'Suteja'} ${nameParts.slice(1).join(' ') || 'K'}`.trim();
 
     return {
-      staffId: dbTeacher?.id || 'STF-2026-0001',
-      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0001',
+      staffId: dbTeacher?.id || 'STF-2026-0009',
+      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0009',
       fullName: localEdit?.fullName || defaultFullName,
       email: localEdit?.email || dbTeacher?.email || user?.email || 'teacher@pirnavschools.com',
       mobile: localEdit?.mobile || dbTeacher?.phone || '7987987998',
@@ -216,7 +237,7 @@ export const TeacherProfileView: React.FC = () => {
       };
 
       setLocalEdit(updatedEdits);
-      localStorage.setItem('teacher_self_profile_edits', JSON.stringify(updatedEdits));
+      localStorage.setItem(userStorageKey, JSON.stringify(updatedEdits));
 
       // Sync directly to DataContext staff store if staff record exists
       if (dbTeacher && dbTeacher.id && updateStaff) {
