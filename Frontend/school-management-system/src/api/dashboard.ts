@@ -1,4 +1,4 @@
-﻿import { apiClient } from './client';
+import { apiClient } from './client';
 
 export interface DashboardSummaryResponse {
   totalStudents: number;
@@ -22,6 +22,24 @@ export interface DashboardSummaryResponse {
   };
 
   staffAttendance: {
+    present: number;
+    absent: number;
+    late: number;
+    halfDay?: number;
+    total: number;
+    presentPct: number;
+  };
+
+  teachingStaffAttendance?: {
+    present: number;
+    absent: number;
+    late: number;
+    halfDay?: number;
+    total: number;
+    presentPct: number;
+  };
+
+  nonTeachingStaffAttendance?: {
     present: number;
     absent: number;
     late: number;

@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Dtos.Dashboard;
+namespace SMS.Api.Dtos.Dashboard;
 
 using System.Collections.Generic;
 
@@ -17,6 +17,8 @@ public class DashboardSummaryDto
 
     public StudentAttendanceSummaryDto StudentAttendance { get; set; } = new();
     public StaffAttendanceSummaryDto StaffAttendance { get; set; } = new();
+    public StaffAttendanceSummaryDto TeachingStaffAttendance { get; set; } = new();
+    public StaffAttendanceSummaryDto NonTeachingStaffAttendance { get; set; } = new();
     public List<ClassStrengthDto> ClassWiseStrength { get; set; } = new();
 }
 

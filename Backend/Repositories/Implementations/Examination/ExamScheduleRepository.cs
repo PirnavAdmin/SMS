@@ -174,7 +174,11 @@ public class ExamScheduleRepository : IExamScheduleRepository
     {
         try
         {
-            var classes = await _context.Classes.AsNoTracking().Select(c => c.Name).Distinct().ToListAsync();
+            var classes = await _context.Classes.AsNoTracking()
+                .Where(c => c.ClassName != null)
+                .Select(c => c.ClassName!)
+                .Distinct()
+                .ToListAsync();
             if (classes != null && classes.Any()) return classes;
         }
         catch { }
@@ -185,7 +189,11 @@ public class ExamScheduleRepository : IExamScheduleRepository
     {
         try
         {
-            var sections = await _context.ClassSections.AsNoTracking().Select(s => s.SectionName).Distinct().ToListAsync();
+            var sections = await _context.ClassSections.AsNoTracking()
+                .Where(s => s.SectionName != null)
+                .Select(s => s.SectionName!)
+                .Distinct()
+                .ToListAsync();
             if (sections != null && sections.Any()) return sections;
         }
         catch { }
@@ -212,7 +220,7 @@ public class ExamScheduleRepository : IExamScheduleRepository
         {
             var rooms = await _context.ClassSections.AsNoTracking()
                 .Where(s => !string.IsNullOrWhiteSpace(s.RoomNo))
-                .Select(s => s.RoomNo)
+                .Select(s => s.RoomNo!)
                 .Distinct()
                 .ToListAsync();
             if (rooms != null && rooms.Any()) return rooms;

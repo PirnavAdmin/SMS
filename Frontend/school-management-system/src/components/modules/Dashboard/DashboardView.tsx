@@ -208,7 +208,7 @@ const PremiumDonutChart: React.FC<{
           </span>
         </div>
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[10px] text-slate-400 font-bold flex justify-between">
-          <span>Total {type === 'students' ? 'Students' : 'Staff'}</span>
+          <span>Total {type === 'students' ? 'Students' : type === 'teaching-staff' ? 'Teaching Staff' : type === 'non-teaching-staff' ? 'Non-Teaching Staff' : 'Staff'}</span>
           <span>{total}</span>
         </div>
       </div>
@@ -350,8 +350,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
   
   const teacherAttendanceStats = useMemo(() => {
-    if (summaryData?.staffAttendance && summaryData.staffAttendance.total > 0) {
-      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.staffAttendance;
+    if (summaryData?.teachingStaffAttendance && summaryData.teachingStaffAttendance.total > 0) {
+      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.teachingStaffAttendance;
       const latePct = Math.round((late / total) * 100);
       const halfDayPct = Math.round((halfDay / total) * 100);
       const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
@@ -362,21 +362,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       };
     }
     const todayStr = new Date().toLocaleDateString('en-CA');
-    const teachingStaffIds = new Set(teachingStaff.map(s => s.id));
-    const todayAttendance = attendance.filter(a => a.entityType === 'Staff' && a.date === todayStr && teachingStaffIds.has(a.entityId));
+    const teachingStaffIds = new Set(teachingStaff.map(s => String(s.id)));
+    const todayAttendance = (attendance || []).filter(a => (!a.entityType || a.entityType.toLowerCase() === 'staff') && a.date === todayStr && teachingStaffIds.has(String(a.entityId)));
     let present = 0; let absent = 0; let late = 0; let halfDay = 0;
     if (todayAttendance.length > 0) {
       todayAttendance.forEach(a => {
         if (a.status === 'Present') present++;
         else if (a.status === 'Late') late++;
-        else if (a.status === 'HalfDay') halfDay++;
+        else if (a.status === 'HalfDay' || a.status === 'Half Day') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
     }
-    const total = present + absent + late + halfDay || (summaryData?.teachingStaff || teachingStaff.length || 1);
-    const presentPct = Math.round((present / total) * 100);
-    const latePct = Math.round((late / total) * 100);
-    const halfDayPct = Math.round((halfDay / total) * 100);
+    const total = summaryData?.teachingStaff || teachingStaff.length || (present + absent + late + halfDay) || 1;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
     const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
 
     return { 
@@ -388,22 +388,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Section 2: Non-Teaching Staff Attendance calculation
   const nonTeachingAttendanceStats = useMemo(() => {
+    if (summaryData?.nonTeachingStaffAttendance && summaryData.nonTeachingStaffAttendance.total > 0) {
+      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.nonTeachingStaffAttendance;
+      const latePct = Math.round((late / total) * 100);
+      const halfDayPct = Math.round((halfDay / total) * 100);
+      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+      return {
+        present, absent, late, halfDay, total,
+        presentPct, latePct, halfDayPct, absentPct,
+        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
+      };
+    }
     const todayStr = new Date().toLocaleDateString('en-CA');
-    const nonTeachingStaffIds = new Set(nonTeachingStaff.map(s => s.id));
-    const todayAttendance = attendance.filter(a => a.entityType === 'Staff' && a.date === todayStr && nonTeachingStaffIds.has(a.entityId));
+    const nonTeachingStaffIds = new Set(nonTeachingStaff.map(s => String(s.id)));
+    const todayAttendance = (attendance || []).filter(a => (!a.entityType || a.entityType.toLowerCase() === 'staff') && a.date === todayStr && nonTeachingStaffIds.has(String(a.entityId)));
     let present = 0; let absent = 0; let late = 0; let halfDay = 0;
     if (todayAttendance.length > 0) {
       todayAttendance.forEach(a => {
         if (a.status === 'Present') present++;
         else if (a.status === 'Late') late++;
-        else if (a.status === 'HalfDay') halfDay++;
+        else if (a.status === 'HalfDay' || a.status === 'Half Day') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
     }
-    const total = present + absent + late + halfDay || (summaryData?.nonTeachingStaff || nonTeachingStaff.length || 1);
-    const presentPct = Math.round((present / total) * 100);
-    const latePct = Math.round((late / total) * 100);
-    const halfDayPct = Math.round((halfDay / total) * 100);
+    const total = summaryData?.nonTeachingStaff || nonTeachingStaff.length || (present + absent + late + halfDay) || 1;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
     const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
 
     return { 
@@ -745,7 +756,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             <div className="flex items-start justify-between gap-2 shrink-0">
               <div className="text-left">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Today's overall staff attendance</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Today's {staffAttendanceTab.toLowerCase()} staff attendance</p>
               </div>
               <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/40 dark:border-slate-700/50 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
@@ -764,7 +775,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </div>
 
             <div className="flex-1 flex items-center justify-center min-h-0">
-              <PremiumDonutChart stats={activeStaffStats} type="staff" />
+              <PremiumDonutChart stats={activeStaffStats} type={staffAttendanceTab === 'Teaching' ? 'teaching-staff' : 'non-teaching-staff'} />
             </div>
           </div>
 

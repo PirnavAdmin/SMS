@@ -314,6 +314,7 @@ import {
   mapSubjectApi,
   saveTimetableSlotApi,
   deleteTimetableSlotApi,
+  fetchClassTeacherAssignmentsApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -337,6 +338,22 @@ import {
   cloneSalaryStructureApi,
   fetchSalaryAssignmentsApi,
   assignSalaryStructureApi,
+  fetchPayrollConfigurationsApi,
+  createPayrollConfigurationApi,
+  updatePayrollConfigurationApi,
+  deletePayrollConfigurationApi,
+  activatePayrollConfigurationApi,
+  deactivatePayrollConfigurationApi,
+  fetchPayrollComponentsApi,
+  createPayrollComponentApi,
+  updatePayrollComponentApi,
+  deletePayrollComponentApi,
+  fetchPayrollRunsApi,
+  upsertPayrollRunApi,
+  updatePayrollRunApi,
+  deletePayrollRunApi,
+  fetchPayslipsApi,
+  createPayslipApi
 } from "../api/payroll";
 import {
   fetchDailyStaffAttendanceApi,
@@ -1326,6 +1343,7 @@ interface DataContextType {
     updates: Partial<PayrollComponent>,
   ) => void;
   deletePayrollComponent: (id: string) => void;
+  loadMonthlyStaffAttendance: (month: number, year: number) => Promise<void>;
 
   salaryStructures: SalaryStructure[];
   addSalaryStructure: (structure: Omit<SalaryStructure, "id">) => void;
@@ -5009,13 +5027,63 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [coScholasticAssessments]);
 
+  const fetchTeacherAssignments = async () => {
+    try {
+      const res: any = await fetchClassTeacherAssignmentsApi();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      if (Array.isArray(list)) {
+        const mapped: TeacherAssignment[] = list.map((ta: any) => ({
+          id: ta.id ? String(ta.id) : `TA-${Math.floor(100 + Math.random() * 900)}`,
+          academicYear: ta.academicYear || "2026-2027",
+          branch: ta.branch || "Main Campus",
+          className: ta.className || "",
+          section: ta.section || "A",
+          subject: ta.subject || "",
+          teacherId: ta.teacherId ? String(ta.teacherId) : "",
+          teacherName: ta.teacherName || "",
+          status: ta.status || "Active",
+          role: ta.role || "Subject Teacher",
+        }));
+        setTeacherAssignments(mapped);
+        localStorage.setItem("edu_db_teacher_assignments", JSON.stringify(mapped));
+        return mapped;
+      }
+    } catch (err) {
+      console.warn("Error fetching teacher assignments", err);
+    }
+    return [];
+  };
+
   const fetchAcademicClasses = async () => {
     if (activeRequests.current["classes"]) {
       return activeRequests.current["classes"];
     }
     const promise = (async () => {
       try {
-        const data = await fetchClassesApi();
+        const [data, taData]: [any, any] = await Promise.all([
+          fetchClassesApi(),
+          fetchClassTeacherAssignmentsApi().catch(() => null),
+        ]);
+
+        let liveAssignments: TeacherAssignment[] = [];
+        const rawTaList = Array.isArray(taData) ? taData : taData?.data || [];
+        if (Array.isArray(rawTaList) && rawTaList.length > 0) {
+          liveAssignments = rawTaList.map((ta: any) => ({
+            id: ta.id ? String(ta.id) : `TA-${Math.floor(100 + Math.random() * 900)}`,
+            academicYear: ta.academicYear || "2026-2027",
+            branch: ta.branch || "Main Campus",
+            className: ta.className || "",
+            section: ta.section || "A",
+            subject: ta.subject || "",
+            teacherId: ta.teacherId ? String(ta.teacherId) : "",
+            teacherName: ta.teacherName || "",
+            status: ta.status || "Active",
+            role: ta.role || "Subject Teacher",
+          }));
+          setTeacherAssignments(liveAssignments);
+          localStorage.setItem("edu_db_teacher_assignments", JSON.stringify(liveAssignments));
+        }
+
         if (data) {
           // Handle array response or object wrapper response
           const classList = Array.isArray(data)
@@ -5032,10 +5100,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const mapped: AcademicClass[] = classList.map((c: any) => {
               const classIdStr = c.classId?.toString() || c.id?.toString();
               const localCls = localClasses.find((lc) => lc.id === classIdStr);
+              const classNameStr = c.className || c.name || "";
 
               const secDetails: Record<string, any> = {
                 ...(localCls?.sectionDetails || c.sectionDetails || {}),
               };
+
+              const sectionTeachersMap: Record<string, string> = {
+                ...(localCls?.sectionTeachers || {}),
+                ...(c.sectionTeachers || {}),
+              };
+
               if (Array.isArray(c.sections)) {
                 c.sections.forEach((s: any) => {
                   const sName =
@@ -5057,20 +5132,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       secDetails[sName].roomNo =
                         s.roomNo || s.RoomNo || s.room_number;
                     }
+                    if (s.classTeacherName) {
+                      sectionTeachersMap[sName] = s.classTeacherName;
+                    }
                   }
                 });
               }
 
+              // Also populate sectionTeachers from liveAssignments where role is Class Teacher
+              liveAssignments
+                .filter((ta) => (ta.className === classNameStr || ta.className?.toLowerCase().replace(/class/gi, "").trim() === classNameStr.toLowerCase().replace(/class/gi, "").trim()) && ta.role === "Class Teacher" && ta.teacherName)
+                .forEach((ta) => {
+                  if (ta.section) {
+                    sectionTeachersMap[ta.section] = ta.teacherName;
+                  }
+                });
+
               return {
                 id: classIdStr,
-                name: c.className || c.name,
+                name: classNameStr,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-                sectionTeachers:
-                  c.sectionTeachers &&
-                  Object.keys(c.sectionTeachers).length > 0
-                    ? c.sectionTeachers
-                    : localCls?.sectionTeachers || {},
-                teacher: c.teacher || "Unassigned",
+                sectionTeachers: sectionTeachersMap,
+                teacher: c.teacher || Object.values(sectionTeachersMap)[0] || "Unassigned",
                 subjects: Array.isArray(c.curriculumSubjects)
                   ? c.curriculumSubjects.map(
                       (cs: any) => cs.subjectName || cs.name || "",
@@ -6038,6 +6121,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchPeriods();
         fetchDepartments();
         fetchDesignations();
+        fetchPayrollConfigurations();
+        fetchPayrollComponents();
+        fetchPayrollRuns();
+        fetchPayslips();
       }
     }
     const allowedAdmissionsRoles = [
@@ -6163,6 +6250,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const oldStudent = students.find((s) => s.id === id);
     const numericId = parseInt(id, 10);
 
+    const targetClassName = updates.className || oldStudent?.className || "";
+    const matchedClass = academicClasses.find(
+      (c) =>
+        c.name?.toLowerCase().trim() === targetClassName.toLowerCase().trim() ||
+        c.name?.toLowerCase().replace(/class/gi, "").trim() ===
+          targetClassName.toLowerCase().replace(/class/gi, "").trim(),
+    );
+    const resolvedClassId = matchedClass
+      ? Number(String(matchedClass.id).replace(/\D/g, "")) || 1
+      : 1;
+
     if (!isNaN(numericId) && oldStudent) {
       const fullStudent = { ...oldStudent, ...updates };
       const targetClass = academicClasses.find(
@@ -6198,11 +6296,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         classId: targetClassId,
         sectionId: targetSectionId as any,
         status: fullStudent.status || "Active",
-      }).catch((err) => console.error("Failed to update student", err));
+      })
+        .then(() => {
+          fetchStudents();
+        })
+        .catch((err) => console.error("Failed to update student", err));
     }
 
     setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+      prev.map((s) => (s.id === id ? { ...s, ...updates, className: targetClassName } : s)),
     );
 
     if ((updates as any).feeCalculationMethod || (updates as any).feePolicy) {
@@ -6246,6 +6348,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     targetYear = "2026-2027",
     targetBranch = "Main Campus",
   ) => {
+    const numericId = parseInt(id, 10);
+    const targetStudent = students.find((s) => s.id === id);
+
+    const matchedClass = academicClasses.find(
+      (c) =>
+        c.name?.toLowerCase().trim() === targetClass.toLowerCase().trim() ||
+        c.name?.toLowerCase().replace(/class/gi, "").trim() ===
+          targetClass.toLowerCase().replace(/class/gi, "").trim(),
+    );
+    const resolvedClassId = matchedClass
+      ? Number(String(matchedClass.id).replace(/\D/g, "")) || 1
+      : 1;
+
+    if (!isNaN(numericId) && targetStudent) {
+      updateStudentApi(numericId, {
+        admissionNumber: targetStudent.admissionNo || "ADM-00",
+        rollNumber: targetStudent.rollNo || "00",
+        studentName:
+          `${targetStudent.firstName || ""} ${targetStudent.lastName || ""}`.trim(),
+        dateOfBirth: targetStudent.dob || undefined,
+        gender: targetStudent.gender || "Male",
+        fatherName: targetStudent.parentName || "",
+        fatherMobile:
+          (targetStudent as any).parentPhone || (targetStudent as any).mobile || "",
+        email: targetStudent.email || undefined,
+        mobileNumber:
+          (targetStudent as any).parentPhone || (targetStudent as any).mobile || "",
+        address: targetStudent.address || "",
+        branchId: 1,
+        academicYearId: 1,
+        classId: resolvedClassId,
+        sectionId: 1,
+        status: "Promoted",
+      })
+        .then(() => {
+          fetchStudents();
+        })
+        .catch((err) => console.error("Failed to persist promoted student", err));
+    }
+
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id === id) {
@@ -6430,7 +6572,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Staff CRUD
   const syncTeacherAssignments = (teacher: Staff) => {
     const classes = teacher.assignedClasses || [];
-    const subjects = teacher.assignedSubjects || [];
+    let subjects = teacher.assignedSubjects || [];
+    if (subjects.length === 0) {
+      if (teacher.primarySubject) subjects = [teacher.primarySubject];
+      else if (teacher.specialization) subjects = [teacher.specialization];
+    }
     const teacherFullName =
       teacher.name || `${teacher.firstName} ${teacher.lastName}`;
 
@@ -6440,10 +6586,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTeacherAssignments((prev) => {
       // 1. Filter out assignments for this teacher that are no longer in their workload lists
       let next = prev.filter((ta) => {
-        if (ta.teacherId !== teacher.id) return true;
+        if (String(ta.teacherId) !== String(teacher.id)) return true;
         const classSecKey = `${ta.className}-${ta.section}`;
-        const hasClass = classes.includes(classSecKey);
-        const hasSubject = subjects.includes(ta.subject);
+        const hasClass = classes.some((c) => norm(c) === norm(classSecKey));
+        const hasSubject = subjects.length === 0 || subjects.some((s) => s.toLowerCase() === ta.subject?.toLowerCase());
         return hasClass && hasSubject;
       });
 
@@ -6453,18 +6599,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const className = parts[0]?.trim();
         const section = parts[1]?.trim() || "A";
 
+        // If teacher is eligible as class teacher, upsert Class Teacher role
+        if (teacher.isClassTeacherEligible || (teacher.designation && teacher.designation.toLowerCase().includes("class teacher"))) {
+          const existingCtIdx = next.findIndex(
+            (ta) =>
+              norm(ta.className) === norm(className) &&
+              ta.section.toLowerCase() === section.toLowerCase() &&
+              ta.role === "Class Teacher",
+          );
+          if (existingCtIdx > -1) {
+            next[existingCtIdx] = {
+              ...next[existingCtIdx],
+              teacherId: String(teacher.id),
+              teacherName: teacherFullName,
+              status: "Active",
+            };
+          } else {
+            next.push({
+              id: "TA-" + Math.floor(100 + Math.random() * 900),
+              academicYear: "2026-2027",
+              branch: teacher.branch || "Main Campus",
+              className,
+              section,
+              subject: "",
+              teacherId: String(teacher.id),
+              teacherName: teacherFullName,
+              role: "Class Teacher",
+              status: "Active",
+            });
+          }
+        }
+
         subjects.forEach((subject) => {
           const existingIdx = next.findIndex(
             (ta) =>
-              ta.className === className &&
-              ta.section === section &&
-              ta.subject === subject,
+              norm(ta.className) === norm(className) &&
+              ta.section.toLowerCase() === section.toLowerCase() &&
+              ta.subject?.toLowerCase() === subject.toLowerCase(),
           );
 
           if (existingIdx > -1) {
             next[existingIdx] = {
               ...next[existingIdx],
-              teacherId: teacher.id,
+              teacherId: String(teacher.id),
               teacherName: teacherFullName,
               status: "Active",
             };
@@ -6477,8 +6654,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               className,
               section,
               subject,
-              teacherId: teacher.id,
+              teacherId: String(teacher.id),
               teacherName: teacherFullName,
+              role: "Subject Teacher",
               status: "Active",
             });
           }
@@ -6488,7 +6666,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    // 3. Auto-map subjects to class curriculum
+    // 3. Update academicClasses state with sectionTeachers map
+    setAcademicClasses((prevClasses) => {
+      return prevClasses.map((cls) => {
+        const matchingSec = classes.find((cs) => {
+          const [cName] = cs.split("-");
+          return norm(cName) === norm(cls.name);
+        });
+        if (matchingSec) {
+          const parts = matchingSec.split("-");
+          const secLetter = parts[1]?.trim() || "A";
+          const currentSecTeachers = { ...(cls.sectionTeachers || {}) };
+          if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
+            currentSecTeachers[secLetter] = teacherFullName;
+          }
+          return {
+            ...cls,
+            sectionTeachers: currentSecTeachers,
+          };
+        }
+        return cls;
+      });
+    });
+
+    // 4. Auto-map subjects to class curriculum
     classes.forEach((classSec) => {
       const parts = classSec.split("-");
       const className = parts[0]?.trim();
@@ -6624,6 +6825,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           if (isTeachingStaff(newStaff)) {
             syncTeacherAssignments({ ...newStaff, id: actualId });
           }
+          fetchAcademicClasses();
         }
       })
       .catch((err) => {
@@ -6712,6 +6914,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: d.status || "Attached",
             uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
           })),
+        }).then(() => {
+          fetchAcademicClasses();
         }).catch((err) => {
           console.error("Failed to update staff in backend", err);
         });
@@ -7385,6 +7589,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setAdmissions((prev) =>
         prev.map((a) => (a.id === id ? (appData as AdmissionApplication) : a)),
       );
+
+      // Also update any matching student in students state immediately
+      setStudents((prev) =>
+        prev.map((s) => {
+          const isMatch =
+            (appData.applicationNo && (s.admissionNo === appData.applicationNo || s.registrationNumber === appData.applicationNo)) ||
+            (appData.id && (s.id === appData.id || s.admissionNo === `ADM-${appData.id}`)) ||
+            (s.firstName?.toLowerCase() === appData.applicantName?.toLowerCase().split(" ")[0] && 
+             s.parentName?.toLowerCase() === appData.parentName?.toLowerCase());
+
+          if (isMatch) {
+            return {
+              ...s,
+              className: appData.appliedClass || s.className,
+              gender: (appData.gender as any) || s.gender,
+              parentName: appData.parentName || s.parentName,
+              phone: appData.phone || s.phone,
+              studentType: appData.studentType || s.studentType,
+            };
+          }
+          return s;
+        }),
+      );
+
+      fetchStudents();
       logActivity("Updated Admission Record", `Updated application ID ${id}`);
     } catch (err) {
       console.error(err);
@@ -16160,6 +16389,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchPayrollConfigurations = async () => {
+    try {
+      const response = await fetchPayrollConfigurationsApi();
+      if (response && response.success && response.data) {
+        setPayrollConfigurations(response.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch payroll configurations from API", err);
+    }
+  };
+
+  const fetchPayrollComponents = async () => {
+    try {
+      const response = await fetchPayrollComponentsApi();
+      if (response && response.success && response.data) {
+        setPayrollComponents(response.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch payroll components from API", err);
+    }
+  };
+
+  const fetchPayrollRuns = async () => {
+    try {
+      const response = await fetchPayrollRunsApi();
+      if (response && response.success && response.data) {
+        setPayrollRuns(response.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch payroll runs from API", err);
+    }
+  };
+
+  const fetchPayslips = async () => {
+    try {
+      const response = await fetchPayslipsApi();
+      if (response && response.success && response.data) {
+        setPayslips(response.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch payslips from API", err);
+    }
+  };
+
   // Leave Types CRUD
   const addLeaveType = async (tData: Omit<LeaveType, "id">) => {
     try {
@@ -16510,95 +16783,157 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Payslip handler
-  const disburseSalary = (pData: Omit<Payslip, "id">) => {
-    const id = "PAY-" + Math.floor(100 + Math.random() * 900);
-    setPayslips((prev) => [
-      ...prev,
-      {
-        ...pData,
-        id,
-        branch: (pData as any).branch || selectedBranch || "Main Campus",
-      } as any,
-    ]);
+  const disburseSalary = async (pData: Omit<Payslip, "id">) => {
+    try {
+      const response = await createPayslipApi(pData);
+      if (response && response.success) {
+        addToast("success", "Success", "Payslip generated and disbursal completed.");
+        await fetchPayslips();
+      }
+    } catch (err) {
+      console.error("Failed to disburse salary", err);
+      addToast("error", "Error", "Failed to disburse salary and save payslip.");
+    }
   };
 
-  const addPayrollConfiguration = (
+  const addPayrollConfiguration = async (
     configData: Omit<PayrollConfiguration, "id">,
   ) => {
-    const id = "PAYCFG-" + Math.floor(100 + Math.random() * 900);
-    setPayrollConfigurations((prev) => [
-      ...prev.map((c) =>
-        c.branch === configData.branch && configData.status === "Active"
-          ? { ...c, status: "Inactive" as const }
-          : c,
-      ),
-      {
-        ...configData,
-        id,
-        branch: configData.branch || selectedBranch || "Main Campus",
-      },
-    ]);
+    try {
+      const response = await createPayrollConfigurationApi(configData);
+      if (response && response.success) {
+        addToast("success", "Success", "Payroll configuration saved successfully.");
+        await fetchPayrollConfigurations();
+      }
+    } catch (err) {
+      console.error("Failed to add payroll configuration", err);
+      addToast("error", "Error", "Failed to add payroll configuration.");
+    }
   };
-  const updatePayrollConfiguration = (
+
+  const updatePayrollConfiguration = async (
     id: string,
     updates: Partial<PayrollConfiguration>,
   ) => {
-    setPayrollConfigurations((prev) => {
-      const targetBranch =
-        updates.branch || prev.find((c) => c.id === id)?.branch;
-      return prev.map((c) => {
-        if (
-          updates.status === "Active" &&
-          c.id !== id &&
-          c.branch === targetBranch
-        ) {
-          return { ...c, status: "Inactive" };
-        }
-        return c.id === id ? { ...c, ...updates } : c;
-      });
-    });
-  };
-  const deletePayrollConfiguration = (id: string) => {
-    setPayrollConfigurations((prev) => prev.filter((c) => c.id !== id));
-  };
-  const activatePayrollConfiguration = (id: string) => {
-    const target = payrollConfigurations.find((c) => c.id === id);
-    if (!target) return;
-    setPayrollConfigurations((prev) =>
-      prev.map((c) =>
-        c.branch === target.branch
-          ? { ...c, status: c.id === id ? "Active" : "Inactive" }
-          : c,
-      ),
-    );
-  };
-  const deactivatePayrollConfiguration = (id: string) => {
-    setPayrollConfigurations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "Inactive" } : c)),
-    );
+    try {
+      const response = await updatePayrollConfigurationApi(id, updates);
+      if (response && response.success) {
+        addToast("success", "Success", "Payroll configuration updated successfully.");
+        await fetchPayrollConfigurations();
+      }
+    } catch (err) {
+      console.error("Failed to update payroll configuration", err);
+      addToast("error", "Error", "Failed to update payroll configuration.");
+    }
   };
 
-  const addPayrollComponent = (componentData: Omit<PayrollComponent, "id">) => {
-    const id = "PC-" + Math.floor(1000 + Math.random() * 9000);
-    setPayrollComponents((prev) => [
-      ...prev,
-      {
-        ...componentData,
-        id,
-        branch: componentData.branch || selectedBranch || "Main Campus",
-      },
-    ]);
+  const deletePayrollConfiguration = async (id: string) => {
+    try {
+      const response = await deletePayrollConfigurationApi(id);
+      if (response && response.success) {
+        addToast("success", "Success", "Payroll configuration deleted successfully.");
+        await fetchPayrollConfigurations();
+      }
+    } catch (err) {
+      console.error("Failed to delete payroll configuration", err);
+      addToast("error", "Error", "Failed to delete payroll configuration.");
+    }
   };
-  const updatePayrollComponent = (
+
+  const activatePayrollConfiguration = async (id: string) => {
+    try {
+      const response = await activatePayrollConfigurationApi(id);
+      if (response && response.success) {
+        addToast("success", "Success", "Payroll configuration activated successfully.");
+        await fetchPayrollConfigurations();
+      }
+    } catch (err) {
+      console.error("Failed to activate payroll configuration", err);
+      addToast("error", "Error", "Failed to activate payroll configuration.");
+    }
+  };
+
+  const deactivatePayrollConfiguration = async (id: string) => {
+    try {
+      const response = await deactivatePayrollConfigurationApi(id);
+      if (response && response.success) {
+        addToast("success", "Success", "Payroll configuration deactivated successfully.");
+        await fetchPayrollConfigurations();
+      }
+    } catch (err) {
+      console.error("Failed to deactivate payroll configuration", err);
+      addToast("error", "Error", "Failed to deactivate payroll configuration.");
+    }
+  };
+
+  const addPayrollComponent = async (componentData: Omit<PayrollComponent, "id">) => {
+    try {
+      const response = await createPayrollComponentApi(componentData);
+      if (response && response.success) {
+        addToast("success", "Success", "Salary component created successfully.");
+        await fetchPayrollComponents();
+      }
+    } catch (err) {
+      console.error("Failed to add payroll component", err);
+      addToast("error", "Error", "Failed to add payroll component.");
+    }
+  };
+
+  const updatePayrollComponent = async (
     id: string,
     updates: Partial<PayrollComponent>,
   ) => {
-    setPayrollComponents((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    );
+    try {
+      const response = await updatePayrollComponentApi(id, updates);
+      if (response && response.success) {
+        addToast("success", "Success", "Salary component updated successfully.");
+        await fetchPayrollComponents();
+      }
+    } catch (err) {
+      console.error("Failed to update payroll component", err);
+      addToast("error", "Error", "Failed to update payroll component.");
+    }
   };
-  const deletePayrollComponent = (id: string) => {
-    setPayrollComponents((prev) => prev.filter((c) => c.id !== id));
+
+  const deletePayrollComponent = async (id: string) => {
+    try {
+      const response = await deletePayrollComponentApi(id);
+      if (response && response.success) {
+        addToast("success", "Success", "Salary component deleted successfully.");
+        await fetchPayrollComponents();
+      }
+    } catch (err) {
+      console.error("Failed to delete payroll component", err);
+      addToast("error", "Error", "Failed to delete payroll component.");
+    }
+  };
+
+  const loadMonthlyStaffAttendance = async (monthNum: number, yearNum: number) => {
+    try {
+      const response = await fetchMonthlyStaffAttendanceApi(monthNum, yearNum);
+      if (response && response.success && Array.isArray(response.data)) {
+        const mappedRecords: DailyAttendance[] = response.data.map(
+          (item: any) => ({
+            id: item.staffAttendanceId?.toString() || item.id?.toString() || Math.random().toString(),
+            date: String(item.date).split("T")[0].split(" ")[0],
+            entityType: "Staff",
+            entityId: item.staffId?.toString() || item.id?.toString() || "",
+            status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
+            remarks: item.remarks || "",
+            inTime: item.inTime || "",
+            outTime: item.outTime || "",
+            department: item.department || "",
+            designation: item.designation || "",
+          }),
+        );
+        setAttendance((prev) => {
+          const rest = prev.filter(r => r.entityType !== "Staff");
+          return [...rest, ...mappedRecords];
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch monthly staff attendance", err);
+    }
   };
 
   const roundAmount = (
@@ -16800,16 +17135,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return [...prev, savedRun];
     });
+
+    upsertPayrollRunApi(savedRun)
+      .then(res => {
+        if (res && res.success && res.data) {
+          setPayrollRuns(prev => prev.map(r => r.employeeId === res.data.employeeId && r.payrollMonth === res.data.payrollMonth ? { ...r, id: res.data.id } : r));
+        }
+      })
+      .catch(err => console.error("Error upserting payroll run", err));
+
     return savedRun;
   };
   const updatePayrollRun = (id: string, updates: Partial<PayrollRun>) => {
-    setPayrollRuns((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...updates } : r)),
-    );
+    setPayrollRuns((prev) => {
+      const updated = prev.map((r) => (r.id === id ? { ...r, ...updates } : r));
+      const target = updated.find(r => r.id === id);
+      if (target) {
+        updatePayrollRunApi(id, target).catch(err => console.error("Error updating payroll run", err));
+      }
+      return updated;
+    });
   };
 
   const deletePayrollRun = (id: string) => {
-    setPayrollRuns((prev) => prev.filter((r) => r.id !== id));
+    setPayrollRuns((prev) => {
+      const filtered = prev.filter((r) => r.id !== id);
+      deletePayrollRunApi(id).catch(err => console.error("Error deleting payroll run", err));
+      return filtered;
+    });
   };
 
   // Leave Application Status Engine
@@ -17817,6 +18170,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteSalaryStructure,
         cloneSalaryStructure,
         loadSalaryStructures,
+        loadMonthlyStaffAttendance,
         employeeSalaryAssignments: filteredEmployeeSalaryAssignments,
         assignEmployeeSalaryStructure,
         updateEmployeeSalaryAssignment,

@@ -766,7 +766,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const branches = useMemo(() => ['All Branches', ...Array.from(new Set(staff.map(item => item.branch || 'Main Campus')))], [staff]);
   const departments = useMemo(() => ['All Departments', ...Array.from(new Set(staff.map(item => item.department).filter(Boolean)))], [staff]);
   const employeeOptions = useMemo(() => ['All Employees', ...staff.map(item => `${item.firstName} ${item.lastName} (${item.empId})`.trim())], [staff]);
-  const structureOptions = useMemo(() => ['All Structures', ...salaryStructures.map(item => item.structureName)], [salaryStructures]);
+  const structureOptions = useMemo(() => ['All Structures', ...Array.from(new Set(salaryStructures.map(item => item.structureName).filter(Boolean)))], [salaryStructures]);
   const designationSet = useMemo(() => {
     const values = salaryStructures.map(item => item.designation).filter(Boolean) as string[];
     return ['All', ...Array.from(new Set(values))];
