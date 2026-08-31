@@ -187,7 +187,13 @@ export const FinanceUniformConfigView: React.FC = () => {
                       <Shirt className="w-4 h-4 text-sky-500 shrink-0" /> {c.className}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
-                      {c.uniformPackage} {(c as any).fabricMeterage ? `[${(c as any).fabricMeterage}]` : ''}
+                      {(() => {
+                        let pkgStr = c.uniformPackage || '';
+                        if (pkgStr.toLowerCase().includes('base package') || pkgStr.toLowerCase() === 'base package') {
+                          pkgStr = 'Uniform Base Package (Admission Kit)';
+                        }
+                        return `${pkgStr} ${(c as any).fabricMeterage ? `[${(c as any).fabricMeterage}]` : ''}`.trim();
+                      })()}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">{c.gender}</td>
                     <td className="py-3.5 px-4">
@@ -236,14 +242,13 @@ export const FinanceUniformConfigView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={form.className || ''}
                     onChange={e => {
                       const newCls = e.target.value;
-                      const newFee = newCls && newCls !== 'All Classes' ? getUniformPackageFeeByClass(newCls) : 0;
-                      setForm({ ...form, className: newCls, feeAmount: newFee || form.feeAmount });
+                      setForm({ ...form, className: newCls });
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
                   >
@@ -253,7 +258,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender Segregation <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={form.gender || ''}
@@ -269,28 +274,30 @@ export const FinanceUniformConfigView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 {(() => {
                   const basePackagesMap = new Map<string, string>();
                   const additionalItemsMap = new Map<string, string>();
-
-                  basePackagesMap.set('boys uniform package(base admission kit)', 'Boys Uniform Package(Base Admission kit)');
-                  basePackagesMap.set('girls uniform package(base admission kit)', 'Girls Uniform Package(Base Admission kit)');
-                  basePackagesMap.set('cloth', 'Cloth');
 
                   (uniforms || []).forEach(u => {
                     if (!u) return;
                     const rawName = (u.category || u.name || '').trim();
                     if (!rawName) return;
-                    const norm = normalizeUniformCategoryName(rawName);
-                    const lowerKey = norm.toLowerCase();
+                    const lowerKey = rawName.toLowerCase();
+                    const isBoysPkg = lowerKey.includes('boys') && (lowerKey.includes('package') || lowerKey.includes('admission') || lowerKey.includes('kit'));
+                    const isGirlsPkg = lowerKey.includes('girls') && (lowerKey.includes('package') || lowerKey.includes('admission') || lowerKey.includes('kit'));
+                    const isCloth = lowerKey === 'cloth' || lowerKey.includes('unstitched') || lowerKey === 'fabric' || lowerKey.includes('cloth package');
 
-                    if (lowerKey.includes('boys') || lowerKey.includes('girls') || lowerKey.includes('cloth') || lowerKey.includes('fabric')) {
-                      basePackagesMap.set(lowerKey, norm);
+                    if (isCloth || isBoysPkg || isGirlsPkg) {
+                      basePackagesMap.set(lowerKey, rawName);
                     } else {
-                      additionalItemsMap.set(lowerKey, norm);
+                      additionalItemsMap.set(lowerKey, rawName);
                     }
                   });
+
+                  if (!basePackagesMap.has('cloth')) {
+                    basePackagesMap.set('cloth', 'Cloth');
+                  }
 
                   const basePackages = Array.from(basePackagesMap.values());
                   const additionalItems = Array.from(additionalItemsMap.values());
@@ -310,14 +317,14 @@ export const FinanceUniformConfigView: React.FC = () => {
                     >
                       <option value="">-- Select Package / Item --</option>
                       {basePackages.length > 0 && (
-                        <optgroup label="Standard Admission Base Packages">
+                        <optgroup label="Base Packages (Admission Kit & Material)">
                           {basePackages.map(pkg => (
                             <option key={pkg} value={pkg}>{pkg}</option>
                           ))}
                         </optgroup>
                       )}
                       {additionalItems.length > 0 && (
-                        <optgroup label="Configured Items (from Add Uniform Type)">
+                        <optgroup label="Additional Packages / Extra Items">
                           {additionalItems.map(item => (
                             <option key={item} value={item}>{item}</option>
                           ))}
@@ -348,22 +355,22 @@ export const FinanceUniformConfigView: React.FC = () => {
 
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                  {(form.uniformPackage || '').toLowerCase().includes('cloth') ? 'Fabric Fee Amount (₹) *' : 'Package Fee Amount (₹) *'}
+                  {(form.uniformPackage || '').toLowerCase().includes('cloth') ? 'Fabric Fee Amount (₹) *' : 'Item / Package Amount (₹) *'}
                 </label>
                 <input
                   type="number"
                   required
                   min={0}
-                  placeholder={ (form.uniformPackage || '').toLowerCase().includes('cloth') ? "e.g. 600" : "e.g. 3500" }
-                  value={form.feeAmount || ''}
-                  onChange={e => setForm({ ...form, feeAmount: Number(e.target.value) })}
+                  placeholder={ (form.uniformPackage || '').toLowerCase().includes('cloth') ? "e.g. 600" : "e.g. 7000" }
+                  value={form.feeAmount === undefined || form.feeAmount === null ? '' : form.feeAmount}
+                  onChange={e => setForm({ ...form, feeAmount: e.target.value === '' ? (undefined as any) : Number(e.target.value) })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-black text-sky-600 dark:text-sky-400 text-sm outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-extrabold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20">Save Settings</button>
+                <button type="submit" className="px-5 py-2 font-extrabold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20">Save</button>
               </div>
             </form>
           </div>

@@ -159,50 +159,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     });
 
     if (directSlots.length > 0) {
-      return directSlots.map(s => ({
-        ...s,
-        subject: (s.subject && s.subject !== 'Mathematics' && s.subject !== 'Physics') ? s.subject : mainSub
-      })).sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+      return directSlots
+        .map(s => ({
+          ...s,
+          subject: s.subject || mainSub
+        }))
+        .sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
     }
 
-    // 2. Build from Admin teacherAssignments (Class & Subject Mappings) if no direct slots
-    const fromAssignments = (teacherAssignments || []).filter((ta: any) => {
-      if (!ta) return false;
-      const taTeacher = (ta.teacherName || '').toLowerCase().trim();
-      return (tFullName && taTeacher.includes(tFullName)) || 
-        (tFirstName.length > 2 && taTeacher.includes(tFirstName)) ||
-        (ta.teacherId && (String(ta.teacherId) === String(teacher.id) || String(ta.teacherId) === String((teacher as any).empId)));
-    });
-
-    if (fromAssignments.length > 0) {
-      return fromAssignments.slice(0, 3).map((ta: any, idx: number) => {
-        const timeSlot = idx === 0 ? '09:15 AM - 10:00 AM' : idx === 1 ? '11:00 AM - 11:45 AM' : '01:15 PM - 02:00 PM';
-        const startTime = idx === 0 ? '09:15' : idx === 1 ? '11:00' : '13:15';
-        const endTime = idx === 0 ? '10:00' : idx === 1 ? '11:45' : '14:00';
-        const clsClean = (ta.className || 'Class 9').replace(/^Class\s*/i, '');
-        const subjectToUse = (ta.subject && ta.subject !== 'Mathematics' && ta.subject !== 'Physics') ? ta.subject : mainSub;
-        return {
-          id: `TT-DYN-${ta.id || idx}`,
-          day: todayDay,
-          timeSlot,
-          className: clsClean,
-          section: ta.section || 'A',
-          subject: subjectToUse,
-          teacherName: `${teacher.firstName} ${teacher.lastName}`,
-          roomNo: idx === 0 ? 'Room 202' : idx === 1 ? 'Room 383' : 'Room 101',
-          startTime,
-          endTime
-        };
-      });
-    }
-
-    // 3. Default fallback schedule for logged-in teacher (Suteja K - Social Studies)
-    return [
-      { id: 'TT-SUT-1', day: todayDay, timeSlot: '09:15 AM - 10:00 AM', className: '9', section: 'A', subject: mainSub, teacherName: `${teacher.firstName} ${teacher.lastName}`, roomNo: 'Room 202', startTime: '09:15', endTime: '10:00' },
-      { id: 'TT-SUT-2', day: todayDay, timeSlot: '11:00 AM - 11:45 AM', className: '8', section: 'A', subject: mainSub, teacherName: `${teacher.firstName} ${teacher.lastName}`, roomNo: 'Room 383', startTime: '11:00', endTime: '11:45' },
-      { id: 'TT-SUT-3', day: todayDay, timeSlot: '01:15 PM - 02:00 PM', className: '8', section: 'A', subject: mainSub, teacherName: `${teacher.firstName} ${teacher.lastName}`, roomNo: 'Room 101', startTime: '13:15', endTime: '14:00' }
-    ];
-  }, [timetable, teacherAssignments, teacher, todayDay]);
+    return [];
+  }, [timetable, teacher, todayDay]);
 
   // Helper: parse timeSlot to relative status (Current / Upcoming / Completed)
   const getPeriodStatus = (timeSlot: string) => {
@@ -532,6 +498,45 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     return specific.sort((a, b) => a.sequence - b.sequence);
   }, [periodSettings, selectedClass, selectedSection]);
 
+  // Master periods with strict deduplication
+  const masterPeriods = useMemo(() => {
+    const masterRaw = periodSettings.filter(p => 
+      p.status === 'Active' && 
+      (!p.className || p.className === 'Master' || p.className === 'All' || p.className === '')
+    );
+
+    const uniqueMaster: PeriodSetting[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    const seenSequences = new Set<number>();
+    const seenTimes = new Set<string>();
+
+    masterRaw
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
+      .forEach(p => {
+        const idKey = p.id ? String(p.id).trim() : '';
+        const nameKey = (p.periodName || '').trim().toLowerCase();
+        const seqKey = Number(p.sequence);
+        const timeKey = `${(p.startTime || '').trim()}-${(p.endTime || '').trim()}`;
+
+        const isDuplicate = 
+          (idKey && seenIds.has(idKey)) ||
+          (nameKey && seenNames.has(nameKey)) ||
+          (seqKey && seenSequences.has(seqKey)) ||
+          (timeKey && timeKey !== '-' && seenTimes.has(timeKey));
+
+        if (!isDuplicate) {
+          if (idKey) seenIds.add(idKey);
+          if (nameKey) seenNames.add(nameKey);
+          if (seqKey) seenSequences.add(seqKey);
+          if (timeKey && timeKey !== '-') seenTimes.add(timeKey);
+          uniqueMaster.push(p);
+        }
+      });
+
+    return uniqueMaster;
+  }, [periodSettings]);
+
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
     const match = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -843,8 +848,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         addToast('success', 'Period Configured', `Updated ${periodFormData.periodName}`);
       } else {
         // Cloning master periods for this class since we edited an inherited period
-        const master = periodSettings.filter(p => !p.className && p.status === 'Active');
-        master.forEach(mp => {
+        masterPeriods.forEach(mp => {
           if (mp.id === periodFormData.id) {
             addPeriodSetting({
               academicYear,
@@ -883,7 +887,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           periodName: periodFormData.periodName,
           startTime: periodFormData.startTime,
           endTime: periodFormData.endTime,
-          sequence: Number(periodFormData.sequence || 9),
+          sequence: Number(periodFormData.sequence || (masterPeriods.length + 1)),
           periodType: finalPeriodType || 'Teaching',
           status: 'Active'
         });
@@ -913,8 +917,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       deletePeriodSetting(p.id);
       addToast('success', 'Period Deleted', `Deleted ${p.periodName}`);
     } else {
-      const master = periodSettings.filter(mp => !mp.className && mp.status === 'Active');
-      master.forEach(mp => {
+      masterPeriods.forEach(mp => {
         if (mp.id !== p.id) {
           addPeriodSetting({
             academicYear: mp.academicYear,
@@ -1682,10 +1685,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
       {/* TAB 2: PERIOD SETTINGS */}
       {activeTab === 'period-settings' && (() => {
-        // Master periods
-        const masterPeriods = periodSettings.filter(p => !p.className && p.status === 'Active')
-          .sort((a, b) => a.sequence - b.sequence);
-
         // Class-specific periods
         const classSpecificPeriods = periodSettings.filter(p => 
           p.className === selectedClass && 

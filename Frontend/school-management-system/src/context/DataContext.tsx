@@ -310,6 +310,8 @@ import {
   updateDesignationApi,
   fetchAcademicSubjectsApi,
   fetchAcademicPeriodsApi,
+  savePeriodApi,
+  deletePeriodApi,
   fetchTimetableForClassSectionApi,
   mapSubjectApi,
   saveTimetableSlotApi,
@@ -2869,13 +2871,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("fee_structures", initialFeeStructures),
   );
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
-    const versionKey = "edu_db_fee_payments_wipe_uniform_v600";
+    const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
     const cleaned = (stored || []).filter(p => {
       if (!p) return false;
       const notesLower = (p.notes || '').toLowerCase();
       const recLower = (p.receiptNo || '').toLowerCase();
-      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || '').toLowerCase().includes('uniform'));
+      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || a.termName || '').toLowerCase().includes('uniform'));
       const isUniformPayment = notesLower.includes('uniform') || recLower.includes('uni') || hasAlloc;
       return !isUniformPayment;
     });
@@ -3237,7 +3239,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
-    const versionKey = "edu_db_student_uniform_issues_wipe_v9500_fresh_wipe";
+    const versionKey = "edu_db_student_uniform_issues_wipe_v9999_fresh_pending";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
@@ -3267,7 +3269,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               adm === "REG-1022" ||
               adm === "REG-1021";
             return !isDummy;
-          });
+          }).map(i => ({ ...i, status: (i.status === 'Paid' ? 'Pending' : i.status) as any }));
         }
       }
     } catch (e) {
@@ -4296,14 +4298,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 1. Strict deduplication of uniforms catalog and dynamic Finance Setup price sync
     setUniforms((prevU) => {
-      const seenNorms = new Set<string>();
+      const seenItemKeys = new Set<string>();
+      const seenCatNorms = new Set<string>();
       const deduplicated: UniformItem[] = [];
 
       for (const u of prevU || []) {
         if (!u) continue;
         const norm = (u.category || u.name || "").toLowerCase().trim();
-        if (validCatNorms.has(norm) && !seenNorms.has(norm)) {
-          seenNorms.add(norm);
+        if (!norm) continue;
+        seenCatNorms.add(norm);
+        const itemKey = `${u.id || ''}_${norm}_${u.size || ''}`;
+        if (!seenItemKeys.has(itemKey)) {
+          seenItemKeys.add(itemKey);
           const dynamicPrice = getItemFeeFromFinanceConfig(
             "",
             u.category || u.name,
@@ -4317,8 +4323,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Ensure every category in uniformCategories has 1 catalog item
       validCatList.forEach((cat) => {
-        if (!seenNorms.has(cat.norm)) {
-          seenNorms.add(cat.norm);
+        if (!seenCatNorms.has(cat.norm)) {
+          seenCatNorms.add(cat.norm);
           let defPrice = 350;
           if (cat.norm.includes("blazer")) defPrice = 1500;
           else if (cat.norm.includes("sweater")) defPrice = 800;
@@ -4570,10 +4576,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return "Inactive";
         };
 
+        const deletedRouteIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
+        );
+        const deletedPickupIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_pickup_ids") || "[]"),
+        );
+        const deletedVehicleIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_vehicle_ids") || "[]"),
+        );
+        const deletedDriverIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_driver_ids") || "[]"),
+        );
+        const deletedAssignmentIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_assignment_ids") || "[]"),
+        );
+
         const mergeApiAndLocal = <T extends { id: string | number }>(
           apiList: T[],
           localKey: string,
-          initialFallback: T[],
+          deletedSet?: Set<string>,
         ): T[] => {
           const saved = localStorage.getItem(localKey);
           let localList: T[] = [];
@@ -4586,11 +4608,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           const merged = [...apiList];
           if (Array.isArray(localList)) {
-            localList.forEach((localItem: T) => {
+            localList.forEach((localItem: any) => {
               if (
                 localItem &&
                 localItem.id !== undefined &&
-                localItem.id !== null
+                localItem.id !== null &&
+                !localItem.isDeleted &&
+                localItem.status !== "Deleted" &&
+                (!deletedSet || !deletedSet.has(String(localItem.id)))
               ) {
                 if (
                   !merged.some(
@@ -4602,7 +4627,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             });
           }
-          return merged;
+          return deletedSet
+            ? merged.filter((item: any) => !deletedSet.has(String(item.id)))
+            : merged;
         };
 
         if (routes) {
@@ -4693,9 +4720,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (r: any) =>
               r.routeName &&
               r.routeName.trim() !== "" &&
-              r.routeName.toUpperCase() !== "N/A",
+              r.routeName.toUpperCase() !== "N/A" &&
+              !r.isDeleted &&
+              r.status !== "Deleted" &&
+              !deletedRouteIds.has(String(r.id)) &&
+              !deletedRouteIds.has(String(r.routeId)) &&
+              !deletedRouteIds.has(String(r.routeCode)),
           );
           setRouteMasters(validRoutes);
+          localStorage.setItem("edu_db_route_masters", JSON.stringify(validRoutes));
         }
         if (points) {
           const mappedPoints = points.map((p: any) => ({
@@ -5225,7 +5258,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const data: any = await fetchAcademicPeriodsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
-      if (Array.isArray(dataArray)) {
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
         const mappedData: PeriodSetting[] = dataArray.map((item: any) => ({
           id:
             item.periodId?.toString() ||
@@ -5242,7 +5275,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           periodType: item.periodType || "Teaching Period",
           status: item.status || "Active",
         }));
-        setPeriodSettings(mappedData);
+
+        // Strict deduplication by ID, periodName, sequence, or time slot
+        const uniquePeriods: PeriodSetting[] = [];
+        const seenIds = new Set<string>();
+        const seenNames = new Set<string>();
+        const seenSeqs = new Set<number>();
+        const seenTimes = new Set<string>();
+
+        mappedData.forEach((p) => {
+          const idKey = p.id ? String(p.id).trim() : "";
+          const nameKey = (p.periodName || "").trim().toLowerCase();
+          const seqKey = Number(p.sequence);
+          const timeKey = `${(p.startTime || "").trim()}-${(p.endTime || "").trim()}`;
+
+          const isDuplicate =
+            (idKey && seenIds.has(idKey)) ||
+            (nameKey && seenNames.has(nameKey)) ||
+            (seqKey && seenSeqs.has(seqKey)) ||
+            (timeKey && timeKey !== "-" && seenTimes.has(timeKey));
+
+          if (!isDuplicate) {
+            if (idKey) seenIds.add(idKey);
+            if (nameKey) seenNames.add(nameKey);
+            if (seqKey) seenSeqs.add(seqKey);
+            if (timeKey && timeKey !== "-") seenTimes.add(timeKey);
+            uniquePeriods.push(p);
+          }
+        });
+
+        setPeriodSettings((prev) => {
+          const classSpecific = prev.filter(
+            (p) =>
+              p.className &&
+              p.className !== "Master" &&
+              p.className !== "All",
+          );
+          return [...uniquePeriods, ...classSpecific];
+        });
       }
     } catch (err: any) {
       console.warn("Error fetching periods", err);
@@ -8730,7 +8800,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       category: catName,
     };
-    setUniforms((prev) => [newItem, ...prev]);
+    setUniforms((prev) => {
+      const updated = [newItem, ...prev];
+      try {
+        localStorage.setItem("edu_db_uniforms", JSON.stringify(updated));
+        localStorage.setItem("uniforms", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (catName) {
+      setUniformCategories((prevCats) => {
+        const catNorm = catName.toLowerCase().trim();
+        if (!prevCats.some(c => (c.name || (c as any).categoryName || '').toLowerCase().trim() === catNorm)) {
+          const newCat: UniformCategory = {
+            id: `UC-${Date.now()}`,
+            name: catName,
+            categoryName: catName,
+            description: `${catName} uniform item / package category`
+          };
+          const updatedCats = [...prevCats, newCat];
+          try {
+            localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
+            localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
+          } catch (e) {}
+          return updatedCats;
+        }
+        return prevCats;
+      });
+    }
 
     // Automatically sync with uniformInventory so Dashboard Available Stock updates immediately
     const invId = "UINV-" + Math.floor(100 + Math.random() * 900);
@@ -12967,7 +13065,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteRouteMaster = async (id: string) => {
     try {
       // Find all pickup points belonging to this route and delete them from the backend
-      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id);
+      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id || String(p.routeId) === String(id));
       for (const p of pointsToDelete) {
         try {
           await TransportAPI.deletePickupPointApi(p.id);
@@ -12981,7 +13079,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Find all vehicle assignments belonging to this route and delete them from the backend
       const assignmentsToDelete = vehicleAssignments.filter(
-        (a) => a.routeId === id,
+        (a) => a.routeId === id || String(a.routeId) === String(id),
       );
       for (const a of assignmentsToDelete) {
         try {
@@ -12995,12 +13093,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       await TransportAPI.deleteRouteApi(id);
-      setRouteMasters((prev) => prev.filter((r) => r.id !== id));
-      setPickupPoints((prev) => prev.filter((p) => p.routeId !== id));
-      setVehicleAssignments((prev) => prev.filter((a) => a.routeId !== id));
+    } catch (err) {
+      console.warn("Transport route deletion error:", err);
+    } finally {
+      const targetRoute = routeMasters.find((r) => r.id === id || String(r.id) === String(id));
+      const routeCode = targetRoute?.routeCode;
+
+      setRouteMasters((prev) => {
+        const next = prev.filter((r) => r.id !== id && String(r.id) !== String(id) && (routeCode ? r.routeCode !== routeCode : true));
+        localStorage.setItem("edu_db_route_masters", JSON.stringify(next));
+        return next;
+      });
+      setPickupPoints((prev) => {
+        const next = prev.filter((p) => p.routeId !== id && String(p.routeId) !== String(id));
+        localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
+        return next;
+      });
+      setVehicleAssignments((prev) => {
+        const next = prev.filter((a) => a.routeId !== id && String(a.routeId) !== String(id));
+        localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(next));
+        return next;
+      });
       setStudentTransports((prev) =>
         prev.map((st) =>
-          st.routeId === id
+          st.routeId === id || String(st.routeId) === String(id)
             ? {
                 ...st,
                 routeId: "",
@@ -13012,28 +13128,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             : st,
         ),
+      );
+      const deletedTrack = new Set<string>(
+        JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
+      );
+      deletedTrack.add(String(id));
+      if (routeCode) deletedTrack.add(String(routeCode));
+      localStorage.setItem(
+        "edu_db_deleted_route_ids",
+        JSON.stringify(Array.from(deletedTrack)),
       );
       logActivity("Deleted Transport Route", `Removed Route ID ${id}`);
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setRouteMasters((prev) => prev.filter((r) => r.id !== id));
-      setPickupPoints((prev) => prev.filter((p) => p.routeId !== id));
-      setVehicleAssignments((prev) => prev.filter((a) => a.routeId !== id));
-      setStudentTransports((prev) =>
-        prev.map((st) =>
-          st.routeId === id
-            ? {
-                ...st,
-                routeId: "",
-                routeName: "Unassigned",
-                pickupPoint: "Unassigned",
-                vehicleId: "",
-                vehicleNumber: "",
-                status: "Inactive",
-              }
-            : st,
-        ),
-      );
     }
   };
 

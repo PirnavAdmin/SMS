@@ -248,14 +248,18 @@ namespace SMS.Api.Controllers.AcademicManagement
                 var cleanSection = (section ?? "A").Replace("Section ", "").Trim();
 
                 var count = await _context.Students
-                    .CountAsync(s => s.ClassName.Contains(cleanClass) && (string.IsNullOrEmpty(cleanSection) || s.Section.Equals(cleanSection, StringComparison.OrdinalIgnoreCase)));
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .CountAsync(s => s.ClassGrade != null && s.ClassGrade.ClassName != null && s.ClassGrade.ClassName.Contains(cleanClass) && (string.IsNullOrEmpty(cleanSection) || (s.ClassSection != null && s.ClassSection.SectionName != null && s.ClassSection.SectionName.ToLower() == cleanSection.ToLower())));
 
                 if (count == 0) count = 38;
 
                 var teacherAssignment = await _context.TeacherAssignments
-                    .FirstOrDefaultAsync(ta => ta.ClassName.Contains(cleanClass) && ta.Role == "Class Teacher");
+                    .Include(ta => ta.ClassGrade)
+                    .Include(ta => ta.Teacher)
+                    .FirstOrDefaultAsync(ta => ta.ClassGrade != null && ta.ClassGrade.ClassName != null && ta.ClassGrade.ClassName.Contains(cleanClass) && ta.Role == "Class Teacher");
 
-                string classTeacher = teacherAssignment != null ? teacherAssignment.TeacherName : "Suteja K";
+                string classTeacher = teacherAssignment?.Teacher != null ? $"{teacherAssignment.Teacher.FirstName} {teacherAssignment.Teacher.LastName}".Trim() : "Suteja K";
 
                 return Ok(new
                 {
