@@ -25,7 +25,7 @@ export const TrainingContainerView: React.FC = () => {
     if (fetchFacultyTrainingData) {
       fetchFacultyTrainingData();
     }
-  }, [fetchFacultyTrainingData]);
+  }, []);
 
   const { addToast } = useToast();
   const { role, selectedBranch } = useAuth();

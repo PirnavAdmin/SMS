@@ -1684,36 +1684,21 @@ using (var scope = app.Services.CreateScope())
 
         var defaultRoles = new[]
         {
-            new Role
-            {
-                RoleName = "SuperAdmin",
-                Description = "System Owner"
-            },
-            new Role
-            {
-                RoleName = "Admin",
-                Description = "School Administrator"
-            },
-            new Role
-            {
-                RoleName = "Teacher",
-                Description = "Teacher / Faculty"
-            },
-            new Role
-            {
-                RoleName = "Warden",
-                Description = "Hostel Warden / Supervisor"
-            },
-            new Role
-            {
-                RoleName = "Student",
-                Description = "Student Account"
-            },
-            new Role
-            {
-                RoleName = "Parent",
-                Description = "Parent / Guardian"
-            }
+            new Role { RoleName = "Super Admin", Description = "System Owner" },
+            new Role { RoleName = "SuperAdmin", Description = "System Owner" },
+            new Role { RoleName = "Admin", Description = "School Administrator" },
+            new Role { RoleName = "Principal", Description = "School Principal / Headmaster" },
+            new Role { RoleName = "Teacher", Description = "Teacher / Faculty" },
+            new Role { RoleName = "Hostel Warden", Description = "Hostel Warden / Supervisor" },
+            new Role { RoleName = "Transport Manager", Description = "Transport Manager / Fleet Incharge" },
+            new Role { RoleName = "Driver", Description = "School Bus Driver / Attendant" },
+            new Role { RoleName = "Librarian", Description = "Library Incharge" },
+            new Role { RoleName = "Accountant", Description = "Finance / Accounts Manager" },
+            new Role { RoleName = "HR", Description = "Human Resources Manager" },
+            new Role { RoleName = "Receptionist", Description = "Front Desk / Receptionist" },
+            new Role { RoleName = "Staff", Description = "General Non-Teaching Staff" },
+            new Role { RoleName = "Student", Description = "Student Account" },
+            new Role { RoleName = "Parent", Description = "Parent / Guardian" }
         };
 
         foreach (var role in defaultRoles)
@@ -1729,9 +1714,25 @@ using (var scope = app.Services.CreateScope())
 
         await context.SaveChangesAsync();
 
+        // Standardize any legacy user roles in users table
+        try
+        {
+            var allUsers = await context.Users.ToListAsync();
+            foreach (var u in allUsers)
+            {
+                var normRole = SMS.Api.Helpers.RoleHelper.NormalizeRoleName(u.Role);
+                if (u.Role != normRole)
+                {
+                    u.Role = normRole;
+                }
+            }
+            await context.SaveChangesAsync();
+        }
+        catch { }
+
         var superAdminRole =
             await context.Roles.FirstOrDefaultAsync(
-                x => x.RoleName == "SuperAdmin");
+                x => x.RoleName == "SuperAdmin" || x.RoleName == "Super Admin");
 
         var adminRole =
             await context.Roles.FirstOrDefaultAsync(

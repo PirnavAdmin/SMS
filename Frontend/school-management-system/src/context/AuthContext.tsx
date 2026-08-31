@@ -32,6 +32,24 @@ const defaultAdminUser: User = {
   status: 'Active'
 };
 
+export const normalizeUserRole = (roleStr: string): UserRole => {
+  const clean = (roleStr || "").toLowerCase().replace(/[_\s-]+/g, " ").trim();
+  if (clean === "superadmin" || clean === "super admin" || clean === "admin") return "Admin";
+  if (clean === "principal") return "Principal";
+  if (clean === "teacher" || clean === "faculty") return "Teacher";
+  if (clean === "warden" || clean === "hostel warden" || clean === "hostelwarden") return "Hostel Warden";
+  if (clean === "librarian") return "Librarian";
+  if (clean === "driver" || clean === "bus attendant" || clean === "bus driver" || clean === "chauffeur") return "Driver";
+  if (clean === "transport manager" || clean === "transportmanager" || clean === "transport") return "Transport Manager";
+  if (clean === "accountant" || clean === "finance") return "Accountant";
+  if (clean === "hr") return "HR";
+  if (clean === "receptionist") return "Receptionist";
+  if (clean === "parent") return "Parent";
+  if (clean === "student") return "Student";
+  if (clean === "staff" || clean === "non teaching" || clean === "non-teaching") return "Staff";
+  return "Staff";
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const formatEmailToName = (email: string): string => {
@@ -57,6 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
+          if (parsed.role) {
+            parsed.role = normalizeUserRole(parsed.role);
+          }
           if (parsed.email && (parsed.name === 'Administrator' || parsed.name === 'Admin User' || !parsed.name)) {
             parsed.name = formatEmailToName(parsed.email);
           }
@@ -71,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
-    return user ? user.role : 'Admin';
+    return user ? normalizeUserRole(user.role) : 'Admin';
   });
 
   const [token, setToken] = useState<string | null>(() => {
@@ -98,9 +119,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setRole = (newRole: UserRole) => {
-    setRoleState(newRole);
+    const normalized = normalizeUserRole(newRole);
+    setRoleState(normalized);
     if (user) {
-      const updated = { ...user, role: newRole };
+      const updated = { ...user, role: normalized };
       setUser(updated);
       localStorage.setItem('auth_user', JSON.stringify(updated));
     }
@@ -114,15 +136,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No authentication token received.');
       }
 
-      const roles = response?.roles || [];
-      const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
-      let mappedRole: UserRole = 'Student'; // Default fallback
-      if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
-        mappedRole = 'Admin';
-      } else {
-        const resolvedRole = priorityRoles.find(role => roles.includes(role));
-        if (resolvedRole) {
-          mappedRole = resolvedRole;
+      const roles: string[] = response?.roles || [];
+      const priorityOrder: UserRole[] = [
+        'Admin',
+        'Principal',
+        'Hostel Warden',
+        'Transport Manager',
+        'Driver',
+        'Librarian',
+        'Accountant',
+        'HR',
+        'Receptionist',
+        'Teacher',
+        'Staff',
+        'Parent',
+        'Student',
+      ];
+
+      let mappedRole: UserRole = chosenRole ? normalizeUserRole(chosenRole) : 'Student';
+      if (roles.length > 0) {
+        const normalizedRoles = roles.map(r => normalizeUserRole(r));
+        const matched = priorityOrder.find(pRole => normalizedRoles.includes(pRole));
+        if (matched) {
+          mappedRole = matched;
         }
       }
 

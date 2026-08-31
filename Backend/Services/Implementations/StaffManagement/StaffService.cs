@@ -246,8 +246,7 @@ public class StaffService : IStaffService
         // Sync staff into users table for authentication
         try
         {
-            var isTeaching = (staff.EmployeeCategory ?? "").ToLower().Contains("teach");
-            var userRole = isTeaching ? "Teacher" : (!string.IsNullOrWhiteSpace(staff.Designation) ? staff.Designation : "Staff");
+            var userRole = SMS.Api.Helpers.RoleHelper.NormalizeRoleName(staff.Designation, staff.EmployeeCategory, staff.Department);
             var fullName = $"{staff.FirstName} {staff.LastName}".Trim();
             var mobileNo = !string.IsNullOrWhiteSpace(staff.Phone) ? staff.Phone.Trim() : (!string.IsNullOrWhiteSpace(staff.AlternateMobile) ? staff.AlternateMobile.Trim() : $"STF{staff.StaffId}");
 
@@ -413,6 +412,31 @@ public class StaffService : IStaffService
 
         await _schoolRepository.SaveChangesAsync();
         await SyncTeacherAssignmentsAsync(staff.StaffId, dto.AssignedClasses, dto.AssignedSubjects);
+
+        // Sync staff updates into users table
+        try
+        {
+            var userRole = SMS.Api.Helpers.RoleHelper.NormalizeRoleName(staff.Designation, staff.EmployeeCategory, staff.Department);
+            var fullName = $"{staff.FirstName} {staff.LastName}".Trim();
+            var mobileNo = !string.IsNullOrWhiteSpace(staff.Phone) ? staff.Phone.Trim() : (!string.IsNullOrWhiteSpace(staff.AlternateMobile) ? staff.AlternateMobile.Trim() : $"STF{staff.StaffId}");
+
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => 
+                (!string.IsNullOrWhiteSpace(staff.Email) && u.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
+                (!string.IsNullOrWhiteSpace(mobileNo) && u.MobileNumber == mobileNo));
+
+            if (existingUser != null)
+            {
+                existingUser.FullName = fullName;
+                existingUser.Role = userRole;
+                if (!string.IsNullOrWhiteSpace(staff.Email)) existingUser.Email = staff.Email;
+                await _context.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StaffService] Failed to sync user on update: {ex.Message}");
+        }
+
         return MapToStaffResponseDto(staff);
     }
 

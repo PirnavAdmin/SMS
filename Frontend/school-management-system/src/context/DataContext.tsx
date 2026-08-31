@@ -5683,203 +5683,212 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const fetchUniformData = async () => {
-    try {
-      const [catRes, sizeRes, supplierRes, typeRes, distRes] =
-        await Promise.allSettled([
-          fetchUniformCategoriesApi(),
-          fetchUniformSizesApi(),
-          fetchUniformSuppliersApi(),
-          fetchUniformTypesApi(),
-          fetchUniformDistributionsApi(),
-        ]);
-      const extract = (r: PromiseSettledResult<any>) =>
-        r.status === "fulfilled"
-          ? Array.isArray(r.value)
-            ? r.value
-            : r.value?.data || []
-          : [];
-      const cats = extract(catRes);
-      const sizes = extract(sizeRes);
-      const suppliers = extract(supplierRes);
-      const types = extract(typeRes);
-      const dists = extract(distRes);
-      if (cats.length) {
-        const mappedCats = cats.map((c: any) => ({
-          id: String(
-            c.id ||
-              c.categoryId ||
-              `UC-${Math.random().toString(36).substr(2, 5)}`,
-          ),
-          name: c.name || c.categoryName || "",
-          categoryName: c.categoryName || c.name || "",
-          description: c.description || "",
-          status: c.status || "Active",
-          branch: c.branch || selectedBranch || "Main Campus",
-        }));
-        setUniformCategories((prev) => {
-          if (prev && prev.length > 0) return prev;
-          return mappedCats;
-        });
-      }
-      if (sizes.length) {
-        const mappedSizes = sizes.map((s: any) => ({
-          id: String(
-            s.id || s.sizeId || `US-${Math.random().toString(36).substr(2, 5)}`,
-          ),
-          sizeName: s.sizeName || s.sizeCodeName || "",
-          sizeCodeName: s.sizeCodeName || s.sizeName || "",
-          chest: s.chest || s.chestSpec || s.chestWidth || "",
-          waist: s.waist || s.waistSpec || s.waistSpecs || "",
-          height: s.height || s.heightTarget || s.heightBounds || "",
-          ageGroup: s.ageGroup || s.ageBracket || "",
-          gender: s.gender || "Unisex",
-          branch: s.branch || selectedBranch || "Main Campus",
-        }));
-        setUniformSizes((prev) => {
-          if (prev && prev.length > 0) return prev;
-          return mappedSizes;
-        });
-      }
-      if (suppliers.length) {
-        const mappedSuppliers = suppliers.map((s: any) => ({
-          id: String(
-            s.id ||
-              s.supplierId ||
-              `SUP-${Math.random().toString(36).substr(2, 5)}`,
-          ),
-          supplierName: s.supplierName || s.companyName || "",
-          companyName: s.companyName || s.supplierName || "",
-          contactPerson: s.contactPerson || s.contactRepresentative || "",
-          mobile: s.mobile || s.phone || s.mobileNumber || "",
-          phone: s.phone || s.mobile || s.mobileNumber || "",
-          email: s.email || s.emailAddress || "",
-          gstNumber: s.gstNumber || s.gstRegistrationNo || "",
-          address: s.address || s.warehouseAddress || "",
-          status: s.status || "Active",
-          branch: s.branch || selectedBranch || "Main Campus",
-        }));
-        setUniformSuppliers((prev) => {
-          if (prev && prev.length > 0) return prev;
-          return mappedSuppliers;
-        });
-      }
-      if (types.length) {
-        const mappedInv = types.map((t: any) => ({
-          id: String(
-            t.id ||
-              t.uniformTypeId ||
-              `UINV-${Math.random().toString(36).substr(2, 5)}`,
-          ),
-          itemId: String(t.id || t.uniformTypeId || ""),
-          itemName: t.itemName || t.uniformCategory || t.category || "",
-          category: t.categoryName || t.category || t.itemName || "Uniform",
-          size: t.size || "M",
-          openingStock: Number(t.openingStock || 0),
-          currentStock: Number(
-            t.availableStock !== undefined
-              ? t.availableStock
-              : t.currentStock !== undefined
-                ? t.currentStock
-                : 0,
-          ),
-          minimumStock: Number(
-            t.minThreshold !== undefined
-              ? t.minThreshold
-              : t.minimumStock !== undefined
-                ? t.minimumStock
-                : 30,
-          ),
-          reorderLevel: Number(
-            t.reorderPoint !== undefined
-              ? t.reorderPoint
-              : t.reorderLevel !== undefined
-                ? t.reorderLevel
-                : 50,
-          ),
-          status:
-            t.stockStatus ||
-            (Number(t.availableStock ?? t.currentStock ?? 0) === 0
-              ? "Out of Stock"
-              : Number(t.availableStock ?? t.currentStock ?? 0) <=
-                  Number(t.minThreshold ?? 30)
-                ? "Low Stock"
-                : "In Stock"),
-          lastUpdated: t.createdAt || new Date().toISOString(),
-          branch: t.branch || selectedBranch || "Main Campus",
-        }));
-        setUniformInventory((prev) => {
-          const apiIds = new Set(mappedInv.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...localOnly, ...mappedInv];
-        });
-
-        const mappedUniforms = types.map((t: any) => ({
-          id: String(
-            t.id ||
-              t.uniformTypeId ||
-              `UNI-${Math.random().toString(36).substr(2, 5)}`,
-          ),
-          category: t.categoryName || t.category || t.itemName || "Uniform",
-          name: t.itemName || "",
-          gender: t.gender || "Unisex",
-          size: t.size || "M",
-          className: t.schoolWing || t.level || "All Wings",
-          color: t.color || t.colorSpec || "Standard",
-          price: Number(t.unitPrice || 0),
-          availableStock: Number(
-            t.availableStock !== undefined
-              ? t.availableStock
-              : t.currentStock !== undefined
-                ? t.currentStock
-                : 0,
-          ),
-          branch: t.branch || selectedBranch || "Main Campus",
-        }));
-        setUniforms((prev) => {
-          const apiIds = new Set(mappedUniforms.map((u: any) => u.id));
-          const localOnly = (prev || []).filter((u: any) => !apiIds.has(u.id));
-          return [...localOnly, ...mappedUniforms];
-        });
-      }
-      if (dists.length) {
-        const mappedDists = dists.map((d: any) => ({
-          id: String(
-            d.id ||
-              d.distributionId ||
-              `UID-${Math.random().toString(36).substr(2, 5)}`,
-          ),
-          studentId: String(d.studentId || ""),
-          studentName: d.studentName || "",
-          admissionNo: d.admissionNo || "",
-          className: d.className || d.class || "",
-          section: d.section || "",
-          itemId: String(d.uniformTypeId || d.itemId || ""),
-          itemName: d.itemName || d.issuedItem || d.clothingItem || "",
-          size: d.sizeSpec || d.size || "M",
-          quantity: Number(d.quantity || d.qty || 1),
-          issueDate: d.distributionDate
-            ? new Date(d.distributionDate).toISOString().split("T")[0]
-            : d.issueDate || new Date().toISOString().split("T")[0],
-          status: d.status || "Issued",
-          academicYear: d.academicYear || "2026-2027",
-          branch: d.branch || selectedBranch || "Main Campus",
-          notes: d.notes || d.actionRemarks || "",
-          type: d.transactionType?.includes("Baseline")
-            ? "Base Package"
-            : "Additional Purchase",
-          price: Number(d.totalAmount || 0),
-        }));
-        const deletedTrack = new Set(JSON.parse(localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]"));
-        const validMappedDists = mappedDists.filter((d: any) => !deletedTrack.has(d.id));
-        setStudentUniformIssues((prev) => {
-          const apiIds = new Set(validMappedDists.map((d: any) => d.id));
-          const localOnly = (prev || []).filter((d: any) => !apiIds.has(d.id) && !deletedTrack.has(d.id));
-          return [...validMappedDists, ...localOnly];
-        });
-      }
-    } catch (err) {
-      console.warn("Failed to fetch uniform data from API", err);
+    if (activeRequests.current["uniform-data"]) {
+      return activeRequests.current["uniform-data"];
     }
+    const promise = (async () => {
+      try {
+        const [catRes, sizeRes, supplierRes, typeRes, distRes] =
+          await Promise.allSettled([
+            fetchUniformCategoriesApi(),
+            fetchUniformSizesApi(),
+            fetchUniformSuppliersApi(),
+            fetchUniformTypesApi(),
+            fetchUniformDistributionsApi(),
+          ]);
+        const extract = (r: PromiseSettledResult<any>) =>
+          r.status === "fulfilled"
+            ? Array.isArray(r.value)
+              ? r.value
+              : r.value?.data || []
+            : [];
+        const cats = extract(catRes);
+        const sizes = extract(sizeRes);
+        const suppliers = extract(supplierRes);
+        const types = extract(typeRes);
+        const dists = extract(distRes);
+        if (cats.length) {
+          const mappedCats = cats.map((c: any) => ({
+            id: String(
+              c.id ||
+                c.categoryId ||
+                `UC-${Math.random().toString(36).substr(2, 5)}`,
+            ),
+            name: c.name || c.categoryName || "",
+            categoryName: c.categoryName || c.name || "",
+            description: c.description || "",
+            status: c.status || "Active",
+            branch: c.branch || selectedBranch || "Main Campus",
+          }));
+          setUniformCategories((prev) => {
+            if (prev && prev.length > 0) return prev;
+            return mappedCats;
+          });
+        }
+        if (sizes.length) {
+          const mappedSizes = sizes.map((s: any) => ({
+            id: String(
+              s.id || s.sizeId || `US-${Math.random().toString(36).substr(2, 5)}`,
+            ),
+            sizeName: s.sizeName || s.sizeCodeName || "",
+            sizeCodeName: s.sizeCodeName || s.sizeName || "",
+            chest: s.chest || s.chestSpec || s.chestWidth || "",
+            waist: s.waist || s.waistSpec || s.waistSpecs || "",
+            height: s.height || s.heightTarget || s.heightBounds || "",
+            ageGroup: s.ageGroup || s.ageBracket || "",
+            gender: s.gender || "Unisex",
+            branch: s.branch || selectedBranch || "Main Campus",
+          }));
+          setUniformSizes((prev) => {
+            if (prev && prev.length > 0) return prev;
+            return mappedSizes;
+          });
+        }
+        if (suppliers.length) {
+          const mappedSuppliers = suppliers.map((s: any) => ({
+            id: String(
+              s.id ||
+                s.supplierId ||
+                `SUP-${Math.random().toString(36).substr(2, 5)}`,
+            ),
+            supplierName: s.supplierName || s.companyName || "",
+            companyName: s.companyName || s.supplierName || "",
+            contactPerson: s.contactPerson || s.contactRepresentative || "",
+            mobile: s.mobile || s.phone || s.mobileNumber || "",
+            phone: s.phone || s.mobile || s.mobileNumber || "",
+            email: s.email || s.emailAddress || "",
+            gstNumber: s.gstNumber || s.gstRegistrationNo || "",
+            address: s.address || s.warehouseAddress || "",
+            status: s.status || "Active",
+            branch: s.branch || selectedBranch || "Main Campus",
+          }));
+          setUniformSuppliers((prev) => {
+            if (prev && prev.length > 0) return prev;
+            return mappedSuppliers;
+          });
+        }
+        if (types.length) {
+          const mappedInv = types.map((t: any) => ({
+            id: String(
+              t.id ||
+                t.uniformTypeId ||
+                `UINV-${Math.random().toString(36).substr(2, 5)}`,
+            ),
+            itemId: String(t.id || t.uniformTypeId || ""),
+            itemName: t.itemName || t.uniformCategory || t.category || "",
+            category: t.categoryName || t.category || t.itemName || "Uniform",
+            size: t.size || "M",
+            openingStock: Number(t.openingStock || 0),
+            currentStock: Number(
+              t.availableStock !== undefined
+                ? t.availableStock
+                : t.currentStock !== undefined
+                  ? t.currentStock
+                  : 0,
+            ),
+            minimumStock: Number(
+              t.minThreshold !== undefined
+                ? t.minThreshold
+                : t.minimumStock !== undefined
+                  ? t.minimumStock
+                  : 30,
+            ),
+            reorderLevel: Number(
+              t.reorderPoint !== undefined
+                ? t.reorderPoint
+                : t.reorderLevel !== undefined
+                  ? t.reorderLevel
+                  : 50,
+            ),
+            status:
+              t.stockStatus ||
+              (Number(t.availableStock ?? t.currentStock ?? 0) === 0
+                ? "Out of Stock"
+                : Number(t.availableStock ?? t.currentStock ?? 0) <=
+                    Number(t.minThreshold ?? 30)
+                  ? "Low Stock"
+                  : "In Stock"),
+            lastUpdated: t.createdAt || new Date().toISOString(),
+            branch: t.branch || selectedBranch || "Main Campus",
+          }));
+          setUniformInventory((prev) => {
+            const apiIds = new Set(mappedInv.map((i: any) => i.id));
+            const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+            return [...localOnly, ...mappedInv];
+          });
+
+          const mappedUniforms = types.map((t: any) => ({
+            id: String(
+              t.id ||
+                t.uniformTypeId ||
+                `UNI-${Math.random().toString(36).substr(2, 5)}`,
+            ),
+            category: t.categoryName || t.category || t.itemName || "Uniform",
+            name: t.itemName || "",
+            gender: t.gender || "Unisex",
+            size: t.size || "M",
+            className: t.schoolWing || t.level || "All Wings",
+            color: t.color || t.colorSpec || "Standard",
+            price: Number(t.unitPrice || 0),
+            availableStock: Number(
+              t.availableStock !== undefined
+                ? t.availableStock
+                : t.currentStock !== undefined
+                  ? t.currentStock
+                  : 0,
+            ),
+            branch: t.branch || selectedBranch || "Main Campus",
+          }));
+          setUniforms((prev) => {
+            const apiIds = new Set(mappedUniforms.map((u: any) => u.id));
+            const localOnly = (prev || []).filter((u: any) => !apiIds.has(u.id));
+            return [...localOnly, ...mappedUniforms];
+          });
+        }
+        if (dists.length) {
+          const mappedDists = dists.map((d: any) => ({
+            id: String(
+              d.id ||
+                d.distributionId ||
+                `UID-${Math.random().toString(36).substr(2, 5)}`,
+            ),
+            studentId: String(d.studentId || ""),
+            studentName: d.studentName || "",
+            admissionNo: d.admissionNo || "",
+            className: d.className || d.class || "",
+            section: d.section || "",
+            itemId: String(d.uniformTypeId || d.itemId || ""),
+            itemName: d.itemName || d.issuedItem || d.clothingItem || "",
+            size: d.sizeSpec || d.size || "M",
+            quantity: Number(d.quantity || d.qty || 1),
+            issueDate: d.distributionDate
+              ? new Date(d.distributionDate).toISOString().split("T")[0]
+              : d.issueDate || new Date().toISOString().split("T")[0],
+            status: d.status || "Issued",
+            academicYear: d.academicYear || "2026-2027",
+            branch: d.branch || selectedBranch || "Main Campus",
+            notes: d.notes || d.actionRemarks || "",
+            type: d.transactionType?.includes("Baseline")
+              ? "Base Package"
+              : "Additional Purchase",
+            price: Number(d.totalAmount || 0),
+          }));
+          const deletedTrack = new Set(JSON.parse(localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]"));
+          const validMappedDists = mappedDists.filter((d: any) => !deletedTrack.has(d.id));
+          setStudentUniformIssues((prev) => {
+            const apiIds = new Set(validMappedDists.map((d: any) => d.id));
+            const localOnly = (prev || []).filter((d: any) => !apiIds.has(d.id) && !deletedTrack.has(d.id));
+            return [...validMappedDists, ...localOnly];
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch uniform data from API", err);
+      } finally {
+        delete activeRequests.current["uniform-data"];
+      }
+    })();
+    activeRequests.current["uniform-data"] = promise;
+    return promise;
   };
 
   const fetchSchoolEventsData = async () => {

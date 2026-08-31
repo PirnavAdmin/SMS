@@ -33,7 +33,7 @@ export const LeaveManagementView: React.FC = () => {
     if (fetchLeaveTypes) fetchLeaveTypes();
     if (fetchLeaveApplications) fetchLeaveApplications();
     if (fetchLeaveBalances) fetchLeaveBalances();
-  }, [fetchLeaveTypes, fetchLeaveApplications, fetchLeaveBalances]);
+  }, []);
 
   const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
 
