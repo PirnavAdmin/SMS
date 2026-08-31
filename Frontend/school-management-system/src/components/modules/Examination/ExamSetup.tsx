@@ -189,14 +189,14 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       setFormData({
         id: exam.id,
         name: exam.name || '',
-        examType: exam.examType || (exam as any).assessmentType || 'Unit Test',
+        examType: exam.examType || (exam as any).assessmentType || '',
         term: termVal,
         applicableClasses: appClasses,
         startDate: exam.startDate || '',
         endDate: exam.endDate || '',
         defaultStartTime: exam.defaultStartTime || '09:00',
         defaultEndTime: exam.defaultEndTime || '12:00',
-        status: exam.status || 'Scheduled',
+        status: exam.status || 'Draft',
         publishStatus: exam.publishStatus || 'Draft',
         marksConfig: {
           maxMarks: exam.marksConfig?.maxMarks || 100,
@@ -620,7 +620,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       >
 
 
-        {!exam?.id ? (
+        {!exam ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-3xl space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200 dark:border-sky-900/60">
               <Award className="w-6 h-6" />

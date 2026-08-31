@@ -72,40 +72,23 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         }));
         
         setExams(serverExams);
-        if (serverExams.length > 0) {
-          setSelectedExamId(serverExams[0].id);
-        } else {
-          setSelectedExamId('');
-          const dynamicClasses = response.data.applicableClasses && response.data.applicableClasses.length > 0
-            ? response.data.applicableClasses
-            : (academicClasses || []).map(c => c.name).filter(Boolean);
-
-          setActiveExam({
-            id: '',
-            name: '',
-            examType: response.data.assessmentTypes?.[0] || 'Unit Test',
-            term: response.data.academicTerms?.[0] || 'Term 1',
-            academicTerm: response.data.academicTerms?.[0] || 'Term 1',
-            startDate: new Date().toISOString().split('T')[0],
-            endDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-            applicableClasses: dynamicClasses,
-            status: 'Draft',
-            marksConfig: {
-              maxMarks: 100,
-              passMarks: 35,
-              classWiseConfig: {},
-              subjectWiseConfig: {}
-            }
-          });
-        }
+        // Only keep selected exam if it still exists, otherwise leave empty for user selection
+        setSelectedExamId(prev => {
+          if (prev && serverExams.some(e => e.id === prev)) {
+            return prev;
+          }
+          return '';
+        });
       } else {
         setExams([]);
         setSelectedExamId('');
+        setActiveExam(null);
       }
     } catch (err: any) {
       // Clean fallback on connection issue
       setExams([]);
       setSelectedExamId('');
+      setActiveExam(null);
     } finally {
       if (showProgress) setLoading(false);
     }
@@ -222,31 +205,28 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
     return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
   }, [academicClasses]);
 
-  const handleCreateNewExam = async () => {
-    setLoading(true);
-    try {
-      const payload = {
-        examName: 'New Examination',
-        assessmentType: options?.assessmentTypes?.[0] || 'Unit Test',
-        academicTerm: options?.academicTerms?.[0] || 'Mid Term 1',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-        applicableClasses: []
-      };
-      const response = await saveExamDetailsApi(payload);
-      if (response && response.success && response.data) {
-        addToast('success', 'Exam Setup Initialized', 'Created a new examination template.');
-        await loadOptions(false);
-        setSelectedExamId(response.data.examId.toString());
-        setActiveTab('setup');
-      } else {
-        addToast('error', 'Creation Failed', response?.message || 'Failed to initialize new exam template.');
+  const handleCreateNewExam = () => {
+    const newExamObj = {
+      id: 'new',
+      name: '',
+      examType: '',
+      term: '',
+      academicTerm: '',
+      startDate: '',
+      endDate: '',
+      applicableClasses: [],
+      status: 'Draft',
+      marksConfig: {
+        maxMarks: 100,
+        passMarks: 35,
+        classWiseConfig: {},
+        subjectWiseConfig: {}
       }
-    } catch (err: any) {
-      addToast('error', 'API Error', err.message || 'Failed to create new exam.');
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    setSelectedExamId('new');
+    setActiveExam(newExamObj);
+    setActiveTab('setup');
   };
 
   const handleDeleteActiveExam = () => {
@@ -271,13 +251,14 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
   const handleSaveSetup = async (updatedFields: any, showToast = true) => {
     try {
+      const isNew = !selectedExamId || selectedExamId === 'new' || !/^\d+$/.test(selectedExamId);
       const payload = {
-        examId: selectedExamId ? Number(selectedExamId) : undefined,
-        examName: updatedFields.name || updatedFields.examName || activeExam?.name || 'Untitled Exam',
-        assessmentType: updatedFields.examType || updatedFields.assessmentType || activeExam?.examType || 'Unit Test',
-        academicTerm: updatedFields.term || updatedFields.academicTerm || activeExam?.term || 'Mid Term 1',
-        startDate: updatedFields.startDate || activeExam?.startDate || new Date().toISOString().split('T')[0],
-        endDate: updatedFields.endDate || activeExam?.endDate || new Date().toISOString().split('T')[0],
+        examId: isNew ? undefined : Number(selectedExamId),
+        examName: updatedFields.name || updatedFields.examName || activeExam?.name || '',
+        assessmentType: updatedFields.examType || updatedFields.assessmentType || activeExam?.examType || '',
+        academicTerm: updatedFields.term || updatedFields.academicTerm || activeExam?.term || '',
+        startDate: updatedFields.startDate || activeExam?.startDate || '',
+        endDate: updatedFields.endDate || activeExam?.endDate || '',
         applicableClasses: updatedFields.applicableClasses || activeExam?.applicableClasses || []
       };
       
