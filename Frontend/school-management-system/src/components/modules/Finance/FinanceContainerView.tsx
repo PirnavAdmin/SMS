@@ -21,7 +21,8 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     if (fetchFinanceData) {
       fetchFinanceData();
     }
-  }, [fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const normalizedTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
