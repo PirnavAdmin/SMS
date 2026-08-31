@@ -52,7 +52,6 @@ import {
   teacherCheckOutApi,
   fetchTeacherTodayAttendanceApi,
 } from "../../../api/attendance";
-import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 
 type AttendanceTab = "teaching" | "non-teaching";
 
