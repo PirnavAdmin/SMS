@@ -310,6 +310,8 @@ import {
   updateDesignationApi,
   fetchAcademicSubjectsApi,
   fetchAcademicPeriodsApi,
+  savePeriodApi,
+  deletePeriodApi,
   fetchTimetableForClassSectionApi,
   mapSubjectApi,
   saveTimetableSlotApi,
@@ -5230,7 +5232,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const data: any = await fetchAcademicPeriodsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
-      if (Array.isArray(dataArray)) {
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
         const mappedData: PeriodSetting[] = dataArray.map((item: any) => ({
           id:
             item.periodId?.toString() ||
@@ -5247,7 +5249,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           periodType: item.periodType || "Teaching Period",
           status: item.status || "Active",
         }));
-        setPeriodSettings(mappedData);
+
+        // Strict deduplication by ID, periodName, sequence, or time slot
+        const uniquePeriods: PeriodSetting[] = [];
+        const seenIds = new Set<string>();
+        const seenNames = new Set<string>();
+        const seenSeqs = new Set<number>();
+        const seenTimes = new Set<string>();
+
+        mappedData.forEach((p) => {
+          const idKey = p.id ? String(p.id).trim() : "";
+          const nameKey = (p.periodName || "").trim().toLowerCase();
+          const seqKey = Number(p.sequence);
+          const timeKey = `${(p.startTime || "").trim()}-${(p.endTime || "").trim()}`;
+
+          const isDuplicate =
+            (idKey && seenIds.has(idKey)) ||
+            (nameKey && seenNames.has(nameKey)) ||
+            (seqKey && seenSeqs.has(seqKey)) ||
+            (timeKey && timeKey !== "-" && seenTimes.has(timeKey));
+
+          if (!isDuplicate) {
+            if (idKey) seenIds.add(idKey);
+            if (nameKey) seenNames.add(nameKey);
+            if (seqKey) seenSeqs.add(seqKey);
+            if (timeKey && timeKey !== "-") seenTimes.add(timeKey);
+            uniquePeriods.push(p);
+          }
+        });
+
+        setPeriodSettings((prev) => {
+          const classSpecific = prev.filter(
+            (p) =>
+              p.className &&
+              p.className !== "Master" &&
+              p.className !== "All",
+          );
+          return [...uniquePeriods, ...classSpecific];
+        });
       }
     } catch (err: any) {
       console.warn("Error fetching periods", err);
