@@ -480,6 +480,45 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     return specific.sort((a, b) => a.sequence - b.sequence);
   }, [periodSettings, selectedClass, selectedSection]);
 
+  // Master periods with strict deduplication
+  const masterPeriods = useMemo(() => {
+    const masterRaw = periodSettings.filter(p => 
+      p.status === 'Active' && 
+      (!p.className || p.className === 'Master' || p.className === 'All' || p.className === '')
+    );
+
+    const uniqueMaster: PeriodSetting[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    const seenSequences = new Set<number>();
+    const seenTimes = new Set<string>();
+
+    masterRaw
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
+      .forEach(p => {
+        const idKey = p.id ? String(p.id).trim() : '';
+        const nameKey = (p.periodName || '').trim().toLowerCase();
+        const seqKey = Number(p.sequence);
+        const timeKey = `${(p.startTime || '').trim()}-${(p.endTime || '').trim()}`;
+
+        const isDuplicate = 
+          (idKey && seenIds.has(idKey)) ||
+          (nameKey && seenNames.has(nameKey)) ||
+          (seqKey && seenSequences.has(seqKey)) ||
+          (timeKey && timeKey !== '-' && seenTimes.has(timeKey));
+
+        if (!isDuplicate) {
+          if (idKey) seenIds.add(idKey);
+          if (nameKey) seenNames.add(nameKey);
+          if (seqKey) seenSequences.add(seqKey);
+          if (timeKey && timeKey !== '-') seenTimes.add(timeKey);
+          uniqueMaster.push(p);
+        }
+      });
+
+    return uniqueMaster;
+  }, [periodSettings]);
+
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
     const match = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -791,8 +830,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         addToast('success', 'Period Configured', `Updated ${periodFormData.periodName}`);
       } else {
         // Cloning master periods for this class since we edited an inherited period
-        const master = periodSettings.filter(p => !p.className && p.status === 'Active');
-        master.forEach(mp => {
+        masterPeriods.forEach(mp => {
           if (mp.id === periodFormData.id) {
             addPeriodSetting({
               academicYear,
@@ -831,7 +869,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           periodName: periodFormData.periodName,
           startTime: periodFormData.startTime,
           endTime: periodFormData.endTime,
-          sequence: Number(periodFormData.sequence || 9),
+          sequence: Number(periodFormData.sequence || (masterPeriods.length + 1)),
           periodType: finalPeriodType || 'Teaching',
           status: 'Active'
         });
@@ -861,8 +899,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       deletePeriodSetting(p.id);
       addToast('success', 'Period Deleted', `Deleted ${p.periodName}`);
     } else {
-      const master = periodSettings.filter(mp => !mp.className && mp.status === 'Active');
-      master.forEach(mp => {
+      masterPeriods.forEach(mp => {
         if (mp.id !== p.id) {
           addPeriodSetting({
             academicYear: mp.academicYear,
@@ -1657,10 +1694,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
       {/* TAB 2: PERIOD SETTINGS */}
       {activeTab === 'period-settings' && (() => {
-        // Master periods
-        const masterPeriods = periodSettings.filter(p => !p.className && p.status === 'Active')
-          .sort((a, b) => a.sequence - b.sequence);
-
         // Class-specific periods
         const classSpecificPeriods = periodSettings.filter(p => 
           p.className === selectedClass && 

@@ -25,11 +25,35 @@ public class TimetableRepository : ITimetableRepository
 
     public async Task<List<PeriodSetting>> GetPeriodSettingsAsync()
     {
-        return await _context.PeriodSettings
+        var rawPeriods = await _context.PeriodSettings
             .Where(p => !p.IsDeleted && p.IsActive)
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.StartTime)
             .ToListAsync();
+
+        var distinctPeriods = new List<PeriodSetting>();
+        var seenIds = new HashSet<int>();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenOrders = new HashSet<int>();
+        var seenTimes = new HashSet<string>();
+
+        foreach (var p in rawPeriods)
+        {
+            var timeKey = $"{p.StartTime}-{p.EndTime}";
+            if (!seenIds.Contains(p.PeriodId) &&
+                !seenNames.Contains(p.PeriodName) &&
+                !seenOrders.Contains(p.DisplayOrder) &&
+                !seenTimes.Contains(timeKey))
+            {
+                seenIds.Add(p.PeriodId);
+                seenNames.Add(p.PeriodName);
+                seenOrders.Add(p.DisplayOrder);
+                seenTimes.Add(timeKey);
+                distinctPeriods.Add(p);
+            }
+        }
+
+        return distinctPeriods;
     }
 
     public async Task<PeriodSetting?> GetPeriodSettingByIdAsync(int periodId)
