@@ -34,6 +34,13 @@ const defaultAdminUser: User = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const formatEmailToName = (email: string): string => {
+  if (!email) return "Admin User";
+  const username = email.split('@')[0];
+  const parts = username.split(/[._-]/);
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+};
+
 const getDefaultAcademicYear = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -45,13 +52,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('auth_user');
-      if (saved) {
+      const savedToken = localStorage.getItem('auth_token');
+      if (saved && savedToken && savedToken !== 'offline-bypass-dev-token') {
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
-          if ((parsed.name === 'Administrator' || !parsed.name) && parsed.email && parsed.email.includes('@')) {
-            const parts = parsed.email.split('@')[0].split('.');
-            parsed.name = parts.map((p: any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          if (parsed.email && (parsed.name === 'Administrator' || parsed.name === 'Admin User' || !parsed.name)) {
+            parsed.name = formatEmailToName(parsed.email);
           }
           localStorage.setItem('auth_user', JSON.stringify(parsed));
         }
@@ -68,7 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || null;
+    const t = localStorage.getItem('auth_token');
+    return (t && t !== 'offline-bypass-dev-token') ? t : null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -119,9 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
-      if (userName === 'Administrator' && emailOrPhone.includes('@')) {
-        const parts = emailOrPhone.split('@')[0].split('.');
-        userName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      if (emailOrPhone.includes('@') && (userName === 'Administrator' || userName === 'Admin User' || userName === 'User')) {
+        userName = formatEmailToName(emailOrPhone);
       }
 
       const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
@@ -147,26 +154,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return true;
     } catch (err: any) {
-      console.warn('Backend server unavailable or login failed. Falling back to offline local mode.', err);
-      const fallbackRole: UserRole = chosenRole || 'Admin';
-      const fallbackUser: User = {
-        id: 'USR-DEV-001',
-        name: emailOrPhone ? (emailOrPhone.split('@')[0] || 'Admin User') : 'Admin User',
-        email: emailOrPhone || 'admin@school.edu',
-        role: fallbackRole,
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-        lastLogin: new Date().toLocaleString(),
-        status: 'Active'
-      };
-
-      setUser(fallbackUser);
-      setRoleState(fallbackRole);
-      setToken('offline-bypass-dev-token');
-      localStorage.setItem('auth_user', JSON.stringify(fallbackUser));
-      localStorage.setItem('auth_token', 'offline-bypass-dev-token');
-      localStorage.setItem('roles', JSON.stringify(['Admin', 'SuperAdmin']));
-
-      return true;
+      console.error('Login failed:', err);
+      throw err;
     }
   };
 
@@ -203,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token, selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token && token !== 'offline-bypass-dev-token', selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
   );
 };
 

@@ -22,6 +22,11 @@ using SMS.Api.Services.Implementations.AcademicManagement;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 52428800; // 50 MB for document uploads
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -175,6 +180,9 @@ builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>(
 // Faculty Development & Staff Training Module
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IFacultyTrainingRepository, SMS.Api.Repositories.Implementations.FacultyTrainingRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFacultyTrainingService, SMS.Api.Services.Implementations.FacultyTrainingService>();
+
+// Executive Dashboard Analytics Module
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.Dashboard.IDashboardService, SMS.Api.Services.Implementations.Dashboard.DashboardService>();
 
 // =========================================================
 // 3. JWT AUTHENTICATION
@@ -2345,51 +2353,77 @@ using (var scope = app.Services.CreateScope())
 
                 if (defaultBranch != null && defaultAcademicYear != null)
                 {
-                    // 1. Sync enrolled applications from admission_applications to admissions table
-                    var enrolledApps = await context.AdmissionApplications
-                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
+                    // 1. Sync all applications from admission_applications to admissions table
+                    var allApps = await context.AdmissionApplications
                         .ToListAsync();
 
                     var branches = await context.Branches.ToListAsync();
+                    var allClasses = await context.Classes.ToListAsync();
 
-                    foreach (var admApp in enrolledApps)
+                    foreach (var admApp in allApps)
                     {
                         var existingAdmission = await context.Admissions
                             .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo);
 
                         var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
+                        bool isAppDeleted = admApp.IsDeleted || admApp.Status == "Deleted";
+
+                        int targetClassId = 1;
+                        if (admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 && allClasses.Any(c => c.ClassId == admApp.AppliedClassId.Value))
+                        {
+                            targetClassId = admApp.AppliedClassId.Value;
+                        }
+                        else if (admApp.AppliedClass != null && !string.IsNullOrWhiteSpace(admApp.AppliedClass.ClassName))
+                        {
+                            var normalized = admApp.AppliedClass.ClassName.Trim().ToLower();
+                            var matchedClass = allClasses.FirstOrDefault(c => 
+                                (!string.IsNullOrEmpty(c.ClassName) && c.ClassName.Trim().ToLower() == normalized) ||
+                                (!string.IsNullOrEmpty(c.ClassName) && (normalized == c.ClassName.Trim().ToLower().Replace("class ", "") || normalized == $"class {c.ClassName.Trim().ToLower()}"))
+                            ) ?? allClasses.FirstOrDefault(c => 
+                                !string.IsNullOrEmpty(c.ClassName) && (normalized.Contains(c.ClassName.Trim().ToLower()) || c.ClassName.Trim().ToLower().Contains(normalized))
+                            );
+                            if (matchedClass != null)
+                            {
+                                targetClassId = matchedClass.ClassId;
+                            }
+                        }
 
                         if (existingAdmission == null)
                         {
-                            var newAdmission = new Admission
+                            if (!isAppDeleted && (admApp.Status == "Enrolled" || admApp.Status == "Active"))
                             {
-                                ApplicationNo = admApp.RegistrationNo ?? "",
-                                StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
-                                Dob = admApp.DateOfBirth,
-                                Gender = admApp.Gender,
-                                FatherName = admApp.FatherName,
-                                FatherMobile = admApp.FatherContact,
-                                BloodGroup = admApp.BloodGroup,
-                                Caste = admApp.Caste,
-                                BranchId = appBranch.BranchId,
-                                ClassId = admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 ? admApp.AppliedClassId.Value : 1,
-                                SectionLetter = "A",
-                                AdmissionType = "Regular",
-                                Status = admApp.Status ?? "",
-                                IsDeleted = false,
-                                CreatedDate = DateTime.UtcNow
-                            };
-                            await context.Admissions.AddAsync(newAdmission);
+                                var newAdmission = new Admission
+                                {
+                                    ApplicationNo = admApp.RegistrationNo ?? "",
+                                    StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
+                                    Dob = admApp.DateOfBirth,
+                                    Gender = admApp.Gender,
+                                    FatherName = admApp.FatherName,
+                                    FatherMobile = admApp.FatherContact,
+                                    BloodGroup = admApp.BloodGroup,
+                                    Caste = admApp.Caste,
+                                    BranchId = appBranch.BranchId,
+                                    ClassId = targetClassId,
+                                    SectionLetter = null,
+                                    AdmissionType = "Regular",
+                                    Status = admApp.Status ?? "",
+                                    IsDeleted = false,
+                                    CreatedDate = DateTime.UtcNow
+                                };
+                                await context.Admissions.AddAsync(newAdmission);
+                            }
                         }
                         else
                         {
                             existingAdmission.BranchId = appBranch.BranchId;
+                            existingAdmission.ClassId = targetClassId;
                             existingAdmission.Status = admApp.Status ?? "";
+                            existingAdmission.IsDeleted = isAppDeleted;
                         }
                     }
                     await context.SaveChangesAsync();
 
-                    // 2. Sync from admissions to students table
+                    // 2. Sync from admissions to students table with IgnoreQueryFilters
                     var activeAdmissions = await context.Admissions
                         .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
                         .ToListAsync();
@@ -2399,10 +2433,13 @@ using (var scope = app.Services.CreateScope())
                         if (admission.ClassId == null)
                             continue;
 
-                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
-                        var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
-                        
+                        ClassSection? sectionObj = null;
+                        if (!string.IsNullOrEmpty(admission.SectionLetter))
+                        {
+                            sectionObj = await context.ClassSections
+                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                        }
+
                         if (sectionObj == null)
                         {
                             sectionObj = await context.ClassSections
@@ -2411,14 +2448,17 @@ using (var scope = app.Services.CreateScope())
                         if (sectionObj == null) continue;
 
                         var existing = await context.Students
+                            .IgnoreQueryFilters()
                             .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
 
                         if (existing != null)
                         {
+                            existing.ClassId = admission.ClassId.Value;
                             existing.SectionId = sectionObj.SectionId;
                             existing.RollNumber = admission.RollNo ?? existing.RollNumber;
                             existing.BranchId = (int)admission.BranchId;
                             existing.Status = "Active";
+                            existing.IsDeleted = false;
                         }
                         else
                         {
@@ -2436,9 +2476,28 @@ using (var scope = app.Services.CreateScope())
                                 ClassId = admission.ClassId.Value,
                                 SectionId = sectionObj.SectionId,
                                 Status = "Active",
+                                IsDeleted = false,
                                 CreatedAt = DateTime.UtcNow
                             };
                             await context.Students.AddAsync(student);
+                        }
+                    }
+
+                    // 3. Deactivate students whose applications are Deleted or Rejected
+                    var nonEnrolledApps = await context.AdmissionApplications
+                        .Where(a => a.IsDeleted || a.Status == "Deleted" || a.Status == "Rejected" || a.Status == "Pending")
+                        .ToListAsync();
+
+                    foreach (var nonApp in nonEnrolledApps)
+                    {
+                        var matchingStudent = await context.Students
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(s => s.AdmissionNumber == nonApp.RegistrationNo);
+
+                        if (matchingStudent != null && nonApp.Status != "Enrolled")
+                        {
+                            matchingStudent.Status = "Inactive";
+                            matchingStudent.IsDeleted = true;
                         }
                     }
 

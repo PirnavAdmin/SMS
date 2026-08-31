@@ -13,31 +13,7 @@ public class ExamNewRepository : IExamNewRepository
 {
     private readonly AppDbContext _context;
     private static readonly List<NewExamSubjectConfig> _inMemorySubjectConfigs = new List<NewExamSubjectConfig>();
-    private static readonly List<NewExamination> _inMemoryExams = new List<NewExamination>
-    {
-        new NewExamination
-        {
-            ExamId = 1,
-            ExamName = "New Examination 1",
-            AssessmentType = "Summative Assessment (SA)",
-            AcademicTerm = "Term 1 (First Term)",
-            StartDate = new DateTime(2026, 09, 01),
-            EndDate = new DateTime(2026, 09, 15),
-            ApplicableClasses = "Class 1,Class 2",
-            Status = "Scheduled"
-        },
-        new NewExamination
-        {
-            ExamId = 2,
-            ExamName = "SA-1",
-            AssessmentType = "Summative Assessment (SA)",
-            AcademicTerm = "Term 1 (First Term)",
-            StartDate = new DateTime(2026, 10, 01),
-            EndDate = new DateTime(2026, 10, 10),
-            ApplicableClasses = "Class 1",
-            Status = "Draft"
-        }
-    };
+    private static readonly List<NewExamination> _inMemoryExams = new List<NewExamination>();
 
     public ExamNewRepository(AppDbContext context)
     {

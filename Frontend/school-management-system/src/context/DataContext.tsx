@@ -5033,6 +5033,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               const classIdStr = c.classId?.toString() || c.id?.toString();
               const localCls = localClasses.find((lc) => lc.id === classIdStr);
 
+              const secDetails: Record<string, any> = {
+                ...(localCls?.sectionDetails || c.sectionDetails || {}),
+              };
+              if (Array.isArray(c.sections)) {
+                c.sections.forEach((s: any) => {
+                  const sName =
+                    s.sectionName || s.name || (typeof s === "string" ? s : "");
+                  if (sName) {
+                    secDetails[sName] = {
+                      capacity: s.capacity || secDetails[sName]?.capacity || 40,
+                      status: s.status || secDetails[sName]?.status || "Active",
+                      remarks: s.remarks || secDetails[sName]?.remarks || "",
+                      roomNo:
+                        s.roomNo ||
+                        s.RoomNo ||
+                        s.room_number ||
+                        secDetails[sName]?.roomNo ||
+                        "",
+                      ...(secDetails[sName] || {}),
+                    };
+                    if (s.roomNo || s.RoomNo || s.room_number) {
+                      secDetails[sName].roomNo =
+                        s.roomNo || s.RoomNo || s.room_number;
+                    }
+                  }
+                });
+              }
+
               return {
                 id: classIdStr,
                 name: c.className || c.name,
@@ -5049,8 +5077,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     )
                   : c.subjects || [],
                 weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
-                sectionDetails:
-                  localCls?.sectionDetails || c.sectionDetails || {},
+                sectionDetails: secDetails,
               };
             });
             setAcademicClasses(mapped);
@@ -6059,17 +6086,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStudent: Student = {
       ...stData,
       id,
+      section: stData.section || "",
+      rollNo: stData.rollNo || "",
       branch: stData.branch || selectedBranch || "Main Campus",
       studentType: stData.studentType || "Day Scholar",
       promotionHistory: stData.promotionHistory || [],
     };
 
     if (!skipApiCall) {
+      const targetClass = academicClasses.find(
+        (c) => c.name === newStudent.className || c.name === `Class ${newStudent.className}` || c.name.replace("Class ", "") === (newStudent.className || "").replace("Class ", "")
+      );
+      const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
+
+      let targetSectionId: number | undefined = undefined;
+      if (newStudent.section && newStudent.section !== "Unassigned" && targetClass) {
+        const cleanSecName = newStudent.section.replace("Section ", "").trim();
+        const secDetail = (targetClass as any).sectionDetails?.[cleanSecName] || (targetClass as any).sectionDetails?.[newStudent.section];
+        if (secDetail?.id) {
+          targetSectionId = parseInt(secDetail.id);
+        }
+      }
+
       createStudentApi({
         admissionNumber:
           newStudent.admissionNo ||
           `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
-        rollNumber: newStudent.rollNo || "00",
+        rollNumber: newStudent.rollNo || "",
         studentName:
           `${newStudent.firstName || ""} ${newStudent.lastName || ""}`.trim(),
         dateOfBirth: newStudent.dob || undefined,
@@ -6083,8 +6126,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         address: newStudent.address || "",
         branchId: 1,
         academicYearId: 1,
-        classId: 1,
-        sectionId: 1,
+        classId: targetClassId,
+        sectionId: targetSectionId as any,
         status: newStudent.status || "Active",
       })
         .then((response: any) => {
@@ -6122,9 +6165,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (!isNaN(numericId) && oldStudent) {
       const fullStudent = { ...oldStudent, ...updates };
+      const targetClass = academicClasses.find(
+        (c) => c.name === fullStudent.className || c.name === `Class ${fullStudent.className}` || c.name.replace("Class ", "") === (fullStudent.className || "").replace("Class ", "")
+      );
+      const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
+
+      let targetSectionId: number | undefined = undefined;
+      if (fullStudent.section && fullStudent.section !== "Unassigned" && targetClass) {
+        const cleanSecName = fullStudent.section.replace("Section ", "").trim();
+        const secDetail = (targetClass as any).sectionDetails?.[cleanSecName] || (targetClass as any).sectionDetails?.[fullStudent.section];
+        if (secDetail?.id) {
+          targetSectionId = parseInt(secDetail.id);
+        }
+      }
+
       updateStudentApi(numericId, {
         admissionNumber: fullStudent.admissionNo || "ADM-00",
-        rollNumber: fullStudent.rollNo || "00",
+        rollNumber: fullStudent.rollNo || "",
         studentName:
           `${fullStudent.firstName || ""} ${fullStudent.lastName || ""}`.trim(),
         dateOfBirth: fullStudent.dob || undefined,
@@ -6138,8 +6195,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         address: fullStudent.address || "",
         branchId: 1,
         academicYearId: 1,
-        classId: 1,
-        sectionId: 1,
+        classId: targetClassId,
+        sectionId: targetSectionId as any,
         status: fullStudent.status || "Active",
       }).catch((err) => console.error("Failed to update student", err));
     }
@@ -6543,9 +6600,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       })),
       documents: (staffData.documents || []).map((d: any) => ({
         documentTitle: d.title || d.fileName || d.name || "",
-        documentType: d.type || d.docType || "Certificate",
+        documentType: d.documentType || d.docType || d.type || d.title || "Document",
         fileUrl: d.fileUrl || "",
-        uploadedDate: d.uploadDate || d.uploadedDate || new Date().toISOString(),
+        isRequired: d.isRequired ?? true,
+        status: d.status || "Attached",
+        uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
       })),
     })
       .then((response) => {
@@ -6647,9 +6706,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           })),
           documents: (fullStaff.documents || []).map((d: any) => ({
             documentTitle: d.title || d.fileName || d.name || "",
-            documentType: d.type || d.docType || "Certificate",
+            documentType: d.documentType || d.docType || d.type || d.title || "Document",
             fileUrl: d.fileUrl || "",
-            uploadedDate: d.uploadDate || d.uploadedDate || new Date().toISOString(),
+            isRequired: d.isRequired ?? true,
+            status: d.status || "Attached",
+            uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
           })),
         }).catch((err) => {
           console.error("Failed to update staff in backend", err);
@@ -14846,21 +14907,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const saveProcessedResults = (results: ProcessedResult[]) => {
-    const blockedLockedResults = results.filter((r) => {
-      const existing = processedResults.find(
-        (p) => p.examId === r.examId && p.studentId === r.studentId,
-      );
-      return existing?.status === "Locked";
-    });
-    if (blockedLockedResults.length > 0) {
-      addToast(
-        "error",
-        "Results Locked",
-        "Unlock results before recalculating this class.",
-      );
-      return;
-    }
-
     setProcessedResults((prev) => {
       const newKeys = results.map((r) => `${r.examId}_${r.studentId}`);
       const filtered = prev.filter(
@@ -14881,19 +14927,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     status: ProcessedResult["status"],
   ) => {
     const stamp = new Date().toISOString().split("T")[0];
+    const cleanSec = (section || "").replace("Section ", "").trim().toUpperCase();
+
     setProcessedResults((prev) =>
       prev.map((r) => {
+        const rSec = (r.section || "").replace("Section ", "").trim().toUpperCase();
         if (
           r.examId === examId &&
           r.className === className &&
-          r.section === section
+          (!section || section === "All" || rSec === cleanSec || r.section === section)
         ) {
+          const isPublishing = status === "Published";
+          const isApproving = status === "Approved";
+          const isVerifying = status === "Verified";
+          const isLocking = status === "Locked";
+          const isResetting = status === "Draft";
+
           return {
             ...r,
             status,
-            processedAt: stamp,
-            publishedAt: status === "Published" ? stamp : r.publishedAt,
-            lockedAt: status === "Locked" ? stamp : r.lockedAt,
+            processedAt: r.processedAt || stamp,
+            verifiedBy: isVerifying || isApproving || isPublishing ? (r.verifiedBy || "Administrator") : r.verifiedBy,
+            verifiedAt: isVerifying || isApproving || isPublishing ? (r.verifiedAt || stamp) : r.verifiedAt,
+            approvedBy: isApproving || isPublishing ? (r.approvedBy || "Administrator") : r.approvedBy,
+            approvedAt: isApproving || isPublishing ? (r.approvedAt || stamp) : r.approvedAt,
+            publishedAt: isPublishing ? (r.publishedAt || stamp) : (isResetting ? undefined : r.publishedAt),
+            lockedAt: isLocking ? stamp : undefined,
           };
         }
         return r;
@@ -14903,21 +14962,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setExamMarks((prev) =>
         prev.map((m) => {
           const student = students.find((s) => s.id === m.studentId);
+          const sSec = (student?.section || m.section || "").replace("Section ", "").trim().toUpperCase();
           return m.examId === examId &&
-            student?.className === className &&
-            student?.section === section
+            (student?.className === className || m.className === className) &&
+            (!section || section === "All" || sSec === cleanSec)
             ? { ...m, isLocked: true }
             : m;
         }),
       );
     }
-    if (status === "Draft") {
+    if (status === "Draft" || status === "Calculated") {
       setExamMarks((prev) =>
         prev.map((m) => {
           const student = students.find((s) => s.id === m.studentId);
+          const sSec = (student?.section || m.section || "").replace("Section ", "").trim().toUpperCase();
           return m.examId === examId &&
-            student?.className === className &&
-            student?.section === section
+            (student?.className === className || m.className === className) &&
+            (!section || section === "All" || sSec === cleanSec)
             ? { ...m, isLocked: false }
             : m;
         }),
@@ -16007,7 +16068,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const promise = (async () => {
       try {
         const response = await fetchLeaveApplicationsApi();
-        if (response && response.success && response.data) {
+        if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
             id:
               item.leaveApplicationId?.toString() || item.id?.toString() || "",
@@ -16016,6 +16077,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             empId: item.empId || item.employeeId,
             department: item.department || "Administration",
             designation: item.designation || "Staff",
+            branchId: activeBranchId || "BR-001",
             branch: item.branch || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
@@ -16032,7 +16094,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
-          setLeaveApplications(mapped);
+          setLeaveApplications((prev) => {
+            const apiIds = new Set(mapped.map((m) => m.id));
+            const localOnly = prev.filter((p) => !apiIds.has(p.id));
+            return [...mapped, ...localOnly];
+          });
         }
       } catch (err) {
         console.warn("Failed to fetch leave applications from API", err);
@@ -16122,29 +16188,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Leave Applications CRUD
   const addLeaveApplication = async (appData: Omit<LeaveApplication, "id">) => {
+    const newId = `LA-${Date.now()}`;
+    const newApp: LeaveApplication = {
+      id: newId,
+      ...appData,
+      branchId: activeBranchId || "BR-001",
+      branch: (appData as any).branch || "Main Campus",
+      status: appData.status || "Pending",
+      appliedDate: appData.appliedDate || new Date().toISOString().split("T")[0],
+    };
+
+    setLeaveApplications((prev) => {
+      const updated = [newApp, ...prev];
+      localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
+      return updated;
+    });
+
     try {
+      const parsedStaffId = parseInt(appData.employeeId.replace(/\D/g, '')) || 1;
+      const parsedLeaveTypeId = parseInt(appData.leaveTypeId.replace(/\D/g, '')) || 1;
+
       const payload = {
-        staffId: parseInt(appData.employeeId),
-        leaveTypeId: parseInt(appData.leaveTypeId),
+        staffId: parsedStaffId,
+        leaveTypeId: parsedLeaveTypeId,
         fromDate: appData.fromDate,
         toDate: appData.toDate,
         isHalfDay: appData.isHalfDay,
         reason: appData.reason,
       };
 
-      const response = await createLeaveApplicationApi(payload);
-      if (response && response.success) {
-        addToast(
-          "success",
-          "Leave Application Submitted",
-          "Your leave request has been submitted.",
-        );
-        await fetchLeaveApplications();
-        await fetchLeaveBalances();
-      }
+      await createLeaveApplicationApi(payload);
     } catch (err: any) {
-      console.error("Error submitting leave application:", err);
-      addToast("error", "API Error", "Failed to submit leave application.");
+      console.warn("API error during leave submission (saved to local state):", err);
     }
   };
   const updateLeaveApplication = (
@@ -16732,6 +16807,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       prev.map((r) => (r.id === id ? { ...r, ...updates } : r)),
     );
   };
+
   const deletePayrollRun = (id: string) => {
     setPayrollRuns((prev) => prev.filter((r) => r.id !== id));
   };
@@ -16743,15 +16819,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     remarks?: string,
     approvedBy?: string,
   ) => {
+    setLeaveApplications((prev) => {
+      const updated = prev.map((app) =>
+        app.id === id
+          ? {
+              ...app,
+              status,
+              approverRemarks: remarks || app.approverRemarks,
+              approvedBy: approvedBy || app.approvedBy || "Admin",
+            }
+          : app
+      );
+      localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
+      return updated;
+    });
+
     try {
       const payload = {
         status: status,
       };
 
-      const response = await updateLeaveApplicationStatusApi(
-        parseInt(id),
-        payload,
-      );
+      const parsedId = parseInt(id.replace(/\D/g, '')) || 1;
+      const response = await updateLeaveApplicationStatusApi(parsedId, payload);
 
       if (response && response.success) {
         addToast(
@@ -16759,16 +16848,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "Status Updated",
           `Leave application status updated to ${status}.`,
         );
-        await fetchLeaveApplications();
-        await fetchLeaveBalances();
       }
     } catch (err: any) {
-      console.error("Error updating leave application status:", err);
-      addToast(
-        "error",
-        "API Error",
-        "Failed to update leave application status.",
-      );
+      console.warn("API warning during status update (saved locally):", err);
     }
   };
 
@@ -16825,24 +16907,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const filteredStudents = useMemo(() => {
-    const branchFiltered = filterByBranch(students);
-    const enrolledRegNos = new Set(
-      admissions
-        .filter(
-          (a) => a.status === "Enrolled" || (a.status as string) === "enrolled",
-        )
-        .map((a) =>
-          (a.registrationNo || a.applicationNo || "").trim().toLowerCase(),
-        )
-        .filter(Boolean),
-    );
-    if (admissions.length > 0) {
-      return branchFiltered.filter((s) =>
-        enrolledRegNos.has((s.admissionNo || "").trim().toLowerCase()),
-      );
-    }
-    return branchFiltered;
-  }, [students, admissions, selectedBranch]);
+    return filterByBranch(students);
+  }, [students, selectedBranch]);
 
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);

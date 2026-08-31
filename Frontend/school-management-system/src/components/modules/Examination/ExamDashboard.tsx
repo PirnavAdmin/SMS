@@ -129,7 +129,7 @@ export const ExamDashboard: React.FC<ExamDashboardProps> = ({
                       </td>
                       <td className="px-4 py-3.5">
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                          {(e.applicableClasses || [e.className || 'Class 10']).length} Classes
+                          {(e.applicableClasses || (e.className ? [e.className] : [])).length} Classes
                         </span>
                       </td>
                       <td className="px-4 py-3.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">

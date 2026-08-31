@@ -443,6 +443,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             availableCopies: Number(b.availableCopies) || 0,
             status: Number(b.availableCopies) > 0 ? 'Available' : 'Issued'
           })));
+        } else {
+          setBooks([]);
         }
       }
 

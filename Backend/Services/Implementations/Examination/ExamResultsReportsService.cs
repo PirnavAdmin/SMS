@@ -24,10 +24,12 @@ public class ExamResultsReportsService : IExamResultsReportsService
 
     public async Task<ResultsReportsOptionsDto> GetOptionsAsync()
     {
+        var classes = await _repository.GetClassNamesAsync();
+
         return new ResultsReportsOptionsDto
         {
-            Classes = new List<string> { "Class 1", "Class 2", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12" },
-            Sections = new List<string> { "Section A", "Section B", "Section C" },
+            Classes = classes,
+            Sections = new List<string> { "Section A", "Section B", "Section C", "Section D" },
             ResultStatuses = new List<string> { "All", "Pass", "Fail" },
             RankOrders = new List<string> { "Ascending", "Descending" }
         };
@@ -36,19 +38,6 @@ public class ExamResultsReportsService : IExamResultsReportsService
     public async Task<CalculateResultsResponseDto> CalculateResultsAsync(CalculateResultsRequestDto request)
     {
         var existingResults = await _repository.GetExamResultsAsync(request.ClassName, request.SectionName);
-        if (!existingResults.Any())
-        {
-            existingResults = new List<NewStudentExamResult>
-            {
-                new NewStudentExamResult { ResultId = 1, ExamId = request.ExamId, ClassName = request.ClassName, SectionName = request.SectionName, StudentId = 101, RollNo = "101", StudentName = "Alex Morgan", AdmissionNo = "ADM-2026-01", TotalMarksObtained = 560, TotalMaxMarks = 600, Percentage = 93.33m, Grade = "A+", Rank = 1, ResultStatus = "Pass" },
-                new NewStudentExamResult { ResultId = 2, ExamId = request.ExamId, ClassName = request.ClassName, SectionName = request.SectionName, StudentId = 102, RollNo = "102", StudentName = "Emma Watson", AdmissionNo = "ADM-2026-05", TotalMarksObtained = 540, TotalMaxMarks = 600, Percentage = 90.00m, Grade = "A+", Rank = 2, ResultStatus = "Pass" },
-                new NewStudentExamResult { ResultId = 3, ExamId = request.ExamId, ClassName = request.ClassName, SectionName = request.SectionName, StudentId = 103, RollNo = "103", StudentName = "Ethan Hunt", AdmissionNo = "ADM-2026-02", TotalMarksObtained = 490, TotalMaxMarks = 600, Percentage = 81.67m, Grade = "A", Rank = 3, ResultStatus = "Pass" },
-                new NewStudentExamResult { ResultId = 4, ExamId = request.ExamId, ClassName = request.ClassName, SectionName = request.SectionName, StudentId = 104, RollNo = "104", StudentName = "Sophia Loren", AdmissionNo = "ADM-2026-03", TotalMarksObtained = 430, TotalMaxMarks = 600, Percentage = 71.67m, Grade = "B", Rank = 4, ResultStatus = "Pass" },
-                new NewStudentExamResult { ResultId = 5, ExamId = request.ExamId, ClassName = request.ClassName, SectionName = request.SectionName, StudentId = 105, RollNo = "105", StudentName = "James Bond", AdmissionNo = "ADM-2026-04", TotalMarksObtained = 180, TotalMaxMarks = 600, Percentage = 30.00m, Grade = "F", Rank = 5, ResultStatus = "Fail" }
-            };
-
-            await _repository.SaveExamResultsAsync(request.ClassName, request.SectionName, existingResults);
-        }
 
         var ordered = existingResults.OrderByDescending(r => r.Percentage).ToList();
         for (int i = 0; i < ordered.Count; i++)
@@ -94,8 +83,8 @@ public class ExamResultsReportsService : IExamResultsReportsService
 
     public async Task<ReportCardPrintDetailDto?> GetPrintableReportCardAsync(int studentId, string? className, string? sectionName)
     {
-        string cName = string.IsNullOrWhiteSpace(className) ? "Class 1" : className;
-        string sName = string.IsNullOrWhiteSpace(sectionName) ? "Section A" : sectionName;
+        string cName = string.IsNullOrWhiteSpace(className) ? "" : className;
+        string sName = string.IsNullOrWhiteSpace(sectionName) ? "" : sectionName;
 
         var results = await _repository.GetExamResultsAsync(cName, sName);
         var studentResult = results.FirstOrDefault(r => r.StudentId == studentId || r.RollNo == studentId.ToString());
@@ -107,14 +96,7 @@ public class ExamResultsReportsService : IExamResultsReportsService
 
         if (studentResult == null) return null;
 
-        var sampleSubjects = new List<SubjectMarksConfigItemDto>
-        {
-            new SubjectMarksConfigItemDto { SubjectCode = "MTH-101", SubjectName = "Mathematics", MaxMarks = 100, PassMarks = 35, IsActive = true },
-            new SubjectMarksConfigItemDto { SubjectCode = "CHM-103", SubjectName = "Chemistry", MaxMarks = 100, PassMarks = 35, IsActive = true },
-            new SubjectMarksConfigItemDto { SubjectCode = "ENG-105", SubjectName = "English Language", MaxMarks = 100, PassMarks = 35, IsActive = true },
-            new SubjectMarksConfigItemDto { SubjectCode = "HIS-107", SubjectName = "History", MaxMarks = 100, PassMarks = 35, IsActive = true },
-            new SubjectMarksConfigItemDto { SubjectCode = "PHY-102", SubjectName = "Physics", MaxMarks = 100, PassMarks = 35, IsActive = true }
-        };
+        var scores = new List<SubjectMarksConfigItemDto>();
 
         return new ReportCardPrintDetailDto
         {
@@ -132,7 +114,7 @@ public class ExamResultsReportsService : IExamResultsReportsService
             Grade = studentResult.Grade,
             ResultStatus = studentResult.ResultStatus,
             OverallResult = studentResult.ResultStatus,
-            SubjectScores = sampleSubjects
+            SubjectScores = scores
         };
     }
 

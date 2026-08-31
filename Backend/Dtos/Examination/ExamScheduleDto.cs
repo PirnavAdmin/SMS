@@ -4,10 +4,10 @@ using System.Collections.Generic;
 
 public class ScheduleOptionsDto
 {
-    public List<string> Classes { get; set; } = new List<string> { "Class 1", "Class 2", "Class 3", "Class 4", "Class 5" };
-    public List<string> Sections { get; set; } = new List<string> { "Section A", "Section B", "Section C" };
-    public List<string> Rooms { get; set; } = new List<string> { "TBA", "Conference Room 102", "Main Hall A", "Academic Block B-201" };
-    public List<string> Invigilators { get; set; } = new List<string> { "Unassigned", "Eleanor Vance", "Robert Chen", "Sarah Jenkins", "Michael Chang" };
+    public List<string> Classes { get; set; } = new List<string>();
+    public List<string> Sections { get; set; } = new List<string>();
+    public List<string> Rooms { get; set; } = new List<string>();
+    public List<string> Invigilators { get; set; } = new List<string>();
 }
 
 public class TimetableSlotItemDto

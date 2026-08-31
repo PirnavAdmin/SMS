@@ -191,7 +191,7 @@ public class TimetableService : ITimetableService
             TeacherId = s.TeacherId,
             TeacherName = s.Teacher != null ? $"{s.Teacher.FirstName} {s.Teacher.LastName}" : string.Empty,
             EmployeeId = s.Teacher?.EmployeeId ?? string.Empty,
-            RoomNo = s.RoomNo
+            RoomNo = !string.IsNullOrWhiteSpace(s.RoomNo) ? s.RoomNo : (section.RoomNo ?? string.Empty)
         }).ToList();
 
         return new ClassTimetableGridDto
@@ -260,6 +260,16 @@ public class TimetableService : ITimetableService
             if (matchedTeacher != null)
             {
                 dto.TeacherId = matchedTeacher.StaffId;
+            }
+        }
+
+        // Resolve RoomNo from Section if not supplied
+        if (string.IsNullOrWhiteSpace(dto.RoomNo) && dto.SectionId > 0)
+        {
+            var secObj = await _context.ClassSections.FindAsync(dto.SectionId);
+            if (secObj != null && !string.IsNullOrWhiteSpace(secObj.RoomNo))
+            {
+                dto.RoomNo = secObj.RoomNo;
             }
         }
 
@@ -503,8 +513,8 @@ public class TimetableService : ITimetableService
 
     public async Task<StudentTimetableDto> GetStudentTimetableAsync(int classId, int sectionId, string academicYear = "2026-2027")
     {
-        var classGrade = classId > 0 
-            ? await _context.Classes.FindAsync(classId) 
+        var classGrade = classId > 0
+            ? await _context.Classes.FindAsync(classId)
             : await _context.Classes.FirstOrDefaultAsync();
 
         if (classGrade == null)
@@ -512,8 +522,8 @@ public class TimetableService : ITimetableService
             classGrade = new ClassGrade { ClassId = 1, ClassName = "Class 10" };
         }
 
-        var section = sectionId > 0 
-            ? await _context.ClassSections.FindAsync(sectionId) 
+        var section = sectionId > 0
+            ? await _context.ClassSections.FindAsync(sectionId)
             : await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classGrade.ClassId);
 
         if (section == null)
@@ -696,7 +706,7 @@ public class TimetableService : ITimetableService
     {
         int startMin = TimeToMinutes(dto.SchoolStartTime);
         int endMin = TimeToMinutes(dto.SchoolEndTime);
-        
+
         var generatedPeriods = new List<ComputedPeriod>();
         int numericPeriodDuration = dto.PeriodDurationMinutes;
 
@@ -839,7 +849,7 @@ public class TimetableService : ITimetableService
                 };
                 header = await _timetableRepository.CreateHeaderAsync(header);
             }
-            
+
             targetHeaders.Add(header);
             targetHeaderIds.Add(header.HeaderId);
         }

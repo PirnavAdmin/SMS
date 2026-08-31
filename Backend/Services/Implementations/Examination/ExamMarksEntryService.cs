@@ -20,19 +20,14 @@ public class ExamMarksEntryService : IExamMarksEntryService
 
     public async Task<MarksEntryOptionsDto> GetMarksEntryOptionsAsync()
     {
+        var classes = await _repository.GetClassNamesAsync();
+        var subjects = await _repository.GetSubjectsAsync();
+
         return new MarksEntryOptionsDto
         {
-            Classes = new List<string> { "Class 1", "Class 2", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12" },
-            Sections = new List<string> { "Section A", "Section B", "Section C" },
-            Subjects = new List<SubjectOptionItemDto>
-            {
-                new SubjectOptionItemDto { SubjectCode = "MTH-101", SubjectName = "Mathematics" },
-                new SubjectOptionItemDto { SubjectCode = "CHM-103", SubjectName = "Chemistry" },
-                new SubjectOptionItemDto { SubjectCode = "ENG-105", SubjectName = "English Language" },
-                new SubjectOptionItemDto { SubjectCode = "HIS-107", SubjectName = "History" },
-                new SubjectOptionItemDto { SubjectCode = "ACC-109", SubjectName = "Accountancy" },
-                new SubjectOptionItemDto { SubjectCode = "PHY-102", SubjectName = "Physics" }
-            }
+            Classes = classes,
+            Sections = new List<string> { "Section A", "Section B", "Section C", "Section D" },
+            Subjects = subjects
         };
     }
 

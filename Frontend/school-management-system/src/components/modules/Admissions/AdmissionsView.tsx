@@ -1098,7 +1098,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   // Multi-filter filtering
   const filteredAdmissions = (admissions || []).filter((a) => {
-    if (!a) return false;
+    if (!a || a.status === "Deleted" || (a as any).isDeleted) return false;
     const applicantName = a.applicantName || "";
     const applicationNo = a.applicationNo || "";
     const parentName = a.parentName || "";

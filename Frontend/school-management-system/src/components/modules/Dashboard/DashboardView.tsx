@@ -2,11 +2,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import {
   UserCheck, Users, Calendar, Cake, ArrowRight, Sparkles, 
   WalletCards, ClipboardList, CheckSquare, Bell, BookOpen, Building, Sun, Moon,
-  UserPlus, Megaphone, TrendingUp
+  UserPlus, Megaphone, TrendingUp, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
+import { fetchDashboardSummaryApi, DashboardSummaryResponse } from '../../../api/dashboard';
 
 import { TeacherDashboardView } from './TeacherDashboardView';
 import { ParentDashboardView } from './ParentDashboardView';
@@ -228,6 +229,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   const userRole = user?.role?.toLowerCase() || '';
   const [loading, setLoading] = useState(true);
+  const [summaryData, setSummaryData] = useState<DashboardSummaryResponse | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState<boolean>(true);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  const loadSummaryData = async () => {
+    try {
+      setSummaryLoading(true);
+      setSummaryError(null);
+      const res = await fetchDashboardSummaryApi();
+      if (res && res.success && res.data) {
+        setSummaryData(res.data);
+      } else if (res && (res as any).totalStudents !== undefined) {
+        setSummaryData(res as any);
+      }
+    } catch (err: any) {
+      console.error("Error loading real-time dashboard summary:", err);
+      setSummaryError("Failed to fetch real-time dashboard summary.");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   useEffect(() => {
     const isParentOrStudent = ['parent', 'student'].includes(userRole);
@@ -240,6 +262,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       try {
         setLoading(true);
         await Promise.all([
+          loadSummaryData(),
           fetchStudents(),
           typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
           fetchAdmissions(),
@@ -253,7 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     };
     loadDashboardData();
-  }, [userRole]);
+  }, [userRole, selectedAcademicYear]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
@@ -288,43 +311,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
   const nonTeachingStaff = useMemo(() => staff.filter(s => !teachingStaff.includes(s)), [staff, teachingStaff]);
 
-  // Pie chart calculation (Student Attendance)
+  // Real-Time Student Attendance from Backend Summary
   const attendanceStats = useMemo(() => {
-    let present = 0; let absent = 0; let late = 0; let halfDay = 0;
+    if (summaryData?.studentAttendance && summaryData.studentAttendance.total > 0) {
+      const { present, absent, late, halfDay, total, presentPct } = summaryData.studentAttendance;
+      const latePct = Math.round((late / total) * 100);
+      const halfDayPct = Math.round((halfDay / total) * 100);
+      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+      return {
+        present, absent, late, halfDay, total,
+        presentPct, latePct, halfDayPct, absentPct,
+        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
+      };
+    }
     
+    // Live attendance summary from attendance session records
+    let present = 0; let absent = 0; let late = 0; let halfDay = 0;
     if (todayStudentAttendanceSummary && todayStudentAttendanceSummary.totalDays > 0) {
       present = todayStudentAttendanceSummary.present;
       absent = todayStudentAttendanceSummary.absent;
       late = todayStudentAttendanceSummary.late;
       halfDay = todayStudentAttendanceSummary.halfDay;
-    } else {
-       // Mock fallback mapped to real student count
-       present = Math.floor(students.length * 0.85);
-       late = Math.floor(students.length * 0.05);
-       halfDay = Math.floor(students.length * 0.02);
-       absent = students.length - present - late - halfDay;
     }
-    const total = present + absent + late + halfDay || 1;
+    const total = present + absent + late + halfDay || (summaryData?.totalStudents || students.length || 1);
     const presentPct = Math.round((present / total) * 100);
     const latePct = Math.round((late / total) * 100);
     const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = 100 - presentPct - latePct - halfDayPct;
-
-    const pEnd = presentPct;
-    const lEnd = pEnd + latePct;
-    const hdEnd = lEnd + halfDayPct;
+    const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
 
     return { 
       present, absent, late, halfDay, total, 
       presentPct, latePct, halfDayPct, absentPct,
-      pEnd, lEnd, hdEnd
+      pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
     };
-  }, [todayStudentAttendanceSummary, students.length]);
+  }, [summaryData, todayStudentAttendanceSummary, students.length]);
 
-  // Pie chart calculation (Teaching Staff Attendance)
+  // Pie chart calculation (Teaching & Non-Teaching Staff Attendance)
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
   
   const teacherAttendanceStats = useMemo(() => {
+    if (summaryData?.staffAttendance && summaryData.staffAttendance.total > 0) {
+      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.staffAttendance;
+      const latePct = Math.round((late / total) * 100);
+      const halfDayPct = Math.round((halfDay / total) * 100);
+      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+      return {
+        present, absent, late, halfDay, total,
+        presentPct, latePct, halfDayPct, absentPct,
+        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
+      };
+    }
     const todayStr = new Date().toLocaleDateString('en-CA');
     const teachingStaffIds = new Set(teachingStaff.map(s => s.id));
     const todayAttendance = attendance.filter(a => a.entityType === 'Staff' && a.date === todayStr && teachingStaffIds.has(a.entityId));
@@ -336,29 +372,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         else if (a.status === 'HalfDay') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
-    } else {
-       // Mock data if no attendance found for today
-       present = Math.floor(teachingStaff.length * 0.90);
-       late = Math.floor(teachingStaff.length * 0.03);
-       halfDay = Math.floor(teachingStaff.length * 0.02);
-       absent = teachingStaff.length - present - late - halfDay;
     }
-    const total = present + absent + late + halfDay || 1;
+    const total = present + absent + late + halfDay || (summaryData?.teachingStaff || teachingStaff.length || 1);
     const presentPct = Math.round((present / total) * 100);
     const latePct = Math.round((late / total) * 100);
     const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = 100 - presentPct - latePct - halfDayPct;
-
-    const pEnd = presentPct;
-    const lEnd = pEnd + latePct;
-    const hdEnd = lEnd + halfDayPct;
+    const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
 
     return { 
       present, absent, late, halfDay, total, 
       presentPct, latePct, halfDayPct, absentPct,
-      pEnd, lEnd, hdEnd
+      pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
     };
-  }, [attendance, teachingStaff]);
+  }, [summaryData, attendance, teachingStaff]);
 
   // Section 2: Non-Teaching Staff Attendance calculation
   const nonTeachingAttendanceStats = useMemo(() => {
@@ -373,35 +399,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         else if (a.status === 'HalfDay') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
-    } else {
-       // Mock data if no attendance found for today
-       present = Math.floor(nonTeachingStaff.length * 0.92);
-       late = Math.floor(nonTeachingStaff.length * 0.04);
-       halfDay = Math.floor(nonTeachingStaff.length * 0.01);
-       absent = nonTeachingStaff.length - present - late - halfDay;
     }
-    const total = present + absent + late + halfDay || 1;
+    const total = present + absent + late + halfDay || (summaryData?.nonTeachingStaff || nonTeachingStaff.length || 1);
     const presentPct = Math.round((present / total) * 100);
     const latePct = Math.round((late / total) * 100);
     const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = 100 - presentPct - latePct - halfDayPct;
-
-    const pEnd = presentPct;
-    const lEnd = pEnd + latePct;
-    const hdEnd = lEnd + halfDayPct;
+    const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
 
     return { 
       present, absent, late, halfDay, total, 
       presentPct, latePct, halfDayPct, absentPct,
-      pEnd, lEnd, hdEnd
+      pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
     };
-  }, [attendance, nonTeachingStaff]);
+  }, [summaryData, attendance, nonTeachingStaff]);
 
   const activeStaffStats = staffAttendanceTab === 'Teaching' ? teacherAttendanceStats : nonTeachingAttendanceStats;
 
   // Class wise strength calculation
   const classCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
+    if (summaryData?.classWiseStrength && summaryData.classWiseStrength.length > 0) {
+      summaryData.classWiseStrength.forEach(item => {
+        const cName = item.className.startsWith('Class ') ? item.className : `Class ${item.className}`;
+        counts[cName] = item.studentCount;
+      });
+      return counts;
+    }
     academicClasses.forEach(c => { counts[c.name] = 0; });
     students.forEach(s => {
       const cName = s.className.startsWith('Class ') ? s.className : `Class ${s.className}`;
@@ -410,7 +433,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     });
     return counts;
-  }, [academicClasses, students]);
+  }, [summaryData, academicClasses, students]);
 
   const sortedClasses = Object.entries(classCounts).sort((a, b) => {
     const numA = parseInt(a[0].replace(/\D/g, '')) || 0;
@@ -583,12 +606,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {summaryError && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{summaryError} (Displaying latest session state)</span>
+          </div>
+          <button
+            onClick={loadSummaryData}
+            className="flex items-center gap-1 font-bold text-amber-700 dark:text-amber-400 hover:underline shrink-0"
+          >
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Students */}
         <div onClick={() => onNavigate('students')} className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total Students</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(totalStudentCount || students.length).toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.totalStudents : (totalStudentCount || students.length)).toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-100/50 dark:border-sky-900/30">
             <TrendingUp className="w-5 h-5" />
@@ -599,7 +637,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff')} className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{teachingStaff.length.toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.teachingStaff : teachingStaff.length).toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100/50 dark:border-emerald-900/30">
             <UserCheck className="w-5 h-5" />
@@ -610,7 +648,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff-non-teaching')} className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Non-Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{nonTeachingStaff.length.toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.nonTeachingStaff : nonTeachingStaff.length).toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100/50 dark:border-rose-900/30">
             <Users className="w-5 h-5" />
@@ -621,7 +659,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('academics')} className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total Classes</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{academicClasses.length.toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.totalClasses : academicClasses.length).toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-100/50 dark:border-amber-900/30">
             <BookOpen className="w-5 h-5" />
@@ -796,7 +834,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Admission Approvals</span>
                 <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-450 border border-rose-100/30">
-                  {pendingAdmissions.length}
+                  {summaryData ? summaryData.pendingAdmissions : pendingAdmissions.length}
                 </span>
               </div>
               <div 

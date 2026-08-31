@@ -5,7 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentTimetableView: React.FC = () => {
-  const { students, timetable } = useData();
+  const { students, timetable, academicClasses } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
@@ -104,6 +104,44 @@ export const ParentTimetableView: React.FC = () => {
     if (name.includes('science')) return 'SCI-106';
     if (name.includes('computer')) return 'CS-105';
     return `${subjectName.substring(0, 3).toUpperCase()}-101`;
+  };
+
+  const getDisplayRoom = (slotRoom?: string, className?: string, section?: string): string => {
+    const trimmedSlot = (slotRoom || '').trim();
+    if (
+      trimmedSlot &&
+      trimmedSlot.toLowerCase() !== 'classroom' &&
+      trimmedSlot.toLowerCase() !== 'unassigned' &&
+      trimmedSlot.toLowerCase() !== 'undefined' &&
+      trimmedSlot.toLowerCase() !== 'null'
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
+        return `Room ${trimmedSlot}`;
+      }
+      return trimmedSlot;
+    }
+
+    const targetClass = className || currentWard?.className;
+    const targetSection = section || currentWard?.section;
+    const cls = academicClasses?.find(
+      c => c.name?.toLowerCase().trim() === targetClass?.toLowerCase().trim()
+    );
+    const secRoom = cls?.sectionDetails?.[targetSection]?.roomNo?.trim();
+
+    if (
+      secRoom &&
+      secRoom.toLowerCase() !== 'classroom' &&
+      secRoom.toLowerCase() !== 'unassigned' &&
+      secRoom.toLowerCase() !== 'undefined' &&
+      secRoom.toLowerCase() !== 'null'
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(secRoom)) {
+        return `Room ${secRoom}`;
+      }
+      return secRoom;
+    }
+
+    return 'No Classroom Assigned';
   };
 
   return (
@@ -238,9 +276,22 @@ export const ParentTimetableView: React.FC = () => {
                                   </p>
                                   <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName || 'Instructor'}</p>
                                   <div className="pt-1">
-                                    <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-[9px] font-mono font-bold text-slate-500 border border-slate-200 dark:border-slate-800">
-                                      {match.roomNo || 'Classroom'}
-                                    </span>
+                                    {(() => {
+                                      const displayRoom = getDisplayRoom(match.roomNo, currentWard.className, currentWard.section);
+                                      const isUnassigned = displayRoom === 'No Classroom Assigned';
+                                      return (
+                                        <span
+                                          title={isUnassigned ? 'No Classroom Assigned' : `Room: ${displayRoom}`}
+                                          className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border truncate block max-w-[100px] ${
+                                            isUnassigned
+                                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/70 dark:border-amber-900/50'
+                                              : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                                          }`}
+                                        >
+                                          {displayRoom}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                               ) : (

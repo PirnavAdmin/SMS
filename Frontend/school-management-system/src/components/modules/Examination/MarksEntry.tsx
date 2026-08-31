@@ -432,7 +432,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
                   >
                     <option value="">-- Select Section --</option>
                     {getAllowedSections(selectedClass).map(sec => (
-                      <option key={sec} value={sec}>Section {sec}</option>
+                      <option key={sec} value={sec}>{sec.startsWith('Section') ? sec : `Section ${sec}`}</option>
                     ))}
                   </select>
                 </div>

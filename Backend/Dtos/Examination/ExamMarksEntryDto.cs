@@ -11,17 +11,9 @@ public class SubjectOptionItemDto
 
 public class MarksEntryOptionsDto
 {
-    public List<string> Classes { get; set; } = new List<string> { "Class 1", "Class 2", "Class 3", "Class 4", "Class 5" };
-    public List<string> Sections { get; set; } = new List<string> { "Section A", "Section B", "Section C" };
-    public List<SubjectOptionItemDto> Subjects { get; set; } = new List<SubjectOptionItemDto>
-    {
-        new SubjectOptionItemDto { SubjectCode = "MTH-101", SubjectName = "Mathematics" },
-        new SubjectOptionItemDto { SubjectCode = "ENG-105", SubjectName = "English Language" },
-        new SubjectOptionItemDto { SubjectCode = "CHM-103", SubjectName = "Chemistry" },
-        new SubjectOptionItemDto { SubjectCode = "HIS-107", SubjectName = "History" },
-        new SubjectOptionItemDto { SubjectCode = "ACC-109", SubjectName = "Accountancy" },
-        new SubjectOptionItemDto { SubjectCode = "PHY-102", SubjectName = "Physics" }
-    };
+    public List<string> Classes { get; set; } = new List<string>();
+    public List<string> Sections { get; set; } = new List<string>();
+    public List<SubjectOptionItemDto> Subjects { get; set; } = new List<SubjectOptionItemDto>();
 }
 
 public class StudentMarksRowDto

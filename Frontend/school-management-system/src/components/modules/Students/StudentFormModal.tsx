@@ -63,7 +63,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     attendancePct: 100,
     gpa: 4.0,
     admissionNo: 'ADM2026-' + Math.floor(100 + Math.random() * 900),
-    rollNo: '10' + Math.floor(10 + Math.random() * 90)
+    rollNo: ''
   });
 
   // Separate address breakdown for editing match

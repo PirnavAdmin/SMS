@@ -96,19 +96,18 @@ namespace Backend.Tests.Services
         }
 
         [Fact]
-        public async Task LoginAsync_UserNotFound_ReturnsFallbackResponse()
+        public async Task LoginAsync_UserNotFound_ThrowsUnauthorizedAppException()
         {
             var dto = new LoginRequestDto("nonexistent@example.com", "password");
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync((User?)null);
+            _adminRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
+                .ReturnsAsync((Admin?)null);
 
-            // AuthService has an intentional demo/offline fallback: when no admin or user
-            // is found it returns a default admin token rather than throwing.
-            var response = await _service.LoginAsync(dto);
-
-            Assert.NotNull(response);
-            Assert.False(string.IsNullOrEmpty(response.Token));
+            var ex = await Assert.ThrowsAsync<AppException>(() => _service.LoginAsync(dto));
+            Assert.Equal(HttpStatusCode.Unauthorized, ex.StatusCode);
+            Assert.Equal("Invalid email/mobile number or password.", ex.Message);
         }
 
         [Fact]

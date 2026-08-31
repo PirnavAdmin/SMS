@@ -64,7 +64,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     // Direct email match in teaching staff
     if (userEmail) {
       const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
+      if (byEmail) {
+        return {
+          ...byEmail,
+          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
+        };
+      }
     }
 
     // Direct name match in teaching staff
@@ -76,25 +81,36 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         if (userName.length > 5 && sFullName && sFullName.includes(userName)) return true;
         return false;
       });
-      if (byName) return byName;
+      if (byName) {
+        return {
+          ...byName,
+          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
+        };
+      }
     }
 
     // Direct staff ID match in teaching staff
     if (user?.id) {
       const byId = teachingStaff.find(s => s.id === user.id || s.empId === user.id);
-      if (byId) return byId;
-    }
-
-    // Fallback to first teaching staff member if available
-    if (teachingStaff.length > 0) {
-      const fallback = teachingStaff[0];
-      if (fallback) {
+      if (byId) {
         return {
-          ...fallback,
-          designation: fallback.designation && !fallback.designation.toLowerCase().includes('driver') ? fallback.designation : 'Class Teacher',
-          department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'Mathematics'
+          ...byId,
+          assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A']
         };
       }
+    }
+
+    // Fallback to Robert Teacher staff record or teaching staff member
+    const robertRecord = teachingStaff.find(s => (s.firstName || '').toLowerCase().includes('robert') || (s.lastName || '').toLowerCase().includes('teacher'));
+    const fallback = robertRecord || teachingStaff[0];
+
+    if (fallback) {
+      return {
+        ...fallback,
+        assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+        designation: fallback.designation && !fallback.designation.toLowerCase().includes('driver') ? fallback.designation : 'Junior Teacher',
+        department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'English'
+      };
     }
 
     // Construct dynamic profile from logged-in user context
@@ -103,25 +119,16 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const firstName = nameParts[0] || 'Robert';
     const lastName = nameParts.slice(1).join(' ') || 'Teacher';
 
-    let defaultClassName = 'Class 10-A';
-    if (academicClasses && academicClasses.length > 0) {
-      const first = academicClasses[0];
-      const nameStr = first.name || (first as any).className || '10';
-      const secStr = first.section || (Array.isArray((first as any).sections) ? (first as any).sections[0] : 'A') || 'A';
-      const cleanName = nameStr.startsWith('Class ') ? nameStr : `Class ${nameStr}`;
-      defaultClassName = cleanName.includes('-') ? cleanName : `${cleanName}-${secStr}`;
-    }
-
     return {
-      id: user?.id || 'STF-101',
+      id: user?.id || 'STF-2026-0000',
       firstName,
       lastName,
-      assignedClasses: Array.from(new Set([defaultClassName, 'Class 10-A', 'Class 9-B', 'Class 6-A'])),
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics Dept',
-      designation: 'Class Teacher'
+      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
+      assignedSubjects: ['English', 'Mathematics'],
+      department: 'English',
+      designation: 'Junior Teacher'
     };
-  }, [user, staff, academicClasses]);
+  }, [user, staff]);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -202,9 +209,31 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   }, [timetable, teacher, todayDay]);
 
   // 3. Teacher Check-in / Check-out & Working Hours State
-  const [checkInTime, setCheckInTime] = useState<string | null>(() => localStorage.getItem('teacher_check_in_time'));
-  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => localStorage.getItem('teacher_check_out_time'));
-  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => localStorage.getItem('teacher_is_checked_out') === 'true');
+  const [checkInTime, setCheckInTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) {
+      localStorage.removeItem("teacher_check_in_time");
+      localStorage.removeItem("teacher_check_out_time");
+      localStorage.removeItem("teacher_is_checked_out");
+      localStorage.setItem("teacher_attendance_date", todayStr);
+      return null;
+    }
+    return localStorage.getItem("teacher_check_in_time");
+  });
+
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) return null;
+    const isOut = localStorage.getItem("teacher_is_checked_out") === "true";
+    return isOut ? localStorage.getItem("teacher_check_out_time") : null;
+  });
+
+  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => {
+    const storedDate = localStorage.getItem("teacher_attendance_date");
+    if (storedDate && storedDate !== todayStr) return false;
+    return localStorage.getItem("teacher_is_checked_out") === "true";
+  });
+
   const [workingHours, setWorkingHours] = useState<string>('0h 0m');
 
   // Check if real attendance is logged for teacher today in useData().attendance
@@ -257,12 +286,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
         if (isMounted) {
           const attendanceData = res?.attendance || res;
           if (attendanceData && attendanceData.inTime) {
-            const todayDateStr = new Date().toLocaleDateString('en-CA');
-            const inTimeStr = `${todayDateStr}T${attendanceData.inTime}`;
+            const inTimeStr = `${todayStr}T${attendanceData.inTime}`;
             setCheckInTime(inTimeStr);
             localStorage.setItem('teacher_check_in_time', inTimeStr);
+            localStorage.setItem('teacher_attendance_date', todayStr);
             if (attendanceData.outTime) {
-              const outTimeStr = `${todayDateStr}T${attendanceData.outTime}`;
+              const outTimeStr = `${todayStr}T${attendanceData.outTime}`;
               setCheckOutTime(outTimeStr);
               localStorage.setItem('teacher_check_out_time', outTimeStr);
               localStorage.setItem('teacher_is_checked_out', 'true');
@@ -273,14 +302,6 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
               localStorage.setItem('teacher_is_checked_out', 'false');
               setIsCheckedOut(false);
             }
-          } else {
-            // Not marked today: clean up any stale localStorage
-            setCheckInTime(null);
-            setCheckOutTime(null);
-            setIsCheckedOut(false);
-            localStorage.removeItem('teacher_check_in_time');
-            localStorage.removeItem('teacher_check_out_time');
-            localStorage.removeItem('teacher_is_checked_out');
           }
         }
       } catch {
@@ -289,19 +310,17 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     };
     loadTodayStatus();
     return () => { isMounted = false; };
-  }, []);
+  }, [todayStr]);
 
   const handleCheckIn = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res: any = await teacherCheckInApi();
-      const attendanceData = res?.attendance || res;
-      const inTimeVal = attendanceData?.inTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const fullIso = `${todayStr}T${inTimeVal}`;
-      localStorage.setItem('teacher_check_in_time', fullIso);
+      await teacherCheckInApi();
+      const isoStr = new Date().toISOString();
+      localStorage.setItem('teacher_check_in_time', isoStr);
       localStorage.removeItem('teacher_check_out_time');
       localStorage.setItem('teacher_is_checked_out', 'false');
-      setCheckInTime(fullIso);
+      setCheckInTime(isoStr);
       setCheckOutTime(null);
       setIsCheckedOut(false);
 
@@ -316,13 +335,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   const handleCheckOut = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res: any = await teacherCheckOutApi();
-      const attendanceData = res?.attendance || res;
-      const outTimeVal = attendanceData?.outTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const fullIso = `${todayStr}T${outTimeVal}`;
-      localStorage.setItem('teacher_check_out_time', fullIso);
+      await teacherCheckOutApi();
+      const isoStr = new Date().toISOString();
+      localStorage.setItem('teacher_check_out_time', isoStr);
       localStorage.setItem('teacher_is_checked_out', 'true');
-      setCheckOutTime(fullIso);
+      setCheckOutTime(isoStr);
       setIsCheckedOut(true);
 
       if (fetchDailyAttendance) {

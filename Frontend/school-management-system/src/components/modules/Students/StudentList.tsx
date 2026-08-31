@@ -306,19 +306,22 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     let raw = (teacher as any).assignedClasses || (teacher as any).classes || (teacher as any).assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
     const list = (Array.isArray(raw) && raw.length > 0) ? [...raw] : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-    if (!list.some((c: string) => c.includes('10'))) list.push('Class 10-A');
-    if (!list.some((c: string) => c.includes('9'))) list.push('Class 9-B');
-    if (!list.some((c: string) => c.includes('6'))) list.push('Class 6-A');
-    return Array.from(new Set(list));
+    const cleaned = list.map((c: string) => {
+      let str = c.trim();
+      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
+      return str;
+    }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
+
+    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
   }, [teacher]);
 
-  const [teacherSelectedClass, setTeacherSelectedClass] = useState('All Assigned Classes');
-  const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
+  const [teacherSelectedClass, setTeacherSelectedClass] = useState('Class 10');
+  const [teacherSelectedSection, setTeacherSelectedSection] = useState('A');
   const [teacherHasSearched, setTeacherHasSearched] = useState(false);
   const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
   const teacherPageSize = 9;
 
-  // Dynamic Class options for Teacher Filter - PURE Class names only (sections filtered separately)
+  // Dynamic Class options for Teacher Filter - PURE Class names ONLY for assigned workload
   const teacherClassOptions = useMemo(() => {
     const set = new Set<string>();
     (teacherAssignedClasses || []).forEach(ac => {
@@ -327,24 +330,42 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         if (!mainCls.toLowerCase().startsWith('class')) {
           mainCls = `Class ${mainCls}`;
         }
-        set.add(mainCls);
+        if (!mainCls.toLowerCase().includes('nursery') && !mainCls.toLowerCase().includes('lkg') && !mainCls.toLowerCase().includes('ukg')) {
+          set.add(mainCls);
+        }
       }
     });
-    return Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
+    const list = Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
+    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 6'];
   }, [teacherAssignedClasses]);
 
-  // Dynamic Section options for Teacher Filter
+  // Dynamic Section options for Teacher Filter - STRICTLY assigned sections for selected class
   const teacherSectionOptions = useMemo(() => {
-    const sectionsSet = new Set<string>();
-    ['A', 'B', 'C', 'D', 'E'].forEach(sec => sectionsSet.add(sec));
-    displayStudents.forEach(s => {
-      if (s.section) {
-        const cleanSec = s.section.replace(/^Section\s+/i, '').trim();
-        if (cleanSec) sectionsSet.add(cleanSec);
+    const sections = new Set<string>();
+    (teacherAssignedClasses || []).forEach(ac => {
+      const parts = ac.split('-');
+      let clsName = parts[0].trim();
+      if (!clsName.toLowerCase().startsWith('class')) clsName = `Class ${clsName}`;
+      const sec = parts[1] ? parts[1].trim() : 'A';
+
+      const selectedClsNum = teacherSelectedClass.replace(/^class\s*/i, '').trim().toLowerCase();
+      const clsNum = clsName.replace(/^class\s*/i, '').trim().toLowerCase();
+
+      if (teacherSelectedClass === 'All Assigned Classes' || selectedClsNum === clsNum) {
+        sections.add(sec);
       }
     });
-    return Array.from(sectionsSet).sort();
-  }, [displayStudents]);
+
+    const list = Array.from(sections).sort();
+    return list.length > 0 ? list : ['A'];
+  }, [teacherAssignedClasses, teacherSelectedClass]);
+
+  // Auto-sync section selection when class changes to default directly to assigned section
+  useEffect(() => {
+    if (teacherSectionOptions.length > 0) {
+      setTeacherSelectedSection(teacherSectionOptions[0]);
+    }
+  }, [teacherSelectedClass, teacherSectionOptions]);
 
   // Roster View Filters
   const [searchName, setSearchName] = useState('');
@@ -585,46 +606,16 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 }}
                 className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
               >
-                <option value="All">All Sections</option>
                 {teacherSectionOptions.map((sec) => (
                   <option key={sec} value={sec}>Section {sec}</option>
                 ))}
               </select>
             </div>
-            {/* Search Data Trigger Button */}
-            <button
-              onClick={() => setTeacherHasSearched(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-            >
-              <Search className="w-4 h-4" /> Search Data
-            </button>
           </div>
         </div>
 
-        {!teacherHasSearched ? (
-          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 my-4 flex flex-col items-center justify-center">
-            <div className="w-16 h-16 bg-sky-50 dark:bg-sky-950/50 rounded-2xl flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
-              <Search className="w-8 h-8 text-sky-600 dark:text-sky-400" />
-            </div>
-            <div className="space-y-1 max-w-md mx-auto">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                Select Filters & Click Search Data
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                Please select your desired Class and Section above, then click the <strong className="text-sky-600 dark:text-sky-400 font-extrabold">Search Data</strong> button to view student records.
-              </p>
-            </div>
-            <button
-              onClick={() => setTeacherHasSearched(true)}
-              className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
-            >
-              <Search className="w-4 h-4" /> Search Data
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Student Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Student Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {paginatedTeacherStudents.length === 0 ? (
             <div className="col-span-full text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
               <Users className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
@@ -751,8 +742,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
           </div>
         )}
-      </>
-    )}
 
         {/* Student Profile Drawer */}
         {selectedStudent && (
