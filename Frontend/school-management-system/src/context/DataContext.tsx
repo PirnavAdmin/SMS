@@ -4548,10 +4548,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return "Inactive";
         };
 
+        const deletedRouteIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
+        );
+        const deletedPickupIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_pickup_ids") || "[]"),
+        );
+        const deletedVehicleIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_vehicle_ids") || "[]"),
+        );
+        const deletedDriverIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_driver_ids") || "[]"),
+        );
+        const deletedAssignmentIds = new Set<string>(
+          JSON.parse(localStorage.getItem("edu_db_deleted_assignment_ids") || "[]"),
+        );
+
         const mergeApiAndLocal = <T extends { id: string | number }>(
           apiList: T[],
           localKey: string,
-          initialFallback: T[],
+          deletedSet?: Set<string>,
         ): T[] => {
           const saved = localStorage.getItem(localKey);
           let localList: T[] = [];
@@ -4564,11 +4580,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           const merged = [...apiList];
           if (Array.isArray(localList)) {
-            localList.forEach((localItem: T) => {
+            localList.forEach((localItem: any) => {
               if (
                 localItem &&
                 localItem.id !== undefined &&
-                localItem.id !== null
+                localItem.id !== null &&
+                !localItem.isDeleted &&
+                localItem.status !== "Deleted" &&
+                (!deletedSet || !deletedSet.has(String(localItem.id)))
               ) {
                 if (
                   !merged.some(
@@ -4580,7 +4599,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             });
           }
-          return merged;
+          return deletedSet
+            ? merged.filter((item: any) => !deletedSet.has(String(item.id)))
+            : merged;
         };
 
         if (routes) {
@@ -4671,9 +4692,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (r: any) =>
               r.routeName &&
               r.routeName.trim() !== "" &&
-              r.routeName.toUpperCase() !== "N/A",
+              r.routeName.toUpperCase() !== "N/A" &&
+              !r.isDeleted &&
+              r.status !== "Deleted" &&
+              !deletedRouteIds.has(String(r.id)) &&
+              !deletedRouteIds.has(String(r.routeId)) &&
+              !deletedRouteIds.has(String(r.routeCode)),
           );
           setRouteMasters(validRoutes);
+          localStorage.setItem("edu_db_route_masters", JSON.stringify(validRoutes));
         }
         if (points) {
           const mappedPoints = points.map((p: any) => ({
@@ -12877,7 +12904,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteRouteMaster = async (id: string) => {
     try {
       // Find all pickup points belonging to this route and delete them from the backend
-      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id);
+      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id || String(p.routeId) === String(id));
       for (const p of pointsToDelete) {
         try {
           await TransportAPI.deletePickupPointApi(p.id);
@@ -12891,7 +12918,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Find all vehicle assignments belonging to this route and delete them from the backend
       const assignmentsToDelete = vehicleAssignments.filter(
-        (a) => a.routeId === id,
+        (a) => a.routeId === id || String(a.routeId) === String(id),
       );
       for (const a of assignmentsToDelete) {
         try {
@@ -12905,12 +12932,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       await TransportAPI.deleteRouteApi(id);
-      setRouteMasters((prev) => prev.filter((r) => r.id !== id));
-      setPickupPoints((prev) => prev.filter((p) => p.routeId !== id));
-      setVehicleAssignments((prev) => prev.filter((a) => a.routeId !== id));
+    } catch (err) {
+      console.warn("Transport route deletion error:", err);
+    } finally {
+      const targetRoute = routeMasters.find((r) => r.id === id || String(r.id) === String(id));
+      const routeCode = targetRoute?.routeCode;
+
+      setRouteMasters((prev) => {
+        const next = prev.filter((r) => r.id !== id && String(r.id) !== String(id) && (routeCode ? r.routeCode !== routeCode : true));
+        localStorage.setItem("edu_db_route_masters", JSON.stringify(next));
+        return next;
+      });
+      setPickupPoints((prev) => {
+        const next = prev.filter((p) => p.routeId !== id && String(p.routeId) !== String(id));
+        localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
+        return next;
+      });
+      setVehicleAssignments((prev) => {
+        const next = prev.filter((a) => a.routeId !== id && String(a.routeId) !== String(id));
+        localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(next));
+        return next;
+      });
       setStudentTransports((prev) =>
         prev.map((st) =>
-          st.routeId === id
+          st.routeId === id || String(st.routeId) === String(id)
             ? {
                 ...st,
                 routeId: "",
@@ -12922,28 +12967,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             : st,
         ),
+      );
+      const deletedTrack = new Set<string>(
+        JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
+      );
+      deletedTrack.add(String(id));
+      if (routeCode) deletedTrack.add(String(routeCode));
+      localStorage.setItem(
+        "edu_db_deleted_route_ids",
+        JSON.stringify(Array.from(deletedTrack)),
       );
       logActivity("Deleted Transport Route", `Removed Route ID ${id}`);
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setRouteMasters((prev) => prev.filter((r) => r.id !== id));
-      setPickupPoints((prev) => prev.filter((p) => p.routeId !== id));
-      setVehicleAssignments((prev) => prev.filter((a) => a.routeId !== id));
-      setStudentTransports((prev) =>
-        prev.map((st) =>
-          st.routeId === id
-            ? {
-                ...st,
-                routeId: "",
-                routeName: "Unassigned",
-                pickupPoint: "Unassigned",
-                vehicleId: "",
-                vehicleNumber: "",
-                status: "Inactive",
-              }
-            : st,
-        ),
-      );
     }
   };
 

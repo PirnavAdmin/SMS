@@ -252,10 +252,19 @@ namespace SMS.Api.Repositories.Implementations
             if (route is null)
                 return false;
 
-            route.IsDeleted = true;
-            route.Status = false;
-            route.UpdatedBy = userId;
-            route.UpdatedAt = DateTime.UtcNow;
+            var matchingRoutes = await _context.TransportRoutes
+                .Where(x => (x.RouteId == routeId || 
+                             (!string.IsNullOrEmpty(route.RouteCode) && x.RouteCode == route.RouteCode)) && 
+                            !x.IsDeleted)
+                .ToListAsync();
+
+            foreach (var r in matchingRoutes)
+            {
+                r.IsDeleted = true;
+                r.Status = false;
+                r.UpdatedBy = userId;
+                r.UpdatedAt = DateTime.UtcNow;
+            }
 
             await _context.SaveChangesAsync();
 
