@@ -201,12 +201,12 @@ namespace SMS.Api.Services.Implementations
 
             if (user.Roles != null && user.Roles.Any())
             {
-                rolesList.AddRange(user.Roles.Select(r => r.RoleName));
+                rolesList.AddRange(user.Roles.Select(r => SMS.Api.Helpers.RoleHelper.NormalizeRoleName(r.RoleName)));
             }
 
             if (!string.IsNullOrEmpty(user.Role))
             {
-                rolesList.Add(user.Role);
+                rolesList.Add(SMS.Api.Helpers.RoleHelper.NormalizeRoleName(user.Role));
             }
 
             return rolesList.Distinct().ToList();
@@ -218,12 +218,12 @@ namespace SMS.Api.Services.Implementations
 
             if (admin.Roles != null && admin.Roles.Any())
             {
-                rolesList.AddRange(admin.Roles.Select(r => r.RoleName));
+                rolesList.AddRange(admin.Roles.Select(r => SMS.Api.Helpers.RoleHelper.NormalizeRoleName(r.RoleName)));
             }
 
             if (!string.IsNullOrEmpty(admin.Role))
             {
-                rolesList.Add(admin.Role);
+                rolesList.Add(SMS.Api.Helpers.RoleHelper.NormalizeRoleName(admin.Role));
             }
 
             return rolesList.Distinct().ToList();

@@ -459,13 +459,18 @@ const MainLayout: React.FC = () => {
         );
       case "hostel":
       case "hostel-room-allocation":
+      case "hostel-attendance":
+      case "hostel-attendance-register":
+      case "hostel-outpass":
+      case "hostel-outpass-leave":
+      case "outpass":
       case "room-allocation":
       case "student-hostel":
         return userRole === "parent" || userRole === "student" ? (
           <ParentHostelView />
         ) : (
           <HostelContainerView
-            initialTab="hostel-student-hostel"
+            initialTab={activeModule}
             onTabChange={setActiveModule}
           />
         );

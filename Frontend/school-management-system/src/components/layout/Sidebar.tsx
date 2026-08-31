@@ -318,11 +318,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "uniform-reports", label: "Uniform Reports", icon: FileSpreadsheet },
   ];
 
-  const librarySubItems = [
-    { id: "library", label: "Digital Library", icon: Library },
-    { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
-    { id: "library-timetable", label: "Library Timetable", icon: Clock },
-  ];
+  const librarySubItems =
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+      ? [
+          { id: "library", label: "Digital Library", icon: Library },
+        ]
+      : [
+          { id: "library", label: "Digital Library", icon: Library },
+          { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
+          { id: "library-timetable", label: "Library Timetable", icon: Clock },
+        ];
 
   const staffSubItems =
     role.toLowerCase() === "parent" || role.toLowerCase() === "student"
@@ -531,7 +536,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar">
         {menuGroups.map((group, idx) => {
           const visibleItems = group.items.filter(
-            (item: any) => !item.roles || item.roles.includes(role || ""),
+            (item: any) => {
+              if (item.roles && !item.roles.includes(role || "")) return false;
+              if (role.toLowerCase() === "parent") {
+                if (item.id === "library" || item.id === "librarian-attendance" || item.id === "library-timetable") {
+                  return false;
+                }
+              }
+              if (role.toLowerCase() === "student") {
+                if (item.id === "librarian-attendance" || item.id === "library-timetable") {
+                  return false;
+                }
+              }
+              return true;
+            }
           );
 
           const hasCustomModules =

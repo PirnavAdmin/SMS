@@ -14,7 +14,7 @@ export const ParentHomeworkView: React.FC = () => {
     if (fetchHomeworkData) {
       fetchHomeworkData();
     }
-  }, [fetchHomeworkData]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

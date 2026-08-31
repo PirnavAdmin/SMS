@@ -615,7 +615,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   useEffect(() => {
     if (fetchSalaryStructures) fetchSalaryStructures();
     if (fetchSalaryAssignments) fetchSalaryAssignments();
-  }, [fetchSalaryStructures, fetchSalaryAssignments]);
+  }, []);
 
   const { addToast } = useToast();
 

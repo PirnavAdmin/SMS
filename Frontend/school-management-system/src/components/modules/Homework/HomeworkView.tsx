@@ -16,7 +16,7 @@ export const HomeworkView: React.FC = () => {
     if (fetchHomeworkData) {
       fetchHomeworkData();
     }
-  }, [fetchHomeworkData]);
+  }, []);
   const { role, user } = useAuth();
   const { addToast } = useToast();
 

@@ -1,4 +1,4 @@
-export type Role = 'Super Admin' | 'Admin' | 'Teacher' | 'Staff' | 'Parent' | 'Student' | 'Principal' | 'HR' | 'Accountant' | 'Librarian' | 'Transport Manager' | 'Hostel Warden' | 'Receptionist';
+export type Role = 'Super Admin' | 'Admin' | 'Teacher' | 'Staff' | 'Parent' | 'Student' | 'Principal' | 'HR' | 'Accountant' | 'Librarian' | 'Transport Manager' | 'Driver' | 'Hostel Warden' | 'Receptionist';
 export type UserRole = Role;
 
 export type StudentType = 'Day Scholar' | 'Hosteller' | 'Residential' | 'Non-Residential';

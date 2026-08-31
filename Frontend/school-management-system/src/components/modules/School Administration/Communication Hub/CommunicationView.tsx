@@ -7,6 +7,7 @@ import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
+import { WardenCommunicationHubView } from './WardenCommunicationHubView';
 import { createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 
 export interface AnnouncementItem {
@@ -26,9 +27,15 @@ export interface AnnouncementItem {
 }
 
 export const CommunicationView: React.FC = () => {
+  const { user, role } = useAuth();
+  const userRole = (user?.role || role || '').toLowerCase();
+  const isHostelWarden = userRole === 'hostel warden' || userRole.includes('warden');
+  if (isHostelWarden) {
+    return <WardenCommunicationHubView />;
+  }
+
   const { announcements: contextAnnouncements, addAnnouncement, saveAnnouncements, students = [], staff = [] } = useData();
   const { addToast } = useToast();
-  const { role } = useAuth();
 
   const totalUserCount = useMemo(() => {
     const sCount = students.length > 0 ? students.length : 650;
@@ -61,9 +68,8 @@ export const CommunicationView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  const userRole = (role || '').toLowerCase();
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
-  const canModify = (userRole.includes('admin') || userRole.includes('principal') || userRole.includes('super_admin')) && !isLibrarianRole;
+  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole;
 
   // Form State
   const [title, setTitle] = useState('');

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import * as XLSX from 'xlsx';
 import {
   UserCheck, Search, Filter, Edit, Trash2, ArrowUpRight, ArrowRightLeft,
   Eye, Building2, ChevronLeft, ChevronRight, User, Users, ArrowLeft,
   Clock, Calendar, BookOpen, BookMarked, MessageSquare, Mail, Phone,
   HeartPulse, FileText, CheckCircle2, ShieldAlert, Award, Check, GraduationCap, School,
-  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX
+  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -18,6 +19,7 @@ import { StudentFormModal } from './StudentFormModal';
 import { StudentProfileDrawer } from './StudentProfileDrawer';
 import { PromoteStudentModal } from './PromoteStudentModal';
 import { TransferStudentModal } from './TransferStudentModal';
+import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
 import { BRANCHES } from '../../../utils/validation';
 
@@ -31,6 +33,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
   const isTeacherRole = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
+  const isWardenRole = ((user?.role || role || '') as string).toLowerCase().includes('warden');
 
   // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
   const teachingStaff = useMemo(() => {
@@ -139,8 +142,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   }, []);
 
   useEffect(() => {
-    setApiStudents(students);
-  }, [students]);
+    if (isWardenRole) {
+      setApiStudents(students.filter(s =>
+        (s as any).studentType === 'Hosteller' ||
+        (s as any).studentType === 'Residential' ||
+        (s as any).isHosteller ||
+        (s as any).studentType !== 'Day Scholar'
+      ));
+    } else {
+      setApiStudents(students);
+    }
+  }, [students, isWardenRole]);
 
   // Helper to calculate natural ascending order rank for classes
   const getClassOrderRank = (name: string): number => {
@@ -187,7 +199,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     const newAdmissions = admittedFromApps.filter(s => !existingIds.has(s.id) && !existingIds.has(s.admissionNo));
     const allCombined = [...students, ...newAdmissions];
 
-    return allCombined.map((s) => {
+    const mapped = allCombined.map((s) => {
       if (!selectedAcademicYear || selectedAcademicYear === 'All') return s;
       const historyItem = s.academicHistory?.find((h) => h.academicYear === selectedAcademicYear);
       if (historyItem) {
@@ -201,7 +213,18 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       }
       return s;
     });
-  }, [students, applications, selectedAcademicYear]);
+
+    if (isWardenRole) {
+      return mapped.filter(s =>
+        (s as any).studentType === 'Hosteller' ||
+        (s as any).studentType === 'Residential' ||
+        (s as any).isHosteller ||
+        (s as any).studentType !== 'Day Scholar'
+      );
+    }
+
+    return mapped;
+  }, [students, applications, selectedAcademicYear, isWardenRole]);
 
   // Overall Class Overview dataset dynamically computed from Class Management module & sorted in ascending order
   const classOverviewList = useMemo(() => {
@@ -222,10 +245,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       });
     }
 
-    // Only update section lists for configured classes
+    // Dynamically update section and class lists from student records
     branchFilteredStudents.forEach(s => {
-      if (s.className && classMap.has(s.className)) {
-        if (s.section) {
+      if (s.className) {
+        if (!classMap.has(s.className)) {
+          classMap.set(s.className, {
+            className: s.className,
+            sections: s.section ? [s.section] : ['A']
+          });
+        } else if (s.section) {
           const entry = classMap.get(s.className);
           if (entry && !entry.sections.includes(s.section)) {
             entry.sections.push(s.section);
@@ -402,10 +430,57 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Modals state
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentToPromote, setStudentToPromote] = useState<Student | null>(null);
   const [studentToTransfer, setStudentToTransfer] = useState<Student | null>(null);
+
+  // Excel Template Downloader for Student Imports
+  const handleDownloadStudentTemplate = () => {
+    const data = [
+      {
+        'Admission No': 'ADM2026-001',
+        'First Name': 'Aarav',
+        'Last Name': 'Sharma',
+        'Class': 'Class 10',
+        'Section': 'A',
+        'Roll No': '101',
+        'Gender': 'Male',
+        'Date of Birth': '2012-05-15',
+        'Father Name': 'Rajesh Sharma',
+        'Father Mobile': '9876543210',
+        'Mother Name': 'Sunita Sharma',
+        'Email': 'aarav.sharma@gmail.com',
+        'Branch': 'Main Campus',
+        'Student Type': 'Day Scholar',
+        'Status': 'Active'
+      },
+      {
+        'Admission No': 'ADM2026-002',
+        'First Name': 'Ananya',
+        'Last Name': 'Patel',
+        'Class': 'Class 10',
+        'Section': 'B',
+        'Roll No': '102',
+        'Gender': 'Female',
+        'Date of Birth': '2012-08-20',
+        'Father Name': 'Sanjay Patel',
+        'Father Mobile': '9876543211',
+        'Mother Name': 'Meena Patel',
+        'Email': 'ananya.patel@gmail.com',
+        'Branch': 'Main Campus',
+        'Student Type': 'Residential',
+        'Status': 'Active'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students_Import_Template');
+    XLSX.writeFile(workbook, 'Student_Import_Template.xlsx');
+    addToast('info', 'Template Downloaded', 'Sample Excel template downloaded successfully.');
+  };
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [activeProfileTab, setActiveProfileTab] = useState<'personal' | 'parents' | 'attendance' | 'academics' | 'behaviour' | 'medical' | 'docs'>('personal');
   const [messageStudent, setMessageStudent] = useState<Student | null>(null);
@@ -451,68 +526,29 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Synthetic Roster Populator for selected Class and Section
+  // Dynamic Roster for selected Class and Section
   const currentSectionRoster = useMemo(() => {
     if (!selectedClass || !selectedSection) return [];
 
     if (selectedClass === 'All') {
-      return students.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+      const activeList = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+      if (isWardenRole) {
+        return activeList.filter(s =>
+          (s as any).studentType === 'Hosteller' ||
+          (s as any).studentType === 'Residential' ||
+          (s as any).isHosteller ||
+          (s as any).studentType !== 'Day Scholar'
+        );
+      }
+      return activeList;
     }
 
-    const realStudents = apiStudents.filter(
+    return apiStudents.filter(
       s => s.status !== 'Completed' && s.status !== 'Alumni' &&
            s.className.toLowerCase() === selectedClass.toLowerCase() &&
            (selectedSection === 'All' || s.section.toLowerCase() === selectedSection.toLowerCase())
     );
-
-    if (realStudents.length >= 8) return realStudents;
-
-    const targetClassObj = classOverviewList.find(c => c.className.toLowerCase() === selectedClass.toLowerCase());
-    const targetSecObj = targetClassObj?.sections.find(s => s.sectionName.toLowerCase() === selectedSection.toLowerCase());
-    const targetCount = targetSecObj ? targetSecObj.count : 35;
-
-    const firstNames = ['Aarav', 'Ananya', 'Vihaan', 'Aditi', 'Ishaan', 'Diya', 'Reyansh', 'Sai', 'Kavya', 'Arjun', 'Prisha', 'Rohan', 'Tanvi', 'Kabir', 'Riya', 'Vivaan', 'Shreya', 'Aditya', 'Meera', 'Dev', 'Tara', 'Yash', 'Anika', 'Aadi', 'Sanya', 'Karan', 'Pooja', 'Rahul', 'Sneha', 'Manish', 'Neha', 'Siddharth', 'Divya', 'Nikhil', 'Priyanka', 'Amit', 'Richa', 'Varun', 'Swati', 'Gaurav', 'Nisha', 'Akash', 'Bhavna', 'Deepak'];
-    const lastNames = ['Sharma', 'Patel', 'Verma', 'Iyer', 'Singh', 'Reddy', 'Gupta', 'Nair', 'Kulkarni', 'Joshi', 'Chowdhury', 'Deshmukh', 'Mehta', 'Rao', 'Bhat', 'Agarwal', 'Chatterjee', 'Pandey', 'Mishra', 'Kapoor'];
-    const fatherNames = ['Aman', 'Rajesh', 'Sanjay', 'Ganesh', 'Kuldeep', 'Prasad', 'Ramesh', 'Venkatesh', 'Sunil', 'Mahesh', 'Vijay', 'Alok', 'Dinesh', 'Suresh', 'Praveen', 'Ashok', 'Anil', 'Mukesh', 'Pankaj', 'Satish'];
-
-    const roster: Student[] = [...realStudents];
-    for (let i = realStudents.length + 1; i <= targetCount; i++) {
-      const fn = firstNames[(i * 3 + selectedClass.length) % firstNames.length];
-      const ln = lastNames[(i * 7 + selectedSection.charCodeAt(0)) % lastNames.length];
-      const gender = i % 2 === 0 ? 'Female' : 'Male';
-      const father = `${fatherNames[(i * 5) % fatherNames.length]} ${ln}`;
-      const rollNo = i < 10 ? `00${i}` : (i < 100 ? `0${i}` : `${i}`);
-      const admNo = `ADM2026${selectedClass.replace(/\D/g, '') || '0'}${selectedSection}${rollNo}`;
-
-      roster.push({
-        id: `GEN-${selectedClass}-${selectedSection}-${i}`,
-        firstName: fn,
-        lastName: ln,
-        className: selectedClass,
-        section: selectedSection === 'All' ? 'A' : selectedSection,
-        rollNo,
-        admissionNo: admNo,
-        fatherName: father,
-        fatherPhone: `+91 98${(i * 123456) % 100000000}`,
-        fatherOccupation: 'Business',
-        motherName: `Sunita ${ln}`,
-        motherPhone: `+91 97${(i * 654321) % 100000000}`,
-        email: `${fn.toLowerCase()}.${ln.toLowerCase()}@school.edu`,
-        phone: `+91 98${(i * 123456) % 100000000}`,
-        address: 'Knowledge City, NY',
-        joiningDate: '2022-06-01',
-        status: i % 18 === 0 ? 'Inactive' : 'Active',
-        dueFee: 0,
-        branch: 'Main Campus',
-        avatar: '',
-        gender,
-        dob: '15/05/2012',
-        bloodGroup: 'O+',
-        category: 'General'
-      } as Student);
-    }
-    return roster;
-  }, [apiStudents, selectedClass, selectedSection, classOverviewList]);
+  }, [apiStudents, selectedClass, selectedSection, isWardenRole]);
 
   // Filtered Roster for Selected Section View
   const filteredRoster = useMemo(() => {
@@ -814,14 +850,23 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 Student Directory
               </h1>
             </div>
-            {onNavigate && (
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
-                onClick={() => onNavigate('admissions')}
-                className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-brand-600/20 hover:bg-brand-500 transition-colors"
+                onClick={() => setIsImportModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/60 px-3.5 py-2.5 text-xs font-extrabold text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition-colors shadow-xs cursor-pointer"
+                title="Upload Excel / Import Records"
               >
-                <Plus className="h-4 w-4" /> Add Student
+                <Upload className="h-4 w-4" /> Upload Excel / Import
               </button>
-            )}
+              {onNavigate && !isWardenRole && (
+                <button
+                  onClick={() => onNavigate('admissions')}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-brand-600/20 hover:bg-brand-500 transition-colors cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" /> Add Student
+                </button>
+              )}
+            </div>
           </div>
 
           {/* SUMMARY METRIC CARDS */}
@@ -1200,6 +1245,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         student={studentToTransfer}
         isOpen={!!studentToTransfer}
         onClose={() => setStudentToTransfer(null)}
+      />
+
+      <AcademicHistoryImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
 
       <ConfirmModal

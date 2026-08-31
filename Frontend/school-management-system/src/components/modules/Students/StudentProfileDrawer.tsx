@@ -830,17 +830,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
                   Academic Year History Timeline ({student.academicHistory?.length || 0} Sessions)
                 </h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-sky-600 font-mono">
-                    Master Status: {student.status}
-                  </span>
-                  <button
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-extrabold text-[11px] hover:bg-sky-100 transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" /> Import Excel / Download Template
-                  </button>
-                </div>
               </div>
 
               {(!student.academicHistory || student.academicHistory.length === 0) ? (

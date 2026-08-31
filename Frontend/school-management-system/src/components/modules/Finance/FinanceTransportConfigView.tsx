@@ -10,7 +10,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const FinanceTransportConfigView: React.FC = () => {
   const {
-    financeTransportConfigs, routeMasters, pickupPoints, vehicleAssignments,
+    financeTransportConfigs, routeMasters, pickupPoints, vehicleAssignments, vehicleMasters,
     addFinanceTransportConfig, updateFinanceTransportConfig, deleteFinanceTransportConfig
   } = useData();
   const { addToast } = useToast();
@@ -21,9 +21,56 @@ export const FinanceTransportConfigView: React.FC = () => {
   const [editingConfig, setEditingConfig] = useState<FinanceTransportConfig | null>(null);
   const [deletingConfig, setDeletingConfig] = useState<FinanceTransportConfig | null>(null);
 
+  const getAutoCalculatedFee = (rId: string, pId: string, plan: string = 'Monthly') => {
+    const route = routeMasters.find(r => r.id === rId);
+    const stop = pickupPoints.find(p => p.id === pId);
+    if (!route || !stop) return 0;
+
+    let assignedFee = 0;
+    if (plan === 'Monthly' && stop.monthlyFee && stop.monthlyFee > 0) {
+      assignedFee = stop.monthlyFee;
+    } else if (plan === 'Quarterly' && stop.quarterlyFee && stop.quarterlyFee > 0) {
+      assignedFee = stop.quarterlyFee;
+    } else if ((plan === 'Half Yearly' || plan === 'Half-Yearly') && stop.halfYearlyFee && stop.halfYearlyFee > 0) {
+      assignedFee = stop.halfYearlyFee;
+    } else if (plan === 'Annual' && stop.annualFee && stop.annualFee > 0) {
+      assignedFee = stop.annualFee;
+    }
+
+    if (assignedFee > 0) {
+      return assignedFee;
+    }
+
+    const assignment = vehicleAssignments.find(va => va.routeId === rId);
+    const vehicle = vehicleMasters.find(v => v.id === assignment?.vehicleId);
+    const isAC = vehicle ? vehicle.isAC : false;
+
+    const baseFare = isAC 
+      ? (route.acMinBaseFare || (route as any).acBaseFare || 0) 
+      : (route.minBaseFare || (route as any).nonAcBaseFare || 0);
+    const ratePerKm = isAC 
+      ? (route.acRatePerKm || 0) 
+      : (route.ratePerKm || (route as any).nonAcRatePerKm || 0);
+    const distance = stop.distanceFromSchoolKm || stop.distanceFromStart || 0;
+
+    let monthlyFee = 0;
+    if (baseFare > 0 || ratePerKm > 0) {
+      monthlyFee = baseFare + distance * ratePerKm;
+    } else {
+      monthlyFee = stop.monthlyFee || stop.monthlyFare || 0;
+    }
+
+    const multiplier = plan === 'Quarterly' ? 3 : plan === 'Half Yearly' || plan === 'Half-Yearly' ? 6 : plan === 'Annual' ? 12 : 1;
+    return monthlyFee * multiplier;
+  };
+
   const defaultRoute = routeMasters[0];
   const defaultAssignment = vehicleAssignments.find(va => va.routeId === defaultRoute?.id);
   const defaultStops = pickupPoints.filter(p => p.routeId === defaultRoute?.id);
+
+  const initialFee = defaultRoute && defaultStops[0]
+    ? getAutoCalculatedFee(defaultRoute.id, defaultStops[0].id, 'Quarterly')
+    : 0;
 
   const [form, setForm] = useState<Partial<FinanceTransportConfig>>({
     routeId: defaultRoute?.id || '',
@@ -35,7 +82,7 @@ export const FinanceTransportConfigView: React.FC = () => {
     pickupPointId: defaultStops[0]?.id || '',
     pickupName: defaultStops[0]?.pickupName || '',
     feePlan: 'Quarterly',
-    feeAmount: 5000,
+    feeAmount: initialFee,
     effectiveFrom: new Date().toISOString().split('T')[0],
     status: 'Active'
   });
@@ -52,6 +99,8 @@ export const FinanceTransportConfigView: React.FC = () => {
     const route = routeMasters.find(r => r.id === routeId);
     const assignment = vehicleAssignments.find(va => va.routeId === routeId);
     const stops = pickupPoints.filter(p => p.routeId === routeId);
+    const firstStopId = stops[0]?.id || '';
+    const autoFee = getAutoCalculatedFee(routeId, firstStopId, form.feePlan || 'Quarterly');
 
     setForm(prev => ({
       ...prev,
@@ -61,17 +110,20 @@ export const FinanceTransportConfigView: React.FC = () => {
       vehicleNumber: assignment?.vehicleNumber || 'Unassigned',
       driverId: assignment?.driverId || '',
       driverName: assignment?.driverName || 'Unassigned',
-      pickupPointId: stops[0]?.id || '',
-      pickupName: stops[0]?.pickupName || ''
+      pickupPointId: firstStopId,
+      pickupName: stops[0]?.pickupName || '',
+      feeAmount: autoFee
     }));
   };
 
   const handlePickupSelect = (pickupPointId: string) => {
     const pk = pickupPoints.find(p => p.id === pickupPointId);
+    const autoFee = getAutoCalculatedFee(form.routeId || '', pickupPointId, form.feePlan || 'Quarterly');
     setForm(prev => ({
       ...prev,
       pickupPointId,
-      pickupName: pk?.pickupName || ''
+      pickupName: pk?.pickupName || '',
+      feeAmount: autoFee
     }));
   };
 
@@ -274,7 +326,11 @@ export const FinanceTransportConfigView: React.FC = () => {
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Global Frequency <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     value={form.feePlan}
-                    onChange={e => setForm({ ...form, feePlan: e.target.value as any })}
+                    onChange={e => {
+                      const newPlan = e.target.value;
+                      const autoFee = getAutoCalculatedFee(form.routeId || '', form.pickupPointId || '', newPlan);
+                      setForm({ ...form, feePlan: newPlan as any, feeAmount: autoFee });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                   >
                     <option value="Monthly">Monthly</option>
