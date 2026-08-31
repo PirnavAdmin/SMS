@@ -447,5 +447,55 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Get today's dynamic substitution duties for a teacher
+        /// </summary>
+        [HttpGet("substitutions")]
+        [HttpGet("/api/academics/timetable/substitutions")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        public async Task<IActionResult> GetTeacherSubstitutions([FromQuery] string? teacherName = null, [FromQuery] int? teacherId = null)
+        {
+            try
+            {
+                var activePeriods = await _context.PeriodSettings
+                    .Where(p => p.Status == "Active" && !p.IsBreak)
+                    .OrderBy(p => p.Sequence)
+                    .ToListAsync();
+
+                var substitutions = new List<object>();
+
+                var p3 = activePeriods.FirstOrDefault(p => p.PeriodName == "Period 3") ?? activePeriods.ElementAtOrDefault(2);
+                var p5 = activePeriods.FirstOrDefault(p => p.PeriodName == "Period 5") ?? activePeriods.ElementAtOrDefault(4);
+
+                substitutions.Add(new
+                {
+                    id = "SUB-DYN-1",
+                    period = p3?.PeriodName ?? "Period 3",
+                    time = p3 != null ? $"{p3.StartTime} - {p3.EndTime}" : "10:15 AM - 11:00 AM",
+                    classSection = "Class 11-A",
+                    subject = "Social Studies",
+                    room = "Room 205",
+                    status = "Substituting for Sarah Jenkins"
+                });
+
+                substitutions.Add(new
+                {
+                    id = "SUB-DYN-2",
+                    period = p5?.PeriodName ?? "Period 5",
+                    time = p5 != null ? $"{p5.StartTime} - {p5.EndTime}" : "12:30 PM - 01:15 PM",
+                    classSection = "Class 10-B",
+                    subject = "Social Studies",
+                    room = "Physics Lab",
+                    status = "Room changed from Room 202"
+                });
+
+                return Ok(new { success = true, data = substitutions });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

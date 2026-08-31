@@ -444,13 +444,28 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         const rDate = String(r.date || "").split("T")[0].split(" ")[0];
         return isStaff && isId && rDate !== todayStr;
       })
-      .map((r) => ({
-        date: String(r.date || "").split("T")[0].split(" ")[0],
-        checkIn: r.inTime || "--",
-        checkOut: r.outTime || "--",
-        workingHours: r.inTime && r.outTime ? "8h 0m" : "--",
-        status: r.status || "Present",
-      }));
+      .map((r) => {
+        let calcHours = "--";
+        if (r.inTime && r.outTime) {
+          const startMs = new Date(r.inTime.includes('T') ? r.inTime : `${r.date}T${r.inTime}`).getTime();
+          const endMs = new Date(r.outTime.includes('T') ? r.outTime : `${r.date}T${r.outTime}`).getTime();
+          if (!isNaN(startMs) && !isNaN(endMs) && endMs > startMs) {
+            const diffMins = Math.floor((endMs - startMs) / 60000);
+            const hrs = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            calcHours = `${hrs}h ${mins}m`;
+          } else {
+            calcHours = "8h 0m";
+          }
+        }
+        return {
+          date: String(r.date || "").split("T")[0].split(" ")[0],
+          checkIn: formatDisplayTime(r.inTime),
+          checkOut: formatDisplayTime(r.outTime),
+          workingHours: calcHours,
+          status: r.status || "Present",
+        };
+      });
 
     const list = todayRecord ? [todayRecord, ...teacherRecords] : teacherRecords;
 
@@ -475,7 +490,51 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     personalFilterDate,
     personalFilterMonth,
     personalSearchQuery,
+    attendance,
+    teacher,
+    dbTeacher,
   ]);
+
+  const personalMonthlyStats = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let leave = 0;
+    let totalMinutes = 0;
+
+    fullHistory.forEach((rec) => {
+      const st = (rec.status || "").toLowerCase();
+      if (st.includes("late")) {
+        late += 1;
+        present += 1;
+      } else if (st.includes("present")) {
+        present += 1;
+      } else if (st.includes("absent")) {
+        absent += 1;
+      } else if (st.includes("leave")) {
+        leave += 1;
+      }
+
+      if (rec.workingHours && rec.workingHours.includes("h")) {
+        const parts = rec.workingHours.split("h");
+        const h = parseInt(parts[0]) || 0;
+        const m = parseInt(parts[1]?.replace("m", "")) || 0;
+        totalMinutes += h * 60 + m;
+      }
+    });
+
+    const totalHrs = Math.floor(totalMinutes / 60);
+    const remMins = totalMinutes % 60;
+    const totalHoursDisplay = totalMinutes > 0 ? `${totalHrs} hrs ${remMins > 0 ? `${remMins} m` : ''}`.trim() : "0 hrs";
+
+    return {
+      present: present > 0 ? present : (persCheckInTime ? 1 : 0),
+      absent,
+      late,
+      leave,
+      totalHoursDisplay
+    };
+  }, [fullHistory, persCheckInTime]);
 
   const handleApplyLeaveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -718,7 +777,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Present Days
                   </span>
                   <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                    20 Days
+                    {personalMonthlyStats.present} {personalMonthlyStats.present === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
@@ -726,7 +785,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Absent Days
                   </span>
                   <span className="text-base font-black text-rose-600 dark:text-rose-400">
-                    0 Days
+                    {personalMonthlyStats.absent} {personalMonthlyStats.absent === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
@@ -734,7 +793,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Late Days
                   </span>
                   <span className="text-base font-black text-amber-600 dark:text-amber-400">
-                    2 Days
+                    {personalMonthlyStats.late} {personalMonthlyStats.late === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
@@ -742,7 +801,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Leave Days
                   </span>
                   <span className="text-base font-black text-sky-600 dark:text-sky-400">
-                    1 Day
+                    {personalMonthlyStats.leave} {personalMonthlyStats.leave === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
               </div>
@@ -753,7 +812,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 Total Hours (Month):
               </span>
               <span className="font-black text-slate-850 dark:text-white">
-                168 hrs
+                {personalMonthlyStats.totalHoursDisplay}
               </span>
             </div>
           </div>

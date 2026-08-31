@@ -56,8 +56,8 @@ export const TeacherProfileView: React.FC = () => {
       empId: (user as any)?.empId || 'STF-2026-0009',
       firstName: nameParts[0] || 'Suteja',
       lastName: nameParts.slice(1).join(' ') || 'K',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['Social Studies', 'Mathematics'],
+      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
+      assignedSubjects: ['Social Studies'],
       department: 'Social Studies',
       designation: 'Junior Teacher'
     };
@@ -66,58 +66,90 @@ export const TeacherProfileView: React.FC = () => {
   // Dynamically compute assigned classes (clean class name without section suffix)
   const dynamicAssignedClasses = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
-    
-    // 1. From teacherAssignments (Admin side assignments)
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+
     const fromAssignments = teacherAssignments
-      .filter(ta => ta.teacherName?.toLowerCase().includes(teacherName.toLowerCase()) || (dbTeacher?.firstName && ta.teacherName?.toLowerCase().includes(dbTeacher.firstName.toLowerCase())))
-      .map(ta => ta.className ? ta.className.split('-')[0].trim() : null);
+      .filter(ta => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      })
+      .map(ta => ta.className ? (ta.className.startsWith('Class ') ? ta.className.split('-')[0].trim() : `Class ${ta.className.split('-')[0].trim()}`) : null);
 
-    // 2. From timetable slots (Admin timetable published)
     const fromTimetable = timetable
-      .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
-      .map(t => t.className ? t.className.split('-')[0].trim() : null);
+      .filter(t => {
+        const tName = (t.teacherName || '').toLowerCase();
+        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
+      })
+      .map(t => t.className ? (t.className.startsWith('Class ') ? t.className.split('-')[0].trim() : `Class ${t.className.split('-')[0].trim()}`) : null);
 
-    // 3. From staff record directly
-    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.split('-')[0].trim());
+    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => {
+      const cls = ac.split('-')[0].trim();
+      return cls.startsWith('Class ') ? cls : `Class ${cls}`;
+    });
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
-    return merged.length > 0 ? merged : ['Class 10', 'Class 9', 'Class 8'];
+    return merged.length > 0 ? merged : ['Class 9', 'Class 8', 'Class 10'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSections = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
 
     const fromAssignments = teacherAssignments
-      .filter(ta => ta.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(ta => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      })
       .map(ta => ta.section ? (ta.section.startsWith('Section ') ? ta.section : `Section ${ta.section}`) : null);
 
     const fromTimetable = timetable
-      .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(t => {
+        const tName = (t.teacherName || '').toLowerCase();
+        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
+      })
       .map(t => t.section ? (t.section.startsWith('Section ') ? t.section : `Section ${t.section}`) : null);
 
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.includes('-') ? `Section ${ac.split('-')[1].trim()}` : 'Section A');
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-    return merged.length > 0 ? merged : ['Section A', 'Section B'];
+    return merged.length > 0 ? merged : ['Section A'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned subjects from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSubjects = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const dept = (dbTeacher?.department || 'Social Studies').toLowerCase().trim();
 
     const fromAssignments = teacherAssignments
-      .filter(ta => ta.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(ta => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      })
       .map(ta => ta.subject);
 
     const fromTimetable = timetable
-      .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(t => {
+        const tName = (t.teacherName || '').toLowerCase();
+        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
+      })
       .map(ta => ta.subject);
 
     const fromStaff = dbTeacher?.assignedSubjects || [];
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
-    return merged.length > 0 ? merged : ['Social Studies', 'Mathematics'];
+
+    // Filter out subjects that do not belong to the teacher's department (e.g. Mathematics for a Social Studies teacher)
+    const filtered = merged.filter((sub: string) => {
+      const sLower = sub.toLowerCase().trim();
+      if (dept.includes('social') && (sLower.includes('math') || sLower.includes('physics') || sLower.includes('chemistry') || sLower.includes('biology') || sLower.includes('science'))) {
+        return false;
+      }
+      return true;
+    });
+
+    return filtered.length > 0 ? filtered : [dbTeacher?.department || 'Social Studies'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // User-scoped Local Storage key for Teacher self-edits
@@ -168,10 +200,10 @@ export const TeacherProfileView: React.FC = () => {
       address: localEdit?.address || dbTeacher?.address || '45/2 Green Avenue, Campus Road',
       emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '9876543210',
       branch: dbTeacher?.branch || 'Main Campus',
-      department: dbTeacher?.department || 'Mathematics',
-      designation: dbTeacher?.designation || 'PGT Teacher',
+      department: dbTeacher?.department || 'Social Studies',
+      designation: dbTeacher?.designation || 'Junior Teacher',
       joiningDate: dbTeacher?.joiningDate || '2026-08-19',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'M.Sc. Mathematics, B.Ed.',
+      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'M.A. Social Studies, B.Ed.',
       experience: localEdit?.experience || (dbTeacher as any)?.experience || '8 Years Teaching Experience',
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,

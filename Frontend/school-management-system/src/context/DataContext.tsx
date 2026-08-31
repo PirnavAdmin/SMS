@@ -589,6 +589,28 @@ const defaultPeriodSettings: PeriodSetting[] = [
     periodType: "Teaching",
     status: "Active",
   },
+  {
+    id: "PS-9",
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    periodName: "Period 7",
+    startTime: "02:00 PM",
+    endTime: "02:45 PM",
+    sequence: 9,
+    periodType: "Teaching",
+    status: "Active",
+  },
+  {
+    id: "PS-10",
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    periodName: "Period 8",
+    startTime: "02:45 PM",
+    endTime: "03:30 PM",
+    sequence: 10,
+    periodType: "Teaching",
+    status: "Active",
+  },
 ];
 const defaultTeacherAssignments: TeacherAssignment[] = [];
 export interface StudentCalculationResult {

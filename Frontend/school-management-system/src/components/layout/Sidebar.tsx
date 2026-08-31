@@ -538,6 +538,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const visibleItems = group.items.filter(
             (item: any) => {
               if (item.roles && !item.roles.includes(role || "")) return false;
+              if (role.toLowerCase() === "teacher") {
+                if (item.id === "examination") {
+                  return false;
+                }
+              }
               if (role.toLowerCase() === "parent") {
                 if (item.id === "library" || item.id === "librarian-attendance" || item.id === "library-timetable") {
                   return false;

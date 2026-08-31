@@ -183,7 +183,13 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const wardAttendance = wardAttendanceStats.wardAttendance;
   const attPercentage = wardAttendanceStats.presentPct;
 
-  const pendingHomework = homework.filter(h => currentWard && h.className === currentWard.className && h.section === currentWard.section && new Date(h.dueDate) >= new Date()).length;
+  const cleanCls = (c?: string) => (c || '').replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
+  const pendingHomework = homework.filter(h => {
+    if (!currentWard) return false;
+    const matchClass = cleanCls(h.className) === cleanCls(currentWard.className);
+    const matchSec = !h.section || !currentWard.section || h.section.toLowerCase().trim() === currentWard.section.toLowerCase().trim();
+    return matchClass && matchSec;
+  }).length;
 
   // Real data for notices
   const recentNotices = [
