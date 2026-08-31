@@ -6031,51 +6031,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const fetchFinanceData = async () => {
-    try {
-      const [headsRes, structsRes, assignmentsRes, paymentsRes] =
-        await Promise.allSettled([
-          FinanceAPI.fetchFeeHeadsApi(),
-          FinanceAPI.fetchDynamicFeeStructuresApi(),
-          FinanceAPI.fetchStudentFeeAssignmentsApi(),
-          FinanceAPI.fetchFeePaymentsApi(),
-        ]);
-      const extract = (r: PromiseSettledResult<any>) =>
-        r.status === "fulfilled"
-          ? Array.isArray(r.value)
-            ? r.value
-            : r.value?.data || []
-          : [];
-      const heads = extract(headsRes);
-      const structs = extract(structsRes);
-      const assignments = extract(assignmentsRes);
-      const payments = extract(paymentsRes);
-      if (heads.length) setFeeHeads(heads);
-      if (structs.length) {
-        setDynamicFeeStructures((prev) => {
-          const merged = [...prev];
-          structs.forEach((apiItem: any) => {
-            const idx = merged.findIndex(
-              (m) =>
-                m.id === apiItem.id ||
-                (m.className &&
-                  apiItem.className &&
-                  m.className.toLowerCase().trim() ===
-                    apiItem.className.toLowerCase().trim()),
-            );
-            if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...apiItem };
-            } else {
-              merged.push(apiItem);
-            }
-          });
-          return merged;
-        });
-      }
-      if (assignments.length) setDbAssignments(assignments);
-      if (payments.length) setFeePayments(payments);
-    } catch (err) {
-      console.warn("Failed to fetch finance data from API", err);
+    if (activeRequests.current["finance-data"]) {
+      return activeRequests.current["finance-data"];
     }
+    const promise = (async () => {
+      try {
+        const [headsRes, structsRes, assignmentsRes, paymentsRes] =
+          await Promise.allSettled([
+            FinanceAPI.fetchFeeHeadsApi(),
+            FinanceAPI.fetchDynamicFeeStructuresApi(),
+            FinanceAPI.fetchStudentFeeAssignmentsApi(),
+            FinanceAPI.fetchFeePaymentsApi(),
+          ]);
+        const extract = (r: PromiseSettledResult<any>) =>
+          r.status === "fulfilled"
+            ? Array.isArray(r.value)
+              ? r.value
+              : r.value?.data || []
+            : [];
+        const heads = extract(headsRes);
+        const structs = extract(structsRes);
+        const assignments = extract(assignmentsRes);
+        const payments = extract(paymentsRes);
+        if (heads.length) setFeeHeads(heads);
+        if (structs.length) {
+          setDynamicFeeStructures((prev) => {
+            const merged = [...prev];
+            structs.forEach((apiItem: any) => {
+              const idx = merged.findIndex(
+                (m) =>
+                  m.id === apiItem.id ||
+                  (m.className &&
+                    apiItem.className &&
+                    m.className.toLowerCase().trim() ===
+                      apiItem.className.toLowerCase().trim()),
+              );
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...apiItem };
+              } else {
+                merged.push(apiItem);
+              }
+            });
+            return merged;
+          });
+        }
+        if (assignments.length) setDbAssignments(assignments);
+        if (payments.length) setFeePayments(payments);
+      } catch (err) {
+        console.warn("Failed to fetch finance data from API", err);
+      } finally {
+        delete activeRequests.current["finance-data"];
+      }
+    })();
+    activeRequests.current["finance-data"] = promise;
+    return promise;
   };
 
   const fetchFacultyTrainingData = async () => {
