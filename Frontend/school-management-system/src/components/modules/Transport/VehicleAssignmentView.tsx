@@ -373,23 +373,32 @@ export const VehicleAssignmentView: React.FC = () => {
       return va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
     };
 
-    // Strict Rule 1: A route can only be assigned to ONE active bus
+    const targetVehicleNo = vehicle.vehicleNumber.trim().toUpperCase();
+    const isEditingSameVehicle = Boolean(
+      (editingAssignment?.vehicleNumber && editingAssignment.vehicleNumber.trim().toUpperCase() === targetVehicleNo) ||
+      (reassignSource?.vehicleNumber && reassignSource.vehicleNumber.trim().toUpperCase() === targetVehicleNo)
+    );
+
+    // Strict Rule 1: A route can only be assigned to ONE active bus (ignore if assigned to THIS same vehicle being edited/reassigned)
     const routeAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
+      va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
       isAssignmentActive(va) &&
+      route.routeName && route.routeName.toUpperCase() !== 'N/A' && route.routeName.toUpperCase() !== 'UNASSIGNED' &&
       (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase()))
     );
     if (routeAlreadyAssigned) {
-      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}. A route cannot have multiple active buses.`);
+      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}.`);
       return;
     }
 
-    // Strict Rule 2: A bus can only be assigned to ONE active route
-    const vehicleAlreadyAssigned = vehicleAssignments.find(va =>
+    // Strict Rule 2: A bus can only be assigned to ONE active route (ignore if editing/reassigning this same bus or placeholder N/A routes)
+    const vehicleAlreadyAssigned = !isEditingSameVehicle && vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
       isAssignmentActive(va) &&
+      va.routeName && va.routeName.toUpperCase() !== 'N/A' && va.routeName.toUpperCase() !== 'UNASSIGNED' && va.routeName.trim() !== '' &&
       (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase()))
     );
     if (vehicleAlreadyAssigned) {
@@ -397,23 +406,25 @@ export const VehicleAssignmentView: React.FC = () => {
       return;
     }
 
-    // Strict Rule 3: No single driver can drive multiple buses
+    // Strict Rule 3: No single driver can drive multiple buses (ignore if assigned to THIS same vehicle being edited/reassigned)
     const driverAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
+      va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
       isAssignmentActive(va) &&
       (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase()))
     );
     if (driverAlreadyAssigned) {
-      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}). A driver cannot be assigned to two buses.`);
+      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}).`);
       return;
     }
 
-    // Strict Rule 4: No single attendant for two buses
+    // Strict Rule 4: No single attendant for two buses (ignore if assigned to THIS same vehicle being edited/reassigned)
     if (attendant) {
       const attendantAlreadyAssigned = vehicleAssignments.find(va =>
         va.id !== editingAssignment?.id &&
         va.id !== reassignSource?.id &&
+        va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
         isAssignmentActive(va) &&
         (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase()))
       );
