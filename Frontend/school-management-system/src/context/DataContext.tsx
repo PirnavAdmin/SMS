@@ -4958,16 +4958,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             }
             return {
-              id: (t.id || t.studentTransportId || "").toString(),
+              id: (t.id || t.studentTransportAssignmentId || t.studentTransportId || "").toString(),
               studentId: (t.studentId || "").toString(),
               studentName: t.studentName || t.fullName || "",
               admissionNo: admNo,
               routeName: t.routeName || "",
               routeId: (t.routeId || "").toString(),
-              pickupPoint: t.pickupPoint || t.pickupName || "",
+              pickupPoint: t.pickupPoint || t.pickupPointName || t.pickupName || "",
               pickupPointId: (t.pickupPointId || "").toString(),
               vehicleNumber: t.vehicleNumber || "",
-              vehicleId: (t.vehicleId || "").toString(),
+              vehicleId: (t.vehicleId || t.vehicleAssignmentId || "").toString(),
               feePlan: t.feePlan || "Monthly",
               feeAmount: Number(t.feeAmount || 0),
               effectiveFrom: t.effectiveFrom
@@ -5766,6 +5766,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               .split(/\s+/);
             const firstName = s.firstName || nameParts[0] || "";
             const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
+            const parentName = s.fatherName || s.parentName || s.motherName || "";
+            const parentPhone = s.fatherMobile || s.parentPhone || s.fatherContact || s.fatherPhone || s.motherMobile || s.motherPhone || s.mobileNumber || s.phone || "";
             return {
               id: s.studentId?.toString() || s.id?.toString() || "",
               admissionNo: s.admissionNumber || s.admissionNo || "",
@@ -5778,17 +5780,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               middleName: s.middleName || "",
               lastName,
               email: s.email || "",
-              phone: s.phone || s.mobileNumber || s.contactNumber || "",
+              phone: s.mobileNumber || s.phone || s.contactNumber || parentPhone,
               gender: s.gender || "Male",
-              dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
+              dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : (s.dob ? s.dob.split("T")[0] : ""),
               className: s.className || s.class || "",
               section: s.sectionName || s.section || "",
               academicYear: s.academicYearName || s.academicYear || "",
               branch: s.branchName || s.branch || "Main Campus",
               status: s.status || "Active",
               studentType: s.studentType || "Day Scholar",
-              parentName: s.parentName || s.fatherName || "",
-              parentPhone: s.parentPhone || s.fatherContact || "",
+              parentName,
+              parentPhone,
+              fatherName: s.fatherName || parentName,
+              fatherPhone: s.fatherMobile || s.fatherPhone || parentPhone,
+              fatherOccupation: s.fatherOccupation || "",
+              fatherEmail: s.fatherEmail || "",
+              motherName: s.motherName || "",
+              motherPhone: s.motherMobile || s.motherPhone || "",
               address: s.address || "",
               promotionHistory: [],
               rollNo: s.rollNumber || s.rollNo || "",

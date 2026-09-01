@@ -431,6 +431,15 @@ public class SchoolRepository : ISchoolRepository
                 SectionId = s.SectionId,
                 SectionName = s.ClassSection.SectionName,
                 Status = s.Status,
+                FatherName = s.FatherName,
+                FatherMobile = s.FatherMobile,
+                MotherName = s.MotherName,
+                MotherMobile = s.MotherMobile,
+                Email = s.Email,
+                MobileNumber = s.MobileNumber,
+                Gender = s.Gender,
+                DateOfBirth = s.DateOfBirth,
+                Address = s.Address,
                 AttendancePercentage = null,
                 Performance = null
             })
