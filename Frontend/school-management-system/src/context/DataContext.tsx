@@ -11567,21 +11567,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         i.feeHeadName?.toLowerCase().includes("accessories"),
     )?.amount;
 
-    // Uniform Fee configuration lookup
-    const uniformConfig = financeUniformConfigs.find(
-      (c) =>
-        c.status === "Active" &&
-        c.academicYear === (financeSettings.academicYear || "2025-2026") &&
-        c.className === clsName &&
-        (c.gender === "Unisex" || c.gender === (student?.gender || "Male")),
-    );
-    const defaultClassUniformFee = getUniformPackageFeeByClass(clsName);
-
-    const uniformAmount = uniformConfig
-      ? uniformConfig.feeAmount
-      : dfsUniformFee !== undefined && dfsUniformFee > 0
-        ? dfsUniformFee
-        : defaultClassUniformFee;
+    // Uniform Fee configuration lookup using dynamic class matcher
+    const uniformAmount = getUniformFeeForClass(
+      clsName,
+      student?.gender || "Male",
+      financeUniformConfigs,
+      dynamicFeeStructures,
+    ) || 10000;
 
     // Helper to identify uniform fee heads
     const isUniformHead = (headName: string) => {

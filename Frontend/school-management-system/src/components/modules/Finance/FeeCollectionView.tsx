@@ -4,6 +4,7 @@ import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
   getItemFeeFromFinanceConfig,
+  calculateClothOrItemPrice,
 } from "../../../utils/uniformUtils";
 import {
   IndianRupee,
@@ -830,7 +831,23 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         selectedStudent.className,
         selectedStudent.gender,
         financeUniformConfigs,
-      ) || 3500;
+        feeStructures,
+      ) || 10000;
+
+    // Update any existing ledger uniform installments with the exact configured uniform fee amount for the student's class
+    if (expectedBaseFee && expectedBaseFee > 0) {
+      combined.forEach((c) => {
+        const headLower = (c.feeHeadName || "").toLowerCase();
+        const isUnifHead =
+          c.feeHeadId === "FH-04" ||
+          c.feeHeadId === "FH-UNI-BASE" ||
+          headLower.includes("uniform");
+        if (isUnifHead && c.status !== "Paid" && !c.id.startsWith("INST-UNIF-UIS-") && !c.id.startsWith("INST-UNIF-EXTRA-")) {
+          c.amount = expectedBaseFee;
+          c.dueAmount = Math.max(0, expectedBaseFee - (c.paidAmount || 0));
+        }
+      });
+    }
 
     // A & B: Process all uniform issues for the student into distinct fee installment rows
     if (studentIssues.length > 0) {
@@ -856,25 +873,17 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const isBasePkg = !isFabricCloth && (issue.type === 'Base Package' || itemRawName.includes('package') || itemRawName.includes('admission kit'));
         const itemTitle = isFabricCloth ? (issue.itemName || issue.itemCategory || "Uniform Cloth") : (isBasePkg ? "Admission Kit" : (issue.itemCategory || issue.itemName || "Uniform Item"));
 
-        const configuredItemFee = getItemFeeFromFinanceConfig(
-          selectedStudent.className,
-          issue.itemCategory || issue.itemName,
-          selectedStudent.gender,
-          financeUniformConfigs,
+        const finalSizeStr = issue.size?.includes('->') ? issue.size.split('->')[1].trim() : (issue.size || 'M');
+        const configuredItemFee = calculateClothOrItemPrice(
+          issue.itemName || issue.itemCategory,
+          finalSizeStr,
           issue.price || issue.unitPrice,
+          financeUniformConfigs,
         );
 
-        const amt =
-          issue.totalAmount ||
-          (issue.unitPrice && issue.quantity
-            ? issue.unitPrice * issue.quantity
-            : (issue.price && issue.price > 0
-                ? issue.price * (issue.quantity || 1)
-                : (configuredItemFee && configuredItemFee > 0
-                    ? configuredItemFee * (issue.quantity || 1)
-                    : (isBasePkg ? expectedBaseFee : 1000))));
-        const unitFee = (issue.unitPrice && issue.unitPrice > 0) ? issue.unitPrice : ((configuredItemFee && configuredItemFee > 0) ? configuredItemFee : ((expectedBaseFee && expectedBaseFee > 0) ? expectedBaseFee : 7000));
-        const calcQty = (issue.quantity && issue.quantity > 0) ? issue.quantity : (amt > 0 && amt % unitFee === 0 && amt > unitFee ? Math.round(amt / unitFee) : 1);
+        const amt = configuredItemFee * (issue.quantity || 1);
+        const unitFee = configuredItemFee;
+        const calcQty = (issue.quantity && issue.quantity > 0) ? issue.quantity : 1;
         const sizeVal = issue.size || 'M';
         const genderVal = issue.gender || selectedStudent?.gender || 'Male';
         const detailsStr = ` (Size: ${sizeVal} · ${genderVal})`;
@@ -1041,7 +1050,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         selectedStudent.className,
         selectedStudent.gender,
         financeUniformConfigs,
-      );
+        feeStructures,
+      ) || 10000;
       let defaultHeads = [
         { id: "FH-01", name: "Tuition Fee", amount: 77000 },
         { id: "FH-02", name: "Admission Fee", amount: 3000 },
@@ -1058,7 +1068,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           { id: "FH-01", name: "Tuition Fee", amount: 4000 },
           { id: "FH-02", name: "Admission Fee", amount: 2000 },
           { id: "FH-03", name: "Textbook & Material Fee", amount: 1500 },
-          { id: "FH-04", name: "Uniform & Accessories", amount: 2000 },
+          { id: "FH-04", name: "Uniform & Accessories", amount: uniFee },
           { id: "FH-05", name: "Sports & Athletic Fee", amount: 1000 },
         ];
       } else if (
