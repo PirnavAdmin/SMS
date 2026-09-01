@@ -170,6 +170,12 @@ export const HomeworkView: React.FC = () => {
     return cls.replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim();
   };
 
+  // Clean section name helper
+  const cleanSectionName = (sec: string) => {
+    if (!sec) return '';
+    return sec.replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim();
+  };
+
   const rbacHomework = useMemo(() => {
     if (role === 'Super Admin' || role === 'School Admin') {
       return homework;
@@ -240,11 +246,12 @@ export const HomeworkView: React.FC = () => {
   // Load students for target class/section
   const formClassStudents = useMemo(() => {
     const targetCls = cleanClassName(formData.className || '');
-    const targetSec = formData.section || 'A';
-    return enrolledStudents.filter(s => 
-      cleanClassName(s.className) === targetCls && 
-      s.section === targetSec
-    );
+    const targetSec = cleanSectionName(formData.section || 'A');
+    return enrolledStudents.filter(s => {
+      const sCls = cleanClassName(s.className || '');
+      const sSec = cleanSectionName(s.section || 'A');
+      return (sCls === targetCls || !targetCls) && (sSec === targetSec || !targetSec);
+    });
   }, [enrolledStudents, formData.className, formData.section]);
 
   // Filter students checklist inside form
@@ -626,9 +633,14 @@ export const HomeworkView: React.FC = () => {
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
                     {Array.from(new Set(
-                      teacherAssignedClasses
-                        .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
-                        .map(c => c.split('-')[1])
+                      students
+                        .filter(s => cleanClassName(s.className) === cleanClassName(formData.className || ''))
+                        .map(s => cleanSectionName(s.section))
+                        .concat(
+                          teacherAssignedClasses
+                            .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
+                            .map(c => cleanSectionName(c.split('-')[1]))
+                        )
                         .concat(['A', 'B'])
                         .filter(Boolean)
                     )).map(sec => (

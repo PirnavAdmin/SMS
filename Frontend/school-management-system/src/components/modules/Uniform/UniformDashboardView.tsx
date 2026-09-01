@@ -407,14 +407,11 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
         <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
             <h4 className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
-              <AlertTriangle className="w-4 h-4 text-amber-500" /> Low Stock Analysis & Replenishment
+              <AlertTriangle className="w-4 h-4 text-amber-500" /> Low Stock Alerts
             </h4>
-            <button 
-              onClick={() => onNavigate?.('masters', 'inventory')} 
-              className="text-[10px] text-amber-600 font-bold bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full hover:bg-amber-500 hover:text-white transition-colors cursor-pointer"
-            >
-              Restock Registry
-            </button>
+            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/50 px-2.5 py-0.5 rounded-full">
+              Stock Level
+            </span>
           </div>
 
           <div className="space-y-3">

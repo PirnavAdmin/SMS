@@ -4821,6 +4821,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 routeId = matchedRoute.id.toString();
               }
             }
+            if ((!routeName || routeName.trim().toUpperCase() === "N/A") && routeId && routeMasters) {
+              const matchedRoute = routeMasters.find(
+                (r: any) => r.id?.toString() === routeId.toString(),
+              );
+              if (matchedRoute) {
+                routeName = matchedRoute.routeName || matchedRoute.routeCode || "";
+              }
+            }
+
             let vehicleId = (a.vehicleId || "").toString();
             let vehicleNumber = a.vehicleNumber || a.selectActiveVehicle || "";
             if (!vehicleId && vehicleMasters) {
@@ -4833,6 +4842,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 vehicleId = matchedVehicle.id.toString();
               }
             }
+            if (!vehicleNumber && vehicleId && vehicleMasters) {
+              const matchedVehicle = vehicleMasters.find(
+                (v: any) => v.id?.toString() === vehicleId.toString(),
+              );
+              if (matchedVehicle) {
+                vehicleNumber = matchedVehicle.vehicleNumber || matchedVehicle.vehicleName || "";
+              }
+            }
+
             let driverId = (a.driverId || "").toString();
             let driverName = a.driverName || a.selectLicensedDriver || "";
             if (!driverId && driverMasters) {
@@ -4842,6 +4860,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               );
               if (matchedDriver) {
                 driverId = matchedDriver.id.toString();
+              }
+            }
+            if (!driverName && driverId && driverMasters) {
+              const matchedDriver = driverMasters.find(
+                (d: any) => d.id?.toString() === driverId.toString(),
+              );
+              if (matchedDriver) {
+                driverName = matchedDriver.driverName || "";
               }
             }
 
@@ -4864,7 +4890,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(a.status),
             };
           });
-          setVehicleAssignments(mappedAssignments);
+          const uniqueAssignmentsMap = new Map<string, any>();
+          mappedAssignments.forEach((item: any) => {
+            const key = item.id ? item.id.toString() : `${item.vehicleId}-${item.routeId}-${item.driverId}`;
+            uniqueAssignmentsMap.set(key, item);
+          });
+          setVehicleAssignments(Array.from(uniqueAssignmentsMap.values()));
         }
         if (maintenance) {
           const mappedMaintenance = maintenance.map((m: any) => {
@@ -13922,10 +13953,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? "Active"
             : "Inactive",
       } as any;
-      setVehicleAssignments((prev) => [
-        ...deactivateConflicts(prev),
-        newAssign,
-      ]);
+      setVehicleAssignments((prev) => {
+        const filteredPrev = prev.filter((item) => item.id !== id);
+        return [...deactivateConflicts(filteredPrev), newAssign];
+      });
       logActivity(
         "Vehicle Assigned",
         `Assigned ${normalizedAssignment.vehicleNumber} to ${normalizedAssignment.routeName} with ${normalizedAssignment.driverName}${normalizedAssignment.attendantName ? ` and ${normalizedAssignment.attendantName}` : ""}`,

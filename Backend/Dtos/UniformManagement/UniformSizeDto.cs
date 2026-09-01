@@ -35,6 +35,12 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("waist")]
         public string Waist => WaistSpec;
 
+        [JsonPropertyName("shoulderSpec")]
+        public string ShoulderSpec { get; set; } = string.Empty;
+
+        [JsonPropertyName("shoulder")]
+        public string Shoulder => ShoulderSpec;
+
         [JsonPropertyName("heightTarget")]
         public string HeightTarget { get; set; } = string.Empty;
 
@@ -107,6 +113,16 @@ namespace SMS.Api.Dtos
         {
             get => WaistSpec;
             set { if (!string.IsNullOrWhiteSpace(value)) WaistSpec = value; }
+        }
+
+        [JsonPropertyName("shoulderSpec")]
+        public string? ShoulderSpec { get; set; }
+
+        [JsonPropertyName("shoulder")]
+        public string? ShoulderAlias
+        {
+            get => ShoulderSpec;
+            set { if (!string.IsNullOrWhiteSpace(value)) ShoulderSpec = value; }
         }
 
         [JsonPropertyName("heightTarget")]

@@ -31,6 +31,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("categoryName")]
         public string CategoryName { get; set; } = string.Empty;
 
+        [JsonPropertyName("category")]
+        public string Category => CategoryName;
+
         [JsonPropertyName("gender")]
         public string Gender { get; set; } = "Unisex";
 
@@ -43,8 +46,26 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("unitPrice")]
         public decimal UnitPrice { get; set; }
 
+        [JsonPropertyName("openingStock")]
+        public int OpeningStock { get; set; }
+
+        [JsonPropertyName("openingStockString")]
+        public string OpeningStockString => $"{OpeningStock} Units";
+
         [JsonPropertyName("availableStock")]
         public int AvailableStock { get; set; }
+
+        [JsonPropertyName("currentStock")]
+        public int CurrentStock => AvailableStock;
+
+        [JsonPropertyName("currentStockString")]
+        public string CurrentStockString => $"{AvailableStock} Units";
+
+        [JsonPropertyName("reorderLevel")]
+        public int ReorderLevel { get; set; } = 15;
+
+        [JsonPropertyName("reorderLevelString")]
+        public string ReorderLevelString => $"{ReorderLevel} Units";
 
         [JsonPropertyName("issuedUnits")]
         public int IssuedUnits { get; set; }

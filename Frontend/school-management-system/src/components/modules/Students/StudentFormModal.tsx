@@ -19,7 +19,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, transportRoutes, hostelBlocks, hostelRooms, hostelBeds, academicClasses } = useData();
+  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses } = useData();
   const { addToast } = useToast();
 
   const [formData, setFormData] = useState<Partial<Student>>({
@@ -1057,7 +1057,34 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Pickup Point</label>
-                    <input type="text" value={formData.pickupPoint} onChange={e => setFormData({ ...formData, pickupPoint: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" />
+                    <select
+                      value={formData.pickupPoint}
+                      onChange={e => setFormData({ ...formData, pickupPoint: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                    >
+                      <option value="">Select Pickup Point</option>
+                      {pickupPoints
+                        .filter(p => {
+                          if (!formData.busRoute) return true;
+                          const rObj = routeMasters.find(
+                            r =>
+                              r.id?.toString() === formData.busRoute?.toString() ||
+                              r.routeName?.toLowerCase() === formData.busRoute?.toLowerCase()
+                          );
+                          const targetRouteId = rObj?.id?.toString() || formData.busRoute;
+                          const targetRouteName = (rObj?.routeName || formData.busRoute || '').trim().toLowerCase();
+
+                          return (
+                            (p.routeId && p.routeId.toString() === targetRouteId) ||
+                            (p.routeName && p.routeName.trim().toLowerCase() === targetRouteName)
+                          );
+                        })
+                        .map(p => (
+                          <option key={p.id} value={p.pickupName}>
+                            {p.sequenceNumber ? `${p.sequenceNumber}. ` : ''}{p.pickupName}
+                          </option>
+                        ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Drop Point</label>

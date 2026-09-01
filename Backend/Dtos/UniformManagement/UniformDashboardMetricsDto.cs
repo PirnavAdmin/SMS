@@ -25,6 +25,12 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("issuedUnitsString")]
         public string IssuedUnitsString => $"{IssuedUnits} Items";
 
+        [JsonPropertyName("returnedItems")]
+        public int ReturnedItems { get; set; } = 1;
+
+        [JsonPropertyName("returnedItemsString")]
+        public string ReturnedItemsString => $"{ReturnedItems} Items";
+
         [JsonPropertyName("additionalSales")]
         public decimal AdditionalSales { get; set; } = 0;
 
