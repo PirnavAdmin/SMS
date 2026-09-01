@@ -3523,19 +3523,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             >
                               <option value="">Select Stop</option>
                               {pickupPoints
-                                .filter(
-                                  (p) =>
-                                    p.routeName === formData.busRoute ||
-                                    p.routeId ===
-                                      routeMasters.find(
-                                        (r) =>
-                                          r.routeName === formData.busRoute,
-                                      )?.id,
-                                )
+                                .filter((p) => {
+                                  if (!formData.busRoute) return true;
+                                  const rObj = routeMasters.find(
+                                    (r) =>
+                                      r.id?.toString() === formData.busRoute?.toString() ||
+                                      r.routeName?.toLowerCase() === formData.busRoute?.toLowerCase() ||
+                                      r.routeCode?.toLowerCase() === formData.busRoute?.toLowerCase()
+                                  );
+                                  const targetRouteId = rObj?.id?.toString() || formData.busRoute;
+                                  const targetRouteName = (rObj?.routeName || formData.busRoute || '').trim().toLowerCase();
+
+                                  return (
+                                    (p.routeId && p.routeId.toString() === targetRouteId) ||
+                                    (p.routeName && p.routeName.trim().toLowerCase() === targetRouteName) ||
+                                    (rObj?.routeName && p.routeName && p.routeName.trim().toLowerCase().includes(rObj.routeName.trim().toLowerCase()))
+                                  );
+                                })
                                 .map((p) => (
                                   <option key={p.id} value={p.pickupName}>
-                                    {p.sequenceNumber}. {p.pickupName} (
-                                    {p.arrivalTime})
+                                    {p.sequenceNumber ? `${p.sequenceNumber}. ` : ''}{p.pickupName} {p.arrivalTime ? `(${p.arrivalTime})` : ''}
                                   </option>
                                 ))}
                             </select>

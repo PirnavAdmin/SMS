@@ -12089,54 +12089,7 @@ export const initialDriverMasters: DriverMaster[] = [
   }
 ];
 
-export const initialVehicleAssignments: VehicleAssignment[] = [
-  {
-    id: 'VA-01',
-    branch: 'Main Campus',
-    academicYear: '2026-2027',
-    vehicleId: 'VM-01',
-    vehicleNumber: 'BUS-101',
-    routeId: 'RM-01',
-    routeName: 'Route A - North Suburbs Express',
-    driverId: 'DRV-01',
-    driverEmployeeId: 'EMP-DRV-101',
-    driverName: 'Michael Scott',
-    attendantId: 'att-1',
-    attendantEmployeeId: 'ATT-2026-01',
-    attendantName: 'Mary Smith',
-    attendantMobile: '+1 (555) 019-8274',
-    morningTripTime: '07:00',
-    eveningTripTime: '15:45',
-    vehicleCapacity: 40,
-    assignedStudents: 38,
-    gpsStatus: 'Online',
-    effectiveFrom: '2026-06-01',
-    status: 'Active'
-  },
-  {
-    id: 'VA-02',
-    branch: 'Main Campus',
-    academicYear: '2026-2027',
-    vehicleId: 'VM-02',
-    vehicleNumber: 'VAN-102',
-    routeId: 'RM-02',
-    routeName: 'Route B - East Downtown Loop',
-    driverId: 'DRV-02',
-    driverEmployeeId: 'EMP-DRV-102',
-    driverName: 'Jim Halpert',
-    attendantId: 'att-2',
-    attendantEmployeeId: 'ATT-2026-02',
-    attendantName: 'Sarah Jenkins',
-    attendantMobile: '+1 (555) 019-8275',
-    morningTripTime: '07:30',
-    eveningTripTime: '16:00',
-    vehicleCapacity: 18,
-    assignedStudents: 15,
-    gpsStatus: 'Online',
-    effectiveFrom: '2026-06-01',
-    status: 'Active'
-  }
-];
+export const initialVehicleAssignments: VehicleAssignment[] = [];
 
 export const initialVehicleMaintenances: VehicleMaintenance[] = [
   {

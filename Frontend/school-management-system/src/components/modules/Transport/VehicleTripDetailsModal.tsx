@@ -48,14 +48,14 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   defaultTab = 'overview'
 }) => {
   const {
-    students,
-    studentTransports,
-    vehicleMasters,
-    driverMasters,
-    routeMasters,
-    pickupPoints,
-    busAttendants,
-    vehicleAssignments
+    students = [],
+    studentTransports = [],
+    vehicleMasters = [],
+    driverMasters = [],
+    routeMasters = [],
+    pickupPoints = [],
+    busAttendants = [],
+    vehicleAssignments = []
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'morning' | 'evening' | 'students' | 'history'>(defaultTab);
@@ -119,22 +119,73 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     displayStops = [];
   }
 
-  const routeStudents = studentTransports.filter(st => st.routeId === route?.id || st.routeName === route?.routeName);
+  // Find real enrolled students from Admissions roster matching this route/vehicle
+  const matchedEnrolledStudents = students.filter(student => {
+    const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
+    if (!isStudentActive) return false;
 
-  const assignedStudentsList = routeStudents.map(st => {
-    const student = students.find(s => s.id === st.studentId);
+    const stAssignment = studentTransports.find(st => {
+      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+      if (!isStatusActive) return false;
+
+      return (
+        (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+        (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+      );
+    });
+
+    // 1. Match by routeId
+    const matchesRouteId = Boolean(
+      (stAssignment?.routeId && route?.id && String(stAssignment.routeId).trim() === String(route.id).trim()) ||
+      (stAssignment?.routeId && assignment.routeId && String(stAssignment.routeId).trim() === String(assignment.routeId).trim()) ||
+      (student.busRoute && route?.id && String(student.busRoute).trim() === String(route.id).trim()) ||
+      (student.busRoute && assignment.routeId && String(student.busRoute).trim() === String(assignment.routeId).trim())
+    );
+
+    // 2. Match by vehicleNumber / vehicleId
+    const matchesVehicle = Boolean(
+      (stAssignment?.vehicleNumber && assignment.vehicleNumber && stAssignment.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase()) ||
+      (stAssignment?.vehicleId && assignment.vehicleId && String(stAssignment.vehicleId).trim() === String(assignment.vehicleId).trim())
+    );
+
+    // 3. Match by exact Route Name / Code
+    const studentRoute = (stAssignment?.routeName || student.busRoute || '').trim().toLowerCase();
+    const targetRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
+    const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
+
+    const matchesRouteName = Boolean(
+      studentRoute !== '' &&
+      studentRoute !== 'n/a' &&
+      studentRoute !== 'unassigned' &&
+      ((targetRouteName !== '' && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && studentRoute === targetRouteName) ||
+       (targetRouteCode !== '' && studentRoute === targetRouteCode))
+    );
+
+    return matchesRouteId || matchesVehicle || matchesRouteName;
+  });
+
+  const assignedStudentsList = matchedEnrolledStudents.map(student => {
+    const stAssignment = studentTransports.find(st =>
+      (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+      (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
+    );
+
+    const fullName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Enrolled Student';
+    const pName = student.fatherName || student.parentName || student.motherName || 'Parent / Guardian';
+    const pMobile = student.fatherPhone || student.parentPhone || student.motherPhone || student.phone || 'N/A';
+    const pPoint = stAssignment?.pickupPoint || student.pickupPoint || 'Main Pickup Stop';
 
     return {
-      id: st.studentId,
-      admissionNo: st.admissionNo,
-      studentName: st.studentName,
-      gender: student?.gender || 'Male',
-      className: student?.className || 'Class 5',
-      section: student?.section || 'A',
-      rollNo: student?.rollNo || '12',
-      pickupPoint: st.pickupPoint,
-      parentName: student?.fatherName || 'Mr. Parent',
-      parentMobile: student?.fatherPhone || '+1 555-019-283',
+      id: student.id,
+      admissionNo: student.admissionNo || '-',
+      studentName: fullName,
+      gender: student.gender || 'Male',
+      className: student.className || 'Class 5',
+      section: student.section || 'A',
+      rollNo: student.rollNo || '1',
+      pickupPoint: pPoint,
+      parentName: pName,
+      parentMobile: pMobile,
       morningTime: morningTripTime,
       eveningTime: eveningTripTime
     };
