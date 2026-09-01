@@ -205,5 +205,28 @@ namespace SMS.Api.Repositories.Implementations
                     (!excludePickupPointId.HasValue ||
                      x.PickupPointId != excludePickupPointId.Value));
         }
+
+        public async Task<PickupPointDto?> GetByIdOrNameAsync(string pickupIdOrName)
+        {
+            if (string.IsNullOrWhiteSpace(pickupIdOrName)) return null;
+
+            string search = pickupIdOrName.Trim();
+
+            if (long.TryParse(search, out long pickupId))
+            {
+                var byId = await GetByIdAsync(pickupId);
+                if (byId != null) return byId;
+            }
+
+            var point = await _context.PickupPoints
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (x.PickupPointName != null && x.PickupPointName.ToLower() == search.ToLower()) ||
+                    x.PickupPointId.ToString() == search));
+
+            if (point == null) return null;
+
+            return await GetByIdAsync(point.PickupPointId);
+        }
     }
 }

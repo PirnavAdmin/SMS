@@ -41,22 +41,10 @@ namespace SMS.Api.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
-            if (long.TryParse(id, out long attendantId))
-            {
-                var result = await _service.GetByIdAsync(attendantId);
-                if (result != null) return Ok(result);
-            }
+            var result = await _service.GetByIdOrNameAsync(id);
+            if (result != null) return Ok(result);
 
-            var paged = await _service.GetAllAsync(new TransportAttendantFilterDto { PageSize = 1000 });
-            var found = paged.Items.FirstOrDefault(a =>
-                string.Equals(a.AttendantName, id, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(a.MobileNumber, id, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(a.AttendantId.ToString(), id));
-
-            if (found == null)
-                return NotFound(new { message = "Bus attendant not found." });
-
-            return Ok(found);
+            return NotFound(new { message = "Bus attendant not found." });
         }
 
         [HttpPost]
@@ -76,28 +64,13 @@ namespace SMS.Api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateTransportAttendantDto dto)
         {
-            long? targetId = null;
-            if (long.TryParse(id, out long parsedId))
+            var existing = await _service.GetByIdOrNameAsync(id);
+            if (existing != null)
             {
-                targetId = parsedId;
-            }
-            else
-            {
-                var paged = await _service.GetAllAsync(new TransportAttendantFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(a =>
-                    string.Equals(a.AttendantName, id, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(a.MobileNumber, id, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(a.AttendantId.ToString(), id) ||
-                    (!string.IsNullOrWhiteSpace(dto.AttendantName) && string.Equals(a.AttendantName, dto.AttendantName, StringComparison.OrdinalIgnoreCase)));
-                if (found != null) targetId = found.AttendantId;
-            }
-
-            if (targetId.HasValue)
-            {
-                var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                var updated = await _service.UpdateAsync(existing.AttendantId, dto, null);
                 if (updated)
                 {
-                    var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                    var updatedDto = await _service.GetByIdAsync(existing.AttendantId);
                     return Ok(new { success = true, message = "Bus attendant updated successfully.", data = updatedDto });
                 }
             }
@@ -105,7 +78,7 @@ namespace SMS.Api.Controllers
             var createDto = new CreateTransportAttendantDto
             {
                 AttendantName = !string.IsNullOrWhiteSpace(dto.AttendantName) ? dto.AttendantName : id,
-                MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber : "0000000000",
+                MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber : "",
                 AlternateMobileNumber = dto.AlternateMobileNumber,
                 Address = dto.Address,
                 BloodGroup = dto.BloodGroup,
@@ -123,23 +96,10 @@ namespace SMS.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
         {
-            long? targetId = null;
-            if (long.TryParse(id, out long parsedId))
+            var existing = await _service.GetByIdOrNameAsync(id);
+            if (existing != null)
             {
-                targetId = parsedId;
-            }
-            else
-            {
-                var paged = await _service.GetAllAsync(new TransportAttendantFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(a =>
-                    string.Equals(a.AttendantName, id, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(a.AttendantId.ToString(), id));
-                if (found != null) targetId = found.AttendantId;
-            }
-
-            if (targetId.HasValue)
-            {
-                await _service.DeleteAsync(targetId.Value, null);
+                await _service.DeleteAsync(existing.AttendantId, null);
             }
 
             return Ok(new { success = true, message = "Bus attendant deleted successfully." });

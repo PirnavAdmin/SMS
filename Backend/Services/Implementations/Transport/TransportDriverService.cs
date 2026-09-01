@@ -71,5 +71,10 @@ namespace SMS.Api.Services.Implementations
         {
             return await _repository.GetLookupAsync();
         }
+
+        public async Task<TransportDriverDto?> GetByIdOrNumberAsync(string driverIdOrNumber)
+        {
+            return await _repository.GetByIdOrNumberAsync(driverIdOrNumber);
+        }
     }
 }

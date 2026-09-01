@@ -183,5 +183,29 @@ namespace SMS.Api.Repositories.Implementations
                 })
                 .ToListAsync();
         }
+
+        public async Task<TransportAttendantDto?> GetByIdOrNameAsync(string attendantIdOrName)
+        {
+            if (string.IsNullOrWhiteSpace(attendantIdOrName)) return null;
+
+            string search = attendantIdOrName.Trim();
+
+            if (long.TryParse(search, out long attendantId))
+            {
+                var byId = await GetByIdAsync(attendantId);
+                if (byId != null) return byId;
+            }
+
+            var attendant = await _context.TransportAttendants
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (x.AttendantName != null && x.AttendantName.ToLower() == search.ToLower()) ||
+                    (x.MobileNumber != null && x.MobileNumber.ToLower() == search.ToLower()) ||
+                    x.AttendantId.ToString() == search));
+
+            if (attendant == null) return null;
+
+            return await GetByIdAsync(attendant.AttendantId);
+        }
     }
 }

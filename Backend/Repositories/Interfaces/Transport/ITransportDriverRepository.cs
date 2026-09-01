@@ -29,5 +29,7 @@ namespace SMS.Api.Repositories.Interfaces
             long? excludeDriverId = null);
 
         Task<IEnumerable<TransportDriverLookupDto>> GetLookupAsync();
+
+        Task<TransportDriverDto?> GetByIdOrNumberAsync(string driverIdOrNumber);
     }
 }
