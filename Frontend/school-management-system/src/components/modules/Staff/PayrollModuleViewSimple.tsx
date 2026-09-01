@@ -857,6 +857,12 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [selectedGenerationIds, setSelectedGenerationIds] = useState<string[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [drawerStaff, setDrawerStaff] = useState<Staff | null>(null);
+
+  const [payslipMode, setPayslipMode] = useState<'Auto Payslip' | 'Manual Payslip'>('Auto Payslip');
+  const [globalDeduction, setGlobalDeduction] = useState<string>('');
+  const [globalTdsPct, setGlobalTdsPct] = useState<string>('');
+  const [standardPeriod, setStandardPeriod] = useState<'1m' | '3m' | '6m' | '12m'>('1m');
+  const [leftEmployeeSearch, setLeftEmployeeSearch] = useState<string>('');
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   const [structureMode, setStructureMode] = useState<'add' | 'edit' | 'duplicate'>('add');
   const [structureEditingId, setStructureEditingId] = useState<string | null>(null);
@@ -1058,7 +1064,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const workingDays = Math.max(1, Math.max(presentDays + halfDays, 22));
       const lopDays = Math.max(0, workingDays - presentDays - approvedLeaveDays - halfDays * 0.5);
       const attendanceDeduction = Math.round((breakdown.grossSalary / workingDays) * lopDays);
-      const deductions = breakdown.deductions + attendanceDeduction;
+      const extraDeduction = Number(globalDeduction) || 0;
+      const tdsPercentage = Number(globalTdsPct) || 0;
+      const tdsDeduction = Math.round(breakdown.grossSalary * (tdsPercentage / 100));
+
+      const deductions = breakdown.deductions + attendanceDeduction + extraDeduction + tdsDeduction;
       const netSalary = roundAmount(Math.max(0, breakdown.grossSalary - deductions), row.structure?.roundOffRule);
       return {
         ...row,
@@ -1410,10 +1420,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
 
           <div className="mt-5 overflow-x-auto">
-            <table className="min-w-[1100px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
+            <table className="min-w-[1100px] w-full text-center border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="px-3 py-2 w-10"></th>
+                  <th className="px-3 py-2 text-center w-10"></th>
                   <th className="px-3 py-2 text-center">Employee ID</th>
                   <th className="px-3 py-2 text-center">Employee Name</th>
                   <th className="px-3 py-2 text-center">Category</th>
@@ -1421,7 +1431,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   <th className="px-3 py-2 text-center">Designation</th>
                   <th className="px-3 py-2 text-center">Salary Structure</th>
                   <th className="px-3 py-2 text-center">Payroll Status</th>
-                  <th className="px-3 py-2 text-center"></th>
+                  <th className="px-3 py-2 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1429,7 +1439,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   const statusBadge = row.assignment ? 'success' : 'warning';
                   return (
                     <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 text-center align-middle">
                         <input 
                           type="checkbox" 
                           className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1443,26 +1453,26 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                           }}
                         />
                       </td>
-                      <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.member.empId}</td>
-                      <td className="px-3 py-2">
-                        <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-left">
+                      <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{row.member.empId}</td>
+                      <td className="px-3 py-2 text-center align-middle">
+                        <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-center">
                           <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
                           <p className="text-[10px] text-slate-500">{row.member.branch || 'Main Campus'}</p>
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{getCategoryLabel(row.category)}</td>
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.member.department}</td>
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.member.designation}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.category)}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.member.department}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.member.designation}</td>
+                      <td className="px-3 py-2 text-center align-middle">
                         <div className="space-y-0.5">
                           <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure?.structureName || 'Not Assigned'}</div>
                           {row.assignment?.salaryOverride && <Badge variant="warning" size="sm">Override</Badge>}
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 text-center align-middle">
                         <Badge variant={statusBadge} size="sm">{row.payrollStatus}</Badge>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 text-center align-middle">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
@@ -1608,13 +1618,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <th className="px-3 py-2 text-center">Net Salary</th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-center">Employees</th>
-                <th className="px-3 py-2 text-center"></th>
+                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredStructureRows.map(row => (
                 <tr key={row.structure.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-center align-middle">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1628,24 +1638,24 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       }}
                     />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-center align-middle">
                     <div className="space-y-0.5">
                       <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure.structureName}</div>
                       {row.structure.structureCode && <p className="text-[10px] text-slate-500">{row.structure.structureCode}</p>}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{getCategoryLabel(row.structure.employeeCategory)}</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.structure.designation || 'Not set'}</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.structure.effectiveDate || 'Not set'}</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.structure.payrollFrequency || 'Monthly'}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.grossSalary)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.deductions)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300">{formatCurrency(row.breakdown.netSalary)}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.structure.employeeCategory)}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.designation || 'Not set'}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.effectiveDate || 'Not set'}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.payrollFrequency || 'Monthly'}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(row.breakdown.grossSalary)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(row.breakdown.deductions)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300 text-center align-middle">{formatCurrency(row.breakdown.netSalary)}</td>
+                  <td className="px-3 py-2 text-center align-middle">
                     <Badge variant={row.structure.status === 'Active' ? 'success' : 'neutral'} size="sm">{row.structure.status}</Badge>
                   </td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.assignedCount}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{row.assignedCount}</td>
+                  <td className="px-3 py-2 text-center align-middle">
                     <div className="flex items-center justify-center gap-1.5">
                       <button
                         type="button"
@@ -1693,141 +1703,354 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     </div>
   );
 
-  const renderPayslipGenerationTab = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <StatCard label="Eligible Employees" value={String(generationRows.length)} icon={Users} tone="sky" />
-        <StatCard label="Existing Payslips" value={String(generationRows.filter(row => row.existing).length)} icon={ReceiptText} tone="emerald" />
-        <StatCard label="Total Gross" value={formatCurrency(generationRows.reduce((sum, row) => sum + row.breakdown.grossSalary, 0))} icon={BadgeIndianRupee} tone="brand" />
-        <StatCard label="Total Net" value={formatCurrency(generationRows.reduce((sum, row) => sum + row.netSalary, 0))} icon={CheckCircle2} tone="amber" />
-      </div>
+  const renderPayslipGenerationTab = () => {
+    const allStaffCount = staff.length;
+    const selectedCount = selectedGenerationIds.length;
+    const currentPeriodLabel = `${generationMonth} ${generationYear}`;
 
-      <Panel
-        title="Generate Payslips"
-        action={(
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={handleBulkGenerate} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-lg shadow-brand-500/20">
-              <ReceiptText className="h-3.5 w-3.5" /> {selectedGenerationIds.length === 1 ? 'Generate' : 'Generate All'}
-            </button>
+    const filteredLeftStaff = staff.filter(member => {
+      const category = resolveCategory(member);
+      const matchesCategory = generationCategory === 'All' || category === generationCategory;
+
+      const q = leftEmployeeSearch.trim().toLowerCase();
+      const matchesSearch = !q || (
+        member.firstName?.toLowerCase().includes(q) ||
+        member.lastName?.toLowerCase().includes(q) ||
+        member.empId?.toLowerCase().includes(q) ||
+        member.department?.toLowerCase().includes(q) ||
+        (member as any).email?.toLowerCase().includes(q)
+      );
+
+      return matchesCategory && matchesSearch;
+    });
+
+    return (
+      <div className="space-y-6">
+        {/* Top Header & Payslip Mode Bar */}
+        <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 shrink-0">
+            <div>
+              <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                All Employees
+                <span className="text-xs font-bold text-slate-500">
+                  ({selectedCount > 0 ? `${selectedCount} selected` : `Showing payslips for ${filteredLeftStaff.length} employees`})
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500">Showing payslips for all employees</p>
+            </div>
           </div>
-        )}
-      >
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-32">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Month</label>
-            <SelectField value={generationMonth} onChange={e => setGenerationMonth(e.target.value)}>
-              {monthOptions.map(month => <option key={month}>{month}</option>)}
-            </SelectField>
-          </div>
-          <div className="w-28">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Year</label>
-            <SelectField value={generationYear} onChange={e => setGenerationYear(e.target.value)}>
-              {yearOptions.map(year => <option key={year}>{year}</option>)}
-            </SelectField>
-          </div>
-          <div className="flex-1 min-w-[150px]">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
-            <SearchableSelect value={generationEmployee} onChange={setGenerationEmployee} options={employeeOptions} />
-          </div>
-          <div className="flex-1 min-w-[150px]">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
-            <SelectField value={generationCategory} onChange={e => setGenerationCategory(e.target.value as any)}>
-              <option value="All">All Categories</option>
-              <option value="Teacher">Teaching Staff</option>
-              <option value="Staff">Non-Teaching Staff</option>
-            </SelectField>
-          </div>
-          <div className="flex-1 min-w-[150px]">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Branch</label>
-            <SelectField value={generationBranch} onChange={e => setGenerationBranch(e.target.value)}>
-              {branches.map(branch => <option key={branch}>{branch}</option>)}
-            </SelectField>
-          </div>
-          <div className="flex-1 min-w-[150px]">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department</label>
-            <SearchableSelect value={generationDepartment} onChange={setGenerationDepartment} options={departments} getCode={(val) => val.substring(0, 3).toUpperCase()} />
+
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Payslip Mode</span>
+              <div className="w-40">
+                <SelectField value={payslipMode} onChange={e => setPayslipMode(e.target.value as any)}>
+                  <option value="Auto Payslip">Auto Payslip</option>
+                  <option value="Manual Payslip">Manual Payslip</option>
+                </SelectField>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-5 overflow-x-auto">
-          <table className="min-w-[1220px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
-            <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                <th className="px-3 py-2 w-10">
-                  <input 
-                    type="checkbox" 
-                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                    checked={pendingGenerationRows.length > 0 && selectedGenerationIds.length === pendingGenerationRows.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedGenerationIds(pendingGenerationRows.map(r => r.member.id));
+        {/* Global Deduction & TDS Config Bar */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">DEDUCTION (₹)</label>
+            <input
+              type="number"
+              value={globalDeduction}
+              onChange={e => setGlobalDeduction(e.target.value)}
+              placeholder="Enter Deduction"
+              className={inputClass}
+            />
+            <p className="text-[11px] font-bold text-slate-500 pt-0.5">
+              Current Deduction: ₹{globalDeduction || '0'}
+            </p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">TDS (%)</label>
+            <input
+              type="number"
+              value={globalTdsPct}
+              onChange={e => setGlobalTdsPct(e.target.value)}
+              placeholder="Enter TDS Percentage"
+              className={inputClass}
+            />
+            <p className="text-[11px] font-bold text-slate-500 pt-0.5">
+              Current TDS: {globalTdsPct || '0'}%
+            </p>
+          </div>
+        </div>
+
+        {/* Main 2-Column Section: Left Staff Selection List + Right Generate Box */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Employee Selection Panel */}
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 rounded-2xl p-4 shadow-xs space-y-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Filter by Category
+              </label>
+              <SelectField value={generationCategory} onChange={e => setGenerationCategory(e.target.value as any)}>
+                <option value="All">All Staff</option>
+                <option value="Teacher">Teaching Staff</option>
+                <option value="Staff">Non-Teaching Staff</option>
+              </SelectField>
+            </div>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={leftEmployeeSearch}
+                onChange={e => setLeftEmployeeSearch(e.target.value)}
+                placeholder="Search..."
+                className={`${inputClass} pl-9`}
+              />
+            </div>
+
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 px-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-slate-900 dark:text-white">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4"
+                  checked={filteredLeftStaff.length > 0 && selectedGenerationIds.length === filteredLeftStaff.length}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setSelectedGenerationIds(filteredLeftStaff.map(s => s.id));
+                    } else {
+                      setSelectedGenerationIds([]);
+                    }
+                  }}
+                />
+                <span>Select All ({filteredLeftStaff.length})</span>
+              </label>
+              {selectedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedGenerationIds([])}
+                  className="text-[11px] font-bold text-rose-500 hover:underline"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-[380px] overflow-y-auto space-y-1 pr-1">
+              {filteredLeftStaff.map(member => {
+                const isChecked = selectedGenerationIds.includes(member.id);
+                const dept = member.department || (member.role === 'Teacher' ? 'IT' : 'Admin');
+                return (
+                  <div
+                    key={member.id}
+                    onClick={() => {
+                      if (isChecked) {
+                        setSelectedGenerationIds(prev => prev.filter(id => id !== member.id));
                       } else {
-                        setSelectedGenerationIds([]);
+                        setSelectedGenerationIds(prev => [...prev, member.id]);
                       }
                     }}
-                  />
-                </th>
-                <th className="px-3 py-2 text-center">Employee ID</th>
-                <th className="px-3 py-2 text-center">Employee Name</th>
-                <th className="px-3 py-2 text-center">Department</th>
-                <th className="px-3 py-2 text-center">Gross Salary</th>
-                <th className="px-3 py-2 text-center">Total Allowances</th>
-                <th className="px-3 py-2 text-center">Total Deductions</th>
-                <th className="px-3 py-2 text-center">Net Salary</th>
-                <th className="px-3 py-2 text-center">Payslip Status</th>
-                <th className="px-3 py-2 text-center">Payment Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingGenerationRows.map(row => (
-                <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-2">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={selectedGenerationIds.includes(row.member.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedGenerationIds(prev => [...prev, row.member.id]);
-                        } else {
-                          setSelectedGenerationIds(prev => prev.filter(id => id !== row.member.id));
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.member.empId}</td>
-                  <td className="px-3 py-2">
-                    <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-left">
-                      <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
-                      <p className="text-[10px] text-slate-500">{row.assignment?.salaryStructureName || 'Not Assigned'}</p>
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.member.department}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.grossSalary)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.allowances)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.deductions)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300">{formatCurrency(row.netSalary)}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant={row.existing ? 'success' : 'warning'} size="sm">{row.existing ? row.existing.status : 'Ready'}</Badge>
-                  </td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
-                </tr>
-              ))}
-              {pendingGenerationRows.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
-                    {generationRows.length === 0 
-                      ? "No employees match the current payroll generation filters."
-                      : "All matched employees already have payslips generated for this month."}
-                  </td>
-                </tr>
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      isChecked
+                        ? 'bg-sky-50/70 border-sky-300 dark:bg-sky-950/40 dark:border-sky-800'
+                        : 'bg-slate-50/50 border-slate-200 hover:bg-slate-100 dark:bg-slate-950 dark:border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4"
+                      />
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">
+                          {member.firstName} {member.lastName}
+                        </p>
+                        <p className="text-[10px] font-semibold text-slate-400">{member.empId}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                      {dept}
+                    </span>
+                  </div>
+                );
+              })}
+              {filteredLeftStaff.length === 0 && (
+                <div className="p-4 text-center text-xs text-slate-400 italic">No employees found.</div>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Right Control Box: Generate Payslip & Period Selector */}
+          <div className="lg:col-span-8 space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  Generate Payslip
+                </h3>
+                <Badge variant={selectedCount > 0 ? 'success' : 'slate'} size="sm">
+                  {selectedCount > 0 ? `${selectedCount} Selected` : 'No Selection'}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
+                    STANDARD PERIODS
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {(['1m', '3m', '6m', '12m'] as const).map(period => (
+                      <button
+                        key={period}
+                        type="button"
+                        onClick={() => setStandardPeriod(period)}
+                        className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
+                          standardPeriod === period
+                            ? 'bg-brand-600 text-white shadow-md shadow-brand-500/30'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
+                    SPECIFIC PERIOD
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <SelectField value={generationMonth} onChange={e => setGenerationMonth(e.target.value)}>
+                      {monthOptions.map(month => (
+                        <option key={month}>{month}</option>
+                      ))}
+                    </SelectField>
+                    <SelectField value={generationYear} onChange={e => setGenerationYear(e.target.value)}>
+                      {yearOptions.map(year => (
+                        <option key={year}>{year}</option>
+                      ))}
+                    </SelectField>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBulkGenerate}
+                disabled={selectedCount === 0}
+                className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
+                  selectedCount > 0
+                    ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
+                }`}
+              >
+                <ReceiptText className="w-4 h-4" />
+                {selectedCount > 0
+                  ? `Generate Payslips for ${selectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
+                  : 'Select employee(s) to generate'}
+              </button>
+            </div>
+
+            {/* Recently Generated Section */}
+            <Panel
+              title="Recently Generated"
+              subtitle={`Payslip records for ${currentPeriodLabel}`}
+              action={
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBulkDownload}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-3.5 text-xs font-black text-white shadow-md shadow-slate-700/20"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download Monthly Report
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkEmail}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-xs font-black text-white shadow-md shadow-brand-500/20"
+                  >
+                    <Mail className="h-3.5 w-3.5" /> Send Payslip Emails
+                  </button>
+                </div>
+              }
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-center border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
+                  <thead>
+                    <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                      <th className="px-3 py-2 text-center">EMPLOYEE</th>
+                      <th className="px-3 py-2 text-center">DEPARTMENT</th>
+                      <th className="px-3 py-2 text-center">PERIOD</th>
+                      <th className="px-3 py-2 text-center">NET PAY</th>
+                      <th className="px-3 py-2 text-center">DEDUCTION</th>
+                      <th className="px-3 py-2 text-center">CTC</th>
+                      <th className="px-3 py-2 text-center">GENERATED</th>
+                      <th className="px-3 py-2 text-center">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {generationRows.filter(r => r.existing).map(row => {
+                      const existing = row.existing!;
+                      const safeNet = Number.isNaN(Number(existing.netSalary))
+                        ? Math.max(0, (existing.grossSalary || 0) - ((existing.otherDeductions || 0) + (existing.leaveDeduction || 0)))
+                        : Number(existing.netSalary) || 0;
+                      return (
+                        <tr key={existing.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                          <td className="px-3 py-2 text-center align-middle">
+                            <div className="text-center">
+                              <p className="font-extrabold text-slate-900 dark:text-white">{existing.employeeName}</p>
+                              <p className="text-[10px] text-slate-400">{existing.empId}</p>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 font-semibold text-center align-middle">{existing.department || 'IT'}</td>
+                          <td className="px-3 py-2 font-semibold text-center align-middle">{existing.month}</td>
+                          <td className="px-3 py-2 text-center align-middle font-black text-brand-700 dark:text-brand-300">{formatCurrency(safeNet)}</td>
+                          <td className="px-3 py-2 text-center align-middle font-bold">{formatCurrency((existing.otherDeductions || 0) + (existing.leaveDeduction || 0))}</td>
+                          <td className="px-3 py-2 text-center align-middle font-bold">{formatCurrency((existing.grossSalary || 0) * 12)}</td>
+                          <td className="px-3 py-2 text-center align-middle">
+                            <Badge variant="success" size="sm">{existing.paymentDate || 'Generated'}</Badge>
+                          </td>
+                          <td className="px-3 py-2 text-center align-middle">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handlePrintPayslip(existing, false)}
+                                className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                                title="View"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePrintPayslip(existing, true)}
+                                className="p-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300"
+                                title="Download PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {generationRows.filter(r => r.existing).length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-10 text-center text-sm font-semibold text-slate-400 italic">
+                          No Payslips Generated
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          </div>
         </div>
-      </Panel>
-    </div>
-  );
+      </div>
+    );
+  };
 
   const renderHistoryTab = () => (
     <div className="space-y-6">
@@ -1932,18 +2155,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <th className="px-3 py-2 text-center">Gross Salary</th>
                 <th className="px-3 py-2 text-center">Deductions</th>
                 <th className="px-3 py-2 text-center">Net Salary</th>
-                <th className="px-3 py-2 text-center">Generated Date</th>
                 <th className="px-3 py-2 text-center">Payment Status</th>
-                <th className="px-3 py-2 text-center"></th>
+                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {historyRows.map(item => {
                 const { month, year } = splitMonthYear(item.month);
                 const linkedStaff = staff.find(member => member.id === item.employeeId) || null;
+                const totalDed = (item.leaveDeduction || 0) + (item.otherDeductions || 0) + (item.pfDeduction || 0);
+                const safeNet = Number.isNaN(Number(item.netSalary))
+                  ? Math.max(0, (item.grossSalary || 0) - totalDed)
+                  : Number(item.netSalary) || 0;
+
                 return (
                   <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-1.5 text-center align-middle">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1957,22 +2184,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       }}
                     />
                   </td>
-                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white">{month}</td>
-                  <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">{year}</td>
-                  <td className="px-3 py-1.5">
-                    <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-left">
+                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{month}</td>
+                  <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{year}</td>
+                  <td className="px-3 py-1.5 text-center align-middle">
+                    <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-center">
                       <div className="text-xs font-black text-slate-900 dark:text-white">{item.employeeName}</div>
                       <p className="text-[10px] text-slate-500">{item.empId}</p>
                     </button>
                   </td>
-                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(item.grossSalary || 0)}</td>
-                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white">{formatCurrency((item.leaveDeduction || 0) + (item.otherDeductions || 0) + (item.pfDeduction || 0))}</td>
-                  <td className="px-3 py-1.5 text-xs font-black text-brand-700 dark:text-brand-300">{formatCurrency(item.netSalary)}</td>
-                  <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">{item.paymentDate || item.disbursedDate}</td>
-                  <td className="px-3 py-1.5">
-                    <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status}</Badge>
+                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(item.grossSalary || 0)}</td>
+                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(totalDed)}</td>
+                  <td className="px-3 py-1.5 text-xs font-black text-brand-700 dark:text-brand-300 text-center align-middle">{formatCurrency(safeNet)}</td>
+                  <td className="px-3 py-1.5 text-center align-middle">
+                    <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status || 'Generated'}</Badge>
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-1.5 text-center align-middle">
                     <div className="flex items-center justify-center gap-1.5">
                       <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="View Payslip">
                         <Eye className="h-3.5 w-3.5" />
