@@ -209,7 +209,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Supplier Master</h3>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add Supplier</h3>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier / Company Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -297,7 +297,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Details</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save</button>
               </div>
             </form>
           </div>

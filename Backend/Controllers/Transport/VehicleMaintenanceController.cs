@@ -49,15 +49,7 @@ namespace SMS.Api.Controllers.Transport
                 }
             }
 
-            var paged = await _service.GetAllAsync(new VehicleMaintenanceFilterDto { PageSize = 1000 });
-            var found = paged.Items.FirstOrDefault(m => string.Equals(m.MaintenanceId.ToString(), id));
-
-            if (found == null)
-            {
-                return NotFound(new { success = false, message = "Vehicle maintenance record not found." });
-            }
-
-            return Ok(new { success = true, data = found });
+            return NotFound(new { success = false, message = "Vehicle maintenance record not found." });
         }
 
         [HttpPost]

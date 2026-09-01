@@ -16,5 +16,7 @@ namespace SMS.Api.Services.Interfaces
         Task<bool> DeleteAsync(long vehicleId, long? userId);
 
         Task<IEnumerable<TransportVehicleLookupDto>> GetLookupAsync();
+
+        Task<TransportVehicleDto?> GetByIdOrNumberAsync(string vehicleIdOrNumber);
     }
 }

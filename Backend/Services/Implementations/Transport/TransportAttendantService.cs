@@ -43,5 +43,10 @@ namespace SMS.Api.Services.Implementations
         {
             return await _repository.GetLookupAsync();
         }
+
+        public async Task<TransportAttendantDto?> GetByIdOrNameAsync(string attendantIdOrName)
+        {
+            return await _repository.GetByIdOrNameAsync(attendantIdOrName);
+        }
     }
 }

@@ -24,5 +24,7 @@ namespace SMS.Api.Services.Interfaces
             long? userId);
 
         Task<IEnumerable<TransportDriverLookupDto>> GetLookupAsync();
+
+        Task<TransportDriverDto?> GetByIdOrNumberAsync(string driverIdOrNumber);
     }
 }

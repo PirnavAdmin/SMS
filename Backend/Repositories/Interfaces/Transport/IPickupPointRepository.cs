@@ -17,6 +17,8 @@ namespace SMS.Api.Repositories.Interfaces
 
         Task<IEnumerable<PickupPointLookupDto>> GetLookupAsync(long? routeId);
 
+        Task<PickupPointDto?> GetByIdOrNameAsync(string pickupIdOrName);
+
         Task<bool> ExistsAsync(
             long routeId,
             string pickupPointName,

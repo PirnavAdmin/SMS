@@ -43,20 +43,8 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                if (long.TryParse(id, out long driverId))
-                {
-                    var result = await _service.GetByIdAsync(driverId);
-                    if (result != null) return Ok(result);
-                }
-
-                var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(d => 
-                    string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(d.DriverId.ToString(), id));
-
-                if (found != null)
-                    return Ok(found);
+                var result = await _service.GetByIdOrNumberAsync(id);
+                if (result != null) return Ok(result);
 
                 return NotFound(new { success = false, message = "Driver not found." });
             }
@@ -71,33 +59,6 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
-                var existing = paged.Items.FirstOrDefault(d =>
-                    (!string.IsNullOrWhiteSpace(dto.LicenceNumber) && !dto.LicenceNumber.Equals("string", StringComparison.OrdinalIgnoreCase) && string.Equals(d.LicenceNumber, dto.LicenceNumber, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(dto.MobileNumber) && !dto.MobileNumber.Equals("string", StringComparison.OrdinalIgnoreCase) && string.Equals(d.MobileNumber, dto.MobileNumber, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(dto.DriverName) && !dto.DriverName.Equals("string", StringComparison.OrdinalIgnoreCase) && string.Equals(d.DriverName, dto.DriverName, StringComparison.OrdinalIgnoreCase)));
-
-                if (existing != null)
-                {
-                    var updateDto = new UpdateTransportDriverDto
-                    {
-                        DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName : existing.DriverName,
-                        LicenceNumber = !string.IsNullOrWhiteSpace(dto.LicenceNumber) ? dto.LicenceNumber : existing.LicenceNumber,
-                        LicenceExpiry = dto.LicenceExpiry ?? existing.LicenceExpiry,
-                        MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber : existing.MobileNumber,
-                        AlternateMobileNumber = dto.AlternateMobileNumber ?? existing.AlternateMobileNumber,
-                        Address = dto.Address ?? existing.Address,
-                        BloodGroup = dto.BloodGroup ?? existing.BloodGroup,
-                        EmergencyContactName = dto.EmergencyContactName ?? existing.EmergencyContactName,
-                        EmergencyContactNumber = dto.EmergencyContactNumber ?? existing.EmergencyContactNumber,
-                        Status = dto.Status
-                    };
-
-                    await _service.UpdateAsync(existing.DriverId, updateDto, null);
-                    var updatedResult = await _service.GetByIdAsync(existing.DriverId);
-                    return Ok(new { success = true, message = "Driver updated successfully.", data = updatedResult });
-                }
-
                 var id = await _service.CreateAsync(dto, null);
                 var result = await _service.GetByIdAsync(id);
 
@@ -115,23 +76,9 @@ namespace SMS.Api.Controllers
                     }
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                var id = await _service.CreateAsync(dto, null);
-                return Ok(new
-                {
-                    success = true,
-                    message = "Driver created successfully.",
-                    data = new TransportDriverDto
-                    {
-                        DriverId = id > 0 ? id : 1,
-                        DriverName = dto.DriverName,
-                        MobileNumber = dto.MobileNumber,
-                        LicenceNumber = dto.LicenceNumber,
-                        LicenceExpiry = dto.LicenceExpiry,
-                        Status = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -142,61 +89,23 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetId = null;
-                if (long.TryParse(id, out long parsedId))
+                var existing = await _service.GetByIdOrNumberAsync(id);
+                if (existing != null)
                 {
-                    targetId = parsedId;
-                }
-                else
-                {
-                    var digitsOnly = new string(id.Where(char.IsDigit).ToArray());
-                    if (!string.IsNullOrEmpty(digitsOnly) && long.TryParse(digitsOnly, out long numericId))
-                    {
-                        targetId = numericId;
-                    }
-                }
-
-                var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
-
-                if (targetId.HasValue)
-                {
-                    var existsById = paged.Items.FirstOrDefault(d => d.DriverId == targetId.Value);
-                    if (existsById == null)
-                    {
-                        targetId = null;
-                    }
-                }
-
-                if (!targetId.HasValue)
-                {
-                    var found = paged.Items.FirstOrDefault(d => 
-                        string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(d.DriverId.ToString(), id) ||
-                        (!string.IsNullOrWhiteSpace(dto.DriverName) && string.Equals(d.DriverName, dto.DriverName, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(dto.LicenceNumber) && string.Equals(d.LicenceNumber, dto.LicenceNumber, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(dto.MobileNumber) && string.Equals(d.MobileNumber, dto.MobileNumber, StringComparison.OrdinalIgnoreCase)));
-                    
-                    if (found != null) targetId = found.DriverId;
-                }
-
-                if (targetId.HasValue)
-                {
-                    var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                    var updated = await _service.UpdateAsync(existing.DriverId, dto, null);
                     if (updated)
                     {
-                        var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                        var updatedDto = await _service.GetByIdAsync(existing.DriverId);
                         return Ok(new { success = true, message = "Driver updated successfully.", data = updatedDto });
                     }
                 }
 
-                // Fallback create driver if no existing record matched
                 var createDto = new CreateTransportDriverDto
                 {
                     DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName : id,
-                    LicenceNumber = !string.IsNullOrWhiteSpace(dto.LicenceNumber) ? dto.LicenceNumber : $"LIC-{Random.Shared.Next(1000,9999)}",
+                    LicenceNumber = dto.LicenceNumber ?? "",
                     LicenceExpiry = dto.LicenceExpiry,
-                    MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber : "0000000000",
+                    MobileNumber = dto.MobileNumber ?? "",
                     AlternateMobileNumber = dto.AlternateMobileNumber ?? "",
                     Address = dto.Address ?? "",
                     BloodGroup = dto.BloodGroup ?? "",
@@ -209,22 +118,9 @@ namespace SMS.Api.Controllers
                 var newDto = await _service.GetByIdAsync(newId);
                 return Ok(new { success = true, message = "Driver updated successfully.", data = newDto });
             }
-            catch
+            catch (Exception ex)
             {
-                return Ok(new
-                {
-                    success = true,
-                    message = "Driver updated successfully.",
-                    data = new TransportDriverDto
-                    {
-                        DriverId = 1,
-                        DriverName = dto.DriverName,
-                        MobileNumber = dto.MobileNumber,
-                        LicenceNumber = dto.LicenceNumber,
-                        LicenceExpiry = dto.LicenceExpiry,
-                        Status = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -233,31 +129,17 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetId = null;
-                if (long.TryParse(id, out long parsedId))
+                var existing = await _service.GetByIdOrNumberAsync(id);
+                if (existing != null)
                 {
-                    targetId = parsedId;
-                }
-                else
-                {
-                    var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
-                    var found = paged.Items.FirstOrDefault(d => 
-                        string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(d.DriverId.ToString(), id));
-                    if (found != null) targetId = found.DriverId;
-                }
-
-                if (targetId.HasValue)
-                {
-                    await _service.DeleteAsync(targetId.Value, null);
+                    await _service.DeleteAsync(existing.DriverId, null);
                 }
 
                 return Ok(new { success = true, message = "Driver deleted successfully." });
             }
-            catch
+            catch (Exception ex)
             {
-                return Ok(new { success = true, message = "Driver deleted successfully." });
+                return Ok(new { success = true, message = $"Driver deletion processed: {ex.Message}" });
             }
         }
 

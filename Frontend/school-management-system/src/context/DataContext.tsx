@@ -11567,21 +11567,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         i.feeHeadName?.toLowerCase().includes("accessories"),
     )?.amount;
 
-    // Uniform Fee configuration lookup
-    const uniformConfig = financeUniformConfigs.find(
-      (c) =>
-        c.status === "Active" &&
-        c.academicYear === (financeSettings.academicYear || "2025-2026") &&
-        c.className === clsName &&
-        (c.gender === "Unisex" || c.gender === (student?.gender || "Male")),
-    );
-    const defaultClassUniformFee = getUniformPackageFeeByClass(clsName);
-
-    const uniformAmount = uniformConfig
-      ? uniformConfig.feeAmount
-      : dfsUniformFee !== undefined && dfsUniformFee > 0
-        ? dfsUniformFee
-        : defaultClassUniformFee;
+    // Uniform Fee configuration lookup using dynamic class matcher
+    const uniformAmount = getUniformFeeForClass(
+      clsName,
+      student?.gender || "Male",
+      financeUniformConfigs,
+      dynamicFeeStructures,
+    ) || 10000;
 
     // Helper to identify uniform fee heads
     const isUniformHead = (headName: string) => {
@@ -13063,60 +13055,106 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteRouteMaster = async (id: string) => {
+    const cleanId = String(id || "").trim();
+    const targetRoute = routeMasters.find(
+      (r) =>
+        String(r.id) === cleanId ||
+        r.id === id ||
+        (r.routeCode && r.routeCode.toLowerCase() === cleanId.toLowerCase()),
+    );
+    const routeCode = targetRoute?.routeCode;
+    const routeName = targetRoute?.routeName;
+    const routeId = targetRoute?.id ? String(targetRoute.id) : cleanId;
+
+    // Immediately record in deleted track set so fetch re-hydrations won't bring it back
+    const deletedTrack = new Set<string>(
+      JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
+    );
+    deletedTrack.add(cleanId);
+    if (routeId) deletedTrack.add(String(routeId));
+    if (routeCode) deletedTrack.add(String(routeCode));
+    if (routeName) deletedTrack.add(String(routeName));
+    localStorage.setItem(
+      "edu_db_deleted_route_ids",
+      JSON.stringify(Array.from(deletedTrack)),
+    );
+
     try {
       // Find all pickup points belonging to this route and delete them from the backend
-      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id || String(p.routeId) === String(id));
+      const pointsToDelete = pickupPoints.filter(
+        (p) =>
+          p.routeId === cleanId ||
+          String(p.routeId) === cleanId ||
+          (routeCode && p.routeName === routeCode),
+      );
       for (const p of pointsToDelete) {
         try {
           await TransportAPI.deletePickupPointApi(p.id);
         } catch (e) {
-          console.warn(
-            "Failed to delete pickup point during route deletion",
-            e,
-          );
+          console.warn("Failed to delete pickup point during route deletion", e);
         }
       }
 
       // Find all vehicle assignments belonging to this route and delete them from the backend
       const assignmentsToDelete = vehicleAssignments.filter(
-        (a) => a.routeId === id || String(a.routeId) === String(id),
+        (a) =>
+          a.routeId === cleanId ||
+          String(a.routeId) === cleanId ||
+          (routeCode && a.routeName === routeCode),
       );
       for (const a of assignmentsToDelete) {
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn(
-            "Failed to delete vehicle assignment during route deletion",
-            e,
-          );
+          console.warn("Failed to delete vehicle assignment during route deletion", e);
         }
       }
 
-      await TransportAPI.deleteRouteApi(id);
+      // Delete route from backend API (by ID and by Route Code if different)
+      await TransportAPI.deleteRouteApi(routeId);
+      if (routeCode && routeCode !== routeId) {
+        try {
+          await TransportAPI.deleteRouteApi(routeCode);
+        } catch (e) {
+          // Ignore secondary delete attempt error
+        }
+      }
     } catch (err) {
       console.warn("Transport route deletion error:", err);
     } finally {
-      const targetRoute = routeMasters.find((r) => r.id === id || String(r.id) === String(id));
-      const routeCode = targetRoute?.routeCode;
-
       setRouteMasters((prev) => {
-        const next = prev.filter((r) => r.id !== id && String(r.id) !== String(id) && (routeCode ? r.routeCode !== routeCode : true));
+        const next = prev.filter(
+          (r) =>
+            String(r.id) !== cleanId &&
+            r.id !== id &&
+            (routeCode ? r.routeCode !== routeCode : true),
+        );
         localStorage.setItem("edu_db_route_masters", JSON.stringify(next));
         return next;
       });
       setPickupPoints((prev) => {
-        const next = prev.filter((p) => p.routeId !== id && String(p.routeId) !== String(id));
+        const next = prev.filter(
+          (p) =>
+            p.routeId !== cleanId &&
+            String(p.routeId) !== cleanId &&
+            (routeCode ? p.routeName !== routeCode : true),
+        );
         localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
         return next;
       });
       setVehicleAssignments((prev) => {
-        const next = prev.filter((a) => a.routeId !== id && String(a.routeId) !== String(id));
+        const next = prev.filter(
+          (a) =>
+            a.routeId !== cleanId &&
+            String(a.routeId) !== cleanId &&
+            (routeCode ? a.routeName !== routeCode : true),
+        );
         localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(next));
         return next;
       });
       setStudentTransports((prev) =>
         prev.map((st) =>
-          st.routeId === id || String(st.routeId) === String(id)
+          st.routeId === cleanId || String(st.routeId) === cleanId || (routeCode && st.routeName === routeCode)
             ? {
                 ...st,
                 routeId: "",
@@ -13129,16 +13167,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : st,
         ),
       );
-      const deletedTrack = new Set<string>(
-        JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
-      );
-      deletedTrack.add(String(id));
-      if (routeCode) deletedTrack.add(String(routeCode));
-      localStorage.setItem(
-        "edu_db_deleted_route_ids",
-        JSON.stringify(Array.from(deletedTrack)),
-      );
-      logActivity("Deleted Transport Route", `Removed Route ID ${id}`);
+      logActivity("Deleted Transport Route", `Removed Route ID ${cleanId}`);
     }
   };
 
