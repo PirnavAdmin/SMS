@@ -333,6 +333,8 @@ namespace SMS.Api.Repositories.Implementations
                         x.RouteCode + " - " + x.RouteName
                 })
                 .ToListAsync();
+        }
+
         public async Task<TransportRouteDto?> GetByIdOrCodeAsync(string routeIdOrCode)
         {
             if (string.IsNullOrWhiteSpace(routeIdOrCode)) return null;

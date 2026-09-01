@@ -463,8 +463,8 @@ namespace SMS.Api.Controllers.AcademicManagement
             try
             {
                 var activePeriods = await _context.PeriodSettings
-                    .Where(p => p.Status == "Active" && !p.IsBreak)
-                    .OrderBy(p => p.Sequence)
+                    .Where(p => p.IsActive && !p.IsDeleted && p.PeriodType != "Break / Recess")
+                    .OrderBy(p => p.DisplayOrder)
                     .ToListAsync();
 
                 var substitutions = new List<object>();

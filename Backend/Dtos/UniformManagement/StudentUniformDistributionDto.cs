@@ -42,6 +42,12 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("issuedItem")]
         public string IssuedItem => ItemName;
 
+        [JsonPropertyName("basePackage")]
+        public string BasePackage => !string.IsNullOrWhiteSpace(ItemName) ? ItemName : "Boys Package";
+
+        [JsonPropertyName("additionalPurchases")]
+        public string AdditionalPurchases => TransactionType != null && TransactionType.Contains("Additional") ? ItemName : "--";
+
         [JsonPropertyName("sizeSpec")]
         public string SizeSpec { get; set; } = "M";
 
@@ -180,5 +186,67 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("status")]
         public string? Status { get; set; } = "Issued";
+    }
+
+    public class ReturnUniformDto
+    {
+        private string _reason = string.Empty;
+
+        [JsonPropertyName("reason")]
+        public string Reason
+        {
+            get => _reason;
+            set => _reason = value;
+        }
+
+        [JsonPropertyName("reasonForReturn")]
+        public string? ReasonForReturnAlias
+        {
+            get => _reason;
+            set { if (!string.IsNullOrWhiteSpace(value)) _reason = value; }
+        }
+
+        [JsonPropertyName("notes")]
+        public string? Notes { get; set; }
+
+        [JsonPropertyName("returnNotes")]
+        public string? ReturnNotesAlias
+        {
+            get => Notes;
+            set { if (!string.IsNullOrWhiteSpace(value)) Notes = value; }
+        }
+    }
+
+    public class ExchangeUniformDto
+    {
+        private string _reason = string.Empty;
+
+        [JsonPropertyName("reason")]
+        public string Reason
+        {
+            get => _reason;
+            set => _reason = value;
+        }
+
+        [JsonPropertyName("reasonForExchange")]
+        public string? ReasonForExchangeAlias
+        {
+            get => _reason;
+            set { if (!string.IsNullOrWhiteSpace(value)) _reason = value; }
+        }
+
+        [JsonPropertyName("sizeSpec")]
+        public string? SizeSpec { get; set; } = "M";
+
+        [JsonPropertyName("size")]
+        public string? SizeAlias
+        {
+            get => SizeSpec;
+            set { if (!string.IsNullOrWhiteSpace(value)) SizeSpec = value; }
+        }
+
+        [JsonPropertyName("quantity")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int Quantity { get; set; } = 1;
     }
 }

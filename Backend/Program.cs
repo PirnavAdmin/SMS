@@ -1196,13 +1196,7 @@ using (var scope = app.Services.CreateScope())
                 `LockedDate` VARCHAR(100) NULL,
                 `PaymentDate` VARCHAR(100) NULL,
                 `WorkflowStage` VARCHAR(100) NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `LeaveRulesJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `AttendanceRulesJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `DeductionRulesJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `CycleJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `OvertimeJson` LONGTEXT NULL;"
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
         foreach (var sql in tableSqls)
@@ -1218,15 +1212,37 @@ using (var scope = app.Services.CreateScope())
         {
             try
             {
-                var safeDef = columnDef.Replace("'", "''");
-                var sql = $@"
-                    SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = '{table.ToLower()}' AND LOWER(COLUMN_NAME) = '{column.ToLower()}');
-                    SET @query = IF(@exist = 0, 'ALTER TABLE `{table}` ADD COLUMN `{column}` {safeDef}', 'SELECT 1');
-                    PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;";
-                context.Database.ExecuteSqlRaw(sql);
+                var conn = context.Database.GetDbConnection();
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = '{table.ToLower()}' AND LOWER(COLUMN_NAME) = '{column.ToLower()}';";
+                    var count = Convert.ToInt32(cmd.ExecuteScalar());
+                    if (count == 0)
+                    {
+                        cmd.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};";
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                if (closeConn) conn.Close();
             }
             catch { }
         }
+
+        EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "CycleJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "OvertimeJson", "LONGTEXT NULL");
+        EnsureColumnExists("uniform_types", "IncludedItemsJson", "LONGTEXT NULL");
+        EnsureColumnExists("uniform_sizes", "ShoulderSpec", "VARCHAR(50) NULL");
 
         void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
         {
