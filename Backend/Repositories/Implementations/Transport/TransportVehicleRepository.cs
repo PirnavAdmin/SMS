@@ -226,7 +226,29 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleName = x.VehicleName ?? string.Empty,
                     RegistrationNumber = x.RegistrationNumber ?? string.Empty
                 })
-                .ToListAsync();
+        public async Task<TransportVehicleDto?> GetByIdOrNumberAsync(string vehicleIdOrNumber)
+        {
+            if (string.IsNullOrWhiteSpace(vehicleIdOrNumber)) return null;
+
+            string search = vehicleIdOrNumber.Trim();
+
+            if (long.TryParse(search, out long vehicleId))
+            {
+                var byId = await GetByIdAsync(vehicleId);
+                if (byId != null) return byId;
+            }
+
+            var vehicle = await _context.TransportVehicles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (x.VehicleNumber != null && x.VehicleNumber.ToLower() == search.ToLower()) ||
+                    (x.RegistrationNumber != null && x.RegistrationNumber.ToLower() == search.ToLower()) ||
+                    (x.VehicleName != null && x.VehicleName.ToLower() == search.ToLower()) ||
+                    x.VehicleId.ToString() == search));
+
+            if (vehicle == null) return null;
+
+            return await GetByIdAsync(vehicle.VehicleId);
         }
     }
 }

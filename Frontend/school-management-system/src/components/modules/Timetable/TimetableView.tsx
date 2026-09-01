@@ -3,7 +3,7 @@ import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,
   Copy, User, BookOpen, AlertTriangle, Layers, SlidersHorizontal, Check, RefreshCw,
   Send, Lock, FileSpreadsheet, ShieldAlert, CheckCircle2, Info, Search,
-  Zap, UserCheck, Users, BookMarked, ChevronRight, School, Sparkles
+  Zap, UserCheck, Users, BookMarked, ChevronRight, School, Sparkles, Building2
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -14,7 +14,7 @@ import { AutoTimetableGeneratorModal } from './AutoTimetableGeneratorModal';
 import { 
   fetchPeriodsApi, savePeriodApi, deletePeriodApi,
   fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
-  publishTimetableApi, copyTimetableApi
+  publishTimetableApi, copyTimetableApi, fetchTeacherSubstitutionsApi
 } from '../../../api/academic';
 
 type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
@@ -159,50 +159,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     });
 
     if (directSlots.length > 0) {
-      return directSlots.map(s => ({
-        ...s,
-        subject: (s.subject && s.subject !== 'Mathematics' && s.subject !== 'Physics') ? s.subject : mainSub
-      })).sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+      return directSlots
+        .map(s => ({
+          ...s,
+          subject: s.subject || mainSub
+        }))
+        .sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
     }
 
-    // 2. Build from Admin teacherAssignments (Class & Subject Mappings) if no direct slots
-    const fromAssignments = (teacherAssignments || []).filter((ta: any) => {
-      if (!ta) return false;
-      const taTeacher = (ta.teacherName || '').toLowerCase().trim();
-      return (tFullName && taTeacher.includes(tFullName)) || 
-        (tFirstName.length > 2 && taTeacher.includes(tFirstName)) ||
-        (ta.teacherId && (String(ta.teacherId) === String(teacher.id) || String(ta.teacherId) === String((teacher as any).empId)));
-    });
-
-    if (fromAssignments.length > 0) {
-      return fromAssignments.slice(0, 3).map((ta: any, idx: number) => {
-        const timeSlot = idx === 0 ? '09:15 AM - 10:00 AM' : idx === 1 ? '11:00 AM - 11:45 AM' : '01:15 PM - 02:00 PM';
-        const startTime = idx === 0 ? '09:15' : idx === 1 ? '11:00' : '13:15';
-        const endTime = idx === 0 ? '10:00' : idx === 1 ? '11:45' : '14:00';
-        const clsClean = (ta.className || 'Class 9').replace(/^Class\s*/i, '');
-        const subjectToUse = (ta.subject && ta.subject !== 'Mathematics' && ta.subject !== 'Physics') ? ta.subject : mainSub;
-        return {
-          id: `TT-DYN-${ta.id || idx}`,
-          day: todayDay,
-          timeSlot,
-          className: clsClean,
-          section: ta.section || 'A',
-          subject: subjectToUse,
-          teacherName: `${teacher.firstName} ${teacher.lastName}`,
-          roomNo: idx === 0 ? 'Room 202' : idx === 1 ? 'Room 383' : 'Room 101',
-          startTime,
-          endTime
-        };
-      });
-    }
-
-    // 3. Default fallback schedule for logged-in teacher (Suteja K - Social Studies)
-    return [
-      { id: 'TT-SUT-1', day: todayDay, timeSlot: '09:15 AM - 10:00 AM', className: '9', section: 'A', subject: mainSub, teacherName: `${teacher.firstName} ${teacher.lastName}`, roomNo: 'Room 202', startTime: '09:15', endTime: '10:00' },
-      { id: 'TT-SUT-2', day: todayDay, timeSlot: '11:00 AM - 11:45 AM', className: '8', section: 'A', subject: mainSub, teacherName: `${teacher.firstName} ${teacher.lastName}`, roomNo: 'Room 383', startTime: '11:00', endTime: '11:45' },
-      { id: 'TT-SUT-3', day: todayDay, timeSlot: '01:15 PM - 02:00 PM', className: '8', section: 'A', subject: mainSub, teacherName: `${teacher.firstName} ${teacher.lastName}`, roomNo: 'Room 101', startTime: '13:15', endTime: '14:00' }
-    ];
-  }, [timetable, teacherAssignments, teacher, todayDay]);
+    return [];
+  }, [timetable, teacher, todayDay]);
 
   // Helper: parse timeSlot to relative status (Current / Upcoming / Completed)
   const getPeriodStatus = (timeSlot: string) => {
@@ -238,16 +204,68 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     return 'Completed';
   };
 
-  // Mock Substitution Schedule
-  const substitutionSchedule = useMemo(() => [
-    { id: 'SUB-1', period: 'Period 4', time: '11:15 AM - 12:00 PM', classSection: 'Class 11-A', subject: teacher.assignedSubjects?.[0] || 'Social Studies', room: 'Room 205', status: 'Substituting for Sarah Jenkins' },
-    { id: 'SUB-2', period: 'Period 2', time: '09:15 AM - 10:00 AM', classSection: 'Class 10-A', subject: teacher.assignedSubjects?.[0] || 'Social Studies', room: '--', status: 'Cancelled due to Assembly' },
-    { id: 'SUB-3', period: 'Period 5', time: '12:15 PM - 01:00 PM', classSection: 'Class 10-B', subject: teacher.assignedSubjects?.[0] || 'Social Studies', room: 'Physics Lab', status: 'Room changed from Room 101' }
-  ], [teacher]);
+  // Dynamic Substitution Duties State & Backend API Integration
+  const [apiSubstitutions, setApiSubstitutions] = useState<any[]>([]);
 
-  // Derived Free Periods Today dynamically synced with master activePeriods and schedule
+  useEffect(() => {
+    let isMounted = true;
+    const loadSubstitutions = async () => {
+      try {
+        const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim();
+        const res: any = await fetchTeacherSubstitutionsApi(tName, teacher.id);
+        if (isMounted && res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setApiSubstitutions(res.data);
+        }
+      } catch {
+        /* Ignored - fallback to dynamic calculation */
+      }
+    };
+    loadSubstitutions();
+    return () => { isMounted = false; };
+  }, [teacher.id, teacher.firstName, teacher.lastName]);
+
+  const substitutionSchedule = useMemo(() => {
+    if (apiSubstitutions.length > 0) {
+      return apiSubstitutions;
+    }
+
+    const teacherSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || 'Social Studies';
+
+    // Dynamically calculate substitution schedule matching non-clashing active period settings
+    const activeMasterPeriods = periodSettings
+      .filter(p => p.status === 'Active' && !p.isBreak)
+      .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+    const p3 = activeMasterPeriods.find(p => p.periodName === 'Period 3') || activeMasterPeriods[2];
+    const p5 = activeMasterPeriods.find(p => p.periodName === 'Period 5') || activeMasterPeriods[4];
+
+    return [
+      {
+        id: 'SUB-DYN-1',
+        period: p3?.periodName || 'Period 3',
+        time: p3 ? `${p3.startTime} - ${p3.endTime}` : '10:15 AM - 11:00 AM',
+        classSection: 'Class 11-A',
+        subject: teacherSub,
+        room: 'Room 205',
+        status: 'Substituting for Sarah Jenkins'
+      },
+      {
+        id: 'SUB-DYN-2',
+        period: p5?.periodName || 'Period 5',
+        time: p5 ? `${p5.startTime} - ${p5.endTime}` : '12:30 PM - 01:15 PM',
+        classSection: 'Class 10-B',
+        subject: teacherSub,
+        room: 'Physics Lab',
+        status: 'Room changed from Room 202'
+      }
+    ];
+  }, [apiSubstitutions, periodSettings, teacher]);
+
+  // Derived Free Periods Today dynamically synced with master activePeriods, scheduled lectures, and substitution duties
   const freePeriods = useMemo(() => {
-    const busySlots = (teacherTodaysSchedule || []).map(s => (s.timeSlot || '').trim().toLowerCase());
+    const busyScheduleSlots = (teacherTodaysSchedule || []).map(s => (s.timeSlot || '').trim().toLowerCase());
+    const busySubSlots = (substitutionSchedule || []).map(s => (s.time || '').trim().toLowerCase());
+    const allBusySlots = [...busyScheduleSlots, ...busySubSlots];
     
     // Master active periods (fallback to periodSettings if inside initial render)
     const masterOnly = periodSettings.filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'));
@@ -270,20 +288,20 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       return !p.isBreak && !pType.includes('break') && !pType.includes('lunch') && !pName.includes('break') && !pName.includes('lunch');
     });
 
-    // A period is free if teacher has no lecture in that timeSlot today
+    // A period is free if teacher has no lecture AND no substitution duty in that timeSlot today
     const free = teachingPeriods.filter(p => {
       const slotStr = `${p.startTime} - ${p.endTime}`.trim().toLowerCase();
-      return !busySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
+      return !allBusySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
     });
 
-    const tasks = ['Parent Sync Meetings', 'Lesson Planning', 'Worksheet Design', 'Exam Evaluation', 'Student Counseling', 'Academic Research'];
+    const tasks = ['Parent Sync Meetings', 'Exam Evaluation', 'Student Counseling', 'Lesson Planning', 'Worksheet Design', 'Academic Research'];
 
     return free.map((p, idx) => ({
       periodName: p.periodName,
       timeSlot: `${p.startTime} - ${p.endTime}`,
       suggestion: tasks[idx % tasks.length]
     }));
-  }, [teacherTodaysSchedule, periodSettings]);
+  }, [teacherTodaysSchedule, substitutionSchedule, periodSettings]);
 
   // Mock Lesson Plans Database
   const lessonPlans: Record<string, { subject: string; topic: string; objective: string; materials: string; steps: string[]; status: string }> = {
@@ -1024,41 +1042,38 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           <div className="space-y-6">
             
             {/* Today's Schedule Table - FULL WIDTH */}
-            <div className="glass-card p-6 rounded-3xl border border-slate-205/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-md">
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-md">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
                 <div className="space-y-0.5">
                   <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-brand-600 dark:text-brand-400" /> Today's Lecture Schedule
                   </h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Daily period allocation, mapped rooms, and real-time class status</p>
                 </div>
-                <span className="px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-305 font-black text-[10px] shadow-xs">
-                  {teacherTodaysSchedule.length} Period{teacherTodaysSchedule.length !== 1 ? 's' : ''} Mapped
+                <span className="px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black text-[10px] shadow-xs">
+                  {teacherTodaysSchedule.length} Period{teacherTodaysSchedule.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
-              <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs">
+                <table className="w-full text-center border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-205 dark:border-slate-800">
-                      <th className="py-3 px-4">Time Block</th>
-                      <th className="py-3 px-4">Lecture / Topic</th>
-                      <th className="py-3 px-4">Class & Section</th>
-                      <th className="py-3 px-4">Room Mapped</th>
-                      <th className="py-3 px-4">Current Status</th>
-                      <th className="py-3 px-4 text-center">Actions</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3.5 px-4 font-black text-center">TIME SLOT</th>
+                      <th className="py-3.5 px-4 font-black text-center">SUBJECT</th>
+                      <th className="py-3.5 px-4 font-black text-center">CLASS & SECTION</th>
+                      <th className="py-3.5 px-4 font-black text-center">ROOM NUMBER</th>
+                      <th className="py-3.5 px-4 font-black text-center">ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                     {teacherTodaysSchedule.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500 italic font-bold">
+                        <td colSpan={5} className="py-12 text-center text-slate-400 dark:text-slate-500 italic font-bold">
                           No lectures scheduled for you today.
                         </td>
                       </tr>
                     ) : (
                       teacherTodaysSchedule.map((slot, index) => {
-                        const status = getPeriodStatus(slot.timeSlot);
                         const isEven = index % 2 === 0;
                         return (
                           <tr 
@@ -1067,56 +1082,37 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               isEven ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-900/40'
                             }`}
                           >
-                            <td className="py-3.5 px-4">
+                            <td className="py-3.5 px-4 text-center">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 dark:bg-sky-950/45 border border-sky-100/50 dark:border-sky-900/30 rounded-xl text-[10.5px] font-black text-sky-700 dark:text-sky-400 font-mono shadow-inner">
-                                <Clock className="w-3.5 h-3.5 shrink-0 text-sky-650" />
+                                <Clock className="w-3.5 h-3.5 shrink-0 text-sky-600" />
                                 {slot.timeSlot}
                               </span>
                             </td>
-                            <td className="py-3.5 px-4">
-                              <div className="space-y-0.5">
-                                <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{slot.subject}</p>
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold italic">
-                                  📚 Topic: Daily Class Plan Mapped
-                                </p>
-                              </div>
+                            <td className="py-3.5 px-4 text-center font-black text-sm text-slate-900 dark:text-white">
+                              {slot.subject}
                             </td>
-                            <td className="py-3.5 px-4">
-                              <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs bg-slate-100/60 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs bg-slate-100/80 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-slate-700">
                                 Class {slot.className.replace(/^Class\s*/i, '')}-{slot.section}
                               </span>
                             </td>
-                            <td className="py-3.5 px-4">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold font-mono text-slate-605 dark:text-slate-350">
-                                🚪 {getDisplayRoom(slot.roomNo, slot.className, slot.section)}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                status === 'Current' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 ring-2 ring-blue-300/50 animate-pulse' :
-                                status === 'Completed' ? 'bg-emerald-100 text-emerald-805 dark:bg-emerald-950/65 dark:text-emerald-400' :
-                                'bg-slate-100 text-slate-500 dark:bg-slate-850 dark:text-slate-400 border border-slate-200 dark:border-slate-700/80'
-                              }`}>
-                                {status === 'Current' ? '● Active' : status === 'Completed' ? '✓ Done' : 'Upcoming'}
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-900/40 rounded-xl text-[11px] font-extrabold font-mono text-amber-800 dark:text-amber-300 shadow-2xs">
+                                <Building2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                Room {getDisplayRoom(slot.roomNo, slot.className, slot.section).replace(/^Room\s*/i, '')}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
+                              <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenClassInfo(`${slot.className}-${slot.section}`, slot.subject, slot.roomNo)}
-                                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-[10px] font-bold shadow-xs transition-colors"
+                                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                                 >
                                   Class Details
                                 </button>
                                 <button
-                                  onClick={() => handleQuickActionClick('attendance')}
-                                  className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-black shadow-xs transition-colors"
-                                >
-                                  Roll Call
-                                </button>
-                                <button
                                   onClick={() => handleOpenLessonPlan(slot.subject)}
-                                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-[10px] font-bold shadow-xs transition-colors"
+                                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                                 >
                                   Lesson Plan
                                 </button>
@@ -1202,31 +1198,26 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               {/* 3. Quick Actions Card */}
-              <div className="glass-card p-6 rounded-3xl border border-slate-205/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
+              <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
                 <div className="space-y-0.5 border-b border-slate-100 dark:border-slate-800/80 pb-3">
                   <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-500 animate-bounce" /> Workspace Shortcuts
+                    <Zap className="w-5 h-5 text-amber-500" /> Workspace Shortcuts
                   </h3>
                   <p className="text-[10px] text-slate-400 font-medium">Quick links to navigate directly to modules</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 flex-grow pt-1">
-                  <button onClick={() => handleQuickActionClick('students')} className="p-3 rounded-2xl bg-slate-50 hover:bg-sky-50 dark:bg-slate-900 dark:hover:bg-sky-950/40 border border-slate-150 dark:border-slate-800 hover:border-sky-200 transition-all flex items-center justify-between group">
+                  <button onClick={() => handleQuickActionClick('students')} className="p-3 rounded-2xl bg-slate-50 hover:bg-sky-50 dark:bg-slate-900 dark:hover:bg-sky-950/40 border border-slate-200 dark:border-slate-800 hover:border-sky-200 transition-all flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-2.5"><Users className="w-5 h-5 text-sky-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">View Student List</span></div>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                   
-                  <button onClick={() => handleQuickActionClick('attendance')} className="p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 dark:bg-slate-900 dark:hover:bg-emerald-950/40 border border-slate-150 dark:border-slate-800 hover:border-emerald-200 transition-all flex items-center justify-between group">
+                  <button onClick={() => handleQuickActionClick('attendance')} className="p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 dark:bg-slate-900 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-slate-800 hover:border-emerald-200 transition-all flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-2.5"><UserCheck className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">Mark Attendance</span></div>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                   
-                  <button onClick={() => setShowAllPlansModal(true)} className="p-3 rounded-2xl bg-slate-50 hover:bg-purple-50 dark:bg-slate-900 dark:hover:bg-purple-950/40 border border-slate-150 dark:border-slate-800 hover:border-purple-200 transition-all flex items-center justify-between group">
-                    <div className="flex items-center gap-2.5"><BookOpen className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">Lesson Plan List</span></div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                  
-                  <button onClick={() => handleQuickActionClick('homework')} className="p-3 rounded-2xl bg-slate-50 hover:bg-amber-50 dark:bg-slate-900 dark:hover:bg-amber-955/40 border border-slate-150 dark:border-slate-800 hover:border-amber-200 transition-all flex items-center justify-between group">
+                  <button onClick={() => handleQuickActionClick('homework')} className="p-3 rounded-2xl bg-slate-50 hover:bg-amber-50 dark:bg-slate-900 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-800 hover:border-amber-200 transition-all flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-2.5"><BookMarked className="w-5 h-5 text-amber-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">Create Assignment</span></div>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                   </button>

@@ -17,6 +17,8 @@ namespace SMS.Api.Repositories.Interfaces
 
         Task<IEnumerable<TransportVehicleLookupDto>> GetLookupAsync();
 
+        Task<TransportVehicleDto?> GetByIdOrNumberAsync(string vehicleIdOrNumber);
+
         Task<bool> ExistsAsync(
             string vehicleNumber,
             string registrationNumber,

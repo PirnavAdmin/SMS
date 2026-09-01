@@ -68,5 +68,10 @@ namespace SMS.Api.Services.Implementations
         {
             return await _repository.GetLookupAsync(routeId);
         }
+
+        public async Task<PickupPointDto?> GetByIdOrNameAsync(string pickupIdOrName)
+        {
+            return await _repository.GetByIdOrNameAsync(pickupIdOrName);
+        }
     }
 }

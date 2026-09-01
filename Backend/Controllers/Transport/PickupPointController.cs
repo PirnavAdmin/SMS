@@ -27,19 +27,10 @@ namespace SMS.Api.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
-            if (long.TryParse(id, out long pickupId))
-            {
-                var result = await _service.GetByIdAsync(pickupId);
-                if (result != null) return Ok(result);
-            }
+            var result = await _service.GetByIdOrNameAsync(id);
+            if (result != null) return Ok(result);
 
-            var paged = await _service.GetAllAsync(new PickupPointFilterDto { PageSize = 1000 });
-            var found = paged.Items.FirstOrDefault(p => 
-                string.Equals(p.PickupPointName, id, StringComparison.OrdinalIgnoreCase) || 
-                string.Equals(p.PickupPointId.ToString(), id));
-
-            if (found == null) return NotFound();
-            return Ok(found);
+            return NotFound();
         }
 
         [HttpPost]
@@ -61,35 +52,20 @@ namespace SMS.Api.Controllers
             string id,
             [FromBody] UpdatePickupPointDto dto)
         {
-            long? targetId = null;
-            if (long.TryParse(id, out long parsedId))
+            var existing = await _service.GetByIdOrNameAsync(id);
+            if (existing != null)
             {
-                targetId = parsedId;
-            }
-            else
-            {
-                var paged = await _service.GetAllAsync(new PickupPointFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(p => 
-                    string.Equals(p.PickupPointName, id, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(p.PickupPointId.ToString(), id) ||
-                    string.Equals(p.PickupPointName, dto.PickupPointName, StringComparison.OrdinalIgnoreCase));
-                if (found != null) targetId = found.PickupPointId;
-            }
-
-            if (targetId.HasValue)
-            {
-                var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                var updated = await _service.UpdateAsync(existing.PickupPointId, dto, null);
                 if (updated)
                 {
-                    var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                    var updatedDto = await _service.GetByIdAsync(existing.PickupPointId);
                     return Ok(new { success = true, message = "Pickup Point updated successfully.", data = updatedDto });
                 }
             }
 
-            // Fallback create pickup point
             var createDto = new CreatePickupPointDto
             {
-                RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
+                RouteId = dto.RouteId > 0 ? dto.RouteId : 0,
                 PickupPointName = !string.IsNullOrWhiteSpace(dto.PickupPointName) ? dto.PickupPointName : id,
                 Landmark = dto.Landmark ?? "",
                 SequenceNo = dto.SequenceNo > 0 ? dto.SequenceNo : 1,
@@ -106,23 +82,10 @@ namespace SMS.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
         {
-            long? targetId = null;
-            if (long.TryParse(id, out long parsedId))
+            var existing = await _service.GetByIdOrNameAsync(id);
+            if (existing != null)
             {
-                targetId = parsedId;
-            }
-            else
-            {
-                var paged = await _service.GetAllAsync(new PickupPointFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(p => 
-                    string.Equals(p.PickupPointName, id, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(p.PickupPointId.ToString(), id));
-                if (found != null) targetId = found.PickupPointId;
-            }
-
-            if (targetId.HasValue)
-            {
-                await _service.DeleteAsync(targetId.Value, null);
+                await _service.DeleteAsync(existing.PickupPointId, null);
             }
 
             return Ok(new { success = true, message = "Pickup Point deleted successfully." });

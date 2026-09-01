@@ -423,4 +423,9 @@ export const validateTimetableApi = async (classId: number | string, sectionId: 
   );
 };
 
+export const fetchTeacherSubstitutionsApi = async (teacherName?: string, teacherId?: number | string) => {
+  const query = teacherId ? `?teacherId=${teacherId}` : teacherName ? `?teacherName=${encodeURIComponent(teacherName)}` : '';
+  return apiClient(`/api/academics/timetable/substitutions${query}`, { method: 'GET' });
+};
+
 

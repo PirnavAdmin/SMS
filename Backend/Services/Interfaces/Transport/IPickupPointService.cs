@@ -16,5 +16,7 @@ namespace SMS.Api.Services.Interfaces
         Task<bool> DeleteAsync(long pickupPointId, long? userId);
 
         Task<IEnumerable<PickupPointLookupDto>> GetLookupAsync(long? routeId);
+
+        Task<PickupPointDto?> GetByIdOrNameAsync(string pickupIdOrName);
     }
 }

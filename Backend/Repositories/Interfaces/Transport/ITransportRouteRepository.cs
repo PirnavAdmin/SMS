@@ -28,6 +28,8 @@ namespace SMS.Api.Repositories.Interfaces
             string? search,
             int limit);
 
+        Task<TransportRouteDto?> GetByIdOrCodeAsync(string routeIdOrCode);
+
         Task<bool> RouteCodeExistsAsync(
             string routeCode,
             long? excludeRouteId = null);

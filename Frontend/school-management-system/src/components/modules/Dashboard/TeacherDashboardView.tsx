@@ -122,6 +122,13 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayDay = days[new Date().getDay()] as any;
 
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }, []);
+
   // Dynamically merge assigned classes from Admin Staff Database, Academic Assignments, and Timetable
   const assignedClasses = useMemo(() => {
     const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
@@ -211,13 +218,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       return isDayMatch && isTeacherMatch;
     }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-    if (matches.length > 0) return matches;
-
-    // Default intelligent fallback schedule if timetable entries are empty for today
-    return [
-      { id: 'TT-01', subject: teacher.assignedSubjects?.[0] || 'Mathematics', className: '10', section: 'A', roomNo: '204', timeSlot: '09:00 AM - 09:45 AM', day: todayDay, teacherName: `${teacher.firstName} ${teacher.lastName}` },
-      { id: 'TT-02', subject: teacher.assignedSubjects?.[0] || 'Mathematics', className: '11', section: 'B', roomNo: '302', timeSlot: '11:15 AM - 12:00 PM', day: todayDay, teacherName: `${teacher.firstName} ${teacher.lastName}` }
-    ];
+    return matches;
   }, [timetable, teacher, todayDay]);
 
   // 3. Teacher Check-in / Check-out & Working Hours State
@@ -415,7 +416,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       targetStudents = students.filter(s => isStudentInAssignedClass(s, selectedSummaryClass));
     }
 
-    const totalClassStudents = targetStudents.length || (selectedSummaryClass === 'All' ? 65 : 22);
+    const totalClassStudents = targetStudents.length;
 
     const classAttendanceRecords = attendance.filter(a => a.date === todayStr && targetStudents.some(s => s.id === a.entityId));
     const markedCount = classAttendanceRecords.length;
@@ -423,7 +424,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     const absentClassCount = markedCount > 0 ? (totalClassStudents - presentClassCount) : 0;
     const mainClassAttendancePct = totalClassStudents > 0 
       ? (markedCount > 0 ? Math.round((presentClassCount / totalClassStudents) * 100) : 0) 
-      : 100;
+      : 0;
 
     return { totalClassStudents, markedCount, presentClassCount, absentClassCount, mainClassAttendancePct };
   }, [students, attendance, selectedSummaryClass, assignedClasses, todayStr]);
@@ -432,11 +433,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   const pendingAttendanceCount = useMemo(() => {
     const pending = assignedClasses.filter(clsKey => {
       const clsStudents = students.filter(s => isStudentInAssignedClass(s, clsKey));
-      if (clsStudents.length === 0) return true; // Marked as pending if class exists
+      if (clsStudents.length === 0) return false;
       const hasMarked = attendance.some(a => a.date === todayStr && clsStudents.some(s => s.id === a.entityId));
       return !hasMarked;
     }).length;
-    return Math.max(pending, 1);
+    return pending;
   }, [assignedClasses, students, attendance, todayStr]);
 
   const pendingGradingCount = useMemo(() => {
@@ -470,30 +471,32 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Welcome Dashboard Cockpit Header - Compact Vibrant Pirnav Brand Sky Theme */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 p-4 sm:p-5 text-white shadow-md shadow-sky-500/15 border border-sky-400/40">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+      {/* Welcome Banner matching Admin Dashboard Aesthetics */}
+      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 py-3.5 px-5 text-slate-900 dark:text-white border border-sky-200 dark:border-sky-900/40 shadow-xs">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-brand-100/50 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/30 shadow-2xs">
-              <Sparkles className="w-3 h-3 text-amber-300" />
-              <span>Class Teacher Dashboard</span>
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
+                <span>{greeting}, {teacher.firstName} {teacher.lastName}</span>
+                <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
+              </h1>
             </div>
-            <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
-              Welcome back, {teacher.firstName} {teacher.lastName}
-            </h1>
-            <p className="text-xs text-sky-100 max-w-2xl leading-normal font-medium">
-              Designated as <span className="font-extrabold text-white bg-white/20 px-1.5 py-0.5 rounded border border-white/20">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-white underline decoration-amber-300 decoration-2">{assignedClassesFormatted}</span>. Today is {todayDay}, {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+              Designated as <span className="font-extrabold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-sky-600 dark:text-sky-400">{assignedClassesFormatted}</span>.
             </p>
           </div>
 
-          <div className="bg-white/15 border border-white/25 backdrop-blur-md px-3.5 py-2 rounded-xl flex items-center gap-2.5 shadow-md shrink-0 self-start md:self-auto">
-            <div className="w-8 h-8 bg-white/25 rounded-lg flex items-center justify-center font-black text-white text-sm border border-white/30 shadow-inner">
-              {teacher.firstName ? teacher.firstName.charAt(0) : 'R'}
-            </div>
-            <div>
-              <p className="text-[9px] text-sky-200 font-extrabold uppercase tracking-wider">Primary Department</p>
-              <p className="font-extrabold text-xs text-white">{teacher.department || 'Mathematics'}</p>
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Primary Department Badge */}
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-50 dark:bg-slate-700 text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
+                {teacher.firstName ? teacher.firstName.charAt(0) : 'T'}
+              </div>
+              <div className="text-left">
+                <p className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider leading-none">Primary Dept</p>
+                <p className="text-[11px] font-extrabold text-slate-900 dark:text-white leading-tight mt-0.5">{teacher.department || 'Social Studies'}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -753,11 +756,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </button>
 
             <button 
-              onClick={() => handleCardClick('examination')}
-              className="p-3.5 rounded-2xl bg-slate-50 hover:bg-purple-50 dark:bg-slate-900 dark:hover:bg-purple-950/40 border border-slate-100 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-900/30 text-left transition-all duration-200 flex flex-col justify-between h-20 group cursor-pointer"
+              onClick={() => handleCardClick('timetable')}
+              className="p-3.5 rounded-2xl bg-slate-50 hover:bg-sky-50 dark:bg-slate-900 dark:hover:bg-sky-950/40 border border-slate-100 dark:border-slate-800 hover:border-sky-200 dark:hover:border-sky-900/30 text-left transition-all duration-200 flex flex-col justify-between h-20 group cursor-pointer"
             >
-              <Award className="w-5 h-5 text-purple-500 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Marks</span>
+              <Calendar className="w-5 h-5 text-sky-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Time Table</span>
             </button>
 
             <button 
@@ -769,11 +772,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </button>
 
             <button 
-              onClick={() => handleCardClick('academics')}
+              onClick={() => handleCardClick('students')}
               className="p-3.5 rounded-2xl bg-slate-50 hover:bg-emerald-50 dark:bg-slate-900 dark:hover:bg-emerald-950/40 border border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-900/30 text-left transition-all duration-200 flex flex-col justify-between h-20 group cursor-pointer"
             >
-              <BookOpen className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Study Materials</span>
+              <Users className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Student Directory</span>
             </button>
           </div>
 

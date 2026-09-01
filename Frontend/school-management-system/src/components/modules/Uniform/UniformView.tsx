@@ -78,7 +78,13 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const availableCategoryNames = Array.from(new Set(
     (uniformCategories || [])
       .map(c => typeof c === 'string' ? c : (c.name || (c as any).categoryName || (c as any).category || ''))
-      .filter(Boolean)
+      .filter(cName => {
+        if (!cName) return false;
+        const lower = cName.toLowerCase();
+        const isBasePkg = (lower.includes('boys') || lower.includes('girls')) && (lower.includes('package') || lower.includes('kit'));
+        const isClothPkg = lower.includes('unstitched') || lower.includes('cloth') || lower.includes('fabric');
+        return !isBasePkg && !isClothPkg;
+      })
   ));
 
   const handleOpenAdd = () => {
@@ -182,7 +188,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const finalName = packageName.trim();
+    const finalName = (packageName || formData.category || formData.name || '').trim();
 
     if (!finalName) {
       addToast('error', 'Validation Error', 'Please enter a Package / Uniform Type Name');
@@ -437,79 +443,52 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
               {/* Package / Item Name Input */}
               <div>
-                <label className="block font-semibold mb-1">Uniform Category / Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                {(() => {
-                  const configuredCategories = (uniformCategories || [])
-                    .map(c => typeof c === 'string' ? c : (c.name || (c as any).categoryName || ''))
-                    .filter(Boolean);
+                <label className="block font-semibold mb-1">Package Name / Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter Package or Item Name (e.g. Boys Uniform Package, Sports Dress)..."
+                  value={packageName || formData.category || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setPackageName(val);
+                    const existingItem = (uniforms || []).find(u => u.category?.toLowerCase() === val.toLowerCase() || u.name?.toLowerCase() === val.toLowerCase());
+                    const lower = val.toLowerCase();
+                    
+                    let defaultPrice = formData.price || 350;
+                    if (!editingUniform) {
+                      if (existingItem?.price) {
+                        defaultPrice = existingItem.price;
+                      } else if (lower.includes('package') || lower.includes('kit')) {
+                        defaultPrice = 3000;
+                      } else if (lower.includes('blazer')) {
+                        defaultPrice = 1500;
+                      } else if (lower.includes('sweater')) {
+                        defaultPrice = 800;
+                      } else if (lower.includes('pant') || lower.includes('trouser') || lower.includes('skirt') || lower.includes('shoes') || lower.includes('tracksuit')) {
+                        defaultPrice = 500;
+                      }
+                    }
 
-                  const uniqueCategories = Array.from(new Set(configuredCategories));
-                  const isBasePackage = (name: string) => {
-                    const lower = name.toLowerCase();
-                    return (lower.includes('boys') || lower.includes('girls')) && (lower.includes('package') || lower.includes('kit'));
-                  };
+                    let defaultGender: 'Male' | 'Female' | 'Unisex' = formData.gender || 'Unisex';
+                    if (existingItem?.gender) {
+                      defaultGender = existingItem.gender;
+                    } else if (lower.includes('boys')) {
+                      defaultGender = 'Male';
+                    } else if (lower.includes('girls') || lower.includes('skirt')) {
+                      defaultGender = 'Female';
+                    }
 
-                  const packages = uniqueCategories.filter(isBasePackage);
-                  const individualItems = uniqueCategories.filter(name => !isBasePackage(name));
-
-                  return (
-                    <select
-                      required
-                      value={formData.category || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const existingItem = (uniforms || []).find(u => u.category === val || u.name === val);
-                        const lower = val.toLowerCase();
-                        
-                        let defaultPrice = 350;
-                        if (existingItem?.price) {
-                          defaultPrice = existingItem.price;
-                        } else if (lower.includes('package') || lower.includes('kit')) {
-                          defaultPrice = 3000;
-                        } else if (lower.includes('blazer')) {
-                          defaultPrice = 1500;
-                        } else if (lower.includes('sweater')) {
-                          defaultPrice = 800;
-                        } else if (lower.includes('pant') || lower.includes('trouser') || lower.includes('skirt') || lower.includes('shoes') || lower.includes('tracksuit')) {
-                          defaultPrice = 500;
-                        }
-
-                        let defaultGender: 'Male' | 'Female' | 'Unisex' = 'Unisex';
-                        if (existingItem?.gender) {
-                          defaultGender = existingItem.gender;
-                        } else if (lower.includes('boys')) {
-                          defaultGender = 'Male';
-                        } else if (lower.includes('girls') || lower.includes('skirt')) {
-                          defaultGender = 'Female';
-                        }
-
-                        setFormData({ 
-                          ...formData, 
-                          category: val,
-                          price: editingUniform ? formData.price : defaultPrice,
-                          gender: defaultGender
-                        });
-                      }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
-                    >
-                      <option value="">Select Configured Uniform Category *</option>
-                      {packages.length > 0 && (
-                        <optgroup label="📦 Standard Admission Packages">
-                          {packages.map(pkgName => (
-                            <option key={pkgName} value={pkgName}>{pkgName}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {individualItems.length > 0 && (
-                        <optgroup label="👔 Configured Uniform Categories">
-                          {individualItems.map(itemName => (
-                            <option key={itemName} value={itemName}>{itemName}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  );
-                })()}
+                    setFormData({ 
+                      ...formData, 
+                      category: val,
+                      name: val,
+                      price: editingUniform ? formData.price : defaultPrice,
+                      gender: defaultGender
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-slate-900 dark:text-white text-xs outline-none focus:ring-2 focus:ring-sky-500"
+                />
 
                 {(() => {
                   if (!formData.category) return null;

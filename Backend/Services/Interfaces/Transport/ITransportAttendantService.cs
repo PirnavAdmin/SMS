@@ -11,5 +11,6 @@ namespace SMS.Api.Services.Interfaces
         Task<bool> UpdateAsync(long attendantId, UpdateTransportAttendantDto dto, long? userId);
         Task<bool> DeleteAsync(long attendantId, long? userId);
         Task<IEnumerable<TransportAttendantLookupDto>> GetLookupAsync();
+        Task<TransportAttendantDto?> GetByIdOrNameAsync(string attendantIdOrName);
     }
 }

@@ -159,8 +159,7 @@ export const HomeworkView: React.FC = () => {
         set.add(mainCls);
       }
     });
-    const list = Array.from(set);
-    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 8'];
+    return Array.from(set);
   }, [teacherAssignedClasses]);
 
   const subjectOptions = assignedSubjects;
@@ -172,14 +171,26 @@ export const HomeworkView: React.FC = () => {
   };
 
   const rbacHomework = useMemo(() => {
+    if (role === 'Super Admin' || role === 'School Admin') {
+      return homework;
+    }
+    if (role === 'Student' || role === 'Parent') {
+      const userEmail = (user?.email || '').toLowerCase().trim();
+      const currentStudent = students.find(s => s.email && s.email.toLowerCase().trim() === userEmail) || students[0];
+      if (!currentStudent) return homework;
+      const sCls = cleanClassName(currentStudent.className);
+      return homework.filter(h => cleanClassName(h.className) === sCls);
+    }
     return homework.filter(h => {
       const matchClass = teacherAssignedClasses.some(c => 
         cleanClassName(c.split('-')[0]) === cleanClassName(h.className)
       );
       const matchSubject = assignedSubjects.some(s => s.toLowerCase().trim() === h.subject.toLowerCase().trim());
-      return matchClass || matchSubject || (h.teacherName && h.teacherName.toLowerCase().includes('suteja'));
+      const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+      const matchTeacher = h.teacherName && (h.teacherName.toLowerCase().includes(tFullName) || tFullName.includes(h.teacherName.toLowerCase()));
+      return matchClass || matchSubject || matchTeacher;
     });
-  }, [homework, teacherAssignedClasses, assignedSubjects]);
+  }, [homework, teacherAssignedClasses, assignedSubjects, role, user, teacher, students]);
 
   // Filters State
   const [query, setQuery] = useState('');
@@ -221,17 +232,9 @@ export const HomeworkView: React.FC = () => {
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
-  // Student Fallback dataset for form selectors
+  // Student dataset for form selectors
   const enrolledStudents = useMemo(() => {
-    const base = students.length > 0 ? students : [
-      { id: '101', firstName: 'Rahul', lastName: 'Sharma', className: 'Class 10', section: 'A', rollNo: '001' },
-      { id: '102', firstName: 'Priya', lastName: 'Patel', className: 'Class 10', section: 'A', rollNo: '002' },
-      { id: '103', firstName: 'Aditya', lastName: 'Verma', className: 'Class 10', section: 'A', rollNo: '003' },
-      { id: '104', firstName: 'Ananya', lastName: 'Iyer', className: 'Class 10', section: 'A', rollNo: '004' },
-      { id: '105', firstName: 'Vikram', lastName: 'Singh', className: 'Class 9', section: 'A', rollNo: '001' },
-      { id: '106', firstName: 'Sneha', lastName: 'Reddy', className: 'Class 9', section: 'B', rollNo: '001' }
-    ] as any[];
-    return base as Student[];
+    return students;
   }, [students]);
 
   // Load students for target class/section

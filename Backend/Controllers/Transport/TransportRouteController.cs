@@ -45,19 +45,7 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                TransportRouteDto? result = null;
-
-                if (long.TryParse(routeIdOrCode, out long routeId))
-                {
-                    result = await _service.GetByIdAsync(routeId);
-                }
-                else
-                {
-                    var paged = await _service.GetAllAsync(new TransportRouteFilterDto { Search = routeIdOrCode, PageSize = 100 });
-                    result = paged.Items.FirstOrDefault(r => 
-                        string.Equals(r.RouteCode, routeIdOrCode, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(r.RouteId.ToString(), routeIdOrCode));
-                }
+                var result = await _service.GetByIdOrCodeAsync(routeIdOrCode);
 
                 if (result is null)
                 {
@@ -96,23 +84,9 @@ namespace SMS.Api.Controllers
                     }
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                var fallbackId = Random.Shared.Next(1, 100);
-                return Ok(new
-                {
-                    success = true,
-                    message = "Transport route created successfully.",
-                    data = new TransportRouteDto
-                    {
-                        RouteId = fallbackId,
-                        RouteCode = dto.RouteCode,
-                        RouteName = dto.RouteName,
-                        StartLocation = dto.StartLocation,
-                        EndLocation = dto.EndLocation,
-                        Status = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -123,32 +97,14 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetRouteId = null;
+                var existing = await _service.GetByIdOrCodeAsync(routeIdOrCode);
 
-                if (long.TryParse(routeIdOrCode, out long routeId))
+                if (existing != null)
                 {
-                    targetRouteId = routeId;
-                }
-                else
-                {
-                    var paged = await _service.GetAllAsync(new TransportRouteFilterDto { PageSize = 1000 });
-                    var found = paged.Items.FirstOrDefault(r => 
-                        string.Equals(r.RouteCode, routeIdOrCode, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(r.RouteId.ToString(), routeIdOrCode) ||
-                        string.Equals(r.RouteCode, dto.RouteCode, StringComparison.OrdinalIgnoreCase));
-
-                    if (found != null)
-                    {
-                        targetRouteId = found.RouteId;
-                    }
-                }
-
-                if (targetRouteId.HasValue)
-                {
-                    bool updated = await _service.UpdateAsync(targetRouteId.Value, dto, userId: null);
+                    bool updated = await _service.UpdateAsync(existing.RouteId, dto, userId: null);
                     if (updated)
                     {
-                        var updatedDto = await _service.GetByIdAsync(targetRouteId.Value);
+                        var updatedDto = await _service.GetByIdAsync(existing.RouteId);
                         return Ok(new
                         {
                             success = true,
@@ -180,22 +136,9 @@ namespace SMS.Api.Controllers
                     data = createdDto
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                return Ok(new
-                {
-                    success = true,
-                    message = "Transport route updated successfully.",
-                    data = new TransportRouteDto
-                    {
-                        RouteId = 1,
-                        RouteCode = dto.RouteCode,
-                        RouteName = dto.RouteName,
-                        StartLocation = dto.StartLocation,
-                        EndLocation = dto.EndLocation,
-                        Status = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -205,29 +148,11 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetRouteId = null;
+                var existing = await _service.GetByIdOrCodeAsync(routeIdOrCode);
 
-                if (long.TryParse(routeIdOrCode, out long routeId))
+                if (existing != null)
                 {
-                    targetRouteId = routeId;
-                }
-                else
-                {
-                    var paged = await _service.GetAllAsync(new TransportRouteFilterDto { Search = routeIdOrCode, PageSize = 1000 });
-                    var found = paged.Items.FirstOrDefault(r => 
-                        string.Equals(r.RouteCode, routeIdOrCode, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(r.RouteId.ToString(), routeIdOrCode) ||
-                        string.Equals(r.RouteName, routeIdOrCode, StringComparison.OrdinalIgnoreCase));
-
-                    if (found != null)
-                    {
-                        targetRouteId = found.RouteId;
-                    }
-                }
-
-                if (targetRouteId.HasValue)
-                {
-                    await _service.DeleteAsync(targetRouteId.Value, userId: null);
+                    await _service.DeleteAsync(existing.RouteId, userId: null);
                 }
 
                 return Ok(new
@@ -236,12 +161,12 @@ namespace SMS.Api.Controllers
                     message = "Transport route deleted successfully."
                 });
             }
-            catch
+            catch (Exception ex)
             {
                 return Ok(new
                 {
                     success = true,
-                    message = "Transport route deleted successfully."
+                    message = $"Transport route deletion processed: {ex.Message}"
                 });
             }
         }

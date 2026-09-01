@@ -591,6 +591,28 @@ const defaultPeriodSettings: PeriodSetting[] = [
     periodType: "Teaching",
     status: "Active",
   },
+  {
+    id: "PS-9",
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    periodName: "Period 7",
+    startTime: "02:00 PM",
+    endTime: "02:45 PM",
+    sequence: 9,
+    periodType: "Teaching",
+    status: "Active",
+  },
+  {
+    id: "PS-10",
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    periodName: "Period 8",
+    startTime: "02:45 PM",
+    endTime: "03:30 PM",
+    sequence: 10,
+    periodType: "Teaching",
+    status: "Active",
+  },
 ];
 const defaultTeacherAssignments: TeacherAssignment[] = [];
 export interface StudentCalculationResult {
@@ -2849,13 +2871,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("fee_structures", initialFeeStructures),
   );
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
-    const versionKey = "edu_db_fee_payments_wipe_uniform_v600";
+    const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
     const cleaned = (stored || []).filter(p => {
       if (!p) return false;
       const notesLower = (p.notes || '').toLowerCase();
       const recLower = (p.receiptNo || '').toLowerCase();
-      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || '').toLowerCase().includes('uniform'));
+      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || a.termName || '').toLowerCase().includes('uniform'));
       const isUniformPayment = notesLower.includes('uniform') || recLower.includes('uni') || hasAlloc;
       return !isUniformPayment;
     });
@@ -3217,7 +3239,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
-    const versionKey = "edu_db_student_uniform_issues_wipe_v9500_fresh_wipe";
+    const versionKey = "edu_db_student_uniform_issues_wipe_v9999_fresh_pending";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
@@ -3247,7 +3269,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               adm === "REG-1022" ||
               adm === "REG-1021";
             return !isDummy;
-          });
+          }).map(i => ({ ...i, status: (i.status === 'Paid' ? 'Pending' : i.status) as any }));
         }
       }
     } catch (e) {
@@ -4276,14 +4298,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 1. Strict deduplication of uniforms catalog and dynamic Finance Setup price sync
     setUniforms((prevU) => {
-      const seenNorms = new Set<string>();
+      const seenItemKeys = new Set<string>();
+      const seenCatNorms = new Set<string>();
       const deduplicated: UniformItem[] = [];
 
       for (const u of prevU || []) {
         if (!u) continue;
         const norm = (u.category || u.name || "").toLowerCase().trim();
-        if (validCatNorms.has(norm) && !seenNorms.has(norm)) {
-          seenNorms.add(norm);
+        if (!norm) continue;
+        seenCatNorms.add(norm);
+        const itemKey = `${u.id || ''}_${norm}_${u.size || ''}`;
+        if (!seenItemKeys.has(itemKey)) {
+          seenItemKeys.add(itemKey);
           const dynamicPrice = getItemFeeFromFinanceConfig(
             "",
             u.category || u.name,
@@ -4297,8 +4323,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Ensure every category in uniformCategories has 1 catalog item
       validCatList.forEach((cat) => {
-        if (!seenNorms.has(cat.norm)) {
-          seenNorms.add(cat.norm);
+        if (!seenCatNorms.has(cat.norm)) {
+          seenCatNorms.add(cat.norm);
           let defPrice = 350;
           if (cat.norm.includes("blazer")) defPrice = 1500;
           else if (cat.norm.includes("sweater")) defPrice = 800;
@@ -8774,7 +8800,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       category: catName,
     };
-    setUniforms((prev) => [newItem, ...prev]);
+    setUniforms((prev) => {
+      const updated = [newItem, ...prev];
+      try {
+        localStorage.setItem("edu_db_uniforms", JSON.stringify(updated));
+        localStorage.setItem("uniforms", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (catName) {
+      setUniformCategories((prevCats) => {
+        const catNorm = catName.toLowerCase().trim();
+        if (!prevCats.some(c => (c.name || (c as any).categoryName || '').toLowerCase().trim() === catNorm)) {
+          const newCat: UniformCategory = {
+            id: `UC-${Date.now()}`,
+            name: catName,
+            categoryName: catName,
+            description: `${catName} uniform item / package category`
+          };
+          const updatedCats = [...prevCats, newCat];
+          try {
+            localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
+            localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
+          } catch (e) {}
+          return updatedCats;
+        }
+        return prevCats;
+      });
+    }
 
     // Automatically sync with uniformInventory so Dashboard Available Stock updates immediately
     const invId = "UINV-" + Math.floor(100 + Math.random() * 900);
@@ -11513,21 +11567,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         i.feeHeadName?.toLowerCase().includes("accessories"),
     )?.amount;
 
-    // Uniform Fee configuration lookup
-    const uniformConfig = financeUniformConfigs.find(
-      (c) =>
-        c.status === "Active" &&
-        c.academicYear === (financeSettings.academicYear || "2025-2026") &&
-        c.className === clsName &&
-        (c.gender === "Unisex" || c.gender === (student?.gender || "Male")),
-    );
-    const defaultClassUniformFee = getUniformPackageFeeByClass(clsName);
-
-    const uniformAmount = uniformConfig
-      ? uniformConfig.feeAmount
-      : dfsUniformFee !== undefined && dfsUniformFee > 0
-        ? dfsUniformFee
-        : defaultClassUniformFee;
+    // Uniform Fee configuration lookup using dynamic class matcher
+    const uniformAmount = getUniformFeeForClass(
+      clsName,
+      student?.gender || "Male",
+      financeUniformConfigs,
+      dynamicFeeStructures,
+    ) || 10000;
 
     // Helper to identify uniform fee heads
     const isUniformHead = (headName: string) => {
@@ -13009,60 +13055,106 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteRouteMaster = async (id: string) => {
+    const cleanId = String(id || "").trim();
+    const targetRoute = routeMasters.find(
+      (r) =>
+        String(r.id) === cleanId ||
+        r.id === id ||
+        (r.routeCode && r.routeCode.toLowerCase() === cleanId.toLowerCase()),
+    );
+    const routeCode = targetRoute?.routeCode;
+    const routeName = targetRoute?.routeName;
+    const routeId = targetRoute?.id ? String(targetRoute.id) : cleanId;
+
+    // Immediately record in deleted track set so fetch re-hydrations won't bring it back
+    const deletedTrack = new Set<string>(
+      JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
+    );
+    deletedTrack.add(cleanId);
+    if (routeId) deletedTrack.add(String(routeId));
+    if (routeCode) deletedTrack.add(String(routeCode));
+    if (routeName) deletedTrack.add(String(routeName));
+    localStorage.setItem(
+      "edu_db_deleted_route_ids",
+      JSON.stringify(Array.from(deletedTrack)),
+    );
+
     try {
       // Find all pickup points belonging to this route and delete them from the backend
-      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id || String(p.routeId) === String(id));
+      const pointsToDelete = pickupPoints.filter(
+        (p) =>
+          p.routeId === cleanId ||
+          String(p.routeId) === cleanId ||
+          (routeCode && p.routeName === routeCode),
+      );
       for (const p of pointsToDelete) {
         try {
           await TransportAPI.deletePickupPointApi(p.id);
         } catch (e) {
-          console.warn(
-            "Failed to delete pickup point during route deletion",
-            e,
-          );
+          console.warn("Failed to delete pickup point during route deletion", e);
         }
       }
 
       // Find all vehicle assignments belonging to this route and delete them from the backend
       const assignmentsToDelete = vehicleAssignments.filter(
-        (a) => a.routeId === id || String(a.routeId) === String(id),
+        (a) =>
+          a.routeId === cleanId ||
+          String(a.routeId) === cleanId ||
+          (routeCode && a.routeName === routeCode),
       );
       for (const a of assignmentsToDelete) {
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn(
-            "Failed to delete vehicle assignment during route deletion",
-            e,
-          );
+          console.warn("Failed to delete vehicle assignment during route deletion", e);
         }
       }
 
-      await TransportAPI.deleteRouteApi(id);
+      // Delete route from backend API (by ID and by Route Code if different)
+      await TransportAPI.deleteRouteApi(routeId);
+      if (routeCode && routeCode !== routeId) {
+        try {
+          await TransportAPI.deleteRouteApi(routeCode);
+        } catch (e) {
+          // Ignore secondary delete attempt error
+        }
+      }
     } catch (err) {
       console.warn("Transport route deletion error:", err);
     } finally {
-      const targetRoute = routeMasters.find((r) => r.id === id || String(r.id) === String(id));
-      const routeCode = targetRoute?.routeCode;
-
       setRouteMasters((prev) => {
-        const next = prev.filter((r) => r.id !== id && String(r.id) !== String(id) && (routeCode ? r.routeCode !== routeCode : true));
+        const next = prev.filter(
+          (r) =>
+            String(r.id) !== cleanId &&
+            r.id !== id &&
+            (routeCode ? r.routeCode !== routeCode : true),
+        );
         localStorage.setItem("edu_db_route_masters", JSON.stringify(next));
         return next;
       });
       setPickupPoints((prev) => {
-        const next = prev.filter((p) => p.routeId !== id && String(p.routeId) !== String(id));
+        const next = prev.filter(
+          (p) =>
+            p.routeId !== cleanId &&
+            String(p.routeId) !== cleanId &&
+            (routeCode ? p.routeName !== routeCode : true),
+        );
         localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
         return next;
       });
       setVehicleAssignments((prev) => {
-        const next = prev.filter((a) => a.routeId !== id && String(a.routeId) !== String(id));
+        const next = prev.filter(
+          (a) =>
+            a.routeId !== cleanId &&
+            String(a.routeId) !== cleanId &&
+            (routeCode ? a.routeName !== routeCode : true),
+        );
         localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(next));
         return next;
       });
       setStudentTransports((prev) =>
         prev.map((st) =>
-          st.routeId === id || String(st.routeId) === String(id)
+          st.routeId === cleanId || String(st.routeId) === cleanId || (routeCode && st.routeName === routeCode)
             ? {
                 ...st,
                 routeId: "",
@@ -13075,16 +13167,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : st,
         ),
       );
-      const deletedTrack = new Set<string>(
-        JSON.parse(localStorage.getItem("edu_db_deleted_route_ids") || "[]"),
-      );
-      deletedTrack.add(String(id));
-      if (routeCode) deletedTrack.add(String(routeCode));
-      localStorage.setItem(
-        "edu_db_deleted_route_ids",
-        JSON.stringify(Array.from(deletedTrack)),
-      );
-      logActivity("Deleted Transport Route", `Removed Route ID ${id}`);
+      logActivity("Deleted Transport Route", `Removed Route ID ${cleanId}`);
     }
   };
 

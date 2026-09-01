@@ -77,6 +77,11 @@ namespace SMS.Api.Services.Implementations
                 userId);
         }
 
+        public async Task<TransportRouteDto?> GetByIdOrCodeAsync(string routeIdOrCode)
+        {
+            return await _repository.GetByIdOrCodeAsync(routeIdOrCode);
+        }
+
         public async Task<IEnumerable<TransportRouteLookupDto>>
             GetLookupAsync(string? search, int limit)
         {
