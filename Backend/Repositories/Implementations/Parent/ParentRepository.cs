@@ -36,6 +36,7 @@ namespace SMS.Api.Repositories.Implementations.Parent
                     string? parentEmail = parentUser?.Email?.ToLower() ?? (identifier.Contains("@") ? identifier : null);
                     string? parentPhone = parentUser?.MobileNumber ?? (!identifier.Contains("@") ? identifier : null);
                     string? parentName = parentUser?.FullName?.Trim();
+                    bool hasDirectContact = !string.IsNullOrWhiteSpace(parentEmail) || !string.IsNullOrWhiteSpace(parentPhone);
 
                     var students = await _context.Students
                         .AsNoTracking()
@@ -43,34 +44,55 @@ namespace SMS.Api.Repositories.Implementations.Parent
                         .Where(s =>
                             (parentPhone != null && (s.FatherMobile == parentPhone || s.MotherMobile == parentPhone || s.MobileNumber == parentPhone)) ||
                             (parentEmail != null && s.Email != null && s.Email.ToLower() == parentEmail) ||
-                            (!string.IsNullOrEmpty(parentName) && (s.FatherName == parentName || s.MotherName == parentName))
+                            (!hasDirectContact && !string.IsNullOrEmpty(parentName) && (s.FatherName == parentName || s.MotherName == parentName))
                         )
                         .ToListAsync();
 
                     if (students.Any())
                         return students;
 
-                    // Fallback to admissions table lookup by parent mobile / father name
-                    if (parentPhone != null || !string.IsNullOrEmpty(parentName))
+                    // Fallback: Check admission_applications table for children linked by parent email, father contact, or mother contact
+                    if (hasDirectContact)
                     {
-                        var matchingAdmissionNames = await _context.Admissions
+                        var matchingRegNos = await _context.AdmissionApplications
                             .AsNoTracking()
                             .Where(a => !a.IsDeleted && (
-                                (parentPhone != null && a.FatherMobile == parentPhone) ||
-                                (!string.IsNullOrEmpty(parentName) && a.FatherName == parentName)
+                                (parentEmail != null && a.ParentEmail != null && a.ParentEmail.ToLower() == parentEmail) ||
+                                (parentPhone != null && (a.FatherContact == parentPhone || a.MotherMobileNumber == parentPhone))
                             ))
-                            .Select(a => a.StudentName)
+                            .Select(a => a.RegistrationNo)
                             .ToListAsync();
 
-                        if (matchingAdmissionNames.Any())
+                        if (matchingRegNos.Any())
                         {
                             students = await _context.Students
                                 .AsNoTracking()
-                                .Where(s => !s.IsDeleted && s.Status == "Active" && matchingAdmissionNames.Contains(s.StudentName))
+                                .Where(s => !s.IsDeleted && s.Status == "Active" && matchingRegNos.Contains(s.AdmissionNumber))
                                 .ToListAsync();
 
                             if (students.Any())
                                 return students;
+                        }
+
+                        // Fallback to admissions table lookup by parent mobile
+                        if (parentPhone != null)
+                        {
+                            var matchingAdmissionNames = await _context.Admissions
+                                .AsNoTracking()
+                                .Where(a => !a.IsDeleted && a.FatherMobile == parentPhone)
+                                .Select(a => a.StudentName)
+                                .ToListAsync();
+
+                            if (matchingAdmissionNames.Any())
+                            {
+                                students = await _context.Students
+                                    .AsNoTracking()
+                                    .Where(s => !s.IsDeleted && s.Status == "Active" && matchingAdmissionNames.Contains(s.StudentName))
+                                    .ToListAsync();
+
+                                if (students.Any())
+                                    return students;
+                            }
                         }
                     }
                 }

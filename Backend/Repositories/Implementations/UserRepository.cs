@@ -19,18 +19,22 @@ namespace SMS.Api.Repositories.Implementations
 
         public async Task<User?> GetByIdentifierAsync(string identifier)
         {
+            if (string.IsNullOrWhiteSpace(identifier)) return null;
+            var trimmed = identifier.Trim();
+            var lower = trimmed.ToLowerInvariant();
+
             try
             {
                 return await _context.Users
                     .AsNoTracking()
                     .Include(u => u.Roles)
-                    .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
+                    .FirstOrDefaultAsync(u => (u.Email != null && u.Email.ToLower() == lower) || u.MobileNumber == trimmed || u.MobileNumber == lower);
             }
             catch
             {
                 return await _context.Users
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
+                    .FirstOrDefaultAsync(u => (u.Email != null && u.Email.ToLower() == lower) || u.MobileNumber == trimmed || u.MobileNumber == lower);
             }
         }
 

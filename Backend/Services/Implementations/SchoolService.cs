@@ -810,7 +810,7 @@ public class SchoolService : ISchoolService
 			FatherContact = dto.FatherContact,
 			MotherMobileNumber = dto.MotherMobileNumber,
 			AlternateMobileNumber = dto.AlternateMobileNumber,
-			ParentEmail = dto.ParentEmail,
+			ParentEmail = !string.IsNullOrWhiteSpace(dto.ParentEmail) ? dto.ParentEmail.Trim() : null,
 			HouseNo = dto.HouseNo,
 			Street = dto.Street,
 			AreaLocality = dto.AreaLocality,
@@ -887,7 +887,7 @@ public class SchoolService : ISchoolService
 		app.FatherContact = dto.FatherContact;
 		app.MotherMobileNumber = dto.MotherMobileNumber;
 		app.AlternateMobileNumber = dto.AlternateMobileNumber;
-		app.ParentEmail = dto.ParentEmail;
+		app.ParentEmail = !string.IsNullOrWhiteSpace(dto.ParentEmail) ? dto.ParentEmail.Trim() : null;
 		app.HouseNo = dto.HouseNo;
 		app.Street = dto.Street;
 		app.AreaLocality = dto.AreaLocality;
@@ -1045,9 +1045,12 @@ public class SchoolService : ISchoolService
 
 			// Sync to students table if student already exists OR application is active/enrolled/approved/admitted
 			var matchedStudent = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-				_context.Students, s => s.AdmissionNumber == (existing != null ? existing.ApplicationNo : app.RegistrationNo) || s.AdmissionNumber == app.RegistrationNo);
+				_context.Students, s => 
+					s.AdmissionNumber == app.RegistrationNo || 
+					(existing != null && s.AdmissionNumber == existing.ApplicationNo) ||
+					(s.StudentName.ToLower() == $"{app.FirstName} {app.LastName}".Trim().ToLower() && (s.FatherMobile == app.FatherContact || s.MobileNumber == app.FatherContact || s.Email == app.ParentEmail)));
 
-			if (!isDeleted && (matchedStudent != null || app.Status == "Enrolled" || app.Status == "Active" || app.Status == "Approved" || app.Status == "Admitted"))
+			if (!isDeleted)
 			{
 				if (existing != null && existing.ClassId.HasValue)
 				{
@@ -1067,41 +1070,123 @@ public class SchoolService : ISchoolService
 
 							if (defaultAcademicYear != null)
 							{
+								var addressParts = new[] { app.HouseNo, app.Street, app.AreaLocality, app.City, app.District, app.State, app.PinCode }
+									.Where(s => !string.IsNullOrWhiteSpace(s));
+								var fullAddress = string.Join(", ", addressParts);
+
 								if (matchedStudent != null)
 								{
-									matchedStudent.StudentName = existing.StudentName ?? string.Empty;
-									matchedStudent.DateOfBirth = existing.Dob;
-									matchedStudent.Gender = existing.Gender;
-									matchedStudent.FatherName = existing.FatherName;
-									matchedStudent.FatherMobile = existing.FatherMobile;
+									matchedStudent.StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim();
+									matchedStudent.DateOfBirth = existing.Dob ?? app.DateOfBirth;
+									matchedStudent.Gender = existing.Gender ?? app.Gender;
+									matchedStudent.FatherName = app.FatherName ?? existing.FatherName;
+									matchedStudent.FatherMobile = app.FatherContact ?? existing.FatherMobile;
+									matchedStudent.MotherName = app.MotherName ?? matchedStudent.MotherName;
+									matchedStudent.MotherMobile = app.MotherMobileNumber ?? matchedStudent.MotherMobile;
+									matchedStudent.Email = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : matchedStudent.Email;
+									matchedStudent.MobileNumber = app.FatherContact ?? matchedStudent.MobileNumber;
+									if (!string.IsNullOrWhiteSpace(fullAddress)) matchedStudent.Address = fullAddress;
 									matchedStudent.ClassId = existing.ClassId.Value;
 									matchedStudent.SectionId = sectionObj.SectionId;
 									matchedStudent.RollNumber = existing.RollNo ?? matchedStudent.RollNumber;
 									matchedStudent.BranchId = (int)existing.BranchId;
 									matchedStudent.Status = "Active";
+									matchedStudent.IsDeleted = false;
 									matchedStudent.UpdatedAt = DateTime.UtcNow;
+									_context.Entry(matchedStudent).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
 								}
 								else
 								{
 									var newStudent = new Student
 									{
-										AdmissionNumber = existing.ApplicationNo ?? $"ADM-{existing.AdmissionId}",
+										AdmissionNumber = existing.ApplicationNo ?? app.RegistrationNo ?? $"ADM-{existing.AdmissionId}",
 										RollNumber = existing.RollNo ?? $"R-{existing.AdmissionId}",
-										StudentName = existing.StudentName ?? string.Empty,
-										DateOfBirth = existing.Dob,
-										Gender = existing.Gender,
-										FatherName = existing.FatherName,
-										FatherMobile = existing.FatherMobile,
+										StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim(),
+										DateOfBirth = existing.Dob ?? app.DateOfBirth,
+										Gender = existing.Gender ?? app.Gender,
+										FatherName = app.FatherName ?? existing.FatherName,
+										FatherMobile = app.FatherContact ?? existing.FatherMobile,
+										MotherName = app.MotherName,
+										MotherMobile = app.MotherMobileNumber,
+										Email = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null,
+										MobileNumber = app.FatherContact,
+										Address = !string.IsNullOrWhiteSpace(fullAddress) ? fullAddress : "Main Campus Area",
 										BranchId = (int)existing.BranchId,
 										AcademicYearId = defaultAcademicYear.AcademicYearId,
 										ClassId = existing.ClassId.Value,
 										SectionId = sectionObj.SectionId,
 										Status = "Active",
+										IsDeleted = false,
 										CreatedAt = DateTime.UtcNow
 									};
 									await _context.Students.AddAsync(newStudent);
 								}
 								await _context.SaveChangesAsync();
+
+								// Provision and sync Parent User in users table for Parent Portal Login
+								try
+								{
+									var parentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
+									var parentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing.FatherMobile) ? existing.FatherMobile.Trim() : null);
+									var parentFullName = !string.IsNullOrWhiteSpace(app.FatherName) ? app.FatherName.Trim() : (!string.IsNullOrWhiteSpace(app.MotherName) ? app.MotherName.Trim() : "Parent");
+
+									if (!string.IsNullOrWhiteSpace(parentEmail) || !string.IsNullOrWhiteSpace(parentMobile))
+									{
+										var existingParentUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+											_context.Users.Include(u => u.Roles), u =>
+												(!string.IsNullOrWhiteSpace(parentMobile) && u.MobileNumber == parentMobile) ||
+												(!string.IsNullOrWhiteSpace(parentEmail) && u.Email != null && u.Email.ToLower() == parentEmail.ToLower()));
+
+										if (existingParentUser != null)
+										{
+											if (!string.IsNullOrWhiteSpace(parentEmail)) existingParentUser.Email = parentEmail;
+											if (!string.IsNullOrWhiteSpace(parentMobile)) existingParentUser.MobileNumber = parentMobile;
+											if (!string.IsNullOrWhiteSpace(parentFullName)) existingParentUser.FullName = parentFullName;
+											
+											var parentRole = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+												_context.Roles, r => r.RoleName == "Parent");
+											if (parentRole != null && existingParentUser.Roles != null && !existingParentUser.Roles.Any(r => r.RoleId == parentRole.RoleId || r.RoleName == "Parent"))
+											{
+												existingParentUser.Roles.Add(parentRole);
+											}
+											if (existingParentUser.Role != "Admin" && existingParentUser.Role != "Teacher")
+											{
+												existingParentUser.Role = "Parent";
+											}
+											await _context.SaveChangesAsync();
+										}
+										else
+										{
+											var parentRole = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+												_context.Roles, r => r.RoleName == "Parent");
+
+											var newParentUser = new User
+											{
+												FullName = parentFullName,
+												Email = parentEmail,
+												MobileNumber = !string.IsNullOrWhiteSpace(parentMobile) ? parentMobile : $"PAR-{DateTime.UtcNow.Ticks}",
+												PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+												Role = "Parent",
+												IsEmailVerified = true,
+												IsMobileVerified = true,
+												CreatedAt = DateTime.UtcNow,
+												SchoolId = null
+											};
+
+											if (parentRole != null)
+											{
+												newParentUser.Roles.Add(parentRole);
+											}
+
+											await _context.Users.AddAsync(newParentUser);
+											await _context.SaveChangesAsync();
+										}
+									}
+								}
+								catch (Exception parentSyncEx)
+								{
+									Console.WriteLine($"[SchoolService] Failed to sync Parent user account: {parentSyncEx.Message}");
+								}
 
 								// Automatically create Student User in users table and send Welcome Credentials Email
 								if (app.Status == "Enrolled")

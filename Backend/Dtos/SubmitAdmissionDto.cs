@@ -94,15 +94,47 @@ public class SubmitAdmissionDto
         set => FatherContact = value ?? "";
     }
 
+    [JsonPropertyName("phone")]
+    public string? Phone
+    {
+        get => FatherContact;
+        set { if (!string.IsNullOrWhiteSpace(value)) FatherContact = value; }
+    }
+
     [JsonPropertyName("motherMobileNumber")]
     public string? MotherMobileNumber { get; set; }
+
+    [JsonPropertyName("motherPhone")]
+    public string? MotherPhone
+    {
+        get => MotherMobileNumber;
+        set { if (!string.IsNullOrWhiteSpace(value)) MotherMobileNumber = value; }
+    }
 
     [JsonPropertyName("alternateMobileNumber")]
     public string? AlternateMobileNumber { get; set; }
 
+    [JsonPropertyName("alternatePhone")]
+    public string? AlternatePhone
+    {
+        get => AlternateMobileNumber;
+        set { if (!string.IsNullOrWhiteSpace(value)) AlternateMobileNumber = value; }
+    }
+
+    private string? _parentEmail;
+
     [JsonPropertyName("email")]
-    [EmailAddress]
-    public string? ParentEmail { get; set; }
+    public string? Email
+    {
+        get => _parentEmail;
+        set => _parentEmail = value;
+    }
+
+    public string? ParentEmail
+    {
+        get => _parentEmail;
+        set => _parentEmail = value;
+    }
 
     // Residential Address
     [JsonPropertyName("houseNo")]

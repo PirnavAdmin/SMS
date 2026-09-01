@@ -1196,13 +1196,7 @@ using (var scope = app.Services.CreateScope())
                 `LockedDate` VARCHAR(100) NULL,
                 `PaymentDate` VARCHAR(100) NULL,
                 `WorkflowStage` VARCHAR(100) NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `LeaveRulesJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `AttendanceRulesJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `DeductionRulesJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `CycleJson` LONGTEXT NULL;",
-            @"ALTER TABLE `payroll_configs` ADD COLUMN `OvertimeJson` LONGTEXT NULL;"
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
         foreach (var sql in tableSqls)
@@ -1227,6 +1221,12 @@ using (var scope = app.Services.CreateScope())
             }
             catch { }
         }
+
+        EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "CycleJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "OvertimeJson", "LONGTEXT NULL");
 
         void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
         {
@@ -1742,14 +1742,15 @@ using (var scope = app.Services.CreateScope())
         // SEED ADMIN USER
         // =================================================
 
-        const string adminEmail =
-            "admin@pirnavschools.com";
+        const string adminEmail = "admin@pirnavschools.com";
+        const string adminMobile = "9876543210";
 
         var adminUser =
             await context.Users
                 .Include(x => x.Roles)
                 .FirstOrDefaultAsync(
-                    x => x.Email == adminEmail);
+                    x => (x.Email != null && x.Email.ToLower() == adminEmail) ||
+                         x.MobileNumber == adminMobile);
 
         if (adminUser == null)
         {
@@ -1757,12 +1758,8 @@ using (var scope = app.Services.CreateScope())
             {
                 FullName = "Dr. Eleanor Vance",
                 Email = adminEmail,
-                MobileNumber = "9876543210",
-
-                PasswordHash =
-                    BCrypt.Net.BCrypt.HashPassword(
-                        "admin1234"),
-
+                MobileNumber = adminMobile,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
                 Role = "Admin",
                 IsEmailVerified = true,
                 IsMobileVerified = true,
@@ -1783,24 +1780,20 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
-            // Remove these two lines later if you do not want
-            // the password reset every time the API starts.
-            adminUser.PasswordHash =
-                BCrypt.Net.BCrypt.HashPassword(
-                    "admin1234");
-
+            adminUser.FullName = "Dr. Eleanor Vance";
+            adminUser.Email = adminEmail;
+            adminUser.MobileNumber = adminMobile;
+            adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234");
             adminUser.Role = "Admin";
+            adminUser.IsEmailVerified = true;
+            adminUser.IsMobileVerified = true;
 
-            if (adminRole != null &&
-                adminUser.Roles.All(
-                    x => x.RoleName != "Admin"))
+            if (adminRole != null && adminUser.Roles.All(x => x.RoleName != "Admin"))
             {
                 adminUser.Roles.Add(adminRole);
             }
 
-            if (superAdminRole != null &&
-                adminUser.Roles.All(
-                    x => x.RoleName != "SuperAdmin"))
+            if (superAdminRole != null && adminUser.Roles.All(x => x.RoleName != "SuperAdmin"))
             {
                 adminUser.Roles.Add(superAdminRole);
             }
@@ -1843,14 +1836,6 @@ using (var scope = app.Services.CreateScope())
             {
                 FullName = "Kumar Parent",
                 Email = "parent@pirnavschools.com",
-                Mobile = "9876543223",
-                Password = "Parent@123",
-                Role = parentRole
-            },
-            new
-            {
-                FullName = "Kumar Parent",
-                Email = "parent@pirnavschools.edu",
                 Mobile = "9876543223",
                 Password = "Parent@123",
                 Role = parentRole

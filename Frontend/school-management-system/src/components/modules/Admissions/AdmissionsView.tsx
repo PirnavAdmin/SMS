@@ -1381,6 +1381,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     setFormData({
       ...app,
+      email: app.email || (app as any).parentEmail || "",
+      motherPhone: app.motherPhone || (app as any).motherMobileNumber || "",
+      alternatePhone: app.alternatePhone || (app as any).alternateMobileNumber || "",
       studentType: sType as any,
       casteCategory: app.casteCategory || "General",
       dob: formattedDob,
@@ -1700,6 +1703,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
+          email: formData.email || "",
+          parentEmail: formData.email || "",
+          motherPhone: formData.motherPhone || "",
+          alternatePhone: formData.alternatePhone || "",
           dob: finalDob,
           applicantName: fullApplicantName,
           avatar,
@@ -1726,10 +1733,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           casteCategory: formData.casteCategory || "General",
           parentName: formData.parentName,
           motherName: formData.motherName || "N/A",
-          email:
-            formData.email ||
-            `${fullApplicantName.toLowerCase().replace(/\s+/g, ".")}@gmail.com`,
+          email: formData.email || "",
+          parentEmail: formData.email || "",
           phone: formData.phone || "9876543210",
+          motherPhone: formData.motherPhone || "",
+          alternatePhone: formData.alternatePhone || "",
           addressHouseNo: formData.addressHouseNo,
           addressStreet: formData.addressStreet,
           addressArea: formData.addressArea,
