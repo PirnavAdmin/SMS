@@ -463,7 +463,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             try
             {
                 var activePeriods = await _context.PeriodSettings
-                    .Where(p => p.IsActive && !p.IsDeleted && p.PeriodType != "Break / Recess")
+                    .Where(p => !p.IsDeleted && p.IsActive && p.PeriodType != "Break / Recess")
                     .OrderBy(p => p.DisplayOrder)
                     .ToListAsync();
 

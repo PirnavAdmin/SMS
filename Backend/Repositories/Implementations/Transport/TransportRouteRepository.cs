@@ -254,7 +254,8 @@ namespace SMS.Api.Repositories.Implementations
 
             var matchingRoutes = await _context.TransportRoutes
                 .Where(x => (x.RouteId == routeId || 
-                             (!string.IsNullOrEmpty(route.RouteCode) && x.RouteCode == route.RouteCode)) && 
+                             (!string.IsNullOrEmpty(route.RouteCode) && x.RouteCode == route.RouteCode) ||
+                             (!string.IsNullOrEmpty(route.RouteName) && x.RouteName == route.RouteName)) && 
                             !x.IsDeleted)
                 .ToListAsync();
 
@@ -339,7 +340,7 @@ namespace SMS.Api.Repositories.Implementations
         {
             if (string.IsNullOrWhiteSpace(routeIdOrCode)) return null;
 
-            string search = routeIdOrCode.Trim();
+            string search = Uri.UnescapeDataString(routeIdOrCode.Trim());
 
             if (long.TryParse(search, out long routeId))
             {

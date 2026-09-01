@@ -13110,13 +13110,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Delete route from backend API (by ID and by Route Code if different)
+      // Delete route from backend API (by ID, Route Code, and Route Name)
       await TransportAPI.deleteRouteApi(routeId);
       if (routeCode && routeCode !== routeId) {
         try {
           await TransportAPI.deleteRouteApi(routeCode);
         } catch (e) {
           // Ignore secondary delete attempt error
+        }
+      }
+      if (routeName && routeName !== routeId && routeName !== routeCode) {
+        try {
+          await TransportAPI.deleteRouteApi(routeName);
+        } catch (e) {
+          // Ignore tertiary delete attempt error
         }
       }
     } catch (err) {
