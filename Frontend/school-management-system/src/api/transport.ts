@@ -152,7 +152,7 @@ export const updateRouteApi = async (id: string, data: Partial<RouteMaster>): Pr
 
 export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> => {
   const cleanId = String(id || '').trim();
-  localRoutes = localRoutes.filter(r => String(r.id) !== cleanId && r.routeCode !== cleanId);
+  localRoutes = localRoutes.filter(r => String(r.id) !== cleanId && r.routeCode !== cleanId && r.routeName !== cleanId);
   setStoredMock('route_masters', localRoutes);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/routes/${encodeURIComponent(cleanId)}`,

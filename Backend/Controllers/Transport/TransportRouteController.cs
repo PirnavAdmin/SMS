@@ -154,6 +154,10 @@ namespace SMS.Api.Controllers
                 {
                     await _service.DeleteAsync(existing.RouteId, userId: null);
                 }
+                else if (long.TryParse(routeIdOrCode, out long parsedId))
+                {
+                    await _service.DeleteAsync(parsedId, userId: null);
+                }
 
                 return Ok(new
                 {

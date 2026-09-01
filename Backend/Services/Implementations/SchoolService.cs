@@ -695,13 +695,6 @@ public class SchoolService : ISchoolService
 	public async Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status)
 	{
 		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
-		foreach (var a in list)
-		{
-			if (a.TransportRequired == true || (!string.IsNullOrWhiteSpace(a.StudentType) && a.StudentType.Contains("Transport", StringComparison.OrdinalIgnoreCase)) || !string.IsNullOrWhiteSpace(a.BusRoute))
-			{
-				await SyncTransportAllocationAsync(a);
-			}
-		}
 		return list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 	}
 
@@ -1339,18 +1332,24 @@ public class SchoolService : ISchoolService
 
 			if (isTransportReq)
 			{
-				string routeName = !string.IsNullOrWhiteSpace(app.BusRoute) ? app.BusRoute : "Main Route";
+				string routeName = !string.IsNullOrWhiteSpace(app.BusRoute) ? app.BusRoute : "";
 				string pickupName = !string.IsNullOrWhiteSpace(app.PickupPoint) ? app.PickupPoint : "Main Stop";
 
-				// Get or create route
-				var route = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.TransportRoutes, r => r.RouteName == routeName && !r.IsDeleted);
+				// Get existing active route
+				var route = !string.IsNullOrWhiteSpace(routeName)
+					? await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+						_context.TransportRoutes, r => r.RouteName == routeName && !r.IsDeleted)
+					: null;
 
 				if (route == null)
 				{
-					route = new TransportRoute { RouteName = routeName, RouteCode = "RT-" + new Random().Next(100, 999), Status = true, IsDeleted = false, CreatedAt = DateTime.UtcNow };
-					await _context.TransportRoutes.AddAsync(route);
-					await _context.SaveChangesAsync();
+					route = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+						_context.TransportRoutes, r => !r.IsDeleted && r.RouteName != "N/A");
+				}
+
+				if (route == null)
+				{
+					return; // No active route found; do not recreate deleted routes
 				}
 
 				// Get or create pickup point linked to the route

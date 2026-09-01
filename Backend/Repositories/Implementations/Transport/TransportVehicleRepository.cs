@@ -226,6 +226,9 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleName = x.VehicleName ?? string.Empty,
                     RegistrationNumber = x.RegistrationNumber ?? string.Empty
                 })
+                .ToListAsync();
+        }
+
         public async Task<TransportVehicleDto?> GetByIdOrNumberAsync(string vehicleIdOrNumber)
         {
             if (string.IsNullOrWhiteSpace(vehicleIdOrNumber)) return null;
