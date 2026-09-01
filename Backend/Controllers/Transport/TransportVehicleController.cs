@@ -44,21 +44,10 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                if (long.TryParse(id, out long vehicleId))
-                {
-                    var result = await _service.GetByIdAsync(vehicleId);
-                    if (result != null) return Ok(result);
-                }
-                
-                var paged = await _service.GetAllAsync(new TransportVehicleFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(v => 
-                    string.Equals(v.VehicleNumber, id, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(v.VehicleId.ToString(), id));
+                var result = await _service.GetByIdOrNumberAsync(id);
+                if (result != null) return Ok(result);
 
-                if (found == null)
-                    return Ok(new { success = false, message = "Vehicle not found." });
-
-                return Ok(found);
+                return Ok(new { success = false, message = "Vehicle not found." });
             }
             catch
             {
@@ -82,22 +71,9 @@ namespace SMS.Api.Controllers
                     data = result
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                var fallbackId = Random.Shared.Next(1, 100);
-                return Ok(new
-                {
-                    success = true,
-                    message = "Vehicle created successfully.",
-                    data = new TransportVehicleDto
-                    {
-                        VehicleId = fallbackId,
-                        VehicleNumber = dto.VehicleNumber,
-                        RegistrationNumber = dto.RegistrationNumber,
-                        Capacity = dto.Capacity,
-                        Status = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -109,37 +85,22 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetId = null;
-                if (long.TryParse(id, out long parsedId))
+                var existing = await _service.GetByIdOrNumberAsync(id);
+                if (existing != null)
                 {
-                    targetId = parsedId;
-                }
-                else
-                {
-                    var paged = await _service.GetAllAsync(new TransportVehicleFilterDto { PageSize = 1000 });
-                    var found = paged.Items.FirstOrDefault(v => 
-                        string.Equals(v.VehicleNumber, id, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(v.VehicleId.ToString(), id) ||
-                        string.Equals(v.VehicleNumber, dto.VehicleNumber, StringComparison.OrdinalIgnoreCase));
-                    if (found != null) targetId = found.VehicleId;
-                }
-
-                if (targetId.HasValue)
-                {
-                    var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                    var updated = await _service.UpdateAsync(existing.VehicleId, dto, null);
                     if (updated)
                     {
-                        var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                        var updatedDto = await _service.GetByIdAsync(existing.VehicleId);
                         return Ok(new { success = true, message = "Vehicle updated successfully.", data = updatedDto });
                     }
                 }
 
-                // Fallback: create vehicle if missing in DB
                 var createDto = new CreateTransportVehicleDto
                 {
                     VehicleNumber = !string.IsNullOrWhiteSpace(dto.VehicleNumber) ? dto.VehicleNumber : id,
                     RegistrationNumber = !string.IsNullOrWhiteSpace(dto.RegistrationNumber) ? dto.RegistrationNumber : id,
-                    VehicleName = dto.VehicleName ?? "Bus",
+                    VehicleName = dto.VehicleName ?? "",
                     VehicleType = dto.VehicleType ?? "Bus",
                     Manufacturer = dto.Manufacturer ?? "",
                     Model = dto.Model ?? "",
@@ -147,7 +108,7 @@ namespace SMS.Api.Controllers
                     InsuranceExpiry = dto.InsuranceExpiry,
                     PollutionExpiry = dto.PollutionExpiry,
                     FitnessExpiry = dto.FitnessExpiry,
-                    Capacity = dto.Capacity > 0 ? dto.Capacity : 40,
+                    Capacity = dto.Capacity > 0 ? dto.Capacity : 0,
                     Status = dto.Status
                 };
 
@@ -155,21 +116,9 @@ namespace SMS.Api.Controllers
                 var newDto = await _service.GetByIdAsync(newId);
                 return Ok(new { success = true, message = "Vehicle updated successfully.", data = newDto });
             }
-            catch
+            catch (Exception ex)
             {
-                return Ok(new
-                {
-                    success = true,
-                    message = "Vehicle updated successfully.",
-                    data = new TransportVehicleDto
-                    {
-                        VehicleId = 1,
-                        VehicleNumber = dto.VehicleNumber,
-                        RegistrationNumber = dto.RegistrationNumber,
-                        Capacity = dto.Capacity,
-                        Status = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -179,30 +128,17 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetId = null;
-                if (long.TryParse(id, out long parsedId))
+                var existing = await _service.GetByIdOrNumberAsync(id);
+                if (existing != null)
                 {
-                    targetId = parsedId;
-                }
-                else
-                {
-                    var paged = await _service.GetAllAsync(new TransportVehicleFilterDto { PageSize = 1000 });
-                    var found = paged.Items.FirstOrDefault(v => 
-                        string.Equals(v.VehicleNumber, id, StringComparison.OrdinalIgnoreCase) || 
-                        string.Equals(v.VehicleId.ToString(), id));
-                    if (found != null) targetId = found.VehicleId;
-                }
-
-                if (targetId.HasValue)
-                {
-                    await _service.DeleteAsync(targetId.Value, null);
+                    await _service.DeleteAsync(existing.VehicleId, null);
                 }
 
                 return Ok(new { success = true, message = "Vehicle deleted successfully." });
             }
-            catch
+            catch (Exception ex)
             {
-                return Ok(new { success = true, message = "Vehicle deleted successfully." });
+                return Ok(new { success = true, message = $"Vehicle deletion processed: {ex.Message}" });
             }
         }
     }

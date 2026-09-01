@@ -261,6 +261,31 @@ namespace SMS.Api.Repositories.Implementations
                 .ToListAsync();
         }
 
+        public async Task<TransportDriverDto?> GetByIdOrNumberAsync(string driverIdOrNumber)
+        {
+            if (string.IsNullOrWhiteSpace(driverIdOrNumber)) return null;
+
+            string search = driverIdOrNumber.Trim();
+
+            if (long.TryParse(search, out long driverId))
+            {
+                var byId = await GetByIdAsync(driverId);
+                if (byId != null) return byId;
+            }
+
+            var driver = await _context.TransportDrivers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (x.LicenceNumber != null && x.LicenceNumber.ToLower() == search.ToLower()) ||
+                    (x.DriverName != null && x.DriverName.ToLower() == search.ToLower()) ||
+                    (x.MobileNumber != null && x.MobileNumber.ToLower() == search.ToLower()) ||
+                    x.DriverId.ToString() == search));
+
+            if (driver == null) return null;
+
+            return await GetByIdAsync(driver.DriverId);
+        }
+
         private static IQueryable<TransportDriver> ApplySorting(
             IQueryable<TransportDriver> query,
             string? sortBy,

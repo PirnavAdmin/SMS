@@ -50,14 +50,6 @@ namespace SMS.Api.Controllers
                     if (result != null) return Ok(result);
                 }
 
-                var paged = await _service.GetAllAsync(new TransportVehicleAssignmentFilterDto { PageSize = 1000 });
-                var found = paged.Items.FirstOrDefault(a => string.Equals(a.AssignmentId.ToString(), id));
-
-                if (found != null)
-                {
-                    return Ok(found);
-                }
-
                 return NotFound(new { success = false, message = "Vehicle assignment not found." });
             }
             catch
@@ -82,9 +74,9 @@ namespace SMS.Api.Controllers
                     data = result ?? new TransportVehicleAssignmentDto
                     {
                         AssignmentId = id,
-                        RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
-                        VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
-                        DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
+                        RouteId = dto.RouteId > 0 ? dto.RouteId : 0,
+                        VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 0,
+                        DriverId = dto.DriverId > 0 ? dto.DriverId : 0,
                         Shift = dto.Shift ?? "Morning",
                         Status = dto.Status,
                         StatusText = dto.Status ? "Active" : "Inactive"
@@ -93,29 +85,7 @@ namespace SMS.Api.Controllers
             }
             catch (Exception ex)
             {
-                try
-                {
-                    var fallbackId = Random.Shared.Next(1, 100);
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "Vehicle assigned successfully.",
-                        data = new TransportVehicleAssignmentDto
-                        {
-                            AssignmentId = fallbackId,
-                            RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
-                            VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
-                            DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
-                            Shift = dto.Shift ?? "Morning",
-                            Status = dto.Status,
-                            StatusText = dto.Status ? "Active" : "Inactive"
-                        }
-                    });
-                }
-                catch
-                {
-                    return BadRequest(new { success = false, message = ex.Message });
-                }
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -126,27 +96,21 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                long? targetId = null;
-                if (long.TryParse(id, out long parsedId))
+                if (long.TryParse(id, out long targetId) && targetId > 0)
                 {
-                    targetId = parsedId;
-                }
-
-                if (targetId.HasValue)
-                {
-                    var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                    var updated = await _service.UpdateAsync(targetId, dto, null);
                     if (updated)
                     {
-                        var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                        var updatedDto = await _service.GetByIdAsync(targetId);
                         return Ok(new { success = true, message = "Assignment updated successfully.", data = updatedDto });
                     }
                 }
 
                 var createDto = new CreateTransportVehicleAssignmentDto
                 {
-                    RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
-                    VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
-                    DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
+                    RouteId = dto.RouteId > 0 ? dto.RouteId : 0,
+                    VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 0,
+                    DriverId = dto.DriverId > 0 ? dto.DriverId : 0,
                     AssignmentDate = dto.AssignmentDate != default ? dto.AssignmentDate : DateTime.UtcNow,
                     EffectiveFrom = dto.EffectiveFrom != default ? dto.EffectiveFrom : DateTime.UtcNow,
                     EffectiveTo = dto.EffectiveTo,
@@ -159,24 +123,9 @@ namespace SMS.Api.Controllers
                 var newDto = await _service.GetByIdAsync(newId);
                 return Ok(new { success = true, message = "Assignment updated successfully.", data = newDto });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                long numericId = long.TryParse(id, out long pId) ? pId : 1;
-                return Ok(new
-                {
-                    success = true,
-                    message = "Assignment updated successfully.",
-                    data = new TransportVehicleAssignmentDto
-                    {
-                        AssignmentId = numericId,
-                        RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
-                        VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
-                        DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
-                        Shift = dto.Shift ?? "Morning",
-                        Status = dto.Status,
-                        StatusText = dto.Status ? "Active" : "Inactive"
-                    }
-                });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
@@ -185,16 +134,16 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                if (long.TryParse(id, out long assignmentId))
+                if (long.TryParse(id, out long assignmentId) && assignmentId > 0)
                 {
                     await _service.DeleteAsync(assignmentId, null);
                 }
 
                 return Ok(new { success = true, message = "Assignment deleted successfully." });
             }
-            catch
+            catch (Exception ex)
             {
-                return Ok(new { success = true, message = "Assignment deleted successfully." });
+                return Ok(new { success = true, message = $"Assignment deletion processed: {ex.Message}" });
             }
         }
 

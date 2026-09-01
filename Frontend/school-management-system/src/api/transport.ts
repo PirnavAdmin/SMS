@@ -116,12 +116,12 @@ export const fetchRouteByIdApi = async (id: string): Promise<RouteMaster | undef
 export const createRouteApi = async (data: Partial<RouteMaster>): Promise<RouteMaster> => {
   const newRoute = {
     id: data.id || `RT-${Date.now()}`,
-    routeName: data.routeName || 'Sample Route',
-    routeCode: data.routeCode || 'RTC-01',
-    routeStart: data.routeStart || 'Main Campus',
-    routeEnd: data.routeEnd || 'City Center',
-    totalDistanceKm: data.totalDistanceKm || 15,
-    estimatedTimeMinutes: data.estimatedTimeMinutes || 45,
+    routeName: data.routeName || '',
+    routeCode: data.routeCode || '',
+    routeStart: data.routeStart || '',
+    routeEnd: data.routeEnd || '',
+    totalDistanceKm: data.totalDistanceKm || 0,
+    estimatedTimeMinutes: data.estimatedTimeMinutes || 0,
     status: data.status || 'Active',
     description: data.description || ''
   } as unknown as RouteMaster;
@@ -151,10 +151,11 @@ export const updateRouteApi = async (id: string, data: Partial<RouteMaster>): Pr
 };
 
 export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> => {
-  localRoutes = localRoutes.filter(r => String(r.id) !== id);
+  const cleanId = String(id || '').trim();
+  localRoutes = localRoutes.filter(r => String(r.id) !== cleanId && r.routeCode !== cleanId);
   setStoredMock('route_masters', localRoutes);
   return safeTransportApiCall<{ success: boolean }>(
-    `/api/transport/routes/${id}`,
+    `/api/transport/routes/${encodeURIComponent(cleanId)}`,
     { method: 'DELETE' },
     { success: true }
   );
@@ -174,13 +175,13 @@ export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint |
 export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<PickupPoint> => {
   const newPoint = {
     id: data.id || `PK-${Date.now()}`,
-    pickupName: data.pickupName || 'Main Station',
+    pickupName: data.pickupName || '',
     routeId: data.routeId || '',
-    routeName: data.routeName || 'Sample Route',
+    routeName: data.routeName || '',
     sequenceNumber: data.sequenceNumber || 1,
-    arrivalTime: data.arrivalTime || '07:30 AM',
-    distanceFromSchoolKm: data.distanceFromSchoolKm || 5,
-    monthlyFee: data.monthlyFee || 1500,
+    arrivalTime: data.arrivalTime || '',
+    distanceFromSchoolKm: data.distanceFromSchoolKm || 0,
+    monthlyFee: data.monthlyFee || 0,
     status: data.status || 'Active'
   } as unknown as PickupPoint;
 
@@ -232,17 +233,17 @@ export const fetchVehicleByIdApi = async (id: string): Promise<VehicleMaster | u
 export const createVehicleApi = async (data: Partial<VehicleMaster>): Promise<VehicleMaster> => {
   const newVehicle = {
     id: data.id || `VH-${Date.now()}`,
-    vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
-    registrationNumber: data.registrationNumber || 'KA-01-EXP-1010',
+    vehicleNumber: data.vehicleNumber || '',
+    registrationNumber: data.registrationNumber || data.vehicleNumber || '',
     vehicleType: data.vehicleType || 'Bus',
-    capacity: data.capacity || 40,
+    capacity: data.capacity || 0,
     isAC: data.isAC ?? true,
-    chassisNumber: data.chassisNumber || 'CH-001',
-    engineNumber: data.engineNumber || 'ENG-001',
-    insuranceExpiry: data.insuranceExpiry || '2026-12-31',
-    pollutionExpiry: data.pollutionExpiry || '2026-12-31',
-    fitnessExpiry: data.fitnessExpiry || '2026-12-31',
-    gpsDeviceId: data.gpsDeviceId || 'GPS-001',
+    chassisNumber: data.chassisNumber || '',
+    engineNumber: data.engineNumber || '',
+    insuranceExpiry: data.insuranceExpiry || '',
+    pollutionExpiry: data.pollutionExpiry || '',
+    fitnessExpiry: data.fitnessExpiry || '',
+    gpsDeviceId: data.gpsDeviceId || '',
     status: data.status || 'Active'
   } as unknown as VehicleMaster;
 
@@ -300,13 +301,13 @@ export const fetchDriverByIdApi = async (id: string): Promise<DriverMaster | und
 export const createDriverApi = async (data: Partial<DriverMaster>): Promise<DriverMaster> => {
   const newDriver = {
     id: data.id || `DRV-${Date.now()}`,
-    driverName: data.driverName || 'Driver',
-    licenseNumber: data.licenseNumber || 'DL-99887766',
-    mobileNumber: data.mobileNumber || '+91 9876543210',
-    licenseExpiryDate: data.licenseExpiryDate || '2027-12-31',
-    address: data.address || 'Campus Staff Quarters',
-    emergencyContact: data.emergencyContact || '+91 9876543210',
-    experienceYears: data.experienceYears || 5,
+    driverName: data.driverName || '',
+    licenseNumber: data.licenseNumber || '',
+    mobileNumber: data.mobileNumber || '',
+    licenseExpiryDate: data.licenseExpiryDate || '',
+    address: data.address || '',
+    emergencyContact: data.emergencyContact || '',
+    experienceYears: data.experienceYears || 0,
     status: data.status || 'Active'
   } as unknown as DriverMaster;
 
@@ -353,18 +354,18 @@ export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]>
     if (lookupList.length > 0) {
       const mapped = lookupList.map((a: any) => ({
         id: (a.assignmentId || a.id || "").toString(),
-        routeId: "",
+        routeId: (a.routeId || "").toString(),
         routeName: a.routeName || "",
-        vehicleId: "",
+        vehicleId: (a.vehicleId || "").toString(),
         vehicleNumber: a.vehicleNumber || "",
-        driverId: "",
+        driverId: (a.driverId || "").toString(),
         driverName: a.driverName || "",
-        attendantId: "",
-        attendantName: "Unassigned",
-        morningTripTime: "07:00 AM",
-        eveningTripTime: "03:45 PM",
-        status: "Active",
-        effectiveFrom: new Date().toISOString().split('T')[0]
+        attendantId: (a.attendantId || "").toString(),
+        attendantName: a.attendantName || "Unassigned",
+        morningTripTime: a.morningTripTime || "07:00 AM",
+        eveningTripTime: a.eveningTripTime || "03:45 PM",
+        status: a.status ? "Active" : (a.status === false ? "Inactive" : "Active"),
+        effectiveFrom: a.effectiveFrom || new Date().toISOString().split('T')[0]
       }));
       return mapped as unknown as VehicleAssignment[];
     }
@@ -383,12 +384,12 @@ export const createVehicleAssignmentApi = async (data: Partial<VehicleAssignment
   const newAssign: VehicleAssignment = {
     id: data.id || `VA-${Date.now()}`,
     vehicleId: data.vehicleId || '',
-    vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
+    vehicleNumber: data.vehicleNumber || '',
     routeId: data.routeId || '',
-    routeName: data.routeName || 'Sample Route',
+    routeName: data.routeName || '',
     driverId: data.driverId || '',
-    driverName: data.driverName || 'Driver',
-    effectiveFrom: data.effectiveFrom || '2026-06-01',
+    driverName: data.driverName || '',
+    effectiveFrom: data.effectiveFrom || new Date().toISOString().split('T')[0],
     status: data.status || 'Active'
   } as unknown as VehicleAssignment;
 
@@ -441,14 +442,14 @@ export const createStudentAssignmentApi = async (data: Partial<StudentTransport>
   const newSt = {
     id: data.id || `ST-${Date.now()}`,
     studentId: data.studentId || '',
-    studentName: data.studentName || 'Student',
-    admissionNo: data.admissionNo || 'ADM-101',
+    studentName: data.studentName || '',
+    admissionNo: data.admissionNo || '',
     routeId: data.routeId || '',
-    routeName: data.routeName || 'Sample Route',
-    pickupPoint: data.pickupPoint || 'Main Station',
+    routeName: data.routeName || '',
+    pickupPoint: data.pickupPoint || '',
     feePlan: data.feePlan || 'Monthly',
-    feeAmount: data.feeAmount || 1500,
-    effectiveFrom: data.effectiveFrom || '2026-06-01',
+    feeAmount: data.feeAmount || 0,
+    effectiveFrom: data.effectiveFrom || new Date().toISOString().split('T')[0],
     vehicleId: data.vehicleId || '',
     status: data.status || 'Active'
   } as unknown as StudentTransport;
@@ -502,12 +503,12 @@ export const createMaintenanceApi = async (data: Partial<VehicleMaintenance>): P
   const newM = {
     id: data.id || `MAIN-${Date.now()}`,
     vehicleId: data.vehicleId || '',
-    vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
+    vehicleNumber: data.vehicleNumber || '',
     serviceDate: data.serviceDate || new Date().toISOString().split('T')[0],
     serviceType: data.serviceType || 'General Service',
-    vendor: data.vendor || 'Auto Care Center',
+    vendor: data.vendor || '',
     cost: data.cost || 0,
-    nextServiceDue: data.nextServiceDue || '2026-12-31',
+    nextServiceDue: data.nextServiceDue || '',
     remarks: data.remarks || '',
     status: data.status || 'Completed'
   } as unknown as VehicleMaintenance;
