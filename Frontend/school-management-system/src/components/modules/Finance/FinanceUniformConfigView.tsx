@@ -236,7 +236,7 @@ export const FinanceUniformConfigView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Shirt className="w-5 h-5 text-sky-500" /> Save Uniform
+              <Shirt className="w-5 h-5 text-sky-500" /> Add Uniform Fee
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">

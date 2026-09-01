@@ -170,7 +170,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Uniform Category</h3>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add Uniform Category</h3>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
