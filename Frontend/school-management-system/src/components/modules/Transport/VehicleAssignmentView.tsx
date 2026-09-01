@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Layers, Plus, Search, Trash2, Edit, X, ArrowRight, UserCheck, Users,
   Bus, Route, History, Eye
@@ -170,6 +170,74 @@ export const VehicleAssignmentView: React.FC = () => {
 
   const hasFilterSelection = routeFilter !== '' || query.trim() !== '';
 
+  const availableVehicles = useMemo(() => {
+    const list: Array<{ id: string; vehicleNumber: string; registrationNumber?: string; capacity?: number; status?: string }> = [];
+    const seen = new Set<string>();
+
+    vehicleMasters.forEach(v => {
+      if (v && v.vehicleNumber && v.vehicleNumber.trim() !== '') {
+        const key = v.vehicleNumber.trim().toUpperCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(v.id),
+            vehicleNumber: v.vehicleNumber,
+            registrationNumber: v.registrationNumber || v.vehicleNumber,
+            capacity: v.capacity || 50,
+            status: v.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [vehicleMasters]);
+
+  const availableRoutes = useMemo(() => {
+    const list: Array<{ id: string; routeName: string; routeCode: string; status: string }> = [];
+    const seen = new Set<string>();
+
+    routeMasters.forEach(r => {
+      if (r && r.routeName && r.routeName.trim() !== '') {
+        const key = r.routeName.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(r.id),
+            routeName: r.routeName,
+            routeCode: r.routeCode || r.id,
+            status: r.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [routeMasters]);
+
+  const availableDrivers = useMemo(() => {
+    const list: Array<{ id: string; driverName: string; employeeId: string; mobileNumber: string; status: string }> = [];
+    const seen = new Set<string>();
+
+    driverMasters.forEach(d => {
+      if (d && d.driverName && d.driverName.trim() !== '') {
+        const key = d.driverName.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(d.id),
+            driverName: d.driverName,
+            employeeId: d.employeeId || `DRV-${d.id}`,
+            mobileNumber: d.mobileNumber || '',
+            status: d.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [driverMasters]);
+
   const branchOptions = Array.from(new Set([
     selectedBranch || 'Main Campus',
     'Main Campus',
@@ -186,13 +254,17 @@ export const VehicleAssignmentView: React.FC = () => {
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
     const attendant = busAttendants.find(a =>
-      a.id === assignment.attendantId ||
-      a.attendantName === assignment.attendantName
+      (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+      (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
     );
+
+    const name = (assignment.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
+      ? assignment.attendantName
+      : (attendant?.attendantName || 'Unassigned');
 
     return {
       id: attendant?.id || assignment.attendantId || '',
-      name: assignment.attendantName || attendant?.attendantName || 'Unassigned',
+      name,
       mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
     };
   };
@@ -344,9 +416,9 @@ export const VehicleAssignmentView: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const vehicle = vehicleMasters.find(v => v.id === form.vehicleId);
-    const route = routeMasters.find(r => r.id === form.routeId);
-    const driver = driverMasters.find(d => d.id === form.driverId);
+    const vehicle = availableVehicles.find(v => v.id === form.vehicleId || v.vehicleNumber === form.vehicleId);
+    const route = availableRoutes.find(r => r.id === form.routeId || r.routeName === form.routeId);
+    const driver = availableDrivers.find(d => d.id === form.driverId || d.driverName === form.driverId);
     const attendant = busAttendants.find(a => a.id === form.attendantId);
 
     if (!vehicle || !route || !driver) {
@@ -922,18 +994,19 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.routeId}
                   onChange={e => setForm(prev => ({ ...prev, routeId: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Select Route --</option>
-                  {routeMasters.filter(route => route.status === 'Active').map(route => {
+                  {availableRoutes.map(route => {
                     const activeOther = vehicleAssignments.find(va =>
                       (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
-                      String(va.routeId) === String(route.id) &&
+                      (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase())) &&
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
+                    const isCurrentVal = form.routeId === route.id || form.routeId === route.routeName;
                     return (
-                      <option key={route.id} value={route.id} disabled={!!activeOther}>
+                      <option key={route.id} value={route.id} disabled={!!activeOther && !isCurrentVal}>
                         {route.routeName} ({route.routeCode}) {activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>
                     );
@@ -946,20 +1019,20 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.vehicleId}
                   onChange={e => setForm(prev => ({ ...prev, vehicleId: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Select Vehicle --</option>
-                  {vehicleMasters.filter(vehicle => vehicle.status === 'Active').map(vehicle => {
+                  {availableVehicles.map(vehicle => {
                     const activeOther = vehicleAssignments.find(va =>
                       (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
-                      String(va.vehicleId) === String(vehicle.id) &&
+                      (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.trim().toUpperCase() === vehicle.vehicleNumber.trim().toUpperCase())) &&
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
+                    const isCurrentVal = form.vehicleId === vehicle.id || form.vehicleId === vehicle.vehicleNumber;
                     return (
-                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther}>
-                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats)
-                        {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
+                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther && !isCurrentVal}>
+                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats) {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
                       </option>
                     );
                   })}
@@ -971,28 +1044,28 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.driverId}
                   onChange={e => {
-                    const drv = driverMasters.find(d => d.id === e.target.value);
+                    const drv = availableDrivers.find(d => d.id === e.target.value || d.driverName === e.target.value);
                     setForm(prev => ({
                       ...prev,
                       driverId: e.target.value,
                       driverEmployeeId: drv?.employeeId || `DRV-${drv?.id || '01'}`
                     }));
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Select Driver --</option>
-                  {driverMasters.filter(driver => driver.status === 'Active').map(driver => {
+                  {availableDrivers.map(driver => {
                     const activeOther = vehicleAssignments.find(va =>
                       (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
-                      String(va.driverId) === String(driver.id) &&
+                      (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.trim().toLowerCase() === driver.driverName.trim().toLowerCase())) &&
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
+                    const isCurrentVal = form.driverId === driver.id || form.driverId === driver.driverName;
                     const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
                     return (
-                      <option key={driver.id} value={driver.id} disabled={!!activeOther}>
-                        {driver.driverName} ({empIdText} • {driver.mobileNumber})
-                        {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      <option key={driver.id} value={driver.id} disabled={!!activeOther && !isCurrentVal}>
+                        {driver.driverName} ({empIdText}{driver.mobileNumber ? ` • ${driver.mobileNumber}` : ''}) {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>
                     );
                   })}

@@ -4942,8 +4942,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               vehicleNumber,
               driverId,
               driverName,
-              attendantId: (a.attendantId || "").toString(),
-              attendantName: a.attendantName || a.selectBusAttendant || "",
+              attendantId,
+              attendantName,
+              attendantMobile,
               morningTripTime: a.morningTripTime || a.morningTrip || "",
               eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
               effectiveFrom: a.effectiveFrom || a.effectiveFromDate || "",
@@ -4965,7 +4966,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           mappedAssignments.forEach((item: any) => {
             if (item && (item.vehicleNumber || item.routeName)) {
               const key = item.id ? item.id.toString() : `${item.vehicleNumber}-${item.routeName}`;
-              uniqueAssignmentsMap.set(key, { ...uniqueAssignmentsMap.get(key), ...item });
+              const existing = uniqueAssignmentsMap.get(key) || {};
+              uniqueAssignmentsMap.set(key, {
+                ...existing,
+                ...item,
+                attendantId: item.attendantId || existing.attendantId || "",
+                attendantName: item.attendantName || existing.attendantName || "",
+                attendantMobile: item.attendantMobile || existing.attendantMobile || ""
+              });
             }
           });
           const finalAssignments = Array.from(uniqueAssignmentsMap.values());

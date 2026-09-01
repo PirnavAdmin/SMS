@@ -725,7 +725,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-slate-50 hover:bg-slate-100 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
           >
             <UserCheck className="w-4 h-4 text-indigo-500" />
-            Mark Attendance
+            Student Attendance
           </button>
           <button 
             onClick={() => onNavigate('communication')} 

@@ -24,6 +24,7 @@ import {
   Users,
   X,
   ChevronDown,
+  Wand2
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
@@ -55,7 +56,10 @@ type StructureDraft = {
   id?: string;
   structureName: string;
   employeeCategory: CategoryValue;
+  staffId?: string;
+  department?: string;
   designation: string;
+  annualCtc?: string;
   status: 'Active' | 'Inactive';
   effectiveDate: string;
   payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
@@ -167,24 +171,24 @@ const roundAmount = (amount: number, rule?: 'No Round Off' | 'Nearest 1' | 'Near
 };
 
 const structureEarningFields = [
-  { key: 'basicSalary', label: 'Basic Salary' },
-  { key: 'hra', label: 'HRA' },
-  { key: 'da', label: 'DA' },
-  { key: 'medicalAllowance', label: 'Medical Allowance' },
-  { key: 'travelAllowance', label: 'Travel Allowance' },
-  { key: 'specialAllowance', label: 'Special Allowance' },
-  { key: 'performanceAllowance', label: 'Performance Allowance' },
-  { key: 'otherAllowance', label: 'Other Allowance' }
+  { key: 'basicSalary', label: 'Basic Salary (Monthly)', placeholder: 'e.g. 12722' },
+  { key: 'hra', label: 'HRA (Monthly)', placeholder: 'e.g. 5089' },
+  { key: 'travelAllowance', label: 'Conveyance Allowance (Monthly)', placeholder: 'e.g. 1600' },
+  { key: 'medicalAllowance', label: 'Medical Allowance (Monthly)', placeholder: 'e.g. 1250' },
+  { key: 'specialAllowance', label: 'Special Allowance (Monthly)', placeholder: 'e.g. 11145' },
+  { key: 'da', label: 'DA (Monthly)', placeholder: 'e.g. 0' },
+  { key: 'performanceAllowance', label: 'Performance Allowance (Monthly)', placeholder: 'e.g. 0' },
+  { key: 'otherAllowance', label: 'Other Allowance (Monthly)', placeholder: 'e.g. 0' }
 ] as const;
 
 const structureDeductionFields = [
-  { key: 'employeePf', label: 'Employee PF' },
-  { key: 'employerPf', label: 'Employer PF' },
-  { key: 'esi', label: 'ESI' },
-  { key: 'professionalTax', label: 'Professional Tax' },
-  { key: 'incomeTax', label: 'Income Tax' },
-  { key: 'loanDeduction', label: 'Loan Deduction' },
-  { key: 'otherDeduction', label: 'Other Deduction' }
+  { key: 'employeePf', label: 'Employee PF (Monthly)', placeholder: 'e.g. 1527' },
+  { key: 'employerPf', label: 'Employer PF (Monthly)', placeholder: 'e.g. 1527' },
+  { key: 'professionalTax', label: 'Professional Tax (Monthly)', placeholder: 'e.g. 200' },
+  { key: 'incomeTax', label: 'TDS (Monthly If Applicable)', placeholder: 'Enter TDS amount (e.g. 2500)' },
+  { key: 'esi', label: 'ESI (Monthly)', placeholder: 'e.g. 0' },
+  { key: 'loanDeduction', label: 'Loan Deduction (Monthly)', placeholder: 'e.g. 0' },
+  { key: 'otherDeduction', label: 'Other Deduction (Monthly)', placeholder: 'Enter other deduction (e.g. 1000)' }
 ] as const;
 
 const structureKeywords = (designation: string) => {
@@ -281,27 +285,26 @@ const StatCard: React.FC<{
   value: string;
   helper?: string;
   icon: React.ComponentType<{ className?: string }>;
-  tone?: 'brand' | 'emerald' | 'sky' | 'amber' | 'slate';
+  tone?: 'brand' | 'emerald' | 'sky' | 'amber' | 'slate' | 'rose';
 }> = ({ label, value, helper, icon: Icon, tone = 'brand' }) => {
-  const toneStyles: Record<string, string> = {
-    brand: 'bg-brand-50 text-brand-700 border-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:border-brand-900',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900',
-    sky: 'bg-sky-50 text-sky-700 border-sky-100 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-900',
-    amber: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900',
-    slate: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700'
+  const iconToneStyles: Record<string, string> = {
+    brand: 'bg-brand-50 text-brand-600 border-brand-100/50 dark:bg-brand-950/40 dark:text-brand-400 dark:border-brand-900/30',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100/50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30',
+    sky: 'bg-sky-50 text-sky-600 border-sky-100/50 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/30',
+    amber: 'bg-amber-50 text-amber-600 border-amber-100/50 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/30',
+    rose: 'bg-rose-50 text-rose-600 border-rose-100/50 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/30',
+    slate: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
   };
 
   return (
-    <div className={`rounded-2xl border p-4 ${toneStyles[tone]}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.28em] opacity-70">{label}</p>
-          <p className="mt-2 text-2xl font-black">{value}</p>
-          {helper && <p className="mt-1 text-[11px] opacity-80">{helper}</p>}
-        </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 dark:bg-white/10">
-          <Icon className="h-4 w-4" />
-        </div>
+    <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+      <div className="space-y-1 text-left">
+        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
+        <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{value}</p>
+        {helper && <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mt-1">{helper}</p>}
+      </div>
+      <div className={`p-3 rounded-2xl border transition-all duration-300 ${iconToneStyles[tone] || iconToneStyles.brand}`}>
+        <Icon className="h-5 w-5" />
       </div>
     </div>
   );
@@ -314,7 +317,7 @@ const Panel: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ title, subtitle, action, children, className = '' }) => (
-  <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${className}`}>
+  <section className={`rounded-2xl border border-sky-200 bg-white p-5 shadow-xs dark:border-sky-900/40 dark:bg-slate-900 ${className}`}>
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
@@ -407,6 +410,110 @@ const SearchableSelect: React.FC<{
   );
 };
 
+const SearchableStaffSelect: React.FC<{
+  value: string;
+  onChange: (staffId: string) => void;
+  staffList: Staff[];
+  placeholder?: string;
+}> = ({ value, onChange, staffList, placeholder = '-- Select Staff Member --' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedStaff = staffList.find(s => String(s.id) === String(value));
+  const selectedLabel = selectedStaff
+    ? `${selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim()} (${selectedStaff.empId || selectedStaff.id}${selectedStaff.designation || selectedStaff.role ? ` - ${selectedStaff.designation || selectedStaff.role}` : ''})`
+    : '';
+
+  const filteredStaff = useMemo(() => {
+    if (!search.trim()) return staffList;
+    const q = search.toLowerCase();
+    return staffList.filter(s => {
+      const fullName = (s.name || `${s.firstName || ''} ${s.lastName || ''}`).toLowerCase();
+      const empCode = String(s.empId || s.id || '').toLowerCase();
+      const desig = String(s.designation || s.role || '').toLowerCase();
+      const dept = String((s as any).department || '').toLowerCase();
+      return fullName.includes(q) || empCode.includes(q) || desig.includes(q) || dept.includes(q);
+    });
+  }, [staffList, search]);
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex min-h-[44px] w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer transition-all"
+      >
+        <span className="truncate">{selectedLabel || placeholder}</span>
+        <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 ml-2" />
+      </div>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150">
+          <div className="border-b border-slate-100 p-2.5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input 
+                autoFocus
+                type="text"
+                placeholder="Search by name, emp ID, designation..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+            </div>
+          </div>
+          <div className="max-h-60 overflow-y-auto p-1.5 space-y-1">
+            <div
+              onClick={() => { onChange(''); setIsOpen(false); setSearch(''); }}
+              className="cursor-pointer rounded-xl px-3.5 py-2 text-xs font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              -- Select Staff Member --
+            </div>
+            {filteredStaff.length > 0 ? (
+              filteredStaff.map(s => {
+                const sName = s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim();
+                const sCode = s.empId || s.id;
+                const sDesig = s.designation || s.role || '';
+                const isSelected = String(s.id) === String(value);
+
+                return (
+                  <div 
+                    key={s.id} 
+                    onClick={() => { onChange(String(s.id)); setIsOpen(false); setSearch(''); }}
+                    className={`cursor-pointer rounded-xl px-3.5 py-2.5 text-xs flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? 'bg-sky-50 text-sky-700 font-bold dark:bg-sky-950/40 dark:text-sky-300'
+                        : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-white text-xs">{sName}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{sCode}{sDesig ? ` • ${sDesig}` : ''}</p>
+                    </div>
+                    {isSelected && <span className="h-2 w-2 rounded-full bg-sky-600 shrink-0"></span>}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="px-4 py-3 text-xs text-slate-400 italic text-center">No staff found matching query.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ModalShell: React.FC<{
   title: string;
   subtitle?: string;
@@ -439,6 +546,8 @@ const defaultEffectiveDate = new Date().toISOString().split('T')[0];
 const structureDraftDefaults: StructureDraft = {
   structureName: '',
   employeeCategory: 'Teacher',
+  staffId: '',
+  department: '',
   designation: '',
   status: 'Active',
   effectiveDate: defaultEffectiveDate,
@@ -833,6 +942,95 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const payrollMonthLabel = periodLabel(generationMonth, generationYear);
   const structureDraftPreview = useMemo(() => getStructureDraftTotals(structureDraft), [structureDraft]);
+
+  const availableCategoryStaff = useMemo(() => {
+    const cat = structureDraft.employeeCategory;
+    return staff.filter(s => resolveCategory(s) === cat);
+  }, [staff, structureDraft.employeeCategory]);
+
+  const autoCalculateCorporateSalary = (inputCtc?: string) => {
+    const annual = parseMoney(inputCtc !== undefined ? inputCtc : structureDraft.annualCtc || '0');
+    if (annual <= 0) return;
+
+    const monthlyGross = Math.round(annual / 12);
+    // Realtime Corporate Salary Breakdown Rules (50% Basic, 40% HRA, Conveyance 1600, Medical 1250, Special = balancing figure)
+    const basic = Math.round(monthlyGross * 0.50);
+    const hra = Math.round(basic * 0.40);
+    const conveyance = 1600;
+    const medical = 1250;
+    const special = Math.max(0, monthlyGross - (basic + hra + conveyance + medical));
+
+    // Provident Fund (12% of Basic up to statutory ceiling of 1800/mo)
+    const pfPercentage = Number(structureDraft.pfPercentage) || 12;
+    const rawPf = Math.round(basic * (pfPercentage / 100));
+    const pfAmount = structureDraft.pfApplicable ? Math.min(1800, rawPf) : 0;
+
+    // Professional Tax (Standard 200/mo if monthly gross > 15,000)
+    const ptAmount = monthlyGross > 15000 ? 200 : 0;
+
+    setStructureDraft(prev => ({
+      ...prev,
+      annualCtc: String(annual),
+      basicSalary: String(basic),
+      hra: String(hra),
+      travelAllowance: String(conveyance),
+      medicalAllowance: String(medical),
+      specialAllowance: String(special),
+      employeePf: String(pfAmount),
+      employerPf: String(pfAmount),
+      professionalTax: String(ptAmount),
+      professionalTaxAmount: String(ptAmount)
+    }));
+  };
+
+  const handleStaffSelect = (staffId: string) => {
+    const selectedStaff = staff.find(s => String(s.id) === String(staffId));
+    if (selectedStaff) {
+      const autoDesignation = selectedStaff.designation || selectedStaff.role || '';
+      const autoDept = (selectedStaff as any).department || (selectedStaff.role === 'Teacher' ? 'Academics' : 'Administration');
+      const staffName = selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim() || 'Staff Scale';
+      const staffSalary = Number((selectedStaff as any).basicSalary || (selectedStaff as any).salary || 0);
+
+      setStructureDraft(prev => {
+        const next = {
+          ...prev,
+          staffId,
+          designation: autoDesignation,
+          department: autoDept,
+          structureName: prev.structureName ? prev.structureName : `${staffName} Scale`
+        };
+
+        if (staffSalary > 0) {
+          const annual = staffSalary > 50000 ? staffSalary : staffSalary * 12;
+          const monthlyGross = Math.round(annual / 12);
+          const basic = Math.round(monthlyGross * 0.50);
+          const hra = Math.round(basic * 0.40);
+          const conveyance = 1600;
+          const medical = 1250;
+          const special = Math.max(0, monthlyGross - (basic + hra + conveyance + medical));
+          const pfAmount = prev.pfApplicable ? Math.min(1800, Math.round(basic * 0.12)) : 0;
+          const ptAmount = monthlyGross > 15000 ? 200 : 0;
+
+          return {
+            ...next,
+            annualCtc: String(annual),
+            basicSalary: String(basic),
+            hra: String(hra),
+            travelAllowance: String(conveyance),
+            medicalAllowance: String(medical),
+            specialAllowance: String(special),
+            employeePf: String(pfAmount),
+            employerPf: String(pfAmount),
+            professionalTax: String(ptAmount),
+            professionalTaxAmount: String(ptAmount)
+          };
+        }
+        return next;
+      });
+    } else {
+      setStructureDraft(prev => ({ ...prev, staffId: '' }));
+    }
+  };
 
   const generationCandidates = useMemo(() => {
     return employeeRows.filter(row => {
@@ -1868,236 +2066,313 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         <ModalShell
           title={structureMode === 'add' ? 'Create Salary Structure' : structureMode === 'edit' ? 'Edit Salary Structure' : 'Duplicate Salary Structure'}
           onClose={closeStructureModal}
-          maxWidth="max-w-3xl"
+          maxWidth="max-w-4xl"
         >
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
-            <div className="space-y-5">
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Structure Name</label>
-                    <input value={structureDraft.structureName} onChange={e => setStructureDraft(prev => ({ ...prev, structureName: e.target.value }))} className={inputClass} placeholder="Senior Teacher Scale" />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee Category</label>
-                    <SelectField value={structureDraft.employeeCategory} onChange={e => setStructureDraft(prev => ({ ...prev, employeeCategory: e.target.value as CategoryValue }))}>
-                      <option value="Teacher">Teaching Staff</option>
-                      <option value="Staff">Non-Teaching Staff</option>
-                    </SelectField>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
-                    <SearchableSelect
-                      value={structureDraft.designation}
-                      onChange={(val: string) => setStructureDraft(prev => ({ ...prev, designation: val }))}
-                      options={getDesignationOptions(structureDraft.employeeCategory)}
-                      placeholder="e.g. Mathematics Teacher"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Effective From</label>
-                    <input type="date" value={structureDraft.effectiveDate} onChange={e => setStructureDraft(prev => ({ ...prev, effectiveDate: e.target.value }))} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Payroll Frequency</label>
-                    <SelectField value={structureDraft.payrollFrequency} onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))}>
-                      <option value="Monthly">Monthly</option>
-                      <option value="Weekly">Weekly</option>
-                      <option value="Bi-Weekly">Bi-Weekly</option>
-                      <option value="Hourly">Hourly</option>
-                      <option value="Daily">Daily</option>
-                      <option value="Per Class">Per Class</option>
-                      <option value="Contractual">Contractual</option>
-                    </SelectField>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
-                    <SelectField value={structureDraft.status} onChange={e => setStructureDraft(prev => ({ ...prev, status: e.target.value as 'Active' | 'Inactive' }))}>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </SelectField>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Description / Notes</label>
-                    <textarea
-                      value={structureDraft.notes}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, notes: e.target.value }))}
-                      className={`${inputClass} min-h-[96px] py-3`}
-                      placeholder="Optional notes about this salary template..."
-                    />
-                  </div>
+          <div className="space-y-6">
+            {/* Card 1: Package & Basic Details */}
+            <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-[0.28em] text-slate-500">1. Package & Basic Details</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Fill these fields according to your offer letter salary structure.</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => autoCalculateCorporateSalary()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors shrink-0 cursor-pointer"
+                >
+                  <Wand2 className="h-3.5 w-3.5" /> Auto-Calculate Breakdown
+                </button>
               </div>
 
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Earnings</h3>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {structureEarningFields.map(field => (
-                    <div key={field.key}>
-                      <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">{field.label}</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={structureDraft[field.key]}
-                        onChange={e => setStructureDraft(prev => ({ ...prev, [field.key]: e.target.value }))}
-                        className={inputClass}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Deductions</h3>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {structureDeductionFields.map(field => (
-                    <div key={field.key}>
-                      <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">{field.label}</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={structureDraft[field.key]}
-                        onChange={e => setStructureDraft(prev => ({ ...prev, [field.key]: e.target.value }))}
-                        className={inputClass}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Payroll Rules</h3>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Payment Day</label>
-                    <input
-                      value={structureDraft.salaryPaymentDay}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, salaryPaymentDay: e.target.value }))}
-                      className={inputClass}
-                      placeholder="5"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Applicable</label>
-                    <SelectField
-                      value={structureDraft.pfApplicable ? 'Yes' : 'No'}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, pfApplicable: e.target.value === 'Yes' }))}
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </SelectField>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Percentage</label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-sky-600 dark:text-sky-400">Annual CTC (Without Variable Pay) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
                     <input
                       type="number"
                       min="0"
-                      step="0.01"
-                      value={structureDraft.pfPercentage}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, pfPercentage: e.target.value }))}
-                      className={inputClass}
+                      value={structureDraft.annualCtc || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setStructureDraft(prev => ({ ...prev, annualCtc: val }));
+                        autoCalculateCorporateSalary(val);
+                      }}
+                      className={`${inputClass} pl-8 font-extrabold text-sky-700 dark:text-sky-300`}
+                      placeholder="e.g. 399996"
                     />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Applicable</label>
-                    <SelectField
-                      value={structureDraft.esiApplicable ? 'Yes' : 'No'}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, esiApplicable: e.target.value === 'Yes' }))}
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </SelectField>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Percentage</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={structureDraft.esiPercentage}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, esiPercentage: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Applicable</label>
-                    <SelectField
-                      value={structureDraft.professionalTaxApplicable ? 'Yes' : 'No'}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxApplicable: e.target.value === 'Yes' }))}
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </SelectField>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Amount</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={structureDraft.professionalTaxAmount}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxAmount: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee Category *</label>
+                  <SelectField
+                    value={structureDraft.employeeCategory}
+                    onChange={e => {
+                      const newCat = e.target.value as CategoryValue;
+                      setStructureDraft(prev => ({ ...prev, employeeCategory: newCat, staffId: '', designation: '', department: '' }));
+                    }}
+                  >
+                    <option value="Teacher">Teaching Staff</option>
+                    <option value="Staff">Non-Teaching Staff</option>
+                  </SelectField>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Select Employee / Staff *</label>
+                  <SearchableStaffSelect
+                    value={structureDraft.staffId || ''}
+                    onChange={handleStaffSelect}
+                    staffList={availableCategoryStaff}
+                    placeholder="Search name, ID, designation..."
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation (Auto-populated)</label>
+                  <input
+                    readOnly
+                    disabled
+                    value={structureDraft.designation}
+                    className={`${inputClass} bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 opacity-80 cursor-not-allowed font-bold`}
+                    placeholder="Auto-populated on staff selection"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department (Auto-populated)</label>
+                  <input
+                    readOnly
+                    disabled
+                    value={structureDraft.department || ''}
+                    className={`${inputClass} bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 opacity-80 cursor-not-allowed font-bold`}
+                    placeholder="Auto-populated on staff selection"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Structure Name *</label>
+                  <input
+                    value={structureDraft.structureName}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, structureName: e.target.value }))}
+                    className={inputClass}
+                    placeholder="e.g. Senior Teacher Scale"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Effective From</label>
+                  <input
+                    type="date"
+                    value={structureDraft.effectiveDate}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Payroll Frequency</label>
+                  <SelectField
+                    value={structureDraft.payrollFrequency}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))}
+                  >
+                    <option value="Monthly">Monthly</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Bi-Weekly">Bi-Weekly</option>
+                    <option value="Hourly">Hourly</option>
+                    <option value="Daily">Daily</option>
+                    <option value="Per Class">Per Class</option>
+                    <option value="Contractual">Contractual</option>
+                  </SelectField>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
+                  <SelectField
+                    value={structureDraft.status}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, status: e.target.value as 'Active' | 'Inactive' }))}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </SelectField>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Description / Notes</label>
+                  <textarea
+                    value={structureDraft.notes}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, notes: e.target.value }))}
+                    className={`${inputClass} min-h-[70px] py-2`}
+                    placeholder="Optional notes about this salary template..."
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Live Preview</p>
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
-                    <span className="text-sm font-semibold text-slate-500">Gross Salary</span>
-                    <span className="font-black text-slate-900 dark:text-white">{formatCurrency(structureDraftPreview.grossSalary)}</span>
+            {/* Card 2: Earnings Components (Monthly) */}
+            <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-xs font-black uppercase tracking-[0.28em] text-slate-500">2. Earnings Components (Monthly)</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 px-2.5 py-1 rounded-full border border-sky-200/60 dark:border-sky-800/40">50% Basic</span>
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 px-2.5 py-1 rounded-full border border-sky-200/60 dark:border-sky-800/40">40% HRA</span>
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">Balancing Special Allowance</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {structureEarningFields.map(field => (
+                  <div key={field.key}>
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">{field.label}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={field.placeholder}
+                      value={structureDraft[field.key]}
+                      onChange={e => setStructureDraft(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className={inputClass}
+                    />
                   </div>
-                  <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
-                    <span className="text-sm font-semibold text-slate-500">Total Earnings</span>
-                    <span className="font-black text-slate-900 dark:text-white">{formatCurrency(structureDraftPreview.totalEarnings)}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Card 3: Deductions Components (Monthly) */}
+            <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-xs font-black uppercase tracking-[0.28em] text-slate-500">3. Deductions Components (Monthly)</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-2.5 py-1 rounded-full border border-amber-200/60 dark:border-amber-800/40">12% PF ({structureDraft.pfPercentage}% of Basic)</span>
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">PT Slab ₹200</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {structureDeductionFields.map(field => (
+                  <div key={field.key}>
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">{field.label}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={field.placeholder}
+                      value={structureDraft[field.key]}
+                      onChange={e => setStructureDraft(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className={inputClass}
+                    />
                   </div>
-                  <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
-                    <span className="text-sm font-semibold text-slate-500">Total Deductions</span>
-                    <span className="font-black text-slate-900 dark:text-white">{formatCurrency(structureDraftPreview.totalDeductions)}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-2xl bg-brand-600 px-4 py-3 text-white shadow-lg shadow-brand-500/20">
-                    <span className="text-sm font-semibold text-white/80">Net Salary</span>
-                    <span className="font-black">{formatCurrency(structureDraftPreview.netSalary)}</span>
-                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Card 4: Payroll Rules */}
+            <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 shadow-sm">
+              <h3 className="mb-4 text-xs font-black uppercase tracking-[0.28em] text-slate-400">4. Statutory & Payroll Rules</h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Applicable</label>
+                  <SelectField
+                    value={structureDraft.pfApplicable ? 'Yes' : 'No'}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, pfApplicable: e.target.value === 'Yes' }))}
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </SelectField>
+                </div>
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Percentage (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={structureDraft.pfPercentage}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, pfPercentage: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Applicable</label>
+                  <SelectField
+                    value={structureDraft.esiApplicable ? 'Yes' : 'No'}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, esiApplicable: e.target.value === 'Yes' }))}
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </SelectField>
+                </div>
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Percentage (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={structureDraft.esiPercentage}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, esiPercentage: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Applicable</label>
+                  <SelectField
+                    value={structureDraft.professionalTaxApplicable ? 'Yes' : 'No'}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxApplicable: e.target.value === 'Yes' }))}
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </SelectField>
+                </div>
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Amount (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={structureDraft.professionalTaxAmount}
+                    onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxAmount: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 5 (Bottom / Down): Live Preview & Action Buttons */}
+            <div className="rounded-[22px] border border-sky-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900 shadow-md">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.28em] text-sky-600 dark:text-sky-400">Live Preview Summary</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 dark:bg-slate-950 dark:border-slate-800">
+                  <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Gross Salary</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white mt-1 block">{formatCurrency(structureDraftPreview.grossSalary)}</span>
+                </div>
+                <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 dark:bg-slate-950 dark:border-slate-800">
+                  <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Total Earnings</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white mt-1 block">{formatCurrency(structureDraftPreview.totalEarnings)}</span>
+                </div>
+                <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 dark:bg-slate-950 dark:border-slate-800">
+                  <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Total Deductions</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white mt-1 block">{formatCurrency(structureDraftPreview.totalDeductions)}</span>
+                </div>
+                <div className="rounded-2xl bg-sky-600 p-3.5 text-white shadow-lg shadow-sky-500/20">
+                  <span className="text-[11px] font-bold text-sky-100 block uppercase tracking-wider">Net Salary</span>
+                  <span className="text-lg font-black text-white mt-0.5 block">{formatCurrency(structureDraftPreview.netSalary)}</span>
                 </div>
               </div>
 
-
-              <div className="flex gap-3 mt-6">
+              <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={closeStructureModal}
-                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                  className="inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={saveStructure}
-                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
+                  className="inline-flex h-11 min-w-[150px] items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 text-sm font-black text-white shadow-lg shadow-sky-500/20 hover:bg-sky-700 transition-all cursor-pointer"
                 >
-                  <Save className="h-4 w-4" /> {structureMode === 'edit' ? 'Update' : 'Save'}
+                  <Save className="h-4 w-4" /> {structureMode === 'edit' ? 'Update Structure' : 'Save Structure'}
                 </button>
               </div>
             </div>
