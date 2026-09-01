@@ -23,7 +23,7 @@ export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialS
   const subTabs = [
     { id: 'categories', label: 'Categories', icon: Layers },
     { id: 'sizes', label: 'Sizes', icon: Ruler },
-    { id: 'items', label: 'Add Uniform Type', icon: Shirt },
+    { id: 'items', label: 'Add Uniform', icon: Shirt },
     { id: 'inventory', label: 'Inventory Registry', icon: Package },
     { id: 'suppliers', label: 'Suppliers', icon: Users }
   ] as const;

@@ -259,7 +259,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Shirt className="w-6 h-6 text-sky-600" /> Uniform Configuration
+            <Shirt className="w-6 h-6 text-sky-600" /> Add Uniform
           </h2>
         </div>
 
@@ -267,7 +267,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
           onClick={handleOpenAdd}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Add Uniform Type
+          <Plus className="w-4 h-4" /> Add Uniform
         </button>
       </div>
 
@@ -338,7 +338,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.length === 0 ? (
           <div className="col-span-full py-12 text-center text-slate-400 dark:text-slate-500 font-bold glass-card rounded-3xl border border-slate-200 dark:border-slate-800">
-            No uniform configuration items found. Click "+ Add Uniform Type" to create one.
+            No uniform items found. Click "+ Add Uniform" to create one.
           </div>
         ) : (
           paginatedItems.map(u => {
