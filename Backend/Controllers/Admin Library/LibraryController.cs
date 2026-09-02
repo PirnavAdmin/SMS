@@ -944,7 +944,6 @@ public class LibraryController : ControllerBase
 
     private async Task SeedDefaultLibraryDataAsync()
     {
-        // Do not seed default library data. Everything should come from the database.
         await Task.CompletedTask;
     }
 

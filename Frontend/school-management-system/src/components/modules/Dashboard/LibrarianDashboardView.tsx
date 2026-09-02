@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
+import * as LibraryAPI from '../../../api/library';
 
 interface LibrarianDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -21,6 +22,46 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
     schoolEvents = []
   } = useData();
 
+  const [liveBooks, setLiveBooks] = React.useState<any[]>(books);
+  const [liveIssues, setLiveIssues] = React.useState<any[]>(bookIssues);
+
+  React.useEffect(() => {
+    if (books && books.length > 0) setLiveBooks(books);
+  }, [books]);
+
+  React.useEffect(() => {
+    if (bookIssues && bookIssues.length > 0) setLiveIssues(bookIssues);
+  }, [bookIssues]);
+
+  React.useEffect(() => {
+    const fetchBackendMetrics = async () => {
+      const extractArray = (res: any) => {
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res?.data)) return res.data;
+        if (Array.isArray(res?.data?.data)) return res.data.data;
+        if (Array.isArray(res?.data?.items)) return res.data.items;
+        if (Array.isArray(res?.items)) return res.items;
+        return [];
+      };
+
+      try {
+        const [bRes, iRes]: any[] = await Promise.all([
+          LibraryAPI.fetchBooksApi(),
+          LibraryAPI.fetchIssuedBooksApi()
+        ]);
+
+        const fetchedBooks = extractArray(bRes);
+        if (fetchedBooks.length > 0) setLiveBooks(fetchedBooks);
+
+        const fetchedIssues = extractArray(iRes);
+        if (fetchedIssues.length > 0) setLiveIssues(fetchedIssues);
+      } catch (err) {
+        console.warn("Librarian dashboard API load notice:", err);
+      }
+    };
+    fetchBackendMetrics();
+  }, []);
+
   const handleNavigate = (moduleName: string) => {
     if (onNavigate) {
       onNavigate(moduleName);
@@ -28,10 +69,25 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
   };
 
   // Metrics
-  const totalBooksCount = useMemo(() => books.reduce((acc, b) => acc + (b.totalCopies || 0), 0), [books]);
-  const availableCopiesCount = useMemo(() => books.reduce((acc, b) => acc + (b.availableCopies || 0), 0), [books]);
-  const activeLoansCount = useMemo(() => bookIssues.filter(i => i.status === 'Issued' || i.status === 'Renewed').length, [bookIssues]);
-  const overdueCount = useMemo(() => bookIssues.filter(i => i.status === 'Overdue').length, [bookIssues]);
+  const totalBooksCount = useMemo(() => {
+    const source = liveBooks.length > 0 ? liveBooks : books;
+    return source.reduce((acc, b) => acc + (Number(b.totalCopies) || 0), 0);
+  }, [liveBooks, books]);
+
+  const availableCopiesCount = useMemo(() => {
+    const source = liveBooks.length > 0 ? liveBooks : books;
+    return source.reduce((acc, b) => acc + (Number(b.availableCopies) || 0), 0);
+  }, [liveBooks, books]);
+
+  const activeLoansCount = useMemo(() => {
+    const source = liveIssues.length > 0 ? liveIssues : bookIssues;
+    return source.filter(i => i.status === 'Issued' || i.status === 'Renewed').length;
+  }, [liveIssues, bookIssues]);
+
+  const overdueCount = useMemo(() => {
+    const source = liveIssues.length > 0 ? liveIssues : bookIssues;
+    return source.filter(i => i.status === 'Overdue').length;
+  }, [liveIssues, bookIssues]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -100,7 +156,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <p className="text-2xl font-black text-slate-900 dark:text-white font-mono">{totalBooksCount || 200}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white font-mono">{totalBooksCount}</p>
             <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
               In Catalog <ArrowUpRight className="w-3 h-3" />
             </span>
@@ -119,7 +175,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{availableCopiesCount || 167}</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{availableCopiesCount}</p>
             <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
               On Shelves <ArrowUpRight className="w-3 h-3" />
             </span>
@@ -138,7 +194,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <p className="text-2xl font-black text-sky-600 dark:text-sky-400 font-mono">{activeLoansCount || 2}</p>
+            <p className="text-2xl font-black text-sky-600 dark:text-sky-400 font-mono">{activeLoansCount}</p>
             <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
               Borrowed <ArrowUpRight className="w-3 h-3" />
             </span>
@@ -157,7 +213,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">{overdueCount || 2}</p>
+            <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">{overdueCount}</p>
             <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
               Late Returns <ArrowUpRight className="w-3 h-3" />
             </span>

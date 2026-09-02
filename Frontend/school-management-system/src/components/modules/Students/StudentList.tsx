@@ -6,7 +6,7 @@ import {
   Eye, Building2, ChevronLeft, ChevronRight, User, Users, ArrowLeft,
   Clock, Calendar, BookOpen, BookMarked, MessageSquare, Mail, Phone,
   HeartPulse, FileText, CheckCircle2, ShieldAlert, Award, Check, GraduationCap, School,
-  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet
+  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet, Home
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -815,6 +815,276 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             onPromote={() => setStudentToPromote(selectedStudent)}
             onTransfer={() => setStudentToTransfer(selectedStudent)}
             onDelete={() => setStudentToDelete(selectedStudent)}
+            activeTab={activeProfileTab}
+            setActiveTab={setActiveProfileTab}
+            teacherView={true}
+            getAttendancePct={getAttendancePct}
+            getPerformance={getPerformance}
+            getBehaviourRemarks={getBehaviourRemarks}
+            getMedicalInfo={getMedicalInfo}
+            getDocumentsList={getDocumentsList}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Warden Portal View (Hostel Resident Student Directory)
+  const [wardenSelectedBlock, setWardenSelectedBlock] = useState<string>('All Blocks');
+  const [wardenSelectedClass, setWardenSelectedClass] = useState<string>('All Classes');
+  const [wardenSearchQuery, setWardenSearchQuery] = useState<string>('');
+  const [wardenCurrentPage, setWardenCurrentPage] = useState<number>(1);
+  const [wardenPageSize, setWardenPageSize] = useState<number>(10);
+
+  const wardenHostelStudents = useMemo(() => {
+    // Filter active residential / hosteller students
+    const activeHostellers = apiStudents.filter(s =>
+      s.status !== 'Completed' && s.status !== 'Alumni' &&
+      ((s as any).studentType === 'Hosteller' ||
+       (s as any).studentType === 'Residential' ||
+       (s as any).isHosteller ||
+       (s as any).studentType !== 'Day Scholar')
+    );
+
+    return activeHostellers.filter(s => {
+      // 1. Class filter
+      const matchesClass = wardenSelectedClass === 'All Classes' || s.className.toLowerCase() === wardenSelectedClass.toLowerCase();
+
+      // 2. Block filter
+      const sBlock = (s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || (s as any).buildingName || 'Ramachandra Bhavan (Block A)';
+      const matchesBlock = wardenSelectedBlock === 'All Blocks' || sBlock.toLowerCase().includes(wardenSelectedBlock.toLowerCase()) || wardenSelectedBlock.toLowerCase().includes(sBlock.toLowerCase());
+
+      // 3. Search query
+      const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+      const q = wardenSearchQuery.trim().toLowerCase();
+      const matchesSearch = !q || fullName.includes(q) || (s.admissionNo || '').toLowerCase().includes(q) || (s.rollNo || '').toLowerCase().includes(q);
+
+      return matchesClass && matchesBlock && matchesSearch;
+    });
+  }, [apiStudents, wardenSelectedClass, wardenSelectedBlock, wardenSearchQuery]);
+
+  const wardenTotalPages = Math.ceil(wardenHostelStudents.length / wardenPageSize) || 1;
+  const wardenPaginatedStudents = wardenHostelStudents.slice((wardenCurrentPage - 1) * wardenPageSize, wardenCurrentPage * wardenPageSize);
+
+  // Available Hostel Blocks
+  const wardenBlockOptions = useMemo(() => {
+    const blocksSet = new Set<string>();
+    apiStudents.forEach(s => {
+      const blk = (s as any).hostelBlock || (s as any).blockName || (s as any).hostelName;
+      if (blk) blocksSet.add(blk);
+    });
+    const list = Array.from(blocksSet).sort();
+    return ['All Blocks', ...list.length > 0 ? list : ['Ramachandra Bhavan (Block A)', 'Vivekananda Hostel (Block B)', 'Saraswati Bhavan (Girls Block)']];
+  }, [apiStudents]);
+
+  // Available Classes
+  const wardenClassOptions = useMemo(() => {
+    const classesSet = new Set<string>();
+    apiStudents.forEach(s => {
+      if (s.className) classesSet.add(s.className);
+    });
+    const list = Array.from(classesSet).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
+    return ['All Classes', ...list];
+  }, [apiStudents]);
+
+  if (isWardenRole) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-200 pb-12">
+        {/* Warden Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+              <Home className="w-7 h-7 text-sky-600 dark:text-sky-400" />
+              Hostel Students
+            </h1>
+          </div>
+          <ExportButton data={wardenHostelStudents} filename="hostel_students" />
+        </div>
+
+        {/* Warden Filters Bar */}
+        <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search student name, adm no, roll no..."
+                value={wardenSearchQuery}
+                onChange={e => { setWardenSearchQuery(e.target.value); setWardenCurrentPage(1); }}
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20"
+              />
+            </div>
+
+            {/* Block Filter */}
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
+              <select
+                value={wardenSelectedBlock}
+                onChange={e => { setWardenSelectedBlock(e.target.value); setWardenCurrentPage(1); }}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+              >
+                {wardenBlockOptions.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Class Filter */}
+            <div className="flex items-center gap-2">
+              <School className="w-4 h-4 text-sky-600 shrink-0" />
+              <select
+                value={wardenSelectedClass}
+                onChange={e => { setWardenSelectedClass(e.target.value); setWardenCurrentPage(1); }}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+              >
+                {wardenClassOptions.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Active Filter Pills Bar */}
+          <div className="flex items-center justify-between text-xs font-extrabold text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="flex items-center gap-2">
+              <span>Showing <strong className="text-slate-900 dark:text-white">{wardenHostelStudents.length}</strong> Resident Hostel Students</span>
+              {(wardenSelectedBlock !== 'All Blocks' || wardenSelectedClass !== 'All Classes' || wardenSearchQuery) && (
+                <button
+                  onClick={() => {
+                    setWardenSelectedBlock('All Blocks');
+                    setWardenSelectedClass('All Classes');
+                    setWardenSearchQuery('');
+                    setWardenCurrentPage(1);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-bold hover:bg-rose-100 transition-colors text-[11px] cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-400">Page {wardenCurrentPage} of {wardenTotalPages}</span>
+          </div>
+        </div>
+
+        {/* Hostel Students Roster Table */}
+        <div className="glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                  <th className="py-3.5 px-4">Adm No</th>
+                  <th className="py-3.5 px-4">Roll No</th>
+                  <th className="py-3.5 px-4">Student Name</th>
+                  <th className="py-3.5 px-4">Class & Sec</th>
+                  <th className="py-3.5 px-4">Hostel Block & Room</th>
+                  <th className="py-3.5 px-4">Guardian Contact</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {wardenPaginatedStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-slate-400 font-bold">
+                      No hostel resident students match the selected block and class filters.
+                    </td>
+                  </tr>
+                ) : (
+                  wardenPaginatedStudents.map(s => (
+                    <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                        {s.admissionNo}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                        {s.rollNo}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5">
+                          {s.photoUrl ? (
+                            <img src={s.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-black flex items-center justify-center text-xs">
+                              {s.firstName?.[0] || 'S'}
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white block">{s.firstName} {s.lastName}</span>
+                            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">Residential / Hosteller</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-extrabold text-slate-800 dark:text-slate-200">
+                        {s.className} - {s.section}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-extrabold text-slate-900 dark:text-white">
+                            {(s as any).hostelBlock || (s as any).blockName || 'Block A (Ramachandra)'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            Room: {(s as any).roomNo || '102'} • Bed: {(s as any).bedNo || 'B1'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-mono">
+                        {s.fatherPhone || s.guardianPhone || s.contactPhone || '9876543210'}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-200 dark:border-emerald-900/40">
+                          {s.status || 'Active'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedStudent(s)}
+                          className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-100 transition-colors text-xs cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View Profile
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Pagination */}
+          {wardenHostelStudents.length > 0 && (
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-slate-500">
+              <span>Showing {(wardenCurrentPage - 1) * wardenPageSize + 1} to {Math.min(wardenCurrentPage * wardenPageSize, wardenHostelStudents.length)} of {wardenHostelStudents.length} Hostel Students</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={wardenCurrentPage === 1}
+                  onClick={() => setWardenCurrentPage(p => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span>Page {wardenCurrentPage} of {wardenTotalPages}</span>
+                <button
+                  disabled={wardenCurrentPage === wardenTotalPages}
+                  onClick={() => setWardenCurrentPage(p => Math.min(wardenTotalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Student Profile Drawer */}
+        {selectedStudent && (
+          <StudentProfileDrawer
+            student={selectedStudent}
+            isOpen={!!selectedStudent}
+            onClose={() => setSelectedStudent(null)}
+            onEdit={() => {}}
+            onPromote={() => {}}
+            onTransfer={() => {}}
+            onDelete={() => {}}
             activeTab={activeProfileTab}
             setActiveTab={setActiveProfileTab}
             teacherView={true}

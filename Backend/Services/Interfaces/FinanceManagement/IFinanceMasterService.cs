@@ -17,12 +17,16 @@ public interface IFinanceMasterService
     Task<List<FinancialAccountDto>> GetAccountsAsync();
     Task<FinancialAccountDto> CreateAccountAsync(FinancialAccountDto account);
     Task<bool> UpdateAccountAsync(int id, FinancialAccountDto account);
+    Task<bool> DeleteAccountAsync(int id);
     Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type);
     Task<FinancialCategoryDto> CreateCategoryAsync(FinancialCategoryDto category);
+    Task<bool> UpdateCategoryAsync(int id, FinancialCategoryDto category);
+    Task<bool> DeleteCategoryAsync(int id);
 
     // Budgets
     Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear);
     Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget);
+    Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget);
 
     // Refund Management
     Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status);
@@ -36,6 +40,7 @@ public interface IFinanceMasterService
     Task<bool> UpdateFinanceSettingsAsync(FinanceSettingsDto settings);
 
     // Reports Hub
+    Task<FinanceReportsSummaryDto> GetReportsSummaryAsync(string? academicYear);
     Task<DailyCollectionReportResponseDto> GetDailyCollectionReportAsync(string? date);
     Task<List<ClassWiseCollectionReportRowDto>> GetClassWiseCollectionReportAsync(string? academicYear);
 
@@ -76,4 +81,11 @@ public interface IFinanceMasterService
     Task<FinanceHostelConfigDto> CreateHostelFeeConfigAsync(CreateFinanceHostelConfigDto dto);
     Task<FinanceHostelConfigDto?> UpdateHostelFeeConfigAsync(int id, CreateFinanceHostelConfigDto dto);
     Task<bool> DeleteHostelFeeConfigAsync(int id);
+
+    // Uniform Fee Configurations
+    Task<List<FinanceUniformConfigDto>> GetUniformFeeConfigsAsync(string? search, string? className, string? academicYear, string? status);
+    Task<FinanceUniformConfigDto?> GetUniformFeeConfigByIdAsync(int id);
+    Task<FinanceUniformConfigDto> CreateUniformFeeConfigAsync(CreateFinanceUniformConfigDto dto);
+    Task<FinanceUniformConfigDto?> UpdateUniformFeeConfigAsync(int id, CreateFinanceUniformConfigDto dto);
+    Task<bool> DeleteUniformFeeConfigAsync(int id);
 }

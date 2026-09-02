@@ -266,25 +266,140 @@ public class FinanceService : IFinanceService
             PaidAmount = x.PaidAmount,
             DueAmount = x.DueAmount,
             Status = x.Status,
-            FeePolicy = x.FeePolicy
+            FeePolicy = string.IsNullOrWhiteSpace(x.FeePolicy) ? "Full Annual Fee" : x.FeePolicy
         });
+    }
+
+    public async Task<StudentFeeAssignmentDto?> GetStudentFeeAssignmentByIdAsync(int id)
+    {
+        var x = await _repo.GetStudentFeeAssignmentByIdAsync(id);
+        if (x == null) return null;
+        return new StudentFeeAssignmentDto
+        {
+            Id = x.Id,
+            StudentId = x.StudentId,
+            DynamicFeeStructureId = x.DynamicFeeStructureId,
+            TotalAmount = x.TotalAmount,
+            PaidAmount = x.PaidAmount,
+            DueAmount = x.DueAmount,
+            Status = x.Status,
+            FeePolicy = string.IsNullOrWhiteSpace(x.FeePolicy) ? "Full Annual Fee" : x.FeePolicy
+        };
     }
 
     public async Task<StudentFeeAssignmentDto> CreateStudentFeeAssignmentAsync(StudentFeeAssignmentDto dto)
     {
+        var existing = (await _repo.GetStudentFeeAssignmentsAsync()).FirstOrDefault(x => x.StudentId == dto.StudentId);
+        if (existing != null)
+        {
+            existing.DynamicFeeStructureId = dto.DynamicFeeStructureId ?? existing.DynamicFeeStructureId;
+            existing.TotalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : existing.TotalAmount;
+            existing.DueAmount = existing.TotalAmount - existing.PaidAmount;
+            existing.FeePolicy = !string.IsNullOrWhiteSpace(dto.FeePolicy) ? dto.FeePolicy : existing.FeePolicy;
+            existing.Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status : "Active";
+            await _repo.UpdateStudentFeeAssignmentAsync(existing);
+            dto.Id = existing.Id;
+            return dto;
+        }
+
         var model = new StudentFeeAssignment
         {
             StudentId = dto.StudentId,
             DynamicFeeStructureId = dto.DynamicFeeStructureId,
             TotalAmount = dto.TotalAmount,
             PaidAmount = dto.PaidAmount,
-            DueAmount = dto.DueAmount,
-            Status = dto.Status,
-            FeePolicy = dto.FeePolicy
+            DueAmount = dto.TotalAmount - dto.PaidAmount,
+            Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status,
+            FeePolicy = string.IsNullOrWhiteSpace(dto.FeePolicy) ? "Full Annual Fee" : dto.FeePolicy
         };
         var res = await _repo.CreateStudentFeeAssignmentAsync(model);
         dto.Id = res.Id;
         return dto;
+    }
+
+    public async Task<List<StudentFeeAssignmentDto>> BulkAssignStudentFeesAsync(BulkFeeAssignmentRequestDto request)
+    {
+        var results = new List<StudentFeeAssignmentDto>();
+        decimal defaultTotal = request.TotalAmount ?? 0m;
+
+        if (defaultTotal <= 0 && request.DynamicFeeStructureId.HasValue)
+        {
+            var dfs = await _repo.GetDynamicFeeStructureByIdAsync(request.DynamicFeeStructureId.Value);
+            if (dfs != null)
+            {
+                defaultTotal = dfs.TotalAmount;
+            }
+        }
+
+        foreach (var studentId in request.StudentIds)
+        {
+            var dto = new StudentFeeAssignmentDto
+            {
+                StudentId = studentId,
+                DynamicFeeStructureId = request.DynamicFeeStructureId,
+                TotalAmount = defaultTotal,
+                PaidAmount = 0,
+                DueAmount = defaultTotal,
+                Status = "Active",
+                FeePolicy = string.IsNullOrWhiteSpace(request.FeePolicy) ? "Full Annual Fee" : request.FeePolicy,
+                AssignedDate = DateTime.Now.ToString("yyyy-MM-dd")
+            };
+
+            var saved = await CreateStudentFeeAssignmentAsync(dto);
+            results.Add(saved);
+        }
+
+        return results;
+    }
+
+    public async Task<StudentFeeAssignmentDto> SaveCustomStudentFeeAssignmentAsync(CustomFeeAssignmentRequestDto request)
+    {
+        decimal total = request.TotalAmount;
+        if (total <= 0 && request.Breakdown != null && request.Breakdown.Any())
+        {
+            total = request.Breakdown.Sum(b => b.AssignedAmount);
+        }
+
+        var dto = new StudentFeeAssignmentDto
+        {
+            StudentId = request.StudentId,
+            DynamicFeeStructureId = request.DynamicFeeStructureId,
+            TotalAmount = total,
+            PaidAmount = 0,
+            DueAmount = total,
+            Status = "Active",
+            FeePolicy = string.IsNullOrWhiteSpace(request.FeePolicy) ? "Monthly Pro-rated Fee" : request.FeePolicy,
+            AdjustmentReason = request.AdjustmentReason,
+            AssignedDate = request.AdmissionDate ?? DateTime.Now.ToString("yyyy-MM-dd")
+        };
+
+        return await CreateStudentFeeAssignmentAsync(dto);
+    }
+
+    public async Task<StudentFeeAssignmentDto?> UpdateStudentFeeAssignmentAsync(int id, StudentFeeAssignmentDto dto)
+    {
+        var existing = await _repo.GetStudentFeeAssignmentByIdAsync(id);
+        if (existing == null) return null;
+
+        existing.DynamicFeeStructureId = dto.DynamicFeeStructureId ?? existing.DynamicFeeStructureId;
+        existing.TotalAmount = dto.TotalAmount;
+        existing.PaidAmount = dto.PaidAmount;
+        existing.DueAmount = dto.TotalAmount - dto.PaidAmount;
+        existing.Status = string.IsNullOrWhiteSpace(dto.Status) ? existing.Status : dto.Status;
+        existing.FeePolicy = string.IsNullOrWhiteSpace(dto.FeePolicy) ? existing.FeePolicy : dto.FeePolicy;
+
+        var updated = await _repo.UpdateStudentFeeAssignmentAsync(existing);
+        dto.Id = updated.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteStudentFeeAssignmentAsync(int id)
+    {
+        var existing = await _repo.GetStudentFeeAssignmentByIdAsync(id);
+        if (existing == null) return false;
+
+        await _repo.DeleteStudentFeeAssignmentAsync(id);
+        return true;
     }
 
     public async Task<IEnumerable<FeePaymentDto>> GetFeePaymentsAsync()

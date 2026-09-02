@@ -104,6 +104,17 @@ public class FinanceMasterController : ControllerBase
         return Ok(new { success = true, message = "Financial account updated successfully." });
     }
 
+    [HttpDelete("accounts/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> DeleteAccount(int id)
+    {
+        var success = await _masterService.DeleteAccountAsync(id);
+        if (!success)
+            return NotFound(new { success = false, message = "Account not found." });
+
+        return Ok(new { success = true, message = "Financial account deleted successfully." });
+    }
+
     [HttpGet("categories")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
     public async Task<IActionResult> GetCategories([FromQuery] string? type)
@@ -123,13 +134,35 @@ public class FinanceMasterController : ControllerBase
         return Ok(new { success = true, message = "Category created successfully.", data = result });
     }
 
+    [HttpPut("categories/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    public async Task<IActionResult> UpdateCategory(int id, [FromBody] FinancialCategoryDto category)
+    {
+        var success = await _masterService.UpdateCategoryAsync(id, category);
+        if (!success)
+            return NotFound(new { success = false, message = "Category not found." });
+
+        return Ok(new { success = true, message = "Category updated successfully." });
+    }
+
+    [HttpDelete("categories/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> DeleteCategory(int id)
+    {
+        var success = await _masterService.DeleteCategoryAsync(id);
+        if (!success)
+            return NotFound(new { success = false, message = "Category not found." });
+
+        return Ok(new { success = true, message = "Category deleted successfully." });
+    }
+
     // =========================================================================
     // 3. BUDGETS
     // =========================================================================
 
     [HttpGet("budgets")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
-    public async Task<IActionResult> GetBudgets([FromQuery] string? academicYear = "2026-2027")
+    public async Task<IActionResult> GetBudgets([FromQuery] string? academicYear = "2025-2026")
     {
         var result = await _masterService.GetBudgetsAsync(academicYear);
         return Ok(new { success = true, data = result });
@@ -139,11 +172,22 @@ public class FinanceMasterController : ControllerBase
     [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
     public async Task<IActionResult> SaveBudget([FromBody] FinancialBudgetDto budget)
     {
-        if (budget == null || string.IsNullOrWhiteSpace(budget.Department))
-            return BadRequest(new { success = false, message = "Department and allocated budget are required." });
+        if (budget == null || (string.IsNullOrWhiteSpace(budget.Department) && string.IsNullOrWhiteSpace(budget.CategoryName)))
+            return BadRequest(new { success = false, message = "Category/Department and allocated budget are required." });
 
         var result = await _masterService.SaveBudgetAsync(budget);
         return Ok(new { success = true, message = "Departmental budget allocation saved.", data = result });
+    }
+
+    [HttpPut("budgets/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    public async Task<IActionResult> UpdateBudget(int id, [FromBody] FinancialBudgetDto budget)
+    {
+        var success = await _masterService.UpdateBudgetAsync(id, budget);
+        if (!success)
+            return NotFound(new { success = false, message = "Budget not found." });
+
+        return Ok(new { success = true, message = "Budget allocation updated successfully." });
     }
 
     // =========================================================================
@@ -219,6 +263,14 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
     // 6. REPORTS HUB
     // =========================================================================
+
+    [HttpGet("reports/summary")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> GetReportsSummary([FromQuery] string? academicYear = "2025-2026")
+    {
+        var result = await _masterService.GetReportsSummaryAsync(academicYear);
+        return Ok(new { success = true, data = result });
+    }
 
     [HttpGet("reports/daily-collection")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
@@ -535,5 +587,67 @@ public class FinanceMasterController : ControllerBase
             return NotFound(new { success = false, message = "Hostel fee configuration not found." });
 
         return Ok(new { success = true, message = "Hostel fee configuration deleted successfully." });
+    }
+
+    // =========================================================================
+    // 10. UNIFORM FEE CONFIGURATIONS
+    // =========================================================================
+
+    [HttpGet("uniform-fees")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> GetUniformFeeConfigs(
+        [FromQuery] string? search,
+        [FromQuery] string? className,
+        [FromQuery] string? academicYear,
+        [FromQuery] string? status)
+    {
+        var result = await _masterService.GetUniformFeeConfigsAsync(search, className, academicYear, status);
+        return Ok(new { success = true, data = result });
+    }
+
+    [HttpGet("uniform-fees/{id:int}")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> GetUniformFeeConfigById(int id)
+    {
+        var item = await _masterService.GetUniformFeeConfigByIdAsync(id);
+        if (item == null)
+            return NotFound(new { success = false, message = "Uniform fee configuration not found." });
+        return Ok(new { success = true, data = item });
+    }
+
+    [HttpPost("uniform-fees")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    public async Task<IActionResult> CreateUniformFeeConfig([FromBody] CreateFinanceUniformConfigDto dto)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.ClassName) || string.IsNullOrWhiteSpace(dto.UniformPackage) || dto.FeeAmount < 0)
+            return BadRequest(new { success = false, message = "Class name, uniform package/item, and non-negative fee amount are required." });
+
+        var result = await _masterService.CreateUniformFeeConfigAsync(dto);
+        return Ok(new { success = true, message = "Uniform fee configuration created successfully.", data = result });
+    }
+
+    [HttpPut("uniform-fees/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    public async Task<IActionResult> UpdateUniformFeeConfig(int id, [FromBody] CreateFinanceUniformConfigDto dto)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.ClassName) || string.IsNullOrWhiteSpace(dto.UniformPackage) || dto.FeeAmount < 0)
+            return BadRequest(new { success = false, message = "Class name, uniform package/item, and non-negative fee amount are required." });
+
+        var result = await _masterService.UpdateUniformFeeConfigAsync(id, dto);
+        if (result == null)
+            return NotFound(new { success = false, message = "Uniform fee configuration not found." });
+
+        return Ok(new { success = true, message = "Uniform fee configuration updated successfully.", data = result });
+    }
+
+    [HttpDelete("uniform-fees/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    public async Task<IActionResult> DeleteUniformFeeConfig(int id)
+    {
+        var success = await _masterService.DeleteUniformFeeConfigAsync(id);
+        if (!success)
+            return NotFound(new { success = false, message = "Uniform fee configuration not found." });
+
+        return Ok(new { success = true, message = "Uniform fee configuration deleted successfully." });
     }
 }

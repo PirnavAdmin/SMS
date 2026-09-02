@@ -421,6 +421,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
   // Load real backend data on mount
   const loadBackendData = useCallback(async () => {
+    const extractArray = (res: any) => {
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res?.data)) return res.data;
+      if (Array.isArray(res?.data?.data)) return res.data.data;
+      if (Array.isArray(res?.data?.items)) return res.data.items;
+      if (Array.isArray(res?.items)) return res.items;
+      return [];
+    };
+
     try {
       const [booksRes, categoriesRes, membersRes, issuesRes, finesRes] = await Promise.allSettled([
         LibraryAPI.fetchBooksApi(),
@@ -430,8 +439,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         LibraryAPI.fetchFinesApi()
       ]);
 
-      if (booksRes.status === 'fulfilled' && booksRes.value?.data) {
-        const fetchedBooks = Array.isArray(booksRes.value.data) ? booksRes.value.data : (booksRes.value.data.items || []);
+      if (booksRes.status === 'fulfilled') {
+        const fetchedBooks = extractArray(booksRes.value);
         if (fetchedBooks.length > 0) {
           setBooks(fetchedBooks.map((b: any) => ({
             id: String(b.bookId || b.id),
@@ -444,13 +453,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             availableCopies: Number(b.availableCopies) || 0,
             status: Number(b.availableCopies) > 0 ? 'Available' : 'Issued'
           })));
-        } else {
-          setBooks([]);
+        } else if (contextBooks && contextBooks.length > 0) {
+          setBooks(contextBooks);
         }
       }
 
-      if (issuesRes.status === 'fulfilled' && issuesRes.value?.data) {
-        const fetchedIssues = Array.isArray(issuesRes.value.data) ? issuesRes.value.data : (issuesRes.value.data.items || []);
+      if (issuesRes.status === 'fulfilled') {
+        const fetchedIssues = extractArray(issuesRes.value);
         setBookIssues(fetchedIssues.map((i: any) => ({
           id: String(i.issueId || i.id),
           bookId: String(i.bookId || i.id),
@@ -465,8 +474,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         })));
       }
 
-      if (categoriesRes.status === 'fulfilled' && categoriesRes.value?.data) {
-        const fetchedCats = Array.isArray(categoriesRes.value.data) ? categoriesRes.value.data : [];
+      if (categoriesRes.status === 'fulfilled') {
+        const fetchedCats = extractArray(categoriesRes.value);
         if (fetchedCats.length > 0) {
           setCategories(fetchedCats.map((c: any) => ({
             id: String(c.id || c.code || c.categoryId),
@@ -478,14 +487,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         }
       }
 
-      if (finesRes.status === 'fulfilled' && finesRes.value?.data) {
-        const fetchedFines = Array.isArray(finesRes.value.data) ? finesRes.value.data : [];
+      if (finesRes.status === 'fulfilled') {
+        const fetchedFines = extractArray(finesRes.value);
         setFineRecords(fetchedFines);
       }
     } catch (err) {
       console.warn("Backend API fetch notice:", err);
     }
-  }, []);
+  }, [contextBooks]);
 
   useEffect(() => {
     loadBackendData();
@@ -589,7 +598,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     const { type, id, title } = deletingItem;
 
     if (type === 'book') {
+      try { await LibraryAPI.deleteBookApi(id); } catch (e) {}
       deleteBook(id);
+      await loadBackendData();
       addToast('success', 'Book Deleted', `Removed "${title}" from library catalog.`);
     } else if (type === 'category') {
       try { await LibraryAPI.deleteCategoryApi(id); } catch (e) {}
@@ -2998,8 +3009,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   availableCopies: Number(bookForm.totalCopies) || 1,
                   rackNo: bookForm.rackNo
                 };
-                try { await LibraryAPI.updateBookApi(updatedBk.id, updatedBk); } catch (err) {}
+                try {
+                  await LibraryAPI.updateBookApi(updatedBk.id, {
+                    title: bookForm.title.trim(),
+                    author: bookForm.author.trim(),
+                    category: bookForm.category,
+                    rackLocation: bookForm.rackNo,
+                    totalCopies: Number(bookForm.totalCopies) || 1
+                  });
+                } catch (err) {}
                 addBook(updatedBk);
+                await loadBackendData();
                 addToast('success', 'Book Updated', `Updated "${updatedBk.title}" in library catalog`);
               } else {
                 const newBk: BookItem = {
@@ -3012,8 +3032,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   availableCopies: Number(bookForm.totalCopies) || 1,
                   rackNo: bookForm.rackNo
                 };
-                try { await LibraryAPI.createBookApi(newBk); } catch (err) {}
+                try {
+                  await LibraryAPI.createBookApi({
+                    title: bookForm.title.trim(),
+                    author: bookForm.author.trim(),
+                    category: bookForm.category,
+                    rackLocation: bookForm.rackNo,
+                    totalCopies: Number(bookForm.totalCopies) || 1
+                  });
+                } catch (err) {}
                 addBook(newBk);
+                await loadBackendData();
                 addToast('success', 'Book Registered', `Added "${newBk.title}" to library catalog`);
               }
               setModalType(null);

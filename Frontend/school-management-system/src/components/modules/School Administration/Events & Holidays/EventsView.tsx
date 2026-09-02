@@ -8,10 +8,10 @@ import {
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 import { useAuth } from '../../../../context/AuthContext';
-import { useToast } from '../../../../context/ToastContext';
 import {
   Holiday, SchoolEvent, UnifiedCalendarEvent, UnifiedEventType, HolidayType, EventCategory, Student, Staff
 } from '../../../../types';
+import { fetchHolidaysApi, fetchSchoolEventsApi } from '../../../../api/events';
 
 export const EventsView: React.FC = () => {
   const {
@@ -39,6 +39,27 @@ export const EventsView: React.FC = () => {
     { id: 'HOL-2027-14', name: 'Id-ul-Fitr (Ramzan Eid)', type: 'Gazetted', startDate: '2027-04-09', endDate: '2027-04-09', branch: 'Main Campus', description: 'Gazetted Festival Holiday for Id-ul-Fitr', status: 'Active' },
     { id: 'HOL-2027-15', name: 'Annual Summer Vacation Break', type: 'Vacation', startDate: '2027-05-01', endDate: '2027-06-05', branch: 'Main Campus', description: '5-Week Annual Summer Vacation for Students & Academic Staff', status: 'Active' }
   ], []);
+
+  // Fetch backend holidays & events from API on mount
+  React.useEffect(() => {
+    const loadBackendEventsData = async () => {
+      try {
+        const [hRes, eRes]: any[] = await Promise.all([
+          fetchHolidaysApi(),
+          fetchSchoolEventsApi()
+        ]);
+        if (hRes?.success && Array.isArray(hRes.data) && hRes.data.length > 0) {
+          localStorage.setItem('edu_db_holidays', JSON.stringify(hRes.data));
+        }
+        if (eRes?.success && Array.isArray(eRes.data) && eRes.data.length > 0) {
+          localStorage.setItem('edu_db_school_events', JSON.stringify(eRes.data));
+        }
+      } catch (err) {
+        console.warn("Events & Holidays API load notice:", err);
+      }
+    };
+    loadBackendEventsData();
+  }, []);
 
   // Ensure default realistic holidays are populated into DataContext if initial count is small
   React.useEffect(() => {

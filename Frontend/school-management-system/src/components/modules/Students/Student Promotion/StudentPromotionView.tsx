@@ -103,8 +103,8 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   }, [promotionRows, currentYear, targetYear]);
 
   // Bulk Controls State
-  const [bulkTargetSection, setBulkTargetSection] = useState<string>('Section A');
-  const [bulkStatus, setBulkStatus] = useState<'Promote' | 'Retain'>('Promote');
+  const [bulkTargetSection, setBulkTargetSection] = useState<string>('');
+  const [bulkStatus, setBulkStatus] = useState<string>('');
 
   // Check terminal class status
   const isHighestClass = Boolean(fromClass && fromClass === highestClass);
@@ -447,23 +447,30 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   };
 
   // Bulk Actions
-  const handleApplyBulkSection = () => {
+  const handleApplyBulkSection = (selectedSec?: string) => {
+    const targetSec = selectedSec || bulkTargetSection;
+    if (!targetSec) return;
     if (selectedStudentIds.length === 0) {
-      addToast('warning', 'No Selection', 'Please select at least one student for bulk section assignment.');
+      addToast('warning', 'No Selection', 'Please select at least one student from the list first.');
+      setBulkTargetSection('');
       return;
     }
     setPromotionRows(prev => prev.map(r => {
       if (selectedStudentIds.includes(r.id)) {
-        return { ...r, newSection: bulkTargetSection, remarks: `Bulk assigned to ${bulkTargetSection}` };
+        return { ...r, newSection: targetSec, remarks: `Assigned to ${targetSec}` };
       }
       return r;
     }));
-    addToast('success', 'Bulk Section Applied', `Assigned ${selectedStudentIds.length} student(s) to ${bulkTargetSection}.`);
+    addToast('success', 'Bulk Section Applied', `Assigned ${selectedStudentIds.length} student(s) to ${targetSec}.`);
+    setBulkTargetSection('');
   };
 
-  const handleApplyBulkStatus = () => {
+  const handleApplyBulkStatus = (selectedStat?: 'Promote' | 'Retain') => {
+    const targetStatus = selectedStat || (bulkStatus as 'Promote' | 'Retain');
+    if (!targetStatus) return;
     if (selectedStudentIds.length === 0) {
-      addToast('warning', 'No Selection', 'Please select at least one student for bulk status update.');
+      addToast('warning', 'No Selection', 'Please select at least one student from the list first.');
+      setBulkStatus('');
       return;
     }
     const calculatedNextClass = isHighestClass ? fromClass : getNextClassName(fromClass);
@@ -471,14 +478,15 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       if (selectedStudentIds.includes(r.id)) {
         return {
           ...r,
-          promotionStatus: bulkStatus,
-          newClass: bulkStatus === 'Promote' ? calculatedNextClass : r.currentClass,
-          remarks: `Bulk updated to ${bulkStatus}`
+          promotionStatus: targetStatus,
+          newClass: targetStatus === 'Promote' ? calculatedNextClass : r.currentClass,
+          remarks: `Bulk updated to ${targetStatus}`
         };
       }
       return r;
     }));
-    addToast('success', 'Bulk Status Applied', `Marked ${selectedStudentIds.length} student(s) as ${bulkStatus}.`);
+    addToast('success', 'Bulk Status Applied', `Marked ${selectedStudentIds.length} student(s) as ${targetStatus}.`);
+    setBulkStatus('');
   };
 
   // Real-time Summary Counters
@@ -872,23 +880,20 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               
               {/* POLICY 1: MANUAL ASSIGNMENT CONTROLS */}
               {assignmentMethod === 'Manual' && (
-                <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
-                  <select
-                    value={bulkTargetSection}
-                    onChange={e => setBulkTargetSection(e.target.value)}
-                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                  >
-                    <option value="Section A">Section A</option>
-                    <option value="Section B">Section B</option>
-                    <option value="Section C">Section C</option>
-                  </select>
-                  <button
-                    onClick={handleApplyBulkSection}
-                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-                  >
-                    Apply Section
-                  </button>
-                </div>
+                <select
+                  value={bulkTargetSection}
+                  onChange={e => {
+                    const sec = e.target.value;
+                    setBulkTargetSection(sec);
+                    if (sec) handleApplyBulkSection(sec);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-xs"
+                >
+                  <option value="">Select Section</option>
+                  <option value="Section A">Section A</option>
+                  <option value="Section B">Section B</option>
+                  <option value="Section C">Section C</option>
+                </select>
               )}
 
               {/* POLICY 2: MERIT BASED CONTROLS */}
@@ -928,22 +933,19 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               )}
 
               {/* Common Bulk Status Control */}
-              <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
-                <select
-                  value={bulkStatus}
-                  onChange={e => setBulkStatus(e.target.value as 'Promote' | 'Retain')}
-                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                >
-                  <option value="Promote">Promote</option>
-                  <option value="Retain">Retain</option>
-                </select>
-                <button
-                  onClick={handleApplyBulkStatus}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-                >
-                  Apply Status
-                </button>
-              </div>
+              <select
+                value={bulkStatus}
+                onChange={e => {
+                  const stat = e.target.value as 'Promote' | 'Retain';
+                  setBulkStatus(stat);
+                  if (stat) handleApplyBulkStatus(stat);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-xs"
+              >
+                <option value="">Select Status</option>
+                <option value="Promote">Promote</option>
+                <option value="Retain">Retain</option>
+              </select>
 
               {/* Main Execute Promote CTA Button placed on the far right side */}
               <button
@@ -973,7 +975,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                     <th className="py-3.5 px-4">Overall %</th>
                     <th className="py-3.5 px-4">Grade</th>
                     <th className="py-3.5 px-4">Final Result</th>
-                    <th className="py-3.5 px-4">Promotion Status</th>
                     <th className="py-3.5 px-4">New Class</th>
                     <th className="py-3.5 px-4">Assignment Status</th>
                   </tr>
@@ -981,7 +982,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="text-center py-10 text-slate-400 font-bold">
+                      <td colSpan={10} className="text-center py-10 text-slate-400 font-bold">
                         No active student records matched for {fromClass}
                       </td>
                     </tr>
@@ -1054,22 +1055,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                                 <XCircle className="w-3 h-3" /> FAIL
                               </span>
                             )}
-                          </td>
-
-                          {/* Promotion Status */}
-                          <td className="py-3.5 px-4">
-                            <select
-                              value={r.promotionStatus}
-                              onChange={e => handleRowStatusChange(r.id, e.target.value as 'Promote' | 'Retain')}
-                              className={`px-2.5 py-1 rounded-xl font-extrabold text-xs outline-none border transition-all ${
-                                r.promotionStatus === 'Promote'
-                                  ? 'bg-brand-50 text-brand-700 border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-900'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900'
-                              }`}
-                            >
-                              <option value="Promote">Promote</option>
-                              <option value="Retain">Retain</option>
-                            </select>
                           </td>
 
                           {/* New Class */}

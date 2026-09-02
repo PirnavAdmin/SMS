@@ -790,8 +790,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     return (
       combinedHostelBlocks.find(
         (b) =>
-          b.id.toLowerCase() === target ||
-          b.name.toLowerCase() === target ||
+          String(b.id || "").toLowerCase() === target ||
+          String(b.name || "").toLowerCase() === target ||
           b.rawId?.toString().toLowerCase() === target,
       ) || null
     );
@@ -867,14 +867,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     return (
       availableRoomsForSelectedBlock.find(
         (r) =>
-          r.id.toLowerCase() === target ||
-          r.roomNumber.toLowerCase() === target ||
+          String(r.id || "").toLowerCase() === target ||
+          String(r.roomNumber || "").toLowerCase() === target ||
           r.rawId?.toString().toLowerCase() === target,
       ) ||
       combinedHostelRooms.find(
         (r) =>
-          r.id.toLowerCase() === target ||
-          r.roomNumber.toLowerCase() === target ||
+          String(r.id || "").toLowerCase() === target ||
+          String(r.roomNumber || "").toLowerCase() === target ||
           r.rawId?.toString().toLowerCase() === target,
       ) ||
       null
@@ -1912,16 +1912,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const fh = feeHeads.find((h) => {
       if (!h) return false;
+      const hId = String(h.id || "");
+      const itemFhId = String(item.feeHeadId || "");
       if (
-        item.feeHeadId &&
-        h.id &&
-        h.id.toLowerCase() === item.feeHeadId.toLowerCase()
+        itemFhId &&
+        hId &&
+        hId.toLowerCase() === itemFhId.toLowerCase()
       )
         return true;
       if (
-        item.feeHeadId &&
-        h.id &&
-        h.id.replace("-0", "-") === item.feeHeadId.replace("-0", "-")
+        itemFhId &&
+        hId &&
+        hId.replace("-0", "-") === itemFhId.replace("-0", "-")
       )
         return true;
       if (h.name && nameLower && h.name.toLowerCase().trim() === nameLower)
@@ -2058,7 +2060,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       const fh = (feeHeads || []).find(
         (h) =>
-          (i.feeHeadId && h.id && h.id.toLowerCase() === i.feeHeadId.toLowerCase()) ||
+          (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
           (h.name && i.feeHeadName && h.name.toLowerCase().trim() === i.feeHeadName.toLowerCase().trim()),
       );
 
@@ -2162,7 +2164,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         calculatedFee = baseFare + distance * ratePerKm;
       }
 
-      const trpFee =
+      const monthlyRate =
         pObj && (pObj.monthlyFee ?? 0) > 0
           ? (pObj.monthlyFee ?? 0)
           : calculatedFee > 0
@@ -2171,10 +2173,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               ? ftc.feeAmount
               : 0;
 
+      // Transport fee calculated for full academic year (12 months)
+      const annualTrpFee = monthlyRate * 12;
+
       items.push({
         name: `Transport Fee (${rObj?.routeName || formData.busRoute || "Opted"}${formData.pickupPoint ? ` - ${formData.pickupPoint}` : ""})`,
-        amount: trpFee,
+        amount: annualTrpFee,
         isApplicable: true,
+        remarks: monthlyRate > 0 ? `${formatCurrency(monthlyRate)}/month × 12 months` : undefined,
       });
     } else {
       items.push({
@@ -2372,16 +2378,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
 
     if (scholarshipAmount > 0) {
+      const sObj = scholarships.find((s) => s.id === formData.scholarshipId);
       items.push({
-        name: "Scholarship Deduction",
+        name: `Scholarship Deduction${sObj?.name ? ` (${sObj.name})` : ""}`,
         amount: -scholarshipAmount,
         isApplicable: true,
       });
     }
 
     if (discountAmount > 0) {
+      const dObj = discounts.find((d) => d.id === formData.discountId);
       items.push({
-        name: "Discount Deduction",
+        name: `Discount Deduction${dObj?.name ? ` (${dObj.name})` : ""}`,
         amount: -discountAmount,
         isApplicable: true,
       });
@@ -3521,38 +3529,55 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <div className="relative">
                             <select
                               value={formData.pickupPoint}
+                              disabled={!formData.busRoute}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
                                   pickupPoint: e.target.value,
                                 })
                               }
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                             >
-                              <option value="">Select Stop</option>
-                              {pickupPoints
-                                .filter((p) => {
-                                  if (!formData.busRoute) return true;
-                                  const rObj = routeMasters.find(
-                                    (r) =>
-                                      r.id?.toString() === formData.busRoute?.toString() ||
-                                      r.routeName?.toLowerCase() === formData.busRoute?.toLowerCase() ||
-                                      r.routeCode?.toLowerCase() === formData.busRoute?.toLowerCase()
-                                  );
-                                  const targetRouteId = rObj?.id?.toString() || formData.busRoute;
-                                  const targetRouteName = (rObj?.routeName || formData.busRoute || '').trim().toLowerCase();
+                              <option value="">
+                                {formData.busRoute ? "Select Stop" : "Select Route First"}
+                              </option>
+                              {(() => {
+                                if (!formData.busRoute) return null;
+                                const rObj = routeMasters.find(
+                                  (r) =>
+                                    String(r.id) === String(formData.busRoute) ||
+                                    r.routeName?.toLowerCase() === formData.busRoute?.toLowerCase() ||
+                                    r.routeCode?.toLowerCase() === formData.busRoute?.toLowerCase()
+                                );
+                                const targetRouteId = String(rObj?.id || formData.busRoute);
+                                const targetRouteName = (rObj?.routeName || formData.busRoute || '').trim().toLowerCase();
+                                const targetRouteCode = (rObj?.routeCode || '').trim().toLowerCase();
 
+                                const filtered = pickupPoints.filter((p) => {
+                                  if (!p || !p.pickupName || p.pickupName.toLowerCase() === 'n/a') return false;
+                                  const pRouteId = String(p.routeId || '');
+                                  const pRouteName = (p.routeName || '').trim().toLowerCase();
                                   return (
-                                    (p.routeId && p.routeId.toString() === targetRouteId) ||
-                                    (p.routeName && p.routeName.trim().toLowerCase() === targetRouteName) ||
-                                    (rObj?.routeName && p.routeName && p.routeName.trim().toLowerCase().includes(rObj.routeName.trim().toLowerCase()))
+                                    (pRouteId && (pRouteId === targetRouteId || pRouteId === String(rObj?.id))) ||
+                                    (pRouteName && (pRouteName === targetRouteName || (targetRouteCode && pRouteName === targetRouteCode))) ||
+                                    (targetRouteName && pRouteName.includes(targetRouteName))
                                   );
-                                })
-                                .map((p) => (
+                                });
+
+                                if (filtered.length === 0) {
+                                  return (
+                                    <option value="" disabled>
+                                      No stops configured for this route
+                                    </option>
+                                  );
+                                }
+
+                                return filtered.map((p) => (
                                   <option key={p.id} value={p.pickupName}>
-                                    {p.sequenceNumber ? `${p.sequenceNumber}. ` : ''}{p.pickupName} {p.arrivalTime ? `(${p.arrivalTime})` : ''}
+                                    {p.sequenceNumber ? `${p.sequenceNumber}. ` : ''}{p.pickupName} {p.arrivalTime && p.arrivalTime !== '00:00' ? `(${p.arrivalTime})` : ''}
                                   </option>
-                                ))}
+                                ));
+                              })()}
                             </select>
                             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           </div>
@@ -4143,19 +4168,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         .map((item, idx) => (
                           <div
                             key={idx}
-                            className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex flex-col py-1.5 px-2.5 rounded-xl transition-all space-y-0.5"
+                            className={`${
+                              item.amount < 0
+                                ? "bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60"
+                                : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/60"
+                            } border flex flex-col py-1.5 px-2.5 rounded-xl transition-all space-y-0.5`}
                           >
-                            <div className="flex justify-between items-center w-full">
-                              <span className="font-bold flex items-center gap-1.5 text-slate-750 dark:text-slate-200">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                <span className="truncate max-w-[170px]">
+                            <div className="flex justify-between items-center w-full gap-2">
+                              <span className="font-bold flex items-center gap-1.5 text-slate-750 dark:text-slate-200 min-w-0 flex-1">
+                                <CheckCircle2
+                                  className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0"
+                                />
+                                <span className="truncate" title={item.name}>
                                   {item.name}
                                 </span>
                               </span>
-                              <span className="font-black text-slate-900 dark:text-white">
-                                {item.amount > 0
-                                  ? formatCurrency(item.amount)
-                                  : "N/A"}
+                              <span
+                                className={`font-black whitespace-nowrap shrink-0 text-right ${
+                                  item.amount < 0
+                                    ? "text-emerald-700 dark:text-emerald-400"
+                                    : "text-slate-900 dark:text-white"
+                                }`}
+                              >
+                                {item.amount < 0
+                                  ? `-${formatCurrency(Math.abs(item.amount))}`
+                                  : item.amount > 0
+                                    ? formatCurrency(item.amount)
+                                    : "N/A"}
                               </span>
                             </div>
                             {item.remarks && (
@@ -4471,61 +4510,59 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       {selectedAppForView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
-            {/* Header with SMS Brand Gradient */}
-            <div className="p-5 sm:p-6 bg-gradient-to-r from-brand-600 via-sky-600 to-indigo-600 dark:from-slate-850 dark:via-slate-900 dark:to-slate-950 text-white relative overflow-hidden shrink-0">
+            {/* Header with Pirnav Sky Theme Styling */}
+            <div className="p-5 sm:p-6 bg-sky-50 dark:bg-sky-950/40 border-b border-sky-200 dark:border-sky-800 text-slate-900 dark:text-white relative overflow-hidden shrink-0">
               <div className="relative z-10 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
                   {selectedAppForView.avatar ? (
                     <img
                       src={selectedAppForView.avatar}
                       alt={selectedAppForView.applicantName}
-                      className="w-14 h-14 rounded-2xl object-cover border-2 border-white/40 shadow-md shrink-0 bg-white/10"
+                      className="w-14 h-14 rounded-2xl object-cover border border-sky-200 dark:border-sky-800 shadow-xs shrink-0 bg-white dark:bg-slate-900"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-inner shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-2xs shrink-0">
                       <User className="w-7 h-7" />
                     </div>
                   )}
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                      <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                         {selectedAppForView.applicantName}
                       </h3>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border backdrop-blur-xs ${
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                           selectedAppForView.status === "Enrolled"
-                            ? "bg-emerald-500/25 border-emerald-300/40 text-emerald-100"
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
                             : selectedAppForView.status === "Rejected"
-                              ? "bg-rose-500/25 border-rose-300/40 text-rose-100"
+                              ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800"
                               : selectedAppForView.status === "Approved"
-                                ? "bg-blue-500/25 border-blue-300/40 text-blue-100"
+                                ? "bg-sky-100/80 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700"
                                 : selectedAppForView.status === "Verified"
-                                  ? "bg-amber-500/25 border-amber-300/40 text-amber-100"
-                                  : "bg-white/20 border-white/30 text-white"
+                                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                                  : "bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border-slate-200 dark:border-slate-700"
                         }`}
                       >
                         {selectedAppForView.status}
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-white/90 font-medium">
-                      <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-xs border border-white/20 flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-white/80" /> App
-                        No:{" "}
-                        <span className="font-bold font-mono text-white">
+                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                      <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 flex items-center gap-1.5 text-slate-700 dark:text-slate-300 shadow-2xs">
+                        <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> App No:{" "}
+                        <span className="font-bold font-mono text-slate-900 dark:text-white">
                           {selectedAppForView.applicationNo}
                         </span>
                       </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-xs border border-white/20 flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-white/80" />{" "}
-                        Class:{" "}
-                        <span className="font-bold text-white">
+                      <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 flex items-center gap-1.5 text-slate-700 dark:text-slate-300 shadow-2xs">
+                        <BookOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Class:{" "}
+                        <span className="font-bold text-slate-900 dark:text-white">
                           {selectedAppForView.appliedClass}
                         </span>
                       </span>
                       {selectedAppForView.branch && (
-                        <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-xs border border-white/20 flex items-center gap-1.5 hidden sm:inline-flex">
-                          <MapPin className="w-3.5 h-3.5 text-white/80" />{" "}
+                        <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 flex items-center gap-1.5 text-slate-700 dark:text-slate-300 shadow-2xs hidden sm:inline-flex">
+                          <MapPin className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />{" "}
                           {selectedAppForView.branch}
                         </span>
                       )}
@@ -4535,16 +4572,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                 <button
                   onClick={() => setSelectedAppForView(null)}
-                  className="p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl border border-white/20 shadow-sm backdrop-blur-xs transition-colors shrink-0"
+                  className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-white dark:bg-slate-900 hover:bg-sky-100/60 dark:hover:bg-slate-800 rounded-xl border border-sky-200 dark:border-sky-800 transition-colors shrink-0 cursor-pointer shadow-2xs"
                   title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
-              {/* Subtle background decorative shapes */}
-              <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
-              <div className="absolute left-1/2 -top-10 w-40 h-40 rounded-full bg-brand-400/20 blur-2xl pointer-events-none" />
             </div>
 
             {/* Modal Body */}
@@ -4785,16 +4818,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </p>
                       )}
                     </div>
-                  </div>
-
-                  {/* Submission date tag */}
-                  <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-700/50">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> Submitted:
-                    </span>
-                    <span className="font-semibold text-slate-600 dark:text-slate-400">
-                      {selectedAppForView.submissionDate || "N/A"}
-                    </span>
                   </div>
                 </div>
               </div>

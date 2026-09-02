@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Repositories.Implementations.FinanceManagement;
+namespace SMS.Api.Repositories.Implementations.FinanceManagement;
 
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
@@ -203,11 +203,33 @@ public class FinanceRepository : IFinanceRepository
         return await _context.StudentFeeAssignments.ToListAsync();
     }
 
+    public async Task<StudentFeeAssignment?> GetStudentFeeAssignmentByIdAsync(int id)
+    {
+        return await _context.StudentFeeAssignments.FirstOrDefaultAsync(x => x.Id == id);
+    }
+
     public async Task<StudentFeeAssignment> CreateStudentFeeAssignmentAsync(StudentFeeAssignment assignment)
     {
         _context.StudentFeeAssignments.Add(assignment);
         await _context.SaveChangesAsync();
         return assignment;
+    }
+
+    public async Task<StudentFeeAssignment> UpdateStudentFeeAssignmentAsync(StudentFeeAssignment assignment)
+    {
+        _context.StudentFeeAssignments.Update(assignment);
+        await _context.SaveChangesAsync();
+        return assignment;
+    }
+
+    public async Task DeleteStudentFeeAssignmentAsync(int id)
+    {
+        var item = await _context.StudentFeeAssignments.FirstOrDefaultAsync(x => x.Id == id);
+        if (item != null)
+        {
+            _context.StudentFeeAssignments.Remove(item);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<IEnumerable<FeePayment>> GetFeePaymentsAsync()

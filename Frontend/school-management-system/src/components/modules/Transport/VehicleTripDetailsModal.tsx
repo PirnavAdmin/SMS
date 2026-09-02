@@ -41,7 +41,7 @@ const formatTripTime = (value?: string) => {
   return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
 };
 
-export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = ({
+const VehicleTripDetailsModalContent: React.FC<VehicleTripDetailsModalProps & { assignment: VehicleAssignment }> = ({
   assignment,
   isOpen,
   onClose,
@@ -49,6 +49,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
 }) => {
   const {
     students = [],
+    staff = [],
     studentTransports = [],
     vehicleMasters = [],
     driverMasters = [],
@@ -70,41 +71,53 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     }
   }, [defaultTab, isOpen]);
 
-  if (!isOpen || !assignment) return null;
-
-  const vehicle = vehicleMasters.find(v =>
+  const vehicle = assignment ? (vehicleMasters.find(v =>
     (assignment.vehicleId && String(v.id).trim() === String(assignment.vehicleId).trim()) ||
     (assignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase())
-  ) || vehicleMasters.find(v => v.vehicleNumber === assignment.vehicleNumber);
+  ) || vehicleMasters.find(v => v.vehicleNumber === assignment.vehicleNumber)) : undefined;
 
-  const driver = driverMasters.find(d =>
+  const driver = assignment ? driverMasters.find(d =>
     (assignment.driverId && String(d.id).trim() === String(assignment.driverId).trim()) ||
     (assignment.driverName && d.driverName && d.driverName.trim().toLowerCase() === assignment.driverName.trim().toLowerCase())
-  );
+  ) : undefined;
 
-  const route = routeMasters.find(r =>
+  const route = assignment ? routeMasters.find(r =>
     (assignment.routeId && String(r.id).trim() === String(assignment.routeId).trim()) ||
     (assignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === assignment.routeName.trim().toLowerCase()) ||
     (assignment.routeName && r.routeCode && r.routeCode.trim().toLowerCase() === assignment.routeName.trim().toLowerCase())
-  );
+  ) : undefined;
 
-  const targetRouteId = route?.id ? String(route.id).trim() : (assignment.routeId ? String(assignment.routeId).trim() : '');
-  const targetRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
+  const targetRouteId = route?.id ? String(route.id).trim() : (assignment?.routeId ? String(assignment.routeId).trim() : '');
+  const targetRouteName = (route?.routeName || assignment?.routeName || '').trim().toLowerCase();
   const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
 
-  const attendant = busAttendants.find(a =>
-    a.id === assignment.attendantId ||
-    a.attendantName === assignment.attendantName
+  const attendant = assignment ? (busAttendants.find(a =>
+    (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+    (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
   ) || initialBusAttendants.find(a =>
-    a.id === assignment.attendantId ||
-    a.attendantName === assignment.attendantName
-  );
+    (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+    (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
+  )) : undefined;
 
-  const attendantName = assignment.attendantName || attendant?.attendantName || 'Unassigned';
-  const attendantMobile = assignment.attendantMobile || attendant?.mobileNumber || '';
-  const seatingCapacity = vehicle ? vehicle.capacity : assignment.vehicleCapacity || 50;
-  const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
-  const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
+  const matchedStaff = assignment ? staff.find(s => {
+    const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+    const attName = (assignment.attendantName || attendant?.attendantName || '').trim().toLowerCase();
+    const staffEmpId = (s.employeeId || s.id || '').trim().toLowerCase();
+    const targetEmpId = (attendant?.employeeId || assignment.attendantEmployeeId || assignment.attendantId || '').trim().toLowerCase();
+
+    return (
+      (targetEmpId && staffEmpId === targetEmpId) ||
+      (attName && (staffFullName === attName || staffFullName.includes(attName) || attName.includes(staffFullName)))
+    );
+  }) : undefined;
+
+  const attendantName = (assignment?.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
+    ? assignment.attendantName
+    : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName}` : 'Unassigned'));
+  const attendantMobile = assignment?.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '+91-9878909876';
+  const seatingCapacity = vehicle ? vehicle.capacity : (assignment?.vehicleCapacity || 50);
+  const morningTripTime = formatTripTime(assignment?.morningTripTime || '07:00');
+  const eveningTripTime = formatTripTime(assignment?.eveningTripTime || '15:45');
 
   const configuredStops = pickupPoints
     .filter((point: PickupPoint) => 
@@ -132,121 +145,160 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     displayStops = [];
   }
 
-  // Find enrolled students strictly assigned to this route
-  const matchedEnrolledStudents = students.filter(student => {
-    const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-    if (!isStudentActive) return false;
+  // Dynamic route student resolution
+  const dynamicAssignedStudents = React.useMemo(() => {
+    const studentMap = new Map<string, any>();
 
-    // 1. Look up student transport assignment
-    const stAssignment = studentTransports.find(st => {
+    // 1. From studentTransports
+    studentTransports.forEach(st => {
       const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-      if (!isStatusActive) return false;
+      if (!isStatusActive) return;
 
-      return (
-        (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-        (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
+      const stRouteId = String(st.routeId || '').trim();
+      const stRouteName = (st.routeName || '').trim().toLowerCase();
+
+      const matchRt = Boolean(
+        (targetRouteId && stRouteId && stRouteId === targetRouteId) ||
+        (targetRouteName && stRouteName && (stRouteName === targetRouteName || (targetRouteCode && stRouteName === targetRouteCode)))
       );
+
+      if (!matchRt) return;
+
+      const student = students.find(s =>
+        (st.studentId && s.id && String(st.studentId).trim() === String(s.id).trim()) ||
+        (st.admissionNo && s.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(s.admissionNo).trim().toLowerCase())
+      );
+
+      const matchedAdm = admissions.find(a =>
+        (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase()) ||
+        (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase()) ||
+        (st.studentId && a.id && String(a.id).trim() === String(st.studentId).trim())
+      );
+
+      const key = String(student?.id || st.studentId || student?.admissionNo || st.admissionNo || st.id);
+      const fullName = (student?.name || `${student?.firstName || ''} ${student?.lastName || ''}`.trim() || st.studentName || matchedAdm?.applicantName || 'Enrolled Student').trim();
+      const pName = (student?.fatherName || (student as any)?.fatherFullName || student?.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student?.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+      const pMobile = (
+        student?.fatherPhone ||
+        (student as any)?.fatherMobile ||
+        (student as any)?.fatherMobileNo ||
+        (student as any)?.fatherContact ||
+        student?.parentPhone ||
+        (student as any)?.parentContact ||
+        student?.phone ||
+        (student as any)?.mobileNumber ||
+        matchedAdm?.phone ||
+        student?.motherPhone ||
+        (student as any)?.motherMobile ||
+        matchedAdm?.motherPhone ||
+        matchedAdm?.alternatePhone ||
+        'N/A'
+      ).trim();
+
+      const rawPoint = st.pickupPoint || student?.pickupPoint || matchedAdm?.pickupPoint;
+      const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
+        ? rawPoint.trim()
+        : (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
+
+      studentMap.set(key, {
+        id: student?.id || st.studentId || key,
+        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || '-',
+        studentName: fullName,
+        gender: student?.gender || matchedAdm?.gender || 'Male',
+        className: student?.className || matchedAdm?.appliedClass || 'Class 10',
+        section: student?.section || 'A',
+        rollNo: student?.rollNo || '1',
+        pickupPoint: pPoint,
+        parentName: pName,
+        parentMobile: pMobile,
+        morningTime: morningTripTime,
+        eveningTime: eveningTripTime
+      });
     });
 
-    // 2. Look up admission application record
-    const matchedAdm = admissions.find(a =>
-      (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.id && student.id && String(a.id).trim() === String(student.id).trim())
-    );
-
-    // Strict route match check
-    let isAssignedToThisRoute = false;
-
-    if (stAssignment) {
-      const stRouteId = stAssignment.routeId ? String(stAssignment.routeId).trim() : '';
-      const stRouteName = (stAssignment.routeName || '').trim().toLowerCase();
-
-      if (targetRouteId && stRouteId && stRouteId === targetRouteId) {
-        isAssignedToThisRoute = true;
-      } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && stRouteName === targetRouteName) {
-        isAssignedToThisRoute = true;
-      } else if (targetRouteCode && stRouteName === targetRouteCode) {
-        isAssignedToThisRoute = true;
+    // 2. From students profile / admissions
+    students.forEach(student => {
+      const stStatus = (student.status || '').toLowerCase();
+      if (stStatus === 'inactive' || stStatus === 'discontinued' || stStatus === 'transferred' || stStatus === 'withdrawn') {
+        return;
       }
-    }
 
-    if (!isAssignedToThisRoute) {
-      const sRoute = (student.busRoute || student.routeId || matchedAdm?.busRoute || '').trim().toLowerCase();
-      const isTransportOpted = student.transportRequired === true || matchedAdm?.transportRequired === true || (sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned');
+      const key = String(student.id || student.admissionNo);
+      if (studentMap.has(key)) return;
 
-      if (isTransportOpted && sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned') {
-        if (targetRouteId && (sRoute === targetRouteId || (student.routeId && String(student.routeId).trim() === targetRouteId))) {
-          isAssignedToThisRoute = true;
-        } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && sRoute === targetRouteName) {
-          isAssignedToThisRoute = true;
-        } else if (targetRouteCode && sRoute === targetRouteCode) {
-          isAssignedToThisRoute = true;
-        }
+      const otherAssignment = studentTransports.find(st => {
+        const isActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+        if (!isActive) return false;
+        return (
+          (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+          (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+        );
+      });
+      if (otherAssignment) return;
+
+      const matchedAdm = admissions.find(a =>
+        (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
+        (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
+        (a.id && student.id && String(a.id).trim() === String(student.id).trim())
+      );
+
+      const studRoute = (student.busRoute || matchedAdm?.busRoute || '').trim().toLowerCase();
+      const studRouteId = String(student.routeId || '').trim();
+
+      const matchProfileRt = Boolean(
+        (targetRouteId && studRouteId && studRouteId === targetRouteId) ||
+        (targetRouteId && studRoute && studRoute === targetRouteId) ||
+        (targetRouteName && studRoute && (studRoute === targetRouteName || (targetRouteCode && studRoute === targetRouteCode)))
+      );
+
+      if (matchProfileRt) {
+        const fullName = (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || matchedAdm?.applicantName || 'Enrolled Student').trim();
+        const pName = (student.fatherName || (student as any)?.fatherFullName || student.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+        const pMobile = (
+          student.fatherPhone ||
+          (student as any)?.fatherMobile ||
+          (student as any)?.fatherMobileNo ||
+          (student as any)?.fatherContact ||
+          student.parentPhone ||
+          (student as any)?.parentContact ||
+          student.phone ||
+          (student as any)?.mobileNumber ||
+          matchedAdm?.phone ||
+          student.motherPhone ||
+          (student as any)?.motherMobile ||
+          matchedAdm?.motherPhone ||
+          matchedAdm?.alternatePhone ||
+          'N/A'
+        ).trim();
+
+        const rawPoint = student.pickupPoint || matchedAdm?.pickupPoint;
+        const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
+          ? rawPoint.trim()
+          : (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
+
+        studentMap.set(key, {
+          id: student.id,
+          admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
+          studentName: fullName,
+          gender: student.gender || matchedAdm?.gender || 'Male',
+          className: student.className || matchedAdm?.appliedClass || 'Class 10',
+          section: student.section || 'A',
+          rollNo: student.rollNo || '1',
+          pickupPoint: pPoint,
+          parentName: pName,
+          parentMobile: pMobile,
+          morningTime: morningTripTime,
+          eveningTime: eveningTripTime
+        });
       }
-    }
+    });
 
-    return isAssignedToThisRoute;
-  });
+    return Array.from(studentMap.values());
+  }, [students, studentTransports, admissions, targetRouteId, targetRouteName, targetRouteCode, displayStops, morningTripTime, eveningTripTime]);
 
-  const assignedStudentsList = matchedEnrolledStudents.map(student => {
-    const stAssignment = studentTransports.find(st =>
-      (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-      (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
-    );
-
-    const matchedAdm = admissions.find(a =>
-      (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.id && student.id && String(a.id).trim() === String(student.id).trim())
-    );
-
-    const fullName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || matchedAdm?.applicantName || 'Enrolled Student';
-    const pName = (student.fatherName || (student as any).fatherFullName || student.parentName || matchedAdm?.parentName || (student as any).guardianName || student.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
-    const pMobile = (
-      student.fatherPhone ||
-      (student as any).fatherMobile ||
-      (student as any).fatherMobileNo ||
-      (student as any).fatherContact ||
-      student.parentPhone ||
-      (student as any).parentContact ||
-      student.phone ||
-      (student as any).mobileNumber ||
-      matchedAdm?.phone ||
-      student.motherPhone ||
-      (student as any).motherMobile ||
-      matchedAdm?.motherPhone ||
-      matchedAdm?.alternatePhone ||
-      'N/A'
-    ).trim();
-
-    const rawPoint = (
-      stAssignment?.pickupPoint ||
-      student.pickupPoint ||
-      matchedAdm?.pickupPoint ||
-      (student as any).dropPoint
-    );
-    const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
-      ? rawPoint.trim()
-      : (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
-
-    return {
-      id: student.id,
-      admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
-      studentName: fullName,
-      gender: student.gender || matchedAdm?.gender || 'Male',
-      className: student.className || matchedAdm?.appliedClass || 'Class 5',
-      section: student.section || 'A',
-      rollNo: student.rollNo || '1',
-      pickupPoint: pPoint,
-      parentName: pName,
-      parentMobile: pMobile,
-      morningTime: morningTripTime,
-      eveningTime: eveningTripTime
-    };
-  });
-
-  const displayStudentsList = assignedStudentsList;
+  const assignedStudentsList = dynamicAssignedStudents;
+  const matchedEnrolledStudents = dynamicAssignedStudents;
+  const displayStudentsList = dynamicAssignedStudents;
 
   // Dynamic Route-Specific Pickup Points (FOR THIS ROUTE ONLY)
   const pointsSet = new Set<string>();
@@ -791,5 +843,23 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
         </div>
       </div>
     </div>
+  );
+};
+
+export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = ({
+  assignment,
+  isOpen,
+  onClose,
+  defaultTab = 'overview'
+}) => {
+  if (!isOpen || !assignment) return null;
+
+  return (
+    <VehicleTripDetailsModalContent
+      assignment={assignment}
+      isOpen={isOpen}
+      onClose={onClose}
+      defaultTab={defaultTab}
+    />
   );
 };

@@ -69,6 +69,119 @@ export const FinanceUniformConfigView: React.FC = () => {
     return matchQuery && matchClass;
   });
 
+  // Dynamic uniform items mapped from Uniform Management module (categories, inventory, apparel & packages)
+  const uniformItemsList = React.useMemo(() => {
+    const packageItemsMap = new Map<string, { name: string; defaultGender?: string; defaultPrice?: number }>();
+    const apparelItemsMap = new Map<string, { name: string; defaultGender?: string; defaultPrice?: number }>();
+    const additionalItemsMap = new Map<string, { name: string; defaultGender?: string; defaultPrice?: number }>();
+
+    // 1. Standard Built-in Admission Packages
+    const standardPackages = [
+      { name: 'Full Kit', defaultGender: 'Unisex', defaultPrice: 3500 },
+      { name: 'Boys Uniform Package (Admission Kit)', defaultGender: 'Male', defaultPrice: 3200 },
+      { name: 'Girls Uniform Package (Admission Kit)', defaultGender: 'Female', defaultPrice: 3200 },
+      { name: 'Sports Uniform Kit', defaultGender: 'Unisex', defaultPrice: 1800 },
+      { name: 'Cloth / Fabric Package', defaultGender: 'Unisex', defaultPrice: 600 }
+    ];
+    standardPackages.forEach(p => packageItemsMap.set(p.name.toLowerCase().trim(), p));
+
+    // 2. Uniform Categories created in Uniform Management
+    (uniformCategories || []).forEach(cat => {
+      const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
+      if (!rawName) return;
+      const lower = rawName.toLowerCase().trim();
+      let gen: string = 'Unisex';
+      if (lower.includes('boy')) gen = 'Male';
+      if (lower.includes('girl')) gen = 'Female';
+
+      if (lower.includes('package') || lower.includes('kit') || lower.includes('admission')) {
+        if (!packageItemsMap.has(lower)) {
+          packageItemsMap.set(lower, { name: rawName, defaultGender: gen });
+        }
+      } else {
+        if (!apparelItemsMap.has(lower)) {
+          apparelItemsMap.set(lower, { name: rawName, defaultGender: gen });
+        }
+      }
+    });
+
+    // 3. Uniform Items / Inventory Types created in Uniform Management
+    (uniforms || []).forEach(u => {
+      if (!u) return;
+      const rawName = (u.category || (u as any).name || (u as any).itemName || '').trim();
+      if (!rawName) return;
+      const lower = rawName.toLowerCase().trim();
+      const price = (u as any).price || (u as any).unitPrice || (u as any).standardPrice;
+      let gen = u.gender || 'Unisex';
+      if (lower.includes('boy')) gen = 'Male';
+      if (lower.includes('girl')) gen = 'Female';
+
+      if (lower.includes('package') || lower.includes('kit') || lower.includes('admission')) {
+        if (!packageItemsMap.has(lower)) {
+          packageItemsMap.set(lower, { name: rawName, defaultGender: gen, defaultPrice: price });
+        } else if (price && !packageItemsMap.get(lower)?.defaultPrice) {
+          packageItemsMap.get(lower)!.defaultPrice = price;
+        }
+      } else if (
+        lower.includes('shirt') || lower.includes('trouser') || lower.includes('pant') ||
+        lower.includes('skirt') || lower.includes('frock') || lower.includes('blazer') ||
+        lower.includes('sweater') || lower.includes('track') || lower.includes('tie') ||
+        lower.includes('belt') || lower.includes('sock') || lower.includes('shoe') ||
+        lower.includes('cloth') || lower.includes('fabric') || lower.includes('t-shirt')
+      ) {
+        if (!apparelItemsMap.has(lower)) {
+          apparelItemsMap.set(lower, { name: rawName, defaultGender: gen, defaultPrice: price });
+        } else if (price && !apparelItemsMap.get(lower)?.defaultPrice) {
+          apparelItemsMap.get(lower)!.defaultPrice = price;
+        }
+      } else {
+        if (!additionalItemsMap.has(lower)) {
+          additionalItemsMap.set(lower, { name: rawName, defaultGender: gen, defaultPrice: price });
+        } else if (price && !additionalItemsMap.get(lower)?.defaultPrice) {
+          additionalItemsMap.get(lower)!.defaultPrice = price;
+        }
+      }
+    });
+
+    return {
+      packages: Array.from(packageItemsMap.values()),
+      apparel: Array.from(apparelItemsMap.values()),
+      additional: Array.from(additionalItemsMap.values()),
+      all: [
+        ...Array.from(packageItemsMap.values()),
+        ...Array.from(apparelItemsMap.values()),
+        ...Array.from(additionalItemsMap.values())
+      ]
+    };
+  }, [uniformCategories, uniforms]);
+
+  const handleUniformItemSelect = (selectedName: string) => {
+    const found = uniformItemsList.all.find(
+      i => i.name.toLowerCase().trim() === selectedName.toLowerCase().trim()
+    );
+
+    let nextGender: 'Male' | 'Female' | 'Unisex' = form.gender || 'Unisex';
+    if (found?.defaultGender && found.defaultGender !== 'Unisex') {
+      nextGender = found.defaultGender as any;
+    } else if (selectedName.toLowerCase().includes('boy')) {
+      nextGender = 'Male';
+    } else if (selectedName.toLowerCase().includes('girl')) {
+      nextGender = 'Female';
+    }
+
+    let nextAmount = form.feeAmount;
+    if (found?.defaultPrice !== undefined && (!form.feeAmount || form.feeAmount === 3500 || form.feeAmount === 7000)) {
+      nextAmount = found.defaultPrice;
+    }
+
+    setForm(prev => ({
+      ...prev,
+      uniformPackage: selectedName,
+      gender: nextGender,
+      feeAmount: nextAmount
+    }));
+  };
+
   const handleOpenAdd = () => {
     setEditingConfig(null);
     setForm({
@@ -93,7 +206,7 @@ export const FinanceUniformConfigView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.className || !form.uniformPackage || !form.feeAmount) {
+    if (!form.className || !form.uniformPackage || form.feeAmount === undefined || form.feeAmount === null) {
       addToast('warning', 'Missing Fields', 'Please complete all required fields (Class, Package/Item, Fee Amount).');
       return;
     }
@@ -236,7 +349,7 @@ export const FinanceUniformConfigView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Shirt className="w-5 h-5 text-sky-500" /> Add Uniform Fee
+              <Shirt className="w-5 h-5 text-sky-500" /> {editingConfig ? 'Edit Uniform Fee' : 'Add Uniform Fee'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -275,64 +388,44 @@ export const FinanceUniformConfigView: React.FC = () => {
 
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                {(() => {
-                  const basePackagesMap = new Map<string, string>();
-                  const additionalItemsMap = new Map<string, string>();
+                <select
+                  required
+                  value={form.uniformPackage || ''}
+                  onChange={e => handleUniformItemSelect(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold outline-none cursor-pointer"
+                >
+                  <option value="">-- Select Package / Item --</option>
+                  
+                  {uniformItemsList.packages.length > 0 && (
+                    <optgroup label="Uniform Packages & Kits (Uniform Management)">
+                      {uniformItemsList.packages.map(pkg => (
+                        <option key={pkg.name} value={pkg.name}>
+                          {pkg.name} {pkg.defaultPrice ? `(₹${pkg.defaultPrice.toLocaleString()})` : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
 
-                  (uniforms || []).forEach(u => {
-                    if (!u) return;
-                    const rawName = (u.category || u.name || '').trim();
-                    if (!rawName) return;
-                    const lowerKey = rawName.toLowerCase();
-                    const isBoysPkg = lowerKey.includes('boys') && (lowerKey.includes('package') || lowerKey.includes('admission') || lowerKey.includes('kit'));
-                    const isGirlsPkg = lowerKey.includes('girls') && (lowerKey.includes('package') || lowerKey.includes('admission') || lowerKey.includes('kit'));
-                    const isCloth = lowerKey === 'cloth' || lowerKey.includes('unstitched') || lowerKey === 'fabric' || lowerKey.includes('cloth package');
+                  {uniformItemsList.apparel.length > 0 && (
+                    <optgroup label="Apparel & Uniform Items (Uniform Management)">
+                      {uniformItemsList.apparel.map(item => (
+                        <option key={item.name} value={item.name}>
+                          {item.name} {item.defaultPrice ? `(₹${item.defaultPrice.toLocaleString()})` : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
 
-                    if (isCloth || isBoysPkg || isGirlsPkg) {
-                      basePackagesMap.set(lowerKey, rawName);
-                    } else {
-                      additionalItemsMap.set(lowerKey, rawName);
-                    }
-                  });
-
-                  if (!basePackagesMap.has('cloth')) {
-                    basePackagesMap.set('cloth', 'Cloth');
-                  }
-
-                  const basePackages = Array.from(basePackagesMap.values());
-                  const additionalItems = Array.from(additionalItemsMap.values());
-
-                  return (
-                    <select
-                      required
-                      value={form.uniformPackage || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        let genderVal: 'Male' | 'Female' | 'Unisex' = form.gender || 'Unisex';
-                        if (val.toLowerCase().includes('boys')) genderVal = 'Male';
-                        if (val.toLowerCase().includes('girls')) genderVal = 'Female';
-                        setForm({ ...form, uniformPackage: val, gender: genderVal });
-                      }}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold outline-none cursor-pointer"
-                    >
-                      <option value="">-- Select Package / Item --</option>
-                      {basePackages.length > 0 && (
-                        <optgroup label="Base Packages (Admission Kit & Material)">
-                          {basePackages.map(pkg => (
-                            <option key={pkg} value={pkg}>{pkg}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {additionalItems.length > 0 && (
-                        <optgroup label="Additional Packages / Extra Items">
-                          {additionalItems.map(item => (
-                            <option key={item} value={item}>{item}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  );
-                })()}
+                  {uniformItemsList.additional.length > 0 && (
+                    <optgroup label="Additional Uniform Items (Uniform Management)">
+                      {uniformItemsList.additional.map(item => (
+                        <option key={item.name} value={item.name}>
+                          {item.name} {item.defaultPrice ? `(₹${item.defaultPrice.toLocaleString()})` : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
               </div>
 
               {/* Fabric Measurement Specification Dropdown (if Cloth/Fabric item selected) */}
@@ -369,8 +462,8 @@ export const FinanceUniformConfigView: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-extrabold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20">Save</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-extrabold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20 cursor-pointer">Save</button>
               </div>
             </form>
           </div>

@@ -8,7 +8,7 @@ import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
 import { WardenCommunicationHubView } from './WardenCommunicationHubView';
-import { createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
+import { fetchNotificationsApi, createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 
 export interface AnnouncementItem {
   id: string;
@@ -29,11 +29,6 @@ export interface AnnouncementItem {
 export const CommunicationView: React.FC = () => {
   const { user, role } = useAuth();
   const userRole = (user?.role || role || '').toLowerCase();
-  const isHostelWarden = userRole === 'hostel warden' || userRole.includes('warden');
-  if (isHostelWarden) {
-    return <WardenCommunicationHubView />;
-  }
-
   const { announcements: contextAnnouncements, addAnnouncement, saveAnnouncements, students = [], staff = [] } = useData();
   const { addToast } = useToast();
 
@@ -69,7 +64,8 @@ export const CommunicationView: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
-  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole;
+  const isWardenRole = userRole.includes('warden');
+  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole && !isWardenRole;
 
   // Form State
   const [title, setTitle] = useState('');
@@ -89,11 +85,11 @@ export const CommunicationView: React.FC = () => {
     {
       id: 'ANN-REAL-2',
       title: '🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday',
-      content: 'Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.',
+      content: 'Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (Dispatched on 2026-08-24 at 02:48 PM). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.',
       targetAudience: 'ALL',
       category: 'URGENT',
-      date: '2026-08-18',
-      time: '08:15 AM',
+      date: '2026-08-24',
+      time: '09:30 AM',
       author: 'Principal Office',
       isPinned: true,
       recipientsCount: 1420,
@@ -111,32 +107,6 @@ export const CommunicationView: React.FC = () => {
       isPinned: false,
       recipientsCount: 1420,
       deliveryChannels: 'SMS & Email'
-    },
-    {
-      id: 'ANN-REAL-4',
-      title: 'Annual Sports Meet Registration Open',
-      content: 'Submit entries to PE department before August 5th. Inter-house selection trials will be conducted on August 8th in the main sports grounds.',
-      targetAudience: 'STUDENTS ONLY',
-      category: 'SPORTS',
-      date: '2026-07-20',
-      time: '10:30 AM',
-      author: 'PE Department',
-      isPinned: false,
-      recipientsCount: 850,
-      deliveryChannels: 'SMS & App Push'
-    },
-    {
-      id: 'ANN-REAL-5',
-      title: 'Mid-Term Review & Pedagogical Standards Alignment',
-      content: 'All teachers are requested to update their lesson plans and student progress reports by this Friday. We will have a short alignment briefing during department meetings.',
-      targetAudience: 'STAFF ONLY',
-      category: 'ACADEMIC',
-      date: '2026-07-30',
-      time: '02:00 PM',
-      author: 'Academic Coordinator',
-      isPinned: false,
-      recipientsCount: 120,
-      deliveryChannels: 'Email Blast'
     }
   ], []);
 
@@ -153,6 +123,37 @@ export const CommunicationView: React.FC = () => {
     }
     return defaultAnnouncements;
   });
+
+  // Fetch backend broadcast notifications on mount
+  useEffect(() => {
+    const loadBackendNotifications = async () => {
+      try {
+        const res: any = await fetchNotificationsApi();
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: AnnouncementItem[] = res.data.map((item: any) => ({
+            id: String(item.id || item.circularId || `ANN-${item.circularId}`),
+            title: item.title,
+            content: item.content,
+            targetAudience: item.targetAudience || 'ALL',
+            category: (item.category || 'GENERAL').toUpperCase(),
+            date: item.createdDate || item.date || new Date().toISOString().split('T')[0],
+            time: item.time || '09:30 AM',
+            author: item.author || 'School Administration',
+            isPinned: !!item.isPinned,
+            recipientsCount: item.deliveredCount || 1420,
+            deliveryChannels: (item.smsSent && item.emailSent) ? 'SMS & Email' : (item.smsSent ? 'SMS' : 'Email')
+          }));
+
+          setLocalList(mapped);
+          localStorage.setItem('broadcast_announcements_store', JSON.stringify(mapped));
+        }
+      } catch (err) {
+        console.warn("Backend notifications load notice:", err);
+      }
+    };
+
+    loadBackendNotifications();
+  }, []);
 
   // Sync contextAnnouncements into localList if available
   useEffect(() => {
@@ -527,22 +528,24 @@ export const CommunicationView: React.FC = () => {
               <Megaphone className="w-4 h-4" />
               Broadcast Notifications
             </button>
-            <button
-              onClick={() => setActiveTab('meetings')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                activeTab === 'meetings'
-                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Meetings & Schedules
-            </button>
+            {!isWardenRole && (
+              <button
+                onClick={() => setActiveTab('meetings')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  activeTab === 'meetings'
+                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Meetings & Schedules
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? (
+      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole) ? (
         <MeetingsView />
       ) : (
         <div className="space-y-4 max-w-full">

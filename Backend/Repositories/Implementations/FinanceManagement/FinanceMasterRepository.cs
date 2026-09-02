@@ -17,196 +17,19 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     // Thread-safe in-memory stores for extended financial operational items
     private static readonly ConcurrentDictionary<int, FinanceTransactionDto> _manualTransactions = new();
-    private static readonly List<FinancialAccountDto> _accounts = new()
-    {
-        new FinancialAccountDto { Id = 1, AccountName = "Main Operating Account", AccountType = "Main Bank Account", AccountNumber = "HDFC-0982348123", BankName = "HDFC Bank", BranchName = "HITEC City", CurrentBalance = 4250000m, Status = "Active" },
-        new FinancialAccountDto { Id = 2, AccountName = "School Petty Cash", AccountType = "Petty Cash", AccountNumber = "CASH-DESK-01", BankName = "Internal Cash Drawer", BranchName = "Main Campus", CurrentBalance = 85000m, Status = "Active" },
-        new FinancialAccountDto { Id = 3, AccountName = "Online Gateway Clearing", AccountType = "Gateway Account", AccountNumber = "RZP-MID-781920", BankName = "Razorpay Gateway", BranchName = "Virtual", CurrentBalance = 780000m, Status = "Active" },
-        new FinancialAccountDto { Id = 4, AccountName = "Hostel & Transport Reserve", AccountType = "Escrow Account", AccountNumber = "ICICI-5541092831", BankName = "ICICI Bank", BranchName = "Madhapur", CurrentBalance = 1200000m, Status = "Active" }
-    };
-    private static readonly List<FinancialCategoryDto> _categories = new()
-    {
-        new FinancialCategoryDto { Id = 1, Name = "Tuition & Academic Fees", Type = "Income", SourceModule = "Fees" },
-        new FinancialCategoryDto { Id = 2, Name = "Hostel Accommodation", Type = "Income", SourceModule = "Hostel" },
-        new FinancialCategoryDto { Id = 3, Name = "Bus Transportation", Type = "Income", SourceModule = "Transport" },
-        new FinancialCategoryDto { Id = 4, Name = "Uniform & Kit Sales", Type = "Income", SourceModule = "Uniform" },
-        new FinancialCategoryDto { Id = 5, Name = "Donations & Grants", Type = "Income", SourceModule = "Manual" },
-        new FinancialCategoryDto { Id = 6, Name = "Staff Salaries & Payroll", Type = "Expense", SourceModule = "Payroll" },
-        new FinancialCategoryDto { Id = 7, Name = "Campus Infrastructure Maintenance", Type = "Expense", SourceModule = "Manual" },
-        new FinancialCategoryDto { Id = 8, Name = "Laboratory Equipment & Consumables", Type = "Expense", SourceModule = "Inventory" },
-        new FinancialCategoryDto { Id = 9, Name = "Utility Bills (Electricity & Water)", Type = "Expense", SourceModule = "Manual" }
-    };
-    private static readonly List<FinancialBudgetDto> _budgets = new()
-    {
-        new FinancialBudgetDto { Id = 1, Department = "Academic & Curriculum", AcademicYear = "2026-2027", AllocatedBudget = 1500000m, UtilizedBudget = 620000m, Status = "On Track" },
-        new FinancialBudgetDto { Id = 2, Department = "Transportation & Fleet", AcademicYear = "2026-2027", AllocatedBudget = 800000m, UtilizedBudget = 340000m, Status = "On Track" },
-        new FinancialBudgetDto { Id = 3, Department = "Hostel & Food Services", AcademicYear = "2026-2027", AllocatedBudget = 1200000m, UtilizedBudget = 580000m, Status = "On Track" },
-        new FinancialBudgetDto { Id = 4, Department = "Sports & Extra-Curricular", AcademicYear = "2026-2027", AllocatedBudget = 500000m, UtilizedBudget = 210000m, Status = "On Track" },
-        new FinancialBudgetDto { Id = 5, Department = "Campus Maintenance & IT", AcademicYear = "2026-2027", AllocatedBudget = 900000m, UtilizedBudget = 450000m, Status = "On Track" }
-    };
+    private static readonly List<FinancialAccountDto> _accounts = new();
+    private static readonly List<FinancialCategoryDto> _categories = new();
+    private static readonly List<FinancialBudgetDto> _budgets = new();
     private static readonly ConcurrentDictionary<int, FeeRefundRequestDto> _refunds = new();
-    private static FeeScheduleConfigDto _feeSchedule = new()
-    {
-        Id = "SCH-2026-2027",
-        AcademicYear = "2026-2027",
-        NumberOfTerms = 4,
-        Status = "Published",
-        AnnualDueDate = "2026-04-15",
-        OneTimeDueDate = "2026-04-15",
-        Terms = new List<FeeScheduleTermDto>
-        {
-            new FeeScheduleTermDto { Id = "T1-2026-2027", Sequence = 1, TermName = "Term 1", StartDate = "2026-04-01", EndDate = "2026-06-30", DueDate = "2026-04-15", Status = "Active", PercentageShare = 25.0 },
-            new FeeScheduleTermDto { Id = "T2-2026-2027", Sequence = 2, TermName = "Term 2", StartDate = "2026-07-01", EndDate = "2026-09-30", DueDate = "2026-07-15", Status = "Active", PercentageShare = 25.0 },
-            new FeeScheduleTermDto { Id = "T3-2026-2027", Sequence = 3, TermName = "Term 3", StartDate = "2026-10-01", EndDate = "2026-12-31", DueDate = "2026-10-15", Status = "Active", PercentageShare = 25.0 },
-            new FeeScheduleTermDto { Id = "T4-2026-2027", Sequence = 4, TermName = "Term 4", StartDate = "2027-01-01", EndDate = "2027-03-31", DueDate = "2027-01-15", Status = "Active", PercentageShare = 25.0 }
-        },
-        MonthlyConfig = new MonthlyDueDateConfigDto
-        {
-            ApplySameDayToAllMonths = true,
-            DueDay = 10,
-            MonthDueDates = new List<MonthDueDateItemDto>
-            {
-                new MonthDueDateItemDto { MonthIndex = 0, MonthName = "April", DueDate = "2026-04-10" },
-                new MonthDueDateItemDto { MonthIndex = 1, MonthName = "May", DueDate = "2026-05-10" },
-                new MonthDueDateItemDto { MonthIndex = 2, MonthName = "June", DueDate = "2026-06-10" },
-                new MonthDueDateItemDto { MonthIndex = 3, MonthName = "July", DueDate = "2026-07-10" },
-                new MonthDueDateItemDto { MonthIndex = 4, MonthName = "August", DueDate = "2026-08-10" },
-                new MonthDueDateItemDto { MonthIndex = 5, MonthName = "September", DueDate = "2026-09-10" },
-                new MonthDueDateItemDto { MonthIndex = 6, MonthName = "October", DueDate = "2026-10-10" },
-                new MonthDueDateItemDto { MonthIndex = 7, MonthName = "November", DueDate = "2026-11-10" },
-                new MonthDueDateItemDto { MonthIndex = 8, MonthName = "December", DueDate = "2026-12-10" },
-                new MonthDueDateItemDto { MonthIndex = 9, MonthName = "January", DueDate = "2027-01-10" },
-                new MonthDueDateItemDto { MonthIndex = 10, MonthName = "February", DueDate = "2027-02-10" },
-                new MonthDueDateItemDto { MonthIndex = 11, MonthName = "March", DueDate = "2027-03-10" }
-            }
-        }
-    };
+    private static FeeScheduleConfigDto _feeSchedule = new();
     private static FinanceSettingsDto _financeSettings = new();
-    private static readonly ConcurrentDictionary<int, ScholarshipMasterDto> _scholarships = new(new[]
-    {
-        new KeyValuePair<int, ScholarshipMasterDto>(1, new ScholarshipMasterDto
-        {
-            Id = 1,
-            Name = "Academic Merit Scholarship",
-            Code = "MERIT-10",
-            Type = "Merit",
-            DiscountType = "Percentage",
-            Percentage = 15m,
-            FixedAmount = 0m,
-            ApplicableFeeHeadIds = new List<string> { "1" },
-            ApplicableClasses = new List<string> { "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10" },
-            StartDate = "2026-04-01",
-            EndDate = "2027-03-31",
-            Eligibility = "GPA >= 3.8 in previous academic session",
-            Description = "15% waiver on Tuition Fee for top academic achievers",
-            Status = "Active"
-        }),
-        new KeyValuePair<int, ScholarshipMasterDto>(2, new ScholarshipMasterDto
-        {
-            Id = 2,
-            Name = "Staff Child Educational Concession",
-            Code = "STAFF-CHILD",
-            Type = "Staff Child",
-            DiscountType = "Percentage",
-            Percentage = 25m,
-            FixedAmount = 0m,
-            ApplicableFeeHeadIds = new List<string> { "1", "3" },
-            ApplicableClasses = new List<string> { "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10" },
-            StartDate = "2026-04-01",
-            EndDate = "2027-03-31",
-            Eligibility = "Children of full-time faculty and staff members",
-            Description = "25% concession on tuition and books for staff dependents",
-            Status = "Active"
-        })
-    });
+    private static readonly ConcurrentDictionary<int, ScholarshipMasterDto> _scholarships = new();
     private static readonly ConcurrentDictionary<int, StudentScholarshipAwardDto> _studentScholarships = new();
-    private static readonly ConcurrentDictionary<int, DiscountRuleDto> _discounts = new(new[]
-    {
-        new KeyValuePair<int, DiscountRuleDto>(1, new DiscountRuleDto
-        {
-            Id = 1,
-            Name = "Sibling Concession",
-            Code = "SIBLING-01",
-            Type = "Sibling Discount",
-            Mode = "Percentage",
-            Value = 10m,
-            Status = "Active"
-        }),
-        new KeyValuePair<int, DiscountRuleDto>(2, new DiscountRuleDto
-        {
-            Id = 2,
-            Name = "Early Payment Grant",
-            Code = "EARLY-PAY",
-            Type = "Early Payment Discount",
-            Mode = "Fixed Amount",
-            Value = 1000m,
-            Status = "Active"
-        })
-    });
+    private static readonly ConcurrentDictionary<int, DiscountRuleDto> _discounts = new();
     private static readonly ConcurrentDictionary<int, StudentDiscountDto> _studentDiscounts = new();
-    private static readonly ConcurrentDictionary<int, FineRuleDto> _fineRules = new(new[]
-    {
-        new KeyValuePair<int, FineRuleDto>(1, new FineRuleDto
-        {
-            Id = 1,
-            RuleName = "Standard Monthly Late Fine Rule",
-            DueDate = "2026-08-15",
-            GraceDays = 5,
-            FineType = "Daily Fine",
-            DailyFine = 50m,
-            FixedFine = 200m,
-            MaximumFine = 1500m,
-            Status = "Active"
-        })
-    });
-    private static readonly ConcurrentDictionary<int, FinanceHostelConfigDto> _hostelFeeConfigs = new(new[]
-    {
-        new KeyValuePair<int, FinanceHostelConfigDto>(1, new FinanceHostelConfigDto
-        {
-            Id = 1,
-            HostelId = "1",
-            HostelName = "Boys Central Hostel Block A",
-            RoomTypeId = "1",
-            RoomTypeName = "Single Sharing",
-            RoomId = "",
-            RoomNo = "All Rooms",
-            FeePlan = "Annual",
-            HostelFee = 40000m,
-            SecurityDeposit = 5000m,
-            EffectiveFrom = "2026-09-02",
-            Status = "Active"
-        }),
-        new KeyValuePair<int, FinanceHostelConfigDto>(2, new FinanceHostelConfigDto
-        {
-            Id = 2,
-            HostelId = "1",
-            HostelName = "Boys Central Hostel Block A",
-            RoomTypeId = "2",
-            RoomTypeName = "Double Sharing",
-            RoomId = "",
-            RoomNo = "All Rooms",
-            FeePlan = "Annual",
-            HostelFee = 30000m,
-            SecurityDeposit = 5000m,
-            EffectiveFrom = "2026-09-02",
-            Status = "Active"
-        }),
-        new KeyValuePair<int, FinanceHostelConfigDto>(3, new FinanceHostelConfigDto
-        {
-            Id = 3,
-            HostelId = "2",
-            HostelName = "Girls Heritage Block B",
-            RoomTypeId = "1",
-            RoomTypeName = "Single Sharing",
-            RoomId = "",
-            RoomNo = "All Rooms",
-            FeePlan = "Annual",
-            HostelFee = 42000m,
-            SecurityDeposit = 6000m,
-            EffectiveFrom = "2026-09-02",
-            Status = "Active"
-        })
-    });
+    private static readonly ConcurrentDictionary<int, FineRuleDto> _fineRules = new();
+    private static readonly ConcurrentDictionary<int, FinanceHostelConfigDto> _hostelFeeConfigs = new();
+    private static readonly ConcurrentDictionary<int, FinanceUniformConfigDto> _uniformFeeConfigs = new();
 
     public FinanceMasterRepository(AppDbContext context)
     {
@@ -386,6 +209,14 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         return Task.FromResult(true);
     }
 
+    public Task<bool> DeleteAccountAsync(int id)
+    {
+        var existing = _accounts.FirstOrDefault(a => a.Id == id);
+        if (existing == null) return Task.FromResult(false);
+        _accounts.Remove(existing);
+        return Task.FromResult(true);
+    }
+
     public Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type)
     {
         var list = _categories.AsQueryable();
@@ -396,9 +227,29 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public Task<FinancialCategoryDto> CreateCategoryAsync(FinancialCategoryDto category)
     {
-        category.Id = _categories.Count + 1;
+        category.Id = _categories.Count > 0 ? _categories.Max(c => c.Id) + 1 : 1;
         _categories.Add(category);
         return Task.FromResult(category);
+    }
+
+    public Task<bool> UpdateCategoryAsync(int id, FinancialCategoryDto category)
+    {
+        var existing = _categories.FirstOrDefault(c => c.Id == id);
+        if (existing == null) return Task.FromResult(false);
+
+        existing.Name = category.Name;
+        existing.Type = category.Type;
+        existing.SourceModule = category.SourceModule;
+        existing.Status = category.Status;
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> DeleteCategoryAsync(int id)
+    {
+        var existing = _categories.FirstOrDefault(c => c.Id == id);
+        if (existing == null) return Task.FromResult(false);
+        _categories.Remove(existing);
+        return Task.FromResult(true);
     }
 
     // =========================================================================
@@ -412,18 +263,31 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget)
     {
-        var existing = _budgets.FirstOrDefault(b => b.Id == budget.Id || b.Department.Equals(budget.Department, StringComparison.OrdinalIgnoreCase));
+        var existing = _budgets.FirstOrDefault(b => b.Id == budget.Id || 
+            (!string.IsNullOrEmpty(budget.CategoryName) && b.CategoryName.Equals(budget.CategoryName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(budget.Department) && b.Department.Equals(budget.Department, StringComparison.OrdinalIgnoreCase)));
         if (existing != null)
         {
-            existing.AllocatedBudget = budget.AllocatedBudget;
-            existing.UtilizedBudget = budget.UtilizedBudget;
+            existing.AllocatedAmount = budget.AllocatedAmount;
+            existing.ConsumedAmount = budget.ConsumedAmount;
             existing.Status = budget.Status;
             return Task.FromResult(existing);
         }
 
-        budget.Id = _budgets.Count + 1;
+        budget.Id = _budgets.Count > 0 ? _budgets.Max(b => b.Id) + 1 : 1;
         _budgets.Add(budget);
         return Task.FromResult(budget);
+    }
+
+    public Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget)
+    {
+        var existing = _budgets.FirstOrDefault(b => b.Id == id);
+        if (existing == null) return Task.FromResult(false);
+
+        existing.AllocatedAmount = budget.AllocatedAmount;
+        existing.ConsumedAmount = budget.ConsumedAmount;
+        existing.Status = budget.Status;
+        return Task.FromResult(true);
     }
 
     // =========================================================================
@@ -444,19 +308,22 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .Include(s => s.ClassGrade)
             .FirstOrDefaultAsync(s => s.StudentId == request.StudentId || (s.AdmissionNumber != null && s.AdmissionNumber == request.AdmissionNo));
 
-        int newId = _refunds.Count + 1;
+        int newId = _refunds.Count > 0 ? _refunds.Keys.Max() + 1 : 1;
         var refund = new FeeRefundRequestDto
         {
             Id = newId,
-            RefundRequestId = $"REF-REQ-{newId:D4}",
+            RefundRequestId = $"RF-2026-{newId:D3}",
+            RefundNo = $"RF-2026-{newId:D3}",
+            ReceiptNo = !string.IsNullOrWhiteSpace(request.ReceiptNo) ? request.ReceiptNo : $"REC-2026-{newId:D4}",
             StudentId = request.StudentId,
-            AdmissionNo = request.AdmissionNo,
-            StudentName = st?.StudentName ?? $"Student #{request.StudentId}",
-            ClassName = st?.ClassGrade?.ClassName ?? "Class 10",
+            AdmissionNo = !string.IsNullOrWhiteSpace(request.AdmissionNo) ? request.AdmissionNo : st?.AdmissionNumber ?? "",
+            StudentName = !string.IsNullOrWhiteSpace(request.StudentName) ? request.StudentName : (st?.StudentName ?? $"Student #{request.StudentId}"),
+            ClassName = !string.IsNullOrWhiteSpace(request.ClassName) ? request.ClassName : (st?.ClassGrade?.ClassName ?? "Class 10"),
+            Section = !string.IsNullOrWhiteSpace(request.Section) ? request.Section : "A",
             RefundAmount = request.RefundAmount,
             Reason = request.Reason,
             Status = "Pending",
-            RequestedBy = "Parent",
+            RequestedBy = "Admin",
             RequestedDate = DateTime.UtcNow,
             PaymentMode = request.PaymentMode ?? "Bank Transfer",
             Remarks = request.Remarks ?? ""
@@ -516,6 +383,35 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     // =========================================================================
     // 6. REPORTS HUB
     // =========================================================================
+
+    public async Task<FinanceReportsSummaryDto> GetReportsSummaryAsync(string? academicYear)
+    {
+        var validPayments = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").ToListAsync();
+        DateTime today = DateTime.UtcNow.Date;
+        decimal todayCollection = validPayments.Where(p => p.PaymentDate.Date == today).Sum(p => p.Amount);
+        DateTime monthStart = new DateTime(today.Year, today.Month, 1);
+        decimal monthlyCollection = validPayments.Where(p => p.PaymentDate >= monthStart).Sum(p => p.Amount);
+
+        var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
+        decimal totalExpected = assignments.Count > 0 ? assignments.Sum(a => a.TotalAmount) : 0m;
+        decimal totalCollected = validPayments.Sum(p => p.Amount);
+        decimal pendingDues = Math.Max(0m, totalExpected - totalCollected);
+
+        int studentsPaidCount = validPayments.Select(p => p.StudentId).Distinct().Count();
+
+        decimal concessions = validPayments.Sum(p => p.DiscountAmount);
+        decimal services = validPayments.Sum(p => p.TransportFee);
+
+        return new FinanceReportsSummaryDto
+        {
+            TodayCollection = todayCollection,
+            MonthlyCollection = monthlyCollection,
+            PendingDues = pendingDues,
+            StudentsPaidCount = studentsPaidCount,
+            ScholarshipsAndDiscounts = concessions,
+            TransportAndHostel = services
+        };
+    }
 
     public async Task<DailyCollectionReportResponseDto> GetDailyCollectionReportAsync(string? date)
     {
@@ -952,5 +848,98 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     public async Task<bool> DeleteHostelFeeConfigAsync(int id)
     {
         return await Task.FromResult(_hostelFeeConfigs.TryRemove(id, out _));
+    }
+
+    // =========================================================================
+    // 10. UNIFORM FEE CONFIGURATIONS
+    // =========================================================================
+
+    public async Task<List<FinanceUniformConfigDto>> GetUniformFeeConfigsAsync(string? search, string? className, string? academicYear, string? status)
+    {
+        var list = _uniformFeeConfigs.Values.ToList();
+
+        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        {
+            list = list.Where(x => x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase) || x.ClassName.Equals("All Classes", System.StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        {
+            list = list.Where(x => x.AcademicYear.Equals(academicYear, System.StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        {
+            list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.Trim().ToLower();
+            list = list.Where(x =>
+                x.UniformPackage.ToLower().Contains(s) ||
+                x.ClassName.ToLower().Contains(s) ||
+                x.Gender.ToLower().Contains(s) ||
+                x.Branch.ToLower().Contains(s)
+            ).ToList();
+        }
+
+        return await Task.FromResult(list.OrderBy(x => x.Id).ToList());
+    }
+
+    public async Task<FinanceUniformConfigDto?> GetUniformFeeConfigByIdAsync(int id)
+    {
+        _uniformFeeConfigs.TryGetValue(id, out var item);
+        return await Task.FromResult(item);
+    }
+
+    public async Task<FinanceUniformConfigDto> CreateUniformFeeConfigAsync(CreateFinanceUniformConfigDto dto)
+    {
+        int newId = _uniformFeeConfigs.Count > 0 ? _uniformFeeConfigs.Keys.Max() + 1 : 1;
+        var config = new FinanceUniformConfigDto
+        {
+            Id = newId,
+            AcademicYear = dto.AcademicYear ?? "2026-2027",
+            Branch = dto.Branch ?? "Main Campus",
+            ClassName = dto.ClassName,
+            Gender = dto.Gender,
+            UniformPackage = dto.UniformPackage,
+            UniformItemId = dto.UniformItemId,
+            FeePlan = dto.FeePlan ?? "Annual",
+            FeeAmount = dto.FeeAmount,
+            EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
+            Status = dto.Status
+        };
+
+        _uniformFeeConfigs[newId] = config;
+        return await Task.FromResult(config);
+    }
+
+    public async Task<FinanceUniformConfigDto?> UpdateUniformFeeConfigAsync(int id, CreateFinanceUniformConfigDto dto)
+    {
+        if (!_uniformFeeConfigs.ContainsKey(id)) return null;
+
+        var config = new FinanceUniformConfigDto
+        {
+            Id = id,
+            AcademicYear = dto.AcademicYear ?? "2026-2027",
+            Branch = dto.Branch ?? "Main Campus",
+            ClassName = dto.ClassName,
+            Gender = dto.Gender,
+            UniformPackage = dto.UniformPackage,
+            UniformItemId = dto.UniformItemId,
+            FeePlan = dto.FeePlan ?? "Annual",
+            FeeAmount = dto.FeeAmount,
+            EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
+            Status = dto.Status
+        };
+
+        _uniformFeeConfigs[id] = config;
+        return await Task.FromResult(config);
+    }
+
+    public async Task<bool> DeleteUniformFeeConfigAsync(int id)
+    {
+        return await Task.FromResult(_uniformFeeConfigs.TryRemove(id, out _));
     }
 }

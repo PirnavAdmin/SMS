@@ -18,6 +18,7 @@ namespace SMS.Api.Data
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Admin> Admins { get; set; } = null!;
         public DbSet<School> Schools { get; set; } = null!;
+        public DbSet<SchoolSettings> SchoolSettings { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<SystemNotification> SystemNotifications { get; set; } = null!;
 
@@ -54,6 +55,7 @@ namespace SMS.Api.Data
         public DbSet<ClassSection> ClassSections { get; set; } = null!;
         public DbSet<ClassSubjectMapping> ClassSubjectMappings { get; set; } = null!;
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
+        public DbSet<SubjectTeacherAllocation> SubjectTeacherAllocations { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
         public DbSet<Admission> Admissions { get; set; } = null!;
         public DbSet<SMS.Api.Models.AcademicManagement.DesignationMaster> DesignationMasters { get; set; } = null!;

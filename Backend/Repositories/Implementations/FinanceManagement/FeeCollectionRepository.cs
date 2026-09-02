@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Repositories.Implementations.FinanceManagement;
+namespace SMS.Api.Repositories.Implementations.FinanceManagement;
 
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
@@ -555,21 +555,106 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
     public async Task<FinanceDashboardStatsDto> GetDashboardStatsAsync()
     {
-        decimal totalCollected = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").SumAsync(p => p.Amount);
-        decimal totalDiscounts = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").SumAsync(p => p.DiscountAmount);
+        var validPayments = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").ToListAsync();
+        decimal totalCollected = validPayments.Sum(p => p.Amount);
+        decimal totalDiscounts = validPayments.Sum(p => p.DiscountAmount);
+        decimal fineCollection = validPayments.Sum(p => p.FineAmount);
 
-        int studentCount = await _context.Students.AsNoTracking().CountAsync(s => !s.IsDeleted && s.Status == "Active");
-        decimal totalExpected = studentCount * 55000m;
-        decimal totalOutstanding = Math.Max(0m, totalExpected - totalCollected - totalDiscounts);
+        var activeStudents = await _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Where(s => !s.IsDeleted && s.Status == "Active")
+            .ToListAsync();
+
+        var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
+        decimal totalExpected = assignments.Count > 0 ? assignments.Sum(a => a.TotalAmount) : 0m;
+        decimal totalOutstanding = Math.Max(0m, totalExpected - totalCollected);
 
         DateTime today = DateTime.UtcNow.Date;
-        decimal todayCollection = await _context.FeePayments.AsNoTracking()
-            .Where(p => p.PaymentDate >= today && p.Status != "Cancelled")
-            .SumAsync(p => p.Amount);
+        decimal todayCollection = validPayments
+            .Where(p => p.PaymentDate.Date == today)
+            .Sum(p => p.Amount);
 
-        double efficiency = totalExpected > 0 ? Math.Round((double)(totalCollected / totalExpected) * 100, 1) : 0;
+        DateTime monthStart = new DateTime(today.Year, today.Month, 1);
+        decimal monthCollection = validPayments
+            .Where(p => p.PaymentDate >= monthStart)
+            .Sum(p => p.Amount);
+
+        int studentsPaidCount = validPayments.Select(p => p.StudentId).Distinct().Count();
+
+        double efficiency = totalExpected > 0 ? Math.Round((double)(totalCollected / totalExpected) * 100, 1) : (totalCollected > 0 ? 100.0 : 0.0);
+
+        // Class-wise breakdown sorted in natural grade sequence
+        int GetClassOrder(string className)
+        {
+            if (string.IsNullOrWhiteSpace(className)) return 999;
+            string lower = className.ToLower().Trim();
+            if (lower.Contains("nursery") || lower.Contains("play")) return 1;
+            if (lower.Contains("lkg") || lower.Contains("pp1") || lower.Contains("kg1")) return 2;
+            if (lower.Contains("ukg") || lower.Contains("pp2") || lower.Contains("kg2")) return 3;
+            var match = System.Text.RegularExpressions.Regex.Match(className, @"\d+");
+            if (match.Success && int.TryParse(match.Value, out int gradeNum))
+            {
+                return 10 + gradeNum;
+            }
+            return 100;
+        }
+
+        var classWiseList = new List<ClassWiseCollectionShareDto>();
+        var classGroups = activeStudents
+            .GroupBy(s => s.ClassGrade?.ClassName ?? "Class 1")
+            .OrderBy(g => GetClassOrder(g.Key))
+            .ThenBy(g => g.Key);
+
+        foreach (var grp in classGroups)
+        {
+            var studentIds = grp.Select(s => s.StudentId.ToString()).ToHashSet();
+            var admNos = grp.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet();
+
+            decimal classCollected = validPayments
+                .Where(p => studentIds.Contains(p.StudentId) || admNos.Contains(p.StudentId))
+                .Sum(p => p.Amount);
+
+            var classAssignments = assignments.Where(a => studentIds.Contains(a.StudentId.ToString())).ToList();
+            decimal classExpected = classAssignments.Count > 0 
+                ? classAssignments.Sum(a => a.TotalAmount)
+                : 0m;
+
+            classWiseList.Add(new ClassWiseCollectionShareDto
+            {
+                ClassName = grp.Key,
+                ExpectedAmount = classExpected,
+                CollectedAmount = classCollected
+            });
+        }
 
         var recentReceipts = await GetReceiptsRegisterAsync(null, null, null, null, 1, 5);
+
+        // Dynamic Monthly Trends for past 6 months
+        var monthlyTrends = new List<MonthlyCollectionTrendDto>();
+        for (int i = 5; i >= 0; i--)
+        {
+            DateTime targetMonth = today.AddMonths(-i);
+            DateTime mStart = new DateTime(targetMonth.Year, targetMonth.Month, 1);
+            DateTime mEnd = mStart.AddMonths(1);
+            decimal mCollected = validPayments.Where(p => p.PaymentDate >= mStart && p.PaymentDate < mEnd).Sum(p => p.Amount);
+            monthlyTrends.Add(new MonthlyCollectionTrendDto
+            {
+                Month = targetMonth.ToString("MMM yyyy"),
+                TargetAmount = 0m,
+                CollectedAmount = mCollected
+            });
+        }
+
+        // Headwise distribution
+        decimal transportTotal = validPayments.Sum(p => p.TransportFee);
+        decimal tuitionTotal = Math.Max(0m, totalCollected - transportTotal);
+
+        var headWise = new List<FeeHeadCollectionShareDto>();
+        if (totalCollected > 0)
+        {
+            if (tuitionTotal > 0) headWise.Add(new FeeHeadCollectionShareDto { HeadName = "Tuition Fee", Amount = tuitionTotal, Percentage = (double)Math.Round((tuitionTotal / totalCollected) * 100, 1), Color = "#3b82f6" });
+            if (transportTotal > 0) headWise.Add(new FeeHeadCollectionShareDto { HeadName = "Transport Fee", Amount = transportTotal, Percentage = (double)Math.Round((transportTotal / totalCollected) * 100, 1), Color = "#f59e0b" });
+        }
 
         return new FinanceDashboardStatsDto
         {
@@ -578,30 +663,24 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             TotalOutstandingDues = totalOutstanding,
             TotalConcessionsGranted = totalDiscounts,
             TodayCollectionAmount = todayCollection,
+            MonthlyCollectionAmount = monthCollection,
+            StudentsPaidCount = studentsPaidCount,
             CollectionEfficiencyPercentage = efficiency,
-            MonthlyTrends = new List<MonthlyCollectionTrendDto>
-            {
-                new MonthlyCollectionTrendDto { Month = "Apr 2026", TargetAmount = 500000, CollectedAmount = 450000 },
-                new MonthlyCollectionTrendDto { Month = "May 2026", TargetAmount = 500000, CollectedAmount = 480000 },
-                new MonthlyCollectionTrendDto { Month = "Jun 2026", TargetAmount = 600000, CollectedAmount = 550000 },
-                new MonthlyCollectionTrendDto { Month = "Jul 2026", TargetAmount = 600000, CollectedAmount = 520000 },
-                new MonthlyCollectionTrendDto { Month = "Aug 2026", TargetAmount = 700000, CollectedAmount = 610000 },
-                new MonthlyCollectionTrendDto { Month = "Sep 2026", TargetAmount = 700000, CollectedAmount = 350000 }
-            },
-            HeadWiseDistribution = new List<FeeHeadCollectionShareDto>
-            {
-                new FeeHeadCollectionShareDto { HeadName = "Tuition Fee", Amount = totalCollected * 0.70m, Percentage = 70.0, Color = "#3b82f6" },
-                new FeeHeadCollectionShareDto { HeadName = "Admission Fee", Amount = totalCollected * 0.12m, Percentage = 12.0, Color = "#10b981" },
-                new FeeHeadCollectionShareDto { HeadName = "Transport Fee", Amount = totalCollected * 0.08m, Percentage = 8.0, Color = "#f59e0b" },
-                new FeeHeadCollectionShareDto { HeadName = "Textbooks & Kit", Amount = totalCollected * 0.06m, Percentage = 6.0, Color = "#8b5cf6" },
-                new FeeHeadCollectionShareDto { HeadName = "Hostel Fee", Amount = totalCollected * 0.04m, Percentage = 4.0, Color = "#ec4899" }
-            },
+
+            TransportRevenue = transportTotal,
+            HostelRevenue = 0m,
+            UniformRevenue = 0m,
+            ScholarshipsGranted = totalDiscounts,
+            FineCollected = fineCollection,
+
+            ClassWiseRevenue = classWiseList,
+            MonthlyTrends = monthlyTrends,
+            HeadWiseDistribution = headWise,
             PaymentModeDistribution = new List<PaymentModeSplitDto>
             {
-                new PaymentModeSplitDto { Mode = "Cash", Amount = totalCollected * 0.55m, TransactionsCount = 45 },
-                new PaymentModeSplitDto { Mode = "Online (UPI / QR)", Amount = totalCollected * 0.30m, TransactionsCount = 28 },
-                new PaymentModeSplitDto { Mode = "Cheque / DD", Amount = totalCollected * 0.10m, TransactionsCount = 8 },
-                new PaymentModeSplitDto { Mode = "Card / POS", Amount = totalCollected * 0.05m, TransactionsCount = 4 }
+                new PaymentModeSplitDto { Mode = "Cash", Amount = validPayments.Where(p => p.PaymentMethod == "Cash").Sum(p => p.Amount), TransactionsCount = validPayments.Count(p => p.PaymentMethod == "Cash") },
+                new PaymentModeSplitDto { Mode = "Online (UPI / QR)", Amount = validPayments.Where(p => p.PaymentMethod != "Cash" && p.PaymentMethod != "Cheque").Sum(p => p.Amount), TransactionsCount = validPayments.Count(p => p.PaymentMethod != "Cash" && p.PaymentMethod != "Cheque") },
+                new PaymentModeSplitDto { Mode = "Cheque / DD", Amount = validPayments.Where(p => p.PaymentMethod == "Cheque").Sum(p => p.Amount), TransactionsCount = validPayments.Count(p => p.PaymentMethod == "Cheque") }
             },
             RecentTransactions = recentReceipts.Items
         };

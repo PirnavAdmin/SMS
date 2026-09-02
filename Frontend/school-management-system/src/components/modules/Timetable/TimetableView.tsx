@@ -1288,19 +1288,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               (t.teacherId && (String(t.teacherId) === String(teacher.id) || String(t.teacherId) === String((teacher as any).empId)));
                           });
 
-                          const isAssignedSlot = !directMatch && (
-                            (day === 'Monday' && (slot.includes('09:15') || slot.includes('11:00'))) ||
-                            (day === 'Tuesday' && (slot.includes('08:30') || slot.includes('11:45'))) ||
-                            (day === 'Wednesday' && (slot.includes('09:15') || slot.includes('11:00'))) ||
-                            (day === 'Thursday' && (slot.includes('08:30') || slot.includes('10:15'))) ||
-                            (day === 'Friday' && (slot.includes('09:15') || slot.includes('11:00')))
-                          );
-
-                          const match = directMatch || (isAssignedSlot ? {
-                            subject: teacher.assignedSubjects?.[0] || 'Social Studies',
-                            className: slot.includes('09:15') || slot.includes('08:30') ? '9' : '10',
-                            section: 'A'
-                          } : null);
+                          const match = directMatch;
 
                           return (
                             <td key={day} className="py-3 px-2 text-center align-middle">
