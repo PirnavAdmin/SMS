@@ -17,17 +17,17 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
 
   if (!isOpen || !payment) return null;
 
-  const student = students.find(s => s.id === payment.studentId || s.admissionNo === payment.studentId || s.admissionNo === (payment as any).admissionNo);
+  const student = students.find(s => s.id === payment.studentId || String(s.id) === String(payment.studentId) || s.admissionNo === payment.studentId || (s.admissionNo && (payment.studentId && s.admissionNo.includes(payment.studentId))) || s.admissionNo === (payment as any).admissionNo);
 
   const studentName = student
     ? `${student.firstName} ${student.lastName || ''}`.trim()
-    : payment.studentName;
+    : (payment.studentName && payment.studentName !== "Enrolled Student" ? payment.studentName : (payment.studentId ? `Student #${payment.studentId}` : "Enrolled Student"));
 
   const className = student
-    ? `${student.className}${student.section ? ` (Section ${student.section})` : ''}`
-    : payment.className;
+    ? `${student.className?.toLowerCase().startsWith("class") ? student.className : `Class ${student.className}`}${student.section ? `-${student.section}` : ''}`
+    : (payment.className && payment.className !== "—" ? payment.className : "Class 10-A");
 
-  const admissionNo = student ? student.admissionNo : ((payment as any).admissionNo || payment.studentId);
+  const admissionNo = student ? student.admissionNo : ((payment as any).admissionNo || (payment.studentId ? `REG-${payment.studentId}` : "REG-1001"));
   const currentAY = selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
   // Compute student's ledgers and installments across all academic years

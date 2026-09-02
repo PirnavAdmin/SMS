@@ -196,7 +196,7 @@ export const FinanceHostelConfigView: React.FC = () => {
 
   // Live Hostel Masters & Room Types from Hostel Management API & Local Storage
   const [activeBlocks, setActiveBlocks] = useState<
-    Array<{ id: string; hostelName: string; hostelType: string }>
+    Array<{ id: string; hostelName: string; hostelCode?: string; hostelType: string }>
   >([]);
   const [activeRoomTypes, setActiveRoomTypes] = useState<
     Array<{ id: string; roomTypeName: string; capacity: number }>
@@ -212,17 +212,19 @@ export const FinanceHostelConfigView: React.FC = () => {
       const apiBlocks = (Array.isArray(bRes) ? bRes : []).map((b) => ({
         id: String(b.hostelId),
         hostelName: b.hostelName || `Hostel Block #${b.hostelId}`,
+        hostelCode: b.hostelCode || "",
         hostelType: b.hostelType || "Boys Hostel",
       }));
 
       const blockMap = new Map<
         string,
-        { id: string; hostelName: string; hostelType: string }
+        { id: string; hostelName: string; hostelCode?: string; hostelType: string }
       >();
       (hostelMasters || []).forEach((h) =>
         blockMap.set(String(h.id), {
           id: String(h.id),
           hostelName: h.hostelName,
+          hostelCode: (h as any).hostelCode || (h as any).code || "",
           hostelType: h.hostelType || "Boys Hostel",
         }),
       );
@@ -235,6 +237,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           : (hostelMasters || []).map((h) => ({
               id: String(h.id),
               hostelName: h.hostelName,
+              hostelCode: (h as any).hostelCode || (h as any).code || "",
               hostelType: h.hostelType || "Boys Hostel",
             })),
       );
@@ -273,6 +276,7 @@ export const FinanceHostelConfigView: React.FC = () => {
         (hostelMasters || []).map((h) => ({
           id: String(h.id),
           hostelName: h.hostelName,
+          hostelCode: (h as any).hostelCode || (h as any).code || "",
           hostelType: h.hostelType || "Boys Hostel",
         })),
       );
@@ -555,7 +559,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                   options={activeBlocks.map((h) => ({
                     value: String(h.id),
                     label: h.hostelName,
-                    subLabel: h.hostelType,
+                    subLabel: `${h.hostelCode ? `[${h.hostelCode}] • ` : ""}${h.hostelType}`,
                   }))}
                   onChange={(val, opt) => {
                     const hObj = activeBlocks.find(
@@ -580,7 +584,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                     options={activeRoomTypes.map((rt) => ({
                       value: String(rt.id),
                       label: rt.roomTypeName,
-                      subLabel: `Capacity: ${rt.capacity}`,
+                      subLabel: `Bed Capacity: ${rt.capacity} Student${rt.capacity > 1 ? "s" : ""}`,
                     }))}
                     onChange={(val, opt) => {
                       const rtObj = activeRoomTypes.find(

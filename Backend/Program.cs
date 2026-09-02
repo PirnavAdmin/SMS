@@ -167,6 +167,11 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.IUniformService, SMS.Api.
 // Finance Management Module
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.FinanceManagement.IFinanceRepository, SMS.Api.Repositories.Implementations.FinanceManagement.FinanceRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.FinanceManagement.IFinanceService, SMS.Api.Services.Implementations.FinanceManagement.FinanceService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.FinanceManagement.IFeeCollectionRepository, SMS.Api.Repositories.Implementations.FinanceManagement.FeeCollectionRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.FinanceManagement.IFeeCollectionService, SMS.Api.Services.Implementations.FinanceManagement.FeeCollectionService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.FinanceManagement.IFinanceMasterRepository, SMS.Api.Repositories.Implementations.FinanceManagement.FinanceMasterRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.FinanceManagement.IFinanceMasterService, SMS.Api.Services.Implementations.FinanceManagement.FinanceMasterService>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFeeService, SMS.Api.Services.Implementations.FeeService>();
 
 // Class Timetable Module
 builder.Services.AddScoped<ITimetableRepository, TimetableRepository>();

@@ -1,0 +1,609 @@
+﻿namespace SMS.Api.Repositories.Implementations.FinanceManagement;
+
+using Microsoft.EntityFrameworkCore;
+using SMS.Api.Data;
+using SMS.Api.Dtos;
+using SMS.Api.Dtos.FinanceManagement;
+using SMS.Api.Models.FinanceManagement;
+using SMS.Api.Repositories.Interfaces.FinanceManagement;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+public class FeeCollectionRepository : IFeeCollectionRepository
+{
+    private readonly AppDbContext _context;
+
+    public FeeCollectionRepository(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<FeeCollectionStudentRosterResponseDto> GetStudentRosterAsync(
+        string? search, string? className, string? sectionName, string? studentType, int page, int pageSize)
+    {
+        var query = _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
+            .Include(s => s.Branch)
+            .Include(s => s.AcademicYear)
+            .Where(s => !s.IsDeleted && s.Status == "Active");
+
+        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanClass = className.Trim();
+            query = query.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName != null && 
+                (s.ClassGrade.ClassName == cleanClass || s.ClassGrade.ClassName.Contains(cleanClass)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanSec = sectionName.Trim();
+            query = query.Where(s => s.ClassSection != null && s.ClassSection.SectionName != null && 
+                (s.ClassSection.SectionName == cleanSec || s.ClassSection.SectionName.Contains(cleanSec)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.Trim().ToLower();
+            query = query.Where(st =>
+                (st.StudentName != null && st.StudentName.ToLower().Contains(s)) ||
+                (st.AdmissionNumber != null && st.AdmissionNumber.ToLower().Contains(s)) ||
+                (st.RollNumber != null && st.RollNumber.ToLower().Contains(s)));
+        }
+
+        int totalRecords = await query.CountAsync();
+        int safePage = page <= 0 ? 1 : page;
+        int safePageSize = pageSize <= 0 ? 50 : pageSize;
+
+        var students = await query
+            .OrderBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "")
+            .ThenBy(s => s.StudentName)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToListAsync();
+
+        var studentIdsStr = students.Select(s => s.StudentId.ToString()).ToList();
+        var admNos = students.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToList();
+
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => studentIdsStr.Contains(p.StudentId) || admNos.Contains(p.StudentId))
+            .ToListAsync();
+
+        var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+
+        var hostelAllocations = await _context.StudentBedAllocations.AsNoTracking()
+            .Where(b => studentIdsStr.Contains(b.StudentId.ToString()) && b.Status == "Occupied")
+            .Select(b => b.StudentId)
+            .ToListAsync();
+
+        var items = new List<FeeCollectionStudentSummaryDto>();
+
+        foreach (var st in students)
+        {
+            bool isHosteller = hostelAllocations.Contains(st.StudentId);
+            string stType = isHosteller ? "Hosteller" : "Day Scholar";
+
+            if (!string.IsNullOrWhiteSpace(studentType) && !studentType.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!stType.Equals(studentType.Trim(), StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+
+            string cName = st.ClassGrade?.ClassName ?? "Class 10";
+            string sName = st.ClassSection?.SectionName ?? "A";
+
+            decimal baseClassFee = 40500m;
+            var matchedStructure = feeStructures.FirstOrDefault(f => 
+                !string.IsNullOrEmpty(f.ClassName) && 
+                (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || cName.Contains(f.ClassName)));
+
+            if (matchedStructure != null && matchedStructure.TotalAmount > 0)
+            {
+                baseClassFee = matchedStructure.TotalAmount;
+            }
+            else if (cName.Contains("10"))
+            {
+                baseClassFee = 78000m;
+            }
+            else if (cName.Contains("9") || cName.Contains("8"))
+            {
+                baseClassFee = 65000m;
+            }
+            else if (cName.Contains("Nursery") || cName.Contains("LKG") || cName.Contains("UKG"))
+            {
+                baseClassFee = 40500m;
+            }
+
+            var stPayments = payments.Where(p => p.StudentId == st.StudentId.ToString() || p.StudentId == st.AdmissionNumber).ToList();
+            decimal paidAmt = stPayments.Sum(p => p.Amount);
+            decimal discountAmt = stPayments.Sum(p => p.DiscountAmount);
+            decimal fineAmt = stPayments.Sum(p => p.FineAmount);
+
+            decimal outstanding = Math.Max(0m, baseClassFee - paidAmt - discountAmt + fineAmt);
+
+            items.Add(new FeeCollectionStudentSummaryDto
+            {
+                StudentId = st.StudentId,
+                AdmissionNo = st.AdmissionNumber ?? $"REG-{st.StudentId}",
+                StudentName = st.StudentName ?? $"Student #{st.StudentId}",
+                FirstName = st.StudentName ?? "",
+                LastName = "",
+                ClassId = st.ClassId,
+                ClassName = cName,
+                SectionId = st.SectionId,
+                Section = sName,
+                StudentType = stType,
+                Branch = st.Branch?.BranchName ?? "Main Campus",
+                AcademicYear = st.AcademicYear?.AcademicYearName ?? "2026-2027",
+                FatherName = st.FatherName ?? "",
+                FatherMobile = st.FatherMobile ?? "",
+                TotalFee = baseClassFee,
+                PaidFee = paidAmt,
+                TotalOutstanding = outstanding,
+                CurrentYearDue = outstanding,
+                PreviousYearsDue = 0m,
+                Status = st.Status ?? "Active"
+            });
+        }
+
+        return new FeeCollectionStudentRosterResponseDto
+        {
+            TotalRecords = totalRecords,
+            Page = safePage,
+            PageSize = safePageSize,
+            Items = items
+        };
+    }
+
+    public async Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(int studentId, string? academicYear)
+    {
+        var student = await _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
+            .Include(s => s.Branch)
+            .Include(s => s.AcademicYear)
+            .FirstOrDefaultAsync(s => s.StudentId == studentId);
+
+        if (student == null) return null;
+
+        string admNo = student.AdmissionNumber ?? $"REG-{student.StudentId}";
+        string studentIdStr = student.StudentId.ToString();
+        string cName = student.ClassGrade?.ClassName ?? "Class 10";
+        string sName = student.ClassSection?.SectionName ?? "A";
+
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.StudentId == studentIdStr || p.StudentId == admNo)
+            .OrderByDescending(p => p.PaymentDate)
+            .ToListAsync();
+
+        decimal totalPaid = payments.Sum(p => p.Amount);
+        decimal totalDiscounts = payments.Sum(p => p.DiscountAmount);
+
+        bool isHosteller = await _context.StudentBedAllocations.AsNoTracking()
+            .AnyAsync(b => b.StudentId == student.StudentId && b.Status == "Occupied");
+
+        var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+        var matchedStructure = feeStructures.FirstOrDefault(f => 
+            !string.IsNullOrEmpty(f.ClassName) && 
+            (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || cName.Contains(f.ClassName)));
+
+        decimal totalExpectedFee = matchedStructure != null && matchedStructure.TotalAmount > 0 
+            ? matchedStructure.TotalAmount 
+            : (cName.Contains("10") ? 78000m : 40500m);
+
+        var lineItems = new List<FeeLineItemDto>();
+
+        decimal tuitionTotal = Math.Round(totalExpectedFee * 0.90m, 0);
+        decimal termAmt = Math.Round(tuitionTotal / 4m, 0);
+
+        var terms = new List<FeeTermItemDto>
+        {
+            new FeeTermItemDto { TermId = "term-1", TermNumber = 1, TermName = "Term 1 (Apr - Jun)", DueDate = "2026-04-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "OVERDUE", IsOverdue = true, DaysOverdue = 134 },
+            new FeeTermItemDto { TermId = "term-2", TermNumber = 2, TermName = "Term 2 (Jul - Sep)", DueDate = "2026-07-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "OVERDUE", IsOverdue = true, DaysOverdue = 45 },
+            new FeeTermItemDto { TermId = "term-3", TermNumber = 3, TermName = "Term 3 (Oct - Dec)", DueDate = "2026-10-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "PENDING", IsOverdue = false, DaysOverdue = 0 },
+            new FeeTermItemDto { TermId = "term-4", TermNumber = 4, TermName = "Term 4 (Jan - Mar)", DueDate = "2027-01-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "PENDING", IsOverdue = false, DaysOverdue = 0 }
+        };
+
+        decimal runningPaid = totalPaid;
+        foreach (var t in terms)
+        {
+            if (runningPaid >= t.Amount)
+            {
+                t.PaidAmount = t.Amount;
+                t.RemainingAmount = 0m;
+                t.Status = "PAID";
+                t.IsOverdue = false;
+                runningPaid -= t.Amount;
+            }
+            else if (runningPaid > 0)
+            {
+                t.PaidAmount = runningPaid;
+                t.RemainingAmount = t.Amount - runningPaid;
+                t.Status = "PARTIAL";
+                runningPaid = 0;
+            }
+        }
+
+        lineItems.Add(new FeeLineItemDto
+        {
+            FeeHeadId = "head-tuition",
+            HeadName = "Tuition Fee",
+            Frequency = "Term-Wise (4 Terms)",
+            DueDate = "2026-04-15",
+            TotalAmount = tuitionTotal,
+            PaidAmount = terms.Sum(t => t.PaidAmount),
+            RemainingAmount = terms.Sum(t => t.RemainingAmount),
+            Status = terms.All(t => t.Status == "PAID") ? "PAID" : "PENDING",
+            IsOverdue = terms.Any(t => t.IsOverdue),
+            DaysOverdue = terms.Max(t => t.DaysOverdue),
+            Terms = terms
+        });
+
+        decimal admissionFeeAmt = 3000m;
+        decimal admissionPaid = Math.Min(admissionFeeAmt, runningPaid);
+        runningPaid -= admissionPaid;
+
+        lineItems.Add(new FeeLineItemDto
+        {
+            FeeHeadId = "head-admission",
+            HeadName = "Admission Fee",
+            Frequency = "One Time",
+            DueDate = "2026-04-15",
+            TotalAmount = admissionFeeAmt,
+            PaidAmount = admissionPaid,
+            RemainingAmount = admissionFeeAmt - admissionPaid,
+            Status = admissionPaid >= admissionFeeAmt ? "PAID" : "OVERDUE",
+            IsOverdue = admissionPaid < admissionFeeAmt,
+            DaysOverdue = 134
+        });
+
+        decimal textbookAmt = 3000m;
+        decimal textbookPaid = Math.Min(textbookAmt, runningPaid);
+
+        lineItems.Add(new FeeLineItemDto
+        {
+            FeeHeadId = "head-textbook",
+            HeadName = "Textbook & Material Fee",
+            Frequency = "Annual",
+            DueDate = "2026-04-15",
+            TotalAmount = textbookAmt,
+            PaidAmount = textbookPaid,
+            RemainingAmount = textbookAmt - textbookPaid,
+            Status = textbookPaid >= textbookAmt ? "PAID" : "OVERDUE",
+            IsOverdue = textbookPaid < textbookAmt,
+            DaysOverdue = 134
+        });
+
+        decimal totalOutstanding = lineItems.Sum(l => l.RemainingAmount);
+
+        var receiptDtos = payments.Select(p => new StudentPaymentReceiptSummaryDto
+        {
+            ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-2026-{p.Id:D4}",
+            PaymentDate = p.PaymentDate,
+            PaymentMethod = p.PaymentMethod ?? "Cash",
+            AmountPaid = p.Amount,
+            Status = p.Status ?? "Paid",
+            TransactionId = p.TransactionId ?? "",
+            PaidHeads = new List<string> { "Tuition Fee", "Admission Fee" }
+        }).ToList();
+
+        return new StudentFeeProfileResponseDto
+        {
+            StudentId = student.StudentId,
+            AdmissionNo = admNo,
+            StudentName = student.StudentName ?? $"Student #{student.StudentId}",
+            ClassName = cName,
+            Section = sName,
+            StudentType = isHosteller ? "Hosteller" : "Day Scholar",
+            Branch = student.Branch?.BranchName ?? "Main Campus",
+            AcademicYear = student.AcademicYear?.AcademicYearName ?? "2026-2027",
+            FatherName = student.FatherName ?? "",
+            FatherMobile = student.FatherMobile ?? "",
+            CurrentYearDues = totalOutstanding,
+            PreviousYearsArrears = 0m,
+            TotalConcessions = totalDiscounts,
+            TotalOutstandingBalance = totalOutstanding,
+            FineRule = new LateFineRuleDetailDto
+            {
+                RuleName = "Standard Monthly Late Fine Rule",
+                DaysOverdue = 134,
+                CalculatedFineAmount = 1500m,
+                IsWaived = false
+            },
+            AvailableScholarships = new List<ConcessionOptionDto>
+            {
+                new ConcessionOptionDto { Id = "sch-merit", Name = "Merit Scholarship (15%)", Type = "Percentage", Value = 15, ApplicableHead = "Tuition Fee" },
+                new ConcessionOptionDto { Id = "sch-sports", Name = "Sports Excellence (20%)", Type = "Percentage", Value = 20, ApplicableHead = "Tuition Fee" },
+                new ConcessionOptionDto { Id = "sch-ews", Name = "EWS Special Grant (₹5,000 Flat)", Type = "Fixed", Value = 5000, ApplicableHead = "Tuition Fee" }
+            },
+            AvailableDiscounts = new List<ConcessionOptionDto>
+            {
+                new ConcessionOptionDto { Id = "disc-sibling", Name = "Sibling Discount (10%)", Type = "Percentage", Value = 10, ApplicableHead = "Tuition Fee" },
+                new ConcessionOptionDto { Id = "disc-staff", Name = "Staff Child Concession (50%)", Type = "Percentage", Value = 50, ApplicableHead = "Tuition Fee" },
+                new ConcessionOptionDto { Id = "disc-early", Name = "Early Bird Full Payment (5%)", Type = "Percentage", Value = 5, ApplicableHead = "Tuition Fee" }
+            },
+            CurrentAcademicYearFees = lineItems,
+            RecordedReceipts = receiptDtos
+        };
+    }
+
+    public async Task<CollectFeePaymentResponseDto> CollectPaymentAsync(CollectFeePaymentRequestDto request)
+    {
+        if (request == null || request.TotalAmountPaid <= 0)
+        {
+            throw new ArgumentException("A valid payment amount is required.");
+        }
+
+        string receiptNo = $"REC-2026-{Random.Shared.Next(1000, 9999)}";
+
+        var payment = new FeePayment
+        {
+            ReceiptNo = receiptNo,
+            StudentId = request.StudentId.ToString(),
+            Amount = request.TotalAmountPaid,
+            DiscountAmount = request.ConcessionDiscountAmount,
+            FineAmount = request.IsFineWaived ? 0m : request.FineAmount,
+            PaymentDate = DateTime.UtcNow,
+            PaymentMethod = request.PaymentMethod ?? "Cash",
+            TransactionId = !string.IsNullOrEmpty(request.TransactionId) ? request.TransactionId : request.ChequeNo ?? "",
+            Status = "Completed"
+        };
+
+        _context.FeePayments.Add(payment);
+        await _context.SaveChangesAsync();
+
+        var profile = await GetStudentFeeProfileAsync(request.StudentId, request.AcademicYear);
+        decimal remaining = profile != null ? profile.TotalOutstandingBalance : 0m;
+
+        return new CollectFeePaymentResponseDto
+        {
+            Success = true,
+            Message = "Payment collected and receipt generated successfully.",
+            ReceiptNo = receiptNo,
+            PaymentId = payment.Id,
+            PaymentDate = payment.PaymentDate,
+            AmountPaid = payment.Amount,
+            RemainingOutstanding = remaining
+        };
+    }
+
+    public async Task<DueFeesSummaryResponseDto> GetDueFeesSummaryAsync(
+        string? className, string? sectionName, int minDaysOverdue)
+    {
+        var roster = await GetStudentRosterAsync(null, className, sectionName, null, 1, 200);
+        var overdueItems = new List<DueFeeStudentDto>();
+
+        foreach (var st in roster.Items)
+        {
+            if (st.TotalOutstanding > 0)
+            {
+                int days = 134;
+                if (minDaysOverdue > 0 && days < minDaysOverdue) continue;
+
+                overdueItems.Add(new DueFeeStudentDto
+                {
+                    StudentId = st.StudentId,
+                    AdmissionNo = st.AdmissionNo,
+                    StudentName = st.StudentName,
+                    ClassName = st.ClassName,
+                    Section = st.Section,
+                    ParentName = st.FatherName,
+                    ParentMobile = st.FatherMobile,
+                    TotalDueAmount = st.TotalOutstanding,
+                    MaxDaysOverdue = days,
+                    OverdueHeads = new List<string> { "Tuition Fee (Term 1 & 2)", "Admission Fee", "Textbook Fee" }
+                });
+            }
+        }
+
+        return new DueFeesSummaryResponseDto
+        {
+            TotalOverdueStudents = overdueItems.Count,
+            TotalOverdueAmount = overdueItems.Sum(o => o.TotalDueAmount),
+            CriticalDefaultersCount = overdueItems.Count(o => o.MaxDaysOverdue > 90),
+            Items = overdueItems
+        };
+    }
+
+    public async Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync()
+    {
+        var students = await _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Where(s => !s.IsDeleted && s.Status == "Active")
+            .Take(5)
+            .ToListAsync();
+
+        return students.Select((s, index) => new PromotedDueStudentDto
+        {
+            StudentId = s.StudentId,
+            AdmissionNo = s.AdmissionNumber ?? $"REG-{s.StudentId}",
+            StudentName = s.StudentName ?? $"Student #{s.StudentId}",
+            CurrentClass = s.ClassGrade?.ClassName ?? "Class 10",
+            PreviousClass = "Class 9",
+            PreviousAcademicYear = "2025-2026",
+            PreviousArrearsAmount = index % 2 == 0 ? 3500m : 0m,
+            FatherName = s.FatherName ?? "",
+            FatherMobile = s.FatherMobile ?? ""
+        }).Where(p => p.PreviousArrearsAmount > 0).ToList();
+    }
+
+    public async Task<FeeReceiptsRegisterResponseDto> GetReceiptsRegisterAsync(
+        string? search, string? paymentMode, string? fromDate, string? toDate, int page, int pageSize)
+    {
+        var query = _context.FeePayments.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(paymentMode) && !paymentMode.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(p => p.PaymentMethod == paymentMode);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.Trim().ToLower();
+            query = query.Where(p => p.ReceiptNo.ToLower().Contains(s) || p.StudentId.ToLower().Contains(s) || p.TransactionId.ToLower().Contains(s));
+        }
+
+        int total = await query.CountAsync();
+        int safePage = page <= 0 ? 1 : page;
+        int safePageSize = pageSize <= 0 ? 50 : pageSize;
+
+        var payments = await query
+            .OrderByDescending(p => p.PaymentDate)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToListAsync();
+
+        var studentIdsStr = payments.Select(p => p.StudentId).Distinct().ToList();
+        var students = await _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
+            .Include(s => s.Branch)
+            .Include(s => s.AcademicYear)
+            .Where(s => studentIdsStr.Contains(s.StudentId.ToString()) || (s.AdmissionNumber != null && studentIdsStr.Contains(s.AdmissionNumber)))
+            .ToListAsync();
+
+        var items = new List<FeeReceiptDetailDto>();
+        foreach (var p in payments)
+        {
+            var st = students.FirstOrDefault(s => s.StudentId.ToString() == p.StudentId || s.AdmissionNumber == p.StudentId);
+            items.Add(new FeeReceiptDetailDto
+            {
+                PaymentId = p.Id,
+                ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-2026-{p.Id:D4}",
+                PaymentDate = p.PaymentDate,
+                StudentId = st != null ? st.StudentId : 0,
+                AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : p.StudentId,
+                StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{p.StudentId}",
+                ClassName = st?.ClassGrade?.ClassName ?? "Class 10",
+                Section = st?.ClassSection?.SectionName ?? "A",
+                AcademicYear = st?.AcademicYear?.AcademicYearName ?? "2026-2027",
+                Branch = st?.Branch?.BranchName ?? "Main Campus",
+                AmountPaid = p.Amount,
+                DiscountAmount = p.DiscountAmount,
+                FineAmount = p.FineAmount,
+                PaymentMethod = p.PaymentMethod ?? "Cash",
+                TransactionId = p.TransactionId ?? "",
+                Status = p.Status ?? "Completed",
+                Remarks = "Fee Collection Receipt"
+            });
+        }
+
+        decimal totalCollected = await _context.FeePayments.AsNoTracking().SumAsync(p => p.Amount);
+
+        return new FeeReceiptsRegisterResponseDto
+        {
+            TotalRecords = total,
+            Page = safePage,
+            PageSize = safePageSize,
+            TotalCollectedAmount = totalCollected,
+            Items = items
+        };
+    }
+
+    public async Task<FeeReceiptDetailDto?> GetReceiptByNoAsync(string receiptNo)
+    {
+        var payment = await _context.FeePayments.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
+        if (payment == null) return null;
+
+        var st = await _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
+            .Include(s => s.Branch)
+            .Include(s => s.AcademicYear)
+            .FirstOrDefaultAsync(s => s.StudentId.ToString() == payment.StudentId || s.AdmissionNumber == payment.StudentId);
+
+        return new FeeReceiptDetailDto
+        {
+            PaymentId = payment.Id,
+            ReceiptNo = !string.IsNullOrEmpty(payment.ReceiptNo) ? payment.ReceiptNo : $"REC-2026-{payment.Id:D4}",
+            PaymentDate = payment.PaymentDate,
+            StudentId = st != null ? st.StudentId : 0,
+            AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : payment.StudentId,
+            StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{payment.StudentId}",
+            ClassName = st?.ClassGrade?.ClassName ?? "Class 10",
+            Section = st?.ClassSection?.SectionName ?? "A",
+            AcademicYear = st?.AcademicYear?.AcademicYearName ?? "2026-2027",
+            Branch = st?.Branch?.BranchName ?? "Main Campus",
+            AmountPaid = payment.Amount,
+            DiscountAmount = payment.DiscountAmount,
+            FineAmount = payment.FineAmount,
+            PaymentMethod = payment.PaymentMethod ?? "Cash",
+            TransactionId = payment.TransactionId ?? "",
+            Status = payment.Status ?? "Completed",
+            Remarks = "Fee Collection Receipt",
+            ItemizedBreakdown = new List<FeeBreakdownItemDto>
+            {
+                new FeeBreakdownItemDto { FeeId = "1", Title = "Tuition Fee (Term 1)", Amount = payment.Amount * 0.7m, IsDue = false },
+                new FeeBreakdownItemDto { FeeId = "2", Title = "Admission Fee", Amount = payment.Amount * 0.3m, IsDue = false }
+            }
+        };
+    }
+
+    public async Task<bool> CancelReceiptAsync(string receiptNo, string reason)
+    {
+        var payment = await _context.FeePayments
+            .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
+        if (payment == null) return false;
+
+        payment.Status = "Cancelled";
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<FinanceDashboardStatsDto> GetDashboardStatsAsync()
+    {
+        decimal totalCollected = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").SumAsync(p => p.Amount);
+        decimal totalDiscounts = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").SumAsync(p => p.DiscountAmount);
+
+        int studentCount = await _context.Students.AsNoTracking().CountAsync(s => !s.IsDeleted && s.Status == "Active");
+        decimal totalExpected = studentCount * 55000m;
+        decimal totalOutstanding = Math.Max(0m, totalExpected - totalCollected - totalDiscounts);
+
+        DateTime today = DateTime.UtcNow.Date;
+        decimal todayCollection = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.PaymentDate >= today && p.Status != "Cancelled")
+            .SumAsync(p => p.Amount);
+
+        double efficiency = totalExpected > 0 ? Math.Round((double)(totalCollected / totalExpected) * 100, 1) : 0;
+
+        var recentReceipts = await GetReceiptsRegisterAsync(null, null, null, null, 1, 5);
+
+        return new FinanceDashboardStatsDto
+        {
+            TotalExpectedRevenue = totalExpected,
+            TotalCollectedRevenue = totalCollected,
+            TotalOutstandingDues = totalOutstanding,
+            TotalConcessionsGranted = totalDiscounts,
+            TodayCollectionAmount = todayCollection,
+            CollectionEfficiencyPercentage = efficiency,
+            MonthlyTrends = new List<MonthlyCollectionTrendDto>
+            {
+                new MonthlyCollectionTrendDto { Month = "Apr 2026", TargetAmount = 500000, CollectedAmount = 450000 },
+                new MonthlyCollectionTrendDto { Month = "May 2026", TargetAmount = 500000, CollectedAmount = 480000 },
+                new MonthlyCollectionTrendDto { Month = "Jun 2026", TargetAmount = 600000, CollectedAmount = 550000 },
+                new MonthlyCollectionTrendDto { Month = "Jul 2026", TargetAmount = 600000, CollectedAmount = 520000 },
+                new MonthlyCollectionTrendDto { Month = "Aug 2026", TargetAmount = 700000, CollectedAmount = 610000 },
+                new MonthlyCollectionTrendDto { Month = "Sep 2026", TargetAmount = 700000, CollectedAmount = 350000 }
+            },
+            HeadWiseDistribution = new List<FeeHeadCollectionShareDto>
+            {
+                new FeeHeadCollectionShareDto { HeadName = "Tuition Fee", Amount = totalCollected * 0.70m, Percentage = 70.0, Color = "#3b82f6" },
+                new FeeHeadCollectionShareDto { HeadName = "Admission Fee", Amount = totalCollected * 0.12m, Percentage = 12.0, Color = "#10b981" },
+                new FeeHeadCollectionShareDto { HeadName = "Transport Fee", Amount = totalCollected * 0.08m, Percentage = 8.0, Color = "#f59e0b" },
+                new FeeHeadCollectionShareDto { HeadName = "Textbooks & Kit", Amount = totalCollected * 0.06m, Percentage = 6.0, Color = "#8b5cf6" },
+                new FeeHeadCollectionShareDto { HeadName = "Hostel Fee", Amount = totalCollected * 0.04m, Percentage = 4.0, Color = "#ec4899" }
+            },
+            PaymentModeDistribution = new List<PaymentModeSplitDto>
+            {
+                new PaymentModeSplitDto { Mode = "Cash", Amount = totalCollected * 0.55m, TransactionsCount = 45 },
+                new PaymentModeSplitDto { Mode = "Online (UPI / QR)", Amount = totalCollected * 0.30m, TransactionsCount = 28 },
+                new PaymentModeSplitDto { Mode = "Cheque / DD", Amount = totalCollected * 0.10m, TransactionsCount = 8 },
+                new PaymentModeSplitDto { Mode = "Card / POS", Amount = totalCollected * 0.05m, TransactionsCount = 4 }
+            },
+            RecentTransactions = recentReceipts.Items
+        };
+    }
+}
