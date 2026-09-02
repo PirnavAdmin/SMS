@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 
+import { exportToExcel } from "../../utils/excelExport";
+
 interface ExportButtonProps<T> {
   data: T[];
   filename?: string;
@@ -41,44 +43,24 @@ export function ExportButton<T extends Record<string, any>>({
     setIsDownloading(true);
 
     setTimeout(() => {
-      const headers = Object.keys(data[0]);
-      const csvRows: string[] = [];
-
-      // Header row
-      csvRows.push(headers.join(","));
-
-      // Data rows
-      data.forEach((row) => {
-        const values = headers.map((h) => {
-          const val = row[h];
-          if (val === null || val === undefined) return '""';
-          if (typeof val === "object")
-            return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
-          return `"${String(val).replace(/"/g, '""')}"`;
-        });
-        csvRows.push(values.join(","));
-      });
-
-      const blob = new Blob([csvRows.join("\n")], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${filename}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setIsDownloading(false);
-      if (addToast) {
-        addToast(
-          "success",
-          "Download Started",
-          `Exported ${data.length} record(s) successfully.`
-        );
+      try {
+        exportToExcel(data, filename);
+        if (addToast) {
+          addToast(
+            "success",
+            "Download Complete",
+            `Exported ${data.length} record(s) successfully in Excel (.xlsx) format.`
+          );
+        }
+      } catch (err: any) {
+        console.error("Export error:", err);
+        if (addToast) {
+          addToast("error", "Export Failed", err.message || "Failed to export Excel file");
+        }
+      } finally {
+        setIsDownloading(false);
       }
-    }, 600);
+    }, 400);
   };
 
   const defaultClasses =

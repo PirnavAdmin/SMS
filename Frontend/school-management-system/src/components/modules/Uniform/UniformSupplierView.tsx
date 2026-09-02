@@ -29,14 +29,12 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     status: 'Active'
   });
 
-  const isFiltered = Boolean(query.trim() || filterStatus !== '');
-
-  const filtered = !isFiltered ? [] : (uniformSuppliers || []).filter(s => {
+  const filtered = (uniformSuppliers || []).filter(s => {
     if (!s) return false;
     const name = (s.supplierName || (s as any).companyName || '').toLowerCase();
     const contact = (s.contactPerson || (s as any).contactRepresentative || '').toLowerCase();
     const gst = (s.gstNumber || (s as any).gstRegistrationNo || '').toLowerCase();
-    const q = (query || '').toLowerCase();
+    const q = (query || '').toLowerCase().trim();
     const matchQuery = !q || name.includes(q) || contact.includes(q) || gst.includes(q);
     const matchStatus = !filterStatus || filterStatus === 'All' || s.status === filterStatus;
     return matchQuery && matchStatus;
@@ -158,18 +156,9 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {!isFiltered ? (
+              {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold">
-                    <div className="flex flex-col items-center gap-2">
-                      <Search className="w-6 h-6 text-sky-500/50" />
-                      <span>Select a status filter or type in the search bar to display suppliers.</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">No suppliers found matching the selected filter.</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">No corporate suppliers found matching the selected criteria. Click "+ Add Supplier" to create one.</td>
                 </tr>
               ) : (
                 paginated.map(s => (

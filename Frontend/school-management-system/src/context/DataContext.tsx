@@ -6014,7 +6014,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateSchoolProfile = (profile: Partial<SchoolProfile>) => {
-    setSchoolProfile((prev) => ({ ...prev, ...profile }));
+    setSchoolProfile((prev) => {
+      const next = { ...prev, ...profile };
+      try {
+        localStorage.setItem("edu_db_profile", JSON.stringify(next));
+        localStorage.setItem("profile", JSON.stringify(next));
+        if (next.logoUrl) {
+          localStorage.setItem("school_logo", next.logoUrl);
+        }
+      } catch (e) {}
+      return next;
+    });
     logActivity(
       "Updated School Profile",
       "Updated school contact and settings",
@@ -8468,7 +8478,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       `Published timetable for ${className}-${section}`,
     );
   };
-  const addUniform = (itemData: Omit<UniformItem, "id">) => {
+  const addUniform = async (itemData: Omit<UniformItem, "id">) => {
     const id = "UNI-" + Date.now();
     const createdAt = new Date().toISOString();
     const catName = itemData.category || itemData.name || "Uniform Item";
@@ -8530,9 +8540,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: (itemData as any).branch || selectedBranch || "Main Campus",
     } as any;
     setUniformInventory((prev) => [...prev, newInvItem]);
+
+    try {
+      const res: any = await createUniformTypeApi({
+        itemName: catName,
+        categoryName: catName,
+        gender: itemData.gender || "Unisex",
+        size: itemData.size || "All Sizes",
+        color: itemData.color || "",
+        availableStock: stockVal,
+        price: itemData.price || 0,
+        className: itemData.className || "All Wings",
+        isPackage: itemData.isPackage || false,
+        packageComponents: itemData.packageComponents || [],
+      });
+      if (res?.success && res?.data) {
+        const serverItem = res.data;
+        const realId = String(serverItem.uniformTypeId || serverItem.id);
+        setUniforms((prev) =>
+          prev.map((u) => (u.id === id ? { ...u, id: realId } : u)),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to create uniform type on backend:", err);
+    }
   };
 
-  const updateUniform = (id: string, updates: Partial<UniformItem>) => {
+  const updateUniform = async (id: string, updates: Partial<UniformItem>) => {
     setUniforms((prev) =>
       prev.map((u) => (u.id === id ? { ...u, ...updates } : u)),
     );
@@ -8563,9 +8597,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return inv;
       }),
     );
+
+    if (id && !id.startsWith("UNI-")) {
+      try {
+        await updateUniformTypeApi(id, {
+          itemName: updates.category || updates.name || "Uniform Item",
+          categoryName: updates.category || updates.name || "Uniform Item",
+          gender: updates.gender || "Unisex",
+          size: updates.size || "All Sizes",
+          color: updates.color || "",
+          availableStock:
+            updates.availableStock !== undefined
+              ? Number(updates.availableStock)
+              : 100,
+          price: updates.price || 0,
+          className: updates.className || "All Wings",
+        });
+      } catch (err) {
+        console.warn("Failed to update uniform type on backend:", err);
+      }
+    }
   };
 
-  const deleteUniform = (id: string) => {
+  const deleteUniform = async (id: string) => {
     setUniforms((prev) => {
       const targetItem = prev.find((u) => u.id === id);
       const targetName = (targetItem?.category || targetItem?.name || "")
@@ -8588,10 +8642,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               "edu_db_uniform_categories",
               JSON.stringify(updatedCats),
             );
-            localStorage.setItem(
-              "uniform_categories",
-              JSON.stringify(updatedCats),
-            );
           } catch (e) {}
           return updatedCats;
         });
@@ -8599,9 +8649,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         setUniformInventory((prevInv) => {
           const updatedInv = prevInv.filter(
             (inv) =>
-              inv.itemId !== id &&
               (inv.itemName || inv.category || "").toLowerCase().trim() !==
-                targetName,
+              targetName,
           );
           try {
             localStorage.setItem(
@@ -8615,6 +8664,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return updatedU;
     });
+
+    if (id && !id.startsWith("UNI-")) {
+      try {
+        await deleteUniformTypeApi(id);
+      } catch (err) {
+        console.warn("Failed to delete uniform type on backend:", err);
+      }
+    }
   };
 
   // Custom Roles CRUD
@@ -15840,7 +15897,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Uniform category CRUD
-  const addUniformCategory = (cData: Omit<UniformCategory, "id">) => {
+  const addUniformCategory = async (cData: Omit<UniformCategory, "id">) => {
     const id = "UC-" + Date.now();
     const createdAt = new Date().toISOString();
     const catName = cData.name || (cData as any).categoryName || "New Category";
@@ -15853,16 +15910,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: (cData as any).branch || selectedBranch || "Main Campus",
     };
     setUniformCategories((prev) => [newCat as any, ...prev]);
+
+    try {
+      const res: any = await createUniformCategoryApi({
+        categoryName: catName,
+        description: cData.description || "",
+        status: (cData as any).status || "Active",
+      });
+      if (res?.success && res?.data) {
+        const serverCat = res.data;
+        const realId = String(serverCat.categoryId || serverCat.id);
+        setUniformCategories((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, id: realId } : c)),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to create uniform category on backend:", err);
+    }
   };
-  const updateUniformCategory = (
+
+  const updateUniformCategory = async (
     id: string,
     updates: Partial<UniformCategory>,
   ) => {
+    const catName = updates.name || (updates as any).categoryName || "";
     setUniformCategories((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     );
+
+    if (id && !id.startsWith("UC-")) {
+      try {
+        await updateUniformCategoryApi(id, {
+          categoryName: catName,
+          description: updates.description || "",
+          status: (updates as any).status || "Active",
+        });
+      } catch (err) {
+        console.warn("Failed to update uniform category on backend:", err);
+      }
+    }
   };
-  const deleteUniformCategory = (id: string) => {
+
+  const deleteUniformCategory = async (id: string) => {
     setUniformCategories((prev) => {
       const targetCat = prev.find((c) => c.id === id);
       const targetName = (
@@ -15911,28 +16000,78 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return updatedCats;
     });
+
+    if (id && !id.startsWith("UC-")) {
+      try {
+        await deleteUniformCategoryApi(id);
+      } catch (err) {
+        console.warn("Failed to delete uniform category on backend:", err);
+      }
+    }
   };
 
   // Uniform sizes CRUD
-  const addUniformSize = (sData: Omit<UniformSize, "id">) => {
+  const addUniformSize = async (sData: Omit<UniformSize, "id">) => {
     const id = "US-" + Date.now();
     const createdAt = new Date().toISOString();
-    setUniformSizes((prev) => [
-      {
-        ...sData,
-        id,
-        createdAt,
-        branch: (sData as any).branch || selectedBranch || "Main Campus",
-      } as any,
-      ...prev,
-    ]);
+    const sName = sData.sizeName || (sData as any).sizeCodeName || "M";
+    const newSize = {
+      ...sData,
+      id,
+      createdAt,
+      sizeName: sName,
+      sizeCodeName: sName,
+      branch: (sData as any).branch || selectedBranch || "Main Campus",
+    };
+    setUniformSizes((prev) => [newSize as any, ...prev]);
+
+    try {
+      const res: any = await createUniformSizeApi({
+        sizeName: sName,
+        chestSpec: sData.chest || "",
+        waistSpec: sData.waist || "",
+        shoulderSpec: sData.shoulder || "",
+        ageBracket: sData.ageGroup || "",
+        gender: sData.gender || "Unisex",
+      });
+      if (res?.success && res?.data) {
+        const serverSize = res.data;
+        const realId = String(serverSize.sizeId || serverSize.id);
+        setUniformSizes((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, id: realId } : s)),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to create uniform size on backend:", err);
+    }
   };
-  const updateUniformSize = (id: string, updates: Partial<UniformSize>) => {
+
+  const updateUniformSize = async (
+    id: string,
+    updates: Partial<UniformSize>,
+  ) => {
+    const sName = updates.sizeName || (updates as any).sizeCodeName || "";
     setUniformSizes((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     );
+
+    if (id && !id.startsWith("US-")) {
+      try {
+        await updateUniformSizeApi(id, {
+          sizeName: sName,
+          chestSpec: updates.chest || "",
+          waistSpec: updates.waist || "",
+          shoulderSpec: updates.shoulder || "",
+          ageBracket: updates.ageGroup || "",
+          gender: updates.gender || "Unisex",
+        });
+      } catch (err) {
+        console.warn("Failed to update uniform size on backend:", err);
+      }
+    }
   };
-  const deleteUniformSize = (id: string) => {
+
+  const deleteUniformSize = async (id: string) => {
     setUniformSizes((prev) => {
       const updated = prev.filter((s) => s.id !== id);
       try {
@@ -15940,32 +16079,89 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {}
       return updated;
     });
+
+    if (id && !id.startsWith("US-")) {
+      try {
+        await deleteUniformSizeApi(id);
+      } catch (err) {
+        console.warn("Failed to delete uniform size on backend:", err);
+      }
+    }
   };
 
   // Uniform suppliers CRUD
-  const addUniformSupplier = (sData: Omit<UniformSupplier, "id">) => {
+  const addUniformSupplier = async (sData: Omit<UniformSupplier, "id">) => {
     const id = "SUP-" + Date.now();
     const createdAt = new Date().toISOString();
-    setUniformSuppliers((prev) => [
-      {
-        ...sData,
-        id,
-        createdAt,
-        branch: (sData as any).branch || selectedBranch || "Main Campus",
-      } as any,
-      ...prev,
-    ]);
+    const sName = sData.supplierName || (sData as any).companyName || "Supplier Partner";
+    const newSupplier = {
+      ...sData,
+      id,
+      createdAt,
+      supplierName: sName,
+      companyName: sName,
+      branch: (sData as any).branch || selectedBranch || "Main Campus",
+    };
+    setUniformSuppliers((prev) => [newSupplier as any, ...prev]);
+
+    try {
+      const res: any = await createUniformSupplierApi({
+        supplierName: sName,
+        contactPerson: sData.contactPerson || "",
+        phone: sData.mobile || sData.phone || (sData as any).mobileNumber || "",
+        email: sData.email || (sData as any).emailAddress || "",
+        gstNumber: sData.gstNumber || (sData as any).gstRegistrationNo || "",
+        address: sData.address || (sData as any).warehouseAddress || "",
+        status: sData.status || "Active",
+      });
+      if (res?.success && res?.data) {
+        const serverSup = res.data;
+        const realId = String(serverSup.supplierId || serverSup.id);
+        setUniformSuppliers((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, id: realId } : s)),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to create uniform supplier on backend:", err);
+    }
   };
-  const updateUniformSupplier = (
+
+  const updateUniformSupplier = async (
     id: string,
     updates: Partial<UniformSupplier>,
   ) => {
+    const sName = updates.supplierName || (updates as any).companyName || "";
     setUniformSuppliers((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     );
+
+    if (id && !id.startsWith("SUP-")) {
+      try {
+        await updateUniformSupplierApi(id, {
+          supplierName: sName,
+          contactPerson: updates.contactPerson || "",
+          phone: updates.mobile || updates.phone || (updates as any).mobileNumber || "",
+          email: updates.email || (updates as any).emailAddress || "",
+          gstNumber: updates.gstNumber || (updates as any).gstRegistrationNo || "",
+          address: updates.address || (updates as any).warehouseAddress || "",
+          status: updates.status || "Active",
+        });
+      } catch (err) {
+        console.warn("Failed to update uniform supplier on backend:", err);
+      }
+    }
   };
-  const deleteUniformSupplier = (id: string) => {
+
+  const deleteUniformSupplier = async (id: string) => {
     setUniformSuppliers((prev) => prev.filter((s) => s.id !== id));
+
+    if (id && !id.startsWith("SUP-")) {
+      try {
+        await deleteUniformSupplierApi(id);
+      } catch (err) {
+        console.warn("Failed to delete uniform supplier on backend:", err);
+      }
+    }
   };
 
   // Uniform inventory CRUD
@@ -15989,13 +16185,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ),
     );
   };
-  const updateUniformInventory = (
+  const updateUniformInventory = async (
     id: string,
     updates: Partial<UniformInventoryItem>,
   ) => {
+    let targetItemId: string | undefined = undefined;
+
     setUniformInventory((prev) =>
       prev.map((i) => {
         if (i.id === id) {
+          targetItemId = i.itemId || i.id;
           const updated = { ...i, ...updates };
           if (updates.currentStock !== undefined) {
             setUniforms((prevU) =>
@@ -16011,13 +16210,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return i;
       }),
     );
+
+    if (targetItemId && !targetItemId.startsWith("inv-cfg-") && !targetItemId.startsWith("UNI-") && !targetItemId.startsWith("UINV-")) {
+      try {
+        await adjustUniformStockApi(targetItemId, {
+          newStockLevel: updates.currentStock,
+          quantity: updates.currentStock,
+          notes: updates.lastUpdated ? `Stock updated on ${updates.lastUpdated}` : "Manual inventory adjustment"
+        });
+      } catch (err) {
+        console.warn("Failed to adjust uniform stock on backend:", err);
+      }
+    }
   };
   const deleteUniformInventory = (id: string) => {
     setUniformInventory((prev) => prev.filter((i) => i.id !== id));
   };
 
   // Student Uniform issues CRUD
-  const addStudentUniformIssue = (
+  const addStudentUniformIssue = async (
     issueData: Omit<StudentUniformIssue, "id">,
   ) => {
     const id = "UIS-" + Math.floor(10 + Math.random() * 90);
@@ -16117,9 +16328,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         JSON.stringify([newIssue, ...parsed]),
       );
     } catch (e) {}
+
+    try {
+      const res: any = await issueStudentUniformApi({
+        studentId: issueData.studentId ? (parseInt(issueData.studentId.replace(/\D/g, ''), 10) || undefined) : undefined,
+        admissionNo: issueData.admissionNo || issueData.studentId || '',
+        studentName: issueData.studentName || '',
+        className: issueData.className || '',
+        transactionType: issueData.type || 'Baseline Distribution (Admission Kit)',
+        itemName: issueData.itemName || 'Boys Package',
+        sizeSpec: issueData.size || 'M',
+        quantity: issueData.quantity || 1,
+        totalAmount: issueData.totalAmount || 0,
+        notes: issueData.notes || '',
+        status: issueData.status || 'Issued'
+      });
+      if (res?.success && res?.data) {
+        const serverId = String(res.data.distributionId || res.data.id);
+        setStudentUniformIssues((prev) =>
+          prev.map((i) => (i.id === newIssue.id ? { ...i, id: serverId } : i))
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to issue uniform on backend:", err);
+    }
   };
 
-  const updateStudentUniformIssue = (
+  const updateStudentUniformIssue = async (
     id: string,
     updates: Partial<StudentUniformIssue>,
   ) => {
@@ -16320,8 +16555,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {}
       return updated;
     });
+
+    if (id && !id.startsWith("UIS-")) {
+      try {
+        if (updates.status === 'Returned') {
+          await returnUniformApi(id, {
+            returnReason: updates.notes || 'Returned by student',
+            remarks: updates.actionRemarks || 'Item returned'
+          });
+        } else if (updates.status === 'Exchanged' || updates.newSize || updates.size) {
+          await exchangeUniformApi(id, {
+            newSize: updates.newSize || updates.size || 'L',
+            exchangeReason: updates.notes || 'Size exchange',
+            remarks: updates.actionRemarks || 'Size exchanged'
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to update uniform distribution on backend:", err);
+      }
+    }
   };
-  const deleteStudentUniformIssue = (idOrQuery: string) => {
+
+  const deleteStudentUniformIssue = async (idOrQuery: string) => {
     if (!idOrQuery) return;
     const targetLower = idOrQuery.toLowerCase().trim();
 
@@ -16434,6 +16689,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return updated;
     });
+
+    if (idOrQuery && !idOrQuery.startsWith("UIS-")) {
+      try {
+        await deleteStudentUniformDistributionApi(idOrQuery);
+      } catch (err) {
+        console.warn("Failed to delete uniform distribution on backend:", err);
+      }
+    }
   };
 
   // Finance Uniform configurations CRUD with automatic Sync to Fee Setup & Dynamic Fee Structures

@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import { exportToExcel } from '../../../utils/excelExport';
 import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
 import { Pagination } from '../../common/Pagination';
 import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw, BarChart2, CheckCircle2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { getItemPriceFromConfig, getUniformFeeForClass } from '../../../utils/uniformUtils';
+import { fetchUniformReportsApi } from '../../../api/uniform';
 
 interface UniformReportsViewProps {
   initialReportType?: string;
@@ -38,6 +40,17 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
       setReportType(initialReportType);
     }
   }, [initialReportType]);
+
+  React.useEffect(() => {
+    const fetchBackendReports = async () => {
+      try {
+        await fetchUniformReportsApi();
+      } catch (err) {
+        console.warn("Backend uniform reports notice:", err);
+      }
+    };
+    fetchBackendReports();
+  }, []);
 
   // Determine dynamic filter visibility
   const isReturnExchangeReport = [
@@ -303,59 +316,21 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
   // Download ONLY the active filtered records
   const handleDownload = () => {
-    let headers = '';
-    let rows = '';
-
-    if (['Current Stock', 'Low Stock'].includes(reportType)) {
-      if (filteredInventory.length === 0) {
-        addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
-        return;
-      }
-      headers = 'Item Name,Category,Size,Opening Stock,Current Stock,Min Stock,Reorder Level,Status\n';
-      rows = filteredInventory.map(i => `"${i.itemName}","${i.category}","${i.size}",${i.openingStock},${i.currentStock},${i.minimumStock},${i.reorderLevel},"${i.status}"`).join('\n');
-    } else if (isReturnExchangeReport) {
-      if (filteredStudentIssues.length === 0) {
-        addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
-        return;
-      }
-      headers = 'Student Name,Admission No,Class,Section,Uniform Item,Size,Quantity,Transaction Date,Status,Remarks / Reason\n';
-      rows = filteredStudentIssues.map(i => {
-        const txnDate = i.returnDate || i.replacementDate || i.issueDate;
-        const cleanStatus = (i.status === 'Returned' || i.notes?.toLowerCase().includes('returned')) ? 'Returned' :
-                            (i.status === 'Exchanged' || i.status === 'Replaced' || i.notes?.toLowerCase().includes('exchanged') || i.notes?.toLowerCase().includes('replaced') || Boolean(i.replacementDate)) ? 'Exchanged' :
-                            i.status;
-        return `"${i.studentName}","${i.admissionNo}","${i.className}","${i.section || 'A'}","${i.itemName}","${i.size}",${i.quantity},"${txnDate}","${cleanStatus}","${i.notes || ''}"`;
-      }).join('\n');
-    } else if (isSalesOrIssueReport) {
-      if (filteredStudentIssues.length === 0) {
-        addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
-        return;
-      }
-      headers = 'Student Name,Admission No,Class,Section,Uniform Item,Size,Quantity,Unit Price (₹),Total Amount (₹),Issue Date,Status,Remarks\n';
-      rows = filteredStudentIssues.map(i => {
-        const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-        const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 3000 : 350));
-        const totalAmount = unitPrice * i.quantity;
-        return `"${i.studentName}","${i.admissionNo}","${i.className}","${i.section || 'A'}","${i.itemName}","${i.size}",${i.quantity},${unitPrice},${totalAmount},"${i.issueDate}","${i.status}","${i.notes || ''}"`;
-      }).join('\n');
-    } else {
-      if (filteredSuppliers.length === 0) {
-        addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
-        return;
-      }
-      headers = 'Supplier Name,Contact,Mobile,Email,GSTIN,Address,Status\n';
-      rows = filteredSuppliers.map(s => `"${s.supplierName}","${s.contactPerson}","${s.mobile}","${s.email || ''}","${s.gstNumber || ''}","${s.address}","${s.status}"`).join('\n');
+    if (!reportExportData || reportExportData.length === 0) {
+      addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
+      return;
     }
 
-    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
     const cleanName = reportType.replace(/\s+/g, '_');
     const dateStr = new Date().toISOString().split('T')[0];
-    link.download = `Filtered_Uniform_${cleanName}_${dateStr}.csv`;
-    link.click();
-    addToast('success', 'Download Complete', `Successfully downloaded ${recordCount} filtered record(s).`);
+    const filename = `Filtered_Uniform_${cleanName}_${dateStr}`;
+    try {
+      exportToExcel(reportExportData, filename, cleanName.substring(0, 31));
+      addToast('success', 'Download Complete', `Successfully downloaded ${recordCount} filtered record(s) in Excel (.xlsx) format.`);
+    } catch (err: any) {
+      console.error("Uniform export error:", err);
+      addToast('error', 'Export Failed', err.message || 'Failed to export records.');
+    }
   };
 
   const reportExportData = React.useMemo(() => {

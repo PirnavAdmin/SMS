@@ -9,6 +9,7 @@ import {
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
+import { exportToExcel } from '../../../../utils/excelExport';
 import {
   WorkshopTraining, EmployeeAssessment, IssuedCertificate,
   TrainingCategory, AssessmentType, AssessmentCategory, AssessmentMode, TrainingParticipant, AssessmentResult, Staff
@@ -489,25 +490,39 @@ export const TrainingContainerView: React.FC = () => {
     setSelectedAssessmentForEvaluation(null);
   };
 
-  // CSV Export for Reports
+  // Excel Export for Reports
   const handleExportReportCSV = () => {
-    const headers = ['Category,Name,Type,Branch,Department,Date,Status,Participants/Candidates,Pass Rate / Attendance'];
-    const workshopRows = workshops.map(w =>
-      `"Workshop","${w.workshopName}","${w.category}","${w.branch}","${w.department || 'All'}","${w.startDate}","${w.status}","${w.participants.length}","${w.attendancePct || 0}%"`
-    );
-    const assessmentRows = employeeAssessments.map(a =>
-      `"Assessment","${a.assessmentName}","${a.assessmentType}","${a.branch}","${a.department}","${a.date}","${a.status}","${a.results.length}","Evaluated"`
-    );
+    const headers = ['Category', 'Name', 'Type', 'Branch', 'Department', 'Date', 'Status', 'Participants/Candidates', 'Pass Rate / Attendance'];
+    const workshopRows = workshops.map(w => [
+      'Workshop',
+      w.workshopName,
+      w.category,
+      w.branch,
+      w.department || 'All',
+      w.startDate,
+      w.status,
+      w.participants.length,
+      `${w.attendancePct || 0}%`
+    ]);
+    const assessmentRows = employeeAssessments.map(a => [
+      'Assessment',
+      a.assessmentName,
+      a.assessmentType,
+      a.branch,
+      a.department,
+      a.date,
+      a.status,
+      a.results.length,
+      'Evaluated'
+    ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...workshopRows, ...assessmentRows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Training_Assessments_Report_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    addToast('success', 'Export Complete', 'Exported Training & Assessment Reports to CSV.');
+    try {
+      exportToExcel([headers, ...workshopRows, ...assessmentRows], `Training_Assessments_Report_${new Date().toISOString().split('T')[0]}`, 'Reports');
+      addToast('success', 'Export Complete', 'Exported Training & Assessment Reports to Excel (.xlsx) file.');
+    } catch (err: any) {
+      console.error("Training export error:", err);
+      addToast('error', 'Export Failed', err.message || 'Failed to export reports.');
+    }
   };
 
   // Active Employee Profile Professional Development Records

@@ -35,33 +35,71 @@ export const TeacherProfileView: React.FC = () => {
       if (byEmail) return byEmail;
     }
 
+    const userId = (user?.id || (user as any)?.empId || '').trim();
+    if (userId) {
+      const byId = teachingStaff.find(s => s.id === userId || s.empId === userId);
+      if (byId) return byId;
+    }
+
     if (userName && !userName.includes('admin') && !userName.includes('driver')) {
       const byName = teachingStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName);
+        const uFirst = userName.split(' ')[0];
+        return (sFullName && sFullName === userName) || (sName && sName === userName) || (uFirst.length > 2 && sFullName.includes(uFirst));
       });
       if (byName) return byName;
     }
 
-    if (user?.id) {
-      const byId = teachingStaff.find(s => s.id === user.id);
-      if (byId) return byId;
-    }
-
-    const rawName = user?.name || 'Suteja K';
+    const firstStaff = teachingStaff[0];
+    const rawName = user?.name || (firstStaff ? `${firstStaff.firstName} ${firstStaff.lastName}` : 'Faculty Member');
     const nameParts = rawName.split(' ');
-    return {
-      id: user?.id || 'STF-2026-0009',
-      empId: (user as any)?.empId || 'STF-2026-0009',
-      firstName: nameParts[0] || 'Suteja',
-      lastName: nameParts.slice(1).join(' ') || 'K',
-      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
-      assignedSubjects: ['Social Studies'],
-      department: 'Social Studies',
-      designation: 'Junior Teacher'
+    return firstStaff || {
+      id: user?.id || (user as any)?.empId || 'STF-001',
+      empId: (user as any)?.empId || user?.id || 'STF-001',
+      firstName: nameParts[0] || 'Faculty',
+      lastName: nameParts.slice(1).join(' ') || 'Member',
+      assignedClasses: [],
+      assignedSections: [],
+      assignedSubjects: [],
+      department: (user as any)?.department || 'Academics',
+      designation: (user as any)?.designation || 'Teacher',
+      qualification: (user as any)?.qualification || 'Academic Qualification Completed',
+      experience: (user as any)?.experience || 'Teaching Experience'
     };
   }, [user, staff]);
+
+  // Dynamically compute Class Teacher assignment details
+  const classTeacherInfo = useMemo(() => {
+    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const tId = dbTeacher?.id || dbTeacher?.empId;
+
+    // Check teacherAssignments for role === 'Class Teacher' or isClassTeacher === true
+    const ctAssignment = teacherAssignments.find(ta => {
+      if (!ta) return false;
+      const taName = (ta.teacherName || '').toLowerCase();
+      const matchName = (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      const matchId = tId && (String(ta.teacherId) === String(tId));
+      const isCT = ta.role === 'Class Teacher' || ta.isClassTeacher === true || ta.designation?.includes('Class Teacher');
+      return (matchName || matchId) && isCT;
+    });
+
+    if (ctAssignment) {
+      const clsName = ctAssignment.className ? (ctAssignment.className.startsWith('Class ') ? ctAssignment.className : `Class ${ctAssignment.className}`) : '';
+      return { isClassTeacher: true, className: clsName, section: ctAssignment.section || '' };
+    }
+
+    // Check staff record fields (isClassTeacher, classTeacherFor, designation)
+    const isStaffCT = dbTeacher?.isClassTeacher === true || (dbTeacher?.designation || '').toLowerCase().includes('class teacher');
+    if (isStaffCT) {
+      const assignedCls = (dbTeacher?.assignedClasses && dbTeacher.assignedClasses[0]) ? dbTeacher.assignedClasses[0] : '';
+      const parts = assignedCls.split('-');
+      return { isClassTeacher: true, className: assignedCls ? (assignedCls.startsWith('Class ') ? assignedCls : `Class ${assignedCls}`) : '', section: parts[1] || '' };
+    }
+
+    return { isClassTeacher: false, className: '', section: '' };
+  }, [dbTeacher, user, teacherAssignments]);
 
   // Dynamically compute assigned classes (clean class name without section suffix)
   const dynamicAssignedClasses = useMemo(() => {
@@ -87,8 +125,7 @@ export const TeacherProfileView: React.FC = () => {
       return cls.startsWith('Class ') ? cls : `Class ${cls}`;
     });
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
-    return merged.length > 0 ? merged : ['Class 9', 'Class 8', 'Class 10'];
+    return Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
@@ -110,17 +147,16 @@ export const TeacherProfileView: React.FC = () => {
       })
       .map(t => t.section ? (t.section.startsWith('Section ') ? t.section : `Section ${t.section}`) : null);
 
-    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.includes('-') ? `Section ${ac.split('-')[1].trim()}` : 'Section A');
+    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.includes('-') ? `Section ${ac.split('-')[1].trim()}` : null);
+    const fromStaffSections = (dbTeacher?.assignedSections || []).map(sec => sec.startsWith('Section ') ? sec : `Section ${sec}`);
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-    return merged.length > 0 ? merged : ['Section A'];
+    return Array.from(new Set([...fromStaff, ...fromStaffSections, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned subjects from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSubjects = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
     const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
-    const dept = (dbTeacher?.department || 'Social Studies').toLowerCase().trim();
 
     const fromAssignments = teacherAssignments
       .filter(ta => {
@@ -134,22 +170,18 @@ export const TeacherProfileView: React.FC = () => {
         const tName = (t.teacherName || '').toLowerCase();
         return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
       })
-      .map(ta => ta.subject);
+      .map(t => t.subject);
 
     const fromStaff = dbTeacher?.assignedSubjects || [];
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
 
-    // Filter out subjects that do not belong to the teacher's department (e.g. Mathematics for a Social Studies teacher)
-    const filtered = merged.filter((sub: string) => {
-      const sLower = sub.toLowerCase().trim();
-      if (dept.includes('social') && (sLower.includes('math') || sLower.includes('physics') || sLower.includes('chemistry') || sLower.includes('biology') || sLower.includes('science'))) {
-        return false;
-      }
-      return true;
-    });
+    if (fromStaff.length > 0) {
+      return fromStaff;
+    }
 
-    return filtered.length > 0 ? filtered : [dbTeacher?.department || 'Social Studies'];
+    const defaultSub = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'Mathematics';
+    return merged.length > 0 ? merged : [defaultSub];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // User-scoped Local Storage key for Teacher self-edits
@@ -164,20 +196,6 @@ export const TeacherProfileView: React.FC = () => {
       const scopedKey = `teacher_self_profile_edits_${idStr}`;
       const saved = localStorage.getItem(scopedKey);
       if (saved) return JSON.parse(saved);
-      
-      // Legacy check: if legacy edit exists and matches current user's name/email, use it; otherwise ignore
-      const legacy = localStorage.getItem('teacher_self_profile_edits');
-      if (legacy) {
-        const parsed = JSON.parse(legacy);
-        const currentName = (user?.name || '').toLowerCase().trim();
-        const currentEmail = (user?.email || '').toLowerCase().trim();
-        if (
-          (parsed.email && currentEmail && parsed.email.toLowerCase().trim() === currentEmail) ||
-          (parsed.fullName && currentName && parsed.fullName.toLowerCase().trim() === currentName)
-        ) {
-          return parsed;
-        }
-      }
     } catch (e) {}
     return null;
   });
@@ -185,25 +203,26 @@ export const TeacherProfileView: React.FC = () => {
   // Reactive teacher profile construction merging Admin master data & teacher edits
   const profile = useMemo(() => {
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || 'Suteja K').split(' ');
-    const defaultFullName = dbFullName || `${nameParts[0] || 'Suteja'} ${nameParts.slice(1).join(' ') || 'K'}`.trim();
+    const nameParts = (user?.name || 'Faculty Member').split(' ');
+    const defaultFullName = dbFullName || `${nameParts[0] || 'Faculty'} ${nameParts.slice(1).join(' ') || 'Member'}`.trim();
+    const fallbackDept = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'Mathematics';
 
     return {
-      staffId: dbTeacher?.id || 'STF-2026-0009',
+      staffId: dbTeacher?.id || (user as any)?.empId || user?.id || 'STF-2026-0009',
       employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0009',
       fullName: localEdit?.fullName || defaultFullName,
-      email: localEdit?.email || dbTeacher?.email || user?.email || 'teacher@pirnavschools.com',
-      mobile: localEdit?.mobile || dbTeacher?.phone || '7987987998',
+      email: localEdit?.email || dbTeacher?.email || user?.email || 'suryatejakola12@gmail.com',
+      mobile: localEdit?.mobile || dbTeacher?.phone || '98765432197',
       gender: localEdit?.gender || dbTeacher?.gender || 'Male',
-      dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || '1988-05-14',
-      bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || 'O+',
-      address: localEdit?.address || dbTeacher?.address || '45/2 Green Avenue, Campus Road',
+      dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || '2002-09-12',
+      bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || 'A+',
+      address: localEdit?.address || dbTeacher?.address || '128-23-12, Gokul nagar, shankar colony',
       emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '9876543210',
       branch: dbTeacher?.branch || 'Main Campus',
-      department: dbTeacher?.department || 'Social Studies',
-      designation: dbTeacher?.designation || 'Junior Teacher',
-      joiningDate: dbTeacher?.joiningDate || '2026-08-19',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'M.A. Social Studies, B.Ed.',
+      department: fallbackDept,
+      designation: dbTeacher?.designation || 'Teacher',
+      joiningDate: dbTeacher?.joiningDate || '2026-08-26',
+      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'Academic Qualification Completed',
       experience: localEdit?.experience || (dbTeacher as any)?.experience || '8 Years Teaching Experience',
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
@@ -368,13 +387,15 @@ export const TeacherProfileView: React.FC = () => {
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 text-[10px] font-black uppercase border border-emerald-400/30 backdrop-blur-sm">
                 {profile.employmentStatus || 'ACTIVE'}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase border border-white/30 backdrop-blur-sm">
-                {profile.profileStatus || 'COMPLETED'}
-              </span>
+              {classTeacherInfo.isClassTeacher && (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/30 text-amber-100 text-[10px] font-black uppercase border border-amber-300/50 backdrop-blur-sm flex items-center gap-1 shadow-sm">
+                  🏷️ Class Teacher ({classTeacherInfo.className})
+                </span>
+              )}
             </div>
 
             <p className="text-sky-100 font-extrabold text-xs sm:text-sm">
-              {profile.designation} • <span className="text-white font-bold">{profile.department}</span>
+              {profile.designation}
             </p>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-sky-100/90 pt-0.5 font-semibold">
