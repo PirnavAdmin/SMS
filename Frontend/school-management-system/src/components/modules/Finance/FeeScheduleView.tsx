@@ -351,7 +351,6 @@ export const FeeScheduleView: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-white">Fee Schedule Management</h3>
-              <p className="text-xs text-slate-500">Configure frequency-based due dates for Monthly, Term-wise/Quarterly, Annual, and One-Time fee structures</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -459,9 +458,6 @@ export const FeeScheduleView: React.FC = () => {
               <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-sky-500" /> Monthly Due Date Configuration
               </h4>
-              <p className="text-[11px] text-slate-500">
-                Applied to fee heads configured with Monthly frequency (e.g. Tuition Fee, Hostel Fee)
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -511,9 +507,6 @@ export const FeeScheduleView: React.FC = () => {
             <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-500" /> Annual Fee Due Date
             </h4>
-            <p className="text-[11px] text-slate-500">
-              Applied to fee heads configured with Annual frequency (e.g. Textbook Fee, Sports Fee)
-            </p>
             <div className="flex items-center gap-3 pt-2">
               <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Date:</label>
               <DateInput
@@ -528,9 +521,6 @@ export const FeeScheduleView: React.FC = () => {
             <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-purple-500" /> One-Time Fee Due Date
             </h4>
-            <p className="text-[11px] text-slate-500">
-              Applied to fee heads configured with One-Time frequency (e.g. Admission Fee, Caution Deposit)
-            </p>
             <div className="flex items-center gap-3 pt-2">
               <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Date:</label>
               <DateInput
