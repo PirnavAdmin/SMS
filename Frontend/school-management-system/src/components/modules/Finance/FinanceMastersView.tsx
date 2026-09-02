@@ -35,7 +35,7 @@ export const FinanceMastersView: React.FC = () => {
     { id: 'student-assignment', label: 'Fee Assignment', icon: UserPlus },
     { id: 'uniform-fee', label: 'Uniform Fee', icon: Shirt },
     { id: 'refunds', label: 'Refund Management', icon: RotateCcw },
-    { id: 'settings', label: 'Fine Configurations', icon: SlidersHorizontal },
+    { id: 'settings', label: 'Finance Settings', icon: SlidersHorizontal },
   ] as const;
 
   const renderSubTabContent = () => {

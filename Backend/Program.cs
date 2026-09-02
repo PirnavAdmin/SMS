@@ -2787,6 +2787,110 @@ using (var scope = app.Services.CreateScope())
         {
             Console.WriteLine($"[Startup Backfill] Error syncing staff/users: {syncEx.Message}");
         }
+
+        try
+        {
+            const string createPhysicalTableSql = @"
+                CREATE TABLE IF NOT EXISTS `subject_teacher_allocations` (
+                    `id` VARCHAR(50) NOT NULL PRIMARY KEY,
+                    `class_name` VARCHAR(100) NOT NULL,
+                    `section` VARCHAR(50) NOT NULL,
+                    `subject_name` VARCHAR(100) NULL,
+                    `teacher_name` VARCHAR(150) NOT NULL,
+                    `role` VARCHAR(50) NOT NULL,
+                    `status` VARCHAR(50) NOT NULL DEFAULT 'Active'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            await context.Database.ExecuteSqlRawAsync(createPhysicalTableSql);
+
+            var activeAssignments = await context.TeacherAssignments
+                .AsNoTracking()
+                .Include(ta => ta.ClassGrade)
+                .Include(ta => ta.Subject)
+                .Include(ta => ta.Teacher)
+                .ToListAsync();
+
+            var allocs = activeAssignments.Select(ta => new SubjectTeacherAllocation
+            {
+                Id = $"TA-{ta.Id}",
+                ClassName = ta.ClassGrade?.ClassName ?? "",
+                Section = ta.SectionLetter,
+                SubjectName = ta.Subject?.SubjectName ?? "",
+                TeacherName = ta.Teacher != null ? $"{ta.Teacher.FirstName} {ta.Teacher.LastName}".Trim() : "",
+                Role = ta.Role ?? "Subject Teacher",
+                Status = ta.Status ?? "Active"
+            }).ToList();
+
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM `subject_teacher_allocations`;");
+            await context.SubjectTeacherAllocations.AddRangeAsync(allocs);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine($"[Database Table] Synchronized {allocs.Count} records into physical table `subject_teacher_allocations` in MySQL.");
+        }
+        catch (Exception tblEx)
+        {
+            Console.WriteLine($"[Database Table] Note: {tblEx.Message}");
+        }
+
+        // --- CLEAN SLATE: Wipe dummy/test finance database records ---
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS `feeheads` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `Name` VARCHAR(255) NOT NULL,
+                    `Code` VARCHAR(50) NOT NULL DEFAULT '',
+                    `Category` VARCHAR(100) NOT NULL DEFAULT 'Tuition',
+                    `Frequency` VARCHAR(50) NOT NULL DEFAULT 'Monthly',
+                    `IsMandatory` TINYINT(1) NOT NULL DEFAULT 1,
+                    `IsRefundable` TINYINT(1) NOT NULL DEFAULT 0,
+                    `IsActive` TINYINT(1) NOT NULL DEFAULT 1,
+                    `Description` VARCHAR(500) NOT NULL DEFAULT ''
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `dynamicfeestructures` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `AcademicYear` VARCHAR(50) NOT NULL,
+                    `Branch` VARCHAR(100) NOT NULL,
+                    `ClassName` VARCHAR(100) NOT NULL,
+                    `FeePolicy` VARCHAR(50) NOT NULL DEFAULT 'Full Annual Fee',
+                    `TotalAmount` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `items_json` LONGTEXT NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `studentfeeassignments` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `StudentId` INT NOT NULL,
+                    `DynamicFeeStructureId` INT NOT NULL,
+                    `AcademicYear` VARCHAR(50) NOT NULL,
+                    `TotalAmount` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `AssignedDate` DATETIME NOT NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `feepayments` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `ReceiptNo` VARCHAR(100) NOT NULL,
+                    `StudentId` VARCHAR(50) NOT NULL,
+                    `Amount` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `DiscountAmount` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `FineAmount` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `TransportFee` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `TransactionId` VARCHAR(100) NOT NULL DEFAULT '',
+                    `PaymentDate` DATETIME NOT NULL,
+                    `PaymentMethod` VARCHAR(50) NOT NULL DEFAULT 'Cash',
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Completed'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                DELETE FROM `feepayments`;
+                DELETE FROM `studentfeeassignments`;
+                DELETE FROM `dynamicfeestructures`;
+                DELETE FROM `feeheads`;
+            ");
+            Console.WriteLine("[Finance Clean Slate] Wiped test finance records from MySQL database.");
+        }
+        catch (Exception finEx)
+        {
+            Console.WriteLine($"[Finance Clean Slate] Note: {finEx.Message}");
+        }
       }
     }
     catch (Exception exception)

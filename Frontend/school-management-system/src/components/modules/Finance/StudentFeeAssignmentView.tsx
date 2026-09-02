@@ -77,13 +77,20 @@ export const StudentFeeAssignmentView: React.FC = () => {
       addToast('warning', 'No Students Selected', 'Please select at least one student for bulk fee assignment.');
       return;
     }
-    if (!targetStructureId) {
-      addToast('warning', 'Select Fee Structure', 'Please select a fee structure to assign.');
+
+    const classDfs =
+      dynamicFeeStructures.find((d) => d.className === selectedClass && d.academicYear === activeAY) ||
+      dynamicFeeStructures.find((d) => d.className === selectedClass) ||
+      dynamicFeeStructures.find((d) => d.id === targetStructureId) ||
+      dynamicFeeStructures[0];
+
+    if (!classDfs) {
+      addToast('warning', 'Fee Structure Missing', `No active fee structure found for ${selectedClass || 'the selected class'}. Please configure one in Fee Structures.`);
       return;
     }
 
-    bulkAssignFeeStructure(selectedStudentIds, targetStructureId);
-    addToast('success', 'Fee Structure Assigned', `Assigned structure to ${selectedStudentIds.length} students.`);
+    bulkAssignFeeStructure(selectedStudentIds, classDfs.id);
+    addToast('success', 'Fee Structure Assigned', `Assigned ${classDfs.className} structure (${formatCurrency(classDfs.totalAmount)}) to ${selectedStudentIds.length} students.`);
     setSelectedStudentIds([]);
   };
 
@@ -108,8 +115,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
       (a) => a.studentId === st.id && a.academicYear === activeAY
     );
 
+    let initialPolicy: FeePolicyType = 'Full Annual Fee';
     if (existingAssign) {
-      setModalPolicy(existingAssign.feePolicy || 'Full Annual Fee');
+      const p = existingAssign.feePolicy === 'Pro-rata' ? 'Monthly Pro-rated Fee' : (existingAssign.feePolicy || 'Full Annual Fee');
+      initialPolicy = p as FeePolicyType;
+      setModalPolicy(initialPolicy);
       setModalAdjustmentReason(existingAssign.adjustmentReason || '');
     } else {
       setModalPolicy('Full Annual Fee');
@@ -117,7 +127,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     }
 
     // Initialize Breakdown Table
-    buildModalBreakdown(matchingDfs, 'Full Annual Fee', admDate);
+    buildModalBreakdown(matchingDfs, initialPolicy, admDate);
     setIsPreviewOpen(false);
     setIsConfigModalOpen(true);
   };
@@ -151,7 +161,12 @@ export const StudentFeeAssignmentView: React.FC = () => {
       if (isFixedFullAmountHead || policy === 'Full Annual Fee') {
         // One Time, Annual, One Term -> Full amount
         assigned = orig;
-      } else if (policy === 'Pro-rata' || (policy as string) === 'Monthly') {
+      } else if (
+        policy === 'Monthly Pro-rated Fee' ||
+        policy === 'Monthly Pro-rated' ||
+        policy === 'Pro-rata' ||
+        (policy as string) === 'Monthly'
+      ) {
         // Late Admission = Monthly -> Apply remaining months
         if (admDateStr) {
           const admMonth = new Date(admDateStr).getMonth() + 1; // 1-12 (Jan=1, Apr=4, Jun=6)
@@ -159,7 +174,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           const remainingMonths = Math.max(1, 12 - startMonthIdx);
           assigned = Math.round((orig / 12) * remainingMonths);
         }
-      } else if (policy === 'Term-wise') {
+      } else if (policy === 'Term-wise' || policy === 'Term-wise Fee') {
         // Late Admission = Term-wise -> Apply remaining terms
         if (admDateStr) {
           const admMonth = new Date(admDateStr).getMonth() + 1;
@@ -171,7 +186,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
           assigned = Math.round(orig * remainingTermsRatio);
         }
-      } else if (policy === 'Custom') {
+      } else if (policy === 'Custom' || policy === 'Custom Amount') {
         assigned = orig;
       }
 
@@ -356,7 +371,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           <UserPlus className="w-6 h-6 text-sky-500" /> Student Fee Assignment & Policy Management
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-          Allocate standard fee structures or configure mid-year admission adjustments (Full Annual Fee, Pro-rata, Term-wise, Custom Amount).
+          Allocate standard fee structures or configure mid-year admission adjustments (Full Annual Fee, Monthly Pro-rated Fee, Term-wise Fee, Custom Amount).
         </p>
       </div>
 
@@ -371,7 +386,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                 setSelectedClass(e.target.value);
                 setSelectedSection('');
               }}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="">Select Class</option>
               {academicClasses.map((c) => (
@@ -387,13 +402,14 @@ export const StudentFeeAssignmentView: React.FC = () => {
             <select
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
               disabled={!selectedClass}
             >
               <option value="">Select Section</option>
               <option value="A">Section A</option>
               <option value="B">Section B</option>
               <option value="C">Section C</option>
+              <option value="All">All Sections</option>
             </select>
           </div>
 
@@ -413,28 +429,17 @@ export const StudentFeeAssignmentView: React.FC = () => {
         </div>
 
         {/* Bulk Action */}
-        <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 dark:border-slate-800">
-          <div>
-            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Assign Target Structure</label>
-            <select
-              value={targetStructureId}
-              onChange={(e) => setTargetStructureId(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
-            >
-              <option value="">Select Target Structure</option>
-              {dynamicFeeStructures.map((dfs) => (
-                <option key={dfs.id} value={dfs.id}>
-                  {dfs.className} - {formatCurrency(dfs.totalAmount)} ({dfs.studentCategory})
-                </option>
-              ))}
-            </select>
-          </div>
-
+        <div className="flex items-center gap-3 shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 dark:border-slate-800">
           <button
             onClick={handleBulkAssign}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer h-[38px]"
+            disabled={selectedStudentIds.length === 0}
+            className={`px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer h-[38px] transition-all ${
+              selectedStudentIds.length > 0
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20 active:scale-95"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60"
+            }`}
           >
-            <CheckCircle className="w-4 h-4" /> Bulk Assign ({selectedStudentIds.length})
+            <CheckCircle className="w-4 h-4" /> Bulk Assign Class Fee ({selectedStudentIds.length})
           </button>
         </div>
       </div>
@@ -515,7 +520,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
                       <td className="py-3 px-4">
                         {assignment ? (
                           <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
-                            {assignment.feePolicy === 'Custom' ? 'Custom Amount' : assignment.feePolicy || 'Full Annual Fee'}
+                            {assignment.feePolicy === 'Pro-rata' || assignment.feePolicy === 'Monthly Pro-rated' || assignment.feePolicy === 'Monthly Pro-rated Fee'
+                              ? 'Monthly Pro-rated Fee'
+                              : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Custom Amount' : assignment.feePolicy || 'Full Annual Fee')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
@@ -671,21 +678,21 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
                       <label
                         className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                          modalPolicy === 'Pro-rata'
+                          modalPolicy === 'Monthly Pro-rated Fee' || modalPolicy === 'Monthly Pro-rated' || modalPolicy === 'Pro-rata'
                             ? 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 ring-2 ring-sky-500/20'
                             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">Pro-rata</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">Monthly Pro-rated</span>
                           <input
                             type="radio"
                             name="feePolicy"
-                            checked={modalPolicy === 'Pro-rata'}
-                            onChange={() => handlePolicyChange('Pro-rata')}
+                            checked={modalPolicy === 'Monthly Pro-rated Fee' || modalPolicy === 'Monthly Pro-rated' || modalPolicy === 'Pro-rata'}
+                            onChange={() => handlePolicyChange('Monthly Pro-rated Fee')}
                           />
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Pro-rated monthly/term heads</span>
+                        <span className="text-[10px] text-slate-400 mt-1">Pro-rated for remaining months</span>
                       </label>
 
                       <label

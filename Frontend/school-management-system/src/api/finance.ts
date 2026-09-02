@@ -82,6 +82,40 @@ export const createStudentFeeAssignmentApi = async (data: Omit<StudentFeeAssignm
   });
 };
 
+export const bulkAssignStudentFeesApi = async (payload: {
+  studentIds: string[];
+  dynamicFeeStructureId?: number | string;
+  className?: string;
+  feePolicy?: string;
+  totalAmount?: number;
+}) => {
+  return apiClient('/api/finance/fee-assignments/bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      dynamicFeeStructureId: payload.dynamicFeeStructureId ? parseInt(String(payload.dynamicFeeStructureId)) : undefined
+    })
+  });
+};
+
+export const saveCustomStudentFeeAssignmentApi = async (payload: {
+  studentId: string;
+  dynamicFeeStructureId?: number | string;
+  feePolicy: string;
+  admissionDate?: string;
+  adjustmentReason?: string;
+  totalAmount: number;
+  breakdown?: any[];
+}) => {
+  return apiClient('/api/finance/fee-assignments/custom', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      dynamicFeeStructureId: payload.dynamicFeeStructureId ? parseInt(String(payload.dynamicFeeStructureId)) : undefined
+    })
+  });
+};
+
 export const updateStudentFeeAssignmentApi = async (id: string, data: Partial<StudentFeeAssignment>) => {
   return apiClient(`/api/finance/fee-assignments/${id}`, {
     method: 'PUT',
@@ -368,6 +402,12 @@ export const updateFinancialAccountApi = async (id: number | string, payload: an
   });
 };
 
+export const deleteFinancialAccountApi = async (id: number | string) => {
+  return apiClient(`/api/finance/accounts/${id}`, {
+    method: 'DELETE'
+  });
+};
+
 export const fetchFinancialCategoriesApi = async (type?: string) => {
   const qs = type ? `?type=${encodeURIComponent(type)}` : '';
   return apiClient(`/api/finance/categories${qs}`, { method: 'GET' });
@@ -380,13 +420,33 @@ export const createFinancialCategoryApi = async (payload: any) => {
   });
 };
 
-export const fetchFinancialBudgetsApi = async (academicYear = '2026-2027') => {
+export const updateFinancialCategoryApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/finance/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteFinancialCategoryApi = async (id: number | string) => {
+  return apiClient(`/api/finance/categories/${id}`, {
+    method: 'DELETE'
+  });
+};
+
+export const fetchFinancialBudgetsApi = async (academicYear = '2025-2026') => {
   return apiClient(`/api/finance/budgets?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
 };
 
 export const saveFinancialBudgetApi = async (payload: any) => {
   return apiClient('/api/finance/budgets', {
     method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateFinancialBudgetApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/finance/budgets/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(payload)
   });
 };
@@ -432,12 +492,16 @@ export const updateFinanceGlobalSettingsApi = async (payload: any) => {
   });
 };
 
+export const fetchFinanceReportsSummaryApi = async (academicYear = '2025-2026') => {
+  return apiClient(`/api/finance/reports/summary?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
+};
+
 export const fetchDailyCollectionReportApi = async (date?: string) => {
   const qs = date ? `?date=${encodeURIComponent(date)}` : '';
   return apiClient(`/api/finance/reports/daily-collection${qs}`, { method: 'GET' });
 };
 
-export const fetchClassWiseCollectionReportApi = async (academicYear = '2026-2027') => {
+export const fetchClassWiseCollectionReportApi = async (academicYear = '2025-2026') => {
   return apiClient(`/api/finance/reports/class-wise-collection?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
 };
 
@@ -662,6 +726,51 @@ export const deleteHostelFeeConfigApi = async (id: number | string) => {
     method: 'DELETE'
   });
 };
+
+// =========================================================================
+// UNIFORM FEE CONFIGURATIONS APIS
+// =========================================================================
+
+export const fetchUniformFeeConfigsApi = async (params?: {
+  search?: string;
+  className?: string;
+  academicYear?: string;
+  status?: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.search) query.append('search', params.search);
+  if (params?.className) query.append('className', params.className);
+  if (params?.academicYear) query.append('academicYear', params.academicYear);
+  if (params?.status) query.append('status', params.status);
+
+  const qs = query.toString();
+  return apiClient(`/api/finance/uniform-fees${qs ? `?${qs}` : ''}`, { method: 'GET' });
+};
+
+export const fetchUniformFeeConfigByIdApi = async (id: number | string) => {
+  return apiClient(`/api/finance/uniform-fees/${id}`, { method: 'GET' });
+};
+
+export const createUniformFeeConfigApi = async (payload: any) => {
+  return apiClient('/api/finance/uniform-fees', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateUniformFeeConfigApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/finance/uniform-fees/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteUniformFeeConfigApi = async (id: number | string) => {
+  return apiClient(`/api/finance/uniform-fees/${id}`, {
+    method: 'DELETE'
+  });
+};
+
 
 
 

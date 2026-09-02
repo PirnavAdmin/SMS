@@ -54,6 +54,7 @@ namespace SMS.Api.Data
         public DbSet<ClassSection> ClassSections { get; set; } = null!;
         public DbSet<ClassSubjectMapping> ClassSubjectMappings { get; set; } = null!;
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
+        public DbSet<SubjectTeacherAllocation> SubjectTeacherAllocations { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
         public DbSet<Admission> Admissions { get; set; } = null!;
         public DbSet<SMS.Api.Models.AcademicManagement.DesignationMaster> DesignationMasters { get; set; } = null!;
