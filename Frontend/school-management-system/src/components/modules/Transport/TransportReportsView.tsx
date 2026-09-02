@@ -11,7 +11,6 @@ import {
   Printer,
   FileText,
   Search,
-  RefreshCw,
   ChevronDown
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
@@ -296,12 +295,6 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         </div>
 
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <button
-            onClick={resetFilters}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            <RefreshCw className="w-4 h-4 text-sky-600" /> Refresh
-          </button>
           <PrintDropdownMenu
             title={`Transport Report - ${selectedReportLabel}`}
             data={filteredRows}

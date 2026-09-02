@@ -69,17 +69,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     }
 
     // Dynamic fallback matching logged-in user context
-    const rawName = user?.name || 'Robert Teacher';
-    const nameParts = rawName.split(' ');
+    const rawName = user?.name || '';
+    const nameParts = rawName.trim() ? rawName.trim().split(' ') : [];
     return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 9-B'],
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics',
-      designation: 'Class Teacher'
+      id: user?.id || (user as any)?.empId || '',
+      empId: (user as any)?.empId || user?.id || '',
+      firstName: nameParts[0] || (user as any)?.firstName || '',
+      lastName: nameParts.slice(1).join(' ') || (user as any)?.lastName || '',
+      assignedClasses: (user as any)?.assignedClasses || [],
+      assignedSubjects: (user as any)?.assignedSubjects || [],
+      department: (user as any)?.department || '',
+      designation: (user as any)?.designation || 'Class Teacher'
     };
   }, [user, teachingStaff]);
 

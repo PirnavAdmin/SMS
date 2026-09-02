@@ -86,42 +86,35 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         .map((ta: any) => ta.subject)
         .filter(Boolean);
 
+      const defaultSub = found.department || (found as any).primarySubject || 'General';
       const resolvedSubjects = found.assignedSubjects && found.assignedSubjects.length > 0
         ? found.assignedSubjects
-        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [found.department || 'Social Studies']);
+        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [defaultSub]);
 
       return {
         ...found,
-        department: found.department || 'Social Studies',
+        department: defaultSub,
         assignedSubjects: resolvedSubjects
       };
     }
 
-    const rawName = user?.name || 'Suteja K';
+    const rawName = user?.name || 'Faculty Member';
     const nameParts = rawName.split(' ');
+    const fallbackDept = (user as any)?.department || 'General';
     return {
-      id: user?.id || 'STF-2026-0009',
-      empId: (user as any)?.empId || 'STF-2026-0009',
-      firstName: nameParts[0] || 'Suteja',
-      lastName: nameParts.slice(1).join(' ') || 'K',
-      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
-      assignedSubjects: ['Social Studies'],
-      department: 'Social Studies',
-      designation: 'Junior Teacher'
+      id: user?.id || (user as any)?.empId || 'STF-001',
+      empId: (user as any)?.empId || user?.id || 'STF-001',
+      firstName: nameParts[0] || 'Faculty',
+      lastName: nameParts.slice(1).join(' ') || 'Member',
+      assignedClasses: [],
+      assignedSubjects: [fallbackDept],
+      department: fallbackDept,
+      designation: 'Teacher'
     };
   }, [user, staff, teacherAssignments]);
 
-  // Fallback to static mock data if no teacher profile is found
-  const teacher = dbTeacher || {
-    id: 'STF-2026-0009',
-    empId: 'STF-2026-0009',
-    firstName: user?.name || 'Suteja',
-    lastName: 'K',
-    assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
-    assignedSubjects: ['Social Studies'],
-    department: 'Social Studies',
-    designation: 'Junior Teacher'
-  };
+  // Dynamic teacher profile resolution
+  const teacher = dbTeacher;
 
   const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
 
@@ -143,7 +136,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const tLastName = (teacher.lastName || '').toLowerCase().trim();
     const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
 
-    const mainSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || 'Social Studies';
+    const mainSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || (teacher as any)?.primarySubject || 'General';
 
     // 1. Direct timetable slots matching logged-in teacher
     const directSlots = timetable.filter(t => {
@@ -229,7 +222,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       return apiSubstitutions;
     }
 
-    const teacherSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || 'Social Studies';
+    const teacherSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || (teacher as any)?.primarySubject || 'General';
 
     // Dynamically calculate substitution schedule matching non-clashing active period settings
     const activeMasterPeriods = periodSettings

@@ -39,6 +39,7 @@ import {
   Check,
   ChevronLeft,
   Edit,
+  RotateCcw,
 } from "lucide-react";
 import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
@@ -94,57 +95,72 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Find logged-in teacher profile from DataContext staff
   const dbTeacher = useMemo(() => {
+    const uId = (user?.id || "").trim();
+    const uEmpId = ((user as any)?.empId || "").trim();
     const uEmail = (user?.email || "").toLowerCase().trim();
     const uName = (user?.name || "").toLowerCase().trim();
 
+    if (uId || uEmpId) {
+      const byId = staff.find(
+        (s) =>
+          (uId && (String(s.id) === uId || String(s.empId) === uId)) ||
+          (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))
+      );
+      if (byId) return byId;
+    }
+
     if (uEmail) {
-      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === uEmail);
+      const byEmail = staff.find(
+        (s) => s.email && s.email.toLowerCase().trim() === uEmail
+      );
       if (byEmail) return byEmail;
     }
 
     if (uName) {
-      const byName = staff.find(s => {
-        const full = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-        const sName = (s.name || '').toLowerCase().trim();
-        return full === uName || sName === uName || full.includes(uName) || uName.includes(full);
+      const byName = staff.find((s) => {
+        const full = `${s.firstName || ""} ${s.lastName || ""}`
+          .toLowerCase()
+          .trim();
+        const sName = (s.name || "").toLowerCase().trim();
+        return (full && full === uName) || (sName && sName === uName);
       });
       if (byName) return byName;
     }
 
-    const robert = staff.find(s => (s.firstName || '').toLowerCase().includes('robert') || (s.lastName || '').toLowerCase().includes('teacher'));
-    if (robert) return robert;
-
-    return staff.find(s => s.employeeCategory === "Teacher" || (s.employeeCategory as string) === "Teaching Staff" || s.role === "Teacher");
+    return null;
   }, [user, staff]);
 
-  // Teacher Profile resolution (Guarantees Robert Teacher / Junior Teacher English)
+  // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
-    const rawName = user?.name || "Robert Teacher";
-    const parts = rawName.split(" ");
-    const defaultFirstName = parts[0] || "Robert";
-    const defaultLastName = parts.slice(1).join(" ") || "Teacher";
+    const rawName = user?.name || "";
+    const parts = rawName.trim() ? rawName.trim().split(" ") : [];
+    const defaultFirstName = parts[0] || (user as any)?.firstName || "";
+    const defaultLastName = parts.slice(1).join(" ") || (user as any)?.lastName || "";
 
     if (dbTeacher) {
       return {
         ...dbTeacher,
+        id: dbTeacher.id || user?.id || "",
+        empId: dbTeacher.empId || dbTeacher.id || user?.id || "",
         firstName: dbTeacher.firstName || defaultFirstName,
         lastName: dbTeacher.lastName || defaultLastName,
-        designation: dbTeacher.designation && !dbTeacher.designation.toLowerCase().includes('driver') ? dbTeacher.designation : 'Junior Teacher',
-        department: dbTeacher.department && !dbTeacher.department.toLowerCase().includes('transport') ? dbTeacher.department : 'English',
-        assignedClasses: (dbTeacher.assignedClasses && dbTeacher.assignedClasses.length > 0) ? dbTeacher.assignedClasses : ["Class 10-A", "Class 9-B", "Class 6-A"],
+        designation: dbTeacher.designation || (user as any)?.designation || "",
+        department: dbTeacher.department || (user as any)?.department || "",
+        assignedClasses: dbTeacher.assignedClasses || (user as any)?.assignedClasses || [],
+        assignedSubjects: (dbTeacher as any).assignedSubjects || (user as any)?.assignedSubjects || [],
         leaveBalance: dbTeacher.leaveBalance || { casual: 10, sick: 10, paid: 15 }
       };
     }
 
     return {
-      id: user?.id || "STF-2026-0000",
-      empId: "STF-2026-0000",
+      id: user?.id || (user as any)?.empId || "",
+      empId: (user as any)?.empId || user?.id || "",
       firstName: defaultFirstName,
       lastName: defaultLastName,
-      assignedClasses: ["Class 10-A", "Class 9-B", "Class 6-A"],
-      assignedSubjects: ["English", "Mathematics"],
-      department: "English",
-      designation: "Junior Teacher",
+      assignedClasses: (user as any)?.assignedClasses || [],
+      assignedSubjects: (user as any)?.assignedSubjects || [],
+      department: (user as any)?.department || "",
+      designation: (user as any)?.designation || "",
       leaveBalance: { casual: 10, sick: 10, paid: 15 },
     };
   }, [dbTeacher, user]);
@@ -152,30 +168,59 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // PERSONAL TEACHER ATTENDANCE STATES
   const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
 
+  const activeTeacherId = useMemo(() => {
+    return teacher?.id || dbTeacher?.id || (user as any)?.empId || user?.id || 'default_teacher';
+  }, [teacher, dbTeacher, user]);
+
+  const inKey = `teacher_check_in_time_${activeTeacherId}`;
+  const outKey = `teacher_check_out_time_${activeTeacherId}`;
+  const isOutKey = `teacher_is_checked_out_${activeTeacherId}`;
+  const dateKey = `teacher_attendance_date_${activeTeacherId}`;
+
   const [persCheckInTime, setPersCheckInTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem("teacher_attendance_date");
+    const storedDate = localStorage.getItem(dateKey);
     if (storedDate && storedDate !== todayDateStr) {
-      localStorage.removeItem("teacher_check_in_time");
-      localStorage.removeItem("teacher_check_out_time");
-      localStorage.removeItem("teacher_is_checked_out");
-      localStorage.setItem("teacher_attendance_date", todayDateStr);
+      localStorage.removeItem(inKey);
+      localStorage.removeItem(outKey);
+      localStorage.removeItem(isOutKey);
+      localStorage.setItem(dateKey, todayDateStr);
       return null;
     }
-    return localStorage.getItem("teacher_check_in_time");
+    return localStorage.getItem(inKey);
   });
 
   const [persCheckOutTime, setPersCheckOutTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem("teacher_attendance_date");
+    const storedDate = localStorage.getItem(dateKey);
     if (storedDate && storedDate !== todayDateStr) return null;
-    const isOut = localStorage.getItem("teacher_is_checked_out") === "true";
-    return isOut ? localStorage.getItem("teacher_check_out_time") : null;
+    const isOut = localStorage.getItem(isOutKey) === "true";
+    return isOut ? localStorage.getItem(outKey) : null;
   });
 
   const [persIsCheckedOut, setPersIsCheckedOut] = useState<boolean>(() => {
-    const storedDate = localStorage.getItem("teacher_attendance_date");
+    const storedDate = localStorage.getItem(dateKey);
     if (storedDate && storedDate !== todayDateStr) return false;
-    return localStorage.getItem("teacher_is_checked_out") === "true";
+    return localStorage.getItem(isOutKey) === "true";
   });
+
+  useEffect(() => {
+    const storedDate = localStorage.getItem(dateKey);
+    if (storedDate && storedDate !== todayDateStr) {
+      localStorage.removeItem(inKey);
+      localStorage.removeItem(outKey);
+      localStorage.removeItem(isOutKey);
+      localStorage.setItem(dateKey, todayDateStr);
+      setPersCheckInTime(null);
+      setPersCheckOutTime(null);
+      setPersIsCheckedOut(false);
+    } else {
+      const inTime = localStorage.getItem(inKey);
+      const isOut = localStorage.getItem(isOutKey) === "true";
+      const outTime = isOut ? localStorage.getItem(outKey) : null;
+      setPersCheckInTime(inTime);
+      setPersCheckOutTime(outTime);
+      setPersIsCheckedOut(isOut);
+    }
+  }, [activeTeacherId, todayDateStr, inKey, outKey, isOutKey, dateKey]);
 
   const [persWorkingHours, setPersWorkingHours] = useState<string>("0h 0m");
   const [personalFilterDate, setPersonalFilterDate] = useState("");
@@ -244,36 +289,65 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return "--:--";
   };
 
+  const parseTimeToMs = (timeStr: string | null | undefined, baseDateStr?: string): number | null => {
+    if (!timeStr) return null;
+    const trimmed = timeStr.trim();
+    if (!trimmed || trimmed.toLowerCase().includes("invalid") || trimmed === "null" || trimmed === "undefined") return null;
+
+    // 1. Direct Date parsing (ISO string or standard date representation)
+    let d = new Date(trimmed);
+    if (!isNaN(d.getTime())) return d.getTime();
+
+    const refDate = baseDateStr ? new Date(baseDateStr) : new Date();
+    const year = refDate.getFullYear();
+    const month = refDate.getMonth();
+    const day = refDate.getDate();
+
+    // 2. Parse 12-hour format e.g. "09:51 AM", "9:51:00 PM"
+    const twelveHourMatch = trimmed.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
+    if (twelveHourMatch) {
+      let hours = parseInt(twelveHourMatch[1], 10);
+      const minutes = parseInt(twelveHourMatch[2], 10);
+      const seconds = twelveHourMatch[3] ? parseInt(twelveHourMatch[3], 10) : 0;
+      const period = twelveHourMatch[4].toUpperCase();
+
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      return new Date(year, month, day, hours, minutes, seconds).getTime();
+    }
+
+    // 3. Parse 24-hour format e.g. "09:51", "09:51:00"
+    const twentyFourMatch = trimmed.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (twentyFourMatch) {
+      const hours = parseInt(twentyFourMatch[1], 10);
+      const minutes = parseInt(twentyFourMatch[2], 10);
+      const seconds = twentyFourMatch[3] ? parseInt(twentyFourMatch[3], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds).getTime();
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     if (!persCheckInTime) {
       setPersWorkingHours("0h 0m");
       return;
     }
     const calcHours = () => {
-      let startMs = new Date(persCheckInTime).getTime();
-      if (isNaN(startMs) && persCheckInTime.includes("T")) {
-        const afterT = persCheckInTime.split("T")[1];
-        if (afterT) {
-          const parts = persCheckInTime.split("T");
-          startMs = new Date(`${parts[0]}T${afterT}`).getTime();
-        }
-      }
-      if (isNaN(startMs) || startMs <= 0) {
+      const startMs = parseTimeToMs(persCheckInTime, todayStr);
+      if (!startMs || startMs <= 0) {
         setPersWorkingHours("0h 0m");
         return;
       }
 
       let endMs = Date.now();
       if (persIsCheckedOut && persCheckOutTime) {
-        let outD = new Date(persCheckOutTime).getTime();
-        if (isNaN(outD) && persCheckOutTime.includes("T")) {
-          const afterT = persCheckOutTime.split("T")[1];
-          if (afterT) {
-            const parts = persCheckOutTime.split("T");
-            outD = new Date(`${parts[0]}T${afterT}`).getTime();
-          }
+        const outMs = parseTimeToMs(persCheckOutTime, todayStr);
+        if (outMs && outMs > startMs) {
+          endMs = outMs;
         }
-        if (!isNaN(outD) && outD > startMs) endMs = outD;
       }
 
       const diffMs = endMs - startMs;
@@ -289,7 +363,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     calcHours();
     const interval = setInterval(calcHours, 10000);
     return () => clearInterval(interval);
-  }, [persCheckInTime, persCheckOutTime, persIsCheckedOut]);
+  }, [persCheckInTime, persCheckOutTime, persIsCheckedOut, todayStr]);
 
   // Load today's check-in / check-out from backend on mount for personal view
   useEffect(() => {
@@ -301,25 +375,30 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           if (isMounted) {
             const attendanceData = res?.attendance || res;
             if (attendanceData && attendanceData.inTime) {
-              const inTimeStr = attendanceData.inTime.includes("T")
-                ? attendanceData.inTime
-                : `${todayDateStr}T${attendanceData.inTime}`;
+              const inTimeStr = attendanceData.inTime;
               setPersCheckInTime(inTimeStr);
-              localStorage.setItem("teacher_check_in_time", inTimeStr);
-              localStorage.setItem("teacher_attendance_date", todayDateStr);
+              localStorage.setItem(inKey, inTimeStr);
+              localStorage.setItem(dateKey, todayDateStr);
               if (attendanceData.outTime) {
-                const outTimeStr = attendanceData.outTime.includes("T")
-                  ? attendanceData.outTime
-                  : `${todayDateStr}T${attendanceData.outTime}`;
-                setPersCheckOutTime(outTimeStr);
-                setPersIsCheckedOut(true);
-                localStorage.setItem("teacher_check_out_time", outTimeStr);
-                localStorage.setItem("teacher_is_checked_out", "true");
+                const outTimeStr = attendanceData.outTime;
+                const inMs = parseTimeToMs(inTimeStr, todayStr);
+                const outMs = parseTimeToMs(outTimeStr, todayStr);
+                if (inMs && outMs && outMs > inMs) {
+                  setPersCheckOutTime(outTimeStr);
+                  setPersIsCheckedOut(true);
+                  localStorage.setItem(outKey, outTimeStr);
+                  localStorage.setItem(isOutKey, "true");
+                } else {
+                  setPersCheckOutTime(null);
+                  setPersIsCheckedOut(false);
+                  localStorage.removeItem(outKey);
+                  localStorage.setItem(isOutKey, "false");
+                }
               } else {
                 setPersCheckOutTime(null);
                 setPersIsCheckedOut(false);
-                localStorage.removeItem("teacher_check_out_time");
-                localStorage.setItem("teacher_is_checked_out", "false");
+                localStorage.removeItem(outKey);
+                localStorage.setItem(isOutKey, "false");
               }
             }
           }
@@ -332,7 +411,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         isMounted = false;
       };
     }
-  }, [isPersonalView, todayDateStr]);
+  }, [isPersonalView, todayDateStr, inKey, outKey, isOutKey, dateKey]);
 
   const handlePersCheckIn = async () => {
     try {
@@ -342,13 +421,34 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const isoStr = now.toISOString();
       const inTimeVal = attendanceData?.inTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       
-      localStorage.setItem("teacher_attendance_date", todayDateStr);
-      localStorage.setItem("teacher_check_in_time", isoStr);
-      localStorage.removeItem("teacher_check_out_time");
-      localStorage.setItem("teacher_is_checked_out", "false");
+      localStorage.setItem(dateKey, todayDateStr);
+      localStorage.setItem(inKey, isoStr);
+      localStorage.removeItem(outKey);
+      localStorage.setItem(isOutKey, "false");
       setPersCheckInTime(isoStr);
       setPersCheckOutTime(null);
       setPersIsCheckedOut(false);
+
+      const checkInHour = now.getHours();
+      const checkInMinute = now.getMinutes();
+      const computedStatus = (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) ? "Late" : "Present";
+      const teacherEmpId = teacher?.id || dbTeacher?.id || user?.id || "";
+
+      if (markAttendance && teacherEmpId) {
+        await markAttendance([{
+          id: `ATT-${Date.now()}-${teacherEmpId}`,
+          date: todayDateStr,
+          entityType: "Staff",
+          entityId: teacherEmpId,
+          status: computedStatus,
+          inTime: inTimeVal,
+          outTime: "",
+          remarks: "Checked In Online",
+          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "",
+          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || ""
+        }]);
+      }
+
       addToast(
         "success",
         "Checked In Successfully",
@@ -372,11 +472,29 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const isoStr = now.toISOString();
       const outTimeVal = attendanceData?.outTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       
-      localStorage.setItem("teacher_attendance_date", todayDateStr);
-      localStorage.setItem("teacher_check_out_time", isoStr);
-      localStorage.setItem("teacher_is_checked_out", "true");
+      localStorage.setItem(dateKey, todayDateStr);
+      localStorage.setItem(outKey, isoStr);
+      localStorage.setItem(isOutKey, "true");
       setPersCheckOutTime(isoStr);
       setPersIsCheckedOut(true);
+
+      const teacherEmpId = teacher?.id || dbTeacher?.id || user?.id || "";
+
+      if (markAttendance && teacherEmpId) {
+        await markAttendance([{
+          id: `ATT-${Date.now()}-${teacherEmpId}`,
+          date: todayDateStr,
+          entityType: "Staff",
+          entityId: teacherEmpId,
+          status: todayStatus === "Late" ? "Late" : "Present",
+          inTime: persCheckInTime ? formatDisplayTime(persCheckInTime) : inTimeVal,
+          outTime: outTimeVal,
+          remarks: "Checked In & Out Online",
+          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "",
+          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || ""
+        }]);
+      }
+
       addToast(
         "info",
         "Checked Out Successfully",
@@ -390,6 +508,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       console.error("Personal check-out error:", err);
       addToast("error", "Check Out Failed", err.message || "Could not record check out");
     }
+  };
+
+  const handleResetShift = () => {
+    localStorage.removeItem(inKey);
+    localStorage.removeItem(outKey);
+    localStorage.removeItem(isOutKey);
+    localStorage.removeItem(dateKey);
+    setPersCheckInTime(null);
+    setPersCheckOutTime(null);
+    setPersIsCheckedOut(false);
+    setPersWorkingHours("0h 0m");
+    addToast("info", "Shift Reset", "Today's shift attendance has been reset.");
   };
 
   const todayStatus = useMemo(() => {
@@ -448,9 +578,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       .map((r) => {
         let calcHours = "--";
         if (r.inTime && r.outTime) {
-          const startMs = new Date(r.inTime.includes('T') ? r.inTime : `${r.date}T${r.inTime}`).getTime();
-          const endMs = new Date(r.outTime.includes('T') ? r.outTime : `${r.date}T${r.outTime}`).getTime();
-          if (!isNaN(startMs) && !isNaN(endMs) && endMs > startMs) {
+          const startMs = parseTimeToMs(r.inTime, r.date);
+          const endMs = parseTimeToMs(r.outTime, r.date);
+          if (startMs && endMs && endMs > startMs) {
             const diffMins = Math.floor((endMs - startMs) / 60000);
             const hrs = Math.floor(diffMins / 60);
             const mins = diffMins % 60;
@@ -1531,13 +1661,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Helper: check if employee has approved leave on selected attendanceDate
   const getApprovedLeave = (empId: string, checkDate: string) => {
-    return (leaveApplications || []).find(
-      (app) =>
-        app.employeeId === empId &&
-        app.status === "Approved" &&
-        checkDate >= app.fromDate &&
-        checkDate <= app.toDate,
-    );
+    return (leaveApplications || []).find((app) => {
+      const isEmpMatch =
+        String(app.employeeId) === String(empId) ||
+        String(app.empId) === String(empId) ||
+        String((app as any).staffId) === String(empId);
+      const isStatusMatch = (app.status || "").toLowerCase() === "approved";
+      const fromStr = String(app.fromDate || "").split("T")[0];
+      const toStr = String(app.toDate || "").split("T")[0];
+      const targetStr = String(checkDate || "").split("T")[0];
+      return isEmpMatch && isStatusMatch && targetStr >= fromStr && targetStr <= toStr;
+    });
   };
 
   // Fetch daily attendance logs from API when filters change, and poll every 5s for live auto-reflection
@@ -1612,43 +1746,58 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const newOutTimeMap: typeof outTimeMap = {};
     const newRemarksMap: typeof remarksMap = {};
 
+    const targetDate = String(attendanceDate).split("T")[0];
+    const isToday = targetDate === todayStr;
+
     staff.forEach((s) => {
-      // 1. Check Approved Leave
-      const approvedLeave = getApprovedLeave(s.id, attendanceDate);
+      // 1. Check Approved Leave for this staff and this date
+      const approvedLeave =
+        getApprovedLeave(s.id, targetDate) ||
+        (s.empId ? getApprovedLeave(s.empId, targetDate) : undefined);
 
       // 2. Check Existing Recorded Attendance (flexible match on ID, entityType & date)
-      const targetDate = String(attendanceDate).split("T")[0];
-      const existing = (attendance || []).find(
-        (r) => {
-          const rDate = String(r.date || "").split("T")[0];
-          const isDateMatch = rDate === targetDate;
-          const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
-          const isIdMatch =
-            String(r.entityId) === String(s.id) ||
-            String(r.entityId) === String(s.empId) ||
-            String((r as any).staffId) === String(s.id) ||
-            String((r as any).employeeId) === String(s.id);
-          return isDateMatch && isStaffEntity && isIdMatch;
-        }
-      );
+      const existing = (attendance || []).find((r) => {
+        const rDate = String(r.date || "").split("T")[0];
+        const isDateMatch = rDate === targetDate;
+        const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const isIdMatch =
+          String(r.entityId) === String(s.id) ||
+          String(r.entityId) === String(s.empId) ||
+          String((r as any).staffId) === String(s.id) ||
+          String((r as any).staffId) === String(s.empId) ||
+          String((r as any).employeeId) === String(s.id) ||
+          String((r as any).employeeId) === String(s.empId);
+        return isDateMatch && isStaffEntity && isIdMatch;
+      });
 
-      if (existing) {
-        const normSt = normalizeStatus(existing.status);
-        newStatusMap[s.id] = normSt;
-        newInTimeMap[s.id] = existing.inTime || "";
-        newOutTimeMap[s.id] = existing.outTime || "";
-        newRemarksMap[s.id] = existing.remarks || "";
-      } else if (approvedLeave) {
+      // 3. Check if this staff is the logged in teacher and has checked in today
+      const isCurrentLoggedInTeacher =
+        (teacher && (teacher.id === s.id || teacher.empId === s.empId || teacher.id === s.empId || teacher.empId === s.id)) ||
+        (dbTeacher && (dbTeacher.id === s.id || dbTeacher.empId === s.empId || dbTeacher.id === s.empId || dbTeacher.empId === s.id));
+
+      if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? "HalfDay" : "Leave";
         newInTimeMap[s.id] = "";
         newOutTimeMap[s.id] = "";
-        newRemarksMap[s.id] =
-          `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"}`;
+        newRemarksMap[s.id] = approvedLeave.reason
+          ? `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"} (${approvedLeave.reason})`
+          : `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"}`;
+      } else if (existing) {
+        const normSt = normalizeStatus(existing.status);
+        newStatusMap[s.id] = normSt;
+        newInTimeMap[s.id] = existing.inTime || (normSt === "Present" || normSt === "Late" ? "08:30 AM" : "");
+        newOutTimeMap[s.id] = existing.outTime || "";
+        newRemarksMap[s.id] = existing.remarks || "";
+      } else if (isToday && isCurrentLoggedInTeacher && persCheckInTime) {
+        newStatusMap[s.id] = todayStatus === "Late" ? "Late" : "Present";
+        newInTimeMap[s.id] = formatDisplayTime(persCheckInTime);
+        newOutTimeMap[s.id] = persCheckOutTime ? formatDisplayTime(persCheckOutTime) : "";
+        newRemarksMap[s.id] = persCheckOutTime ? "Checked In & Out" : "Checked In Online";
       } else {
-        newStatusMap[s.id] = "Present";
+        newStatusMap[s.id] = "Absent";
         newInTimeMap[s.id] = "";
         newOutTimeMap[s.id] = "";
-        newRemarksMap[s.id] = "";
+        newRemarksMap[s.id] = isToday ? "Not Checked In" : "Absent";
       }
     });
 
@@ -1657,7 +1806,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setOutTimeMap(newOutTimeMap);
     setRemarksMap(newRemarksMap);
     setOverrideLeaveSet(new Set());
-  }, [attendanceDate, staff, attendanceHash, leaveApplications, normalizeStatus, isDirty]);
+  }, [
+    attendanceDate,
+    staff,
+    attendanceHash,
+    leaveApplications,
+    normalizeStatus,
+    isDirty,
+    persCheckInTime,
+    persCheckOutTime,
+    todayStatus,
+    teacher,
+    dbTeacher,
+    todayStr
+  ]);
 
   // Reset dirty status on view filter changes to fetch fresh sync data
   useEffect(() => {
@@ -2334,9 +2496,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           excelRows.push(headers);
 
           currentTabStaffList.forEach((s) => {
-            const approvedLeave = getApprovedLeave(s.id, attendanceDate);
+            const approvedLeave =
+              getApprovedLeave(s.id, attendanceDate) ||
+              (s.empId ? getApprovedLeave(s.empId, attendanceDate) : undefined);
             const status = String(
-              attendanceMap[s.id] || (approvedLeave ? "Leave" : "Present")
+              attendanceMap[s.id] || (approvedLeave ? "Leave" : "Absent")
             );
             const inTime = String(inTimeMap[s.id] || "");
             const outTime = String(outTimeMap[s.id] || "");
@@ -2835,13 +2999,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                       </tr>
                     ) : (
                       paginatedDailyStaffList.map((s) => {
-                        const approvedLeave = getApprovedLeave(
-                          s.id,
-                          attendanceDate,
-                        );
+                        const approvedLeave =
+                          getApprovedLeave(s.id, attendanceDate) ||
+                          (s.empId ? getApprovedLeave(s.empId, attendanceDate) : undefined);
                         const isLeaveLocked =
                           !!approvedLeave && !overrideLeaveSet.has(s.id);
-                        const currentStatus = attendanceMap[s.id] || "Present";
+                        const currentStatus =
+                          attendanceMap[s.id] || (approvedLeave ? "Leave" : "Absent");
 
                         return (
                           <tr
@@ -2976,7 +3140,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                   });
                                   setIsDirty(true);
                                 }}
-                                placeholder="08:30 AM"
+                                placeholder="--:--"
                                 className="w-24 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold outline-none disabled:opacity-40"
                               />
                             </td>
@@ -3001,7 +3165,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                   });
                                   setIsDirty(true);
                                 }}
-                                placeholder="04:30 PM"
+                                placeholder="--:--"
                                 className="w-24 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold outline-none disabled:opacity-40"
                               />
                             </td>
