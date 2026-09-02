@@ -26,8 +26,15 @@ public class ExamResultsReportsController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetOptions()
     {
-        var result = await _service.GetOptionsAsync();
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetOptionsAsync();
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to load options.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -37,15 +44,22 @@ public class ExamResultsReportsController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> CalculateResults([FromBody] CalculateResultsRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
-            return BadRequest(new { success = false, message = "Class and Section are required." });
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
+                return BadRequest(new { success = false, message = "Class and Section are required." });
 
-        var result = await _service.CalculateResultsAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Results calculated, ranks assigned, and grades verified successfully.", 
-            data = result 
-        });
+            var result = await _service.CalculateResultsAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Results calculated, ranks assigned, and grades verified successfully.", 
+                data = result 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to calculate results.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -55,18 +69,25 @@ public class ExamResultsReportsController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> UpdateResult(
         [FromBody] StudentReportCardRowDto request,
-        [FromQuery] string className = "Class 1",
-        [FromQuery] string sectionName = "Section A")
+        [FromQuery] string className = "",
+        [FromQuery] string sectionName = "")
     {
-        if (request == null)
-            return BadRequest(new { success = false, message = "Result row payload is required." });
+        try
+        {
+            if (request == null)
+                return BadRequest(new { success = false, message = "Result row payload is required." });
 
-        var success = await _service.UpdateExamResultAsync(request, className, sectionName);
-        return Ok(new { 
-            success = true, 
-            message = "Student result record updated successfully.", 
-            updated = success 
-        });
+            var success = await _service.UpdateExamResultAsync(request, className, sectionName);
+            return Ok(new { 
+                success = true, 
+                message = "Student result record updated successfully.", 
+                updated = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to update result.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -75,13 +96,20 @@ public class ExamResultsReportsController : ControllerBase
     [HttpGet("report-cards")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetReportCardsList(
-        [FromQuery] string className = "Class 1",
-        [FromQuery] string sectionName = "Section A",
+        [FromQuery] string className = "",
+        [FromQuery] string sectionName = "",
         [FromQuery] string? search = null,
         [FromQuery] string? statusFilter = "All")
     {
-        var result = await _service.GetReportCardsListAsync(className, sectionName, search, statusFilter);
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetReportCardsListAsync(className, sectionName, search, statusFilter);
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to load report cards.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -91,12 +119,19 @@ public class ExamResultsReportsController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetPrintableReportCard(
         int studentId,
-        [FromQuery] string? className = "Class 1",
-        [FromQuery] string? sectionName = "Section A")
+        [FromQuery] string? className = "",
+        [FromQuery] string? sectionName = "")
     {
-        var result = await _service.GetPrintableReportCardAsync(studentId, className, sectionName);
-        if (result == null) return NotFound(new { success = false, message = "Report card not found for the specified student." });
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetPrintableReportCardAsync(studentId, className, sectionName);
+            if (result == null) return NotFound(new { success = false, message = "Report card not found for the specified student." });
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch printable report card.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -106,11 +141,18 @@ public class ExamResultsReportsController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> ClearResults([FromQuery] string className, [FromQuery] string sectionName)
     {
-        var success = await _service.ClearExamResultsAsync(className, sectionName);
-        return Ok(new { 
-            success = true, 
-            message = $"Calculated results for {className} - {sectionName} cleared successfully." 
-        });
+        try
+        {
+            var success = await _service.ClearExamResultsAsync(className, sectionName);
+            return Ok(new { 
+                success = true, 
+                message = $"Calculated results for {className} - {sectionName} cleared successfully." 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to clear results.", error = ex.Message });
+        }
     }
 }
 

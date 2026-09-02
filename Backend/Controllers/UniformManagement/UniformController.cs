@@ -57,6 +57,28 @@ namespace SMS.Api.Controllers
             });
         }
 
+        [HttpGet("inventory/matrix")]
+        public async Task<IActionResult> GetInventoryMatrix([FromQuery] string? search, [FromQuery] string? gender)
+        {
+            var types = await _uniformService.GetAllUniformTypesAsync(search, gender);
+            var grouped = types.GroupBy(t => t.ItemName).Select(g => new
+            {
+                itemName = g.Key,
+                category = g.First().CategoryName,
+                totalUnits = g.Sum(x => x.AvailableStock),
+                totalUnitsString = $"{g.Sum(x => x.AvailableStock)} Units Total",
+                sizes = g.Select(s => new
+                {
+                    uniformTypeId = s.UniformTypeId,
+                    size = s.Size,
+                    availableStock = s.AvailableStock,
+                    availableStockString = $"{s.AvailableStock} Units"
+                }).ToList()
+            }).ToList();
+
+            return Ok(new { success = true, totalCount = grouped.Count, data = grouped });
+        }
+
         [HttpGet("types/{id}")]
         public async Task<IActionResult> GetUniformTypeById(int id)
         {
@@ -359,6 +381,32 @@ namespace SMS.Api.Controllers
             {
                 success = deleted,
                 message = "Distribution record deleted successfully."
+            });
+        }
+
+        [HttpPost("distributions/{id}/return")]
+        [HttpPut("distributions/{id}/return")]
+        public async Task<IActionResult> ReturnUniform(int id, [FromBody] ReturnUniformDto dto)
+        {
+            var updated = await _uniformService.ReturnUniformAsync(id, dto);
+            return Ok(new
+            {
+                success = true,
+                message = "Item marked as returned successfully.",
+                data = updated
+            });
+        }
+
+        [HttpPost("distributions/{id}/exchange")]
+        [HttpPut("distributions/{id}/exchange")]
+        public async Task<IActionResult> ExchangeUniform(int id, [FromBody] ExchangeUniformDto dto)
+        {
+            var updated = await _uniformService.ExchangeUniformAsync(id, dto);
+            return Ok(new
+            {
+                success = true,
+                message = "Item size exchanged successfully.",
+                data = updated
             });
         }
 

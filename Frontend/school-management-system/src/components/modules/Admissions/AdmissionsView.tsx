@@ -5,6 +5,7 @@ import {
   Search,
   CheckCircle2,
   UserCheck,
+  Loader2,
   X,
   Eye,
   Edit,
@@ -251,6 +252,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     students,
     routeMasters,
     pickupPoints,
+    vehicleAssignments,
+    vehicleMasters,
     getStudentFeeLedger,
     dynamicFeeStructures,
     financeTransportConfigs,
@@ -288,10 +291,68 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   // View States: Table View vs Full-Page Form View
   const [isFormView, setIsFormView] = useState(initialFormOpen || false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (initialFormOpen) {
+      setIsFormView(true);
+    }
+  }, [initialFormOpen]);
 
   const handleCloseForm = () => {
     setIsFormView(false);
-    if (onNavigate && initialFormOpen) {
+    setEditingApp(null);
+    setIsSubmitting(false);
+
+    // Reset Form Inputs
+    setFirstName("");
+    setLastName("");
+    setAvatar("");
+    setHasSiblings(false);
+    setSiblingsCount(1);
+    setSiblingDetails([]);
+    setPhoneError(null);
+    setDobError(null);
+    setFormData({
+      appliedClass: "Select Class",
+      gender: "",
+      dob: "",
+      bloodGroup: "",
+      religion: "General",
+      casteCategory: "",
+      parentName: "",
+      motherName: "",
+      email: "",
+      phone: "",
+      addressHouseNo: "",
+      addressStreet: "",
+      addressArea: "",
+      addressCity: "",
+      addressDistrict: "",
+      addressState: "",
+      addressPinCode: "",
+      studentType: "Day Scholar",
+      transportRequired: false,
+      transportType: "",
+      busRoute: "",
+      pickupPoint: "",
+      dropPoint: "",
+      hostelBlock: "",
+      floor: "",
+      hostelRoom: "",
+      hostelBed: "",
+      branch: selectedBranch || "Main Campus",
+      scholarshipId: "",
+      discountId: "",
+      selectedOptionalFees: [],
+      joiningDate: new Date().toISOString().split("T")[0],
+      admissionDate: new Date().toISOString().split("T")[0],
+      isLateAdmission: false,
+      feeCalculationMethod: "Term-wise",
+      documentsSubmitted: [],
+    });
+
+    if (onNavigate) {
       onNavigate("admissions");
     }
   };
@@ -1097,7 +1158,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   // Multi-filter filtering
   const filteredAdmissions = (admissions || []).filter((a) => {
-    if (!a) return false;
+    if (!a || a.status === "Deleted" || (a as any).isDeleted) return false;
     const applicantName = a.applicantName || "";
     const applicationNo = a.applicationNo || "";
     const parentName = a.parentName || "";
@@ -1280,7 +1341,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const isCustomCaste = Boolean(app.casteCategory && !STANDARD_CASTES.includes(app.casteCategory));
     setIsCustomCasteCategory(isCustomCaste);
 
-    const optFees = app.selectedOptionalFees || (app as any).optionalFees || (app as any).selectedOptional || [];
+    const rawOptFees =
+      app.selectedOptionalFees ||
+      (app as any).optionalFees ||
+      (app as any).selectedOptional ||
+      [];
+    let optFees: string[] = [];
+    if (Array.isArray(rawOptFees)) {
+      optFees = rawOptFees.map((x) => String(x));
+    } else if (typeof rawOptFees === "string") {
+      try {
+        const parsed = JSON.parse(rawOptFees);
+        if (Array.isArray(parsed)) optFees = parsed.map((x) => String(x));
+        else
+          optFees = (rawOptFees as string)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+      } catch (e) {
+        optFees = (rawOptFees as string)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    }
+
     const docsSub = app.documentsSubmitted || (app as any).documents || [];
     const isTrp = Boolean(app.transportRequired || app.busRoute || app.pickupPoint);
     const sType = app.studentType === ("Hosteller" as any) ? "Residential" : app.studentType || "Day Scholar";
@@ -1296,6 +1381,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     setFormData({
       ...app,
+      email: app.email || (app as any).parentEmail || "",
+      motherPhone: app.motherPhone || (app as any).motherMobileNumber || "",
+      alternatePhone: app.alternatePhone || (app as any).alternateMobileNumber || "",
       studentType: sType as any,
       casteCategory: app.casteCategory || "General",
       dob: formattedDob,
@@ -1413,68 +1501,82 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (isSubmittingForm) return;
+    if (isSubmitting || isSubmittingForm) return;
+    setIsSubmitting(true);
+    setIsSubmittingForm(true);
     
     // Validate Student Details Required Fields
     if (!firstName || !firstName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Student First Name.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!lastName || !lastName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Student Last Name.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.appliedClass || formData.appliedClass === "Select Class") {
       addToast("error", "Missing Required Field", "Please select Target Class.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.gender) {
       addToast("error", "Missing Required Field", "Please select Gender.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.branch) {
       addToast("error", "Missing Required Field", "Please select Campus.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.dob) {
       addToast("error", "Missing Required Field", "Please enter Date of Birth.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.bloodGroup) {
       addToast("error", "Missing Required Field", "Please select Blood Group.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.casteCategory) {
       addToast("error", "Missing Required Field", "Please select Caste.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.admissionDate && !formData.joiningDate) {
       addToast("error", "Missing Required Field", "Please select Date of Admission.");
+      setIsSubmitting(false);
       return;
     }
 
     // Validate Student Type Required Field
     if (!formData.studentType || formData.studentType === ("Select Type" as any)) {
       addToast("error", "Missing Required Field", "Please select Student Type.");
+      setIsSubmitting(false);
       return;
     }
 
     // Validate Parent Information Required Fields
     if (!formData.parentName || !formData.parentName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Father Full Name.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!formData.phone || !formData.phone.trim()) {
       addToast("error", "Missing Required Field", "Please enter Father Mobile number.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -1482,6 +1584,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || "Invalid 10-digit phone");
       addToast("error", "Phone Validation Error", phoneValidation.error);
+      setIsSubmitting(false);
       return;
     }
 
@@ -1495,6 +1598,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!dobValidation.isValid) {
       setDobError(dobValidation.error || "Invalid DOB");
       addToast("error", "DOB Validation Error", dobValidation.error);
+      setIsSubmitting(false);
       return;
     }
 
@@ -1505,6 +1609,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           "Validation Error",
           "Number of siblings must be at least 1.",
         );
+        setIsSubmitting(false);
         return;
       }
       for (let i = 0; i < siblingDetails.length; i++) {
@@ -1516,6 +1621,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               "Validation Error",
               `Please select an existing student for Sibling ${i + 1}.`,
             );
+            setIsSubmitting(false);
             return;
           }
         } else {
@@ -1525,6 +1631,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               "Validation Error",
               `Please enter a name for Sibling ${i + 1}.`,
             );
+            setIsSubmitting(false);
             return;
           }
         }
@@ -1543,6 +1650,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           "Validation Error",
           "Sibling Concession can only be applied if an existing enrolled sibling is selected.",
         );
+        setIsSubmitting(false);
         return;
       }
     }
@@ -1559,6 +1667,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           "Validation Error",
           "Sibling Concession can only be applied if an existing enrolled sibling is selected.",
         );
+        setIsSubmitting(false);
         return;
       }
     }
@@ -1569,11 +1678,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const fullApplicantName = `${firstName.trim()} ${lastName.trim()}`;
 
+    // Duplicate submission protection
+    const isDuplicate = (admissions || []).some(
+      (a) =>
+        a.applicantName?.trim().toLowerCase() === fullApplicantName.toLowerCase() &&
+        a.appliedClass === formData.appliedClass &&
+        (a.phone === formData.phone || a.parentName === formData.parentName)
+    );
+
+    if (!editingApp && isDuplicate) {
+      addToast(
+        "warning",
+        "Duplicate Application Detected",
+        `An application for ${fullApplicantName} has already been registered.`
+      );
+      setIsSubmitting(false);
+      setIsSubmittingForm(false);
+      handleCloseForm();
+      return;
+    }
+
     setIsSubmittingForm(true);
     try {
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
+          email: formData.email || "",
+          parentEmail: formData.email || "",
+          motherPhone: formData.motherPhone || "",
+          alternatePhone: formData.alternatePhone || "",
           dob: finalDob,
           applicantName: fullApplicantName,
           avatar,
@@ -1600,10 +1733,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           casteCategory: formData.casteCategory || "General",
           parentName: formData.parentName,
           motherName: formData.motherName || "N/A",
-          email:
-            formData.email ||
-            `${fullApplicantName.toLowerCase().replace(/\s+/g, ".")}@gmail.com`,
+          email: formData.email || "",
+          parentEmail: formData.email || "",
           phone: formData.phone || "9876543210",
+          motherPhone: formData.motherPhone || "",
+          alternatePhone: formData.alternatePhone || "",
           addressHouseNo: formData.addressHouseNo,
           addressStreet: formData.addressStreet,
           addressArea: formData.addressArea,
@@ -1743,6 +1877,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
   };
 
+  const isOptionalFeeMatched = (
+    idOrName: any,
+    item: { feeHeadId?: string; feeHeadName: string }
+  ) => {
+    if (!idOrName || !item) return false;
+    const str = String(idOrName).toLowerCase().trim();
+    const itemId = (item.feeHeadId || "").toLowerCase().trim();
+    const itemName = (item.feeHeadName || "").toLowerCase().trim();
+
+    if (str === itemId || str === itemName) return true;
+
+    const cleanStr = str.replace(/[^a-z0-9]/g, "");
+    const cleanItemId = itemId.replace(/[^a-z0-9]/g, "");
+    const cleanItemName = itemName.replace(/[^a-z0-9]/g, "");
+
+    if (cleanStr && (cleanStr === cleanItemId || cleanStr === cleanItemName)) return true;
+
+    if (str.includes("computer") && itemName.includes("computer")) return true;
+    if (str.includes("science") && itemName.includes("science")) return true;
+    if (str.includes("sports") && itemName.includes("sports")) return true;
+    if (str.includes("uniform") && itemName.includes("uniform")) return true;
+
+    return false;
+  };
+
   const isItemMandatory = (item: {
     feeHeadId?: string;
     feeHeadName: string;
@@ -1867,15 +2026,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const gnd = formData.gender || "Unisex";
     const matchingConfig = (financeUniformConfigs || []).find(
       (c) =>
-        c.className === clsName &&
-        c.status === "Active" &&
+        c && c.status !== "Inactive" &&
+        (c.className === clsName || (c.className && clsName && c.className.toLowerCase().replace(/[^a-z0-9]/g, '') === clsName.toLowerCase().replace(/[^a-z0-9]/g, ''))) &&
         (gnd.toLowerCase().includes("female")
-          ? c.gender === "Female"
+          ? (c.gender === "Female" || c.gender === "Unisex" || !c.gender)
           : gnd.toLowerCase().includes("male")
-            ? c.gender === "Male"
-            : c.gender === "Unisex" || !c.gender),
+            ? (c.gender === "Male" || c.gender === "Unisex" || !c.gender)
+            : true),
     ) || (financeUniformConfigs || []).find(
-      (c) => c.className === clsName && c.status === "Active"
+      (c) => c && c.status !== "Inactive" && (c.className === clsName || (c.className && clsName && c.className.toLowerCase().replace(/[^a-z0-9]/g, '') === clsName.toLowerCase().replace(/[^a-z0-9]/g, '')))
     );
     const uniFeeAmount = matchingConfig ? Number(matchingConfig.feeAmount) || 0 : 0;
 
@@ -1883,14 +2042,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       const isMandatory = isItemMandatory(i);
       const isSelected =
         isMandatory ||
-        (formData.selectedOptionalFees || []).some(
-          (idOrName) =>
-            idOrName === i.feeHeadId ||
-            idOrName === i.feeHeadName ||
-            idOrName.replace("-0", "-") === i.feeHeadId.replace("-0", "-") ||
-            i.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-") ||
-            (idOrName.toLowerCase().includes("uniform") &&
-              i.feeHeadName.toLowerCase().includes("uniform")),
+        (formData.selectedOptionalFees || []).some((idOrName) =>
+          isOptionalFeeMatched(idOrName, i)
         );
 
       let amt = i.amount;
@@ -1992,12 +2145,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             c.status === "Active",
         ) || financeTransportConfigs[0];
 
+      const assignment = vehicleAssignments?.find(va => va.routeId === rObj?.id);
+      const vehicle = vehicleMasters?.find(v => v.id === assignment?.vehicleId);
+      const isAC = vehicle ? vehicle.isAC : false;
+
+      const baseFare = rObj
+        ? (isAC ? (rObj.acMinBaseFare || rObj.acBaseFare || 0) : (rObj.minBaseFare || rObj.nonAcBaseFare || 0))
+        : 0;
+      const ratePerKm = rObj
+        ? (isAC ? (rObj.acRatePerKm || 0) : (rObj.ratePerKm || rObj.nonAcRatePerKm || 0))
+        : 0;
+      const distance = pObj ? (pObj.distanceFromSchoolKm || pObj.distanceFromStart || 0) : 0;
+
+      let calculatedFee = 0;
+      if (baseFare > 0 || ratePerKm > 0) {
+        calculatedFee = baseFare + distance * ratePerKm;
+      }
+
       const trpFee =
         pObj && (pObj.monthlyFee ?? 0) > 0
           ? (pObj.monthlyFee ?? 0)
-          : ftc
-            ? ftc.feeAmount
-            : 5500;
+          : calculatedFee > 0
+            ? calculatedFee
+            : ftc
+              ? ftc.feeAmount
+              : 0;
 
       items.push({
         name: `Transport Fee (${rObj?.routeName || formData.busRoute || "Opted"}${formData.pickupPoint ? ` - ${formData.pickupPoint}` : ""})`,
@@ -3359,19 +3531,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             >
                               <option value="">Select Stop</option>
                               {pickupPoints
-                                .filter(
-                                  (p) =>
-                                    p.routeName === formData.busRoute ||
-                                    p.routeId ===
-                                      routeMasters.find(
-                                        (r) =>
-                                          r.routeName === formData.busRoute,
-                                      )?.id,
-                                )
+                                .filter((p) => {
+                                  if (!formData.busRoute) return true;
+                                  const rObj = routeMasters.find(
+                                    (r) =>
+                                      r.id?.toString() === formData.busRoute?.toString() ||
+                                      r.routeName?.toLowerCase() === formData.busRoute?.toLowerCase() ||
+                                      r.routeCode?.toLowerCase() === formData.busRoute?.toLowerCase()
+                                  );
+                                  const targetRouteId = rObj?.id?.toString() || formData.busRoute;
+                                  const targetRouteName = (rObj?.routeName || formData.busRoute || '').trim().toLowerCase();
+
+                                  return (
+                                    (p.routeId && p.routeId.toString() === targetRouteId) ||
+                                    (p.routeName && p.routeName.trim().toLowerCase() === targetRouteName) ||
+                                    (rObj?.routeName && p.routeName && p.routeName.trim().toLowerCase().includes(rObj.routeName.trim().toLowerCase()))
+                                  );
+                                })
                                 .map((p) => (
                                   <option key={p.id} value={p.pickupName}>
-                                    {p.sequenceNumber}. {p.pickupName} (
-                                    {p.arrivalTime})
+                                    {p.sequenceNumber ? `${p.sequenceNumber}. ` : ''}{p.pickupName} {p.arrivalTime ? `(${p.arrivalTime})` : ''}
                                   </option>
                                 ))}
                             </select>
@@ -3839,16 +4018,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         {optionalItems.map((item) => {
                           const isChecked = (
                             formData.selectedOptionalFees || []
-                          ).some(
-                            (idOrName) =>
-                              idOrName === item.feeHeadId ||
-                              idOrName === item.feeHeadName ||
-                              idOrName.replace("-0", "-") ===
-                                item.feeHeadId.replace("-0", "-") ||
-                              item.feeHeadId.replace("-0", "-") ===
-                                idOrName.replace("-0", "-") ||
-                              (idOrName.toLowerCase().includes("uniform") &&
-                                item.feeHeadName.toLowerCase().includes("uniform")),
+                          ).some((idOrName) =>
+                            isOptionalFeeMatched(idOrName, item)
                           );
                           return (
                             <label
@@ -3859,19 +4030,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => {
-                                  const currentSelected =
-                                    formData.selectedOptionalFees || [];
-                                  const updated = isChecked
-                                    ? currentSelected.filter(
-                                        (idOrName) =>
-                                          idOrName !== item.feeHeadId &&
-                                          idOrName !== item.feeHeadName &&
-                                          idOrName.replace("-0", "-") !==
-                                            item.feeHeadId.replace("-0", "-") &&
-                                          item.feeHeadId.replace("-0", "-") !==
-                                            idOrName.replace("-0", "-"),
-                                      )
-                                    : [...currentSelected, item.feeHeadId];
+                                  const currentSelected = (
+                                    formData.selectedOptionalFees || []
+                                  ).map((x) => String(x));
+                                  let updated: string[];
+                                  if (isChecked) {
+                                    updated = currentSelected.filter(
+                                      (idOrName) =>
+                                        !isOptionalFeeMatched(idOrName, item)
+                                    );
+                                  } else {
+                                    updated = Array.from(
+                                      new Set([
+                                        ...currentSelected,
+                                        item.feeHeadId,
+                                        item.feeHeadName,
+                                      ])
+                                    );
+                                  }
                                   setFormData({
                                     ...formData,
                                     selectedOptionalFees: updated,
@@ -3907,13 +4083,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingForm}
+                  disabled={isSubmitting || isSubmittingForm}
                   className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                 >
-                  {isSubmittingForm && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {editingApp
-                    ? "Save Application Changes"
-                    : "Submit Application"}
+                  {(isSubmitting || isSubmittingForm) ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
+                    </>
+                  ) : editingApp ? (
+                    "Save Application Changes"
+                  ) : (
+                    "Submit Application"
+                  )}
                 </button>
               </div>
             </form>

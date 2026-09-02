@@ -88,114 +88,95 @@ namespace SMS.Api.Services.Implementations
 
         public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.EmailOrPhone))
+            if (dto == null || string.IsNullOrWhiteSpace(dto.EmailOrPhone) || string.IsNullOrWhiteSpace(dto.Password))
             {
-                dto = new LoginRequestDto("admin@pirnav.com", "password");
+                throw new AppException("Email/Mobile Number and Password are required.", HttpStatusCode.BadRequest);
             }
 
             var identifier = dto.EmailOrPhone.Trim();
 
-            try
+            // 1. Try standard Admin login first
+            var admin = await _adminRepository.GetByIdentifierAsync(identifier);
+            if (admin != null)
             {
-                // Try standard Admin login first
-                var admin = await _adminRepository.GetByIdentifierAsync(identifier);
-                if (admin != null)
+                bool passwordMatches = false;
+                try
                 {
-                    bool passwordMatches = true;
-                    try
+                    if (!string.IsNullOrEmpty(admin.PasswordHash))
                     {
-                        if (!string.IsNullOrEmpty(admin.PasswordHash))
-                        {
-                            passwordMatches = BCrypt.Net.BCrypt.Verify(dto.Password, admin.PasswordHash);
-                        }
+                        passwordMatches = BCrypt.Net.BCrypt.Verify(dto.Password, admin.PasswordHash);
                     }
-                    catch
-                    {
-                        passwordMatches = true;
-                    }
-
-                    if (!passwordMatches)
-                    {
-                        throw new AppException(
-                            "Invalid email/mobile number or password.",
-                            HttpStatusCode.Unauthorized);
-                    }
-
-                    var rolesList = GetAdminRolesList(admin);
-                    if (rolesList.Count == 0)
-                    {
-                        rolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-                    }
-
-                    var token = GenerateJwtTokenForAdmin(admin, rolesList);
-
-                    return new AuthResponseDto(
-                        admin.AdminId,
-                        admin.FullName,
-                        token,
-                        rolesList);
+                }
+                catch
+                {
+                    passwordMatches = false;
                 }
 
-                // Fallback to User login
-                var user = await _userRepository.GetByIdentifierAsync(identifier);
-                if (user != null)
+                if (!passwordMatches)
                 {
-                    bool userPasswordMatches = true;
-                    try
-                    {
-                        if (!string.IsNullOrEmpty(user.PasswordHash))
-                        {
-                            userPasswordMatches = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
-                        }
-                    }
-                    catch
-                    {
-                        userPasswordMatches = true;
-                    }
-
-                    if (!userPasswordMatches)
-                    {
-                        throw new AppException(
-                            "Invalid email/mobile number or password.",
-                            HttpStatusCode.Unauthorized);
-                    }
-
-                    var userRolesList = GetUserRolesList(user);
-                    if (userRolesList.Count == 0)
-                    {
-                        userRolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-                    }
-
-                    var userToken = GenerateJwtToken(user, userRolesList);
-
-                    return new AuthResponseDto(
-                        user.UserId,
-                        user.FullName,
-                        userToken,
-                        userRolesList);
+                    throw new AppException(
+                        "Invalid email/mobile number or password.",
+                        HttpStatusCode.Unauthorized);
                 }
-            }
-            catch (AppException)
-            {
-                throw;
-            }
-            catch
-            {
-                // Fallback gracefully if database or BCrypt query fails
+
+                var rolesList = GetAdminRolesList(admin);
+                if (rolesList.Count == 0)
+                {
+                    rolesList = new List<string> { "Admin" };
+                }
+
+                var token = GenerateJwtTokenForAdmin(admin, rolesList);
+
+                return new AuthResponseDto(
+                    admin.AdminId,
+                    admin.FullName,
+                    token,
+                    rolesList);
             }
 
-            // Default Fallback Admin Login for Demo/Offline Testing
-            var fallbackRoles = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-            var mockAdmin = new Admin
+            // 2. Try User login
+            var user = await _userRepository.GetByIdentifierAsync(identifier);
+            if (user != null)
             {
-                AdminId = 1,
-                FullName = "Admin User",
-                Email = identifier,
-                MobileNumber = "9876543210"
-            };
+                bool userPasswordMatches = false;
+                try
+                {
+                    if (!string.IsNullOrEmpty(user.PasswordHash))
+                    {
+                        userPasswordMatches = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
+                    }
+                }
+                catch
+                {
+                    userPasswordMatches = false;
+                }
 
-            var fallbackToken = GenerateJwtTokenForAdmin(mockAdmin, fallbackRoles);
-            return new AuthResponseDto(1, "Admin User", fallbackToken, fallbackRoles);
+                if (!userPasswordMatches)
+                {
+                    throw new AppException(
+                        "Invalid email/mobile number or password.",
+                        HttpStatusCode.Unauthorized);
+                }
+
+                var userRolesList = GetUserRolesList(user);
+                if (userRolesList.Count == 0)
+                {
+                    userRolesList = new List<string> { !string.IsNullOrEmpty(user.Role) ? user.Role : "Student" };
+                }
+
+                var userToken = GenerateJwtToken(user, userRolesList);
+
+                return new AuthResponseDto(
+                    user.UserId,
+                    user.FullName,
+                    userToken,
+                    userRolesList);
+            }
+
+            // 3. User does not exist
+            throw new AppException(
+                "Invalid email/mobile number or password.",
+                HttpStatusCode.Unauthorized);
         }
 
         private static string GetPortalRole(string portal)
@@ -220,12 +201,12 @@ namespace SMS.Api.Services.Implementations
 
             if (user.Roles != null && user.Roles.Any())
             {
-                rolesList.AddRange(user.Roles.Select(r => r.RoleName));
+                rolesList.AddRange(user.Roles.Select(r => SMS.Api.Helpers.RoleHelper.NormalizeRoleName(r.RoleName)));
             }
 
             if (!string.IsNullOrEmpty(user.Role))
             {
-                rolesList.Add(user.Role);
+                rolesList.Add(SMS.Api.Helpers.RoleHelper.NormalizeRoleName(user.Role));
             }
 
             return rolesList.Distinct().ToList();
@@ -237,12 +218,12 @@ namespace SMS.Api.Services.Implementations
 
             if (admin.Roles != null && admin.Roles.Any())
             {
-                rolesList.AddRange(admin.Roles.Select(r => r.RoleName));
+                rolesList.AddRange(admin.Roles.Select(r => SMS.Api.Helpers.RoleHelper.NormalizeRoleName(r.RoleName)));
             }
 
             if (!string.IsNullOrEmpty(admin.Role))
             {
-                rolesList.Add(admin.Role);
+                rolesList.Add(SMS.Api.Helpers.RoleHelper.NormalizeRoleName(admin.Role));
             }
 
             return rolesList.Distinct().ToList();

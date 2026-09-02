@@ -13,24 +13,7 @@ public class ExamScheduleRepository : IExamScheduleRepository
 {
     private readonly AppDbContext _context;
 
-    private static readonly List<NewExamTimetableSlot> _inMemoryTimetable = new List<NewExamTimetableSlot>
-    {
-        // Class 1 - Section A
-        new NewExamTimetableSlot { SlotId = 1, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "MTH-101", SubjectName = "Mathematics", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 2, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "ENG-105", SubjectName = "English Language", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 3, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "CHM-103", SubjectName = "Chemistry", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 4, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "HIS-107", SubjectName = "History", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 5, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "ACC-109", SubjectName = "Accountancy", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 6, ClassName = "Class 1", SectionName = "Section A", SubjectCode = "PHY-102", SubjectName = "Physics", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-
-        // Class 1 - Section B
-        new NewExamTimetableSlot { SlotId = 7, ClassName = "Class 1", SectionName = "Section B", SubjectCode = "MTH-101", SubjectName = "Mathematics", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 8, ClassName = "Class 1", SectionName = "Section B", SubjectCode = "ENG-105", SubjectName = "English Language", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 9, ClassName = "Class 1", SectionName = "Section B", SubjectCode = "CHM-103", SubjectName = "Chemistry", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 10, ClassName = "Class 1", SectionName = "Section B", SubjectCode = "HIS-107", SubjectName = "History", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 11, ClassName = "Class 1", SectionName = "Section B", SubjectCode = "ACC-109", SubjectName = "Accountancy", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" },
-        new NewExamTimetableSlot { SlotId = 12, ClassName = "Class 1", SectionName = "Section B", SubjectCode = "PHY-102", SubjectName = "Physics", TotalMarks = 100, ExamDate = new DateTime(2026, 08, 09), TimeSlot = "09:00 - 12:00", Duration = "3h", RoomHall = "TBA", InvigilatorFaculty = "Unassigned" }
-    };
+    private static readonly List<NewExamTimetableSlot> _inMemoryTimetable = new List<NewExamTimetableSlot>();
 
     public ExamScheduleRepository(AppDbContext context)
     {
@@ -185,6 +168,65 @@ public class ExamScheduleRepository : IExamScheduleRepository
         {
             return true;
         }
+    }
+
+    public async Task<List<string>> GetClassNamesAsync()
+    {
+        try
+        {
+            var classes = await _context.Classes.AsNoTracking()
+                .Where(c => c.ClassName != null)
+                .Select(c => c.ClassName!)
+                .Distinct()
+                .ToListAsync();
+            if (classes != null && classes.Any()) return classes;
+        }
+        catch { }
+        return new List<string>();
+    }
+
+    public async Task<List<string>> GetSectionNamesAsync()
+    {
+        try
+        {
+            var sections = await _context.ClassSections.AsNoTracking()
+                .Where(s => s.SectionName != null)
+                .Select(s => s.SectionName!)
+                .Distinct()
+                .ToListAsync();
+            if (sections != null && sections.Any()) return sections;
+        }
+        catch { }
+        return new List<string>();
+    }
+
+    public async Task<List<string>> GetInvigilatorNamesAsync()
+    {
+        try
+        {
+            var staffList = await _context.Staff.AsNoTracking()
+                .Select(s => $"{s.FirstName} {s.LastName}".Trim())
+                .Distinct()
+                .ToListAsync();
+            if (staffList != null && staffList.Any()) return staffList;
+        }
+        catch { }
+        return new List<string>();
+    }
+
+    public async Task<List<string>> GetRoomNamesAsync()
+    {
+        try
+        {
+            var rooms = await _context.ClassSections.AsNoTracking()
+                .Where(s => !string.IsNullOrWhiteSpace(s.RoomNo))
+                .Select(s => s.RoomNo!)
+                .Distinct()
+                .ToListAsync();
+            if (rooms != null && rooms.Any()) return rooms;
+        }
+        catch { }
+        return new List<string>();
     }
 }
 

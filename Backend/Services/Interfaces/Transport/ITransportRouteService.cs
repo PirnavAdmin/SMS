@@ -23,6 +23,8 @@ namespace SMS.Api.Services.Interfaces
             long routeId,
             long? userId);
 
+        Task<TransportRouteDto?> GetByIdOrCodeAsync(string routeIdOrCode);
+
         Task<IEnumerable<TransportRouteLookupDto>>
             GetLookupAsync(string? search, int limit);
     }

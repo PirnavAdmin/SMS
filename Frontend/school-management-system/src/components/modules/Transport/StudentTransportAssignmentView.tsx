@@ -28,11 +28,7 @@ export interface StudentTransportHistoryItem {
   status: 'Active' | 'Revoked';
 }
 
-const initialStudentHistory: StudentTransportHistoryItem[] = [
-  { id: 'sth-1', studentId: 'std-1', studentName: 'Ethan Hunt', admissionNo: 'ADM2026-413', academicYear: '2026-2027', branch: 'Main Campus', routeName: 'Route A - Downtown Express', pickupPoint: 'Central Park West', vehicleNumber: 'BUS-101', driverName: 'Dwight Schrute', attendantName: 'Mary Smith', assignmentDate: '2026-04-01', status: 'Active' },
-  { id: 'sth-2', studentId: 'std-2', studentName: 'Jane Doe', admissionNo: 'ADM2026-102', academicYear: '2026-2027', branch: 'Main Campus', routeName: 'Route B - North Campus Direct', pickupPoint: 'Tech Park Stop 2', vehicleNumber: 'BUS-102', driverName: 'Jim Halpert', attendantName: 'Sarah Jenkins', assignmentDate: '2026-04-01', status: 'Active' },
-  { id: 'sth-3', studentId: 'std-1', studentName: 'Ethan Hunt', admissionNo: 'ADM2026-413', academicYear: '2025-2026', branch: 'Main Campus', routeName: 'Route C - West Suburbs', pickupPoint: 'West Colony Stop 1', vehicleNumber: 'BUS-103', driverName: 'Michael Scott', attendantName: 'Pam Beesly', assignmentDate: '2025-04-01', status: 'Revoked' }
-];
+const initialStudentHistory: StudentTransportHistoryItem[] = [];
 
 export const StudentTransportAssignmentView: React.FC = () => {
   const {
@@ -62,6 +58,32 @@ export const StudentTransportAssignmentView: React.FC = () => {
 
   const [studentHistory, setStudentHistory] = useState<StudentTransportHistoryItem[]>(initialStudentHistory);
 
+  useEffect(() => {
+    if (studentTransports && studentTransports.length > 0) {
+      const dynamicHistory: StudentTransportHistoryItem[] = studentTransports.map(st => {
+        const student = students.find(s => s.id === st.studentId || s.admissionNo === st.admissionNo || s.name === st.studentName);
+        return {
+          id: `sth-${st.id}`,
+          studentId: st.studentId || '',
+          studentName: st.studentName || student?.name || 'Unknown Student',
+          admissionNo: st.admissionNo || student?.admissionNo || '-',
+          academicYear: (st as any).academicYear || '2026-2027',
+          branch: (st as any).branch || 'Main Campus',
+          routeName: st.routeName || '-',
+          pickupPoint: st.pickupPoint || '-',
+          vehicleNumber: st.vehicleNumber || '-',
+          driverName: st.driverName || 'Unassigned',
+          attendantName: (st as any).attendantName || 'Unassigned',
+          assignmentDate: (st.startDate || st.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+          status: st.status === 'Active' ? 'Active' : 'Revoked'
+        };
+      });
+      setStudentHistory(dynamicHistory);
+    } else {
+      setStudentHistory([]);
+    }
+  }, [studentTransports, students]);
+
   // Auto-loaded Vehicle, Driver & Attendant
   const activeAssignedRoute = routeMasters.find(r => r.id === routeId);
   const availablePickupPoints = pickupPoints.filter(p => p.routeId?.toString() === routeId?.toString());
@@ -70,10 +92,10 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const assignedVehicleRel = vehicleAssignments.find(va => va.vehicleId === selectedVehicleObj?.id && va.status === 'Active') ||
                              vehicleAssignments.find(va => va.routeId?.toString() === routeId?.toString() && va.status === 'Active');
   
-  const autoVehicleNumber = selectedVehicleObj ? selectedVehicleObj.vehicleNumber : (assignedVehicleRel ? assignedVehicleRel.vehicleNumber : 'BUS-101');
-  const autoVehicleId = selectedVehicleObj ? selectedVehicleObj.id : (assignedVehicleRel ? assignedVehicleRel.vehicleId : 'VM-01');
-  const autoDriverName = assignedVehicleRel ? assignedVehicleRel.driverName : 'Dwight Schrute';
-  const autoAttendantName = 'Mary Smith';
+  const autoVehicleNumber = selectedVehicleObj ? selectedVehicleObj.vehicleNumber : (assignedVehicleRel ? assignedVehicleRel.vehicleNumber : '');
+  const autoVehicleId = selectedVehicleObj ? selectedVehicleObj.id : (assignedVehicleRel ? assignedVehicleRel.vehicleId : '');
+  const autoDriverName = assignedVehicleRel ? assignedVehicleRel.driverName : 'Unassigned';
+  const autoAttendantName = assignedVehicleRel ? assignedVehicleRel.attendantName : 'Unassigned';
 
   // Capacity evaluation for autoVehicleId
   const capacityInfo = checkVehicleCapacity(autoVehicleId);
@@ -137,7 +159,43 @@ export const StudentTransportAssignmentView: React.FC = () => {
     const ftc = financeTransportConfigs.find(
       c => c.routeId === rt.id && (c.pickupPointId === pk.id || c.pickupName === pk.pickupName) && c.feePlan === feePlan && c.status === 'Active'
     );
-    const fee = (pk && (pk.monthlyFee ?? 0) > 0) ? (pk.monthlyFee ?? 0) : (ftc ? ftc.feeAmount : 5000);
+    const assignment = vehicleAssignments?.find(va => va.routeId === rt.id);
+    const vehicle = vehicleMasters?.find(v => v.id === assignment?.vehicleId);
+    const isAC = vehicle ? vehicle.isAC : false;
+
+    const baseFare = isAC 
+      ? (rt.acMinBaseFare || (rt as any).acBaseFare || 0) 
+      : (rt.minBaseFare || (rt as any).nonAcBaseFare || 0);
+    const ratePerKm = isAC 
+      ? (rt.acRatePerKm || 0) 
+      : (rt.ratePerKm || (rt as any).nonAcRatePerKm || 0);
+    const distance = pk ? (pk.distanceFromSchoolKm || pk.distanceFromStart || 0) : 0;
+
+    let calculatedFee = 0;
+    if (baseFare > 0 || ratePerKm > 0) {
+      calculatedFee = baseFare + distance * ratePerKm;
+    }
+
+    const multiplier = feePlan === 'Quarterly' ? 3 : feePlan === 'Half Yearly' || feePlan === 'Half-Yearly' ? 6 : feePlan === 'Annual' ? 12 : 1;
+
+    let assignedFee = 0;
+    if (feePlan === 'Monthly' && pk.monthlyFee && pk.monthlyFee > 0) {
+      assignedFee = pk.monthlyFee;
+    } else if (feePlan === 'Quarterly' && pk.quarterlyFee && pk.quarterlyFee > 0) {
+      assignedFee = pk.quarterlyFee;
+    } else if ((feePlan === 'Half Yearly' || feePlan === 'Half-Yearly') && pk.halfYearlyFee && pk.halfYearlyFee > 0) {
+      assignedFee = pk.halfYearlyFee;
+    } else if (feePlan === 'Annual' && pk.annualFee && pk.annualFee > 0) {
+      assignedFee = pk.annualFee;
+    }
+
+    const fee = assignedFee > 0
+      ? assignedFee
+      : calculatedFee > 0
+        ? calculatedFee * multiplier
+        : ftc
+          ? ftc.feeAmount
+          : 0;
 
     assignStudentTransport({
       studentId: st.id,

@@ -16,6 +16,7 @@ import { useToast } from "../../../context/ToastContext";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { compareClassesAscending } from "../../../utils/classSorter";
+import { getUniformFeeForClass } from "../../../utils/uniformUtils";
 
 export const FeeStructuresView: React.FC = () => {
   const {
@@ -25,6 +26,7 @@ export const FeeStructuresView: React.FC = () => {
     updateDynamicFeeStructure,
     deleteDynamicFeeStructure,
     academicClasses,
+    financeUniformConfigs,
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
@@ -133,6 +135,13 @@ export const FeeStructuresView: React.FC = () => {
 
     if (newClass) {
       setIsLoadingFeeTypes(true);
+      const uniFee = getUniformFeeForClass(newClass, '', financeUniformConfigs);
+      if (uniFee && uniFee > 0) {
+        const uniHead = activeFeeHeads.find((h) => (h.name || "").toLowerCase().includes("uniform") || h.id === 'FH-04');
+        if (uniHead) {
+          setSelectedHeadAmounts((prev) => ({ ...prev, [uniHead.id]: String(uniFee) }));
+        }
+      }
       setTimeout(() => {
         setIsLoadingFeeTypes(false);
       }, 250);
@@ -151,11 +160,14 @@ export const FeeStructuresView: React.FC = () => {
         return copy;
       });
     } else {
-      // Checked: enable input, keep amount field empty ("") until user enters an amount
+      // Checked: enable input
       setSelectedHeadIds((prev) => [...prev, headId]);
+      const headObj = activeFeeHeads.find((h) => h.id === headId);
+      const isUniform = headObj && ((headObj.name || "").toLowerCase().includes("uniform") || (headObj.name || "").toLowerCase().includes("package") || headId === 'FH-04');
+      const uniFee = isUniform && className ? getUniformFeeForClass(className, '', financeUniformConfigs) : 0;
       setSelectedHeadAmounts((prev) => ({
         ...prev,
-        [headId]: "",
+        [headId]: uniFee && uniFee > 0 ? String(uniFee) : (prev[headId] || ""),
       }));
     }
   };

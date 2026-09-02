@@ -33,6 +33,24 @@ public class StudentDto
 
     public string Status { get; set; } = string.Empty;
 
+    public string? FatherName { get; set; }
+
+    public string? FatherMobile { get; set; }
+
+    public string? MotherName { get; set; }
+
+    public string? MotherMobile { get; set; }
+
+    public string? Email { get; set; }
+
+    public string? MobileNumber { get; set; }
+
+    public string? Gender { get; set; }
+
+    public DateTime? DateOfBirth { get; set; }
+
+    public string? Address { get; set; }
+
     public decimal? AttendancePercentage { get; set; }
 
     public string? Performance { get; set; }

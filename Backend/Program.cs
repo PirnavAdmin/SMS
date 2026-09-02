@@ -22,13 +22,19 @@ using SMS.Api.Services.Implementations.AcademicManagement;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 52428800; // 50 MB for document uploads
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .WithExposedHeaders("Content-Disposition", "X-Branch-Id", "X-Academic-Year-Id", "X-User-Role");
     });
 });
 
@@ -176,6 +182,9 @@ builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>(
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IFacultyTrainingRepository, SMS.Api.Repositories.Implementations.FacultyTrainingRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFacultyTrainingService, SMS.Api.Services.Implementations.FacultyTrainingService>();
 
+// Executive Dashboard Analytics Module
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.Dashboard.IDashboardService, SMS.Api.Services.Implementations.Dashboard.DashboardService>();
+
 // =========================================================
 // 3. JWT AUTHENTICATION
 // =========================================================
@@ -282,9 +291,8 @@ var app = builder.Build();
 // 5. MIDDLEWARE PIPELINE
 // =========================================================
 
-app.UseMiddleware<ExceptionMiddleware>();
-
 app.UseCors();
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Enable Swagger UI unconditionally
 app.UseSwagger();
@@ -1159,6 +1167,35 @@ using (var scope = app.Services.CreateScope())
                 `Feedback` longtext NULL,
                 PRIMARY KEY (`SubmissionId`),
                 CONSTRAINT `fk_hw_submissions_homework` FOREIGN KEY (`HomeworkId`) REFERENCES `homeworks` (`HomeworkId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"DROP TABLE IF EXISTS `payroll_runs`;",
+
+            @"CREATE TABLE `payroll_runs` (
+                `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                `EmployeeId` VARCHAR(100) NOT NULL,
+                `EmployeeName` VARCHAR(255) NULL,
+                `EmpId` VARCHAR(100) NULL,
+                `Branch` VARCHAR(255) NULL,
+                `Department` VARCHAR(255) NULL,
+                `EmployeeCategory` VARCHAR(100) NULL,
+                `PayrollMonth` VARCHAR(100) NOT NULL,
+                `GrossSalary` DECIMAL(18,2) NOT NULL,
+                `LeaveDeduction` DECIMAL(18,2) NOT NULL,
+                `OtherDeductions` DECIMAL(18,2) NOT NULL,
+                `NetSalary` DECIMAL(18,2) NOT NULL,
+                `Status` VARCHAR(100) NOT NULL DEFAULT 'Pending',
+                `SalaryStructureId` VARCHAR(100) NULL,
+                `ConfigurationId` VARCHAR(100) NULL,
+                `EarningsJson` LONGTEXT NULL,
+                `DeductionsJson` LONGTEXT NULL,
+                `LeaveDetailsJson` LONGTEXT NULL,
+                `ManualAdjustmentsJson` LONGTEXT NULL,
+                `Notes` TEXT NULL,
+                `ProcessedDate` VARCHAR(100) NULL,
+                `LockedDate` VARCHAR(100) NULL,
+                `PaymentDate` VARCHAR(100) NULL,
+                `WorkflowStage` VARCHAR(100) NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -1175,15 +1212,43 @@ using (var scope = app.Services.CreateScope())
         {
             try
             {
-                var safeDef = columnDef.Replace("'", "''");
-                var sql = $@"
-                    SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = '{table.ToLower()}' AND LOWER(COLUMN_NAME) = '{column.ToLower()}');
-                    SET @query = IF(@exist = 0, 'ALTER TABLE `{table}` ADD COLUMN `{column}` {safeDef}', 'SELECT 1');
-                    PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;";
-                context.Database.ExecuteSqlRaw(sql);
+                var conn = context.Database.GetDbConnection();
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = '{table.ToLower()}' AND LOWER(COLUMN_NAME) = '{column.ToLower()}';";
+                    var count = Convert.ToInt32(cmd.ExecuteScalar());
+                    if (count == 0)
+                    {
+                        cmd.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};";
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                if (closeConn) conn.Close();
             }
             catch { }
         }
+
+        EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "CycleJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "OvertimeJson", "LONGTEXT NULL");
+        EnsureColumnExists("uniform_types", "IncludedItemsJson", "LONGTEXT NULL");
+        EnsureColumnExists("uniform_sizes", "ShoulderSpec", "VARCHAR(50) NULL");
+
+        EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "CycleJson", "LONGTEXT NULL");
+        EnsureColumnExists("payroll_configs", "OvertimeJson", "LONGTEXT NULL");
 
         void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
         {
@@ -1641,36 +1706,21 @@ using (var scope = app.Services.CreateScope())
 
         var defaultRoles = new[]
         {
-            new Role
-            {
-                RoleName = "SuperAdmin",
-                Description = "System Owner"
-            },
-            new Role
-            {
-                RoleName = "Admin",
-                Description = "School Administrator"
-            },
-            new Role
-            {
-                RoleName = "Teacher",
-                Description = "Teacher / Faculty"
-            },
-            new Role
-            {
-                RoleName = "Warden",
-                Description = "Hostel Warden / Supervisor"
-            },
-            new Role
-            {
-                RoleName = "Student",
-                Description = "Student Account"
-            },
-            new Role
-            {
-                RoleName = "Parent",
-                Description = "Parent / Guardian"
-            }
+            new Role { RoleName = "Super Admin", Description = "System Owner" },
+            new Role { RoleName = "SuperAdmin", Description = "System Owner" },
+            new Role { RoleName = "Admin", Description = "School Administrator" },
+            new Role { RoleName = "Principal", Description = "School Principal / Headmaster" },
+            new Role { RoleName = "Teacher", Description = "Teacher / Faculty" },
+            new Role { RoleName = "Hostel Warden", Description = "Hostel Warden / Supervisor" },
+            new Role { RoleName = "Transport Manager", Description = "Transport Manager / Fleet Incharge" },
+            new Role { RoleName = "Driver", Description = "School Bus Driver / Attendant" },
+            new Role { RoleName = "Librarian", Description = "Library Incharge" },
+            new Role { RoleName = "Accountant", Description = "Finance / Accounts Manager" },
+            new Role { RoleName = "HR", Description = "Human Resources Manager" },
+            new Role { RoleName = "Receptionist", Description = "Front Desk / Receptionist" },
+            new Role { RoleName = "Staff", Description = "General Non-Teaching Staff" },
+            new Role { RoleName = "Student", Description = "Student Account" },
+            new Role { RoleName = "Parent", Description = "Parent / Guardian" }
         };
 
         foreach (var role in defaultRoles)
@@ -1686,9 +1736,25 @@ using (var scope = app.Services.CreateScope())
 
         await context.SaveChangesAsync();
 
+        // Standardize any legacy user roles in users table
+        try
+        {
+            var allUsers = await context.Users.ToListAsync();
+            foreach (var u in allUsers)
+            {
+                var normRole = SMS.Api.Helpers.RoleHelper.NormalizeRoleName(u.Role);
+                if (u.Role != normRole)
+                {
+                    u.Role = normRole;
+                }
+            }
+            await context.SaveChangesAsync();
+        }
+        catch { }
+
         var superAdminRole =
             await context.Roles.FirstOrDefaultAsync(
-                x => x.RoleName == "SuperAdmin");
+                x => x.RoleName == "SuperAdmin" || x.RoleName == "Super Admin");
 
         var adminRole =
             await context.Roles.FirstOrDefaultAsync(
@@ -1698,14 +1764,15 @@ using (var scope = app.Services.CreateScope())
         // SEED ADMIN USER
         // =================================================
 
-        const string adminEmail =
-            "admin@pirnavschools.com";
+        const string adminEmail = "admin@pirnavschools.com";
+        const string adminMobile = "9876543210";
 
         var adminUser =
             await context.Users
                 .Include(x => x.Roles)
                 .FirstOrDefaultAsync(
-                    x => x.Email == adminEmail);
+                    x => (x.Email != null && x.Email.ToLower() == adminEmail) ||
+                         x.MobileNumber == adminMobile);
 
         if (adminUser == null)
         {
@@ -1713,12 +1780,8 @@ using (var scope = app.Services.CreateScope())
             {
                 FullName = "Dr. Eleanor Vance",
                 Email = adminEmail,
-                MobileNumber = "9876543210",
-
-                PasswordHash =
-                    BCrypt.Net.BCrypt.HashPassword(
-                        "admin1234"),
-
+                MobileNumber = adminMobile,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
                 Role = "Admin",
                 IsEmailVerified = true,
                 IsMobileVerified = true,
@@ -1739,24 +1802,20 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
-            // Remove these two lines later if you do not want
-            // the password reset every time the API starts.
-            adminUser.PasswordHash =
-                BCrypt.Net.BCrypt.HashPassword(
-                    "admin1234");
-
+            adminUser.FullName = "Dr. Eleanor Vance";
+            adminUser.Email = adminEmail;
+            adminUser.MobileNumber = adminMobile;
+            adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234");
             adminUser.Role = "Admin";
+            adminUser.IsEmailVerified = true;
+            adminUser.IsMobileVerified = true;
 
-            if (adminRole != null &&
-                adminUser.Roles.All(
-                    x => x.RoleName != "Admin"))
+            if (adminRole != null && adminUser.Roles.All(x => x.RoleName != "Admin"))
             {
                 adminUser.Roles.Add(adminRole);
             }
 
-            if (superAdminRole != null &&
-                adminUser.Roles.All(
-                    x => x.RoleName != "SuperAdmin"))
+            if (superAdminRole != null && adminUser.Roles.All(x => x.RoleName != "SuperAdmin"))
             {
                 adminUser.Roles.Add(superAdminRole);
             }
@@ -1799,14 +1858,6 @@ using (var scope = app.Services.CreateScope())
             {
                 FullName = "Kumar Parent",
                 Email = "parent@pirnavschools.com",
-                Mobile = "9876543223",
-                Password = "Parent@123",
-                Role = parentRole
-            },
-            new
-            {
-                FullName = "Kumar Parent",
-                Email = "parent@pirnavschools.edu",
                 Mobile = "9876543223",
                 Password = "Parent@123",
                 Role = parentRole
@@ -2345,51 +2396,77 @@ using (var scope = app.Services.CreateScope())
 
                 if (defaultBranch != null && defaultAcademicYear != null)
                 {
-                    // 1. Sync enrolled applications from admission_applications to admissions table
-                    var enrolledApps = await context.AdmissionApplications
-                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
+                    // 1. Sync all applications from admission_applications to admissions table
+                    var allApps = await context.AdmissionApplications
                         .ToListAsync();
 
                     var branches = await context.Branches.ToListAsync();
+                    var allClasses = await context.Classes.ToListAsync();
 
-                    foreach (var admApp in enrolledApps)
+                    foreach (var admApp in allApps)
                     {
                         var existingAdmission = await context.Admissions
                             .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo);
 
                         var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
+                        bool isAppDeleted = admApp.IsDeleted || admApp.Status == "Deleted";
+
+                        int targetClassId = 1;
+                        if (admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 && allClasses.Any(c => c.ClassId == admApp.AppliedClassId.Value))
+                        {
+                            targetClassId = admApp.AppliedClassId.Value;
+                        }
+                        else if (admApp.AppliedClass != null && !string.IsNullOrWhiteSpace(admApp.AppliedClass.ClassName))
+                        {
+                            var normalized = admApp.AppliedClass.ClassName.Trim().ToLower();
+                            var matchedClass = allClasses.FirstOrDefault(c => 
+                                (!string.IsNullOrEmpty(c.ClassName) && c.ClassName.Trim().ToLower() == normalized) ||
+                                (!string.IsNullOrEmpty(c.ClassName) && (normalized == c.ClassName.Trim().ToLower().Replace("class ", "") || normalized == $"class {c.ClassName.Trim().ToLower()}"))
+                            ) ?? allClasses.FirstOrDefault(c => 
+                                !string.IsNullOrEmpty(c.ClassName) && (normalized.Contains(c.ClassName.Trim().ToLower()) || c.ClassName.Trim().ToLower().Contains(normalized))
+                            );
+                            if (matchedClass != null)
+                            {
+                                targetClassId = matchedClass.ClassId;
+                            }
+                        }
 
                         if (existingAdmission == null)
                         {
-                            var newAdmission = new Admission
+                            if (!isAppDeleted && (admApp.Status == "Enrolled" || admApp.Status == "Active"))
                             {
-                                ApplicationNo = admApp.RegistrationNo ?? "",
-                                StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
-                                Dob = admApp.DateOfBirth,
-                                Gender = admApp.Gender,
-                                FatherName = admApp.FatherName,
-                                FatherMobile = admApp.FatherContact,
-                                BloodGroup = admApp.BloodGroup,
-                                Caste = admApp.Caste,
-                                BranchId = appBranch.BranchId,
-                                ClassId = admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 ? admApp.AppliedClassId.Value : 1,
-                                SectionLetter = "A",
-                                AdmissionType = "Regular",
-                                Status = admApp.Status ?? "",
-                                IsDeleted = false,
-                                CreatedDate = DateTime.UtcNow
-                            };
-                            await context.Admissions.AddAsync(newAdmission);
+                                var newAdmission = new Admission
+                                {
+                                    ApplicationNo = admApp.RegistrationNo ?? "",
+                                    StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
+                                    Dob = admApp.DateOfBirth,
+                                    Gender = admApp.Gender,
+                                    FatherName = admApp.FatherName,
+                                    FatherMobile = admApp.FatherContact,
+                                    BloodGroup = admApp.BloodGroup,
+                                    Caste = admApp.Caste,
+                                    BranchId = appBranch.BranchId,
+                                    ClassId = targetClassId,
+                                    SectionLetter = null,
+                                    AdmissionType = "Regular",
+                                    Status = admApp.Status ?? "",
+                                    IsDeleted = false,
+                                    CreatedDate = DateTime.UtcNow
+                                };
+                                await context.Admissions.AddAsync(newAdmission);
+                            }
                         }
                         else
                         {
                             existingAdmission.BranchId = appBranch.BranchId;
+                            existingAdmission.ClassId = targetClassId;
                             existingAdmission.Status = admApp.Status ?? "";
+                            existingAdmission.IsDeleted = isAppDeleted;
                         }
                     }
                     await context.SaveChangesAsync();
 
-                    // 2. Sync from admissions to students table
+                    // 2. Sync from admissions to students table with IgnoreQueryFilters
                     var activeAdmissions = await context.Admissions
                         .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
                         .ToListAsync();
@@ -2399,10 +2476,13 @@ using (var scope = app.Services.CreateScope())
                         if (admission.ClassId == null)
                             continue;
 
-                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
-                        var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
-                        
+                        ClassSection? sectionObj = null;
+                        if (!string.IsNullOrEmpty(admission.SectionLetter))
+                        {
+                            sectionObj = await context.ClassSections
+                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                        }
+
                         if (sectionObj == null)
                         {
                             sectionObj = await context.ClassSections
@@ -2411,14 +2491,17 @@ using (var scope = app.Services.CreateScope())
                         if (sectionObj == null) continue;
 
                         var existing = await context.Students
+                            .IgnoreQueryFilters()
                             .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
 
                         if (existing != null)
                         {
+                            existing.ClassId = admission.ClassId.Value;
                             existing.SectionId = sectionObj.SectionId;
                             existing.RollNumber = admission.RollNo ?? existing.RollNumber;
                             existing.BranchId = (int)admission.BranchId;
                             existing.Status = "Active";
+                            existing.IsDeleted = false;
                         }
                         else
                         {
@@ -2436,9 +2519,28 @@ using (var scope = app.Services.CreateScope())
                                 ClassId = admission.ClassId.Value,
                                 SectionId = sectionObj.SectionId,
                                 Status = "Active",
+                                IsDeleted = false,
                                 CreatedAt = DateTime.UtcNow
                             };
                             await context.Students.AddAsync(student);
+                        }
+                    }
+
+                    // 3. Deactivate students whose applications are Deleted or Rejected
+                    var nonEnrolledApps = await context.AdmissionApplications
+                        .Where(a => a.IsDeleted || a.Status == "Deleted" || a.Status == "Rejected" || a.Status == "Pending")
+                        .ToListAsync();
+
+                    foreach (var nonApp in nonEnrolledApps)
+                    {
+                        var matchingStudent = await context.Students
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(s => s.AdmissionNumber == nonApp.RegistrationNo);
+
+                        if (matchingStudent != null && nonApp.Status != "Enrolled")
+                        {
+                            matchingStudent.Status = "Inactive";
+                            matchingStudent.IsDeleted = true;
                         }
                     }
 

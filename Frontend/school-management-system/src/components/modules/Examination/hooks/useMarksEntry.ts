@@ -37,8 +37,8 @@ export function useMarksEntry() {
     if (!className) return [];
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
-      if (!clsObj || !clsObj.sections || clsObj.sections.length === 0) return ['A'];
-      const raw = clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+      if (!clsObj || !clsObj.sections || clsObj.sections.length === 0) return [];
+      const raw = clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || ''));
       return Array.from(new Set(raw.filter(Boolean)));
     }
     const teacherName = user?.name || '';
@@ -46,7 +46,7 @@ export function useMarksEntry() {
       ta => ta.className === className && ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
     );
     const result = Array.from(new Set(assigned.map(ta => ta.section).filter(Boolean)));
-    return result.length > 0 ? result : ['A'];
+    return result;
   };
 
   const getAllowedSubjects = (className: string, section: string) => {

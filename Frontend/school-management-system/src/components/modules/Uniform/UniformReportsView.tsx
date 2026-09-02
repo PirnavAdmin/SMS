@@ -40,9 +40,23 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
   }, [initialReportType]);
 
   // Determine dynamic filter visibility
-  const showClass = ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType);
+  const isReturnExchangeReport = [
+    'Return & Exchange Report',
+    'Return Report',
+    'Replacement Report',
+    'Replacement Exchange Report'
+  ].includes(reportType);
+
+  const isSalesOrIssueReport = [
+    'Uniform Issue Report',
+    'Additional Uniform Sales'
+  ].includes(reportType);
+
+  const isStudentReport = isReturnExchangeReport || isSalesOrIssueReport;
+
+  const showClass = isStudentReport;
   const showSupplier = ['Supplier Purchase Report'].includes(reportType);
-  const showDateRange = ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report', 'Supplier Purchase Report'].includes(reportType);
+  const showDateRange = isStudentReport || showSupplier;
 
   const formatDateToLocalYYYYMMDD = (d: Date) => {
     const year = d.getFullYear();
@@ -106,7 +120,14 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     if (isDummy) return false;
 
     if (filterClass !== 'All' && i.className !== filterClass) return false;
-    if (fromDate && i.issueDate < fromDate) return false;
+
+    const itemDate = (reportType.includes('Return') || reportType.includes('Exchange') || reportType.includes('Replacement'))
+      ? (i.returnDate || i.replacementDate || i.issueDate)
+      : i.issueDate;
+
+    if (fromDate && itemDate < fromDate) return false;
+    if (toDate && itemDate > toDate) return false;
+
     if (reportType === 'Additional Uniform Sales') {
       if (i.status === 'Returned' || i.status === 'Cancelled') return false;
       const itemNameLower = (i.itemName || '').toLowerCase();
@@ -124,7 +145,26 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
       if (isOriginalBasePkg) return false;
     }
-    if (reportType === 'Replacement Report' && i.status !== 'Replaced') return false;
+    if (reportType === 'Return & Exchange Report' || reportType === 'Return Report' || reportType === 'Replacement Report' || reportType === 'Replacement Exchange Report') {
+      const statusLower = (i.status || '').toLowerCase();
+      const typeLower = ((i as any).transactionType || i.type || '').toLowerCase();
+      const notesLower = (i.notes || '').toLowerCase();
+
+      const isMatch = 
+        statusLower === 'returned' || 
+        statusLower === 'exchanged' || 
+        statusLower === 'replaced' || 
+        typeLower.includes('return') || 
+        typeLower.includes('exchange') || 
+        typeLower.includes('replace') || 
+        notesLower.includes('return') || 
+        notesLower.includes('exchange') || 
+        notesLower.includes('replaced') || 
+        Boolean(i.replacementDate) ||
+        Boolean(i.returnDate);
+
+      if (!isMatch) return false;
+    }
 
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
@@ -229,11 +269,29 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
   const recordCount = ['Current Stock', 'Low Stock'].includes(reportType) 
     ? filteredInventory.length 
-    : ['Uniform Issue Report', 'Student Uniform History', 'Replacement Report'].includes(reportType)
-    ? filteredStudentIssues.length
-    : reportType === 'Additional Uniform Sales'
-    ? groupedStudentIssues.length
+    : isStudentReport
+    ? (reportType === 'Additional Uniform Sales' ? groupedStudentIssues.length : filteredStudentIssues.length)
     : filteredSuppliers.length;
+
+  const totalReturnedCount = React.useMemo(() => {
+    if (!isReturnExchangeReport) return 0;
+    return filteredStudentIssues.filter(i => 
+      i.status === 'Returned' || 
+      i.notes?.toLowerCase().includes('returned') || 
+      Boolean(i.returnDate)
+    ).reduce((sum, i) => sum + (i.quantity || 1), 0);
+  }, [filteredStudentIssues, isReturnExchangeReport]);
+
+  const totalExchangedCount = React.useMemo(() => {
+    if (!isReturnExchangeReport) return 0;
+    return filteredStudentIssues.filter(i => 
+      i.status === 'Exchanged' || 
+      i.status === 'Replaced' || 
+      i.notes?.toLowerCase().includes('exchanged') || 
+      i.notes?.toLowerCase().includes('replaced') || 
+      Boolean(i.replacementDate)
+    ).reduce((sum, i) => sum + (i.quantity || 1), 0);
+  }, [filteredStudentIssues, isReturnExchangeReport]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -255,7 +313,20 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
       }
       headers = 'Item Name,Category,Size,Opening Stock,Current Stock,Min Stock,Reorder Level,Status\n';
       rows = filteredInventory.map(i => `"${i.itemName}","${i.category}","${i.size}",${i.openingStock},${i.currentStock},${i.minimumStock},${i.reorderLevel},"${i.status}"`).join('\n');
-    } else if (['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType)) {
+    } else if (isReturnExchangeReport) {
+      if (filteredStudentIssues.length === 0) {
+        addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
+        return;
+      }
+      headers = 'Student Name,Admission No,Class,Section,Uniform Item,Size,Quantity,Transaction Date,Status,Remarks / Reason\n';
+      rows = filteredStudentIssues.map(i => {
+        const txnDate = i.returnDate || i.replacementDate || i.issueDate;
+        const cleanStatus = (i.status === 'Returned' || i.notes?.toLowerCase().includes('returned')) ? 'Returned' :
+                            (i.status === 'Exchanged' || i.status === 'Replaced' || i.notes?.toLowerCase().includes('exchanged') || i.notes?.toLowerCase().includes('replaced') || Boolean(i.replacementDate)) ? 'Exchanged' :
+                            i.status;
+        return `"${i.studentName}","${i.admissionNo}","${i.className}","${i.section || 'A'}","${i.itemName}","${i.size}",${i.quantity},"${txnDate}","${cleanStatus}","${i.notes || ''}"`;
+      }).join('\n');
+    } else if (isSalesOrIssueReport) {
       if (filteredStudentIssues.length === 0) {
         addToast('warning', 'No Records', 'No matching records available to download for the applied filters.');
         return;
@@ -299,7 +370,26 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
         'Reorder Level': i.reorderLevel,
         'Status': i.status
       }));
-    } else if (['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType)) {
+    } else if (isReturnExchangeReport) {
+      return filteredStudentIssues.map(i => {
+        const txnDate = i.returnDate || i.replacementDate || i.issueDate;
+        const cleanStatus = (i.status === 'Returned' || i.notes?.toLowerCase().includes('returned')) ? 'Returned' :
+                            (i.status === 'Exchanged' || i.status === 'Replaced' || i.notes?.toLowerCase().includes('exchanged') || i.notes?.toLowerCase().includes('replaced') || Boolean(i.replacementDate)) ? 'Exchanged' :
+                            i.status;
+        return {
+          'Student Name': i.studentName,
+          'Admission No': i.admissionNo,
+          'Class': i.className,
+          'Section': i.section || 'A',
+          'Uniform Item': i.itemName,
+          'Size': i.size,
+          'Quantity': i.quantity,
+          'Transaction Date': txnDate,
+          'Status': cleanStatus,
+          'Remarks / Reason': i.notes || ''
+        };
+      });
+    } else if (isSalesOrIssueReport) {
       return filteredStudentIssues.map(i => {
         const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
         const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 3000 : 350));
@@ -316,7 +406,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
           'Total Amount (₹)': formatCurrency(totalAmount),
           'Issue Date': i.issueDate,
           'Status': i.status,
-          'Remarks': i.notes || ''
+          'Remarks / Reason': i.notes || ''
         };
       });
     } else {
@@ -330,26 +420,28 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
         'Status': s.status
       }));
     }
-  }, [reportType, filteredInventory, filteredStudentIssues, filteredSuppliers]);
+  }, [reportType, filteredInventory, filteredStudentIssues, filteredSuppliers, uniforms, isReturnExchangeReport, isSalesOrIssueReport]);
 
   const totalReportRevenue = React.useMemo(() => {
+    if (!isSalesOrIssueReport) return 0;
     return filteredStudentIssues.reduce((sum, i) => {
       let price = i.price || (i as any).unitPrice || 0;
       if (!price || price <= 0) {
         const isPkg = i.type === 'Base Package' || (i.itemName && (i.itemName.toLowerCase().includes('package') || i.itemName.toLowerCase().includes('base')));
         if (isPkg) {
-          price = getUniformFeeForClass(i.className || '', i.gender || 'Unisex', financeUniformConfigs);
+          price = getUniformFeeForClass(i.className || '', (i as any).gender || 'Unisex', financeUniformConfigs);
         } else {
-          price = getItemPriceFromConfig(i.itemCategory || i.itemName, financeUniformConfigs);
+          price = getItemPriceFromConfig((i as any).itemCategory || i.itemName, financeUniformConfigs);
         }
       }
       return sum + (price * (i.quantity || 1));
     }, 0);
-  }, [filteredStudentIssues, financeUniformConfigs]);
+  }, [filteredStudentIssues, financeUniformConfigs, isSalesOrIssueReport]);
 
   const totalReportQuantity = React.useMemo(() => {
+    if (!isStudentReport) return 0;
     return filteredStudentIssues.reduce((sum, i) => sum + i.quantity, 0);
-  }, [filteredStudentIssues]);
+  }, [filteredStudentIssues, isStudentReport]);
 
   return (
     <div id="printable-content" className="space-y-6 animate-in fade-in">
@@ -423,8 +515,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                 </optgroup>
                 <optgroup label="Student Reports">
                   <option value="Uniform Issue Report">Uniform Issue Report</option>
-                  <option value="Student Uniform History">Student Uniform History</option>
-                  <option value="Replacement Report">Replacement Exchange Report</option>
+                  <option value="Return & Exchange Report">Return & Exchange Report</option>
                 </optgroup>
                 <optgroup label="Supplier Reports">
                   <option value="Supplier Purchase Report">Supplier Directory</option>
@@ -565,9 +656,16 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            {['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) && (
+            {isSalesOrIssueReport && (
               <span className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs shadow-xs">
                 Total Revenue: {formatCurrency(totalReportRevenue)}
+              </span>
+            )}
+            {isReturnExchangeReport && (
+              <span className="px-3.5 py-1.5 rounded-xl bg-slate-800 dark:bg-slate-700 text-white font-extrabold text-xs shadow-xs flex items-center gap-2">
+                <span className="text-amber-400 font-bold">{totalReturnedCount} Returned</span>
+                <span className="text-slate-500">•</span>
+                <span className="text-sky-300 font-bold">{totalExchangedCount} Exchanged</span>
               </span>
             )}
             <span className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-xs shadow-xs">
@@ -589,7 +687,20 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                   <th className="py-3 px-3.5 text-right">Reorder Level</th>
                   <th className="py-3 px-3.5 text-center">Status</th>
                 </tr>
-              ) : ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) ? (
+              ) : isReturnExchangeReport ? (
+                <tr className="divide-x divide-slate-200 dark:divide-slate-800">
+                  <th className="py-3 px-3.5 whitespace-nowrap">Student Name</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Admission No</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Class</th>
+                  <th className="py-3 px-3.5 text-center whitespace-nowrap">Section</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Uniform Item</th>
+                  <th className="py-3 px-3.5 text-center whitespace-nowrap">Size</th>
+                  <th className="py-3 px-3.5 text-right whitespace-nowrap">Quantity</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Transaction Date</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Status</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Remarks / Reason</th>
+                </tr>
+              ) : isSalesOrIssueReport ? (
                 <tr className="divide-x divide-slate-200 dark:divide-slate-800">
                   <th className="py-3 px-3.5 whitespace-nowrap">Student Name</th>
                   <th className="py-3 px-3.5 whitespace-nowrap">Admission No</th>
@@ -642,7 +753,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors divide-x divide-slate-100 dark:divide-slate-800/60">
                       <td className="py-3 px-3.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">{i.itemName}</td>
                       <td className="py-3 px-3.5 text-slate-500 whitespace-nowrap">{i.category}</td>
-                      <td className="py-3 px-3.5 text-center font-bold text-sky-600 whitespace-nowrap">{i.size}</td>
+                      <td className="py-3 px-3.5 text-center font-bold text-sky-600 whitespace-nowrap">{i.size || 'All Sizes'}</td>
                       <td className="py-3 px-3.5 text-right whitespace-nowrap">{i.openingStock} Units</td>
                       <td className="py-3 px-3.5 text-right font-black whitespace-nowrap">{i.currentStock} Units</td>
                       <td className="py-3 px-3.5 text-right text-amber-600 whitespace-nowrap">{i.reorderLevel} Units</td>
@@ -683,7 +794,45 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     </tr>
                   ))
                 )
-              ) : ['Uniform Issue Report', 'Student Uniform History', 'Replacement Report'].includes(reportType) ? (
+              ) : isReturnExchangeReport ? (
+                filteredStudentIssues.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-slate-400">No return or exchange records match active filters.</td>
+                  </tr>
+                ) : (
+                  paginatedStudentIssues.map(i => {
+                    const displayClass = i.className.includes('-') ? i.className.split('-')[0].trim() : i.className;
+                    const displaySection = i.section || (i.className.includes('-') ? i.className.split('-')[1].trim() : 'A');
+                    const txnDate = i.returnDate || i.replacementDate || i.issueDate;
+
+                    const isReturned = i.status === 'Returned' || i.notes?.toLowerCase().includes('returned');
+                    const isExchanged = i.status === 'Exchanged' || i.status === 'Replaced' || i.notes?.toLowerCase().includes('exchanged') || i.notes?.toLowerCase().includes('replaced') || Boolean(i.replacementDate);
+
+                    return (
+                      <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors divide-x divide-slate-100 dark:divide-slate-800/60">
+                        <td className="py-3 px-3.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">{i.studentName}</td>
+                        <td className="py-3 px-3.5 font-mono whitespace-nowrap">{i.admissionNo}</td>
+                        <td className="py-3 px-3.5 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{displayClass}</td>
+                        <td className="py-3 px-3.5 text-center font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap">{displaySection}</td>
+                        <td className="py-3 px-3.5 font-semibold text-sky-600 whitespace-nowrap">{i.itemName.replace(' (Extra)', '')}</td>
+                        <td className="py-3 px-3.5 text-center font-bold whitespace-nowrap">{i.size}</td>
+                        <td className="py-3 px-3.5 text-right font-bold whitespace-nowrap">{i.quantity}</td>
+                        <td className="py-3 px-3.5 font-mono whitespace-nowrap">{txnDate}</td>
+                        <td className="py-3 px-3.5 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                            isReturned ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-900' :
+                            isExchanged ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                          }`}>
+                            {isReturned ? 'Returned' : isExchanged ? 'Exchanged' : i.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3.5 text-slate-500 italic whitespace-nowrap max-w-xs truncate" title={i.notes || 'N/A'}>{i.notes || 'N/A'}</td>
+                      </tr>
+                    );
+                  })
+                )
+              ) : isSalesOrIssueReport ? (
                 filteredStudentIssues.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="py-8 text-center text-slate-400">No student transactions match active filters.</td>
@@ -709,13 +858,11 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                         <td className="py-3 px-3.5 text-right font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatCurrency(totalAmount)}</td>
                         <td className="py-3 px-3.5 font-mono whitespace-nowrap">{i.issueDate}</td>
                         <td className="py-3 px-3.5 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            i.status === 'Issued' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                          }`}>
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
                             {i.status}
                           </span>
                         </td>
-                        <td className="py-3 px-3.5 text-slate-500 italic whitespace-nowrap">{i.notes || 'N/A'}</td>
+                        <td className="py-3 px-3.5 text-slate-500 italic whitespace-nowrap max-w-xs truncate" title={i.notes || 'N/A'}>{i.notes || 'N/A'}</td>
                       </tr>
                     );
                   })
@@ -742,10 +889,19 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                 )
               )}
             </tbody>
-            {['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) && filteredStudentIssues.length > 0 && (
+            {isReturnExchangeReport && filteredStudentIssues.length > 0 && (
               <tfoot className="bg-slate-100 dark:bg-slate-800 font-extrabold text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-700">
                 <tr>
-                  <td colSpan={6} className="py-3 px-4 text-right uppercase tracking-wider text-[11px]">Total Extra Sales Revenue:</td>
+                  <td colSpan={6} className="py-3 px-4 text-right uppercase tracking-wider text-[11px]">Total Filtered Quantity:</td>
+                  <td className="py-3 px-4 text-right text-xs font-black text-sky-600 dark:text-sky-400">{totalReportQuantity} Units</td>
+                  <td colSpan={3} className="py-3 px-4"></td>
+                </tr>
+              </tfoot>
+            )}
+            {isSalesOrIssueReport && filteredStudentIssues.length > 0 && (
+              <tfoot className="bg-slate-100 dark:bg-slate-800 font-extrabold text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-700">
+                <tr>
+                  <td colSpan={6} className="py-3 px-4 text-right uppercase tracking-wider text-[11px]">Total Revenue:</td>
                   <td className="py-3 px-4 text-right text-xs font-bold">{totalReportQuantity} Units</td>
                   <td className="py-3 px-4 text-right text-xs">--</td>
                   <td className="py-3 px-4 text-right text-sm text-emerald-600 dark:text-emerald-400 font-black">{formatCurrency(totalReportRevenue)}</td>
@@ -771,7 +927,20 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                 <th className="py-2 px-3 text-right">Reorder Level</th>
                 <th className="py-2 px-3 text-center">Status</th>
               </tr>
-            ) : ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) ? (
+            ) : isReturnExchangeReport ? (
+              <tr className="divide-x divide-slate-900">
+                <th className="py-2 px-3">Student Name</th>
+                <th className="py-2 px-3">Admission No</th>
+                <th className="py-2 px-3">Class</th>
+                <th className="py-2 px-3 text-center">Sec</th>
+                <th className="py-2 px-3">Uniform Item</th>
+                <th className="py-2 px-3 text-center">Size</th>
+                <th className="py-2 px-3 text-right">Qty</th>
+                <th className="py-2 px-3">Transaction Date</th>
+                <th className="py-2 px-3">Status</th>
+                <th className="py-2 px-3">Remarks / Reason</th>
+              </tr>
+            ) : isSalesOrIssueReport ? (
               <tr className="divide-x divide-slate-900">
                 <th className="py-2 px-3">Student Name</th>
                 <th className="py-2 px-3">Admission No</th>
@@ -784,7 +953,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                 <th className="py-2 px-3 text-right">Total Amount</th>
                 <th className="py-2 px-3">Issue Date</th>
                 <th className="py-2 px-3">Status</th>
-                <th className="py-2 px-3">Notes</th>
+                <th className="py-2 px-3">Notes / Reason</th>
               </tr>
             ) : (
               <tr className="divide-x divide-slate-900">
@@ -811,7 +980,30 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                   <td className="py-2 px-3 text-center font-bold">{i.status}</td>
                 </tr>
               ))
-            ) : ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) ? (
+            ) : isReturnExchangeReport ? (
+              filteredStudentIssues.map(i => {
+                const displayClass = i.className.includes('-') ? i.className.split('-')[0].trim() : i.className;
+                const displaySection = i.section || (i.className.includes('-') ? i.className.split('-')[1].trim() : 'A');
+                const txnDate = i.returnDate || i.replacementDate || i.issueDate;
+                const isReturned = i.status === 'Returned' || i.notes?.toLowerCase().includes('returned');
+                const isExchanged = i.status === 'Exchanged' || i.status === 'Replaced' || i.notes?.toLowerCase().includes('exchanged') || i.notes?.toLowerCase().includes('replaced') || Boolean(i.replacementDate);
+
+                return (
+                  <tr key={i.id} className="divide-x divide-slate-300">
+                    <td className="py-2 px-3 font-bold">{i.studentName}</td>
+                    <td className="py-2 px-3 font-mono">{i.admissionNo}</td>
+                    <td className="py-2 px-3 font-semibold">{displayClass}</td>
+                    <td className="py-2 px-3 text-center font-bold">{displaySection}</td>
+                    <td className="py-2 px-3 font-semibold">{i.itemName.replace(' (Extra)', '')}</td>
+                    <td className="py-2 px-3 text-center font-bold">{i.size}</td>
+                    <td className="py-2 px-3 text-right font-bold">{i.quantity}</td>
+                    <td className="py-2 px-3 font-mono">{txnDate}</td>
+                    <td className="py-2 px-3 font-bold">{isReturned ? 'Returned' : isExchanged ? 'Exchanged' : i.status}</td>
+                    <td className="py-2 px-3 italic">{i.notes || 'N/A'}</td>
+                  </tr>
+                );
+              })
+            ) : isSalesOrIssueReport ? (
               filteredStudentIssues.map(i => {
                 const displayClass = i.className.includes('-') ? i.className.split('-')[0].trim() : i.className;
                 const displaySection = i.section || (i.className.includes('-') ? i.className.split('-')[1].trim() : 'A');
@@ -850,7 +1042,16 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
               ))
             )}
           </tbody>
-          {['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) && filteredStudentIssues.length > 0 && (
+          {isReturnExchangeReport && filteredStudentIssues.length > 0 && (
+            <tfoot className="bg-slate-200 font-extrabold border-t-2 border-slate-900">
+              <tr className="divide-x divide-slate-900">
+                <td colSpan={6} className="py-2 px-3 text-right uppercase tracking-wider text-[10px]">Total Filtered Quantity:</td>
+                <td className="py-2 px-3 text-right text-xs font-bold">{totalReportQuantity} Units</td>
+                <td colSpan={3} className="py-2 px-3"></td>
+              </tr>
+            </tfoot>
+          )}
+          {isSalesOrIssueReport && filteredStudentIssues.length > 0 && (
             <tfoot className="bg-slate-200 font-extrabold border-t-2 border-slate-900">
               <tr className="divide-x divide-slate-900">
                 <td colSpan={6} className="py-2 px-3 text-right uppercase tracking-wider text-[10px]">Total Revenue:</td>

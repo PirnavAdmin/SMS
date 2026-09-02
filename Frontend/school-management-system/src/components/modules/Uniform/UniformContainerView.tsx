@@ -17,7 +17,7 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
     if (fetchUniformData) {
       fetchUniformData();
     }
-  }, [fetchUniformData]);
+  }, []);
 
   const normalizeTab = (tab: string) => tab.startsWith('uniform-') ? tab.replace('uniform-', '') : tab;
 

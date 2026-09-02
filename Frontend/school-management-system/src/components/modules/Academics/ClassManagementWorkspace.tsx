@@ -4,7 +4,7 @@ import {
   Users, UserPlus, Clock, ShieldCheck, Plus, Edit, 
   Trash2, Search, X, Check, ChevronRight, AlertCircle, ChevronDown,
   BarChart2, CheckSquare, Copy, Archive, CheckCircle2, RefreshCw,
-  ArrowLeft, Activity, Settings, Clipboard, Download, Lock, CheckSquare as CheckSquareIcon, ArrowRightLeft, BookOpen as BookOpenIcon, UserCheck, Play
+  ArrowLeft, Activity, Settings, Clipboard, Download, Lock, CheckSquare as CheckSquareIcon, ArrowRightLeft, BookOpen as BookOpenIcon, UserCheck, Play, Info
 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useData, AcademicClass } from '../../../context/DataContext';
@@ -20,6 +20,7 @@ import {
   mapSubjectApi, 
   removeSubjectApi, 
   assignTeacherApi,
+  unassignTeacherApi,
   fetchClassStudentsApi, 
   allocateStudentApi, 
   autoAllocateApi 
@@ -76,7 +77,13 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedTeacher = useMemo(() => {
-    return teachers.find(t => t.id === value || (t.name || `${t.firstName} ${t.lastName}`) === value);
+    if (!value) return null;
+    const valStr = String(value).trim().toLowerCase();
+    return teachers.find(t => 
+      String(t.id).trim().toLowerCase() === valStr ||
+      (t.name || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase() === valStr ||
+      (t.empId && (t.empId.toLowerCase() === valStr || valStr.includes(t.empId.toLowerCase())))
+    );
   }, [teachers, value]);
 
   useEffect(() => {
@@ -1296,15 +1303,24 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     
     let updated: string[];
     if (currentMapped.includes(subjectName)) {
-      // Check if teacher assignments exist for this subject in any section of this class
-      const hasTeacher = teacherAssignments.some(ta => ta.className === activeClass.name && ta.subject === subjectName);
-      if (hasTeacher) {
-        addToast('warning', 'Mapping Locked', `Cannot remove subject ${subjectName} because subject teachers are assigned in sections.`);
-        return;
-      }
-      
       const subObj = subjects.find(s => s.name === subjectName);
       const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
+
+      // Check if teacher assignments exist for this subject in any section of this class
+      const classTeacherAssignments = teacherAssignments.filter(ta => ta.className === activeClass.name && ta.subject === subjectName);
+      if (classTeacherAssignments.length > 0) {
+        addToast('info', 'Unmapping Teachers', `Unassigning subject teachers from sections first...`);
+        try {
+          await Promise.all(classTeacherAssignments.map(async (ta) => {
+            await unassignTeacherApi(activeClass.id, ta.section, numericSubId).catch((err) => {
+              console.error(`Failed to unassign teacher for section ${ta.section}:`, err);
+            });
+            deleteTeacherAssignment(ta.id);
+          }));
+        } catch (error) {
+          console.error('Error unassigning teachers:', error);
+        }
+      }
       
       try {
         const res = await removeSubjectApi(activeClass.id, numericSubId);
@@ -1368,7 +1384,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // -------------------------------------------------------------
   // TEACHER ASSIGNMENT HANDLERS
   // -------------------------------------------------------------
-  const handleAssignClassTeacher = (teacherId: string) => {
+  const handleAssignClassTeacher = async (teacherId: string) => {
     if (!activeClass || !activeWorkspaceSection) return;
     const details = (activeClass as any).sectionTeachers || {};
 
@@ -1377,12 +1393,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         ...details,
         [activeWorkspaceSection]: ''
       };
-      updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
-      assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-        teacher_id: '',
-        role: "Class Teacher"
-      }).catch(() => {});
-      addToast('info', 'Class Teacher Unassigned', `Class Teacher for Section ${activeWorkspaceSection} is now unassigned.`);
+      try {
+        await assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+          teacher_id: '',
+          role: "Class Teacher"
+        });
+        await updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+        addToast('info', 'Class Teacher Unassigned', `Class Teacher for Section ${activeWorkspaceSection} is now unassigned.`);
+      } catch (err: any) {
+        console.error('Failed to unassign class teacher:', err);
+        addToast('error', 'Error', err.message || 'Failed to unassign class teacher.');
+      }
       return;
     }
 
@@ -1414,64 +1435,68 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       [activeWorkspaceSection]: teacherFullName
     };
 
-    updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+    try {
+      await assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+        teacher_id: teacherId,
+        role: "Class Teacher"
+      });
+      await updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
 
-    assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-      teacher_id: teacherId,
-      role: "Class Teacher"
-    }).catch(() => {});
+      // Auto-assign subject if class teacher is assigned and has a teaching subject
+      const autoAssignedSubjects: string[] = [];
+      if (t) {
+        const teacherSubjects = [
+          t.primarySubject,
+          t.secondarySubject,
+          t.department,
+          t.designation,
+          ...(t.assignedSubjects || [])
+        ].filter(Boolean) as string[];
 
-    // Auto-assign subject if class teacher is assigned and has a teaching subject
-    const autoAssignedSubjects: string[] = [];
-    if (t) {
-      const teacherSubjects = [
-        t.primarySubject,
-        t.secondarySubject,
-        t.department,
-        t.designation,
-        ...(t.assignedSubjects || [])
-      ].filter(Boolean) as string[];
-
-      const targetSubjects = (activeClass.subjects || []).filter(subName => 
-        teacherSubjects.some(tSub => 
-          subName.toLowerCase().includes(tSub.toLowerCase()) || 
-          tSub.toLowerCase().includes(subName.toLowerCase())
-        )
-      );
-
-      targetSubjects.forEach(targetSubject => {
-        const exist = teacherAssignments.find(ta => 
-          ta.className === activeClass.name && 
-          ta.section === activeWorkspaceSection && 
-          ta.subject === targetSubject
+        const targetSubjects = (activeClass.subjects || []).filter(subName => 
+          teacherSubjects.some(tSub => 
+            subName.toLowerCase().includes(tSub.toLowerCase()) || 
+            tSub.toLowerCase().includes(subName.toLowerCase())
+          )
         );
 
-        if (exist) {
-          updateTeacherAssignment(exist.id, { 
-            teacherId: t.id, 
-            teacherName: teacherFullName
-          });
-        } else {
-          addTeacherAssignment({
-            academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-            branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
-            className: activeClass.name,
-            section: activeWorkspaceSection,
-            subject: targetSubject,
-            teacherId: t.id,
-            teacherName: teacherFullName,
-            status: 'Active'
-          });
-        }
-        autoAssignedSubjects.push(targetSubject);
-      });
+        targetSubjects.forEach(targetSubject => {
+          const exist = teacherAssignments.find(ta => 
+            ta.className === activeClass.name && 
+            ta.section === activeWorkspaceSection && 
+            ta.subject === targetSubject
+          );
+
+          if (exist) {
+            updateTeacherAssignment(exist.id, { 
+              teacherId: t.id, 
+              teacherName: teacherFullName
+            });
+          } else {
+            addTeacherAssignment({
+              academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
+              branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
+              className: activeClass.name,
+              section: activeWorkspaceSection,
+              subject: targetSubject,
+              teacherId: t.id,
+              teacherName: teacherFullName,
+              status: 'Active'
+            });
+          }
+          autoAssignedSubjects.push(targetSubject);
+        });
+      }
+
+      const subjectsMsg = autoAssignedSubjects.length > 0
+        ? ` and auto-assigned to teach: ${autoAssignedSubjects.join(', ')}`
+        : '';
+
+      addToast('success', 'Class Teacher Assigned', `Assigned ${teacherFullName} as Class Teacher for Section ${activeWorkspaceSection}${subjectsMsg}.`);
+    } catch (err: any) {
+      console.error('Failed to assign class teacher:', err);
+      addToast('error', 'Error', err.message || 'Failed to assign class teacher.');
     }
-
-    const subjectsMsg = autoAssignedSubjects.length > 0
-      ? ` and auto-assigned to teach: ${autoAssignedSubjects.join(', ')}`
-      : '';
-
-    addToast('success', 'Class Teacher Assigned', `Assigned ${teacherFullName} as Class Teacher for Section ${activeWorkspaceSection}${subjectsMsg}.`);
   };
 
   const handleAssignSubjectTeacher = (subjectName: string, teacherId: string) => {
@@ -1712,7 +1737,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             }
             secIdx++;
           });
-          addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections.');
+          addToast('success', 'Auto-allocated Students', res?.message || `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
         } else {
           addToast('error', 'Error', res?.message || 'Failed to auto allocate students.');
         }
@@ -1735,7 +1760,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           }
           secIdx++;
         });
-        addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections (offline).');
+        addToast('success', 'Auto-allocated Students', `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
       });
   };
 
@@ -2052,6 +2077,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         const isSelected = selectedSections.includes(sec);
                         const status = detail.status || 'Active';
                         const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
+                        const roomNo = detail.roomNo || 'Unassigned';
 
                         return (
                           <div 
@@ -2086,6 +2112,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-350 font-bold">
                               <div className="flex justify-between"><span className="text-slate-450">Current Enrolled:</span> <span>{assigned} Students</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Seats Remaining:</span> <span className="text-sky-600">{free} / {cap} Seats</span></div>
+                              <div className="flex justify-between"><span className="text-slate-450">Room Number:</span> <span className="text-slate-800 dark:text-white">{roomNo}</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Class Teacher:</span> <span className="text-slate-800 dark:text-white">{classTeacher}</span></div>
                             </div>
 
@@ -2293,10 +2320,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         if (!isCurrent) {
                           const tValClean = tVal.trim().toLowerCase();
                           assignedClassTeacherInfo.set(tValClean, { className: cls.name, section: sec });
-                          const matchedT = teachersList.find(t => 
-                            (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase() === tValClean || 
-                            t.id === tVal
-                          );
+                          const matchedT = teachersList.find(t => {
+                            const fullName = (t.name || `${t.firstName} ${t.lastName}`).trim();
+                            const empCode = t.empId || t.id;
+                            
+                            const cleanName = tVal.trim().toLowerCase();
+                            if (fullName.toLowerCase() === cleanName) return true;
+                            if (isNameEquivalent(fullName, tVal)) return true;
+                            if (empCode && cleanName.includes(empCode.toLowerCase())) return true;
+                            if (cleanName.startsWith(fullName.toLowerCase())) return true;
+                            return false;
+                          });
                           if (matchedT) {
                             assignedClassTeacherInfo.set(matchedT.id.toLowerCase(), { className: cls.name, section: sec });
                             assignedClassTeacherInfo.set((matchedT.name || `${matchedT.firstName} ${matchedT.lastName}`).trim().toLowerCase(), { className: cls.name, section: sec });
@@ -2313,7 +2347,26 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   });
 
                   const currentSectionClassTeacherName = ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection];
-                  const selectedClassTeacher = teachersList.find(t => (t.name || `${t.firstName} ${t.lastName}`) === currentSectionClassTeacherName);
+                  const selectedClassTeacher = teachersList.find(t => {
+                    const fullName = (t.name || `${t.firstName} ${t.lastName}`).trim();
+                    const empCode = t.empId || t.id;
+                    if (!currentSectionClassTeacherName) return false;
+                    
+                    const cleanName = currentSectionClassTeacherName.trim().toLowerCase();
+                    if (fullName.toLowerCase() === cleanName) return true;
+                    if (String(t.id).toLowerCase() === cleanName) return true;
+                    if (isNameEquivalent(fullName, currentSectionClassTeacherName)) return true;
+                    if (empCode && (cleanName.includes(String(empCode).toLowerCase()) || String(empCode).toLowerCase() === cleanName)) return true;
+                    if (cleanName.startsWith(fullName.toLowerCase())) return true;
+                    return false;
+                  }) || teachersList.find(t => {
+                    return teacherAssignments.some(ta => 
+                      (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) &&
+                      ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() &&
+                      ta.role === 'Class Teacher' &&
+                      (String(ta.teacherId) === String(t.id) || (ta.teacherName && (t.name || `${t.firstName} ${t.lastName}`).toLowerCase() === ta.teacherName.toLowerCase()))
+                    );
+                  });
                   const mappedSubjectsForClass = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
 
                   return (
@@ -2423,9 +2476,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   const subCode = sub.code || sub.subjectId;
                                   const deptName = sub.department || 'General Academics';
                                   const mapping = teacherAssignments.find(ta => 
-                                    ta.className === activeClass.name && 
-                                    ta.section === activeWorkspaceSection && 
-                                    ta.subject === subName
+                                    (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) && 
+                                    ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() && 
+                                    ta.subject?.toLowerCase() === subName?.toLowerCase()
                                   );
 
                                   const qualifiedTeachers = teachersList.filter(t => isTeacherForSubject(t, subName));
@@ -2686,6 +2739,25 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           </div>
                         </div>
 
+                        {/* Auto-Allocation Explanation Banner */}
+                        <div className="p-3.5 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/80 text-xs flex items-start gap-2.5 text-sky-900 dark:text-sky-200 shadow-2xs">
+                          <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 dark:text-white">Auto-Allocation Basis & Rules:</span>
+                              <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-200 text-[10px] font-black uppercase tracking-wider">
+                                Balanced Strength Policy
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-350 leading-relaxed font-medium">
+                              Directly enrolled unassigned students are auto-allocated to active sections based on 3 rules:
+                              <span className="font-bold text-sky-800 dark:text-sky-300"> 1. Lowest Section Count</span> (equalizes student count across Section A, B, etc.),
+                              <span className="font-bold text-sky-800 dark:text-sky-300"> 2. Maximum Seat Capacity</span> (respects configured section capacity limits e.g. 40 seats), and
+                              <span className="font-bold text-sky-800 dark:text-sky-300"> 3. Sequential Roll Numbers</span> (auto-generates R-1, R-2, ...).
+                            </p>
+                          </div>
+                        </div>
+
                         {/* Controls Bar: Search & Counts */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="relative w-full sm:w-72">
@@ -2882,7 +2954,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Total Capacity</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Total Seats</span>
                     <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.totalCapacity}</span>
                   </div>
                 </div>

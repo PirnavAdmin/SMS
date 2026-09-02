@@ -32,7 +32,32 @@ const defaultAdminUser: User = {
   status: 'Active'
 };
 
+export const normalizeUserRole = (roleStr: string): UserRole => {
+  const clean = (roleStr || "").toLowerCase().replace(/[_\s-]+/g, " ").trim();
+  if (clean === "superadmin" || clean === "super admin" || clean === "admin") return "Admin";
+  if (clean === "principal") return "Principal";
+  if (clean === "teacher" || clean === "faculty") return "Teacher";
+  if (clean === "warden" || clean === "hostel warden" || clean === "hostelwarden") return "Hostel Warden";
+  if (clean === "librarian") return "Librarian";
+  if (clean === "driver" || clean === "bus attendant" || clean === "bus driver" || clean === "chauffeur") return "Driver";
+  if (clean === "transport manager" || clean === "transportmanager" || clean === "transport") return "Transport Manager";
+  if (clean === "accountant" || clean === "finance") return "Accountant";
+  if (clean === "hr") return "HR";
+  if (clean === "receptionist") return "Receptionist";
+  if (clean === "parent") return "Parent";
+  if (clean === "student") return "Student";
+  if (clean === "staff" || clean === "non teaching" || clean === "non-teaching") return "Staff";
+  return "Staff";
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const formatEmailToName = (email: string): string => {
+  if (!email) return "Admin User";
+  const username = email.split('@')[0];
+  const parts = username.split(/[._-]/);
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+};
 
 const getDefaultAcademicYear = () => {
   const now = new Date();
@@ -45,13 +70,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('auth_user');
-      if (saved) {
+      const savedToken = localStorage.getItem('auth_token');
+      if (saved && savedToken && savedToken !== 'offline-bypass-dev-token') {
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
-          if ((parsed.name === 'Administrator' || !parsed.name) && parsed.email && parsed.email.includes('@')) {
-            const parts = parsed.email.split('@')[0].split('.');
-            parsed.name = parts.map((p: any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          if (parsed.role) {
+            parsed.role = normalizeUserRole(parsed.role);
+          }
+          if (parsed.email && (parsed.name === 'Administrator' || parsed.name === 'Admin User' || !parsed.name)) {
+            parsed.name = formatEmailToName(parsed.email);
           }
           localStorage.setItem('auth_user', JSON.stringify(parsed));
         }
@@ -59,17 +87,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return null;
     } catch {
-      localStorage.removeItem('auth_user');
       return null;
     }
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
-    return user ? user.role : 'Admin';
+    return user ? normalizeUserRole(user.role) : 'Admin';
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || null;
+    const t = localStorage.getItem('auth_token');
+    return (t && t !== 'offline-bypass-dev-token') ? t : null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -91,9 +119,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setRole = (newRole: UserRole) => {
-    setRoleState(newRole);
+    const normalized = normalizeUserRole(newRole);
+    setRoleState(normalized);
     if (user) {
-      const updated = { ...user, role: newRole };
+      const updated = { ...user, role: normalized };
       setUser(updated);
       localStorage.setItem('auth_user', JSON.stringify(updated));
     }
@@ -107,22 +136,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No authentication token received.');
       }
 
-      const roles = response?.roles || [];
-      const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
-      let mappedRole: UserRole = 'Student'; // Default fallback
-      if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
-        mappedRole = 'Admin';
-      } else {
-        const resolvedRole = priorityRoles.find(role => roles.includes(role));
-        if (resolvedRole) {
-          mappedRole = resolvedRole;
+      const roles: string[] = response?.roles || [];
+      const priorityOrder: UserRole[] = [
+        'Admin',
+        'Principal',
+        'Hostel Warden',
+        'Transport Manager',
+        'Driver',
+        'Librarian',
+        'Accountant',
+        'HR',
+        'Receptionist',
+        'Teacher',
+        'Staff',
+        'Parent',
+        'Student',
+      ];
+
+      let mappedRole: UserRole = chosenRole ? normalizeUserRole(chosenRole) : 'Student';
+      if (roles.length > 0) {
+        const normalizedRoles = roles.map(r => normalizeUserRole(r));
+        const matched = priorityOrder.find(pRole => normalizedRoles.includes(pRole));
+        if (matched) {
+          mappedRole = matched;
         }
       }
 
       let userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
-      if (userName === 'Administrator' && emailOrPhone.includes('@')) {
-        const parts = emailOrPhone.split('@')[0].split('.');
-        userName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      if (emailOrPhone.includes('@') && (userName === 'Administrator' || userName === 'Admin User' || userName === 'User')) {
+        userName = formatEmailToName(emailOrPhone);
       }
 
       const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
@@ -148,11 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return true;
     } catch (err: any) {
-      console.error('Login error:', err);
-      // Clean up any stale data just in case
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('roles');
+      console.error('Login failed:', err);
       throw err;
     }
   };
@@ -190,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token, selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token && token !== 'offline-bypass-dev-token', selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
   );
 };
 

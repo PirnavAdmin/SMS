@@ -38,6 +38,7 @@ public class StaffCreateDto
     public string? ReportingManager { get; set; }
     public string? AcademicYear { get; set; }
     public bool? IsClassTeacherEligible { get; set; } = false;
+    public bool? IsActive { get; set; } = true;
 
     public string? PrimarySubject { get; set; }
     public string? Specialization { get; set; }

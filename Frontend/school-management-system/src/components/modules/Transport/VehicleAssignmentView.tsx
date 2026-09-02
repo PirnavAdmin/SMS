@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Layers, Plus, Search, Trash2, Edit, X, ArrowRight, UserCheck, Users,
   Bus, Route, History, Eye
@@ -27,42 +27,7 @@ export interface VehicleAssignmentLogItem {
   status: 'Active' | 'Historical';
 }
 
-const initialAssignmentLogs: VehicleAssignmentLogItem[] = [
-  {
-    id: 'log-1',
-    vehicleNumber: 'BUS-101',
-    driverName: 'Dwight Schrute',
-    attendantName: 'Mary Smith',
-    routeName: 'Route A - Downtown Express',
-    branch: 'Main Campus',
-    academicYear: '2026-2027',
-    effectiveFrom: '2026-04-01',
-    status: 'Active'
-  },
-  {
-    id: 'log-2',
-    vehicleNumber: 'BUS-102',
-    driverName: 'Jim Halpert',
-    attendantName: 'Sarah Jenkins',
-    routeName: 'Route B - North Campus Direct',
-    branch: 'Main Campus',
-    academicYear: '2026-2027',
-    effectiveFrom: '2026-04-01',
-    status: 'Active'
-  },
-  {
-    id: 'log-3',
-    vehicleNumber: 'BUS-101',
-    driverName: 'Michael Scott',
-    attendantName: 'Pam Beesly',
-    routeName: 'Route A - Downtown Express',
-    branch: 'Main Campus',
-    academicYear: '2025-2026',
-    effectiveFrom: '2025-04-01',
-    effectiveTo: '2026-03-31',
-    status: 'Historical'
-  }
-];
+const initialAssignmentLogs: VehicleAssignmentLogItem[] = [];
 
 type AssignmentFormState = {
   branch: string;
@@ -101,12 +66,13 @@ const getCurrentAcademicYear = () => {
 
 export const VehicleAssignmentView: React.FC = () => {
   const {
+    students = [],
     vehicleAssignments,
     vehicleMasters,
     routeMasters,
     driverMasters,
-    studentTransports,
-    busAttendants,
+    studentTransports = [],
+    busAttendants = [],
     assignVehicleRouteDriver,
     removeVehicleAssignment,
     updateVehicleAssignment
@@ -153,7 +119,124 @@ export const VehicleAssignmentView: React.FC = () => {
     }
   }, [selectedAcademicYear]);
 
+  useEffect(() => {
+    if (vehicleAssignments && vehicleAssignments.length > 0) {
+      const logsMap = new Map<string, VehicleAssignmentLogItem>();
+
+      vehicleAssignments.forEach(va => {
+        const attendant = resolveAttendant(va);
+        const route = routeMasters.find(r => r.id?.toString() === va.routeId?.toString() || r.routeName?.toLowerCase() === va.routeName?.toLowerCase());
+        const resolvedRouteName = route?.routeName || (va.routeName && va.routeName.toUpperCase() !== 'N/A' ? va.routeName : '') || 'Unassigned Route';
+        const hasValidRoute = resolvedRouteName !== 'Unassigned Route' && resolvedRouteName.toUpperCase() !== 'N/A';
+        const isActive = va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
+
+        const vehicleKey = va.vehicleNumber && va.vehicleNumber.trim() !== ''
+          ? `${va.vehicleNumber.trim().toUpperCase()}-${isActive ? 'Active' : 'Hist'}`
+          : `log-${va.id}`;
+
+        const logItem: VehicleAssignmentLogItem = {
+          id: `log-${va.id}`,
+          vehicleNumber: va.vehicleNumber || 'Unassigned',
+          driverName: va.driverName || 'Unassigned',
+          attendantName: attendant.name || 'Unassigned',
+          routeName: resolvedRouteName,
+          branch: va.branch || selectedBranch || 'Main Campus',
+          academicYear: va.academicYear || selectedAcademicYear || getCurrentAcademicYear(),
+          effectiveFrom: (va.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+          effectiveTo: va.effectiveTo ? (va.effectiveTo || '').split('T')[0] : undefined,
+          status: isActive ? 'Active' : 'Historical'
+        };
+
+        if (!logsMap.has(vehicleKey)) {
+          logsMap.set(vehicleKey, logItem);
+        } else {
+          const existing = logsMap.get(vehicleKey)!;
+          const existingHasValidRoute = existing.routeName !== 'Unassigned Route' && existing.routeName.toUpperCase() !== 'N/A';
+          if (!existingHasValidRoute && hasValidRoute) {
+            logsMap.set(vehicleKey, logItem);
+          }
+        }
+      });
+
+      const dynamicLogs = Array.from(logsMap.values()).filter(log => {
+        return (log.routeName !== 'Unassigned Route' && log.routeName.toUpperCase() !== 'N/A') || (log.vehicleNumber !== 'Unassigned' && log.vehicleNumber.trim() !== '');
+      });
+
+      setAssignmentLogs(dynamicLogs);
+    } else {
+      setAssignmentLogs([]);
+    }
+  }, [vehicleAssignments, busAttendants, routeMasters, selectedBranch, selectedAcademicYear]);
+
   const hasFilterSelection = routeFilter !== '' || query.trim() !== '';
+
+  const availableVehicles = useMemo(() => {
+    const list: Array<{ id: string; vehicleNumber: string; registrationNumber?: string; capacity?: number; status?: string }> = [];
+    const seen = new Set<string>();
+
+    vehicleMasters.forEach(v => {
+      if (v && v.vehicleNumber && v.vehicleNumber.trim() !== '') {
+        const key = v.vehicleNumber.trim().toUpperCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(v.id),
+            vehicleNumber: v.vehicleNumber,
+            registrationNumber: v.registrationNumber || v.vehicleNumber,
+            capacity: v.capacity || 50,
+            status: v.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [vehicleMasters]);
+
+  const availableRoutes = useMemo(() => {
+    const list: Array<{ id: string; routeName: string; routeCode: string; status: string }> = [];
+    const seen = new Set<string>();
+
+    routeMasters.forEach(r => {
+      if (r && r.routeName && r.routeName.trim() !== '') {
+        const key = r.routeName.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(r.id),
+            routeName: r.routeName,
+            routeCode: r.routeCode || r.id,
+            status: r.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [routeMasters]);
+
+  const availableDrivers = useMemo(() => {
+    const list: Array<{ id: string; driverName: string; employeeId: string; mobileNumber: string; status: string }> = [];
+    const seen = new Set<string>();
+
+    driverMasters.forEach(d => {
+      if (d && d.driverName && d.driverName.trim() !== '') {
+        const key = d.driverName.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(d.id),
+            driverName: d.driverName,
+            employeeId: d.employeeId || `DRV-${d.id}`,
+            mobileNumber: d.mobileNumber || '',
+            status: d.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [driverMasters]);
 
   const branchOptions = Array.from(new Set([
     selectedBranch || 'Main Campus',
@@ -171,13 +254,17 @@ export const VehicleAssignmentView: React.FC = () => {
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
     const attendant = busAttendants.find(a =>
-      a.id === assignment.attendantId ||
-      a.attendantName === assignment.attendantName
+      (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+      (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
     );
+
+    const name = (assignment.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
+      ? assignment.attendantName
+      : (attendant?.attendantName || 'Unassigned');
 
     return {
       id: attendant?.id || assignment.attendantId || '',
-      name: assignment.attendantName || attendant?.attendantName || 'Unassigned',
+      name,
       mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
     };
   };
@@ -244,7 +331,7 @@ export const VehicleAssignmentView: React.FC = () => {
     setIsTripDetailsOpen(true);
   };
 
-  const filteredAssignments = vehicleAssignments.filter(assignment => {
+  const rawFilteredAssignments = vehicleAssignments.filter(assignment => {
     const attendant = resolveAttendant(assignment);
     const selectedRouteObj = routeMasters.find(r => r.id === routeFilter || r.routeName === routeFilter || r.routeCode === routeFilter);
 
@@ -270,12 +357,68 @@ export const VehicleAssignmentView: React.FC = () => {
     return matchesSearch && matchesRoute;
   });
 
+  const assignmentsByVehicleMap = new Map<string, VehicleAssignment>();
+
+  rawFilteredAssignments.forEach(assignment => {
+    const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
+    const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
+    const hasValidRoute = resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A';
+
+    const vehicleKey = assignment.vehicleNumber && assignment.vehicleNumber.trim() !== ''
+      ? assignment.vehicleNumber.trim().toUpperCase()
+      : (assignment.vehicleId || assignment.id);
+
+    if (!assignmentsByVehicleMap.has(vehicleKey)) {
+      assignmentsByVehicleMap.set(vehicleKey, assignment);
+    } else {
+      const existing = assignmentsByVehicleMap.get(vehicleKey)!;
+      const existingRoute = routeMasters.find(r => r.id?.toString() === existing.routeId?.toString() || r.routeName?.toLowerCase() === existing.routeName?.toLowerCase());
+      const existingRouteName = (existingRoute?.routeName || existing.routeName || '').trim();
+      const existingHasValidRoute = existingRouteName !== '' && existingRouteName.toUpperCase() !== 'N/A';
+
+      if (!existingHasValidRoute && hasValidRoute) {
+        assignmentsByVehicleMap.set(vehicleKey, assignment);
+      }
+    }
+  });
+
+  const filteredAssignments = Array.from(assignmentsByVehicleMap.values()).filter(assignment => {
+    const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
+    const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
+    const resolvedVehicleNumber = (assignment.vehicleNumber || '').trim();
+    
+    return (resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A') || resolvedVehicleNumber !== '';
+  });
+
+  const filteredAssignmentLogs = assignmentLogs.filter(log => {
+    const matchesSearch =
+      query.trim() === '' ||
+      log.vehicleNumber.toLowerCase().includes(query.toLowerCase()) ||
+      log.routeName.toLowerCase().includes(query.toLowerCase()) ||
+      log.driverName.toLowerCase().includes(query.toLowerCase()) ||
+      log.attendantName.toLowerCase().includes(query.toLowerCase());
+
+    const selectedRouteObj = routeMasters.find(r => r.id === routeFilter || r.routeName === routeFilter || r.routeCode === routeFilter);
+
+    const matchesRoute =
+      routeFilter === '' ||
+      routeFilter === 'All' ||
+      log.routeName === routeFilter ||
+      (selectedRouteObj && (
+        log.routeName === selectedRouteObj.routeName ||
+        log.routeName === selectedRouteObj.routeCode ||
+        (selectedRouteObj.routeName && log.routeName.trim().toLowerCase() === selectedRouteObj.routeName.trim().toLowerCase())
+      ));
+
+    return matchesSearch && matchesRoute;
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const vehicle = vehicleMasters.find(v => v.id === form.vehicleId);
-    const route = routeMasters.find(r => r.id === form.routeId);
-    const driver = driverMasters.find(d => d.id === form.driverId);
+    const vehicle = availableVehicles.find(v => v.id === form.vehicleId || v.vehicleNumber === form.vehicleId);
+    const route = availableRoutes.find(r => r.id === form.routeId || r.routeName === form.routeId);
+    const driver = availableDrivers.find(d => d.id === form.driverId || d.driverName === form.driverId);
     const attendant = busAttendants.find(a => a.id === form.attendantId);
 
     if (!vehicle || !route || !driver) {
@@ -298,49 +441,64 @@ export const VehicleAssignmentView: React.FC = () => {
       return;
     }
 
-    // Strict Rule 1: A route can only be assigned to ONE active bus
+    const isAssignmentActive = (va: VehicleAssignment) => {
+      return va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
+    };
+
+    const targetVehicleNo = vehicle.vehicleNumber.trim().toUpperCase();
+    const isEditingSameVehicle = Boolean(
+      (editingAssignment?.vehicleNumber && editingAssignment.vehicleNumber.trim().toUpperCase() === targetVehicleNo) ||
+      (reassignSource?.vehicleNumber && reassignSource.vehicleNumber.trim().toUpperCase() === targetVehicleNo)
+    );
+
+    // Strict Rule 1: A route can only be assigned to ONE active bus (ignore if assigned to THIS same vehicle being edited/reassigned)
     const routeAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      (va.routeId === route.id || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase())) &&
-      va.status === 'Active'
+      va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
+      isAssignmentActive(va) &&
+      route.routeName && route.routeName.toUpperCase() !== 'N/A' && route.routeName.toUpperCase() !== 'UNASSIGNED' &&
+      (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase()))
     );
     if (routeAlreadyAssigned) {
-      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}. A route cannot have multiple active buses.`);
+      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}.`);
       return;
     }
 
-    // Strict Rule 2: A bus can only be assigned to ONE active route
-    const vehicleAlreadyAssigned = vehicleAssignments.find(va =>
+    // Strict Rule 2: A bus can only be assigned to ONE active route (ignore if editing/reassigning this same bus or placeholder N/A routes)
+    const vehicleAlreadyAssigned = !isEditingSameVehicle && vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      (va.vehicleId === vehicle.id || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase())) &&
-      va.status === 'Active'
+      isAssignmentActive(va) &&
+      va.routeName && va.routeName.toUpperCase() !== 'N/A' && va.routeName.toUpperCase() !== 'UNASSIGNED' && va.routeName.trim() !== '' &&
+      (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase()))
     );
     if (vehicleAlreadyAssigned) {
       addToast('warning', 'Vehicle Already Assigned', `Bus "${vehicle.vehicleNumber}" is already assigned to route "${vehicleAlreadyAssigned.routeName}".`);
       return;
     }
 
-    // Strict Rule 3: No single driver can drive multiple buses
+    // Strict Rule 3: No single driver can drive multiple buses (ignore if assigned to THIS same vehicle being edited/reassigned)
     const driverAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      (va.driverId === driver.id || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase())) &&
-      va.status === 'Active'
+      va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
+      isAssignmentActive(va) &&
+      (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase()))
     );
     if (driverAlreadyAssigned) {
-      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}). A driver cannot be assigned to two buses.`);
+      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}).`);
       return;
     }
 
-    // Strict Rule 4: No single attendant for two buses
+    // Strict Rule 4: No single attendant for two buses (ignore if assigned to THIS same vehicle being edited/reassigned)
     if (attendant) {
       const attendantAlreadyAssigned = vehicleAssignments.find(va =>
         va.id !== editingAssignment?.id &&
         va.id !== reassignSource?.id &&
-        (va.attendantId === attendant.id || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase())) &&
-        va.status === 'Active'
+        va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
+        isAssignmentActive(va) &&
+        (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase()))
       );
       if (attendantAlreadyAssigned) {
         addToast('warning', 'Attendant Already Assigned', `Bus Attendant "${attendant.attendantName}" is already assigned to bus ${attendantAlreadyAssigned.vehicleNumber}.`);
@@ -456,17 +614,50 @@ export const VehicleAssignmentView: React.FC = () => {
     const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
     const attendant = resolveAttendant(assignment);
     const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
-    const routeStudentsCount = studentTransports.filter(st =>
-      (route && (st.routeId === route.id || st.routeName === route.routeName)) ||
-      st.routeId === assignment.routeId ||
-      st.routeName === assignment.routeName ||
-      st.vehicleNumber === assignment.vehicleNumber
-    ).length;
-    const assignedStudents = routeStudentsCount > 0
-      ? routeStudentsCount
-      : (assignment.assignedStudents && assignment.assignedStudents > 0)
-        ? assignment.assignedStudents
-        : 5;
+    const routeStudentsCount = students.filter(student => {
+      const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
+      if (!isStudentActive) return false;
+
+      const stAssignment = studentTransports.find(st => {
+        const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+        if (!isStatusActive) return false;
+
+        return (
+          (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+          (st.admissionNo && student.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+        );
+      });
+
+      // 1. Match by routeId
+      const matchesRouteId = Boolean(
+        (stAssignment?.routeId && route?.id && String(stAssignment.routeId).trim() === String(route.id).trim()) ||
+        (stAssignment?.routeId && assignment.routeId && String(stAssignment.routeId).trim() === String(assignment.routeId).trim()) ||
+        (student.busRoute && route?.id && String(student.busRoute).trim() === String(route.id).trim()) ||
+        (student.busRoute && assignment.routeId && String(student.busRoute).trim() === String(assignment.routeId).trim())
+      );
+
+      // 2. Match by vehicleNumber / vehicleId
+      const matchesVehicle = Boolean(
+        (stAssignment?.vehicleNumber && assignment.vehicleNumber && stAssignment.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase()) ||
+        (stAssignment?.vehicleId && assignment.vehicleId && String(stAssignment.vehicleId).trim() === String(assignment.vehicleId).trim())
+      );
+
+      // 3. Match by exact Route Name / Code
+      const studentRoute = (stAssignment?.routeName || student.busRoute || '').trim().toLowerCase();
+      const targetRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
+      const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
+
+      const matchesRouteName = Boolean(
+        studentRoute !== '' &&
+        studentRoute !== 'n/a' &&
+        studentRoute !== 'unassigned' &&
+        ((targetRouteName !== '' && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && studentRoute === targetRouteName) ||
+         (targetRouteCode !== '' && studentRoute === targetRouteCode))
+      );
+
+      return matchesRouteId || matchesVehicle || matchesRouteName;
+    }).length;
+    const assignedStudents = routeStudentsCount;
 
     return {
       assignment,
@@ -528,7 +719,7 @@ export const VehicleAssignmentView: React.FC = () => {
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          <History className="w-3.5 h-3.5" /> Assignment History Log ({assignmentLogs.length})
+          <History className="w-3.5 h-3.5" /> Assignment History Log ({filteredAssignmentLogs.length})
         </button>
       </div>
 
@@ -602,14 +793,14 @@ export const VehicleAssignmentView: React.FC = () => {
         </div>
       ) : activeTab === 'current' ? (
         <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 p-4 space-y-3">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="overflow-x-auto relative">
+            <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead>
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4 text-center">Bus Number</th>
-                  <th className="py-3.5 px-4 text-center">Route Name</th>
-                  <th className="py-3.5 px-4 text-center">Driver Name</th>
-                  <th className="py-3.5 px-4 text-center">Bus Attendant</th>
+                <tr className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <th className="sticky left-0 bg-slate-100 dark:bg-slate-800 py-3.5 px-4 text-left z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Bus Number</th>
+                  <th className="py-3.5 px-4 text-left">Route Name</th>
+                  <th className="py-3.5 px-4 text-left">Driver Name</th>
+                  <th className="py-3.5 px-4 text-left">Bus Attendant</th>
                   <th className="py-3.5 px-4 text-center">Capacity</th>
                   <th className="py-3.5 px-4 text-center">Students</th>
                   <th className="py-3.5 px-4 text-center">Morning Trip</th>
@@ -633,43 +824,45 @@ export const VehicleAssignmentView: React.FC = () => {
                     const cleanDate = (assignment.effectiveFrom || '').split('T')[0] || '-';
                     return (
                       <tr key={assignment.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                            {assignment.vehicleNumber}
+                        <td className="sticky left-0 bg-white dark:bg-slate-900 py-3 px-4 font-mono font-bold text-slate-900 dark:text-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
+                            {assignment.vehicleNumber || 'Unassigned'}
                           </span>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-sky-600 dark:text-sky-400">{assignment.routeName}</div>
+                        <td className="py-3 px-4 text-left">
+                          <div className="font-bold text-sky-600 dark:text-sky-400">
+                            {route?.routeName || (assignment.routeName && assignment.routeName.toUpperCase() !== 'N/A' ? assignment.routeName : '') || 'Unassigned Route'}
+                          </div>
                           <div className="text-[10px] text-slate-400">
                             {assignment.branch || 'Main Campus'} • {assignment.academicYear || getCurrentAcademicYear()}
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-slate-800 dark:text-slate-200">{driver?.driverName || assignment.driverName}</div>
-                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {driver?.employeeId || assignment.driverEmployeeId || `DRV-${driver?.id || '01'}`}</div>
+                        <td className="py-3 px-4 text-left">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">{driver?.driverName || assignment.driverName || 'Unassigned'}</div>
+                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {driver?.employeeId || assignment.driverEmployeeId || (driver?.id ? `DRV-${driver.id}` : '-')}</div>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-emerald-600 dark:text-emerald-400">{attendant.name}</div>
-                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {attendant.id || assignment.attendantEmployeeId || 'ATT-2026-01'}</div>
+                        <td className="py-3 px-4 text-left">
+                          <div className="font-bold text-emerald-600 dark:text-emerald-400">{attendant.name || 'Unassigned'}</div>
+                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {attendant.id || assignment.attendantEmployeeId || '-'}</div>
                         </td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{capacity}</td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-emerald-600">
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
                             {assignedStudents}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-mono text-sky-600 font-bold">{morningTripTime}</td>
-                        <td className="py-3 px-4 font-mono text-amber-600 font-bold">{eveningTripTime}</td>
+                        <td className="py-3 px-4 text-center font-mono text-sky-600 font-bold">{morningTripTime}</td>
+                        <td className="py-3 px-4 text-center font-mono text-amber-600 font-bold">{eveningTripTime}</td>
                         <td className="py-3 px-4 text-center">
                           <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">
                             {assignment.status || 'Active'}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                        <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-400 font-mono text-[11px]">
                           {cleanDate}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleOpenTripDetails(assignment)}
                               title="View Trip Details"
@@ -717,42 +910,46 @@ export const VehicleAssignmentView: React.FC = () => {
         </div>
       ) : (
         <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 p-4 space-y-3">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="overflow-x-auto relative">
+            <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead>
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4 text-center">Vehicle</th>
-                  <th className="py-3.5 px-4 text-center">Route</th>
-                  <th className="py-3.5 px-4 text-center">Driver</th>
-                  <th className="py-3.5 px-4 text-center">Attendant</th>
-                  <th className="py-3.5 px-4 text-center">Branch</th>
+                <tr className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <th className="sticky left-0 bg-slate-100 dark:bg-slate-800 py-3.5 px-4 text-left z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Vehicle</th>
+                  <th className="py-3.5 px-4 text-left">Route</th>
+                  <th className="py-3.5 px-4 text-left">Driver</th>
+                  <th className="py-3.5 px-4 text-left">Attendant</th>
+                  <th className="py-3.5 px-4 text-left">Branch</th>
                   <th className="py-3.5 px-4 text-center">Academic Year</th>
                   <th className="py-3.5 px-4 text-center">Assignment Period</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {assignmentLogs.length === 0 ? (
+                {filteredAssignmentLogs.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-10 text-center text-slate-400">
                       No assignment history log items found.
                     </td>
                   </tr>
                 ) : (
-                  assignmentLogs
+                  filteredAssignmentLogs
                     .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                     .map(log => (
                     <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{log.vehicleNumber}</td>
-                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{log.routeName}</td>
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driverName}</td>
-                      <td className="py-3 px-4 text-emerald-600 dark:text-emerald-400">{log.attendantName}</td>
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.branch}</td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.academicYear}</td>
-                      <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
+                      <td className="sticky left-0 bg-white dark:bg-slate-900 py-3 px-4 font-mono font-bold text-slate-900 dark:text-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
+                          {log.vehicleNumber}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-left font-bold text-sky-600 dark:text-sky-400">{log.routeName}</td>
+                      <td className="py-3 px-4 text-left text-slate-700 dark:text-slate-300">{log.driverName}</td>
+                      <td className="py-3 px-4 text-left text-emerald-600 dark:text-emerald-400">{log.attendantName}</td>
+                      <td className="py-3 px-4 text-left text-slate-700 dark:text-slate-300">{log.branch}</td>
+                      <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{log.academicYear}</td>
+                      <td className="py-3 px-4 text-center text-slate-500 font-mono text-[11px]">
                         {(log.effectiveFrom || '').split('T')[0]}{log.effectiveTo ? ` to ${(log.effectiveTo || '').split('T')[0]}` : ' (Current)'}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-center">
                         <Badge variant={log.status === 'Active' ? 'success' : 'neutral'} size="sm">
                           {log.status}
                         </Badge>
@@ -766,7 +963,7 @@ export const VehicleAssignmentView: React.FC = () => {
 
           <Pagination
             currentPage={currentPage}
-            totalItems={assignmentLogs.length}
+            totalItems={filteredAssignmentLogs.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
           />
@@ -797,13 +994,19 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.routeId}
                   onChange={e => setForm(prev => ({ ...prev, routeId: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Select Route --</option>
-                  {routeMasters.filter(route => route.status === 'Active').map(route => {
-                    const activeOther = vehicleAssignments.find(va => va.routeId === route.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                  {availableRoutes.map(route => {
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase())) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
+                    const isCurrentVal = form.routeId === route.id || form.routeId === route.routeName;
                     return (
-                      <option key={route.id} value={route.id} disabled={!!activeOther}>
+                      <option key={route.id} value={route.id} disabled={!!activeOther && !isCurrentVal}>
                         {route.routeName} ({route.routeCode}) {activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>
                     );
@@ -816,15 +1019,20 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.vehicleId}
                   onChange={e => setForm(prev => ({ ...prev, vehicleId: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Select Vehicle --</option>
-                  {vehicleMasters.filter(vehicle => vehicle.status === 'Active').map(vehicle => {
-                    const activeOther = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                  {availableVehicles.map(vehicle => {
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.trim().toUpperCase() === vehicle.vehicleNumber.trim().toUpperCase())) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
+                    const isCurrentVal = form.vehicleId === vehicle.id || form.vehicleId === vehicle.vehicleNumber;
                     return (
-                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther}>
-                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats)
-                        {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
+                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther && !isCurrentVal}>
+                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats) {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
                       </option>
                     );
                   })}
@@ -836,23 +1044,28 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.driverId}
                   onChange={e => {
-                    const drv = driverMasters.find(d => d.id === e.target.value);
+                    const drv = availableDrivers.find(d => d.id === e.target.value || d.driverName === e.target.value);
                     setForm(prev => ({
                       ...prev,
                       driverId: e.target.value,
                       driverEmployeeId: drv?.employeeId || `DRV-${drv?.id || '01'}`
                     }));
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Select Driver --</option>
-                  {driverMasters.filter(driver => driver.status === 'Active').map(driver => {
-                    const activeOther = vehicleAssignments.find(va => va.driverId === driver.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                  {availableDrivers.map(driver => {
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.trim().toLowerCase() === driver.driverName.trim().toLowerCase())) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
+                    const isCurrentVal = form.driverId === driver.id || form.driverId === driver.driverName;
                     const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
                     return (
-                      <option key={driver.id} value={driver.id} disabled={!!activeOther}>
-                        {driver.driverName} ({empIdText} • {driver.mobileNumber})
-                        {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      <option key={driver.id} value={driver.id} disabled={!!activeOther && !isCurrentVal}>
+                        {driver.driverName} ({empIdText}{driver.mobileNumber ? ` • ${driver.mobileNumber}` : ''}) {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>
                     );
                   })}
@@ -875,7 +1088,12 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Bus Attendant --</option>
                   {busAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
-                    const activeOther = vehicleAssignments.find(va => va.attendantId === attendant.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
+                    const activeOther = vehicleAssignments.find(va =>
+                      (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
+                      String(va.attendantId) === String(attendant.id) &&
+                      va.id !== editingAssignment?.id &&
+                      va.id !== reassignSource?.id
+                    );
                     return (
                       <option key={attendant.id} value={attendant.id} disabled={!!activeOther}>
                         {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber})
@@ -959,14 +1177,18 @@ export const VehicleAssignmentView: React.FC = () => {
         onCancel={() => setDeletingAssignment(null)}
         onConfirm={async () => {
           if (!deletingAssignment) return;
-          await removeVehicleAssignment(deletingAssignment.id);
-          setAssignmentLogs(prev => prev.map(log =>
-            log.vehicleNumber === deletingAssignment.vehicleNumber && log.status === 'Active'
-              ? { ...log, status: 'Historical' as const, effectiveTo: new Date().toISOString().split('T')[0] }
-              : log
-          ));
-          addToast('info', 'Assignment Removed');
-          setDeletingAssignment(null);
+          try {
+            await removeVehicleAssignment(deletingAssignment.id);
+            setAssignmentLogs(prev => prev.map(log =>
+              log.vehicleNumber === deletingAssignment.vehicleNumber && log.status === 'Active'
+                ? { ...log, status: 'Historical' as const, effectiveTo: new Date().toISOString().split('T')[0] }
+                : log
+            ));
+          } catch (err) {
+            // Error is already toasted by Context
+          } finally {
+            setDeletingAssignment(null);
+          }
         }}
         title="Remove Vehicle Assignment"
         message={`Remove assignment of ${deletingAssignment?.vehicleNumber} from ${deletingAssignment?.routeName}?`}

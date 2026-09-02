@@ -76,6 +76,7 @@ namespace SMS.Api.Data
         public DbSet<SalaryStructureItem> SalaryStructureItems { get; set; } = null!;
         public DbSet<EmployeeSalaryAssignment> EmployeeSalaryAssignments { get; set; } = null!;
         public DbSet<Payslip> Payslips { get; set; } = null!;
+        public DbSet<PayrollRun> PayrollRuns { get; set; } = null!;
 
         // Examination Module
         public DbSet<NewExamination> NewExaminations { get; set; } = null!;
@@ -97,6 +98,7 @@ namespace SMS.Api.Data
         public DbSet<UniformSize> UniformSizes { get; set; } = null!;
         public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
         public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
+        public DbSet<UniformFeeConfig> UniformFeeConfigs { get; set; } = null!;
         public DbSet<StudentPromotionHistory> StudentPromotionHistories { get; set; } = null!;
 
         // Inventory & Attendants
@@ -1117,6 +1119,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SalaryStructureItem>().ToTable("salary_structure_items");
             modelBuilder.Entity<EmployeeSalaryAssignment>().ToTable("employee_salary_assignments");
             modelBuilder.Entity<Payslip>().ToTable("payslips");
+            modelBuilder.Entity<PayrollRun>().ToTable("payroll_runs");
             modelBuilder.Entity<HostelWarden>().ToTable("hostel_wardens");
             modelBuilder.Entity<HostelAttendance>().ToTable("hostel_attendances");
             modelBuilder.Entity<School>().ToTable("schools");

@@ -15,7 +15,9 @@ export function useExamSchedule() {
     scheduleData: Omit<ExamSchedule, 'id' | 'examId' | 'className' | 'section' | 'subject'>
   ) => {
     const classObj = academicClasses.find(c => c.name === className);
-    const sections = classObj?.sections || ['A'];
+    const rawSections = classObj?.sections || [];
+    const sections = rawSections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || '')).filter(Boolean);
+    if (sections.length === 0) return;
 
     sections.forEach(sec => {
       const existing = examSchedules.find(

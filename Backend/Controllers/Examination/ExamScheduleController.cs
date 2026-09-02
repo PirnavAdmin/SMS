@@ -26,8 +26,15 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetScheduleOptions()
     {
-        var result = await _service.GetScheduleOptionsAsync();
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetScheduleOptionsAsync();
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to load schedule options.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -37,11 +44,18 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetTimetableForClassSection(
         [FromQuery] int? examId,
-        [FromQuery] string className = "Class 1",
-        [FromQuery] string sectionName = "Section A")
+        [FromQuery] string className = "",
+        [FromQuery] string sectionName = "")
     {
-        var result = await _service.GetTimetableForClassSectionAsync(examId, className, sectionName);
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetTimetableForClassSectionAsync(examId, className, sectionName);
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch timetable.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -51,17 +65,24 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> SaveTimetable([FromBody] SaveTimetableRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
-            return BadRequest(new { success = false, message = "Class and Section are required." });
-
-        var success = await _service.SaveTimetableAsync(request);
-        return Ok(new
+        try
         {
-            success = true,
-            message = "Examination Timetable & Invigilation saved successfully.",
-            redirectTo = "MarksEntry",
-            data = success
-        });
+            if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
+                return BadRequest(new { success = false, message = "Class and Section are required." });
+
+            var success = await _service.SaveTimetableAsync(request);
+            return Ok(new
+            {
+                success = true,
+                message = "Examination Timetable & Invigilation saved successfully.",
+                redirectTo = "MarksEntry",
+                data = success
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to save timetable.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -71,16 +92,23 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> UpdateTimetable([FromBody] SaveTimetableRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
-            return BadRequest(new { success = false, message = "Class and Section are required." });
-
-        var success = await _service.SaveTimetableAsync(request);
-        return Ok(new
+        try
         {
-            success = true,
-            message = "Examination Timetable & Invigilation updated successfully.",
-            updated = success
-        });
+            if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
+                return BadRequest(new { success = false, message = "Class and Section are required." });
+
+            var success = await _service.SaveTimetableAsync(request);
+            return Ok(new
+            {
+                success = true,
+                message = "Examination Timetable & Invigilation updated successfully.",
+                updated = success
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to update timetable.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -90,12 +118,19 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> DeleteSlot(int slotId)
     {
-        var success = await _service.DeleteSlotAsync(slotId);
-        return Ok(new
+        try
         {
-            success = true,
-            message = $"Timetable slot {slotId} deleted successfully."
-        });
+            var success = await _service.DeleteSlotAsync(slotId);
+            return Ok(new
+            {
+                success = true,
+                message = $"Timetable slot {slotId} deleted successfully."
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to delete slot.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -105,12 +140,19 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> ClearTimetable([FromQuery] int? examId, [FromQuery] string className, [FromQuery] string sectionName)
     {
-        var success = await _service.ClearTimetableAsync(examId, className, sectionName);
-        return Ok(new
+        try
         {
-            success = true,
-            message = $"Timetable for {className} - {sectionName} cleared successfully."
-        });
+            var success = await _service.ClearTimetableAsync(examId, className, sectionName);
+            return Ok(new
+            {
+                success = true,
+                message = $"Timetable for {className} - {sectionName} cleared successfully."
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to clear timetable.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -120,12 +162,19 @@ public class ExamScheduleController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetSchedulePreview(
         [FromQuery] int? examId,
-        [FromQuery] string? academicYear = "2026-27",
+        [FromQuery] string? academicYear = "",
         [FromQuery] string? className = "All",
         [FromQuery] string? sectionName = "All")
     {
-        var result = await _service.GetSchedulePreviewAsync(examId, academicYear, className, sectionName);
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetSchedulePreviewAsync(examId, academicYear, className, sectionName);
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch preview.", error = ex.Message });
+        }
     }
 }
 

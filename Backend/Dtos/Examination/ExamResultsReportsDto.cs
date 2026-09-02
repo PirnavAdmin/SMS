@@ -4,8 +4,8 @@ using System.Collections.Generic;
 
 public class ResultsReportsOptionsDto
 {
-    public List<string> Classes { get; set; } = new List<string> { "Class 1", "Class 2", "Class 3", "Class 4", "Class 5" };
-    public List<string> Sections { get; set; } = new List<string> { "Section A", "Section B", "Section C" };
+    public List<string> Classes { get; set; } = new List<string>();
+    public List<string> Sections { get; set; } = new List<string>();
     public List<string> ResultStatuses { get; set; } = new List<string> { "All", "Pass", "Fail" };
     public List<string> RankOrders { get; set; } = new List<string> { "Ascending", "Descending" };
 }

@@ -27,13 +27,8 @@ namespace SMS.Api.Services.Implementations
             int availStock = types.Sum(t => t.AvailableStock);
             int lowStockCount = types.Count(t => t.AvailableStock <= t.MinThreshold || t.AvailableStock <= 5);
             int issuedUnits = distributions.Where(d => d.Status == "Issued").Sum(d => d.Quantity);
-            if (issuedUnits == 0) issuedUnits = 6;
-
-            int returnedUnits = distributions.Where(d => d.Status == "Returned").Sum(d => d.Quantity);
-            if (returnedUnits == 0) returnedUnits = 1;
-
+            int returnedUnits = distributions.Where(d => d.Status == "Returned" || d.Status == "Returned Items").Sum(d => d.Quantity);
             decimal totalSales = distributions.Where(d => d.Status == "Issued" && (string.IsNullOrEmpty(d.ItemName) || !d.ItemName.ToLower().Contains("package") || (!string.IsNullOrEmpty(d.TransactionType) && d.TransactionType.ToLower().Contains("additional")))).Sum(d => d.TotalAmount);
-            if (totalSales == 0) totalSales = 2700m;
 
             int outOfStockCount = types.Count(t => t.AvailableStock == 0);
 
@@ -57,6 +52,7 @@ namespace SMS.Api.Services.Implementations
                 AvailableStock = availStock,
                 LowStock = lowStockCount,
                 IssuedUnits = issuedUnits,
+                ReturnedItems = returnedUnits,
                 AdditionalSales = totalSales,
                 OutOfStock = outOfStockCount,
                 CategoryStockLevels = categoryStock,
@@ -67,7 +63,16 @@ namespace SMS.Api.Services.Implementations
         // --- UNIFORM TYPES (CONFIGURATION TAB 1) ---
         public async Task<List<UniformTypeDto>> GetAllUniformTypesAsync(string? search, string? gender, string? category = null, string? size = null, string? status = null)
         {
-            var list = await _uniformRepo.GetAllUniformTypesAsync(search, gender, category, size, status);
+            List<UniformType> list = new();
+            try
+            {
+                list = await _uniformRepo.GetAllUniformTypesAsync(search, gender, category, size, status);
+            }
+            catch
+            {
+                list = new List<UniformType>();
+            }
+
             if (list.Count == 0 && string.IsNullOrWhiteSpace(search) && string.IsNullOrWhiteSpace(gender) && string.IsNullOrWhiteSpace(category) && string.IsNullOrWhiteSpace(size) && string.IsNullOrWhiteSpace(status))
             {
                 // Seed default 14 items matching screenshot dashboard
@@ -89,10 +94,13 @@ namespace SMS.Api.Services.Implementations
                     new() { ItemName = "V-Neck Sweater (Winter)", CategoryName = "Sweater", Gender = "Unisex", SchoolWing = "All Wings", Size = "M", Color = "Navy Blue", UnitPrice = 800m, OpeningStock = 90, AvailableStock = 70, MinThreshold = 10, ReorderPoint = 20, Status = "Active", CreatedAt = DateTime.UtcNow }
                 };
 
-                foreach (var s in seeds) await _uniformRepo.AddUniformTypeAsync(s);
-                await _uniformRepo.SaveChangesAsync();
-
-                list = await _uniformRepo.GetAllUniformTypesAsync(search, gender, category, size, status);
+                try
+                {
+                    foreach (var s in seeds) await _uniformRepo.AddUniformTypeAsync(s);
+                    await _uniformRepo.SaveChangesAsync();
+                    list = await _uniformRepo.GetAllUniformTypesAsync(search, gender, category, size, status);
+                }
+                catch { }
             }
 
             return list.Select(MapToUniformTypeDto).ToList();
@@ -119,6 +127,11 @@ namespace SMS.Api.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             };
 
+            if (dto.IncludedItems != null && dto.IncludedItems.Any())
+            {
+                item.IncludedItemsJson = System.Text.Json.JsonSerializer.Serialize(dto.IncludedItems);
+            }
+
             await _uniformRepo.AddUniformTypeAsync(item);
             await _uniformRepo.SaveChangesAsync();
 
@@ -138,6 +151,10 @@ namespace SMS.Api.Services.Implementations
             if (dto.UnitPrice > 0) item.UnitPrice = dto.UnitPrice;
             if (dto.AvailableStock >= 0) item.AvailableStock = dto.AvailableStock;
             if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status.Trim();
+            if (dto.IncludedItems != null)
+            {
+                item.IncludedItemsJson = System.Text.Json.JsonSerializer.Serialize(dto.IncludedItems);
+            }
 
             await _uniformRepo.SaveChangesAsync();
             return MapToUniformTypeDto(item);
@@ -149,17 +166,17 @@ namespace SMS.Api.Services.Implementations
                 ?? throw new NotFoundException($"Uniform item with ID '{id}' not found.");
 
             string action = dto.Action?.Trim().ToLower() ?? "restock";
-            int qty = dto.Quantity > 0 ? dto.Quantity : 10;
+            int qty = dto.Quantity;
 
             if (action == "restock" || action == "add")
             {
-                item.AvailableStock += qty;
+                item.AvailableStock += Math.Max(0, qty);
             }
             else if (action == "out" || action == "deduct" || action == "remove")
             {
-                item.AvailableStock = Math.Max(0, item.AvailableStock - qty);
+                item.AvailableStock = Math.Max(0, item.AvailableStock - Math.Max(0, qty));
             }
-            else if (action == "adjust" || action == "set")
+            else if (action == "adjust" || action == "set" || action == "absolute" || action == "set_balance")
             {
                 item.AvailableStock = Math.Max(0, qty);
             }
@@ -186,13 +203,14 @@ namespace SMS.Api.Services.Implementations
             {
                 var seeds = new List<UniformCategory>
                 {
-                    new() { CategoryName = "Shirt", Description = "Regular school uniform shirts (Boys & Girls)" },
+                    new() { CategoryName = "Sports Shoe", Description = "N/A" },
+                    new() { CategoryName = "Shirt", Description = "Regular school uniform shirts" },
                     new() { CategoryName = "Pant", Description = "Regular school uniform trousers" },
                     new() { CategoryName = "Skirt", Description = "Regular school uniform skirts" },
+                    new() { CategoryName = "Tie", Description = "School uniform neckties" },
+                    new() { CategoryName = "Belt", Description = "School uniform belts" },
                     new() { CategoryName = "Blazer", Description = "Formal winter blazers and coats" },
                     new() { CategoryName = "Sweater", Description = "V-neck winter pullovers & sweaters" },
-                    new() { CategoryName = "Tie", Description = "School uniform neckties & crests" },
-                    new() { CategoryName = "Belt", Description = "School uniform waist belts" },
                     new() { CategoryName = "Shoes", Description = "Standard black formal shoes" },
                     new() { CategoryName = "Socks", Description = "Cotton school socks (Pairs)" },
                     new() { CategoryName = "Tracksuit Kit", Description = "Sports & PT uniform tracksuits" },
@@ -257,13 +275,17 @@ namespace SMS.Api.Services.Implementations
             var list = await _uniformRepo.GetAllSizesAsync(search, gender);
             if (list.Count == 0 && string.IsNullOrWhiteSpace(search) && string.IsNullOrWhiteSpace(gender))
             {
-                // Seed default sizes matching Screenshot 5
+                // Seed default sizes matching Screenshot
                 var seeds = new List<UniformSize>
                 {
-                    new() { SizeName = "S", ChestSpec = "36\"", WaistSpec = "30\"", HeightTarget = "160cm", AgeBracket = "11-13 yrs", Gender = "Unisex" },
-                    new() { SizeName = "M", ChestSpec = "38\"", WaistSpec = "32\"", HeightTarget = "170cm", AgeBracket = "13-15 yrs", Gender = "Unisex" },
-                    new() { SizeName = "L", ChestSpec = "40\"", WaistSpec = "34\"", HeightTarget = "175cm", AgeBracket = "15-17 yrs", Gender = "Unisex" },
-                    new() { SizeName = "XL", ChestSpec = "42\"", WaistSpec = "36\"", HeightTarget = "180cm", AgeBracket = "17+ yrs", Gender = "Unisex" }
+                    new() { SizeName = "SIZE 22 (XS JUNIOR)", ChestSpec = "22\"", WaistSpec = "20\"", ShoulderSpec = "11\"", HeightTarget = "100cm", AgeBracket = "3-5 yrs", Gender = "Unisex" },
+                    new() { SizeName = "SIZE 24 (S JUNIOR)", ChestSpec = "24\"", WaistSpec = "22\"", ShoulderSpec = "12\"", HeightTarget = "110cm", AgeBracket = "5-7 yrs", Gender = "Unisex" },
+                    new() { SizeName = "SIZE 28 (M JUNIOR)", ChestSpec = "28\"", WaistSpec = "24\"", ShoulderSpec = "13\"", HeightTarget = "125cm", AgeBracket = "7-9 yrs", Gender = "Unisex" },
+                    new() { SizeName = "SIZE 32 (L JUNIOR)", ChestSpec = "32\"", WaistSpec = "26\"", ShoulderSpec = "14\"", HeightTarget = "140cm", AgeBracket = "9-11 yrs", Gender = "Unisex" },
+                    new() { SizeName = "S", ChestSpec = "36\"", WaistSpec = "30\"", ShoulderSpec = "15\"", HeightTarget = "160cm", AgeBracket = "11-13 yrs", Gender = "Unisex" },
+                    new() { SizeName = "M", ChestSpec = "38\"", WaistSpec = "32\"", ShoulderSpec = "16\"", HeightTarget = "170cm", AgeBracket = "13-15 yrs", Gender = "Unisex" },
+                    new() { SizeName = "L", ChestSpec = "40\"", WaistSpec = "34\"", ShoulderSpec = "17\"", HeightTarget = "175cm", AgeBracket = "15-17 yrs", Gender = "Unisex" },
+                    new() { SizeName = "XL", ChestSpec = "42\"", WaistSpec = "36\"", ShoulderSpec = "18\"", HeightTarget = "180cm", AgeBracket = "17+ yrs", Gender = "Unisex" }
                 };
 
                 foreach (var s in seeds) await _uniformRepo.AddSizeAsync(s);
@@ -287,6 +309,7 @@ namespace SMS.Api.Services.Implementations
                 SizeName = dto.SizeName.Trim(),
                 ChestSpec = dto.ChestSpec?.Trim(),
                 WaistSpec = dto.WaistSpec?.Trim(),
+                ShoulderSpec = dto.ShoulderSpec?.Trim(),
                 HeightTarget = dto.HeightTarget?.Trim(),
                 AgeBracket = dto.AgeBracket?.Trim(),
                 Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : "Unisex",
@@ -306,6 +329,7 @@ namespace SMS.Api.Services.Implementations
             size.SizeName = dto.SizeName.Trim();
             size.ChestSpec = dto.ChestSpec?.Trim();
             size.WaistSpec = dto.WaistSpec?.Trim();
+            size.ShoulderSpec = dto.ShoulderSpec?.Trim();
             size.HeightTarget = dto.HeightTarget?.Trim();
             size.AgeBracket = dto.AgeBracket?.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Gender)) size.Gender = dto.Gender.Trim();
@@ -479,11 +503,57 @@ namespace SMS.Api.Services.Implementations
             return true;
         }
 
+        public async Task<StudentUniformDistributionDto> ReturnUniformAsync(int id, ReturnUniformDto dto)
+        {
+            var dist = await _uniformRepo.GetDistributionByIdAsync(id)
+                ?? throw new NotFoundException($"Distribution record with ID '{id}' not found.");
+
+            dist.Status = "Returned";
+            dist.Notes = !string.IsNullOrWhiteSpace(dto.Notes) ? dto.Notes.Trim() : (dto.Reason?.Trim() ?? "Returned by student");
+
+            if (dist.UniformTypeId.HasValue)
+            {
+                var item = await _uniformRepo.GetUniformTypeByIdAsync(dist.UniformTypeId.Value);
+                if (item != null)
+                {
+                    item.AvailableStock += dist.Quantity;
+                }
+            }
+
+            await _uniformRepo.SaveChangesAsync();
+            return MapToDistributionDto(dist);
+        }
+
+        public async Task<StudentUniformDistributionDto> ExchangeUniformAsync(int id, ExchangeUniformDto dto)
+        {
+            var dist = await _uniformRepo.GetDistributionByIdAsync(id)
+                ?? throw new NotFoundException($"Distribution record with ID '{id}' not found.");
+
+            if (!string.IsNullOrWhiteSpace(dto.SizeSpec))
+            {
+                dist.SizeSpec = dto.SizeSpec.Trim();
+            }
+            if (dto.Quantity > 0)
+            {
+                dist.Quantity = dto.Quantity;
+            }
+            dist.Notes = $"Exchanged: {dto.Reason?.Trim()}";
+
+            await _uniformRepo.SaveChangesAsync();
+            return MapToDistributionDto(dist);
+        }
+
         // --- REPORTS ---
         public async Task<List<UniformReportItemDto>> GetFilteredReportsAsync(UniformReportFilterDto filter)
         {
             var types = await GetAllUniformTypesAsync(filter.Search, filter.Gender);
             var distributions = await _uniformRepo.GetAllDistributionsAsync(filter.Search, null);
+
+            string reportType = filter.ReportType?.ToLower() ?? "current stock";
+            if (reportType.Contains("low stock"))
+            {
+                types = types.Where(t => t.AvailableStock <= t.MinThreshold || t.AvailableStock <= 5).ToList();
+            }
 
             return types.Select(t =>
             {
@@ -498,31 +568,47 @@ namespace SMS.Api.Services.Implementations
                     Size = t.Size,
                     Color = t.Color,
                     UnitPrice = t.UnitPrice,
+                    OpeningStock = t.OpeningStock,
                     AvailableStock = t.AvailableStock,
+                    ReorderLevel = t.ReorderPoint > 0 ? t.ReorderPoint : 15,
                     IssuedUnits = issued,
-                    Status = t.Status
+                    Status = t.AvailableStock == 0 ? "Out of Stock" : (t.AvailableStock <= t.MinThreshold ? "Low Stock" : "In Stock")
                 };
             }).ToList();
         }
 
         // --- MAPPERS ---
-        private static UniformTypeDto MapToUniformTypeDto(UniformType u) => new()
+        private static UniformTypeDto MapToUniformTypeDto(UniformType u)
         {
-            UniformTypeId = u.UniformTypeId,
-            ItemName = u.ItemName ?? "",
-            CategoryName = u.CategoryName ?? ((u.ItemName != null && u.ItemName.Contains("Shirt")) ? "Shirt" : "Blazer"),
-            Gender = u.Gender ?? "Unisex",
-            SchoolWing = u.SchoolWing ?? "",
-            Size = u.Size ?? "M",
-            Color = u.Color ?? "",
-            UnitPrice = u.UnitPrice,
-            OpeningStock = u.OpeningStock > 0 ? u.OpeningStock : 200,
-            AvailableStock = u.AvailableStock,
-            MinThreshold = u.MinThreshold > 0 ? u.MinThreshold : 30,
-            ReorderPoint = u.ReorderPoint > 0 ? u.ReorderPoint : 50,
-            Status = u.Status ?? "Active",
-            CreatedAt = u.CreatedAt ?? DateTime.UtcNow
-        };
+            var dto = new UniformTypeDto
+            {
+                UniformTypeId = u.UniformTypeId,
+                ItemName = u.ItemName ?? "",
+                CategoryName = u.CategoryName ?? ((u.ItemName != null && u.ItemName.Contains("Shirt")) ? "Shirt" : "Blazer"),
+                Gender = u.Gender ?? "Unisex",
+                SchoolWing = u.SchoolWing ?? "",
+                Size = u.Size ?? "M",
+                Color = u.Color ?? "",
+                UnitPrice = u.UnitPrice,
+                OpeningStock = u.OpeningStock > 0 ? u.OpeningStock : 200,
+                AvailableStock = u.AvailableStock,
+                MinThreshold = u.MinThreshold > 0 ? u.MinThreshold : 30,
+                ReorderPoint = u.ReorderPoint > 0 ? u.ReorderPoint : 50,
+                Status = u.Status ?? "Active",
+                CreatedAt = u.CreatedAt ?? DateTime.UtcNow
+            };
+
+            if (!string.IsNullOrWhiteSpace(u.IncludedItemsJson))
+            {
+                try
+                {
+                    dto.IncludedItems = System.Text.Json.JsonSerializer.Deserialize<List<string>>(u.IncludedItemsJson) ?? new();
+                }
+                catch { }
+            }
+
+            return dto;
+        }
 
         private static UniformCategoryDto MapToCategoryDto(UniformCategory c) => new()
         {
@@ -539,6 +625,7 @@ namespace SMS.Api.Services.Implementations
             SizeName = s.SizeName ?? "",
             ChestSpec = s.ChestSpec ?? "",
             WaistSpec = s.WaistSpec ?? "",
+            ShoulderSpec = s.ShoulderSpec ?? "",
             HeightTarget = s.HeightTarget ?? "",
             AgeBracket = s.AgeBracket ?? "",
             Gender = s.Gender ?? "Unisex",

@@ -453,6 +453,20 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
     }
   }, [mainTab, selectedBranch]);
 
+  React.useEffect(() => {
+    if (mainTab === 'processing') {
+      const parts = payrollMonth.split(' ');
+      if (parts.length === 2) {
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const m = monthNames.indexOf(parts[0]) + 1;
+        const y = parseInt(parts[1]);
+        if (m > 0 && !isNaN(y)) {
+          data.loadMonthlyStaffAttendance(m, y);
+        }
+      }
+    }
+  }, [mainTab, payrollMonth]);
+
   const departments = Array.from(new Set(data.staff.map(s => s.department)));
 
   const calculatePayroll = (employee: Staff): Omit<PayrollRun, 'id'> => {

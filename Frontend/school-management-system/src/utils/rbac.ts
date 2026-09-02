@@ -41,7 +41,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'timetable', 'examination', 'certificates', 'communication', 'events', 'reports', 'settings', 'training'
   ],
   'Teacher': [
-    'dashboard', 'students', 'attendance', 'timetable', 'examination', 
+    'dashboard', 'students', 'attendance', 'timetable', 
     'homework', 'communication', 'events', 'staff'
   ],
   'HR': [
@@ -54,6 +54,9 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'dashboard', 'library', 'communication', 'events', 'training'
   ],
   'Transport Manager': [
+    'dashboard', 'transport', 'communication', 'events', 'training'
+  ],
+  'Driver': [
     'dashboard', 'transport', 'communication', 'events', 'training'
   ],
   'Hostel Warden': [
@@ -73,15 +76,29 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ]
 };
 
+const normalizeRoleForRbac = (roleStr: string): Role => {
+  const clean = (roleStr || '').toLowerCase().replace(/[_\s-]+/g, ' ').trim();
+  if (clean === 'superadmin' || clean === 'super admin' || clean === 'admin') return 'Admin';
+  if (clean === 'principal') return 'Principal';
+  if (clean === 'teacher' || clean === 'faculty' || clean === 'class teacher') return 'Teacher';
+  if (clean === 'warden' || clean === 'hostel warden' || clean === 'hostelwarden') return 'Hostel Warden';
+  if (clean === 'librarian') return 'Librarian';
+  if (clean === 'driver' || clean === 'bus attendant' || clean === 'bus driver' || clean === 'chauffeur') return 'Driver';
+  if (clean === 'transport manager' || clean === 'transportmanager' || clean === 'transport') return 'Transport Manager';
+  if (clean === 'accountant' || clean === 'finance') return 'Accountant';
+  if (clean === 'hr') return 'HR';
+  if (clean === 'receptionist') return 'Receptionist';
+  if (clean === 'parent') return 'Parent';
+  if (clean === 'student') return 'Student';
+  return 'Staff';
+};
+
 export const hasModuleAccess = (role: any, moduleId: ModuleId | string): boolean => {
   if (moduleId === 'transfer-certificates') moduleId = 'certificates';
   if (moduleId === 'librarian-attendance') moduleId = 'library';
   if (moduleId === 'library-timetable') moduleId = 'library';
   const baseModule = moduleId.split('-')[0] as ModuleId;
-  let lookupRole = role;
-  if (role === 'Class Teacher') {
-    lookupRole = 'Teacher';
-  }
-  const allowedModules = ROLE_PERMISSIONS[lookupRole as Role] || [];
+  const lookupRole = normalizeRoleForRbac(role);
+  const allowedModules = ROLE_PERMISSIONS[lookupRole] || ROLE_PERMISSIONS['Staff'] || [];
   return allowedModules.includes(baseModule) || allowedModules.includes(moduleId as ModuleId);
 };

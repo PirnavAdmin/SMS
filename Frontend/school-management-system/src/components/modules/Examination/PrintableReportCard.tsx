@@ -72,7 +72,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   const rank = ranksMap[student.id] || 1;
 
   // Attendance stats
-  const attData = propAttendance || (contextData as any).studentAttendance.find((a: any) => a.studentId === student.id) || { workingDays: 220, presentDays: 205 };
+  const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === student.id) || { workingDays: 220, presentDays: 205 };
   const workingDays = Number(attData.workingDays) || 220;
   const presentDays = Number(attData.presentDays) || 0;
   const absentDays = Math.max(0, workingDays - presentDays);

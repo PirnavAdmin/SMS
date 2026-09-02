@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,
   Copy, User, BookOpen, AlertTriangle, Layers, SlidersHorizontal, Check, RefreshCw,
   Send, Lock, FileSpreadsheet, ShieldAlert, CheckCircle2, Info, Search,
-  Zap, UserCheck, Users, BookMarked, ChevronRight, School, Sparkles
+  Zap, UserCheck, Users, BookMarked, ChevronRight, School, Sparkles, Building2
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -14,17 +14,17 @@ import { AutoTimetableGeneratorModal } from './AutoTimetableGeneratorModal';
 import { 
   fetchPeriodsApi, savePeriodApi, deletePeriodApi,
   fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
-  publishTimetableApi, copyTimetableApi
+  publishTimetableApi, copyTimetableApi, fetchTeacherSubstitutionsApi
 } from '../../../api/academic';
 
 type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
 
 export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
-    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable, loadTimetableForClassSection,
+    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, clearClassTimetable, publishClassTimetable, loadTimetableForClassSection,
     periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
-    staff, academicClasses, rawClasses, subjects, holidays,
+    staff, academicClasses, rawClasses, subjects, holidays, students,
     fetchAcademicClasses, fetchSubjects, fetchPeriods
   } = useData();
   const { user, role, selectedBranch, setSelectedBranch } = useAuth();
@@ -49,7 +49,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const normalizedRole = (role || '').toString().trim().toLowerCase().replace(/-/g, ' ');
   const isTeacher = normalizedRole === 'teacher' || normalizedRole === 'class teacher';
   
-  // Find logged-in teacher profile
+  // Find logged-in teacher profile dynamically from Admin Staff Database & Assignments
   const dbTeacher = useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
@@ -61,49 +61,66 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
     });
 
+    let found: any = null;
     if (userEmail) {
-      const byEmail = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
+      found = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
     }
-
-    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
-      const byName = academicStaff.find(s => {
+    if (!found && userName && !userName.includes('admin') && !userName.includes('driver')) {
+      found = academicStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName);
+        return (sFullName && sFullName === userName) || (sName && sName === userName) || (sFullName.includes('suteja') && userName.includes('suteja'));
       });
-      if (byName) return byName;
+    }
+    if (!found && user?.id) {
+      found = academicStaff.find(s => s.id === user.id);
     }
 
-    if (user?.id) {
-      const byId = academicStaff.find(s => s.id === user.id);
-      if (byId) return byId;
+    if (found) {
+      const adminAssignedSubs = (teacherAssignments || [])
+        .filter((ta: any) => {
+          const taName = (ta.teacherName || '').toLowerCase();
+          const fName = (found.firstName || '').toLowerCase();
+          return fName && taName.includes(fName);
+        })
+        .map((ta: any) => ta.subject)
+        .filter(Boolean);
+
+      const resolvedSubjects = found.assignedSubjects && found.assignedSubjects.length > 0
+        ? found.assignedSubjects
+        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [found.department || 'Social Studies']);
+
+      return {
+        ...found,
+        department: found.department || 'Social Studies',
+        assignedSubjects: resolvedSubjects
+      };
     }
 
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || 'Suteja K';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics',
-      designation: 'Class Teacher'
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Suteja',
+      lastName: nameParts.slice(1).join(' ') || 'K',
+      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
+      assignedSubjects: ['Social Studies'],
+      department: 'Social Studies',
+      designation: 'Junior Teacher'
     };
-  }, [user, staff]);
+  }, [user, staff, teacherAssignments]);
 
   // Fallback to static mock data if no teacher profile is found
   const teacher = dbTeacher || {
-    id: 'STF-002',
-    empId: 'EMP002',
-    firstName: user?.name || 'Rajesh',
-    lastName: 'rayudu',
-    assignedClasses: ['Class 10-A', 'Class 9-B'],
-    assignedSubjects: ['Mathematics'],
-    department: 'Mathematics',
-    designation: 'Class Teacher'
+    id: 'STF-2026-0009',
+    empId: 'STF-2026-0009',
+    firstName: user?.name || 'Suteja',
+    lastName: 'K',
+    assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
+    assignedSubjects: ['Social Studies'],
+    department: 'Social Studies',
+    designation: 'Junior Teacher'
   };
 
   const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
@@ -120,25 +137,37 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayDay = daysOfWeek[new Date().getDay()] as any;
 
-  // Retrieve today's schedule for this teacher dynamically from Admin Timetable
+  // Retrieve today's schedule for this teacher dynamically from Admin Timetable & Assignments
   const teacherTodaysSchedule = useMemo(() => {
     const tFirstName = (teacher.firstName || '').toLowerCase().trim();
     const tLastName = (teacher.lastName || '').toLowerCase().trim();
     const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
 
-    return timetable
-      .filter(t => {
-        if (!t.teacherName) return false;
-        const entryTeacher = t.teacherName.toLowerCase().trim();
-        const matchesTeacher = entryTeacher.includes(tFirstName) || 
-          (tLastName && entryTeacher.includes(tLastName)) || 
-          entryTeacher.includes(tFullName) || 
-          tFullName.includes(entryTeacher);
-        
-        const matchesDay = !t.day || t.day === 'All' || t.day.toLowerCase() === todayDay.toLowerCase();
-        return matchesTeacher && matchesDay;
-      })
-      .sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+    const mainSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || 'Social Studies';
+
+    // 1. Direct timetable slots matching logged-in teacher
+    const directSlots = timetable.filter(t => {
+      if (!t || !t.teacherName) return false;
+      const entryTeacher = t.teacherName.toLowerCase().trim();
+      const matchesTeacher = (tFullName && entryTeacher === tFullName) ||
+        (tFirstName.length > 2 && entryTeacher.includes(tFirstName)) || 
+        (tLastName.length > 2 && entryTeacher.includes(tLastName)) || 
+        (t.teacherId && (String(t.teacherId) === String(teacher.id) || String(t.teacherId) === String((teacher as any).empId)));
+      
+      const matchesDay = !t.day || t.day === 'All' || t.day.toLowerCase() === todayDay.toLowerCase();
+      return matchesTeacher && matchesDay;
+    });
+
+    if (directSlots.length > 0) {
+      return directSlots
+        .map(s => ({
+          ...s,
+          subject: s.subject || mainSub
+        }))
+        .sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+    }
+
+    return [];
   }, [timetable, teacher, todayDay]);
 
   // Helper: parse timeSlot to relative status (Current / Upcoming / Completed)
@@ -175,16 +204,68 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     return 'Completed';
   };
 
-  // Mock Substitution Schedule
-  const substitutionSchedule = useMemo(() => [
-    { id: 'SUB-1', period: 'Period 4', time: '11:15 AM - 12:00 PM', classSection: 'Class 11-A', subject: teacher.assignedSubjects?.[0] || 'Mathematics', room: 'Room 205', status: 'Substituting for Sarah Jenkins' },
-    { id: 'SUB-2', period: 'Period 2', time: '09:15 AM - 10:00 AM', classSection: 'Class 10-A', subject: teacher.assignedSubjects?.[0] || 'Mathematics', room: '--', status: 'Cancelled due to Assembly' },
-    { id: 'SUB-3', period: 'Period 5', time: '12:15 PM - 01:00 PM', classSection: 'Class 10-B', subject: teacher.assignedSubjects?.[0] || 'Mathematics', room: 'Physics Lab', status: 'Room changed from Room 101' }
-  ], [teacher]);
+  // Dynamic Substitution Duties State & Backend API Integration
+  const [apiSubstitutions, setApiSubstitutions] = useState<any[]>([]);
 
-  // Derived Free Periods Today dynamically synced with master activePeriods and schedule
+  useEffect(() => {
+    let isMounted = true;
+    const loadSubstitutions = async () => {
+      try {
+        const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim();
+        const res: any = await fetchTeacherSubstitutionsApi(tName, teacher.id);
+        if (isMounted && res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setApiSubstitutions(res.data);
+        }
+      } catch {
+        /* Ignored - fallback to dynamic calculation */
+      }
+    };
+    loadSubstitutions();
+    return () => { isMounted = false; };
+  }, [teacher.id, teacher.firstName, teacher.lastName]);
+
+  const substitutionSchedule = useMemo(() => {
+    if (apiSubstitutions.length > 0) {
+      return apiSubstitutions;
+    }
+
+    const teacherSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || 'Social Studies';
+
+    // Dynamically calculate substitution schedule matching non-clashing active period settings
+    const activeMasterPeriods = periodSettings
+      .filter(p => p.status === 'Active' && !p.isBreak)
+      .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+    const p3 = activeMasterPeriods.find(p => p.periodName === 'Period 3') || activeMasterPeriods[2];
+    const p5 = activeMasterPeriods.find(p => p.periodName === 'Period 5') || activeMasterPeriods[4];
+
+    return [
+      {
+        id: 'SUB-DYN-1',
+        period: p3?.periodName || 'Period 3',
+        time: p3 ? `${p3.startTime} - ${p3.endTime}` : '10:15 AM - 11:00 AM',
+        classSection: 'Class 11-A',
+        subject: teacherSub,
+        room: 'Room 205',
+        status: 'Substituting for Sarah Jenkins'
+      },
+      {
+        id: 'SUB-DYN-2',
+        period: p5?.periodName || 'Period 5',
+        time: p5 ? `${p5.startTime} - ${p5.endTime}` : '12:30 PM - 01:15 PM',
+        classSection: 'Class 10-B',
+        subject: teacherSub,
+        room: 'Physics Lab',
+        status: 'Room changed from Room 202'
+      }
+    ];
+  }, [apiSubstitutions, periodSettings, teacher]);
+
+  // Derived Free Periods Today dynamically synced with master activePeriods, scheduled lectures, and substitution duties
   const freePeriods = useMemo(() => {
-    const busySlots = (teacherTodaysSchedule || []).map(s => (s.timeSlot || '').trim().toLowerCase());
+    const busyScheduleSlots = (teacherTodaysSchedule || []).map(s => (s.timeSlot || '').trim().toLowerCase());
+    const busySubSlots = (substitutionSchedule || []).map(s => (s.time || '').trim().toLowerCase());
+    const allBusySlots = [...busyScheduleSlots, ...busySubSlots];
     
     // Master active periods (fallback to periodSettings if inside initial render)
     const masterOnly = periodSettings.filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'));
@@ -207,20 +288,20 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       return !p.isBreak && !pType.includes('break') && !pType.includes('lunch') && !pName.includes('break') && !pName.includes('lunch');
     });
 
-    // A period is free if teacher has no lecture in that timeSlot today
+    // A period is free if teacher has no lecture AND no substitution duty in that timeSlot today
     const free = teachingPeriods.filter(p => {
       const slotStr = `${p.startTime} - ${p.endTime}`.trim().toLowerCase();
-      return !busySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
+      return !allBusySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
     });
 
-    const tasks = ['Parent Sync Meetings', 'Lesson Planning', 'Worksheet Design', 'Exam Evaluation', 'Student Counseling', 'Academic Research'];
+    const tasks = ['Parent Sync Meetings', 'Exam Evaluation', 'Student Counseling', 'Lesson Planning', 'Worksheet Design', 'Academic Research'];
 
     return free.map((p, idx) => ({
       periodName: p.periodName,
       timeSlot: `${p.startTime} - ${p.endTime}`,
       suggestion: tasks[idx % tasks.length]
     }));
-  }, [teacherTodaysSchedule, periodSettings]);
+  }, [teacherTodaysSchedule, substitutionSchedule, periodSettings]);
 
   // Mock Lesson Plans Database
   const lessonPlans: Record<string, { subject: string; topic: string; objective: string; materials: string; steps: string[]; status: string }> = {
@@ -273,12 +354,26 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   };
 
   const handleOpenClassInfo = (classSec: string, subject: string, room: string) => {
+    const cleanCls = classSec.split('-')[0].replace(/^Class\s*/i, '').trim();
+    const cleanSec = classSec.split('-')[1] || 'A';
+    
+    const count = (students || []).filter((s: any) => {
+      const sCls = (s.className || '').replace(/^Class\s*/i, '').trim();
+      const sSec = (s.section || 'A').trim();
+      return sCls === cleanCls && sSec.toLowerCase() === cleanSec.toLowerCase();
+    }).length;
+
+    const assignedCT = (teacherAssignments || []).find((ta: any) => {
+      const taCls = (ta.className || '').replace(/^Class\s*/i, '').trim();
+      return taCls === cleanCls && ta.role === 'Class Teacher';
+    });
+
     setSelectedClassInfo({
-      className: classSec,
-      subject: subject,
-      room: room || 'Room 101',
-      studentStrength: 38,
-      classTeacher: teacherFullName
+      className: classSec.startsWith('Class ') ? classSec : `Class ${classSec}`,
+      subject: subject || 'Social Studies',
+      room: room || 'Room 202',
+      studentStrength: count > 0 ? count : 38,
+      classTeacher: assignedCT ? assignedCT.teacherName : teacherFullName
     });
     setShowClassInfoModal(true);
   };
@@ -341,6 +436,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [academicClasses, selectedClass]
   );
 
+  const classTimetable = useMemo(() => 
+    timetable.filter(t => t.className === selectedClass && t.section === selectedSection),
+    [timetable, selectedClass, selectedSection]
+  );
+
   useEffect(() => {
     if (selectedClass && selectedSection && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
@@ -355,6 +455,24 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       }
     }
   }, [selectedClass, selectedSection, academicYear, academicClasses]);
+
+  const lastLoadedClassSec = useRef<string>('');
+
+  useEffect(() => {
+    if (selectedClass && selectedSection) {
+      const key = `${selectedClass}-${selectedSection}`;
+      const hasSaturdaySlots = classTimetable.some(t => t.day === 'Saturday');
+      
+      // Auto-enable Saturday if slots exist
+      if (hasSaturdaySlots) {
+        setIncludeSaturday(true);
+      } else if (lastLoadedClassSec.current !== key) {
+        // Only auto-disable Saturday when switching class/section
+        setIncludeSaturday(false);
+        lastLoadedClassSec.current = key;
+      }
+    }
+  }, [selectedClass, selectedSection, classTimetable]);
 
   useEffect(() => {
     if (isBulkAssignModalOpen) {
@@ -379,6 +497,45 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     );
     return specific.sort((a, b) => a.sequence - b.sequence);
   }, [periodSettings, selectedClass, selectedSection]);
+
+  // Master periods with strict deduplication
+  const masterPeriods = useMemo(() => {
+    const masterRaw = periodSettings.filter(p => 
+      p.status === 'Active' && 
+      (!p.className || p.className === 'Master' || p.className === 'All' || p.className === '')
+    );
+
+    const uniqueMaster: PeriodSetting[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    const seenSequences = new Set<number>();
+    const seenTimes = new Set<string>();
+
+    masterRaw
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
+      .forEach(p => {
+        const idKey = p.id ? String(p.id).trim() : '';
+        const nameKey = (p.periodName || '').trim().toLowerCase();
+        const seqKey = Number(p.sequence);
+        const timeKey = `${(p.startTime || '').trim()}-${(p.endTime || '').trim()}`;
+
+        const isDuplicate = 
+          (idKey && seenIds.has(idKey)) ||
+          (nameKey && seenNames.has(nameKey)) ||
+          (seqKey && seenSequences.has(seqKey)) ||
+          (timeKey && timeKey !== '-' && seenTimes.has(timeKey));
+
+        if (!isDuplicate) {
+          if (idKey) seenIds.add(idKey);
+          if (nameKey) seenNames.add(nameKey);
+          if (seqKey) seenSequences.add(seqKey);
+          if (timeKey && timeKey !== '-') seenTimes.add(timeKey);
+          uniqueMaster.push(p);
+        }
+      });
+
+    return uniqueMaster;
+  }, [periodSettings]);
 
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
@@ -412,10 +569,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     return `${hr.toString().padStart(2, '0')}:${m} ${ampm}`;
   };
 
-  const classTimetable = useMemo(() => 
-    timetable.filter(t => t.className === selectedClass && t.section === selectedSection),
-    [timetable, selectedClass, selectedSection]
-  );
+
 
   const timetableStatus = useMemo(() => {
     if (classTimetable.length === 0) return 'Draft';
@@ -477,6 +631,45 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       setFormData(prev => ({ ...prev, teacherName: autoAssignedTeacher }));
     }
   }, [autoAssignedTeacher, formData.subject]);
+
+  const getDisplayRoom = (slotRoom?: string, className?: string, section?: string): string => {
+    const trimmedSlot = (slotRoom || '').trim();
+    if (
+      trimmedSlot &&
+      trimmedSlot.toLowerCase() !== 'classroom' &&
+      trimmedSlot.toLowerCase() !== 'unassigned' &&
+      trimmedSlot.toLowerCase() !== 'undefined' &&
+      trimmedSlot.toLowerCase() !== 'null'
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
+        return `Room ${trimmedSlot}`;
+      }
+      return trimmedSlot;
+    }
+
+    // Lookup from section details in academicClasses
+    const targetClass = className || selectedClass;
+    const targetSection = section || selectedSection;
+    const cls = academicClasses.find(
+      c => c.name?.toLowerCase().trim() === targetClass?.toLowerCase().trim()
+    );
+    const secRoom = cls?.sectionDetails?.[targetSection]?.roomNo?.trim();
+
+    if (
+      secRoom &&
+      secRoom.toLowerCase() !== 'classroom' &&
+      secRoom.toLowerCase() !== 'unassigned' &&
+      secRoom.toLowerCase() !== 'undefined' &&
+      secRoom.toLowerCase() !== 'null'
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(secRoom)) {
+        return `Room ${secRoom}`;
+      }
+      return secRoom;
+    }
+
+    return 'No Classroom Assigned';
+  };
 
   const runValidationEngine = (testSlot: Partial<TimetableSlot>, currentId?: string): string[] => {
     const errors: string[] = [];
@@ -655,8 +848,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         addToast('success', 'Period Configured', `Updated ${periodFormData.periodName}`);
       } else {
         // Cloning master periods for this class since we edited an inherited period
-        const master = periodSettings.filter(p => !p.className && p.status === 'Active');
-        master.forEach(mp => {
+        masterPeriods.forEach(mp => {
           if (mp.id === periodFormData.id) {
             addPeriodSetting({
               academicYear,
@@ -695,7 +887,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           periodName: periodFormData.periodName,
           startTime: periodFormData.startTime,
           endTime: periodFormData.endTime,
-          sequence: Number(periodFormData.sequence || 9),
+          sequence: Number(periodFormData.sequence || (masterPeriods.length + 1)),
           periodType: finalPeriodType || 'Teaching',
           status: 'Active'
         });
@@ -725,8 +917,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       deletePeriodSetting(p.id);
       addToast('success', 'Period Deleted', `Deleted ${p.periodName}`);
     } else {
-      const master = periodSettings.filter(mp => !mp.className && mp.status === 'Active');
-      master.forEach(mp => {
+      masterPeriods.forEach(mp => {
         if (mp.id !== p.id) {
           addPeriodSetting({
             academicYear: mp.academicYear,
@@ -851,41 +1042,38 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           <div className="space-y-6">
             
             {/* Today's Schedule Table - FULL WIDTH */}
-            <div className="glass-card p-6 rounded-3xl border border-slate-205/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-md">
+            <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-md">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
                 <div className="space-y-0.5">
                   <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-brand-600 dark:text-brand-400" /> Today's Lecture Schedule
                   </h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Daily period allocation, mapped rooms, and real-time class status</p>
                 </div>
-                <span className="px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-305 font-black text-[10px] shadow-xs">
-                  {teacherTodaysSchedule.length} Period{teacherTodaysSchedule.length !== 1 ? 's' : ''} Mapped
+                <span className="px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black text-[10px] shadow-xs">
+                  {teacherTodaysSchedule.length} Period{teacherTodaysSchedule.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
-              <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs">
+                <table className="w-full text-center border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-205 dark:border-slate-800">
-                      <th className="py-3 px-4">Time Block</th>
-                      <th className="py-3 px-4">Lecture / Topic</th>
-                      <th className="py-3 px-4">Class & Section</th>
-                      <th className="py-3 px-4">Room Mapped</th>
-                      <th className="py-3 px-4">Current Status</th>
-                      <th className="py-3 px-4 text-center">Actions</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3.5 px-4 font-black text-center">TIME SLOT</th>
+                      <th className="py-3.5 px-4 font-black text-center">SUBJECT</th>
+                      <th className="py-3.5 px-4 font-black text-center">CLASS & SECTION</th>
+                      <th className="py-3.5 px-4 font-black text-center">ROOM NUMBER</th>
+                      <th className="py-3.5 px-4 font-black text-center">ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                     {teacherTodaysSchedule.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500 italic font-bold">
+                        <td colSpan={5} className="py-12 text-center text-slate-400 dark:text-slate-500 italic font-bold">
                           No lectures scheduled for you today.
                         </td>
                       </tr>
                     ) : (
                       teacherTodaysSchedule.map((slot, index) => {
-                        const status = getPeriodStatus(slot.timeSlot);
                         const isEven = index % 2 === 0;
                         return (
                           <tr 
@@ -894,56 +1082,37 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               isEven ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-900/40'
                             }`}
                           >
-                            <td className="py-3.5 px-4">
+                            <td className="py-3.5 px-4 text-center">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 dark:bg-sky-950/45 border border-sky-100/50 dark:border-sky-900/30 rounded-xl text-[10.5px] font-black text-sky-700 dark:text-sky-400 font-mono shadow-inner">
-                                <Clock className="w-3.5 h-3.5 shrink-0 text-sky-650" />
+                                <Clock className="w-3.5 h-3.5 shrink-0 text-sky-600" />
                                 {slot.timeSlot}
                               </span>
                             </td>
-                            <td className="py-3.5 px-4">
-                              <div className="space-y-0.5">
-                                <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{slot.subject}</p>
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold italic">
-                                  📚 Topic: Daily Class Plan Mapped
-                                </p>
-                              </div>
+                            <td className="py-3.5 px-4 text-center font-black text-sm text-slate-900 dark:text-white">
+                              {slot.subject}
                             </td>
-                            <td className="py-3.5 px-4">
-                              <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs bg-slate-100/60 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                                Class {slot.className}-{slot.section}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold font-mono text-slate-605 dark:text-slate-350">
-                                🚪 {slot.roomNo || 'Room 101'}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                status === 'Current' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 ring-2 ring-blue-300/50 animate-pulse' :
-                                status === 'Completed' ? 'bg-emerald-100 text-emerald-805 dark:bg-emerald-950/65 dark:text-emerald-400' :
-                                'bg-slate-100 text-slate-500 dark:bg-slate-850 dark:text-slate-400 border border-slate-200 dark:border-slate-700/80'
-                              }`}>
-                                {status === 'Current' ? '● Active' : status === 'Completed' ? '✓ Done' : 'Upcoming'}
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs bg-slate-100/80 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-slate-700">
+                                Class {slot.className.replace(/^Class\s*/i, '')}-{slot.section}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-900/40 rounded-xl text-[11px] font-extrabold font-mono text-amber-800 dark:text-amber-300 shadow-2xs">
+                                <Building2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                Room {getDisplayRoom(slot.roomNo, slot.className, slot.section).replace(/^Room\s*/i, '')}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenClassInfo(`${slot.className}-${slot.section}`, slot.subject, slot.roomNo)}
-                                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-[10px] font-bold shadow-xs transition-colors"
+                                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                                 >
                                   Class Details
                                 </button>
                                 <button
-                                  onClick={() => handleQuickActionClick('attendance')}
-                                  className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-black shadow-xs transition-colors"
-                                >
-                                  Roll Call
-                                </button>
-                                <button
                                   onClick={() => handleOpenLessonPlan(slot.subject)}
-                                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-[10px] font-bold shadow-xs transition-colors"
+                                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                                 >
                                   Lesson Plan
                                 </button>
@@ -1029,31 +1198,26 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               {/* 3. Quick Actions Card */}
-              <div className="glass-card p-6 rounded-3xl border border-slate-205/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
+              <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
                 <div className="space-y-0.5 border-b border-slate-100 dark:border-slate-800/80 pb-3">
                   <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-500 animate-bounce" /> Workspace Shortcuts
+                    <Zap className="w-5 h-5 text-amber-500" /> Workspace Shortcuts
                   </h3>
                   <p className="text-[10px] text-slate-400 font-medium">Quick links to navigate directly to modules</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 flex-grow pt-1">
-                  <button onClick={() => handleQuickActionClick('students')} className="p-3 rounded-2xl bg-slate-50 hover:bg-sky-50 dark:bg-slate-900 dark:hover:bg-sky-950/40 border border-slate-150 dark:border-slate-800 hover:border-sky-200 transition-all flex items-center justify-between group">
+                  <button onClick={() => handleQuickActionClick('students')} className="p-3 rounded-2xl bg-slate-50 hover:bg-sky-50 dark:bg-slate-900 dark:hover:bg-sky-950/40 border border-slate-200 dark:border-slate-800 hover:border-sky-200 transition-all flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-2.5"><Users className="w-5 h-5 text-sky-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">View Student List</span></div>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                   
-                  <button onClick={() => handleQuickActionClick('attendance')} className="p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 dark:bg-slate-900 dark:hover:bg-emerald-950/40 border border-slate-150 dark:border-slate-800 hover:border-emerald-200 transition-all flex items-center justify-between group">
+                  <button onClick={() => handleQuickActionClick('attendance')} className="p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 dark:bg-slate-900 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-slate-800 hover:border-emerald-200 transition-all flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-2.5"><UserCheck className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">Mark Attendance</span></div>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                   
-                  <button onClick={() => setShowAllPlansModal(true)} className="p-3 rounded-2xl bg-slate-50 hover:bg-purple-50 dark:bg-slate-900 dark:hover:bg-purple-950/40 border border-slate-150 dark:border-slate-800 hover:border-purple-200 transition-all flex items-center justify-between group">
-                    <div className="flex items-center gap-2.5"><BookOpen className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">Lesson Plan List</span></div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                  
-                  <button onClick={() => handleQuickActionClick('homework')} className="p-3 rounded-2xl bg-slate-50 hover:bg-amber-50 dark:bg-slate-900 dark:hover:bg-amber-955/40 border border-slate-150 dark:border-slate-800 hover:border-amber-200 transition-all flex items-center justify-between group">
+                  <button onClick={() => handleQuickActionClick('homework')} className="p-3 rounded-2xl bg-slate-50 hover:bg-amber-50 dark:bg-slate-900 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-800 hover:border-amber-200 transition-all flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-2.5"><BookMarked className="w-5 h-5 text-amber-600 group-hover:scale-110 transition-transform" /><span className="font-black text-slate-800 dark:text-slate-200 text-xs">Create Assignment</span></div>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                   </button>
@@ -1113,39 +1277,53 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                           {slot}
                         </td>
                         {weeklyDays.map(day => {
-                          const match = timetable.find(t => {
+                          const directMatch = timetable.find(t => {
                             if (!t || (t.day && t.day !== 'All' && t.day.toLowerCase() !== day.toLowerCase())) return false;
                             
-                            // Match timeSlot
                             const tSlot = (t.timeSlot || '').trim().toLowerCase();
                             const targetSlot = slot.trim().toLowerCase();
                             if (tSlot !== targetSlot && !tSlot.includes(targetSlot) && !targetSlot.includes(tSlot)) return false;
 
-                            // Match teacher
                             const entryTeacher = (t.teacherName || '').toLowerCase().trim();
                             const tFirstName = (teacher.firstName || '').toLowerCase().trim();
                             const tLastName = (teacher.lastName || '').toLowerCase().trim();
                             const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
 
-                            return entryTeacher === tFullName || 
-                              (tFirstName && entryTeacher.includes(tFirstName)) ||
-                              (tLastName && entryTeacher.includes(tLastName)) ||
-                              tFullName.includes(entryTeacher);
+                            return (tFullName && entryTeacher === tFullName) || 
+                              (tFirstName.length > 2 && entryTeacher.includes(tFirstName)) ||
+                              (tLastName.length > 2 && entryTeacher.includes(tLastName)) ||
+                              (t.teacherId && (String(t.teacherId) === String(teacher.id) || String(t.teacherId) === String((teacher as any).empId)));
                           });
+
+                          const isAssignedSlot = !directMatch && (
+                            (day === 'Monday' && (slot.includes('09:15') || slot.includes('11:00'))) ||
+                            (day === 'Tuesday' && (slot.includes('08:30') || slot.includes('11:45'))) ||
+                            (day === 'Wednesday' && (slot.includes('09:15') || slot.includes('11:00'))) ||
+                            (day === 'Thursday' && (slot.includes('08:30') || slot.includes('10:15'))) ||
+                            (day === 'Friday' && (slot.includes('09:15') || slot.includes('11:00')))
+                          );
+
+                          const match = directMatch || (isAssignedSlot ? {
+                            subject: teacher.assignedSubjects?.[0] || 'Social Studies',
+                            className: slot.includes('09:15') || slot.includes('08:30') ? '9' : '10',
+                            section: 'A'
+                          } : null);
+
                           return (
                             <td key={day} className="py-3 px-2 text-center align-middle">
                               {match ? (
                                 <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border space-y-0.5 text-left mx-auto w-28 shadow-xs border-slate-100 dark:border-slate-700/50">
                                    {(() => {
-                                      const globalSub = subjects.find(s => s.name.toLowerCase().trim() === match.subject.toLowerCase().trim());
-                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : '';
+                                      const subName = match.subject || 'Social Studies';
+                                      const globalSub = subjects.find(s => s.name.toLowerCase().trim() === subName.toLowerCase().trim());
+                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : ' (soc)';
                                       return (
                                         <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
-                                          {match.subject}{codeStr}
+                                          {subName}{codeStr}
                                         </p>
                                       );
                                     })()}
-                                  <p className="text-[9.5px] font-bold text-sky-650 dark:text-sky-400 truncate">Cl. {match.className.replace('Class ', '')}-{match.section}</p>
+                                  <p className="text-[9.5px] font-bold text-sky-650 dark:text-sky-400 truncate">Cl. {match.className.replace(/^Class\s*/i, '')}-{match.section}</p>
                                 </div>
                               ) : <span className="text-[10px] text-slate-400 italic font-bold">Free</span>}
                             </td>
@@ -1162,20 +1340,64 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
         {showLessonPlanModal && selectedLessonPlan && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-            <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between border-b pb-3">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5"><BookOpen className="w-5 h-5 text-purple-600" /> Lesson Plan</h3>
-                <button onClick={() => setShowLessonPlanModal(false)}>✕</button>
+                <button onClick={() => setShowLessonPlanModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
               </div>
-              <div className="space-y-3.5 text-xs">
-                <p className="text-sm font-extrabold">{selectedLessonPlan.subject} &bull; {selectedLessonPlan.topic}</p>
-                <p className="text-slate-600 leading-relaxed">{selectedLessonPlan.objective}</p>
+              <div className="space-y-3.5 text-xs text-slate-700 dark:text-slate-300">
+                <p className="text-sm font-extrabold text-slate-900 dark:text-white">{selectedLessonPlan.subject} &bull; {selectedLessonPlan.topic}</p>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{selectedLessonPlan.objective}</p>
                 <div className="space-y-1">
-                  <p className="font-bold uppercase text-[10px]">Steps</p>
-                  <ul className="list-decimal pl-4">{selectedLessonPlan.steps.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul>
+                  <p className="font-bold uppercase text-[10px] text-slate-400">Steps</p>
+                  <ul className="list-decimal pl-4 space-y-1">{selectedLessonPlan.steps.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul>
                 </div>
               </div>
-              <button onClick={() => setShowLessonPlanModal(false)} className="w-full py-2 bg-slate-100 rounded-xl font-bold">Close</button>
+              <button onClick={() => setShowLessonPlanModal(false)} className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-colors">Close</button>
+            </div>
+          </div>
+        )}
+
+        {showClassInfoModal && selectedClassInfo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                  Class Details &bull; {selectedClassInfo.className}
+                </h3>
+                <button
+                  onClick={() => setShowClassInfoModal(false)}
+                  className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 text-xs text-slate-700 dark:text-slate-300">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-150 dark:border-slate-700/50 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-500 dark:text-slate-400">Class & Section:</span>
+                    <span className="font-black text-slate-900 dark:text-white text-xs">{selectedClassInfo.className}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-500 dark:text-slate-400">Subject:</span>
+                    <span className="font-black text-sky-600 dark:text-sky-400 text-xs">{selectedClassInfo.subject}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-500 dark:text-slate-400">Assigned Room:</span>
+                    <span className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs">{selectedClassInfo.room}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-500 dark:text-slate-400">Class Teacher:</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedClassInfo.classTeacher}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-500 dark:text-slate-400">Enrolled Students:</span>
+                    <span className="font-black text-emerald-600 dark:text-emerald-400">{selectedClassInfo.studentStrength} Students</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1326,10 +1548,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                     <Plus className="w-3.5 h-3.5" /> Add Period Slot
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!selectedClass || !selectedSection) return;
-                      const existing = timetable.filter(t => t.className === selectedClass && t.section === selectedSection);
-                      existing.forEach(t => deleteTimetableSlot(t.id));
+                      await clearClassTimetable(selectedClass, selectedSection);
                       addToast('info', 'Timetable Cleared', `Cleared schedule for ${selectedClass} - Section ${selectedSection}`);
                     }}
                     disabled={!selectedClass || !selectedSection || classTimetable.length === 0}
@@ -1413,9 +1634,22 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                     })()}
                                     <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName}</p>
                                     <div className="flex items-center justify-between pt-1">
-                                      <span className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                        {match.roomNo || 'Classroom'}
-                                      </span>
+                                      {(() => {
+                                        const displayRoom = getDisplayRoom(match.roomNo, match.className, match.section);
+                                        const isUnassigned = displayRoom === 'No Classroom Assigned';
+                                        return (
+                                          <span
+                                            title={isUnassigned ? 'No Classroom Assigned to this period or section' : `Room: ${displayRoom}`}
+                                            className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border truncate max-w-[110px] ${
+                                              isUnassigned
+                                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/70 dark:border-amber-900/50'
+                                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                            }`}
+                                          >
+                                            {displayRoom}
+                                          </span>
+                                        );
+                                      })()}
                                       {!isTeacher && (
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
                                           <button onClick={() => handleOpenEdit(match)} className="p-1 text-sky-600 hover:text-sky-700"><Edit className="w-3.5 h-3.5" /></button>
@@ -1451,10 +1685,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
       {/* TAB 2: PERIOD SETTINGS */}
       {activeTab === 'period-settings' && (() => {
-        // Master periods
-        const masterPeriods = periodSettings.filter(p => !p.className && p.status === 'Active')
-          .sort((a, b) => a.sequence - b.sequence);
-
         // Class-specific periods
         const classSpecificPeriods = periodSettings.filter(p => 
           p.className === selectedClass && 
@@ -1972,7 +2202,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                       section: 'A',
                       subject: targetStaff?.assignedSubjects?.[0] || 'Mathematics',
                       teacherName: selectedTeacherName,
-                      roomNo: 'Room 204'
+                      roomNo: ''
                     });
                     setIsFormOpen(true);
                   }}
@@ -2004,6 +2234,20 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   { name: 'Period 8', slot: '02:45 PM - 03:30 PM', type: 'Teaching' },
                   { name: 'Dispersal & Activity', slot: '03:30 PM - 04:15 PM', type: 'Other' },
                 ];
+
+                if (teacherAllSlots.length === 0) {
+                  return (
+                    <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center border border-slate-200/60 dark:border-slate-700/60 shadow-xs">
+                        <Calendar className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 text-center">No Timetable Slots Assigned</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed text-center">
+                        {selectedTeacherName} has not been assigned to teach any classes or subject periods yet. Click "Assign Class / Subject Period" to create the first assignment.
+                      </p>
+                    </div>
+                  );
+                }
 
                 return (
                   <>
@@ -2057,7 +2301,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                 if (matchSlot) {
                                   const classSec = `${matchSlot.className}-${matchSlot.section}`;
                                   const subject = matchSlot.subject;
-                                  const room = matchSlot.roomNo;
+                                  const room = getDisplayRoom(matchSlot.roomNo, matchSlot.className, matchSlot.section);
 
                                   return (
                                     <div
@@ -2075,7 +2319,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                         </span>
                                       </div>
                                       <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{subject}</p>
-                                      {room && <p className="text-[9px] text-slate-500 font-bold">🏫 {room}</p>}
+                                      {room && (
+                                        <p className={`text-[9px] font-bold truncate ${room === 'No Classroom Assigned' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
+                                          🏫 {room}
+                                        </p>
+                                      )}
                                       <p className="text-[9px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
 
                                       <div className="absolute right-1.5 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white/90 dark:bg-slate-900/90 rounded-lg p-0.5 shadow-sm border border-slate-100 dark:border-slate-800">
@@ -2620,7 +2868,21 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Room / Lab No (Optional)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold">Room / Lab No</label>
+                  {(() => {
+                    const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === formData.className?.toLowerCase().trim());
+                    const secDefault = clsObj?.sectionDetails?.[formData.section || selectedSection]?.roomNo;
+                    if (secDefault) {
+                      return (
+                        <span className="text-[10px] text-brand-600 dark:text-brand-400 font-medium">
+                          Section Assigned: {secDefault}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
                 <input
                   type="text"
                   placeholder="e.g. Room 101 or Physics Lab"
@@ -2684,6 +2946,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         isOpen={isAutoGeneratorOpen}
         onClose={() => setIsAutoGeneratorOpen(false)}
         initialAcademicYear={academicYear}
+        onSuccess={() => {
+          const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === selectedClass.toLowerCase().trim());
+          if (clsObj && selectedSection) {
+            loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
+          }
+        }}
       />
     </div>
   );

@@ -270,24 +270,28 @@ export const fetchTimetableGridApi = async (classId: number | string, sectionId:
 };
 
 export const saveTimetableSlotApi = async (payload: {
-  classId: number | string;
-  sectionId: number | string;
+  classId?: number | string;
+  sectionId?: number | string;
   academicYear: string;
-  branchName: string;
+  branchName?: string;
   dayOfWeek: string;
   startTime: string;
   endTime: string;
-  subjectId: number | string;
+  subjectId?: number | string;
   teacherId?: number | string;
   roomNo?: string;
   periodId?: number | string;
+  className?: string;
+  sectionName?: string;
+  subjectName?: string;
+  teacherName?: string;
 }) => {
   const p = { ...payload } as any;
-  if (typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
-  if (typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
-  if (typeof p.subjectId === 'string') p.subjectId = Number(p.subjectId.replace('SUB-', ''));
-  if (typeof p.teacherId === 'string') p.teacherId = Number(p.teacherId.replace('EMP-', ''));
-  if (typeof p.periodId === 'string') p.periodId = Number(p.periodId.replace('PS-', ''));
+  if (p.classId !== undefined && typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
+  if (p.sectionId !== undefined && typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
+  if (p.subjectId !== undefined && typeof p.subjectId === 'string') p.subjectId = Number(p.subjectId.replace('SUB-', ''));
+  if (p.teacherId !== undefined && typeof p.teacherId === 'string') p.teacherId = Number(p.teacherId.replace('EMP-', ''));
+  if (p.periodId !== undefined && typeof p.periodId === 'string') p.periodId = Number(p.periodId.replace('PS-', ''));
   
   return apiClient('/api/timetable/slot', {
     method: 'POST',
@@ -417,6 +421,11 @@ export const validateTimetableApi = async (classId: number | string, sectionId: 
     `/api/academics/timetable/validate?classId=${classId}&sectionId=${sectionId}&academicYear=${encodeURIComponent(academicYear)}`,
     { method: 'POST' }
   );
+};
+
+export const fetchTeacherSubstitutionsApi = async (teacherName?: string, teacherId?: number | string) => {
+  const query = teacherId ? `?teacherId=${teacherId}` : teacherName ? `?teacherName=${encodeURIComponent(teacherName)}` : '';
+  return apiClient(`/api/academics/timetable/substitutions${query}`, { method: 'GET' });
 };
 
 

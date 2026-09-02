@@ -22,6 +22,9 @@ namespace SMS.Api.Models
         public string? WaistSpec { get; set; }
 
         [MaxLength(50)]
+        public string? ShoulderSpec { get; set; }
+
+        [MaxLength(50)]
         public string? HeightTarget { get; set; }
 
         [MaxLength(50)]

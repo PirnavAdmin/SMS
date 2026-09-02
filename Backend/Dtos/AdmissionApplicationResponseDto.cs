@@ -76,8 +76,19 @@ public class AdmissionApplicationResponseDto
     public string Phone => FatherContact;
 
     public string? MotherMobileNumber { get; set; }
+
+    [JsonPropertyName("motherPhone")]
+    public string? MotherPhone => MotherMobileNumber;
+
     public string? AlternateMobileNumber { get; set; }
+
+    [JsonPropertyName("alternatePhone")]
+    public string? AlternatePhone => AlternateMobileNumber;
+
     public string? ParentEmail { get; set; }
+
+    [JsonPropertyName("email")]
+    public string? Email => ParentEmail;
 
     // Address
     public string? HouseNo { get; set; }

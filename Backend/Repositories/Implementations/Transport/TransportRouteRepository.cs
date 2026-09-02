@@ -252,10 +252,44 @@ namespace SMS.Api.Repositories.Implementations
             if (route is null)
                 return false;
 
-            route.IsDeleted = true;
-            route.Status = false;
-            route.UpdatedBy = userId;
-            route.UpdatedAt = DateTime.UtcNow;
+            var matchingRoutes = await _context.TransportRoutes
+                .Where(x => (x.RouteId == routeId || 
+                             (!string.IsNullOrEmpty(route.RouteCode) && x.RouteCode == route.RouteCode) ||
+                             (!string.IsNullOrEmpty(route.RouteName) && x.RouteName == route.RouteName)) && 
+                            !x.IsDeleted)
+                .ToListAsync();
+
+            foreach (var r in matchingRoutes)
+            {
+                r.IsDeleted = true;
+                r.Status = false;
+                r.UpdatedBy = userId;
+                r.UpdatedAt = DateTime.UtcNow;
+
+                // Soft delete associated pickup points
+                var points = await _context.PickupPoints
+                    .Where(p => p.RouteId == r.RouteId && !p.IsDeleted)
+                    .ToListAsync();
+                foreach (var p in points)
+                {
+                    p.IsDeleted = true;
+                    p.Status = false;
+                    p.UpdatedBy = userId;
+                    p.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Soft delete associated vehicle assignments
+                var assignments = await _context.TransportVehicleAssignments
+                    .Where(a => a.RouteId == r.RouteId && !a.IsDeleted)
+                    .ToListAsync();
+                foreach (var a in assignments)
+                {
+                    a.IsDeleted = true;
+                    a.Status = false;
+                    a.UpdatedBy = userId;
+                    a.UpdatedAt = DateTime.UtcNow;
+                }
+            }
 
             await _context.SaveChangesAsync();
 
@@ -300,6 +334,30 @@ namespace SMS.Api.Repositories.Implementations
                         x.RouteCode + " - " + x.RouteName
                 })
                 .ToListAsync();
+        }
+
+        public async Task<TransportRouteDto?> GetByIdOrCodeAsync(string routeIdOrCode)
+        {
+            if (string.IsNullOrWhiteSpace(routeIdOrCode)) return null;
+
+            string search = Uri.UnescapeDataString(routeIdOrCode.Trim());
+
+            if (long.TryParse(search, out long routeId))
+            {
+                var byId = await GetByIdAsync(routeId);
+                if (byId != null) return byId;
+            }
+
+            var route = await _context.TransportRoutes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (x.RouteCode != null && x.RouteCode.ToLower() == search.ToLower()) ||
+                    (x.RouteName != null && x.RouteName.ToLower() == search.ToLower()) ||
+                    x.RouteId.ToString() == search));
+
+            if (route == null) return null;
+
+            return await GetByIdAsync(route.RouteId);
         }
 
         public async Task<bool> RouteCodeExistsAsync(

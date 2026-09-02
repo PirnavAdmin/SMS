@@ -20,12 +20,17 @@ public class ExamScheduleService : IExamScheduleService
 
     public async Task<ScheduleOptionsDto> GetScheduleOptionsAsync()
     {
+        var classes = await _repository.GetClassNamesAsync();
+        var sections = await _repository.GetSectionNamesAsync();
+        var invigilators = await _repository.GetInvigilatorNamesAsync();
+        var rooms = await _repository.GetRoomNamesAsync();
+
         return new ScheduleOptionsDto
         {
-            Classes = new List<string> { "Class 1", "Class 2", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12" },
-            Sections = new List<string> { "Section A", "Section B", "Section C" },
-            Rooms = new List<string> { "TBA", "Room 101", "Room 102", "Auditorium Hall", "Science Lab" },
-            Invigilators = new List<string> { "Unassigned", "Sarah Jenkins", "Robert Davis", "Emily Watson", "Michael Brown" }
+            Classes = classes,
+            Sections = sections,
+            Rooms = rooms,
+            Invigilators = invigilators
         };
     }
 

@@ -49,82 +49,135 @@ export const TeacherProfileView: React.FC = () => {
       if (byId) return byId;
     }
 
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || 'Suteja K';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['Mathematics', 'Advanced Algebra'],
-      department: 'Mathematics',
-      designation: 'Class Teacher'
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Suteja',
+      lastName: nameParts.slice(1).join(' ') || 'K',
+      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
+      assignedSubjects: ['Social Studies'],
+      department: 'Social Studies',
+      designation: 'Junior Teacher'
     };
   }, [user, staff]);
 
   // Dynamically compute assigned classes (clean class name without section suffix)
   const dynamicAssignedClasses = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
-    
-    // 1. From teacherAssignments (Admin side assignments)
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+
     const fromAssignments = teacherAssignments
-      .filter(ta => ta.teacherName?.toLowerCase().includes(teacherName.toLowerCase()) || (dbTeacher?.firstName && ta.teacherName?.toLowerCase().includes(dbTeacher.firstName.toLowerCase())))
-      .map(ta => ta.className ? ta.className.split('-')[0].trim() : null);
+      .filter(ta => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      })
+      .map(ta => ta.className ? (ta.className.startsWith('Class ') ? ta.className.split('-')[0].trim() : `Class ${ta.className.split('-')[0].trim()}`) : null);
 
-    // 2. From timetable slots (Admin timetable published)
     const fromTimetable = timetable
-      .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
-      .map(t => t.className ? t.className.split('-')[0].trim() : null);
+      .filter(t => {
+        const tName = (t.teacherName || '').toLowerCase();
+        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
+      })
+      .map(t => t.className ? (t.className.startsWith('Class ') ? t.className.split('-')[0].trim() : `Class ${t.className.split('-')[0].trim()}`) : null);
 
-    // 3. From staff record directly
-    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.split('-')[0].trim());
+    const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => {
+      const cls = ac.split('-')[0].trim();
+      return cls.startsWith('Class ') ? cls : `Class ${cls}`;
+    });
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-    return merged.length > 0 ? merged : ['Class 10', 'Class 9', 'Class 6'];
+    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
+    return merged.length > 0 ? merged : ['Class 9', 'Class 8', 'Class 10'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSections = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
 
     const fromAssignments = teacherAssignments
-      .filter(ta => ta.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(ta => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      })
       .map(ta => ta.section ? (ta.section.startsWith('Section ') ? ta.section : `Section ${ta.section}`) : null);
 
     const fromTimetable = timetable
-      .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(t => {
+        const tName = (t.teacherName || '').toLowerCase();
+        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
+      })
       .map(t => t.section ? (t.section.startsWith('Section ') ? t.section : `Section ${t.section}`) : null);
 
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => ac.includes('-') ? `Section ${ac.split('-')[1].trim()}` : 'Section A');
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-    return merged.length > 0 ? merged : ['Section A', 'Section B'];
+    return merged.length > 0 ? merged : ['Section A'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
   // Dynamically compute assigned subjects from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSubjects = useMemo(() => {
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const dept = (dbTeacher?.department || 'Social Studies').toLowerCase().trim();
 
     const fromAssignments = teacherAssignments
-      .filter(ta => ta.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
+      .filter(ta => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      })
       .map(ta => ta.subject);
 
     const fromTimetable = timetable
-      .filter(t => t.teacherName?.toLowerCase().includes(teacherName.toLowerCase()))
-      .map(t => t.subject);
+      .filter(t => {
+        const tName = (t.teacherName || '').toLowerCase();
+        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
+      })
+      .map(ta => ta.subject);
 
     const fromStaff = dbTeacher?.assignedSubjects || [];
 
     const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
-    return merged.length > 0 ? merged : ['Mathematics', 'Advanced Algebra'];
+
+    // Filter out subjects that do not belong to the teacher's department (e.g. Mathematics for a Social Studies teacher)
+    const filtered = merged.filter((sub: string) => {
+      const sLower = sub.toLowerCase().trim();
+      if (dept.includes('social') && (sLower.includes('math') || sLower.includes('physics') || sLower.includes('chemistry') || sLower.includes('biology') || sLower.includes('science'))) {
+        return false;
+      }
+      return true;
+    });
+
+    return filtered.length > 0 ? filtered : [dbTeacher?.department || 'Social Studies'];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
-  // Local Storage state for Teacher self-edits
+  // User-scoped Local Storage key for Teacher self-edits
+  const userStorageKey = useMemo(() => {
+    const idStr = (user?.email || user?.id || user?.name || 'default').toLowerCase().trim();
+    return `teacher_self_profile_edits_${idStr}`;
+  }, [user]);
+
   const [localEdit, setLocalEdit] = useState<any>(() => {
     try {
-      const saved = localStorage.getItem('teacher_self_profile_edits');
+      const idStr = (user?.email || user?.id || user?.name || 'default').toLowerCase().trim();
+      const scopedKey = `teacher_self_profile_edits_${idStr}`;
+      const saved = localStorage.getItem(scopedKey);
       if (saved) return JSON.parse(saved);
+      
+      // Legacy check: if legacy edit exists and matches current user's name/email, use it; otherwise ignore
+      const legacy = localStorage.getItem('teacher_self_profile_edits');
+      if (legacy) {
+        const parsed = JSON.parse(legacy);
+        const currentName = (user?.name || '').toLowerCase().trim();
+        const currentEmail = (user?.email || '').toLowerCase().trim();
+        if (
+          (parsed.email && currentEmail && parsed.email.toLowerCase().trim() === currentEmail) ||
+          (parsed.fullName && currentName && parsed.fullName.toLowerCase().trim() === currentName)
+        ) {
+          return parsed;
+        }
+      }
     } catch (e) {}
     return null;
   });
@@ -132,12 +185,12 @@ export const TeacherProfileView: React.FC = () => {
   // Reactive teacher profile construction merging Admin master data & teacher edits
   const profile = useMemo(() => {
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || 'Robert Teacher').split(' ');
-    const defaultFullName = dbFullName || `${nameParts[0] || 'Robert'} ${nameParts.slice(1).join(' ') || 'Teacher'}`.trim();
+    const nameParts = (user?.name || 'Suteja K').split(' ');
+    const defaultFullName = dbFullName || `${nameParts[0] || 'Suteja'} ${nameParts.slice(1).join(' ') || 'K'}`.trim();
 
     return {
-      staffId: dbTeacher?.id || 'STF-2026-0001',
-      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0001',
+      staffId: dbTeacher?.id || 'STF-2026-0009',
+      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0009',
       fullName: localEdit?.fullName || defaultFullName,
       email: localEdit?.email || dbTeacher?.email || user?.email || 'teacher@pirnavschools.com',
       mobile: localEdit?.mobile || dbTeacher?.phone || '7987987998',
@@ -147,10 +200,10 @@ export const TeacherProfileView: React.FC = () => {
       address: localEdit?.address || dbTeacher?.address || '45/2 Green Avenue, Campus Road',
       emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '9876543210',
       branch: dbTeacher?.branch || 'Main Campus',
-      department: dbTeacher?.department || 'Mathematics',
-      designation: dbTeacher?.designation || 'PGT Teacher',
+      department: dbTeacher?.department || 'Social Studies',
+      designation: dbTeacher?.designation || 'Junior Teacher',
       joiningDate: dbTeacher?.joiningDate || '2026-08-19',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'M.Sc. Mathematics, B.Ed.',
+      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'M.A. Social Studies, B.Ed.',
       experience: localEdit?.experience || (dbTeacher as any)?.experience || '8 Years Teaching Experience',
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
@@ -216,7 +269,7 @@ export const TeacherProfileView: React.FC = () => {
       };
 
       setLocalEdit(updatedEdits);
-      localStorage.setItem('teacher_self_profile_edits', JSON.stringify(updatedEdits));
+      localStorage.setItem(userStorageKey, JSON.stringify(updatedEdits));
 
       // Sync directly to DataContext staff store if staff record exists
       if (dbTeacher && dbTeacher.id && updateStaff) {
@@ -292,49 +345,45 @@ export const TeacherProfileView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
       
-      {/* Header Banner & Hero Card - Vibrant Pirnav Brand Sky Blue Theme */}
-      <div className="relative bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-sky-500/20 overflow-hidden border border-sky-400/40">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Header Banner & Hero Card - Compact Vibrant Pirnav Brand Sky Blue Theme */}
+      <div className="relative bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-4 sm:p-5 text-white shadow-md shadow-sky-500/15 overflow-hidden border border-sky-400/40">
+        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         
-        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4">
           <div className="relative group shrink-0">
             <img
               src={activePhoto}
               alt={profile.fullName}
-              className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl object-cover border-4 border-white/20 shadow-2xl"
+              className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl object-cover border-3 border-white/20 shadow-xl"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80';
               }}
             />
-            <span className="absolute bottom-2 right-2 w-4 h-4 bg-emerald-400 border-2 border-white rounded-full shadow" />
+            <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow" />
           </div>
 
-          <div className="flex-1 text-center sm:text-left space-y-2">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{profile.fullName}</h1>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 text-xs font-black uppercase border border-emerald-400/30 backdrop-blur-sm">
+          <div className="flex-1 text-center sm:text-left space-y-1.5">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">{profile.fullName}</h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 text-[10px] font-black uppercase border border-emerald-400/30 backdrop-blur-sm">
                 {profile.employmentStatus || 'ACTIVE'}
               </span>
-              <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-black uppercase border border-white/30 backdrop-blur-sm">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase border border-white/30 backdrop-blur-sm">
                 {profile.profileStatus || 'COMPLETED'}
               </span>
             </div>
 
-            <p className="text-sky-100 font-extrabold text-base sm:text-lg">
+            <p className="text-sky-100 font-extrabold text-xs sm:text-sm">
               {profile.designation} • <span className="text-white font-bold">{profile.department}</span>
             </p>
 
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs sm:text-sm text-sky-100/90 pt-1 font-semibold">
-              <span className="flex items-center gap-1.5 bg-white/10 px-3.5 py-1.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-xs">
-                <Shield className="w-4 h-4 text-sky-200" />
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-sky-100/90 pt-0.5 font-semibold">
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-white/10 shadow-2xs">
+                <Shield className="w-3.5 h-3.5 text-sky-200" />
                 ID: {profile.employeeId}
               </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-3.5 py-1.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-xs">
-                <Building className="w-4 h-4 text-sky-200" />
-                {profile.branch || 'Main Campus'}
-              </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-3.5 py-1.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-xs">
-                <Calendar className="w-4 h-4 text-sky-200" />
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-white/10 shadow-2xs">
+                <Calendar className="w-3.5 h-3.5 text-sky-200" />
                 Joined: {profile.joiningDate}
               </span>
             </div>
@@ -342,9 +391,9 @@ export const TeacherProfileView: React.FC = () => {
 
           <button
             onClick={handleOpenEditModal}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-sky-800 font-black rounded-2xl shadow-lg hover:shadow-xl transition transform active:scale-95 cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-sky-800 font-black rounded-xl text-xs shadow-md hover:shadow-lg transition transform active:scale-95 cursor-pointer whitespace-nowrap self-center sm:self-start"
           >
-            <Edit2 className="w-4 h-4 text-sky-600" />
+            <Edit2 className="w-3.5 h-3.5 text-sky-600" />
             Edit My Profile
           </button>
         </div>

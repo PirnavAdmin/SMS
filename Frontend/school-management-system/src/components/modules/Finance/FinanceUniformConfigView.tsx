@@ -5,7 +5,7 @@ import { FinanceUniformConfig } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { getUniformPackageFeeByClass } from '../../../utils/uniformUtils';
+import { getUniformPackageFeeByClass, normalizeUniformCategoryName } from '../../../utils/uniformUtils';
 
 export const FinanceUniformConfigView: React.FC = () => {
   const {
@@ -16,6 +16,7 @@ export const FinanceUniformConfigView: React.FC = () => {
     financeSettings,
     academicClasses,
     uniformCategories,
+    uniforms,
     selectedBranch,
     selectedAcademicYear
   } = useData();
@@ -93,7 +94,7 @@ export const FinanceUniformConfigView: React.FC = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.className || !form.uniformPackage || !form.feeAmount) {
-      addToast('warning', 'Missing Fields', 'Please complete all required fields.');
+      addToast('warning', 'Missing Fields', 'Please complete all required fields (Class, Package/Item, Fee Amount).');
       return;
     }
 
@@ -185,7 +186,15 @@ export const FinanceUniformConfigView: React.FC = () => {
                     <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                       <Shirt className="w-4 h-4 text-sky-500 shrink-0" /> {c.className}
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">{c.uniformPackage}</td>
+                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
+                      {(() => {
+                        let pkgStr = c.uniformPackage || '';
+                        if (pkgStr.toLowerCase().includes('base package') || pkgStr.toLowerCase() === 'base package') {
+                          pkgStr = 'Uniform Base Package (Admission Kit)';
+                        }
+                        return `${pkgStr} ${(c as any).fabricMeterage ? `[${(c as any).fabricMeterage}]` : ''}`.trim();
+                      })()}
+                    </td>
                     <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">{c.gender}</td>
                     <td className="py-3.5 px-4">
                       <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-[10px]">
@@ -227,20 +236,19 @@ export const FinanceUniformConfigView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Shirt className="w-5 h-5 text-sky-500" /> Save Uniform Configuration
+              <Shirt className="w-5 h-5 text-sky-500" /> Add Uniform Fee
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={form.className || ''}
                     onChange={e => {
                       const newCls = e.target.value;
-                      const newFee = newCls && newCls !== 'All Classes' ? getUniformPackageFeeByClass(newCls) : 0;
-                      setForm({ ...form, className: newCls, feeAmount: newFee || form.feeAmount });
+                      setForm({ ...form, className: newCls });
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
                   >
@@ -250,7 +258,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender Segregation <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
                     required
                     value={form.gender || ''}
@@ -266,25 +274,33 @@ export const FinanceUniformConfigView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Uniform Package / Item Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 {(() => {
-                  const basePackages = [
-                    'Boys Uniform Package (Admission Kit)',
-                    'Girls Uniform Package (Admission Kit)',
-                    'Unstitched Uniform Cloth Package'
-                  ];
+                  const basePackagesMap = new Map<string, string>();
+                  const additionalItemsMap = new Map<string, string>();
 
-                  const allCatNames = (uniformCategories || [])
-                    .map(c => typeof c === 'string' ? c : (c.name || (c as any).categoryName || ''))
-                    .filter(Boolean);
+                  (uniforms || []).forEach(u => {
+                    if (!u) return;
+                    const rawName = (u.category || u.name || '').trim();
+                    if (!rawName) return;
+                    const lowerKey = rawName.toLowerCase();
+                    const isBoysPkg = lowerKey.includes('boys') && (lowerKey.includes('package') || lowerKey.includes('admission') || lowerKey.includes('kit'));
+                    const isGirlsPkg = lowerKey.includes('girls') && (lowerKey.includes('package') || lowerKey.includes('admission') || lowerKey.includes('kit'));
+                    const isCloth = lowerKey === 'cloth' || lowerKey.includes('unstitched') || lowerKey === 'fabric' || lowerKey.includes('cloth package');
 
-                  const uniqueCats = Array.from(new Set(allCatNames));
+                    if (isCloth || isBoysPkg || isGirlsPkg) {
+                      basePackagesMap.set(lowerKey, rawName);
+                    } else {
+                      additionalItemsMap.set(lowerKey, rawName);
+                    }
+                  });
 
-                  // Configured Categories & Additional Items (excluding base packages)
-                  const additionalItems = uniqueCats.filter(name => 
-                    !name.toLowerCase().includes('package') && 
-                    !name.toLowerCase().includes('kit')
-                  );
+                  if (!basePackagesMap.has('cloth')) {
+                    basePackagesMap.set('cloth', 'Cloth');
+                  }
+
+                  const basePackages = Array.from(basePackagesMap.values());
+                  const additionalItems = Array.from(additionalItemsMap.values());
 
                   return (
                     <select
@@ -300,55 +316,61 @@ export const FinanceUniformConfigView: React.FC = () => {
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold outline-none cursor-pointer"
                     >
                       <option value="">-- Select Package / Item --</option>
-                      <optgroup label="Standard Admission Base Packages">
-                        {basePackages.map(pkg => (
-                          <option key={pkg} value={pkg}>{pkg}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Configured Categories & Additional Items (from Uniform Management)">
-                        {additionalItems.map(item => (
-                          <option key={item} value={item}>{item}</option>
-                        ))}
-                      </optgroup>
+                      {basePackages.length > 0 && (
+                        <optgroup label="Base Packages (Admission Kit & Material)">
+                          {basePackages.map(pkg => (
+                            <option key={pkg} value={pkg}>{pkg}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {additionalItems.length > 0 && (
+                        <optgroup label="Additional Packages / Extra Items">
+                          {additionalItems.map(item => (
+                            <option key={item} value={item}>{item}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   );
                 })()}
               </div>
 
               {/* Fabric Measurement Specification Dropdown (if Cloth/Fabric item selected) */}
-              {(form.uniformPackage?.toLowerCase().includes('cloth') || form.uniformPackage?.toLowerCase().includes('fabric') || form.uniformPackage?.toLowerCase().includes('unstitched')) && (
+              {((form.uniformPackage || '').toLowerCase().includes('cloth') || (form.uniformPackage || '').toLowerCase().includes('fabric') || (form.uniformPackage || '').toLowerCase().includes('unstitched')) && (
                 <div className="p-3 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl space-y-1.5 animate-in fade-in">
                   <label className="block text-[11px] font-extrabold text-amber-900 dark:text-amber-300">Fabric Measurement Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
-                    value={(form as any).fabricMeterage || '3.0 Meters'}
+                    value={(form as any).fabricMeterage || ''}
                     onChange={e => setForm({ ...form, fabricMeterage: e.target.value } as any)}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-slate-900 dark:text-white font-bold cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
                   >
-                    <option value="2.5 Meters">2.5 Meters (Shirt/Trouser Cut Length)</option>
-                    <option value="3.0 Meters">3.0 Meters (Suit/Pants Cut Length)</option>
-                    <option value="4.0 Meters">4.0 Meters (Full Uniform Fabric Set)</option>
-                    <option value="5.0 Meters">5.0 Meters (Suit & Blazer Set Fabric)</option>
-                    <option value="Unstitched Roll">Unstitched Roll / Standard Roll Cut</option>
+                    <option value="">All Meterage Lengths (Standard)</option>
+                    <option value="1.0m - 1.5m">1.0m - 1.5m (Primary Kids)</option>
+                    <option value="1.5m - 2.0m">1.5m - 2.0m (Junior Wing)</option>
+                    <option value="2.0m - 2.5m">2.0m - 2.5m (Senior Wing)</option>
+                    <option value="2.5m - 3.0m">2.5m - 3.0m (Custom Cut)</option>
                   </select>
                 </div>
               )}
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Package Fee Amount (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  {(form.uniformPackage || '').toLowerCase().includes('cloth') ? 'Fabric Fee Amount (₹) *' : 'Item / Package Amount (₹) *'}
+                </label>
                 <input
                   type="number"
                   required
                   min={0}
-                  placeholder="e.g. 3500"
-                  value={form.feeAmount || ''}
-                  onChange={e => setForm({ ...form, feeAmount: Number(e.target.value) })}
+                  placeholder={ (form.uniformPackage || '').toLowerCase().includes('cloth') ? "e.g. 600" : "e.g. 7000" }
+                  value={form.feeAmount === undefined || form.feeAmount === null ? '' : form.feeAmount}
+                  onChange={e => setForm({ ...form, feeAmount: e.target.value === '' ? (undefined as any) : Number(e.target.value) })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-black text-sky-600 dark:text-sky-400 text-sm outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-extrabold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20">Save Settings</button>
+                <button type="submit" className="px-5 py-2 font-extrabold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20">Save</button>
               </div>
             </form>
           </div>

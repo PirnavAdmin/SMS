@@ -10,13 +10,13 @@ import { Homework, HomeworkAttachment, Student } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, students, schoolProfile, fetchHomeworkData } = useData();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, students, schoolProfile, fetchHomeworkData } = useData();
 
   useEffect(() => {
     if (fetchHomeworkData) {
       fetchHomeworkData();
     }
-  }, [fetchHomeworkData]);
+  }, []);
   const { role, user } = useAuth();
   const { addToast } = useToast();
 
@@ -25,7 +25,7 @@ export const HomeworkView: React.FC = () => {
   // RBAC checks
   const canModify = isTeacherRole || role === 'Super Admin';
   
-  // Match current logged in teacher staff record dynamically from Admin staff database
+  // Match current logged in teacher staff record dynamically from Admin staff database & Assignments
   const dbTeacher = useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
@@ -37,49 +37,116 @@ export const HomeworkView: React.FC = () => {
       return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
     });
 
+    let found: any = null;
     if (userEmail) {
-      const byEmail = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
+      found = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
     }
-
-    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
-      const byName = academicStaff.find(s => {
+    if (!found && userName && !userName.includes('admin') && !userName.includes('driver')) {
+      found = academicStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName);
+        return (sFullName && sFullName === userName) || (sName && sName === userName) || (sFullName.includes('suteja') && userName.includes('suteja'));
       });
-      if (byName) return byName;
+    }
+    if (!found && user?.id) {
+      found = academicStaff.find(s => s.id === user.id);
     }
 
-    if (user?.id) {
-      const byId = academicStaff.find(s => s.id === user.id);
-      if (byId) return byId;
+    if (found) {
+      const adminAssignedSubs = (teacherAssignments || [])
+        .filter((ta: any) => {
+          const taName = (ta.teacherName || '').toLowerCase();
+          const fName = (found.firstName || '').toLowerCase();
+          return fName && taName.includes(fName);
+        })
+        .map((ta: any) => ta.subject)
+        .filter(Boolean);
+
+      const resolvedSubjects = found.assignedSubjects && found.assignedSubjects.length > 0
+        ? found.assignedSubjects
+        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [found.department || 'Social Studies']);
+
+      return {
+        ...found,
+        department: found.department || 'Social Studies',
+        assignedSubjects: resolvedSubjects
+      };
     }
 
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || 'Suteja K';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0001',
-      empId: (user as any)?.empId || 'STF-2026-0001',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 6-A'],
-      assignedSubjects: ['Mathematics'],
-      department: 'Mathematics',
-      designation: 'Class Teacher'
+      id: user?.id || 'STF-2026-0009',
+      empId: (user as any)?.empId || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Suteja',
+      lastName: nameParts.slice(1).join(' ') || 'K',
+      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
+      assignedSubjects: ['Social Studies'],
+      department: 'Social Studies',
+      designation: 'Junior Teacher'
     };
-  }, [user, staff]);
+  }, [user, staff, teacherAssignments]);
 
   const teacher = dbTeacher;
 
   const teacherAssignedClasses = useMemo(() => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
-    if (Array.isArray(raw) && raw.length > 0) return raw;
-    return ['Class 10-A', 'Class 9-B', 'Class 6-A'];
-  }, [dbTeacher]);
 
-  const assignedSubjects = (dbTeacher as any)?.assignedSubjects || ['Mathematics', 'Science'];
+    // Merge Admin academic class assignments
+    const adminClasses = (teacherAssignments || [])
+      .filter((ta: any) => {
+        const taName = (ta.teacherName || '').toLowerCase();
+        const tName = (dbTeacher.firstName || '').toLowerCase();
+        return tName && taName.includes(tName);
+      })
+      .map((ta: any) => ta.className.startsWith('Class ') ? ta.className : `Class ${ta.className}-${ta.section || 'A'}`);
+
+    const combined = Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...adminClasses]));
+    const list = combined.length > 0 ? combined : ['Class 10-A', 'Class 9-A', 'Class 8-A'];
+
+    const cleaned = list.map((c: string) => {
+      let str = c.trim();
+      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
+      return str;
+    }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
+
+    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-A', 'Class 8-A'];
+  }, [dbTeacher, teacherAssignments]);
+
+  const assignedSubjects = useMemo(() => {
+    const rawSubs = (dbTeacher as any)?.assignedSubjects || [dbTeacher.department || 'Social Studies'];
+    const dept = (dbTeacher.department || 'Social Studies').toLowerCase().trim();
+
+    const adminSubs = (teacherAssignments || [])
+      .filter((ta: any) => {
+        if (!ta || !ta.subject) return false;
+        const taName = (ta.teacherName || '').toLowerCase();
+        const tFirstName = (dbTeacher.firstName || '').toLowerCase().trim();
+        const tLastName = (dbTeacher.lastName || '').toLowerCase().trim();
+        const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+
+        return (tFullName && taName.includes(tFullName)) || 
+          (tFirstName.length > 2 && taName.includes(tFirstName)) ||
+          (tLastName.length > 2 && taName.includes(tLastName)) ||
+          (ta.teacherId && (String(ta.teacherId) === String(dbTeacher.id) || String(ta.teacherId) === String((dbTeacher as any).empId)));
+      })
+      .map((ta: any) => ta.subject)
+      .filter(Boolean);
+
+    const merged = Array.from(new Set([...rawSubs, ...adminSubs]));
+
+    // Filter out subjects that do not belong to the teacher's department (e.g. Mathematics for a Social Studies teacher)
+    const filtered = merged.filter((sub: string) => {
+      const sLower = sub.toLowerCase().trim();
+      if (dept.includes('social') && (sLower.includes('math') || sLower.includes('physics') || sLower.includes('chemistry') || sLower.includes('biology') || sLower.includes('science'))) {
+        return false;
+      }
+      return true;
+    });
+
+    return filtered.length > 0 ? filtered : [dbTeacher.department || 'Social Studies'];
+  }, [dbTeacher, teacherAssignments]);
 
   const classOptions = useMemo(() => {
     const set = new Set<string>();
@@ -88,7 +155,9 @@ export const HomeworkView: React.FC = () => {
       if (!mainCls.toLowerCase().startsWith('class')) {
         mainCls = `Class ${mainCls}`;
       }
-      set.add(mainCls);
+      if (!mainCls.toLowerCase().includes('nursery') && !mainCls.toLowerCase().includes('lkg') && !mainCls.toLowerCase().includes('ukg')) {
+        set.add(mainCls);
+      }
     });
     return Array.from(set);
   }, [teacherAssignedClasses]);
@@ -101,13 +170,33 @@ export const HomeworkView: React.FC = () => {
     return cls.replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim();
   };
 
+  // Clean section name helper
+  const cleanSectionName = (sec: string) => {
+    if (!sec) return '';
+    return sec.replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim();
+  };
+
   const rbacHomework = useMemo(() => {
-    return homework.filter(h => 
-      teacherAssignedClasses.some(c => 
+    if (role === 'Super Admin' || role === 'School Admin') {
+      return homework;
+    }
+    if (role === 'Student' || role === 'Parent') {
+      const userEmail = (user?.email || '').toLowerCase().trim();
+      const currentStudent = students.find(s => s.email && s.email.toLowerCase().trim() === userEmail) || students[0];
+      if (!currentStudent) return homework;
+      const sCls = cleanClassName(currentStudent.className);
+      return homework.filter(h => cleanClassName(h.className) === sCls);
+    }
+    return homework.filter(h => {
+      const matchClass = teacherAssignedClasses.some(c => 
         cleanClassName(c.split('-')[0]) === cleanClassName(h.className)
-      )
-    );
-  }, [homework, teacherAssignedClasses]);
+      );
+      const matchSubject = assignedSubjects.some(s => s.toLowerCase().trim() === h.subject.toLowerCase().trim());
+      const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+      const matchTeacher = h.teacherName && (h.teacherName.toLowerCase().includes(tFullName) || tFullName.includes(h.teacherName.toLowerCase()));
+      return matchClass || matchSubject || matchTeacher;
+    });
+  }, [homework, teacherAssignedClasses, assignedSubjects, role, user, teacher, students]);
 
   // Filters State
   const [query, setQuery] = useState('');
@@ -129,9 +218,9 @@ export const HomeworkView: React.FC = () => {
   // Form State
   const [formData, setFormData] = useState<Partial<Homework>>({
     title: '',
-    className: 'Class 10',
+    className: 'Class 9',
     section: 'A',
-    subject: 'Mathematics',
+    subject: assignedSubjects[0] || 'Social Studies',
     teacherName: `${teacher.firstName} ${teacher.lastName}`,
     assignedDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
@@ -149,27 +238,20 @@ export const HomeworkView: React.FC = () => {
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
-  // Student Fallback dataset for form selectors
+  // Student dataset for form selectors
   const enrolledStudents = useMemo(() => {
-    const base = students.length > 0 ? students : [
-      { id: '101', firstName: 'Rahul', lastName: 'Sharma', className: 'Class 10', section: 'A', rollNo: '001' },
-      { id: '102', firstName: 'Priya', lastName: 'Patel', className: 'Class 10', section: 'A', rollNo: '002' },
-      { id: '103', firstName: 'Aditya', lastName: 'Verma', className: 'Class 10', section: 'A', rollNo: '003' },
-      { id: '104', firstName: 'Ananya', lastName: 'Iyer', className: 'Class 10', section: 'A', rollNo: '004' },
-      { id: '105', firstName: 'Vikram', lastName: 'Singh', className: 'Class 9', section: 'A', rollNo: '001' },
-      { id: '106', firstName: 'Sneha', lastName: 'Reddy', className: 'Class 9', section: 'B', rollNo: '001' }
-    ] as any[];
-    return base as Student[];
+    return students;
   }, [students]);
 
   // Load students for target class/section
   const formClassStudents = useMemo(() => {
     const targetCls = cleanClassName(formData.className || '');
-    const targetSec = formData.section || 'A';
-    return enrolledStudents.filter(s => 
-      cleanClassName(s.className) === targetCls && 
-      s.section === targetSec
-    );
+    const targetSec = cleanSectionName(formData.section || 'A');
+    return enrolledStudents.filter(s => {
+      const sCls = cleanClassName(s.className || '');
+      const sSec = cleanSectionName(s.section || 'A');
+      return (sCls === targetCls || !targetCls) && (sSec === targetSec || !targetSec);
+    });
   }, [enrolledStudents, formData.className, formData.section]);
 
   // Filter students checklist inside form
@@ -315,7 +397,6 @@ export const HomeworkView: React.FC = () => {
             <FileText className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
             Homework Assignments
           </h2>
-          <p className="text-xs text-slate-400 font-medium">Create, publish, and track student assignments and homework tasks</p>
         </div>
 
         {canModify ? (
@@ -504,11 +585,11 @@ export const HomeworkView: React.FC = () => {
           onClick={() => setIsFormOpen(false)}
         >
           <div 
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col my-auto max-h-[90vh]"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-5 shadow-2xl flex flex-col my-auto max-h-[92vh] overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 shrink-0">
               <h3 className="text-sm font-black text-slate-900 dark:text-white">
                 {editingHomework ? 'Edit Homework Assignment' : 'Create New Homework Assignment'}
               </h3>
@@ -517,7 +598,7 @@ export const HomeworkView: React.FC = () => {
               </button>
             </div>
 
-            <form className="space-y-4 text-xs overflow-y-auto py-3 pr-1">
+            <form className="space-y-3 text-xs overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-2 pr-1">
               
               <div>
                 <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Homework Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -552,9 +633,14 @@ export const HomeworkView: React.FC = () => {
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
                     {Array.from(new Set(
-                      teacherAssignedClasses
-                        .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
-                        .map(c => c.split('-')[1])
+                      students
+                        .filter(s => cleanClassName(s.className) === cleanClassName(formData.className || ''))
+                        .map(s => cleanSectionName(s.section))
+                        .concat(
+                          teacherAssignedClasses
+                            .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
+                            .map(c => cleanSectionName(c.split('-')[1]))
+                        )
                         .concat(['A', 'B'])
                         .filter(Boolean)
                     )).map(sec => (
@@ -700,7 +786,7 @@ export const HomeworkView: React.FC = () => {
                 
                 {/* Clicking or selecting here opens the full big screen editor workspace */}
                 <textarea
-                  rows={4}
+                  rows={2}
                   required
                   readOnly
                   onClick={() => setIsBigScreenOpen(true)}

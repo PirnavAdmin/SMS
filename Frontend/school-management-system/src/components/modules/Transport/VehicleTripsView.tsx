@@ -28,12 +28,14 @@ const formatTripTime = (value?: string) => {
 
 export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps }) => {
   const {
-    vehicleAssignments,
-    vehicleMasters,
-    driverMasters,
-    routeMasters,
-    studentTransports,
-    busAttendants
+    students = [],
+    vehicleAssignments = [],
+    vehicleMasters = [],
+    driverMasters = [],
+    routeMasters = [],
+    studentTransports = [],
+    busAttendants = [],
+    admissions = []
   } = useData();
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -65,7 +67,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
     setIsDetailsModalOpen(true);
   };
 
-  const filteredAssignments = vehicleAssignments.filter(assignment => {
+  const rawFilteredAssignments = vehicleAssignments.filter(assignment => {
     const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
     const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
     const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName || r.routeCode === assignment.routeName);
@@ -77,6 +79,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
       searchQuery.trim() === '' ||
       assignment.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       assignment.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (route && route.routeName && route.routeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       assignment.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       attendant.name.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -89,7 +92,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
         assignment.routeId === selectedRouteObj.id ||
         assignment.routeName === selectedRouteObj.routeName ||
         assignment.routeName === selectedRouteObj.routeCode ||
-        (selectedRouteObj.routeName && assignment.routeName && selectedRouteObj.routeName.trim().toLowerCase() === assignment.routeName.trim().toLowerCase())
+        (selectedRouteObj.routeName && assignment.routeName && selectedRouteObj.routeName.trim().toLowerCase() === selectedRouteObj.routeName.trim().toLowerCase())
       )) ||
       (route && (
         route.id === filterRoute ||
@@ -101,14 +104,76 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
     return matchesSearch && matchesRoute;
   });
 
-  const runningCount = vehicleAssignments.filter(assignment => assignment.status === 'Active').length;
-  const offlineGpsCount = vehicleAssignments.filter(assignment => {
+  // Smart deduplication per vehicle to eliminate N/A duplicate cards
+  const tripsByVehicleMap = new Map<string, VehicleAssignment>();
+  rawFilteredAssignments.forEach(assignment => {
+    const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
+    const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
+    const hasValidRoute = resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A';
+
+    const vehicleKey = assignment.vehicleNumber && assignment.vehicleNumber.trim() !== ''
+      ? assignment.vehicleNumber.trim().toUpperCase()
+      : (assignment.vehicleId || assignment.id);
+
+    if (!tripsByVehicleMap.has(vehicleKey)) {
+      tripsByVehicleMap.set(vehicleKey, assignment);
+    } else {
+      const existing = tripsByVehicleMap.get(vehicleKey)!;
+      const existingRoute = routeMasters.find(r => r.id?.toString() === existing.routeId?.toString() || r.routeName?.toLowerCase() === existing.routeName?.toLowerCase());
+      const existingRouteName = (existingRoute?.routeName || existing.routeName || '').trim();
+      const existingHasValidRoute = existingRouteName !== '' && existingRouteName.toUpperCase() !== 'N/A';
+
+      if (!existingHasValidRoute && hasValidRoute) {
+        tripsByVehicleMap.set(vehicleKey, assignment);
+      }
+    }
+  });
+
+  const filteredAssignments = Array.from(tripsByVehicleMap.values()).filter(assignment => {
+    const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
+    const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
+    const resolvedVehicleNumber = (assignment.vehicleNumber || '').trim();
+    
+    return (resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A') || resolvedVehicleNumber !== '';
+  });
+
+  // Calculate unique stats
+  const uniqueActiveAssignments = vehicleAssignments.filter(assignment => assignment.status === 'Active');
+  const activeTripsMap = new Map<string, VehicleAssignment>();
+  uniqueActiveAssignments.forEach(va => {
+    const key = va.vehicleNumber ? va.vehicleNumber.trim().toUpperCase() : va.id;
+    if (!activeTripsMap.has(key) || (va.routeName && va.routeName.toUpperCase() !== 'N/A')) {
+      activeTripsMap.set(key, va);
+    }
+  });
+  const uniqueActiveTrips = Array.from(activeTripsMap.values());
+
+  const runningCount = uniqueActiveTrips.length;
+  const offlineGpsCount = uniqueActiveTrips.filter(assignment => {
     const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
     return assignment.gpsStatus ? assignment.gpsStatus === 'Offline' : !vehicle?.gpsDeviceId;
   }).length;
-  const activeMorningTrips = vehicleAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.morningTripTime).length;
-  const activeEveningTrips = vehicleAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.eveningTripTime).length;
-  const studentsOnBoard = studentTransports.filter(st => st.status === 'Active').length;
+  const activeMorningTrips = uniqueActiveTrips.filter(assignment => !!assignment.morningTripTime).length;
+  const activeEveningTrips = uniqueActiveTrips.filter(assignment => !!assignment.eveningTripTime).length;
+  const studentsOnBoard = (students || []).filter(student => {
+    const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
+    if (!isStudentActive) return false;
+
+    const stAssignment = studentTransports.find(st => {
+      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+      if (!isStatusActive) return false;
+
+      const matchesStudent =
+        (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+        (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase());
+
+      return matchesStudent;
+    });
+
+    if (stAssignment) return true;
+
+    return Boolean(student.busRoute && student.busRoute.trim() !== '');
+  }).length;
 
   return (
     <div className="space-y-5 animate-in fade-in">
@@ -132,40 +197,35 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-2.5 text-xs">
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500">
-          <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicles Running</span>
-          <p className="text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">{runningCount}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+        <div className="glass-card px-3.5 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500 shadow-sm">
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Vehicles Running</span>
+          <p className="text-xl font-black text-slate-900 dark:text-white font-mono mt-0.5">{runningCount}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-emerald-500">
-          <span className="text-[10px] font-bold text-emerald-500 uppercase block">Trips Completed</span>
-          <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{Math.max(0, vehicleAssignments.length - runningCount)}</p>
+        <div className="glass-card px-3.5 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-emerald-500 shadow-sm">
+          <span className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider block">Trips Completed</span>
+          <p className="text-xl font-black text-emerald-600 font-mono mt-0.5">0</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-amber-500">
-          <span className="text-[10px] font-bold text-amber-500 uppercase block">Delayed Trips</span>
-          <p className="text-lg font-black text-amber-600 font-mono mt-0.5">0</p>
+        <div className="glass-card px-3.5 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-amber-500 shadow-sm">
+          <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider block">Delayed Trips</span>
+          <p className="text-xl font-black text-amber-600 font-mono mt-0.5">0</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500">
-          <span className="text-[10px] font-bold text-sky-500 uppercase block">Offline GPS Devices</span>
-          <p className="text-lg font-black text-sky-600 font-mono mt-0.5">{offlineGpsCount}</p>
+        <div className="glass-card px-3.5 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500 shadow-sm">
+          <span className="text-[10px] font-extrabold text-sky-500 uppercase tracking-wider block">Offline GPS Devices</span>
+          <p className="text-xl font-black text-sky-600 font-mono mt-0.5">{offlineGpsCount}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-600">
-          <span className="text-[10px] font-bold text-sky-600 uppercase block">Active Morning Trips</span>
-          <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono mt-0.5">{activeMorningTrips}</p>
+        <div className="glass-card px-3.5 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-600 shadow-sm">
+          <span className="text-[10px] font-extrabold text-sky-600 uppercase tracking-wider block">Active Morning Trips</span>
+          <p className="text-xl font-black text-sky-700 dark:text-sky-300 font-mono mt-0.5">{activeMorningTrips}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-emerald-600">
-          <span className="text-[10px] font-bold text-emerald-600 uppercase block">Students On Board</span>
-          <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{studentsOnBoard}</p>
-        </div>
-
-        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500">
-          <span className="text-[10px] font-bold text-sky-500 uppercase block">Active Evening Trips</span>
-          <p className="text-lg font-black text-sky-600 font-mono mt-0.5">{activeEveningTrips}</p>
+        <div className="glass-card px-3.5 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500 shadow-sm">
+          <span className="text-[10px] font-extrabold text-sky-500 uppercase tracking-wider block">Active Evening Trips</span>
+          <p className="text-xl font-black text-sky-600 font-mono mt-0.5">{activeEveningTrips}</p>
         </div>
       </div>
 
@@ -250,100 +310,164 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredAssignments.map(assignment => {
-          const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
-          const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
-          const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName);
+          const vehicle = vehicleMasters.find(v => 
+            (assignment.vehicleId && String(v.id).trim() === String(assignment.vehicleId).trim()) || 
+            (assignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase())
+          ) || vehicleMasters.find(v => v.vehicleNumber === assignment.vehicleNumber);
+
+          const driver = driverMasters.find(d => 
+            (assignment.driverId && String(d.id).trim() === String(assignment.driverId).trim()) || 
+            (assignment.driverName && d.driverName && d.driverName.trim().toLowerCase() === assignment.driverName.trim().toLowerCase())
+          );
+
+          const route = routeMasters.find(r => 
+            (assignment.routeId && String(r.id).trim() === String(assignment.routeId).trim()) || 
+            (assignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === assignment.routeName.trim().toLowerCase()) ||
+            (assignment.routeName && r.routeCode && r.routeCode.trim().toLowerCase() === assignment.routeName.trim().toLowerCase())
+          );
+
+          const targetRouteId = route?.id ? String(route.id).trim() : (assignment.routeId ? String(assignment.routeId).trim() : '');
+          const targetRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
+          const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
+
           const attendant = resolveAttendant(assignment);
           const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
-          const routeStudentsCount = studentTransports.filter(st =>
-            (route && (st.routeId === route.id || st.routeName === route.routeName)) ||
-            st.routeId === assignment.routeId ||
-            st.routeName === assignment.routeName ||
-            st.vehicleNumber === assignment.vehicleNumber
-          ).length;
-          const assignedCount = routeStudentsCount > 0
-            ? routeStudentsCount
-            : (assignment.assignedStudents && assignment.assignedStudents > 0)
-              ? assignment.assignedStudents
-              : 5;
+
+          const routeStudentsCount = students.filter(student => {
+            const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
+            if (!isStudentActive) return false;
+
+            const stAssignment = studentTransports.find(st => {
+              const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+              if (!isStatusActive) return false;
+
+              return (
+                (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+                (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
+              );
+            });
+
+            const matchedAdm = admissions.find(a =>
+              (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
+              (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
+              (a.id && student.id && String(a.id).trim() === String(student.id).trim())
+            );
+
+            let isAssignedToThisRoute = false;
+
+            if (stAssignment) {
+              const stRouteId = stAssignment.routeId ? String(stAssignment.routeId).trim() : '';
+              const stRouteName = (stAssignment.routeName || '').trim().toLowerCase();
+
+              if (targetRouteId && stRouteId && stRouteId === targetRouteId) {
+                isAssignedToThisRoute = true;
+              } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && stRouteName === targetRouteName) {
+                isAssignedToThisRoute = true;
+              } else if (targetRouteCode && stRouteName === targetRouteCode) {
+                isAssignedToThisRoute = true;
+              }
+            }
+
+            if (!isAssignedToThisRoute) {
+              const sRoute = (student.busRoute || student.routeId || matchedAdm?.busRoute || '').trim().toLowerCase();
+              const isTransportOpted = student.transportRequired === true || matchedAdm?.transportRequired === true || (sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned');
+
+              if (isTransportOpted && sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned') {
+                if (targetRouteId && (sRoute === targetRouteId || (student.routeId && String(student.routeId).trim() === targetRouteId))) {
+                  isAssignedToThisRoute = true;
+                } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && sRoute === targetRouteName) {
+                  isAssignedToThisRoute = true;
+                } else if (targetRouteCode && sRoute === targetRouteCode) {
+                  isAssignedToThisRoute = true;
+                }
+              }
+            }
+
+            return isAssignedToThisRoute;
+          }).length;
+
+          const assignedCount = routeStudentsCount;
           const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
           const gpsOnline = assignment.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle?.gpsDeviceId;
           const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
           const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
+          const displayRouteName = route?.routeName || (assignment.routeName && assignment.routeName.toUpperCase() !== 'N/A' ? assignment.routeName : '') || 'Unassigned Route';
 
           return (
             <div
               key={assignment.id}
               onClick={() => handleOpenTripDetails(assignment)}
-              className="glass-card p-4 rounded-2xl space-y-2.5 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 transition-all cursor-pointer shadow-sm group hover:shadow-lg"
+              className="glass-card p-4.5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 transition-all cursor-pointer shadow-sm group hover:shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-md"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 group-hover:bg-sky-600 group-hover:text-white transition-colors">
-                    {assignment.vehicleNumber}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xs font-black px-3 py-1 rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 group-hover:bg-sky-600 group-hover:text-white transition-colors border border-sky-200 dark:border-sky-800">
+                    {assignment.vehicleNumber || 'Unassigned'}
                   </span>
                   <div>
-                    <h3 className="font-black text-sm text-slate-900 dark:text-white">{assignment.routeName}</h3>
-                    <p className="text-[10px] text-slate-400 font-mono">Reg: {vehicle?.registrationNumber || 'NY-99-AB-1001'}</p>
+                    <h3 className="font-black text-sm text-slate-900 dark:text-white">{displayRouteName}</h3>
+                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                      Reg: {vehicle?.registrationNumber || vehicle?.vehicleNumber || 'REG-5646'}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5">
                   <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">{statusText}</Badge>
                   {gpsOnline ? (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
                       <Signal className="w-3 h-3 text-emerald-500 animate-pulse" /> GPS Online
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">GPS Offline</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-slate-200 dark:border-slate-700">GPS Offline</span>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5 text-xs">
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
-                    <Users className="w-3 h-3 text-sky-500" /> Commercial Driver
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-sky-500" /> Commercial Driver
                   </span>
-                  <p className="font-bold text-slate-900 dark:text-white">{driver?.driverName || assignment.driverName}</p>
-                  <p className="text-[11px] text-sky-600 font-mono font-bold flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> {driver?.mobileNumber || '+1 555-333-333'}
+                  <p className="font-bold text-slate-900 dark:text-white">{driver?.driverName || assignment.driverName || 'Unassigned'}</p>
+                  <p className="text-[11px] text-sky-600 dark:text-sky-400 font-mono font-bold flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> {driver?.mobileNumber || assignment.driverMobile || '+91-9878645565'}
                   </p>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
-                    <UserCheck className="w-3 h-3 text-emerald-500" /> Bus Attendant
+                <div className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Bus Attendant
                   </span>
-                  <p className="font-bold text-slate-900 dark:text-white">{attendant.name}</p>
-                  <p className="text-[11px] text-emerald-600 font-mono font-bold flex items-center gap-1">
+                  <p className="font-bold text-slate-900 dark:text-white">{attendant.name || 'Unassigned'}</p>
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-bold flex items-center gap-1">
                     <Phone className="w-3 h-3" /> {attendant.mobile || 'N/A'}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border">
+              <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50/80 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Students</span>
-                  <span className="font-black text-emerald-600 font-mono text-xs">{assignedCount} / {capacity}</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Students</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono text-xs">{assignedCount} / {capacity}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Morning Trip</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Morning Trip</span>
                   <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{morningTripTime}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Evening Trip</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Evening Trip</span>
                   <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{eveningTripTime}</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={e => {
                     e.stopPropagation();
                     onOpenGps?.(assignment);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs flex items-center gap-1 shadow-md shadow-sky-500/20 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20 cursor-pointer"
                 >
                   <Navigation className="w-3.5 h-3.5" /> Open GPS
                 </button>
@@ -352,7 +476,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                     e.stopPropagation();
                     handleOpenTripDetails(assignment);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
                 >
                   <Eye className="w-3.5 h-3.5" /> Details
                 </button>

@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { HostelProvider } from "./context/HostelContext";
 import { ExaminationProvider } from "./context/ExaminationContext";
 import { HRProvider } from "./context/HRContext";
-import { DataProvider } from "./context/DataContext";
+import { DataProvider, useData } from "./context/DataContext";
 
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
@@ -63,9 +63,26 @@ import { SettingsView } from "./components/modules/Settings/SettingsView";
 import { TrainingContainerView } from "./components/modules/School Administration/Faculty Development & Training/TrainingContainerView";
 
 const MainLayout: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, setUser } = useAuth();
+  const { staff } = useData();
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [showLogin, setShowLogin] = useState(false);
+
+  useEffect(() => {
+    if (user && staff && staff.length > 0) {
+      const matched = staff.find(
+        (s) => s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()
+      );
+      if (matched) {
+        const fullName = `${matched.firstName} ${matched.lastName}`;
+        if (user.name !== fullName) {
+          const updated = { ...user, name: fullName };
+          setUser(updated);
+          localStorage.setItem("auth_user", JSON.stringify(updated));
+        }
+      }
+    }
+  }, [user, staff, setUser]);
   const [collapsed, setCollapsedState] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("sidebar_collapsed");
@@ -442,13 +459,18 @@ const MainLayout: React.FC = () => {
         );
       case "hostel":
       case "hostel-room-allocation":
+      case "hostel-attendance":
+      case "hostel-attendance-register":
+      case "hostel-outpass":
+      case "hostel-outpass-leave":
+      case "outpass":
       case "room-allocation":
       case "student-hostel":
         return userRole === "parent" || userRole === "student" ? (
           <ParentHostelView />
         ) : (
           <HostelContainerView
-            initialTab="hostel-student-hostel"
+            initialTab={activeModule}
             onTabChange={setActiveModule}
           />
         );

@@ -11,7 +11,7 @@ export const InventoryView: React.FC = () => {
     if (fetchInventoryData) {
       fetchInventoryData();
     }
-  }, [fetchInventoryData]);
+  }, []);
   const { addToast } = useToast();
 
   const [isAddOpen, setIsAddOpen] = useState(false);

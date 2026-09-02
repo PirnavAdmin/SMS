@@ -146,6 +146,20 @@ export const deleteUniformDistributionApi = async (id: number | string) => {
   return apiClient(`/api/Uniform/distributions/${id}`, { method: 'DELETE' });
 };
 
+export const returnUniformApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/Uniform/distributions/${id}/return`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const exchangeUniformApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/Uniform/distributions/${id}/exchange`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
 // ============================
 // UNIFORM REPORTS
 // ============================

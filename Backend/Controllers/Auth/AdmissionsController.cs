@@ -38,10 +38,29 @@ public class AdmissionsController : ControllerBase
     public async Task<IActionResult> SubmitApplication([FromBody] SubmitAdmissionDto dto) =>
         Ok(new { success = true, message = "Application submitted successfully.", data = await _schoolService.SubmitApplicationAsync(dto) });
 
-    [HttpPut("{id:int}")]
+    [HttpPut("{id}")]
     [AllowAnonymous]
-    public async Task<IActionResult> UpdateApplication(int id, [FromBody] SubmitAdmissionDto dto) =>
-        Ok(new { success = true, message = "Application updated successfully.", data = await _schoolService.UpdateApplicationAsync(id, dto) });
+    public async Task<IActionResult> UpdateApplication(string id, [FromBody] SubmitAdmissionDto dto)
+    {
+        int targetId = 0;
+        if (int.TryParse(id, out int parsedId))
+        {
+            targetId = parsedId;
+        }
+        else
+        {
+            var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
+            var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase));
+            if (target != null) targetId = target.Id;
+        }
+
+        if (targetId <= 0)
+        {
+            return NotFound(new { success = false, message = $"Application '{id}' not found." });
+        }
+
+        return Ok(new { success = true, message = "Application updated successfully.", data = await _schoolService.UpdateApplicationAsync(targetId, dto) });
+    }
 
     [HttpDelete("{id:int}")]
     [AllowAnonymous]

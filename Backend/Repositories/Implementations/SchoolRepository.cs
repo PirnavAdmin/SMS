@@ -211,6 +211,7 @@ public class SchoolRepository : ISchoolRepository
         var query = _context.AdmissionApplications
             .AsNoTracking()
             .Include(a => a.AppliedClass)
+            .Where(a => !a.IsDeleted && a.Status != "Deleted")
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
@@ -229,7 +230,7 @@ public class SchoolRepository : ISchoolRepository
     }
 
     public async Task<AdmissionApplication?> GetApplicationByIdAsync(int id) =>
-        await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == id);
+        await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && a.Status != "Deleted");
 
     public async Task AddApplicationAsync(AdmissionApplication application) =>
         await _context.AdmissionApplications.AddAsync(application);
@@ -430,6 +431,15 @@ public class SchoolRepository : ISchoolRepository
                 SectionId = s.SectionId,
                 SectionName = s.ClassSection.SectionName,
                 Status = s.Status,
+                FatherName = s.FatherName,
+                FatherMobile = s.FatherMobile,
+                MotherName = s.MotherName,
+                MotherMobile = s.MotherMobile,
+                Email = s.Email,
+                MobileNumber = s.MobileNumber,
+                Gender = s.Gender,
+                DateOfBirth = s.DateOfBirth,
+                Address = s.Address,
                 AttendancePercentage = null,
                 Performance = null
             })

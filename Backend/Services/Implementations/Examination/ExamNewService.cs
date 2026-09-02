@@ -88,17 +88,9 @@ public class ExamNewService : IExamNewService
         var exam = await _repository.GetExamByIdAsync(examId);
         if (exam == null) return null;
 
-        string targetClass = string.IsNullOrWhiteSpace(className) ? "Class 1" : className;
+        string targetClass = string.IsNullOrWhiteSpace(className) ? "" : className;
 
-        var availableSubjects = new List<SubjectMarksConfigItemDto>
-        {
-            new SubjectMarksConfigItemDto { SubjectCode = "MTH-101", SubjectName = "Mathematics", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "CHM-103", SubjectName = "Chemistry", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "ENG-105", SubjectName = "English Literature", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "HIS-107", SubjectName = "History", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "ACC-109", SubjectName = "Accounts", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "PHY-102", SubjectName = "Physics", IsActive = false, MaxMarks = 100, PassMarks = 35 }
-        };
+        var availableSubjects = new List<SubjectMarksConfigItemDto>();
 
         var savedConfigs = await _repository.GetSubjectConfigsAsync(examId, targetClass);
         if (savedConfigs != null && savedConfigs.Any())
@@ -131,8 +123,7 @@ public class ExamNewService : IExamNewService
             }
         }
 
-        var applicableClasses = (exam.ApplicableClasses ?? "Class 1").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList();
-        if (!applicableClasses.Any()) applicableClasses.Add("Class 1");
+        var applicableClasses = (exam.ApplicableClasses ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList();
 
         return new SubjectConfigPageResponseDto
         {

@@ -26,8 +26,15 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetExamOptions()
     {
-        var result = await _service.GetExamOptionsAsync();
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetExamOptionsAsync();
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to load exam options.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -37,9 +44,16 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetExamDetails(int id)
     {
-        var result = await _service.GetExamDetailsByIdAsync(id);
-        if (result == null) return NotFound(new { success = false, message = "Examination not found." });
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetExamDetailsByIdAsync(id);
+            if (result == null) return NotFound(new { success = false, message = "Examination not found." });
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to get exam details.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -49,16 +63,23 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> SaveExamDetails([FromBody] SaveExamDetailsRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
-            return BadRequest(new { success = false, message = "Examination Name is required." });
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
+                return BadRequest(new { success = false, message = "Examination Name is required." });
 
-        var result = await _service.SaveExamDetailsAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Exam details saved successfully. Proceeding to Subjects & Marks.", 
-            redirectTo = "SubjectsAndMarks",
-            data = result 
-        });
+            var result = await _service.SaveExamDetailsAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Exam details saved successfully. Proceeding to Subjects & Marks.", 
+                redirectTo = "SubjectsAndMarks",
+                data = result 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to save exam details.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -68,16 +89,23 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> UpdateExamDetails(int id, [FromBody] SaveExamDetailsRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
-            return BadRequest(new { success = false, message = "Examination Name is required." });
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
+                return BadRequest(new { success = false, message = "Examination Name is required." });
 
-        request.ExamId = id;
-        var result = await _service.SaveExamDetailsAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = $"Examination {id} updated successfully.", 
-            data = result 
-        });
+            request.ExamId = id;
+            var result = await _service.SaveExamDetailsAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = $"Examination {id} updated successfully.", 
+                data = result 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to update exam details.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -85,11 +113,18 @@ public class ExamNewController : ControllerBase
     /// </summary>
     [HttpGet("subjects/{examId:int}")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
-    public async Task<IActionResult> GetSubjectsForExam(int examId, [FromQuery] string? className = "Class 1")
+    public async Task<IActionResult> GetSubjectsForExam(int examId, [FromQuery] string? className = "")
     {
-        var result = await _service.GetSubjectsForExamAsync(examId, className);
-        if (result == null) return NotFound(new { success = false, message = "Examination not found." });
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var result = await _service.GetSubjectsForExamAsync(examId, className);
+            if (result == null) return NotFound(new { success = false, message = "Examination not found." });
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch subjects for exam.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -99,16 +134,23 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> SaveSubjectsAndProceed([FromBody] SaveSubjectsAndMarksRequestDto request)
     {
-        if (request == null || request.ExamId <= 0)
-            return BadRequest(new { success = false, message = "Invalid Examination ID." });
+        try
+        {
+            if (request == null || request.ExamId <= 0)
+                return BadRequest(new { success = false, message = "Invalid Examination ID." });
 
-        var success = await _service.SaveSubjectsAndProceedAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Subjects & Marks saved successfully. Exam scheduled.", 
-            redirectTo = "ExamSchedule",
-            scheduled = success 
-        });
+            var success = await _service.SaveSubjectsAndProceedAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Subjects & Marks saved successfully. Exam scheduled.", 
+                redirectTo = "ExamSchedule",
+                scheduled = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to save subjects.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -118,16 +160,23 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> UpdateSubjects(int examId, [FromBody] SaveSubjectsAndMarksRequestDto request)
     {
-        if (request == null)
-            return BadRequest(new { success = false, message = "Invalid request payload." });
+        try
+        {
+            if (request == null)
+                return BadRequest(new { success = false, message = "Invalid request payload." });
 
-        request.ExamId = examId;
-        var success = await _service.SaveSubjectsAndProceedAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = $"Subjects & Marks for examination {examId} updated successfully.", 
-            updated = success 
-        });
+            request.ExamId = examId;
+            var success = await _service.SaveSubjectsAndProceedAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = $"Subjects & Marks for examination {examId} updated successfully.", 
+                updated = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to update subjects.", error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -137,11 +186,18 @@ public class ExamNewController : ControllerBase
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> DeleteExam(int id)
     {
-        var success = await _service.DeleteExamAsync(id);
-        return Ok(new { 
-            success = true, 
-            message = $"Examination {id} deleted successfully." 
-        });
+        try
+        {
+            var success = await _service.DeleteExamAsync(id);
+            return Ok(new { 
+                success = true, 
+                message = $"Examination {id} deleted successfully." 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to delete exam.", error = ex.Message });
+        }
     }
 }
 

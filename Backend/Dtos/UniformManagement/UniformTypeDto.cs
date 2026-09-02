@@ -39,6 +39,12 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("badgeText")]
         public string BadgeText => $"{Gender} • {(Size.StartsWith("Size ") ? Size : $"Size {Size}")}";
 
+        [JsonPropertyName("packageType")]
+        public string PackageType => ItemName.ToLower().Contains("package") || ItemName.ToLower().Contains("kit") ? "Uniform Package" : "Uniform Item";
+
+        [JsonPropertyName("includedItems")]
+        public List<string> IncludedItems { get; set; } = new();
+
         [JsonPropertyName("color")]
         public string Color { get; set; } = string.Empty;
 
@@ -197,6 +203,9 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
+
+        [JsonPropertyName("includedItems")]
+        public List<string>? IncludedItems { get; set; }
     }
 
     public class StockAdjustmentDto

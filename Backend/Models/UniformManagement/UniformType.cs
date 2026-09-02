@@ -44,6 +44,8 @@ namespace SMS.Api.Models
         [MaxLength(50)]
         public string? Status { get; set; } = "Active";
 
+        public string? IncludedItemsJson { get; set; }
+
         public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
