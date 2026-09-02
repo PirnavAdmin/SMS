@@ -143,6 +143,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
     }
   };
 
+  const currentLogo = typeof window !== 'undefined'
+    ? (localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '/pirnav-school-logo.png')
+    : '/pirnav-school-logo.png';
+
   return (
     <div className="h-screen w-full flex font-sans overflow-hidden relative bg-brand-950">
       {/* Background Image spanning the entire page */}
@@ -163,8 +167,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
         {/* Content Wrapper */}
         <div className="relative z-20 w-full max-w-2xl text-white space-y-12">
           <div>
-            <div className="inline-flex p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl mb-8">
-              <School className="w-12 h-12 text-white" />
+            <div className="inline-flex p-3 rounded-2xl bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl mb-8">
+              <img src={currentLogo} alt="School Logo" className="h-16 max-w-[200px] object-contain" />
             </div>
             <h1 className="text-5xl xl:text-6xl font-black tracking-tight leading-[1.1] mb-6">
               Empowering the <br />
@@ -217,8 +221,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
           <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl sm:rounded-[2rem] border border-white/20 dark:border-slate-800/50 shadow-2xl mt-auto mb-auto backdrop-blur-xl bg-opacity-95 dark:bg-opacity-95">
             {/* Minimalist Universal Header */}
           <div className="mb-6">
-            <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-600 shadow-xl shadow-brand-500/30 mb-4">
-              <School className="w-6 h-6 text-white" />
+            <div className="lg:hidden inline-flex p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md mb-4 max-w-[160px]">
+              <img src={currentLogo} alt="School Logo" className="h-10 object-contain" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               Sign In

@@ -39,7 +39,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   }
   const directLogoKey = typeof window !== 'undefined' ? (localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || localStorage.getItem('schoolLogo')) : null;
 
-  const logoUrl = schoolProfile?.logoUrl || savedProfile?.logoUrl || contextData.schoolProfile?.logoUrl || directLogoKey || '';
+  const logoUrl = schoolProfile?.logoUrl || savedProfile?.logoUrl || contextData.schoolProfile?.logoUrl || directLogoKey || '/pirnav-school-logo.png';
 
   const allExamMarks = contextData.examMarks;
   const allProcessedResults = contextData.processedResults;

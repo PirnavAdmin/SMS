@@ -67,13 +67,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   let usesTransport = true;
 
   if (role.toLowerCase() === "student" || role.toLowerCase() === "parent") {
-    const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
 
-    const parentWards = isKumar
-      ? [{ id: '2', firstName: 'pawankalyan', studentType: 'Hosteller', transportRequired: true }]
-      : students.filter(
+    const parentWards = students.filter(
           (s) =>
             s.status === "Active" &&
             (role.toLowerCase() === "student"
@@ -520,35 +517,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setCollapsed(false)}
             title="School Dashboard"
           >
-            {schoolProfile?.logoUrl ? (
-              <img
-                src={schoolProfile.logoUrl}
-                alt="School Logo"
-                className="max-h-7 max-w-7 object-contain"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950/60 flex items-center justify-center border border-sky-200 dark:border-sky-800">
-                <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-              </div>
-            )}
+            <img
+              src={schoolProfile?.logoUrl || "/pirnav-school-logo.png"}
+              alt="School Logo"
+              className="max-h-8 max-w-8 object-contain"
+            />
           </div>
         ) : (
           <div
-            className="flex items-center justify-center w-52 h-11 select-none cursor-pointer px-3 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
+            className="flex items-center justify-center w-52 h-12 select-none cursor-pointer px-2 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
             onClick={() => setActiveModule("dashboard")}
             title="School Dashboard"
           >
-            {schoolProfile?.logoUrl ? (
-              <img
-                src={schoolProfile.logoUrl}
-                alt="School Logo"
-                className="max-h-9 max-w-[180px] object-contain"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-950/60 flex items-center justify-center border border-sky-200 dark:border-sky-800">
-                <GraduationCap className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-              </div>
-            )}
+            <img
+              src={schoolProfile?.logoUrl || "/pirnav-school-logo.png"}
+              alt="School Logo"
+              className="max-h-10 max-w-[190px] object-contain"
+            />
           </div>
         )}
       </div>

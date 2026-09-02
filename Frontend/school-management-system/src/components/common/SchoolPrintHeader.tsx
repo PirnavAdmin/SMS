@@ -17,7 +17,7 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
 }) => {
   const { schoolProfile } = useData();
 
-  const logoUrl = schoolProfile?.logoUrl || '';
+  const logoUrl = schoolProfile?.logoUrl || '/pirnav-school-logo.png';
   const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
   const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
   const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';

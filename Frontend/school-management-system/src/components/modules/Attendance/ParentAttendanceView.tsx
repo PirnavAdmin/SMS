@@ -53,22 +53,8 @@ export const ParentAttendanceView: React.FC = () => {
 
   // Match children for Parent/Student role accurately
   let parentWards: any[] = [];
-  const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
 
-  if (isKumar) {
-    parentWards = [
-      {
-        id: '2',
-        studentId: 2,
-        firstName: 'pawankalyan',
-        lastName: '',
-        studentName: 'pawankalyan',
-        className: 'Class 6',
-        section: 'A',
-        status: 'Active'
-      }
-    ];
-  } else if (apiChildren.length > 0) {
+  if (apiChildren.length > 0) {
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
@@ -121,82 +107,6 @@ export const ParentAttendanceView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
-  // Dynamically generate robust static fallback data based on the selected filter
-  const staticFallbackAttendance = useMemo(() => {
-    const data: DailyAttendance[] = [];
-    let start = new Date();
-    let end = new Date();
-
-    if (filterType === 'Month') {
-      const year = parseInt(selectedYear);
-      const month = parseInt(selectedMonth);
-      start = new Date(year, month, 1);
-      end = new Date(year, month + 1, 0);
-    } else if (filterType === 'Day') {
-      start = new Date(selectedDate);
-      end = new Date(selectedDate);
-    } else if (filterType === 'Custom') {
-      start = new Date(startDate);
-      end = new Date(endDate);
-    }
-
-    // Sanity check to prevent infinite loops (max 1 year)
-    if (end < start) {
-      const temp = start;
-      start = end;
-      end = temp;
-    }
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays > 365) {
-      end = new Date(start);
-      end.setDate(end.getDate() + 365);
-    }
-
-    // Current date for comparison so we don't generate future attendance
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      if (d > today) continue; // No future attendance
-
-      const dayOfWeek = d.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Skip weekends
-      
-      // Handle local timezone offset to get correct YYYY-MM-DD
-      const offset = d.getTimezoneOffset()
-      const dLocal = new Date(d.getTime() - (offset*60*1000))
-      const dateStr = dLocal.toISOString().split('T')[0];
-      const dayNum = d.getDate();
-      
-      let status: DailyAttendance['status'] = 'Present';
-      let remarks = undefined;
-      
-      // Deterministic random status
-      if (dayNum % 8 === 0) {
-        status = 'Absent';
-        remarks = 'Sick leave';
-      } else if (dayNum % 14 === 0) {
-        status = 'Late';
-        remarks = 'Bus delay';
-      } else if (dayNum % 21 === 0) {
-        status = 'HalfDay';
-        remarks = 'Doctor appointment';
-      }
-
-      data.push({
-        id: `mock-att-${dateStr}`,
-        date: dateStr,
-        entityType: 'Student',
-        entityId: currentWard.id,
-        status,
-        remarks
-      });
-    }
-    
-    return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [filterType, selectedYear, selectedMonth, selectedDate, startDate, endDate, currentWard.id]);
-
   // Filter real attendance for the selected child and the selected month/year/day
   const rawWardAttendance = useMemo(() => {
     return attendance.filter(a => {
@@ -216,7 +126,7 @@ export const ParentAttendanceView: React.FC = () => {
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [attendance, currentWard.id, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
 
-  const wardAttendance = rawWardAttendance.length > 0 ? rawWardAttendance : staticFallbackAttendance;
+  const wardAttendance = rawWardAttendance;
 
   const filteredRecords = useMemo(() => {
     return wardAttendance.filter(record => statusFilter === 'All' || record.status === statusFilter);

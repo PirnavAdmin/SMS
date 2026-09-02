@@ -31,29 +31,15 @@ export const ParentTimetableView: React.FC = () => {
   const parentWards = React.useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
-    const isKumar = userName.includes('kumar') || userEmail.includes('kumar') || userEmail.includes('parent@pirnav.com');
 
-    if (isKumar) {
-      return [
-        {
-          id: '2',
-          studentId: 2,
-          firstName: 'pawankalyan',
-          lastName: '',
-          studentName: 'pawankalyan',
-          className: 'Class 6',
-          section: 'A',
-          status: 'Active'
-        }
-      ];
-    } else if (apiChildren.length > 0) {
+    if (apiChildren.length > 0) {
       return apiChildren.map(c => ({
         id: String(c.studentId),
         studentId: c.studentId,
         firstName: c.firstName || c.studentName.split(' ')[0],
         lastName: c.lastName || '',
         studentName: c.studentName,
-        className: c.className || 'Class 6',
+        className: c.className || 'Class 10',
         section: c.sectionName || 'A',
         status: 'Active'
       }));
@@ -61,7 +47,7 @@ export const ParentTimetableView: React.FC = () => {
       const localMatches = students.filter(s => 
         s.status === 'Active' && 
         (
-          role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
+          role === 'Student' ? (s.id === user?.id || (s.email && s.email.toLowerCase() === userEmail)) :
           (
             (userEmail && (
               s.guardianEmail?.toLowerCase() === userEmail || 
@@ -93,12 +79,51 @@ export const ParentTimetableView: React.FC = () => {
         const studentId = currentWard?.studentId || currentWard?.id;
         if (studentId) {
           const data = await getParentTimetable(Number(studentId));
-          if (isMounted && Array.isArray(data) && data.length > 0) {
-            setApiTimetableSlots(data);
+          if (isMounted) {
+            if (Array.isArray(data) && data.length > 0) {
+              const flattened: any[] = [];
+              data.forEach((item: any) => {
+                if (item.slots && Array.isArray(item.slots)) {
+                  item.slots.forEach((s: any) => {
+                    flattened.push({
+                      day: item.dayOfWeek || s.dayOfWeek,
+                      dayOfWeek: item.dayOfWeek || s.dayOfWeek,
+                      periodName: s.periodName || 'Period',
+                      timeSlot: s.timeSlot || `${s.startTime} - ${s.endTime}`,
+                      startTime: s.startTime,
+                      endTime: s.endTime,
+                      subject: s.subjectName || s.subject,
+                      subjectName: s.subjectName || s.subject,
+                      teacherName: s.teacherName,
+                      roomNo: s.roomNo || '101',
+                      isBreak: s.subjectName?.toLowerCase().includes('break') || s.subjectName?.toLowerCase().includes('lunch')
+                    });
+                  });
+                } else if (item.day || item.dayOfWeek || item.subject || item.subjectName) {
+                  flattened.push({
+                    day: item.day || item.dayOfWeek,
+                    dayOfWeek: item.day || item.dayOfWeek,
+                    periodName: item.periodName || 'Period',
+                    timeSlot: item.timeSlot || `${item.startTime} - ${item.endTime}`,
+                    startTime: item.startTime,
+                    endTime: item.endTime,
+                    subject: item.subject || item.subjectName,
+                    subjectName: item.subject || item.subjectName,
+                    teacherName: item.teacherName,
+                    roomNo: item.roomNo || '101',
+                    isBreak: (item.subject || item.subjectName || '').toLowerCase().includes('break') || (item.subject || item.subjectName || '').toLowerCase().includes('lunch')
+                  });
+                }
+              });
+              setApiTimetableSlots(flattened);
+            } else {
+              setApiTimetableSlots([]);
+            }
           }
         }
       } catch (err) {
         console.warn('Failed to load api timetable:', err);
+        if (isMounted) setApiTimetableSlots([]);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -109,7 +134,7 @@ export const ParentTimetableView: React.FC = () => {
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  if (parentWards.length === 0) {
+  if (!currentWard) {
     return (
       <div className="p-8 text-center text-slate-500">
         No active wards found in the system.
@@ -120,35 +145,6 @@ export const ParentTimetableView: React.FC = () => {
   const norm = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
   const wardClassNorm = norm(currentWard.className);
   const wardSecNorm = norm(currentWard.section);
-
-  // Find class definition in Admin
-  const targetClass = (academicClasses || []).find(c => 
-    norm(c.name) === wardClassNorm || 
-    String(c.id) === String((currentWard as any)?.classId)
-  );
-
-  // Section Class Teacher
-  const secTeachers = (targetClass as any)?.sectionTeachers || {};
-  let sectionClassTeacherName = '';
-  Object.entries(secTeachers).forEach(([secKey, tVal]) => {
-    if (norm(secKey) === wardSecNorm || (!wardSecNorm && secKey)) {
-      if (tVal && typeof tVal === 'string' && tVal.trim() !== '' && tVal !== 'Unassigned') {
-        sectionClassTeacherName = tVal.trim();
-      }
-    }
-  });
-  if (!sectionClassTeacherName && targetClass?.classTeacher) {
-    sectionClassTeacherName = targetClass.classTeacher;
-  }
-
-  // Teacher-Subject Assignments for this class and section
-  const directAssignments = (teacherAssignments || []).filter(ta => {
-    const taClassNorm = norm(ta.className);
-    const taSecNorm = norm(ta.section);
-    const matchesClass = taClassNorm === wardClassNorm || taClassNorm.includes(wardClassNorm) || wardClassNorm.includes(taClassNorm);
-    const matchesSection = !wardSecNorm || !taSecNorm || taSecNorm === 'all' || taSecNorm === wardSecNorm;
-    return matchesClass && matchesSection;
-  });
 
   // Filter global database timetable matching this ward's class and section exactly as Admin does
   const matchingDbSlots = (timetable || []).filter(t => {
@@ -162,36 +158,10 @@ export const ParentTimetableView: React.FC = () => {
   // Combine API and DB slots
   const explicitTimetableSlots = apiTimetableSlots.length > 0 ? apiTimetableSlots : matchingDbSlots;
 
-  // Collect available class subjects and assigned teachers
-  const assignedSubjectList: Array<{ subject: string; teacherName: string; code: string }> = [];
-  
-  if (sectionClassTeacherName) {
-    const subMaster = (masterSubjects || []).find(s => s.name.toLowerCase().includes('math'));
-    assignedSubjectList.push({
-      subject: 'Mathematics',
-      teacherName: sectionClassTeacherName,
-      code: subMaster?.code || 'MATH'
-    });
-  }
+  // Real timetable check: ONLY true if explicit slots exist for this class & section
+  const hasTimetable = explicitTimetableSlots.length > 0;
 
-  directAssignments.forEach(ta => {
-    const sub = ta.subject || (ta as any).subjectName || '';
-    if (!sub) return;
-    const master = (masterSubjects || []).find(s => norm(s.name) === norm(sub));
-    const code = master?.code || (ta as any).subjectCode || '';
-    const exists = assignedSubjectList.find(item => norm(item.subject) === norm(sub));
-    if (!exists) {
-      assignedSubjectList.push({
-        subject: sub,
-        teacherName: ta.teacherName || sectionClassTeacherName || 'Faculty',
-        code
-      });
-    }
-  });
-
-  const hasTimetable = explicitTimetableSlots.length > 0 || assignedSubjectList.length > 0;
-
-  // Active periods timeline from periodSettings
+  // Active periods timeline from periodSettings or from explicit slots
   const activePeriods = (periodSettings || []).filter(p => p.status === 'Active');
   const fromSettings = activePeriods.map(p => `${p.startTime} - ${p.endTime}`);
   const fromData = explicitTimetableSlots.map(t => t.timeSlot || t.periodTime || `${t.startTime || ''} - ${t.endTime || ''}`.trim());
@@ -207,7 +177,7 @@ export const ParentTimetableView: React.FC = () => {
     return hr * 60 + parseInt(m, 10);
   };
 
-  const timeSlots = Array.from(new Set(hasTimetable ? (fromSettings.length > 0 ? fromSettings : fromData) : []))
+  const timeSlots = Array.from(new Set(hasTimetable ? (fromData.length > 0 ? fromData : fromSettings) : []))
     .filter(s => s && s.trim() !== '' && s !== '-')
     .sort((a, b) => parseSortable(a) - parseSortable(b));
 
@@ -218,11 +188,10 @@ export const ParentTimetableView: React.FC = () => {
     return fallbackCode || '';
   };
 
-  // Helper to resolve slot details (from explicit DB/API slot or assigned subject schedule)
+  // Helper to resolve slot details from explicit DB/API slot
   const getSlotDataForDayTime = (day: string, slot: string, pIdx: number) => {
-    // 1. Check explicit DB/API slot
     const explicit = explicitTimetableSlots.find(t => {
-      const matchDay = !t.day || t.day === 'All' || t.day.toLowerCase() === day.toLowerCase();
+      const matchDay = !t.day || t.day === 'All' || t.day.toLowerCase() === day.toLowerCase() || (t.dayOfWeek && t.dayOfWeek.toLowerCase() === day.toLowerCase());
       const tSlot = (t.timeSlot || t.periodTime || `${t.startTime || ''} - ${t.endTime || ''}`).trim();
       return matchDay && (tSlot === slot || tSlot.toLowerCase() === slot.toLowerCase() || tSlot.replace(/\s+/g, '') === slot.replace(/\s+/g, ''));
     });
@@ -236,27 +205,6 @@ export const ParentTimetableView: React.FC = () => {
         roomNo: explicit.roomNo || '101',
         isBreak: explicit.isBreak || subName.toLowerCase() === 'break' || subName.toLowerCase().includes('lunch')
       };
-    }
-
-    // If explicit slots exist in DB for this class, don't invent unassigned cells
-    if (explicitTimetableSlots.length > 0) {
-      return null;
-    }
-
-    // 2. If no explicit slots exist in DB at all, map the class's assigned subjects
-    if (assignedSubjectList.length > 0) {
-      const dayIdx = days.indexOf(day);
-      const subjectIndex = (dayIdx + pIdx) % assignedSubjectList.length;
-      const allocated = assignedSubjectList[subjectIndex];
-      if (allocated) {
-        return {
-          subject: allocated.subject,
-          subjectCode: allocated.code || getSubjectCode(allocated.subject),
-          teacherName: allocated.teacherName,
-          roomNo: '101',
-          isBreak: false
-        };
-      }
     }
 
     return null;

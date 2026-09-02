@@ -155,24 +155,9 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
   }).length;
   const activeMorningTrips = uniqueActiveTrips.filter(assignment => !!assignment.morningTripTime).length;
   const activeEveningTrips = uniqueActiveTrips.filter(assignment => !!assignment.eveningTripTime).length;
-  const studentsOnBoard = (students || []).filter(student => {
-    const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-    if (!isStudentActive) return false;
-
-    const stAssignment = studentTransports.find(st => {
-      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-      if (!isStatusActive) return false;
-
-      const matchesStudent =
-        (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-        (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase());
-
-      return matchesStudent;
-    });
-
-    if (stAssignment) return true;
-
-    return Boolean(student.busRoute && student.busRoute.trim() !== '');
+  const studentsOnBoard = (studentTransports || []).filter(st => {
+    const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+    return isStatusActive;
   }).length;
 
   return (
@@ -333,58 +318,23 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           const attendant = resolveAttendant(assignment);
           const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
 
-          const routeStudentsCount = students.filter(student => {
-            const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-            if (!isStudentActive) return false;
+          const assignedStudentsList = studentTransports.filter(st => {
+            const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+            if (!isStatusActive) return false;
 
-            const stAssignment = studentTransports.find(st => {
-              const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-              if (!isStatusActive) return false;
+            const stRouteId = String(st.routeId || '').trim();
+            const stRouteName = (st.routeName || '').trim().toLowerCase();
+            const stVehicleAssignId = String(st.vehicleId || '').trim();
 
-              return (
-                (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-                (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
-              );
-            });
+            const matchesRoute = (targetRouteId !== '' && stRouteId !== '' && stRouteId === targetRouteId) ||
+                                 (targetRouteName !== '' && stRouteName !== '' && stRouteName === targetRouteName) ||
+                                 (targetRouteCode !== '' && stRouteName !== '' && stRouteName === targetRouteCode);
+            const matchesVehicleAssignment = Boolean(assignment?.id && stVehicleAssignId && stVehicleAssignId === String(assignment.id));
 
-            const matchedAdm = admissions.find(a =>
-              (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-              (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-              (a.id && student.id && String(a.id).trim() === String(student.id).trim())
-            );
+            return matchesRoute || matchesVehicleAssignment;
+          });
 
-            let isAssignedToThisRoute = false;
-
-            if (stAssignment) {
-              const stRouteId = stAssignment.routeId ? String(stAssignment.routeId).trim() : '';
-              const stRouteName = (stAssignment.routeName || '').trim().toLowerCase();
-
-              if (targetRouteId && stRouteId && stRouteId === targetRouteId) {
-                isAssignedToThisRoute = true;
-              } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && stRouteName === targetRouteName) {
-                isAssignedToThisRoute = true;
-              } else if (targetRouteCode && stRouteName === targetRouteCode) {
-                isAssignedToThisRoute = true;
-              }
-            }
-
-            if (!isAssignedToThisRoute) {
-              const sRoute = (student.busRoute || student.routeId || matchedAdm?.busRoute || '').trim().toLowerCase();
-              const isTransportOpted = student.transportRequired === true || matchedAdm?.transportRequired === true || (sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned');
-
-              if (isTransportOpted && sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned') {
-                if (targetRouteId && (sRoute === targetRouteId || (student.routeId && String(student.routeId).trim() === targetRouteId))) {
-                  isAssignedToThisRoute = true;
-                } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && sRoute === targetRouteName) {
-                  isAssignedToThisRoute = true;
-                } else if (targetRouteCode && sRoute === targetRouteCode) {
-                  isAssignedToThisRoute = true;
-                }
-              }
-            }
-
-            return isAssignedToThisRoute;
-          }).length;
+          const routeStudentsCount = assignedStudentsList.length;
 
           const assignedCount = routeStudentsCount;
           const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';

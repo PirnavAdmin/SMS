@@ -34,22 +34,8 @@ export const ParentHomeworkView: React.FC = () => {
 
   // Match children by email or phone accurately
   let parentWards: any[] = [];
-  const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
 
-  if (isKumar) {
-    parentWards = [
-      {
-        id: '2',
-        studentId: 2,
-        firstName: 'pawankalyan',
-        lastName: '',
-        studentName: 'pawankalyan',
-        className: 'Class 6',
-        section: 'A',
-        status: 'Active'
-      }
-    ];
-  } else if (apiChildren.length > 0) {
+  if (apiChildren.length > 0) {
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
@@ -145,95 +131,6 @@ export const ParentHomeworkView: React.FC = () => {
     return true;
   }).sort((a, b) => new Date(b.dueDate || 0).getTime() - new Date(a.dueDate || 0).getTime());
 
-  // Static Fallback if the mock database is empty for this class
-  const staticFallbackHomework = [
-    {
-      id: "mock-hw-1",
-      title: "Social Studies Chapter 4",
-      className: currentWard.className,
-      section: currentWard.section,
-      subject: "Social Studies (212)",
-      teacherName: "Jonathan Miller",
-      assignedDate: "2023-02-16",
-      dueDate: "2023-02-20",
-      evaluationDate: "2023-02-14", // Just keeping sample dates
-      maxMarks: "55.00",
-      marksObtained: "",
-      note: "good",
-      status: "Evaluated",
-      description: "Complete chapter 4 questions.",
-      attachments: []
-    },
-    {
-      id: "mock-hw-2",
-      title: "English Essay",
-      className: currentWard.className,
-      section: currentWard.section,
-      subject: "English (210)",
-      teacherName: "Dr. Sarah Johnson",
-      assignedDate: "2023-02-15",
-      dueDate: "2023-02-15",
-      evaluationDate: "",
-      maxMarks: "",
-      marksObtained: "",
-      note: "",
-      status: "Pending",
-      description: "Write an essay.",
-      attachments: []
-    },
-    {
-      id: "mock-hw-3",
-      title: "English Comprehension",
-      className: currentWard.className,
-      section: currentWard.section,
-      subject: "English (210)",
-      teacherName: "Dr. Sarah Johnson",
-      assignedDate: "2023-02-15",
-      dueDate: "2023-02-15",
-      evaluationDate: "",
-      maxMarks: "50.00",
-      marksObtained: "",
-      note: "",
-      status: "Pending",
-      description: "Read the passage and answer questions.",
-      attachments: []
-    },
-    {
-      id: "mock-hw-4",
-      title: "Math Problems",
-      className: currentWard.className,
-      section: currentWard.section,
-      subject: "Mathematics (110)",
-      teacherName: "Jonathan Miller",
-      assignedDate: "2023-02-13",
-      dueDate: "2023-02-16",
-      evaluationDate: "",
-      maxMarks: "20.00",
-      marksObtained: "",
-      note: "",
-      status: "Pending",
-      description: "Solve problems 1-10.",
-      attachments: []
-    },
-    {
-      id: "mock-hw-5",
-      title: "Math Problems 2",
-      className: currentWard.className,
-      section: currentWard.section,
-      subject: "Mathematics (110)",
-      teacherName: "Jonathan Miller",
-      assignedDate: "2023-02-08",
-      dueDate: "2023-02-15",
-      evaluationDate: "2023-02-08",
-      maxMarks: "50.00",
-      marksObtained: "",
-      note: "",
-      status: "Submitted",
-      description: "Solve problems 11-20.",
-      attachments: []
-    }
-  ];
-
   const processedWardHomework = wardHomeworkRaw.map(hw => ({
     ...hw,
     status: new Date(hw.dueDate) < new Date() ? 'Evaluated' : 'Pending',
@@ -244,7 +141,7 @@ export const ParentHomeworkView: React.FC = () => {
     note: ''
   }));
 
-  const wardHomework = [...processedWardHomework, ...staticFallbackHomework];
+  const wardHomework = processedWardHomework;
 
   const subjects = Array.from(new Set(wardHomework.map(h => h.subject)));
   const [filterSubject, setFilterSubject] = useState('All');

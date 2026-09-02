@@ -26,7 +26,7 @@ export const initialSchoolProfile: SchoolProfile = {
   website: "https://pirnavschools.edu",
   principalName: "Dr. Eleanor Vance",
   academicYear: "2026-2027",
-  logoUrl: ""
+  logoUrl: "/pirnav-school-logo.png"
 };
 
 export const initialAcademicYears: AcademicYearMaster[] = [

@@ -614,50 +614,26 @@ export const VehicleAssignmentView: React.FC = () => {
     const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
     const attendant = resolveAttendant(assignment);
     const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
-    const routeStudentsCount = students.filter(student => {
-      const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-      if (!isStudentActive) return false;
+    const targetRouteId = String(assignment.routeId || route?.id || '').trim();
+    const targetRouteName = (assignment.routeName || route?.routeName || '').trim().toLowerCase();
+    const targetAssignmentId = String(assignment.id || '').trim();
 
-      const stAssignment = studentTransports.find(st => {
-        const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-        if (!isStatusActive) return false;
+    const assignedStudentsList = studentTransports.filter(st => {
+      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+      if (!isStatusActive) return false;
 
-        return (
-          (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-          (st.admissionNo && student.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
-        );
-      });
+      const stRouteId = String(st.routeId || '').trim();
+      const stRouteName = (st.routeName || '').trim().toLowerCase();
+      const stVehicleAssignId = String(st.vehicleId || '').trim();
 
-      // 1. Match by routeId
-      const matchesRouteId = Boolean(
-        (stAssignment?.routeId && route?.id && String(stAssignment.routeId).trim() === String(route.id).trim()) ||
-        (stAssignment?.routeId && assignment.routeId && String(stAssignment.routeId).trim() === String(assignment.routeId).trim()) ||
-        (student.busRoute && route?.id && String(student.busRoute).trim() === String(route.id).trim()) ||
-        (student.busRoute && assignment.routeId && String(student.busRoute).trim() === String(assignment.routeId).trim())
-      );
+      const matchesRoute = (targetRouteId !== '' && stRouteId !== '' && stRouteId === targetRouteId) ||
+                           (targetRouteName !== '' && stRouteName !== '' && stRouteName === targetRouteName);
+      const matchesVehicleAssignment = targetAssignmentId !== '' && stVehicleAssignId !== '' && stVehicleAssignId === targetAssignmentId;
 
-      // 2. Match by vehicleNumber / vehicleId
-      const matchesVehicle = Boolean(
-        (stAssignment?.vehicleNumber && assignment.vehicleNumber && stAssignment.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase()) ||
-        (stAssignment?.vehicleId && assignment.vehicleId && String(stAssignment.vehicleId).trim() === String(assignment.vehicleId).trim())
-      );
+      return matchesRoute || matchesVehicleAssignment;
+    });
 
-      // 3. Match by exact Route Name / Code
-      const studentRoute = (stAssignment?.routeName || student.busRoute || '').trim().toLowerCase();
-      const targetRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
-      const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
-
-      const matchesRouteName = Boolean(
-        studentRoute !== '' &&
-        studentRoute !== 'n/a' &&
-        studentRoute !== 'unassigned' &&
-        ((targetRouteName !== '' && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && studentRoute === targetRouteName) ||
-         (targetRouteCode !== '' && studentRoute === targetRouteCode))
-      );
-
-      return matchesRouteId || matchesVehicle || matchesRouteName;
-    }).length;
-    const assignedStudents = routeStudentsCount;
+    const assignedStudents = assignedStudentsList.length;
 
     return {
       assignment,

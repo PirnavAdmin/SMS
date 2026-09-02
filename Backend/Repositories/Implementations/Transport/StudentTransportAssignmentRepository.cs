@@ -292,34 +292,36 @@ namespace SMS.Api.Repositories.Implementations
             StudentTransportAssignmentLookupDto>>
             GetLookupAsync()
         {
-            return await _context.StudentTransportAssignments
-                .AsNoTracking()
-                .Where(x =>
-                    !x.IsDeleted &&
-                    x.Status)
-                .OrderBy(x => x.AdmissionNo)
-                .Select(x =>
-                    new StudentTransportAssignmentLookupDto
-                    {
-                        StudentTransportAssignmentId = x.StudentTransportAssignmentId,
+            var query = from sta in _context.StudentTransportAssignments.AsNoTracking()
+                        where !sta.IsDeleted && sta.Status
+                        join s in _context.Students.AsNoTracking()
+                            on sta.StudentId equals (long?)s.StudentId into studentsGroup
+                        from st in studentsGroup.DefaultIfEmpty()
+                        orderby sta.AdmissionNo
+                        select new StudentTransportAssignmentLookupDto
+                        {
+                            StudentTransportAssignmentId = sta.StudentTransportAssignmentId,
 
-                        AdmissionNo = x.AdmissionNo ?? string.Empty,
+                            StudentId = sta.StudentId,
+                            StudentName = st != null ? st.StudentName : null,
+                            AdmissionNo = sta.AdmissionNo ?? string.Empty,
 
-                        RouteId = x.RouteId,
-                        RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
+                            RouteId = sta.RouteId,
+                            RouteName = sta.Route != null ? sta.Route.RouteName : "Main Route",
 
-                        PickupPointId = x.PickupPointId,
-                        PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
+                            PickupPointId = sta.PickupPointId,
+                            PickupPointName = sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : "Main Stop",
 
-                        VehicleAssignmentId = x.VehicleAssignmentId,
+                            VehicleAssignmentId = sta.VehicleAssignmentId,
 
-                        VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                            VehicleNumber = sta.VehicleAssignment != null && sta.VehicleAssignment.Vehicle != null ? sta.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
 
-                        DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
+                            DriverName = sta.VehicleAssignment != null && sta.VehicleAssignment.Driver != null ? sta.VehicleAssignment.Driver.DriverName : "Main Driver",
 
-                        DisplayName = x.AdmissionNo + " - " + (x.Route != null ? x.Route.RouteName : "Main Route") + " - " + (x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop")
-                    })
-                .ToListAsync();
+                            DisplayName = sta.AdmissionNo + " - " + (sta.Route != null ? sta.Route.RouteName : "Main Route") + " - " + (sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : "Main Stop")
+                        };
+
+            return await query.ToListAsync();
         }
 
         // ---------------------------------------------------------

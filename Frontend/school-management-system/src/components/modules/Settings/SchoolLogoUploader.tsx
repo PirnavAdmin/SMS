@@ -33,7 +33,7 @@ const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 const MAX_FILE_SIZE_MB = 3;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const DEFAULT_FALLBACK_LOGO = 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=150&auto=format&fit=crop&q=80';
+const DEFAULT_FALLBACK_LOGO = '/pirnav-school-logo.png';
 
 export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
   value,

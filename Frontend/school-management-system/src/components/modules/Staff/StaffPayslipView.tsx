@@ -5,7 +5,7 @@ import { Payslip } from '../../../types';
 import { useData } from '../../../context/DataContext';
 
 export const StaffPayslipView: React.FC = () => {
-  const { payslips } = useData();
+  const { payslips, schoolProfile } = useData();
 
   const [query, setQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('All');
@@ -43,8 +43,14 @@ export const StaffPayslipView: React.FC = () => {
           </head>
           <body>
             <div class="header">
-              <h2>MONTHLY SALARY PAYSLIP</h2>
-              <p>Pirnav Educational Institutions - HR Department</p>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px;">
+                <img src="${schoolProfile?.logoUrl || '/pirnav-school-logo.png'}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo" />
+                <div>
+                  <h2 style="margin: 0; font-size: 18px; color: #0284c7;">${schoolProfile?.name || 'Pirnav Educational Institutions'}</h2>
+                  <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">${schoolProfile?.address || ''}</p>
+                </div>
+              </div>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #0284c7; font-weight: 700;">MONTHLY SALARY PAYSLIP - HR DEPARTMENT</p>
             </div>
             <div class="details">
               <div><strong>Employee Name:</strong> ${p.employeeName}</div>

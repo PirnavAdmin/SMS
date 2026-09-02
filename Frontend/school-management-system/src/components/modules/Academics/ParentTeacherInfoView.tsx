@@ -29,26 +29,6 @@ export const ParentTeacherInfoView: React.FC = () => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
 
-    const isKumar = userName.includes('kumar') || userEmail.includes('kumar') || userEmail.includes('parent@pirnav.com');
-    if (isKumar) {
-      return [
-        {
-          id: '2',
-          studentId: 2,
-          admissionNo: 'REG-1104',
-          rollNo: '102',
-          firstName: 'pawankalyan',
-          lastName: '',
-          studentName: 'pawankalyan',
-          className: 'Class 6',
-          section: 'A',
-          gender: 'Male',
-          dob: '2014-05-15',
-          status: 'Active'
-        }
-      ];
-    }
-
     const matches = students.filter(s => 
       s.status === 'Active' && 
       (

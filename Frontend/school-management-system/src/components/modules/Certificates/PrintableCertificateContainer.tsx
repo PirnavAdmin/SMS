@@ -70,7 +70,7 @@ export const PrintableCertificateContainer: React.FC<
     "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
   const schoolPhone = schoolProfile.phone || "+91 9123456789";
   const schoolEmail = schoolProfile.email || "contact@pirnavschools.edu";
-  const schoolLogoUrl = schoolProfile.logoUrl;
+  const schoolLogoUrl = schoolProfile.logoUrl || '/pirnav-school-logo.png';
 
   // Header Style Variations
   const getContainerStyle = () => {

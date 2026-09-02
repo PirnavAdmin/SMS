@@ -132,112 +132,71 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     displayStops = [];
   }
 
-  // Find enrolled students strictly assigned to this route
-  const matchedEnrolledStudents = students.filter(student => {
-    const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-    if (!isStudentActive) return false;
+  // Find enrolled students strictly assigned to this route from studentTransports
+  const matchingTransports = studentTransports.filter(st => {
+    const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+    if (!isStatusActive) return false;
 
-    // 1. Look up student transport assignment
-    const stAssignment = studentTransports.find(st => {
-      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-      if (!isStatusActive) return false;
+    const stRouteId = String(st.routeId || '').trim();
+    const stRouteName = (st.routeName || '').trim().toLowerCase();
+    const stVehicleAssignId = String(st.vehicleId || '').trim();
 
-      return (
-        (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-        (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
-      );
-    });
+    const matchesRoute = (targetRouteId !== '' && stRouteId !== '' && stRouteId === targetRouteId) ||
+                         (targetRouteName !== '' && stRouteName !== '' && stRouteName === targetRouteName) ||
+                         (targetRouteCode !== '' && stRouteName !== '' && stRouteName === targetRouteCode);
+    const matchesVehicleAssignment = Boolean(assignment?.id && stVehicleAssignId && stVehicleAssignId === String(assignment.id));
 
-    // 2. Look up admission application record
-    const matchedAdm = admissions.find(a =>
-      (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.id && student.id && String(a.id).trim() === String(student.id).trim())
-    );
-
-    // Strict route match check
-    let isAssignedToThisRoute = false;
-
-    if (stAssignment) {
-      const stRouteId = stAssignment.routeId ? String(stAssignment.routeId).trim() : '';
-      const stRouteName = (stAssignment.routeName || '').trim().toLowerCase();
-
-      if (targetRouteId && stRouteId && stRouteId === targetRouteId) {
-        isAssignedToThisRoute = true;
-      } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && stRouteName === targetRouteName) {
-        isAssignedToThisRoute = true;
-      } else if (targetRouteCode && stRouteName === targetRouteCode) {
-        isAssignedToThisRoute = true;
-      }
-    }
-
-    if (!isAssignedToThisRoute) {
-      const sRoute = (student.busRoute || student.routeId || matchedAdm?.busRoute || '').trim().toLowerCase();
-      const isTransportOpted = student.transportRequired === true || matchedAdm?.transportRequired === true || (sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned');
-
-      if (isTransportOpted && sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned') {
-        if (targetRouteId && (sRoute === targetRouteId || (student.routeId && String(student.routeId).trim() === targetRouteId))) {
-          isAssignedToThisRoute = true;
-        } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && sRoute === targetRouteName) {
-          isAssignedToThisRoute = true;
-        } else if (targetRouteCode && sRoute === targetRouteCode) {
-          isAssignedToThisRoute = true;
-        }
-      }
-    }
-
-    return isAssignedToThisRoute;
+    return matchesRoute || matchesVehicleAssignment;
   });
 
-  const assignedStudentsList = matchedEnrolledStudents.map(student => {
-    const stAssignment = studentTransports.find(st =>
-      (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-      (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
+  const assignedStudentsList = matchingTransports.map(st => {
+    const matchedStudent = students.find(s =>
+      (st.studentId && s.id && String(s.id).trim() === String(st.studentId).trim()) ||
+      (st.admissionNo && s.admissionNo && s.admissionNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase())
     );
 
     const matchedAdm = admissions.find(a =>
-      (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-      (a.id && student.id && String(a.id).trim() === String(student.id).trim())
+      (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
+      (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
+      (st.studentId && a.id && String(a.id).trim() === String(st.studentId).trim())
     );
 
-    const fullName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || matchedAdm?.applicantName || 'Enrolled Student';
-    const pName = (student.fatherName || (student as any).fatherFullName || student.parentName || matchedAdm?.parentName || (student as any).guardianName || student.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+    const fullName = (
+      (matchedStudent?.firstName ? `${matchedStudent.firstName} ${matchedStudent.lastName || ''}`.trim() : '') ||
+      matchedStudent?.name ||
+      st.studentName ||
+      matchedAdm?.applicantName ||
+      'Enrolled Student'
+    );
+    const pName = (
+      matchedStudent?.fatherName ||
+      matchedStudent?.parentName ||
+      (matchedStudent as any)?.fatherFullName ||
+      matchedAdm?.parentName ||
+      (matchedStudent as any)?.guardianName ||
+      'Parent / Guardian'
+    ).trim();
     const pMobile = (
-      student.fatherPhone ||
-      (student as any).fatherMobile ||
-      (student as any).fatherMobileNo ||
-      (student as any).fatherContact ||
-      student.parentPhone ||
-      (student as any).parentContact ||
-      student.phone ||
-      (student as any).mobileNumber ||
+      matchedStudent?.fatherPhone ||
+      matchedStudent?.parentPhone ||
+      (matchedStudent as any)?.fatherMobile ||
+      matchedStudent?.phone ||
       matchedAdm?.phone ||
-      student.motherPhone ||
-      (student as any).motherMobile ||
-      matchedAdm?.motherPhone ||
-      matchedAdm?.alternatePhone ||
       'N/A'
     ).trim();
 
-    const rawPoint = (
-      stAssignment?.pickupPoint ||
-      student.pickupPoint ||
-      matchedAdm?.pickupPoint ||
-      (student as any).dropPoint
-    );
-    const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
-      ? rawPoint.trim()
+    const pPoint = (st.pickupPoint && st.pickupPoint.trim() !== '' && st.pickupPoint.trim().toUpperCase() !== 'N/A')
+      ? st.pickupPoint.trim()
       : (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
 
     return {
-      id: student.id,
-      admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
+      id: st.id || matchedStudent?.id || st.studentId,
+      admissionNo: st.admissionNo || matchedStudent?.admissionNo || matchedAdm?.registrationNo || '-',
       studentName: fullName,
-      gender: student.gender || matchedAdm?.gender || 'Male',
-      className: student.className || matchedAdm?.appliedClass || 'Class 5',
-      section: student.section || 'A',
-      rollNo: student.rollNo || '1',
+      gender: matchedStudent?.gender || matchedAdm?.gender || 'Male',
+      className: matchedStudent?.className || matchedAdm?.appliedClass || 'Class 6',
+      section: matchedStudent?.section || 'A',
+      rollNo: matchedStudent?.rollNo || '1',
       pickupPoint: pPoint,
       parentName: pName,
       parentMobile: pMobile,

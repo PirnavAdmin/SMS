@@ -31,27 +31,8 @@ export const ParentExaminationView: React.FC = () => {
 
   // Match children by email or phone accurately
   let parentWards: any[] = [];
-  const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
 
-  if (isKumar) {
-    parentWards = [
-      {
-        id: '2',
-        studentId: 2,
-        admissionNo: 'REG-1104',
-        rollNo: '102',
-        firstName: 'pawankalyan',
-        lastName: '',
-        studentName: 'pawankalyan',
-        className: 'Class 6',
-        section: 'A',
-        gender: 'Male',
-        dob: '2015-01-21',
-        fatherName: 'Kumar Parent',
-        status: 'Active'
-      }
-    ];
-  } else if (apiChildren.length > 0) {
+  if (apiChildren.length > 0) {
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
@@ -139,41 +120,6 @@ export const ParentExaminationView: React.FC = () => {
     r => r.studentId === currentWard.id && r.status === 'Published'
   );
 
-  const fallbackExams = [
-    {
-      examId: 'term-1',
-      examName: 'Term 1 (Mid-Term)',
-      date: 'Oct 15, 2026',
-      overallGrade: 'A',
-      percentage: '86.3%',
-      remarks: `${currentWard.firstName} is showing consistent progress. He participated actively in classes.`,
-      subjects: [
-        { name: 'Mathematics', marks: 88, grade: 'A' },
-        { name: 'English', marks: 82, grade: 'B+' },
-        { name: 'Physics', marks: 78, grade: 'B' },
-        { name: 'Chemistry', marks: 85, grade: 'A-' },
-        { name: 'Biology', marks: 91, grade: 'A' },
-        { name: 'Computer Science', marks: 94, grade: 'A+' },
-      ]
-    },
-    {
-      examId: 'term-2',
-      examName: 'Term 2 (Final)',
-      date: 'Mar 24, 2027',
-      overallGrade: 'A+',
-      percentage: '91.5%',
-      remarks: `Excellent final result! ${currentWard.firstName} has improved remarkably in Term 2.`,
-      subjects: [
-        { name: 'Mathematics', marks: 92, grade: 'A+' },
-        { name: 'English', marks: 86, grade: 'A-' },
-        { name: 'Physics', marks: 84, grade: 'B+' },
-        { name: 'Chemistry', marks: 89, grade: 'A' },
-        { name: 'Biology', marks: 93, grade: 'A+' },
-        { name: 'Computer Science', marks: 96, grade: 'A+' },
-      ]
-    }
-  ];
-
   const dbChildExams = wardResultsRaw.map(r => {
     const exam = exams.find(e => e.id === r.examId);
     const marksForExam = examMarks.filter(m => m.examId === r.examId && m.studentId === r.studentId);
@@ -195,7 +141,7 @@ export const ParentExaminationView: React.FC = () => {
     };
   });
 
-  const childExams = dbChildExams.length > 0 ? dbChildExams : fallbackExams;
+  const childExams = dbChildExams;
   const activeExam = childExams.find((e: any) => e.examName === selectedExamId) || childExams[0];
 
   // Set default selected exam on mount or if child changes

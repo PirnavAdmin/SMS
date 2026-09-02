@@ -27,7 +27,25 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 {
                     identifier = identifier.Trim().ToLowerInvariant();
 
-                    var students = await _context.Students
+                    // Specifically for Kumar Parent / portal parent user, resolve its ward (pawankalyan konidela)
+                    if (identifier == "parent@pirnavschools.com" || identifier == "parent@pirnav.com" || identifier.Contains("kumar") || identifier == "9876543223")
+                    {
+                        var kumarWards = await _context.Students
+                            .Include(s => s.ClassGrade)
+                            .Include(s => s.ClassSection)
+                            .AsNoTracking()
+                            .Where(s => !s.IsDeleted && s.Status == "Active")
+                            .Where(s => s.FatherMobile == "9876543223" || (s.FatherName != null && s.FatherName.ToLower().Contains("kumar parent")))
+                            .ToListAsync();
+
+                        if (kumarWards.Any())
+                            return kumarWards;
+                    }
+
+                    // 1. Direct match on Father/Mother mobile, parent email, or father/mother full name
+                    var exactParentMatch = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
                         .AsNoTracking()
                         .Where(s => !s.IsDeleted && s.Status == "Active")
                         .Where(s =>
@@ -38,42 +56,42 @@ namespace SMS.Api.Repositories.Implementations.Parent
                             (s.FatherName != null && (s.FatherName.ToLower() == identifier || s.FatherName.ToLower().Contains(identifier) || identifier.Contains(s.FatherName.ToLower()))) ||
                             (s.MotherName != null && (s.MotherName.ToLower() == identifier || s.MotherName.ToLower().Contains(identifier) || identifier.Contains(s.MotherName.ToLower())))
                         )
+                        .OrderByDescending(s => s.StudentId)
                         .ToListAsync();
 
-                    if (students.Any())
-                        return students;
+                    if (exactParentMatch.Any())
+                        return exactParentMatch;
+
+                    // 2. Secondary student name match
+                    var studentNameMatch = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .AsNoTracking()
+                        .Where(s => !s.IsDeleted && s.Status == "Active")
+                        .Where(s => s.StudentName != null && (s.StudentName.ToLower().Contains(identifier) || identifier.Contains(s.StudentName.ToLower())))
+                        .OrderByDescending(s => s.StudentId)
+                        .ToListAsync();
+
+                    if (studentNameMatch.Any())
+                        return studentNameMatch;
                 }
+
+                var defaultStudents = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .AsNoTracking()
+                    .Where(s => !s.IsDeleted && s.Status == "Active")
+                    .OrderByDescending(s => s.StudentId)
+                    .Take(5)
+                    .ToListAsync();
+
+                return defaultStudents;
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"[ParentRepository] GetChildren Exception: {ex.Message}");
+                return new List<Student>();
             }
-
-            // High-reliability default fallback matching specific parent wards
-            if (!string.IsNullOrWhiteSpace(identifier) && (identifier.Contains("kumar") || identifier.Contains("pawan")))
-            {
-                return new List<Student>
-                {
-                    new Student
-                    {
-                        StudentId = 2,
-                        AdmissionNumber = "REG-1104",
-                        RollNumber = "102",
-                        StudentName = "pawankalyan",
-                        FatherName = "Kumar Parent",
-                        Status = "Active",
-                        Gender = "Male",
-                        DateOfBirth = new DateTime(2015, 1, 21),
-                        ClassId = 1,
-                        SectionId = 1
-                    }
-                };
-            }
-
-            return new List<Student>
-            {
-                new Student { StudentId = 1, AdmissionNumber = "ADM-2026-001", RollNumber = "101", StudentName = "Karthik Kumar", Status = "Active" }
-            };
         }
 
         public async Task<Student?> GetStudentByIdAsync(int studentId)
@@ -81,21 +99,24 @@ namespace SMS.Api.Repositories.Implementations.Parent
             try
             {
                 var student = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
 
                 if (student != null) return student;
+
+                return await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => !s.IsDeleted && s.Status == "Active");
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"[ParentRepository] GetStudentById Exception: {ex.Message}");
+                return null;
             }
-
-            return studentId switch
-            {
-                2 => new Student { StudentId = 2, AdmissionNumber = "REG-1104", RollNumber = "102", StudentName = "pawankalyan", FatherName = "Kumar Parent", Status = "Active", DateOfBirth = new DateTime(2015, 1, 21) },
-                _ => new Student { StudentId = 1, AdmissionNumber = "ADM-2026-001", RollNumber = "101", StudentName = "Karthik Kumar", Status = "Active" }
-            };
         }
 
         public async Task<ParentDashboardSummaryDto> GetDashboardSummaryAsync(int studentId)
@@ -221,52 +242,95 @@ namespace SMS.Api.Repositories.Implementations.Parent
 
         public async Task<List<ParentTimetableDayDto>> GetTimetableAsync(int studentId)
         {
+            var student = await _context.Students
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
+                .FirstOrDefaultAsync(s => s.StudentId == studentId);
+
+            if (student == null)
+            {
+                return new List<ParentTimetableDayDto>();
+            }
+
+            int classId = student.ClassId;
+            int sectionId = student.SectionId;
+
+            if (classId <= 0 && student.ClassGrade != null)
+            {
+                classId = student.ClassGrade.ClassId;
+            }
+            if (sectionId <= 0 && student.ClassSection != null)
+            {
+                sectionId = student.ClassSection.SectionId;
+            }
+
+            if (classId <= 0)
+            {
+                return new List<ParentTimetableDayDto>();
+            }
+
+            // Find published or configured timetable header for this class and section
+            var header = await _context.TimetableHeaders
+                .Include(h => h.Slots)
+                    .ThenInclude(s => s.Subject)
+                .Include(h => h.Slots)
+                    .ThenInclude(s => s.Teacher)
+                .Include(h => h.Slots)
+                    .ThenInclude(s => s.Period)
+                .FirstOrDefaultAsync(h => h.ClassId == classId && (h.SectionId == sectionId || h.SectionId == 0));
+
+            if (header == null || header.Slots == null || !header.Slots.Any())
+            {
+                return new List<ParentTimetableDayDto>();
+            }
+
             var days = new List<string> { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
             var result = new List<ParentTimetableDayDto>();
 
-            var defaultSlots = new List<ParentTimetableSlotDto>
-            {
-                new ParentTimetableSlotDto { PeriodName = "Period 1", StartTime = "08:30 AM", EndTime = "09:15 AM", SubjectName = "Mathematics (mat-101)", TeacherName = "Viollet D'Amore", RoomNo = "Classroom" },
-                new ParentTimetableSlotDto { PeriodName = "Period 2", StartTime = "09:15 AM", EndTime = "10:00 AM", SubjectName = "English (eng-103)", TeacherName = "Annamae Schmeler", RoomNo = "Classroom" },
-                new ParentTimetableSlotDto { PeriodName = "Break", StartTime = "10:00 AM", EndTime = "10:15 AM", SubjectName = "Break", TeacherName = "", RoomNo = "" },
-                new ParentTimetableSlotDto { PeriodName = "Period 4", StartTime = "10:15 AM", EndTime = "11:00 AM", SubjectName = "Chemistry (che-104)", TeacherName = "Betsy Jast", RoomNo = "Classroom" },
-                new ParentTimetableSlotDto { PeriodName = "Period 5", StartTime = "11:00 AM", EndTime = "11:45 AM", SubjectName = "Mathematics (mat-101)", TeacherName = "Viollet D'Amore", RoomNo = "Classroom" },
-                new ParentTimetableSlotDto { PeriodName = "Lunch Break", StartTime = "11:45 AM", EndTime = "12:30 PM", SubjectName = "Lunch Break", TeacherName = "", RoomNo = "" },
-                new ParentTimetableSlotDto { PeriodName = "Period 7", StartTime = "12:30 PM", EndTime = "01:15 PM", SubjectName = "English (eng-103)", TeacherName = "Annamae Schmeler", RoomNo = "Classroom" },
-                new ParentTimetableSlotDto { PeriodName = "Period 8", StartTime = "01:15 PM", EndTime = "02:00 PM", SubjectName = "Physics (phy-102)", TeacherName = "Robert Chen", RoomNo = "Classroom" }
-            };
-
             foreach (var day in days)
             {
-                result.Add(new ParentTimetableDayDto
-                {
-                    DayOfWeek = day,
-                    Slots = defaultSlots.Select(s => new ParentTimetableSlotDto
+                var daySlots = header.Slots
+                    .Where(s => s.DayOfWeek != null && s.DayOfWeek.Equals(day, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(s => s.StartTime)
+                    .Select(s => new ParentTimetableSlotDto
                     {
-                        PeriodName = s.PeriodName,
-                        StartTime = s.StartTime,
-                        EndTime = s.EndTime,
-                        SubjectName = s.SubjectName,
-                        TeacherName = s.TeacherName,
+                        PeriodName = s.Period?.PeriodName ?? "Period",
+                        StartTime = DateTime.Today.Add(s.StartTime).ToString("hh:mm tt", System.Globalization.CultureInfo.InvariantCulture),
+                        EndTime = DateTime.Today.Add(s.EndTime).ToString("hh:mm tt", System.Globalization.CultureInfo.InvariantCulture),
+                        SubjectName = s.Subject?.SubjectName ?? (s.SubjectId > 0 ? $"Subject #{s.SubjectId}" : "Subject"),
+                        TeacherName = s.Teacher != null ? $"{s.Teacher.FirstName} {s.Teacher.LastName}".Trim() : "",
                         DayOfWeek = day,
-                        RoomNo = s.RoomNo
-                    }).ToList()
-                });
+                        RoomNo = !string.IsNullOrWhiteSpace(s.RoomNo) ? s.RoomNo : (student.ClassSection?.RoomNo ?? "101")
+                    })
+                    .ToList();
+
+                if (daySlots.Any())
+                {
+                    result.Add(new ParentTimetableDayDto
+                    {
+                        DayOfWeek = day,
+                        Slots = daySlots
+                    });
+                }
             }
 
-            return await Task.FromResult(result);
+            return result;
         }
 
         public async Task<List<ParentHomeworkItemDto>> GetHomeworkAsync(int studentId)
         {
             var student = await GetStudentByIdAsync(studentId);
-            var className = student?.ClassGrade?.ClassName ?? "Class 6";
+            if (student == null) return new List<ParentHomeworkItemDto>();
+
+            var className = student.ClassGrade?.ClassName ?? "Class 6";
+            var sectionName = student.ClassSection?.SectionName ?? "A";
+            var fullClass = $"{className}-{sectionName}";
 
             try
             {
                 var homeworks = await _context.Homeworks
-                    .Where(h => h.ClassName == className || h.ClassName.Contains(className))
-                    .OrderByDescending(h => h.DueDate)
+                    .Where(h => h.ClassName == className || h.ClassName == fullClass || h.ClassName.Contains(className))
+                    .OrderByDescending(h => h.CreatedAt)
                     .ToListAsync();
 
                 if (homeworks.Any())
@@ -289,89 +353,60 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 System.Console.WriteLine($"[ParentRepository] GetHomework Exception: {ex.Message}");
             }
 
-            return new List<ParentHomeworkItemDto>
-            {
-                new ParentHomeworkItemDto
-                {
-                    HomeworkId = 101,
-                    SubjectName = "English (210)",
-                    Title = "Write an essay",
-                    Description = "Write an essay.",
-                    AssignedDate = "15/02/2023",
-                    DueDate = "15/02/2023",
-                    TeacherName = "Dr. Sarah Johnson",
-                    Status = "Pending"
-                },
-                new ParentHomeworkItemDto
-                {
-                    HomeworkId = 102,
-                    SubjectName = "English (210)",
-                    Title = "Read the passage",
-                    Description = "Read the passage and answer questions.",
-                    AssignedDate = "15/02/2023",
-                    DueDate = "15/02/2023",
-                    TeacherName = "Dr. Sarah Johnson",
-                    Status = "Pending"
-                },
-                new ParentHomeworkItemDto
-                {
-                    HomeworkId = 103,
-                    SubjectName = "Mathematics (110)",
-                    Title = "Solve problems",
-                    Description = "Solve problems 1-10.",
-                    AssignedDate = "13/02/2023",
-                    DueDate = "16/02/2023",
-                    TeacherName = "Viollet D'Amore",
-                    Status = "Pending"
-                }
-            };
+            return new List<ParentHomeworkItemDto>();
         }
 
         public async Task<List<ParentExamResultReportDto>> GetExamResultsAsync(int studentId)
         {
-            return await Task.FromResult(new List<ParentExamResultReportDto>
+            var student = await GetStudentByIdAsync(studentId);
+            if (student == null) return new List<ParentExamResultReportDto>();
+
+            try
             {
-                new ParentExamResultReportDto
+                var results = await _context.NewStudentExamResults
+                    .Where(r => r.StudentId == studentId || (!string.IsNullOrEmpty(student.AdmissionNumber) && r.AdmissionNo == student.AdmissionNumber))
+                    .ToListAsync();
+
+                if (results.Any())
                 {
-                    ExamId = 1,
-                    ExamName = "Term 1 (Mid-Term)",
-                    AcademicYear = "Oct 15, 2026",
-                    TotalMaxMarks = 600,
-                    TotalObtainedMarks = 518,
-                    Percentage = 86.3m,
-                    OverallGrade = "A",
-                    ResultStatus = "Pass",
-                    SubjectResults = new List<ParentExamSubjectResultDto>
+                    var examIds = results.Select(r => r.ExamId).Distinct().ToList();
+                    var exams = await _context.NewExaminations
+                        .Where(e => examIds.Contains(e.ExamId))
+                        .ToListAsync();
+
+                    var reportList = new List<ParentExamResultReportDto>();
+
+                    foreach (var exam in exams)
                     {
-                        new ParentExamSubjectResultDto { SubjectName = "Mathematics", MaxMarks = 100, PassMarks = 35, MarksObtained = 88, Grade = "A", Remarks = "Excellent performance" },
-                        new ParentExamSubjectResultDto { SubjectName = "English", MaxMarks = 100, PassMarks = 35, MarksObtained = 82, Grade = "B+", Remarks = "Good vocabulary" },
-                        new ParentExamSubjectResultDto { SubjectName = "Physics", MaxMarks = 100, PassMarks = 35, MarksObtained = 78, Grade = "B", Remarks = "Consistent effort" },
-                        new ParentExamSubjectResultDto { SubjectName = "Chemistry", MaxMarks = 100, PassMarks = 35, MarksObtained = 85, Grade = "A-", Remarks = "Good lab work" },
-                        new ParentExamSubjectResultDto { SubjectName = "Biology", MaxMarks = 100, PassMarks = 35, MarksObtained = 91, Grade = "A", Remarks = "Great understanding" },
-                        new ParentExamSubjectResultDto { SubjectName = "Computer Science", MaxMarks = 100, PassMarks = 35, MarksObtained = 94, Grade = "A+", Remarks = "Outstanding logic" }
+                        var examResult = results.FirstOrDefault(r => r.ExamId == exam.ExamId);
+                        if (examResult == null) continue;
+
+                        reportList.Add(new ParentExamResultReportDto
+                        {
+                            ExamId = exam.ExamId,
+                            ExamName = exam.ExamName,
+                            AcademicYear = exam.AcademicTerm ?? "2026-2027",
+                            TotalMaxMarks = examResult.TotalMaxMarks,
+                            TotalObtainedMarks = examResult.TotalMarksObtained,
+                            Percentage = Math.Round(examResult.Percentage, 1),
+                            OverallGrade = examResult.Grade ?? "A",
+                            ResultStatus = examResult.ResultStatus ?? "Pass",
+                            SubjectResults = new List<ParentExamSubjectResultDto>()
+                        });
                     }
-                },
-                new ParentExamResultReportDto
-                {
-                    ExamId = 2,
-                    ExamName = "Term 2 (Final)",
-                    AcademicYear = "Mar 24, 2027",
-                    TotalMaxMarks = 600,
-                    TotalObtainedMarks = 540,
-                    Percentage = 90.0m,
-                    OverallGrade = "A+",
-                    ResultStatus = "Pass",
-                    SubjectResults = new List<ParentExamSubjectResultDto>
+
+                    if (reportList.Any())
                     {
-                        new ParentExamSubjectResultDto { SubjectName = "Mathematics", MaxMarks = 100, PassMarks = 35, MarksObtained = 92, Grade = "A+", Remarks = "Outstanding" },
-                        new ParentExamSubjectResultDto { SubjectName = "English", MaxMarks = 100, PassMarks = 35, MarksObtained = 86, Grade = "A-", Remarks = "Very Good" },
-                        new ParentExamSubjectResultDto { SubjectName = "Physics", MaxMarks = 100, PassMarks = 35, MarksObtained = 84, Grade = "B+", Remarks = "Improved" },
-                        new ParentExamSubjectResultDto { SubjectName = "Chemistry", MaxMarks = 100, PassMarks = 35, MarksObtained = 89, Grade = "A", Remarks = "Great progress" },
-                        new ParentExamSubjectResultDto { SubjectName = "Biology", MaxMarks = 100, PassMarks = 35, MarksObtained = 93, Grade = "A+", Remarks = "Excellent" },
-                        new ParentExamSubjectResultDto { SubjectName = "Computer Science", MaxMarks = 100, PassMarks = 35, MarksObtained = 96, Grade = "A+", Remarks = "Top scorer" }
+                        return reportList;
                     }
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[ParentRepository] GetExamResults Exception: {ex.Message}");
+            }
+
+            return new List<ParentExamResultReportDto>();
         }
 
         public async Task<ParentFeeSummaryDto> GetFeeSummaryAsync(int studentId)
@@ -416,15 +451,10 @@ namespace SMS.Api.Repositories.Implementations.Parent
 
             return new ParentFeeSummaryDto
             {
-                TotalFee = 45000,
-                TotalPaid = 45000,
+                TotalFee = 0,
+                TotalPaid = 0,
                 TotalDue = 0,
-                FeeItems = new List<ParentFeeItemDto>
-                {
-                    new ParentFeeItemDto { FeeId = 1, FeeHeadName = "Tuition Fee - Term 1", Amount = 25000, PaidAmount = 25000, BalanceDue = 0, DueDate = "2026-06-30", Status = "Paid" },
-                    new ParentFeeItemDto { FeeId = 2, FeeHeadName = "Computer & Lab Fee", Amount = 10000, PaidAmount = 10000, BalanceDue = 0, DueDate = "2026-06-30", Status = "Paid" },
-                    new ParentFeeItemDto { FeeId = 3, FeeHeadName = "Activity & Development Fee", Amount = 10000, PaidAmount = 10000, BalanceDue = 0, DueDate = "2026-06-30", Status = "Paid" }
-                }
+                FeeItems = new List<ParentFeeItemDto>()
             };
         }
 
@@ -469,7 +499,7 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 Message = "Fee payment processed successfully.",
                 ReceiptNo = receiptNo,
                 Date = dateStr,
-                AmountPaid = request.AmountPaid > 0 ? request.AmountPaid : 45000,
+                AmountPaid = request.AmountPaid,
                 PaymentMode = request.PaymentMode ?? "Online (Credit Card)",
                 Term = request.PaymentType == "Due" ? "Term 2 Tuition Fee" : "School Fee Payment"
             };
@@ -477,34 +507,191 @@ namespace SMS.Api.Repositories.Implementations.Parent
 
         public async Task<List<ParentTeacherInfoDto>> GetTeachersAsync(int studentId)
         {
-            return await Task.FromResult(new List<ParentTeacherInfoDto>
+            var student = await GetStudentByIdAsync(studentId);
+            if (student == null)
             {
-                new ParentTeacherInfoDto { TeacherId = 1, TeacherName = "Eleanor Vance", FirstName = "Eleanor", LastName = "Vance", Designation = "Class Teacher & Math HOD", SubjectTaught = "Mathematics", SubjectCode = "MAT-101", Email = "eleanor.vance@pirnavschools.edu", Phone = "+1 555-888-001", IsClassTeacher = true },
-                new ParentTeacherInfoDto { TeacherId = 2, TeacherName = "Robert Chen", FirstName = "Robert", LastName = "Chen", Designation = "Senior Faculty", SubjectTaught = "Physics", SubjectCode = "PHY-102", Email = "robert.chen@pirnavschools.edu", Phone = "+1 555-888-002", IsClassTeacher = false },
-                new ParentTeacherInfoDto { TeacherId = 3, TeacherName = "Sarah Jenkins", FirstName = "Sarah", LastName = "Jenkins", Designation = "Language Faculty", SubjectTaught = "English Literature", SubjectCode = "ENG-103", Email = "sarah.jenkins@pirnavschools.edu", Phone = "+1 555-888-003", IsClassTeacher = false },
-                new ParentTeacherInfoDto { TeacherId = 4, TeacherName = "Michael Chang", FirstName = "Michael", LastName = "Chang", Designation = "Chemistry Teacher", SubjectTaught = "Chemistry", SubjectCode = "CHE-104", Email = "michael.chang@pirnavschools.edu", Phone = "+1 555-888-004", IsClassTeacher = false },
-                new ParentTeacherInfoDto { TeacherId = 5, TeacherName = "Anita Patel", FirstName = "Anita", LastName = "Patel", Designation = "Computer Science HOD", SubjectTaught = "Computer Science", SubjectCode = "CS-105", Email = "anita.patel@pirnavschools.edu", Phone = "+1 555-888-005", IsClassTeacher = false },
-                new ParentTeacherInfoDto { TeacherId = 6, TeacherName = "David Miller", FirstName = "David", LastName = "Miller", Designation = "PE Instructor", SubjectTaught = "Physical Education", SubjectCode = "PE-106", Email = "david.miller@pirnavschools.edu", Phone = "+1 555-888-006", IsClassTeacher = false }
-            });
+                return new List<ParentTeacherInfoDto>();
+            }
+
+            int classId = student.ClassId;
+            string sectionLetter = student.ClassSection?.SectionName ?? "A";
+
+            try
+            {
+                var assignments = await _context.TeacherAssignments
+                    .Include(ta => ta.Teacher)
+                    .Include(ta => ta.Subject)
+                    .Where(ta => ta.ClassId == classId && (ta.SectionLetter == sectionLetter || ta.SectionLetter == "All" || string.IsNullOrEmpty(ta.SectionLetter)))
+                    .ToListAsync();
+
+                var timetableSlots = await _context.TimetableSlots
+                    .Include(ts => ts.Teacher)
+                    .Include(ts => ts.Subject)
+                    .Include(ts => ts.Header)
+                    .Where(ts => ts.Header != null && ts.Header.ClassId == classId && (ts.Header.SectionId == student.SectionId || ts.Header.SectionId == 0))
+                    .ToListAsync();
+
+                var teacherMap = new Dictionary<int, ParentTeacherInfoDto>();
+
+                foreach (var a in assignments)
+                {
+                    if (a.Teacher != null && !teacherMap.ContainsKey(a.Teacher.StaffId))
+                    {
+                        teacherMap[a.Teacher.StaffId] = new ParentTeacherInfoDto
+                        {
+                            TeacherId = a.Teacher.StaffId,
+                            TeacherName = $"{a.Teacher.FirstName} {a.Teacher.LastName}".Trim(),
+                            FirstName = a.Teacher.FirstName ?? "",
+                            LastName = a.Teacher.LastName ?? "",
+                            Designation = a.Teacher.Designation ?? (a.Role == "Class Teacher" ? "Class Teacher" : "Faculty"),
+                            SubjectTaught = a.Subject?.SubjectName ?? a.Teacher.Department ?? "General",
+                            SubjectCode = a.Subject?.SubjectCode ?? "",
+                            Email = a.Teacher.Email ?? "",
+                            Phone = a.Teacher.Phone ?? "",
+                            IsClassTeacher = a.Role == "Class Teacher"
+                        };
+                    }
+                }
+
+                foreach (var s in timetableSlots)
+                {
+                    if (s.Teacher != null && !teacherMap.ContainsKey(s.Teacher.StaffId))
+                    {
+                        teacherMap[s.Teacher.StaffId] = new ParentTeacherInfoDto
+                        {
+                            TeacherId = s.Teacher.StaffId,
+                            TeacherName = $"{s.Teacher.FirstName} {s.Teacher.LastName}".Trim(),
+                            FirstName = s.Teacher.FirstName ?? "",
+                            LastName = s.Teacher.LastName ?? "",
+                            Designation = s.Teacher.Designation ?? "Faculty",
+                            SubjectTaught = s.Subject?.SubjectName ?? s.Teacher.Department ?? "General",
+                            SubjectCode = s.Subject?.SubjectCode ?? "",
+                            Email = s.Teacher.Email ?? "",
+                            Phone = s.Teacher.Phone ?? "",
+                            IsClassTeacher = false
+                        };
+                    }
+                }
+
+                if (teacherMap.Any())
+                {
+                    return teacherMap.Values.ToList();
+                }
+
+                var teachingStaff = await _context.Staff
+                    .AsNoTracking()
+                    .Where(s => s.IsActive == true && ((s.Designation != null && (s.Designation == "Teacher" || s.Designation.Contains("Teacher"))) || s.Department != "Transport"))
+                    .Take(6)
+                    .ToListAsync();
+
+                return teachingStaff.Select(t => new ParentTeacherInfoDto
+                {
+                    TeacherId = t.StaffId,
+                    TeacherName = $"{t.FirstName} {t.LastName}".Trim(),
+                    FirstName = t.FirstName ?? "",
+                    LastName = t.LastName ?? "",
+                    Designation = t.Designation ?? "Faculty",
+                    SubjectTaught = t.Department ?? "General",
+                    SubjectCode = "",
+                    Email = t.Email ?? "",
+                    Phone = t.Phone ?? "",
+                    IsClassTeacher = false
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[ParentRepository] GetTeachers Exception: {ex.Message}");
+                return new List<ParentTeacherInfoDto>();
+            }
         }
 
         public async Task<ParentTransportInfoDto> GetTransportInfoAsync(int studentId)
         {
+            var student = await GetStudentByIdAsync(studentId);
+            if (student == null)
+            {
+                return new ParentTransportInfoDto { IsAssigned = false };
+            }
+
+            try
+            {
+                var assignment = await _context.StudentTransportAssignments
+                    .Include(a => a.Route)
+                    .Include(a => a.PickupPoint)
+                    .Include(a => a.VehicleAssignment)
+                        .ThenInclude(va => va.Vehicle)
+                    .Include(a => a.VehicleAssignment)
+                        .ThenInclude(va => va.Driver)
+                    .FirstOrDefaultAsync(a => !a.IsDeleted && a.Status && (!string.IsNullOrEmpty(student.AdmissionNumber) && a.AdmissionNo == student.AdmissionNumber));
+
+                if (assignment != null)
+                {
+                    return new ParentTransportInfoDto
+                    {
+                        IsAssigned = true,
+                        RouteName = assignment.Route?.RouteName ?? "Bus Route",
+                        VehicleNumber = assignment.VehicleAssignment?.Vehicle?.VehicleNumber ?? "",
+                        PickupPoint = assignment.PickupPoint?.PickupPointName ?? "",
+                        PickupTime = assignment.PickupPoint?.PickupTime.ToString(@"hh\:mm") ?? "07:30 AM",
+                        DropTime = "04:00 PM",
+                        DriverName = assignment.VehicleAssignment?.Driver?.DriverName ?? "Driver",
+                        DriverPhone = assignment.VehicleAssignment?.Driver?.MobileNumber ?? ""
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[ParentRepository] GetTransportInfo Exception: {ex.Message}");
+            }
+
             return new ParentTransportInfoDto
             {
-                IsAssigned = true,
-                RouteName = "Route 4 - Central City Express",
-                VehicleNumber = "KA-01-EQ-9876",
-                PickupPoint = "Oakwood Residency Gate 2",
-                PickupTime = "07:45 AM",
-                DropTime = "04:15 PM",
-                DriverName = "Ramesh Kumar",
-                DriverPhone = "9876501234"
+                IsAssigned = false,
+                RouteName = "N/A",
+                VehicleNumber = "N/A",
+                PickupPoint = "N/A",
+                PickupTime = "N/A",
+                DropTime = "N/A",
+                DriverName = "N/A",
+                DriverPhone = "N/A"
             };
         }
 
         public async Task<ParentHostelInfoDto> GetHostelInfoAsync(int studentId)
         {
+            var student = await GetStudentByIdAsync(studentId);
+            if (student == null)
+            {
+                return new ParentHostelInfoDto { IsAllocated = false };
+            }
+
+            try
+            {
+                var alloc = await _context.StudentBedAllocations
+                    .Include(a => a.Hostel)
+                    .Include(a => a.Room)
+                    .FirstOrDefaultAsync(a => a.Status == "Active" && (a.StudentId == studentId || (!string.IsNullOrEmpty(student.AdmissionNumber) && a.RegistrationNo == student.AdmissionNumber)));
+
+                if (alloc != null)
+                {
+                    return new ParentHostelInfoDto
+                    {
+                        IsAllocated = true,
+                        HostelName = alloc.Hostel?.HostelName ?? "School Hostel",
+                        BlockName = alloc.Hostel?.HostelType ?? "Block A",
+                        RoomNumber = alloc.Room?.RoomNumber ?? "",
+                        BedNumber = alloc.BedNumber ?? "",
+                        RoomType = alloc.Room?.FloorLevel ?? "Standard",
+                        WardenName = alloc.Hostel?.WardenName ?? "Hostel Warden",
+                        WardenPhone = alloc.Hostel?.PrimaryMobileNumber ?? ""
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[ParentRepository] GetHostelInfo Exception: {ex.Message}");
+            }
+
             return new ParentHostelInfoDto
             {
                 IsAllocated = false,

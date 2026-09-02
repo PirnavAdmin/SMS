@@ -11,8 +11,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const { user } = useAuth();
   const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, timetable, subjects, staff, studentFeeLedgers, meetings } = useData();
   
-  // Since we are mocking auth, map to first active student
-  const currentWard = students.find(s => s.status === 'Active') || students[0];
+  const currentWard = students.find(s => s.id === user?.id || (user?.email && s.email?.toLowerCase() === user.email.toLowerCase())) || students.find(s => s.status === 'Active') || students[0];
 
   if (!currentWard) {
     return <div className="p-8 text-center text-xs text-slate-500">No student record found.</div>;
@@ -29,10 +28,21 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const pendingHomework = homework.filter(h => h.className === currentWard.className && h.section === currentWard.section);
   
   // Timetable
+  const norm = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
+  const wardClassNorm = norm(currentWard.className);
+  const wardSecNorm = norm(currentWard.section);
+
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayName = days[new Date().getDay()] as any;
   const todaysSchedule = timetable
-    .filter(t => t.className === currentWard.className && t.section === currentWard.section && t.day === todayName)
+    .filter(t => {
+      const tClassNorm = norm(t.className);
+      const tSecNorm = norm(t.section);
+      const matchesClass = tClassNorm === wardClassNorm || tClassNorm.includes(wardClassNorm) || wardClassNorm.includes(tClassNorm);
+      const matchesSec = !wardSecNorm || !tSecNorm || tSecNorm === 'all' || tSecNorm === wardSecNorm;
+      const matchesDay = !t.day || t.day === 'All' || t.day.toLowerCase() === todayName.toLowerCase();
+      return matchesClass && matchesSec && matchesDay;
+    })
     .sort((a,b) => (a.startTime || a.timeSlot || '').localeCompare(b.startTime || b.timeSlot || ''));
 
   const getSubjectName = (id?: string) => id ? (subjects.find(s => s.id === id)?.name || id) : 'Subject';

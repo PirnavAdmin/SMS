@@ -100,13 +100,11 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
         <div id="printable-content" className="p-8 space-y-6 text-slate-900 dark:text-slate-100 text-xs bg-white dark:bg-slate-900 overflow-y-auto">
           {/* Header */}
           <div className="text-center space-y-1.5 pb-4 border-b border-slate-200 dark:border-slate-800">
-            {schoolProfile.logoUrl && (
-              <img
-                src={schoolProfile.logoUrl}
-                alt="School Logo"
-                className="w-14 h-14 mx-auto object-contain mb-1"
-              />
-            )}
+            <img
+              src={schoolProfile.logoUrl || '/pirnav-school-logo.png'}
+              alt="School Logo"
+              className="w-14 h-14 mx-auto object-contain mb-1"
+            />
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">{schoolProfile.name}</h1>
             <p className="text-[10px] text-slate-500">{schoolProfile.address} • Ph: {schoolProfile.phone}</p>
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 font-bold uppercase tracking-wider text-[10px]">

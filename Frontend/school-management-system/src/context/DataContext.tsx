@@ -6021,15 +6021,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.setItem("profile", JSON.stringify(next));
         if (next.logoUrl) {
           localStorage.setItem("school_logo", next.logoUrl);
+          localStorage.setItem("logoUrl", next.logoUrl);
+          localStorage.setItem("schoolLogo", next.logoUrl);
         }
       } catch (e) {}
       return next;
     });
+    try {
+      window.dispatchEvent(new Event("school_profile_updated"));
+    } catch (e) {}
     logActivity(
       "Updated School Profile",
       "Updated school contact and settings",
     );
   };
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      try {
+        const stored = localStorage.getItem("edu_db_profile") || localStorage.getItem("profile");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setSchoolProfile(prev => ({ ...prev, ...parsed }));
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener("school_profile_updated", handleProfileUpdate);
+    window.addEventListener("storage", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("school_profile_updated", handleProfileUpdate);
+      window.removeEventListener("storage", handleProfileUpdate);
+    };
+  }, []);
 
   const addStudent = (
     stData: Omit<Student, "id">,

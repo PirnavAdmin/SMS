@@ -235,27 +235,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   let parentWards: any[] = [];
   let hasMatchedWards = false;
 
-  const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
-
-  if (isKumar) {
-    hasMatchedWards = true;
-    parentWards = [
-      {
-        id: '2',
-        studentId: 2,
-        admissionNo: 'REG-1104',
-        rollNo: '102',
-        firstName: 'pawankalyan',
-        lastName: '',
-        studentName: 'pawankalyan',
-        className: 'Class 6',
-        section: 'A',
-        gender: 'Male',
-        dob: '2014-05-15',
-        status: 'Active'
-      }
-    ];
-  } else if (apiChildren.length > 0) {
+  if (apiChildren.length > 0) {
     hasMatchedWards = true;
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
