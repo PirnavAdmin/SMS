@@ -512,30 +512,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Brand Header */}
       <div
-        className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800`}
+        className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800 px-2`}
       >
         {collapsed ? (
           <div
-            className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+            className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors overflow-hidden p-1"
             onClick={() => setCollapsed(false)}
+            title="School Dashboard"
           >
-            <span className="text-[8px] font-black italic tracking-wider text-sky-700 dark:text-sky-500">
-              PIRNAV
-            </span>
+            {schoolProfile?.logoUrl ? (
+              <img
+                src={schoolProfile.logoUrl}
+                alt="School Logo"
+                className="max-h-7 max-w-7 object-contain"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950/60 flex items-center justify-center border border-sky-200 dark:border-sky-800">
+                <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+              </div>
+            )}
           </div>
         ) : (
-          <div className="flex items-center w-52 select-none cursor-pointer px-4 py-1.5 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50">
-            <div className="flex flex-col items-center w-full">
-              <div className="flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                <span className="text-xl font-black italic tracking-wider text-sky-700 dark:text-sky-500 leading-none">
-                  PIRNAV
-                </span>
+          <div
+            className="flex items-center justify-center w-52 h-11 select-none cursor-pointer px-3 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
+            onClick={() => setActiveModule("dashboard")}
+            title="School Dashboard"
+          >
+            {schoolProfile?.logoUrl ? (
+              <img
+                src={schoolProfile.logoUrl}
+                alt="School Logo"
+                className="max-h-9 max-w-[180px] object-contain"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-950/60 flex items-center justify-center border border-sky-200 dark:border-sky-800">
+                <GraduationCap className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               </div>
-              <span className="text-[9px] font-bold tracking-widest text-sky-600/80 dark:text-sky-400/80 uppercase mt-0.5 whitespace-nowrap">
-                Schools
-              </span>
-            </div>
+            )}
           </div>
         )}
       </div>

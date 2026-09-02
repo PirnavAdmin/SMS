@@ -859,7 +859,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [drawerStaff, setDrawerStaff] = useState<Staff | null>(null);
 
-  const [payslipMode, setPayslipMode] = useState<'Auto Payslip' | 'Manual Payslip'>('Auto Payslip');
+  const [payslipMode, setPayslipMode] = useState<'Auto Payslip'>('Auto Payslip');
   const [globalDeduction, setGlobalDeduction] = useState<string>('');
   const [globalTdsPct, setGlobalTdsPct] = useState<string>('');
   const [standardPeriod, setStandardPeriod] = useState<'1m' | '3m' | '6m' | '12m'>('1m');
@@ -1744,12 +1744,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Payslip Mode</span>
-              <div className="w-40">
-                <SelectField value={payslipMode} onChange={e => setPayslipMode(e.target.value as any)}>
-                  <option value="Auto Payslip">Auto Payslip</option>
-                  <option value="Manual Payslip">Manual Payslip</option>
-                </SelectField>
-              </div>
+              <span className="px-3.5 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-extrabold text-xs">
+                Auto Payslip
+              </span>
             </div>
           </div>
         </div>

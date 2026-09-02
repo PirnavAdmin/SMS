@@ -300,8 +300,8 @@ export const ParentAttendanceView: React.FC = () => {
             value={filterType} onChange={(e) => setFilterType(e.target.value as 'Month' | 'Day' | 'Custom')}
             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
           >
-            <option value="Day">Day-wise</option>
-            <option value="Month">Month-wise</option>
+            <option value="Day">Daily</option>
+            <option value="Month">Monthly</option>
             <option value="Custom">Custom Range</option>
           </select>
         </div>
