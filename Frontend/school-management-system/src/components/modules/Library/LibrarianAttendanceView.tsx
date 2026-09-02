@@ -6,6 +6,8 @@ import { useToast } from '../../../context/ToastContext';
 import { Pagination } from '../../common/Pagination';
 import * as LibraryAPI from '../../../api/library';
 
+import { exportToExcel } from '../../../utils/excelExport';
+
 export interface LibrarianAttendanceRecord {
   id: string;
   staffId: string;
@@ -121,36 +123,33 @@ export const LibrarianAttendanceView: React.FC = () => {
     }
 
     const headers = ['Date', 'Staff ID', 'Staff Name', 'Role', 'Shift', 'Check In', 'Check Out', 'Working Hours', 'Status', 'Duty Remarks'];
-    const csvRows = [
-      headers.join(','),
+    const excelRows = [
+      headers,
       ...filteredAttendance.map(r => {
         const hrs = r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : (r.workingHours || '--');
         return [
-          `"${r.date}"`,
-          `"${r.staffId}"`,
-          `"${r.staffName}"`,
-          `"${r.role}"`,
-          `"${r.shift}"`,
-          `"${r.checkInTime || '--'}"`,
-          `"${r.checkOutTime || 'Active Shift'}"`,
-          `"${hrs}"`,
-          `"${r.status}"`,
-          `"${(r.remarks || 'Routine Shift').replace(/"/g, '""')}"`
-        ].join(',');
+          r.date,
+          r.staffId,
+          r.staffName,
+          r.role,
+          r.shift,
+          r.checkInTime || '--',
+          r.checkOutTime || 'Active Shift',
+          hrs,
+          r.status,
+          r.remarks || 'Routine Shift'
+        ];
       })
     ];
 
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const fileName = `librarian_attendance_${attendanceViewMode}_${selectedAttendanceDate}.csv`;
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    addToast('success', 'Report Exported', `Exported ${filteredAttendance.length} filtered attendance records to ${fileName}.`);
+    const fileName = `librarian_attendance_${attendanceViewMode}_${selectedAttendanceDate}`;
+    try {
+      exportToExcel(excelRows, fileName, 'Librarian Attendance');
+      addToast('success', 'Report Exported', `Exported ${filteredAttendance.length} filtered attendance records to Excel.`);
+    } catch (err: any) {
+      console.error("Export error:", err);
+      addToast('error', 'Export Failed', err.message || 'Failed to export report.');
+    }
   };
 
   const handlePrint = () => {

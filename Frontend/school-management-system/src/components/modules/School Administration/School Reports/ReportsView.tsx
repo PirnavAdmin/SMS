@@ -161,7 +161,6 @@ export const ReportsView: React.FC = () => {
                 <Filter className="w-2.5 h-2.5" /> Explicit Filter Dropdowns
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">Select a report module & category filter from the dropdowns or type a manual query to view matching data</p>
           </div>
         </div>
 
