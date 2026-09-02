@@ -11,6 +11,16 @@ import React, {
 import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
 import {
+  fetchSchoolSettingsApi,
+  updateSchoolSettingsApi,
+  updateCertificateTemplatesApi,
+  updateCampusesApi,
+  fetchAcademicYearsApi,
+  createAcademicYearApi,
+  updateAcademicYearApi,
+  deleteAcademicYearApi,
+} from "../api/settings";
+import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
   getItemFeeFromFinanceConfig,
@@ -3763,7 +3773,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     () => getStored("financial_budgets", initialFinancialBudgets),
   );
 
-  const addAcademicYear = (ayData: Omit<AcademicYearMaster, "id">) => {
+  const addAcademicYear = async (ayData: Omit<AcademicYearMaster, "id">) => {
     const id = `AY-${ayData.academicYear.replace(/\s+/g, "") || Date.now()}`;
     const newAY: AcademicYearMaster = { id, ...ayData };
     setAcademicYears((prev) => {
@@ -3774,9 +3784,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return [...updated, newAY];
     });
+
+    try {
+      const res: any = await createAcademicYearApi(ayData);
+      if (res?.success && res?.data) {
+        const serverId = res.data.id || `AY-${res.data.academicYearId}`;
+        setAcademicYears((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, id: serverId } : a)),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to create academic year on backend:", err);
+    }
   };
 
-  const updateAcademicYear = (
+  const updateAcademicYear = async (
     id: string,
     updates: Partial<AcademicYearMaster>,
   ) => {
@@ -3797,16 +3819,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return updated;
     });
+
+    if (id) {
+      try {
+        await updateAcademicYearApi(id, updates);
+      } catch (err) {
+        console.warn("Failed to update academic year on backend:", err);
+      }
+    }
   };
 
-  const deleteAcademicYear = (id: string) => {
+  const deleteAcademicYear = async (id: string) => {
     setAcademicYears((prev) => prev.filter((a) => a.id !== id));
+
+    if (id) {
+      try {
+        await deleteAcademicYearApi(id);
+      } catch (err) {
+        console.warn("Failed to delete academic year on backend:", err);
+      }
+    }
   };
 
-  const setCurrentAcademicYear = (id: string) => {
+  const setCurrentAcademicYear = async (id: string) => {
+    let targetYear: AcademicYearMaster | undefined;
     setAcademicYears((prev) => {
       const target = prev.find((a) => a.id === id);
       if (!target) return prev;
+      targetYear = target;
       setSelectedAcademicYear(target.academicYear);
       return prev.map((a) => ({
         ...a,
@@ -3815,7 +3855,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           a.id === id ? "Active" : a.status === "Active" ? "Closed" : a.status,
       }));
     });
+
+    if (id) {
+      try {
+        await updateAcademicYearApi(id, { isCurrentAcademicYear: true, status: "Active" });
+      } catch (err) {
+        console.warn("Failed to set current academic year on backend:", err);
+      }
+    }
   };
+
+  useEffect(() => {
+    const loadBackendSettings = async () => {
+      try {
+        const res: any = await fetchSchoolSettingsApi();
+        if (res?.success && res?.data) {
+          const s = res.data;
+          setSchoolProfile((prev) => {
+            const updated = {
+              ...prev,
+              name: s.schoolName || prev.name,
+              schoolName: s.schoolName || prev.schoolName,
+              tagline: s.tagline || prev.tagline,
+              motto: s.tagline || prev.motto,
+              address: s.address || prev.address,
+              phone: s.phone || prev.phone,
+              email: s.email || prev.email,
+              website: s.website || prev.website,
+              principalName: s.principalName || prev.principalName,
+              logoUrl: s.logoUrl || prev.logoUrl,
+            };
+            if (s.logoUrl) {
+              localStorage.setItem("school_logo", s.logoUrl);
+            }
+            return updated;
+          });
+          window.dispatchEvent(new Event("school_profile_updated"));
+
+          if (s.certificateTemplates && Array.isArray(s.certificateTemplates) && s.certificateTemplates.length > 0) {
+            setCertificateTemplates(s.certificateTemplates);
+            localStorage.setItem("edu_db_certificate_templates", JSON.stringify(s.certificateTemplates));
+          }
+
+          if (s.campuses && Array.isArray(s.campuses) && s.campuses.length > 0) {
+            localStorage.setItem("school_campuses", JSON.stringify(s.campuses));
+            window.dispatchEvent(new Event("branches_updated"));
+          }
+        }
+      } catch (err) {
+        console.warn("Backend settings load notice:", err);
+      }
+    };
+    loadBackendSettings();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("edu_db_profile", JSON.stringify(schoolProfile));
@@ -6486,22 +6578,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  const updateSchoolProfile = (profile: Partial<SchoolProfile>) => {
+  const updateSchoolProfile = async (profile: Partial<SchoolProfile>) => {
+    let nextState: SchoolProfile = schoolProfile;
     setSchoolProfile((prev) => {
-      const next = { ...prev, ...profile };
+      nextState = { ...prev, ...profile };
       try {
-        localStorage.setItem("edu_db_profile", JSON.stringify(next));
-        localStorage.setItem("profile", JSON.stringify(next));
-        if (next.logoUrl) {
-          localStorage.setItem("school_logo", next.logoUrl);
+        localStorage.setItem("edu_db_profile", JSON.stringify(nextState));
+        localStorage.setItem("profile", JSON.stringify(nextState));
+        if (nextState.logoUrl) {
+          localStorage.setItem("school_logo", nextState.logoUrl);
         }
       } catch (e) {}
-      return next;
+      return nextState;
     });
+
+    window.dispatchEvent(new Event('school_profile_updated'));
+
     logActivity(
       "Updated School Profile",
       "Updated school contact and settings",
     );
+
+    try {
+      await updateSchoolSettingsApi({
+        schoolName: nextState.name || nextState.schoolName || "Pirnav Educational Institutions",
+        tagline: nextState.tagline || nextState.motto || "",
+        address: nextState.address || "",
+        phone: nextState.phone || "",
+        email: nextState.email || "",
+        website: nextState.website || "",
+        principalName: nextState.principalName || "",
+        logoUrl: nextState.logoUrl || "",
+      });
+    } catch (err) {
+      console.warn("Failed to update school profile on backend:", err);
+    }
   };
 
   const addStudent = (
@@ -18354,18 +18465,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   });
 
-  const updateCertificateTemplate = (
+  const updateCertificateTemplate = async (
     id: string,
     updates: Partial<CertificateTemplateConfig>,
   ) => {
+    let nextList: CertificateTemplateConfig[] = [];
     setCertificateTemplates((prev) => {
-      const next = prev.map((t) => (t.id === id ? { ...t, ...updates } : t));
-      localStorage.setItem(
-        "edu_db_certificate_templates",
-        JSON.stringify(next),
-      );
-      return next;
+      nextList = prev.map((t) => (t.id === id ? { ...t, ...updates } : t));
+      try {
+        localStorage.setItem(
+          "edu_db_certificate_templates",
+          JSON.stringify(nextList),
+        );
+      } catch (e) {}
+      return nextList;
     });
+
+    try {
+      await updateCertificateTemplatesApi(nextList);
+    } catch (err) {
+      console.warn("Failed to update certificate templates on backend:", err);
+    }
   };
 
   const issueTransferCertificate = (tc: TcRecord) => {

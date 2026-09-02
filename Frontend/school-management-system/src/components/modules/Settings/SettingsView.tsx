@@ -13,6 +13,15 @@ import { PrintableCertificateContainer } from '../Certificates/PrintableCertific
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
 import { SchoolLogoUploader } from './SchoolLogoUploader';
 import { CertificateSettingsTab } from './CertificateSettingsTab';
+import { 
+  updateCampusesApi, 
+  updateCertificateTemplatesApi,
+  fetchBranchesApi,
+  createBranchApi,
+  updateBranchApi,
+  deleteBranchApi,
+  fetchAcademicYearsApi
+} from '../../../api/settings';
 
 export interface CampusItem {
   id: string;
@@ -211,7 +220,7 @@ export const SettingsView: React.FC = () => {
   }, [certificateTemplates, selectedTemplateId]);
 
   // Sync campuses to localStorage and trigger Header sync event
-  const syncCampuses = (updated: CampusItem[]) => {
+  const syncCampuses = async (updated: CampusItem[]) => {
     setCampuses(updated);
     localStorage.setItem('school_campuses', JSON.stringify(updated));
 
@@ -223,6 +232,12 @@ export const SettingsView: React.FC = () => {
     localStorage.setItem('inactive_branches', JSON.stringify(allInactive));
 
     window.dispatchEvent(new Event('branches_updated'));
+
+    try {
+      await updateCampusesApi(updated);
+    } catch (err) {
+      console.warn("Failed to sync campuses to backend database:", err);
+    }
   };
 
   const handleSaveProfile = (e: React.SyntheticEvent) => {
@@ -246,9 +261,15 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleSaveCertificateTemplates = () => {
+  const handleSaveCertificateTemplates = async () => {
     localStorage.setItem('edu_db_certificate_templates', JSON.stringify(certificateTemplates));
     addToast('success', 'Certificate Template Configured', `Saved layout and branding configurations for ${currentTemplate?.certificateType || 'all certificates'}.`);
+
+    try {
+      await updateCertificateTemplatesApi(certificateTemplates);
+    } catch (err) {
+      console.warn("Failed to sync certificate templates to backend database:", err);
+    }
   };
 
   const handleOpenAddCampus = () => {
@@ -270,7 +291,32 @@ export const SettingsView: React.FC = () => {
     setIsCampusModalOpen(true);
   };
 
-  const handleSaveCampus = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadBackendData = async () => {
+      try {
+        const res: any = await fetchBranchesApi();
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setCampuses(res.data);
+          localStorage.setItem('school_campuses', JSON.stringify(res.data));
+          window.dispatchEvent(new Event('branches_updated'));
+        }
+      } catch (err) {
+        console.warn("Backend branches load notice:", err);
+      }
+
+      try {
+        const ayRes: any = await fetchAcademicYearsApi();
+        if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
+          localStorage.setItem('edu_db_academic_years', JSON.stringify(ayRes.data));
+        }
+      } catch (err) {
+        console.warn("Backend academic years load notice:", err);
+      }
+    };
+    loadBackendData();
+  }, []);
+
+  const handleSaveCampus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!campusForm.name.trim() || !campusForm.code.trim()) return;
 
@@ -278,25 +324,47 @@ export const SettingsView: React.FC = () => {
     if (editingCampus) {
       updated = campuses.map(c => c.id === editingCampus.id ? { ...editingCampus, ...campusForm } : c);
       addToast('success', 'Campus Updated', `Updated settings for ${campusForm.name}`);
+      try {
+        await updateBranchApi(editingCampus.id, campusForm);
+      } catch (err) {
+        console.warn("Failed to update branch on backend:", err);
+      }
     } else {
+      const tempId = `CMP-${Date.now().toString().slice(-4)}`;
       const newCampus: CampusItem = {
-        id: `CMP-${Date.now().toString().slice(-4)}`,
+        id: tempId,
         ...campusForm
       };
       updated = [...campuses, newCampus];
       addToast('success', 'Campus Added', `Added new campus ${campusForm.name}`);
+      try {
+        const res: any = await createBranchApi(campusForm);
+        if (res?.success && res?.data) {
+          const serverId = res.data.id || `CMP-${res.data.branchId}`;
+          updated = updated.map(c => c.id === tempId ? { ...c, id: serverId } : c);
+        }
+      } catch (err) {
+        console.warn("Failed to create branch on backend:", err);
+      }
     }
 
     syncCampuses(updated);
     setIsCampusModalOpen(false);
   };
 
-  const confirmDeleteCampus = () => {
+  const confirmDeleteCampus = async () => {
     if (!deletingCampus) return;
-    const updated = campuses.filter(c => c.id !== deletingCampus.id);
+    const targetId = deletingCampus.id;
+    const updated = campuses.filter(c => c.id !== targetId);
     syncCampuses(updated);
     addToast('success', 'Campus Removed', `Removed ${deletingCampus.name} campus.`);
     setDeletingCampus(null);
+
+    try {
+      await deleteBranchApi(targetId);
+    } catch (err) {
+      console.warn("Failed to delete branch on backend:", err);
+    }
   };
 
   const handleOpenAddAY = () => {
@@ -817,6 +885,99 @@ export const SettingsView: React.FC = () => {
                   className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md"
                 >
                   Save Campus
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Academic Year Modal */}
+      {isAYModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                {editingAY ? 'Edit Academic Year' : 'Add Academic Year'}
+              </h3>
+              <button onClick={() => setIsAYModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAY} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Academic Session Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 2026–27 or 2026-2027"
+                  value={ayForm.academicYear}
+                  onChange={e => setAyForm({ ...ayForm, academicYear: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="date"
+                    required
+                    value={ayForm.startDate}
+                    onChange={e => setAyForm({ ...ayForm, startDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="date"
+                    required
+                    value={ayForm.endDate}
+                    onChange={e => setAyForm({ ...ayForm, endDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Session Status</label>
+                <select
+                  value={ayForm.status}
+                  onChange={e => setAyForm({ ...ayForm, status: e.target.value as any })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer"
+                >
+                  <option value="Active">Active Session</option>
+                  <option value="Upcoming">Upcoming Session</option>
+                  <option value="Closed">Closed Session</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Description / Remarks</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Regular Academic Year 2026-2027"
+                  value={ayForm.description}
+                  onChange={e => setAyForm({ ...ayForm, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAYModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md cursor-pointer"
+                >
+                  Save Academic Year
                 </button>
               </div>
             </form>
