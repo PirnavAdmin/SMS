@@ -7697,13 +7697,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   c.pickupName === pObj?.pickupName) &&
                 c.status === "Active",
             );
-            const pFee =
+            const monthlyRate =
               pObj && (pObj.monthlyFee ?? 0) > 0
                 ? (pObj.monthlyFee ?? 0)
                 : ftc
                   ? ftc.feeAmount
-                  : 5500;
-            additionalFees += pFee;
+                  : 1500;
+            const annualTrpFee = monthlyRate * 12;
+            additionalFees += annualTrpFee;
           } else if (
             (app.studentType === "Hosteller" ||
               app.studentType === "Residential") &&

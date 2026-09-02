@@ -29,6 +29,7 @@ const formatTripTime = (value?: string) => {
 export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps }) => {
   const {
     students = [],
+    staff = [],
     vehicleAssignments = [],
     vehicleMasters = [],
     driverMasters = [],
@@ -49,16 +50,32 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
     const attendant = busAttendants.find(a =>
-      a.id === assignment.attendantId ||
-      a.attendantName === assignment.attendantName
+      (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+      (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
     ) || initialBusAttendants.find(a =>
-      a.id === assignment.attendantId ||
-      a.attendantName === assignment.attendantName
+      (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+      (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
     );
 
+    const matchedStaff = staff.find(s => {
+      const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const attName = (assignment.attendantName || attendant?.attendantName || '').trim().toLowerCase();
+      const staffEmpId = (s.employeeId || s.id || '').trim().toLowerCase();
+      const targetEmpId = (attendant?.employeeId || assignment.attendantEmployeeId || assignment.attendantId || '').trim().toLowerCase();
+
+      return (
+        (targetEmpId && staffEmpId === targetEmpId) ||
+        (attName && (staffFullName === attName || staffFullName.includes(attName) || attName.includes(staffFullName)))
+      );
+    });
+
+    const name = (assignment.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
+      ? assignment.attendantName
+      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName}` : 'Unassigned'));
+
     return {
-      name: assignment.attendantName || attendant?.attendantName || 'Unassigned',
-      mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
+      name,
+      mobile: assignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '+91-9878909876'
     };
   };
 
@@ -333,60 +350,69 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           const attendant = resolveAttendant(assignment);
           const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
 
-          const routeStudentsCount = students.filter(student => {
-            const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-            if (!isStudentActive) return false;
+          const assignedStudentIds = new Set<string>();
+          const hasValidRoute = (targetRouteName !== '' && targetRouteName !== 'unassigned' && targetRouteName !== 'n/a') || targetRouteId !== '';
 
-            const stAssignment = studentTransports.find(st => {
+          if (hasValidRoute) {
+            // 1. Students explicitly assigned to this route in studentTransports
+            studentTransports.forEach(st => {
               const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-              if (!isStatusActive) return false;
+              if (!isStatusActive) return;
 
-              return (
-                (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-                (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
+              const stRouteId = String(st.routeId || '').trim();
+              const stRouteName = (st.routeName || '').trim().toLowerCase();
+
+              const matchRt = Boolean(
+                (targetRouteId && stRouteId && stRouteId === targetRouteId) ||
+                (targetRouteName && stRouteName && (stRouteName === targetRouteName || (targetRouteCode && stRouteName === targetRouteCode)))
               );
+
+              if (matchRt) {
+                assignedStudentIds.add(String(st.studentId || st.admissionNo || st.id));
+              }
             });
 
-            const matchedAdm = admissions.find(a =>
-              (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-              (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
-              (a.id && student.id && String(a.id).trim() === String(student.id).trim())
-            );
-
-            let isAssignedToThisRoute = false;
-
-            if (stAssignment) {
-              const stRouteId = stAssignment.routeId ? String(stAssignment.routeId).trim() : '';
-              const stRouteName = (stAssignment.routeName || '').trim().toLowerCase();
-
-              if (targetRouteId && stRouteId && stRouteId === targetRouteId) {
-                isAssignedToThisRoute = true;
-              } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && stRouteName === targetRouteName) {
-                isAssignedToThisRoute = true;
-              } else if (targetRouteCode && stRouteName === targetRouteCode) {
-                isAssignedToThisRoute = true;
+            // 2. Students who opted for this route in their profile/admission
+            students.forEach(student => {
+              const stStatus = (student.status || '').toLowerCase();
+              if (stStatus === 'inactive' || stStatus === 'discontinued' || stStatus === 'transferred' || stStatus === 'withdrawn') {
+                return;
               }
-            }
 
-            if (!isAssignedToThisRoute) {
-              const sRoute = (student.busRoute || student.routeId || matchedAdm?.busRoute || '').trim().toLowerCase();
-              const isTransportOpted = student.transportRequired === true || matchedAdm?.transportRequired === true || (sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned');
+              const studentKey = String(student.id || student.admissionNo);
+              if (assignedStudentIds.has(studentKey)) return;
 
-              if (isTransportOpted && sRoute !== '' && sRoute !== 'n/a' && sRoute !== 'unassigned') {
-                if (targetRouteId && (sRoute === targetRouteId || (student.routeId && String(student.routeId).trim() === targetRouteId))) {
-                  isAssignedToThisRoute = true;
-                } else if (targetRouteName && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && sRoute === targetRouteName) {
-                  isAssignedToThisRoute = true;
-                } else if (targetRouteCode && sRoute === targetRouteCode) {
-                  isAssignedToThisRoute = true;
-                }
+              // Check if student is explicitly assigned to a different route in studentTransports
+              const otherAssignment = studentTransports.find(st => {
+                const isActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+                if (!isActive) return false;
+                return (
+                  (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+                  (st.admissionNo && student.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase())
+                );
+              });
+
+              if (otherAssignment) return;
+
+              const studentOptedTransport = Boolean(student.transportRequired || student.busRoute || student.routeId);
+              if (!studentOptedTransport) return;
+
+              const studRoute = (student.busRoute || '').trim().toLowerCase();
+              const studRouteId = String(student.routeId || '').trim();
+
+              const matchProfileRt = Boolean(
+                (targetRouteId && studRouteId && studRouteId === targetRouteId) ||
+                (targetRouteId && studRoute && studRoute === targetRouteId) ||
+                (targetRouteName && studRoute && (studRoute === targetRouteName || (targetRouteCode && studRoute === targetRouteCode)))
+              );
+
+              if (matchProfileRt) {
+                assignedStudentIds.add(studentKey);
               }
-            }
+            });
+          }
 
-            return isAssignedToThisRoute;
-          }).length;
-
-          const assignedCount = routeStudentsCount;
+          const assignedCount = assignedStudentIds.size;
           const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
           const gpsOnline = assignment.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle?.gpsDeviceId;
           const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');

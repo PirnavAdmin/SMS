@@ -67,6 +67,7 @@ const getCurrentAcademicYear = () => {
 export const VehicleAssignmentView: React.FC = () => {
   const {
     students = [],
+    staff = [],
     vehicleAssignments,
     vehicleMasters,
     routeMasters,
@@ -258,14 +259,40 @@ export const VehicleAssignmentView: React.FC = () => {
       (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
     );
 
+    const matchedStaff = staff.find(s => {
+      const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const attName = (assignment.attendantName || attendant?.attendantName || '').trim().toLowerCase();
+      const staffEmpId = (s.employeeId || s.id || '').trim().toLowerCase();
+      const targetEmpId = (attendant?.employeeId || assignment.attendantEmployeeId || assignment.attendantId || '').trim().toLowerCase();
+
+      return (
+        (targetEmpId && staffEmpId === targetEmpId) ||
+        (attName && (staffFullName === attName || staffFullName.includes(attName) || attName.includes(staffFullName)))
+      );
+    });
+
     const name = (assignment.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
       ? assignment.attendantName
-      : (attendant?.attendantName || 'Unassigned');
+      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName}` : 'Unassigned'));
+
+    let empCode = attendant?.employeeId || matchedStaff?.employeeId || assignment.attendantEmployeeId || '';
+    if (!empCode || /^\d+$/.test(empCode)) {
+      if (matchedStaff?.employeeId) {
+        empCode = matchedStaff.employeeId;
+      } else if (attendant?.employeeId) {
+        empCode = attendant.employeeId;
+      } else if (attendant?.id && !/^\d+$/.test(String(attendant.id))) {
+        empCode = attendant.id;
+      } else if (attendant?.id) {
+        empCode = `ATT-${String(attendant.id).padStart(3, '0')}`;
+      }
+    }
 
     return {
       id: attendant?.id || assignment.attendantId || '',
+      employeeId: empCode || '-',
       name,
-      mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
+      mobile: assignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || ''
     };
   };
 
@@ -614,50 +641,74 @@ export const VehicleAssignmentView: React.FC = () => {
     const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
     const attendant = resolveAttendant(assignment);
     const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
-    const routeStudentsCount = students.filter(student => {
-      const isStudentActive = student.status !== 'Inactive' && student.status !== 'Discontinued' && student.status !== 'Transferred';
-      if (!isStudentActive) return false;
+    const assignedStudentIds = new Set<string>();
 
-      const stAssignment = studentTransports.find(st => {
+    const currentRouteId = String(route?.id || assignment.routeId || '').trim();
+    const currentRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
+    const currentRouteCode = (route?.routeCode || '').trim().toLowerCase();
+    const hasValidRoute = (currentRouteName !== '' && currentRouteName !== 'unassigned' && currentRouteName !== 'n/a') || currentRouteId !== '';
+
+    if (hasValidRoute) {
+      // 1. Students explicitly assigned to this route in studentTransports
+      studentTransports.forEach(st => {
         const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-        if (!isStatusActive) return false;
+        if (!isStatusActive) return;
 
-        return (
-          (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-          (st.admissionNo && student.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+        const stRouteId = String(st.routeId || '').trim();
+        const stRouteName = (st.routeName || '').trim().toLowerCase();
+
+        const matchRt = Boolean(
+          (currentRouteId && stRouteId && stRouteId === currentRouteId) ||
+          (currentRouteName && stRouteName && (stRouteName === currentRouteName || (currentRouteCode && stRouteName === currentRouteCode)))
         );
+
+        if (matchRt) {
+          assignedStudentIds.add(String(st.studentId || st.admissionNo || st.id));
+        }
       });
 
-      // 1. Match by routeId
-      const matchesRouteId = Boolean(
-        (stAssignment?.routeId && route?.id && String(stAssignment.routeId).trim() === String(route.id).trim()) ||
-        (stAssignment?.routeId && assignment.routeId && String(stAssignment.routeId).trim() === String(assignment.routeId).trim()) ||
-        (student.busRoute && route?.id && String(student.busRoute).trim() === String(route.id).trim()) ||
-        (student.busRoute && assignment.routeId && String(student.busRoute).trim() === String(assignment.routeId).trim())
-      );
+      // 2. Students who opted for this route in their profile/admission
+      students.forEach(student => {
+        const stStatus = (student.status || '').toLowerCase();
+        if (stStatus === 'inactive' || stStatus === 'discontinued' || stStatus === 'transferred' || stStatus === 'withdrawn') {
+          return;
+        }
 
-      // 2. Match by vehicleNumber / vehicleId
-      const matchesVehicle = Boolean(
-        (stAssignment?.vehicleNumber && assignment.vehicleNumber && stAssignment.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase()) ||
-        (stAssignment?.vehicleId && assignment.vehicleId && String(stAssignment.vehicleId).trim() === String(assignment.vehicleId).trim())
-      );
+        const studentKey = String(student.id || student.admissionNo);
+        if (assignedStudentIds.has(studentKey)) return;
 
-      // 3. Match by exact Route Name / Code
-      const studentRoute = (stAssignment?.routeName || student.busRoute || '').trim().toLowerCase();
-      const targetRouteName = (route?.routeName || assignment.routeName || '').trim().toLowerCase();
-      const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
+        // Check if student is explicitly assigned to a different route in studentTransports
+        const otherAssignment = studentTransports.find(st => {
+          const isActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+          if (!isActive) return false;
+          return (
+            (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+            (st.admissionNo && student.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+          );
+        });
 
-      const matchesRouteName = Boolean(
-        studentRoute !== '' &&
-        studentRoute !== 'n/a' &&
-        studentRoute !== 'unassigned' &&
-        ((targetRouteName !== '' && targetRouteName !== 'n/a' && targetRouteName !== 'unassigned' && studentRoute === targetRouteName) ||
-         (targetRouteCode !== '' && studentRoute === targetRouteCode))
-      );
+        // If assigned elsewhere, don't count here
+        if (otherAssignment) return;
 
-      return matchesRouteId || matchesVehicle || matchesRouteName;
-    }).length;
-    const assignedStudents = routeStudentsCount;
+        const studentOptedTransport = Boolean(student.transportRequired || student.busRoute || student.routeId);
+        if (!studentOptedTransport) return;
+
+        const studRoute = (student.busRoute || '').trim().toLowerCase();
+        const studRouteId = String(student.routeId || '').trim();
+
+        const matchProfileRt = Boolean(
+          (currentRouteId && studRouteId && studRouteId === currentRouteId) ||
+          (currentRouteId && studRoute && studRoute === currentRouteId) ||
+          (currentRouteName && studRoute && (studRoute === currentRouteName || (currentRouteCode && studRoute === currentRouteCode)))
+        );
+
+        if (matchProfileRt) {
+          assignedStudentIds.add(studentKey);
+        }
+      });
+    }
+
+    const assignedStudents = assignedStudentIds.size;
 
     return {
       assignment,
@@ -839,11 +890,13 @@ export const VehicleAssignmentView: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-left">
                           <div className="font-bold text-slate-800 dark:text-slate-200">{driver?.driverName || assignment.driverName || 'Unassigned'}</div>
-                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {driver?.employeeId || assignment.driverEmployeeId || (driver?.id ? `DRV-${driver.id}` : '-')}</div>
+                          <div className="text-[10px] font-mono text-slate-400">
+                            Emp ID: {driver?.employeeId || staff.find(s => `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === (driver?.driverName || assignment.driverName || '').trim().toLowerCase())?.employeeId || assignment.driverEmployeeId || (driver?.id ? `DRV-${driver.id}` : '-')}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-left">
                           <div className="font-bold text-emerald-600 dark:text-emerald-400">{attendant.name || 'Unassigned'}</div>
-                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {attendant.id || assignment.attendantEmployeeId || '-'}</div>
+                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {attendant.employeeId || assignment.attendantEmployeeId || '-'}</div>
                         </td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{capacity}</td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-emerald-600">
