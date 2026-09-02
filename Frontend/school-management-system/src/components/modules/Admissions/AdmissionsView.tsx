@@ -2164,7 +2164,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         calculatedFee = baseFare + distance * ratePerKm;
       }
 
-      const trpFee =
+      const monthlyRate =
         pObj && (pObj.monthlyFee ?? 0) > 0
           ? (pObj.monthlyFee ?? 0)
           : calculatedFee > 0
@@ -2173,10 +2173,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               ? ftc.feeAmount
               : 0;
 
+      // Transport fee calculated for full academic year (12 months)
+      const annualTrpFee = monthlyRate * 12;
+
       items.push({
         name: `Transport Fee (${rObj?.routeName || formData.busRoute || "Opted"}${formData.pickupPoint ? ` - ${formData.pickupPoint}` : ""})`,
-        amount: trpFee,
+        amount: annualTrpFee,
         isApplicable: true,
+        remarks: monthlyRate > 0 ? `${formatCurrency(monthlyRate)}/month × 12 months` : undefined,
       });
     } else {
       items.push({

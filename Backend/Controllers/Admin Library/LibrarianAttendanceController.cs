@@ -25,31 +25,20 @@ public class LibrarianAttendanceController : ControllerBase
         _context = context;
     }
 
-    private bool IsAdminUser()
+    private async Task EnsureDefaultAttendanceLogsAsync()
     {
-        string? role = User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
-                       ?? User?.FindFirst("role")?.Value
-                       ?? Request.Headers["X-User-Role"].FirstOrDefault()
-                       ?? Request.Headers["User-Role"].FirstOrDefault();
-
-        if (string.IsNullOrWhiteSpace(role)) return false;
-
-        return role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
-               role.Equals("Administrator", StringComparison.OrdinalIgnoreCase) || 
-               role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private IActionResult? CheckAdminReadOnly()
-    {
-        if (IsAdminUser())
+        if (!await _context.LibrarianAttendances.AnyAsync())
         {
-            return StatusCode(403, new
+            var defaults = new List<LibrarianAttendance>
             {
-                success = false,
-                message = "Administrator is in Read-Only Mode (View Purpose Only). Only Librarians can modify librarian attendance and shift logs."
-            });
+                new LibrarianAttendance { Date = new DateTime(2026, 8, 25), StaffName = "Bhanu Prakash", EmployeeCode = "EMP-LIB-01", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "11:59 AM", CheckOutTime = "05:00 PM", TotalHours = 8.5, Status = "Late", DutyRemarks = "Late arrival check-in • Checked out at 05:00 PM" },
+                new LibrarianAttendance { Date = new DateTime(2026, 8, 20), StaffName = "Bhanu Prakash", EmployeeCode = "EMP-LIB-01", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "08:30 AM", CheckOutTime = "05:00 PM", TotalHours = 8.5, Status = "Present", DutyRemarks = "Catalog audit & inventory completed" },
+                new LibrarianAttendance { Date = new DateTime(2026, 8, 20), StaffName = "Rachel Green", EmployeeCode = "EMP-LIB-02", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "08:45 AM", CheckOutTime = "05:15 PM", TotalHours = 8.5, Status = "Present", DutyRemarks = "Circulation desk duty" },
+                new LibrarianAttendance { Date = new DateTime(2026, 8, 19), StaffName = "Bhanu Prakash", EmployeeCode = "EMP-LIB-01", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "08:28 AM", CheckOutTime = "05:05 PM", TotalHours = 8.6, Status = "Present", DutyRemarks = "Book issue renewals" }
+            };
+            await _context.LibrarianAttendances.AddRangeAsync(defaults);
+            await _context.SaveChangesAsync();
         }
-        return null;
     }
 
     [HttpGet]
@@ -59,51 +48,56 @@ public class LibrarianAttendanceController : ControllerBase
         [FromQuery] string? month = null,
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 50)
     {
-        var dbLogs = await _context.LibrarianAttendances.AsNoTracking().OrderByDescending(a => a.Date).ToListAsync();
+        await EnsureDefaultAttendanceLogsAsync();
 
-        var fallbackLogs = new List<object>
+        var query = _context.LibrarianAttendances.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(date))
         {
-            new { attendanceId = 1, date = "2026-08-25", librarian = "Bhanu Prakash", employeeCode = "EMP-LIB-01", shiftDetails = "Morning Shift (08:30 - 17:00)", checkIn = "11:59 AM", checkOut = "11:59 AM", hours = "8.5 Hours", status = "Late", dutyRemarks = "Late arrival check-in • Checked out at 11:59 AM" },
-            new { attendanceId = 2, date = "2026-08-20", librarian = "Bhanu Prakash", employeeCode = "EMP-LIB-01", shiftDetails = "Morning Shift (08:30 - 17:00)", checkIn = "08:30 AM", checkOut = "05:00 PM", hours = "8.5 Hours", status = "Present", dutyRemarks = "Catalog audit & inventory completed" },
-            new { attendanceId = 3, date = "2026-08-20", librarian = "Rachel Green", employeeCode = "EMP-LIB-02", shiftDetails = "Morning Shift (08:30 - 17:00)", checkIn = "08:45 AM", checkOut = "05:15 PM", hours = "8.5 Hours", status = "Present", dutyRemarks = "Circulation desk duty" },
-            new { attendanceId = 4, date = "2026-08-19", librarian = "Bhanu Prakash", employeeCode = "EMP-LIB-01", shiftDetails = "Morning Shift (08:30 - 17:00)", checkIn = "08:28 AM", checkOut = "05:05 PM", hours = "8.6 Hours", status = "Present", dutyRemarks = "Book issue renewals" },
-            new { attendanceId = 5, date = "2026-08-19", librarian = "Rachel Green", employeeCode = "EMP-LIB-02", shiftDetails = "Morning Shift (08:30 - 17:00)", checkIn = "09:15 AM", checkOut = "05:00 PM", hours = "7.75 Hours", status = "Late", dutyRemarks = "Traffic delay" },
-            new { attendanceId = 6, date = "2026-08-18", librarian = "Bhanu Prakash", employeeCode = "EMP-LIB-01", shiftDetails = "Morning Shift (08:30 - 17:00)", checkIn = "08:30 AM", checkOut = "05:00 PM", hours = "8.5 Hours", status = "Present", dutyRemarks = "New book arrivals cataloging" }
-        };
-
-        var logsToReturn = dbLogs.Any()
-            ? dbLogs.Select(a => new
+            if (DateTime.TryParse(date, out var parsedDate))
             {
-                attendanceId = a.AttendanceId,
-                date = a.Date.ToString("yyyy-MM-dd"),
-                librarian = a.StaffName,
-                employeeCode = a.EmployeeCode,
-                shiftDetails = a.ShiftDetails,
-                checkIn = a.CheckInTime,
-                checkOut = a.CheckOutTime,
-                hours = $"{a.TotalHours} Hours",
-                status = a.Status,
-                dutyRemarks = a.DutyRemarks ?? ""
-            }).Cast<object>().ToList()
-            : fallbackLogs;
-
-        if (view?.ToLower() == "daily")
-        {
-            logsToReturn = logsToReturn.Take(1).ToList();
+                query = query.Where(a => a.Date.Date == parsedDate.Date);
+            }
         }
 
-        int presentCount = 7;
-        int lateCount = 2;
-        int leaveCount = 0;
-
-        if (view?.ToLower() == "daily")
+        if (!string.IsNullOrWhiteSpace(month))
         {
-            presentCount = 1;
-            lateCount = 1;
-            leaveCount = 0;
+            if (DateTime.TryParse(month + "-01", out var parsedMonth))
+            {
+                query = query.Where(a => a.Date.Year == parsedMonth.Year && a.Date.Month == parsedMonth.Month);
+            }
         }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.Trim().ToLower();
+            query = query.Where(a => a.StaffName.ToLower().Contains(s) || a.EmployeeCode.ToLower().Contains(s) || a.Status.ToLower().Contains(s));
+        }
+
+        var dbLogs = await query.OrderByDescending(a => a.Date).ThenByDescending(a => a.AttendanceId).ToListAsync();
+
+        var dataList = dbLogs.Select(a => new LibrarianAttendanceDto
+        {
+            Id = $"ATT-LIB-{a.AttendanceId}",
+            AttendanceId = a.AttendanceId,
+            Date = a.Date.ToString("yyyy-MM-dd"),
+            StaffId = a.EmployeeCode,
+            StaffName = a.StaffName,
+            Role = "Librarian",
+            Shift = a.ShiftDetails,
+            CheckInTime = a.CheckInTime,
+            CheckOutTime = a.CheckOutTime ?? "",
+            TotalHours = a.TotalHours,
+            WorkingHours = string.IsNullOrWhiteSpace(a.CheckOutTime) ? "--" : $"{a.TotalHours:F1} Hours",
+            Status = a.Status,
+            DutyRemarks = a.DutyRemarks ?? ""
+        }).ToList();
+
+        int presentCount = dbLogs.Count(a => a.Status.Equals("Present", StringComparison.OrdinalIgnoreCase) || a.Status.Equals("Late", StringComparison.OrdinalIgnoreCase));
+        int lateCount = dbLogs.Count(a => a.Status.Equals("Late", StringComparison.OrdinalIgnoreCase));
+        int leaveCount = dbLogs.Count(a => a.Status.Equals("On Leave", StringComparison.OrdinalIgnoreCase) || a.Status.Equals("Absent", StringComparison.OrdinalIgnoreCase));
 
         return Ok(new
         {
@@ -114,69 +108,165 @@ public class LibrarianAttendanceController : ControllerBase
                 late = lateCount,
                 onLeave = leaveCount
             },
-            totalCount = logsToReturn.Count,
-            data = logsToReturn
+            totalCount = dataList.Count,
+            data = dataList
         });
     }
 
     [HttpPost]
     public async Task<IActionResult> LogAttendance([FromBody] CreateLibrarianAttendanceDto dto)
     {
-        var readOnlyCheck = CheckAdminReadOnly();
-        if (readOnlyCheck != null) return readOnlyCheck;
+        if (dto == null) return BadRequest(new { success = false, message = "Invalid attendance payload." });
 
-        if (string.IsNullOrWhiteSpace(dto.StaffName))
+        string staffName = !string.IsNullOrWhiteSpace(dto.StaffName) ? dto.StaffName.Trim() : "Bhanu Prakash";
+        string empCode = !string.IsNullOrWhiteSpace(dto.StaffId) ? dto.StaffId.Trim() : (!string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "EMP-LIB-01");
+        DateTime attDate = DateTime.TryParse(dto.Date, out var pDate) ? pDate.Date : DateTime.UtcNow.Date;
+
+        // Check if attendance record already exists for staff on this date
+        var existing = await _context.LibrarianAttendances
+            .FirstOrDefaultAsync(a => a.EmployeeCode.ToLower() == empCode.ToLower() && a.Date.Date == attDate.Date);
+
+        if (existing != null)
         {
-            return BadRequest(new { success = false, message = "Staff Name is required." });
+            if (!string.IsNullOrWhiteSpace(dto.CheckInTime)) existing.CheckInTime = dto.CheckInTime.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.CheckOutTime)) existing.CheckOutTime = dto.CheckOutTime.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Status)) existing.Status = dto.Status.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Remarks)) existing.DutyRemarks = dto.Remarks;
+            else if (!string.IsNullOrWhiteSpace(dto.DutyRemarks)) existing.DutyRemarks = dto.DutyRemarks;
+
+            await _context.SaveChangesAsync();
+
+            var updatedDto = new LibrarianAttendanceDto
+            {
+                Id = $"ATT-LIB-{existing.AttendanceId}",
+                AttendanceId = existing.AttendanceId,
+                Date = existing.Date.ToString("yyyy-MM-dd"),
+                StaffId = existing.EmployeeCode,
+                StaffName = existing.StaffName,
+                Role = "Librarian",
+                Shift = existing.ShiftDetails,
+                CheckInTime = existing.CheckInTime,
+                CheckOutTime = existing.CheckOutTime ?? "",
+                TotalHours = existing.TotalHours,
+                WorkingHours = string.IsNullOrWhiteSpace(existing.CheckOutTime) ? "--" : $"{existing.TotalHours:F1} Hours",
+                Status = existing.Status,
+                DutyRemarks = existing.DutyRemarks ?? ""
+            };
+
+            return Ok(new { success = true, message = "Librarian shift updated successfully.", data = updatedDto });
         }
 
         var entity = new LibrarianAttendance
         {
-            Date = DateTime.TryParse(dto.Date, out var pDate) ? pDate : DateTime.UtcNow,
-            StaffName = dto.StaffName.Trim(),
-            EmployeeCode = !string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "EMP-LIB-01",
-            ShiftDetails = !string.IsNullOrWhiteSpace(dto.ShiftDetails) ? dto.ShiftDetails.Trim() : "Morning Shift (08:30 - 17:00)",
-            CheckInTime = !string.IsNullOrWhiteSpace(dto.CheckInTime) ? dto.CheckInTime.Trim() : "08:30 AM",
-            CheckOutTime = !string.IsNullOrWhiteSpace(dto.CheckOutTime) ? dto.CheckOutTime.Trim() : "05:00 PM",
+            Date = attDate,
+            StaffName = staffName,
+            EmployeeCode = empCode,
+            ShiftDetails = !string.IsNullOrWhiteSpace(dto.Shift) ? dto.Shift.Trim() : (!string.IsNullOrWhiteSpace(dto.ShiftDetails) ? dto.ShiftDetails.Trim() : "Morning Shift (08:30 - 17:00)"),
+            CheckInTime = !string.IsNullOrWhiteSpace(dto.CheckInTime) ? dto.CheckInTime.Trim() : DateTime.Now.ToString("hh:mm tt"),
+            CheckOutTime = !string.IsNullOrWhiteSpace(dto.CheckOutTime) ? dto.CheckOutTime.Trim() : null,
             TotalHours = dto.TotalHours > 0 ? dto.TotalHours : 8.5,
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Present",
-            DutyRemarks = dto.DutyRemarks
+            DutyRemarks = dto.Remarks ?? dto.DutyRemarks ?? "Routine shift check-in"
         };
 
         await _context.LibrarianAttendances.AddAsync(entity);
         await _context.SaveChangesAsync();
 
-        return Ok(new { success = true, message = "Librarian attendance logged successfully.", data = entity });
+        var resultDto = new LibrarianAttendanceDto
+        {
+            Id = $"ATT-LIB-{entity.AttendanceId}",
+            AttendanceId = entity.AttendanceId,
+            Date = entity.Date.ToString("yyyy-MM-dd"),
+            StaffId = entity.EmployeeCode,
+            StaffName = entity.StaffName,
+            Role = "Librarian",
+            Shift = entity.ShiftDetails,
+            CheckInTime = entity.CheckInTime,
+            CheckOutTime = entity.CheckOutTime ?? "",
+            TotalHours = entity.TotalHours,
+            WorkingHours = string.IsNullOrWhiteSpace(entity.CheckOutTime) ? "--" : $"{entity.TotalHours:F1} Hours",
+            Status = entity.Status,
+            DutyRemarks = entity.DutyRemarks ?? ""
+        };
+
+        return Ok(new { success = true, message = "Librarian check-in recorded successfully.", data = resultDto });
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateAttendance(int id, [FromBody] CreateLibrarianAttendanceDto dto)
+    [HttpPut("{id}")]
+    [HttpPut("/api/librarian-attendance/{id}")]
+    public async Task<IActionResult> UpdateAttendance(string id, [FromBody] CreateLibrarianAttendanceDto dto)
     {
-        var readOnlyCheck = CheckAdminReadOnly();
-        if (readOnlyCheck != null) return readOnlyCheck;
+        if (dto == null) return BadRequest(new { success = false, message = "Invalid attendance update payload." });
 
-        var item = await _context.LibrarianAttendances.FindAsync(id);
+        int numId = 0;
+        if (int.TryParse(id, out var parsed)) numId = parsed;
+        else if (id.StartsWith("ATT-LIB-") && int.TryParse(id.Replace("ATT-LIB-", ""), out var parsedLib)) numId = parsedLib;
+
+        LibrarianAttendance? item = null;
+
+        if (numId > 0)
+        {
+            item = await _context.LibrarianAttendances.FindAsync(numId);
+        }
+
+        if (item == null)
+        {
+            // Try matching by today's date and staff code if ID was client-generated timestamp
+            string staffCode = !string.IsNullOrWhiteSpace(dto.StaffId) ? dto.StaffId.Trim() : (!string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "EMP-LIB-01");
+            DateTime targetDate = DateTime.TryParse(dto.Date, out var d) ? d.Date : DateTime.UtcNow.Date;
+
+            item = await _context.LibrarianAttendances
+                .FirstOrDefaultAsync(a => a.EmployeeCode.ToLower() == staffCode.ToLower() && a.Date.Date == targetDate.Date)
+                ?? await _context.LibrarianAttendances.OrderByDescending(a => a.AttendanceId).FirstOrDefaultAsync();
+        }
+
         if (item == null) return NotFound(new { success = false, message = "Attendance record not found." });
 
         if (!string.IsNullOrWhiteSpace(dto.StaffName)) item.StaffName = dto.StaffName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.CheckInTime)) item.CheckInTime = dto.CheckInTime.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.CheckOutTime)) item.CheckOutTime = dto.CheckOutTime.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.DutyRemarks)) item.DutyRemarks = dto.DutyRemarks;
+        if (!string.IsNullOrWhiteSpace(dto.Remarks)) item.DutyRemarks = dto.Remarks.Trim();
+        else if (!string.IsNullOrWhiteSpace(dto.DutyRemarks)) item.DutyRemarks = dto.DutyRemarks.Trim();
 
         await _context.SaveChangesAsync();
-        return Ok(new { success = true, message = "Librarian attendance updated successfully.", data = item });
+
+        var resultDto = new LibrarianAttendanceDto
+        {
+            Id = $"ATT-LIB-{item.AttendanceId}",
+            AttendanceId = item.AttendanceId,
+            Date = item.Date.ToString("yyyy-MM-dd"),
+            StaffId = item.EmployeeCode,
+            StaffName = item.StaffName,
+            Role = "Librarian",
+            Shift = item.ShiftDetails,
+            CheckInTime = item.CheckInTime,
+            CheckOutTime = item.CheckOutTime ?? "",
+            TotalHours = item.TotalHours,
+            WorkingHours = string.IsNullOrWhiteSpace(item.CheckOutTime) ? "--" : $"{item.TotalHours:F1} Hours",
+            Status = item.Status,
+            DutyRemarks = item.DutyRemarks ?? ""
+        };
+
+        return Ok(new { success = true, message = "Librarian check-out / shift updated successfully.", data = resultDto });
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> DeleteAttendance(int id)
+    [HttpDelete("{id}")]
+    [HttpDelete("/api/librarian-attendance/{id}")]
+    public async Task<IActionResult> DeleteAttendance(string id)
     {
-        var readOnlyCheck = CheckAdminReadOnly();
-        if (readOnlyCheck != null) return readOnlyCheck;
+        int numId = 0;
+        if (int.TryParse(id, out var parsed)) numId = parsed;
+        else if (id.StartsWith("ATT-LIB-") && int.TryParse(id.Replace("ATT-LIB-", ""), out var parsedLib)) numId = parsedLib;
 
-        var item = await _context.LibrarianAttendances.FindAsync(id);
-        if (item != null)
+        if (numId > 0)
         {
-            _context.LibrarianAttendances.Remove(item);
-            await _context.SaveChangesAsync();
+            var item = await _context.LibrarianAttendances.FindAsync(numId);
+            if (item != null)
+            {
+                _context.LibrarianAttendances.Remove(item);
+                await _context.SaveChangesAsync();
+            }
         }
 
         return Ok(new { success = true, message = "Attendance record deleted." });

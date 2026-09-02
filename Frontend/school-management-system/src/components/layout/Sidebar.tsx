@@ -431,7 +431,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Student Management",
       items: [
         { id: "admissions", label: "Admissions", icon: GraduationCap },
-        { id: "students", label: "Student Directory", icon: UserCheck },
+        { id: "students", label: role.toLowerCase().includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
         { id: "academic-history", label: "Academic History", icon: History },
         { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
         {

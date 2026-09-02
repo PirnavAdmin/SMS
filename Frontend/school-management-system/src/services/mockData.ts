@@ -11573,19 +11573,9 @@ export const initialUniforms: UniformItem[] = [
   { id: "UNI-12", category: "Cap", name: "Cap", gender: "Unisex", className: "Class 10", size: "Free Size", color: "Navy Blue", price: 200, availableStock: 307 }
 ];
 
-export const initialBooks: BookItem[] = [
-  { id: "BK-01", isbn: "978-0134685991", title: "Fundamentals of Physics", author: "Halliday & Resnick", category: "Science & Physics", totalCopies: 15, availableCopies: 11, rackNo: "Rack A-01 (Shelf 1)" },
-  { id: "BK-02", isbn: "978-8121903425", title: "Advanced Mathematics Vol 1", author: "R.D. Sharma", category: "Mathematics", totalCopies: 30, availableCopies: 25, rackNo: "Rack B-02 (Shelf 1)" },
-  { id: "BK-03", isbn: "978-0070141698", title: "Computer Science Principles & AI", author: "E. Balagurusamy", category: "Computer Science", totalCopies: 25, availableCopies: 20, rackNo: "Rack C-03 (Shelf 1)" },
-  { id: "BK-04", isbn: "978-0141395852", title: "Complete Works of Shakespeare", author: "William Shakespeare", category: "Literature & Fiction", totalCopies: 40, availableCopies: 35, rackNo: "Rack D-04 (Shelf 1)" }
-];
+export const initialBooks: BookItem[] = [];
 
-export const initialBookIssues: BookIssue[] = [
-  { id: "ISS-501", bookId: "BK-01", bookTitle: "Fundamentals of Physics", borrowerId: "ADM2024-001", borrowerName: "Alexander Wright", borrowerRole: "Student", issueDate: "2026-08-01", dueDate: "2026-08-15", fineAmount: 25, status: "Overdue" },
-  { id: "ISS-502", bookId: "BK-02", bookTitle: "Advanced Mathematics Vol 1", borrowerId: "EMP001", borrowerName: "Sarah Jenkins", borrowerRole: "Teacher", issueDate: "2026-08-10", dueDate: "2026-09-09", fineAmount: 0, status: "Issued" },
-  { id: "ISS-503", bookId: "BK-03", bookTitle: "Computer Science Principles & AI", borrowerId: "ADM2024-002", borrowerName: "Emily Davis", borrowerRole: "Student", issueDate: "2026-08-05", dueDate: "2026-08-19", fineAmount: 10, status: "Overdue" },
-  { id: "ISS-504", bookId: "BK-04", bookTitle: "Complete Works of Shakespeare", borrowerId: "EMP007", borrowerName: "Rachel Green", borrowerRole: "Staff", issueDate: "2026-08-12", dueDate: "2026-09-11", fineAmount: 0, status: "Issued" }
-];
+export const initialBookIssues: BookIssue[] = [];
 
 export const initialTransportRoutes: TransportRoute[] = [
   {

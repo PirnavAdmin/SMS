@@ -125,10 +125,81 @@ export const LibraryTimetableView: React.FC = () => {
     return Array.from(set).sort();
   }, [academicClasses, students, timetable]);
 
+  // Fetch library timetable from backend API on mount or selectedDay change
+  React.useEffect(() => {
+    const fetchBackendTimetable = async () => {
+      try {
+        const res: any = await LibraryAPI.fetchLibraryTimetableApi(selectedDay);
+        if (res?.success && Array.isArray(res.allSlots)) {
+          res.allSlots.forEach((slot: any) => {
+            if (slot.className && slot.section) {
+              const formattedSlot = {
+                day: slot.day || slot.dayOfWeek || 'Monday',
+                timeSlot: slot.timeSlot || `${slot.startTime} - ${slot.endTime}`,
+                periodNumber: slot.periodNumber || 1,
+                className: slot.className,
+                section: slot.section,
+                subject: slot.subject || 'Library Period',
+                teacherName: slot.teacherName || slot.assignedLibrarian || 'Bhanu Prakash',
+                roomNo: slot.roomNo || 'Central Library',
+                startTime: slot.startTime || '08:30',
+                endTime: slot.endTime || '09:15'
+              };
+
+              const exists = timetable.some(t =>
+                t.className === formattedSlot.className &&
+                t.section === formattedSlot.section &&
+                t.day === formattedSlot.day &&
+                (t.periodNumber === formattedSlot.periodNumber || t.timeSlot === formattedSlot.timeSlot)
+              );
+
+              if (!exists) {
+                addTimetableSlot(formattedSlot);
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Library timetable fetch notice:", err);
+      }
+    };
+
+    fetchBackendTimetable();
+  }, [selectedDay]);
+
   // Auto-Generate / Sync Standard Library Schedule from Admin Timetable
   const handleAutoPopulateLibrarySchedule = async () => {
     try {
-      await LibraryAPI.syncLibraryTimetableApi();
+      const res: any = await LibraryAPI.syncLibraryTimetableApi();
+      if (res?.success && Array.isArray(res.data)) {
+        res.data.forEach((slot: any) => {
+          if (slot.className && slot.section) {
+            const formattedSlot = {
+              day: slot.dayOfWeek || slot.day || 'Monday',
+              timeSlot: `${slot.startTime} - ${slot.endTime}`,
+              periodNumber: slot.periodNumber,
+              className: slot.className,
+              section: slot.section,
+              subject: slot.subject || 'Library Period',
+              teacherName: slot.assignedLibrarian || 'Bhanu Prakash',
+              roomNo: 'Central Library',
+              startTime: slot.startTime,
+              endTime: slot.endTime
+            };
+
+            const exists = timetable.some(t =>
+              t.className === formattedSlot.className &&
+              t.section === formattedSlot.section &&
+              t.day === formattedSlot.day &&
+              (t.periodNumber === formattedSlot.periodNumber || t.timeSlot === formattedSlot.timeSlot)
+            );
+
+            if (!exists) {
+              addTimetableSlot(formattedSlot);
+            }
+          }
+        });
+      }
     } catch (e) {}
 
     const defaultLibraryPeriods: Omit<TimetableSlot, 'id'>[] = [

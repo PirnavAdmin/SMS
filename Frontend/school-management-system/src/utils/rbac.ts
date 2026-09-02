@@ -60,7 +60,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'dashboard', 'transport', 'communication', 'events', 'training'
   ],
   'Hostel Warden': [
-    'dashboard', 'hostel', 'students', 'communication', 'events', 'training'
+    'dashboard', 'hostel', 'students', 'communication', 'events'
   ],
   'Receptionist': [
     'dashboard', 'admissions', 'students', 'certificates', 'communication', 'events', 'training'

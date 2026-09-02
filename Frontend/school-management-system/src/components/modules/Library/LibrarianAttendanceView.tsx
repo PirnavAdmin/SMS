@@ -71,7 +71,7 @@ export const LibrarianAttendanceView: React.FC = () => {
     if (!s) return [];
     try {
       const parsed: LibrarianAttendanceRecord[] = JSON.parse(s);
-      return parsed.filter(a => !String(a.id).startsWith('ATT-LIB-'));
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -93,6 +93,34 @@ export const LibrarianAttendanceView: React.FC = () => {
       window.dispatchEvent(new Event('librarian_attendance_updated'));
     }
   };
+
+  useEffect(() => {
+    const loadAttendanceData = async () => {
+      try {
+        const res: any = await LibraryAPI.fetchLibrarianAttendanceApi(attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth);
+        if (res?.success && Array.isArray(res.data)) {
+          const mapped: LibrarianAttendanceRecord[] = res.data.map((item: any) => ({
+            id: String(item.id || item.attendanceId || `ATT-LIB-${item.attendanceId}`),
+            staffId: item.staffId || item.employeeCode || 'EMP-LIB-01',
+            staffName: item.staffName || item.librarian || 'Bhanu Prakash',
+            role: item.role || 'Librarian',
+            date: item.date,
+            checkInTime: item.checkInTime || item.checkIn,
+            checkOutTime: (item.checkOutTime || item.checkOut || '').replace('Active Shift', ''),
+            workingHours: item.workingHours || item.hours,
+            shift: item.shift || item.shiftDetails || 'Morning Shift (08:30 - 17:00)',
+            status: item.status || 'Present',
+            remarks: item.remarks || item.dutyRemarks || ''
+          }));
+
+          saveLibrarianAttendance(mapped);
+        }
+      } catch (err) {
+        console.warn("Librarian attendance API load notice:", err);
+      }
+    };
+    loadAttendanceData();
+  }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth]);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const currentStaffName = user?.name || 'Bhanu Prakash';
@@ -231,7 +259,14 @@ export const LibrarianAttendanceView: React.FC = () => {
                     status: isLate ? 'Late' : 'Present',
                     remarks: isLate ? 'Late arrival check-in' : 'On-time shift arrival'
                   };
-                  try { await LibraryAPI.logLibrarianAttendanceApi(newRec); } catch (e) {}
+                  try {
+                    const res: any = await LibraryAPI.logLibrarianAttendanceApi(newRec);
+                    if (res?.success && res?.data) {
+                      newRec.id = String(res.data.id || `ATT-LIB-${res.data.attendanceId}`);
+                    }
+                  } catch (e) {
+                    console.warn("Check-in API notice:", e);
+                  }
                   localStorage.setItem('teacher_check_in_time', now.toISOString());
                   saveLibrarianAttendance([newRec, ...librarianAttendance]);
                   addToast('success', 'Checked In', `Successfully checked in at ${timeStr}`);
@@ -246,21 +281,33 @@ export const LibrarianAttendanceView: React.FC = () => {
                   const now = new Date();
                   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                   const calcHours = calculateWorkedHours(todayRecord.checkInTime, timeStr);
-                  const updated = librarianAttendance.map(r => {
-                    if (r.id === todayRecord.id) {
-                      return {
-                        ...r,
-                        checkOutTime: timeStr,
-                        workingHours: calcHours,
-                        remarks: (r.remarks || '') + ` • Checked out at ${timeStr}`
-                      };
-                    }
-                    return r;
-                  });
-                  try { await LibraryAPI.updateLibrarianAttendanceApi(todayRecord.id, { checkOutTime: timeStr, status: todayRecord.status, dutyRemarks: todayRecord.remarks }); } catch (e) {}
-                  localStorage.setItem('teacher_check_out_time', now.toISOString());
-                  saveLibrarianAttendance(updated);
+                  const updatedRemarks = (todayRecord.remarks || '') + ` • Checked out at ${timeStr}`;
+                  const updatedRec = {
+                    ...todayRecord,
+                    checkOutTime: timeStr,
+                    workingHours: calcHours,
+                    remarks: updatedRemarks
+                  };
+
+                  const updatedList = librarianAttendance.map(r => r.id === todayRecord.id ? updatedRec : r);
+                  saveLibrarianAttendance(updatedList);
                   addToast('success', 'Checked Out', `Successfully checked out at ${timeStr}`);
+
+                  try {
+                    await LibraryAPI.updateLibrarianAttendanceApi(todayRecord.id, {
+                      date: todayRecord.date,
+                      staffId: todayRecord.staffId,
+                      staffName: todayRecord.staffName,
+                      checkInTime: todayRecord.checkInTime,
+                      checkOutTime: timeStr,
+                      status: todayRecord.status,
+                      remarks: updatedRemarks,
+                      dutyRemarks: updatedRemarks,
+                      workingHours: calcHours
+                    });
+                  } catch (e) {
+                    console.warn("Check-out API notice:", e);
+                  }
                 }}
                 className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
