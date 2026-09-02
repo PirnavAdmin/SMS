@@ -29,11 +29,6 @@ export interface AnnouncementItem {
 export const CommunicationView: React.FC = () => {
   const { user, role } = useAuth();
   const userRole = (user?.role || role || '').toLowerCase();
-  const isHostelWarden = userRole === 'hostel warden' || userRole.includes('warden');
-  if (isHostelWarden) {
-    return <WardenCommunicationHubView />;
-  }
-
   const { announcements: contextAnnouncements, addAnnouncement, saveAnnouncements, students = [], staff = [] } = useData();
   const { addToast } = useToast();
 
@@ -69,7 +64,8 @@ export const CommunicationView: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
-  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole;
+  const isWardenRole = userRole.includes('warden');
+  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole && !isWardenRole;
 
   // Form State
   const [title, setTitle] = useState('');
@@ -532,22 +528,24 @@ export const CommunicationView: React.FC = () => {
               <Megaphone className="w-4 h-4" />
               Broadcast Notifications
             </button>
-            <button
-              onClick={() => setActiveTab('meetings')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                activeTab === 'meetings'
-                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Meetings & Schedules
-            </button>
+            {!isWardenRole && (
+              <button
+                onClick={() => setActiveTab('meetings')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  activeTab === 'meetings'
+                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Meetings & Schedules
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? (
+      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole) ? (
         <MeetingsView />
       ) : (
         <div className="space-y-4 max-w-full">

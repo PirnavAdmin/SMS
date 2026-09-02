@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { SlidersHorizontal, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { SlidersHorizontal, Save, CheckCircle2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 
@@ -8,11 +8,23 @@ export const FinanceSettingsView: React.FC = () => {
   const { addToast } = useToast();
 
   const [form, setForm] = useState(financeSettings);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  useEffect(() => {
+    if (financeSettings) {
+      setForm(financeSettings);
+    }
+  }, [financeSettings]);
+
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    updateFinanceSettings(form);
-    addToast('success', 'Settings Saved', 'Updated global finance configuration.');
+    setIsSaving(true);
+    try {
+      updateFinanceSettings(form);
+      addToast('success', 'Settings Saved', 'Updated global finance configuration.');
+    } finally {
+      setTimeout(() => setIsSaving(false), 400);
+    }
   };
 
   return (
@@ -91,8 +103,13 @@ export const FinanceSettingsView: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-          <button type="submit" className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2">
-            <Save className="w-4 h-4" /> Save Financial Configuration
+          <button 
+            type="submit" 
+            disabled={isSaving}
+            className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          >
+            {isSaving ? <CheckCircle2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? 'Saving...' : 'Save Financial Configuration'}
           </button>
         </div>
       </form>

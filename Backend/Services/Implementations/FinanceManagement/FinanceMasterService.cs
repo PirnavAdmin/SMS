@@ -51,6 +51,11 @@ public class FinanceMasterService : IFinanceMasterService
         return _repository.UpdateAccountAsync(id, account);
     }
 
+    public Task<bool> DeleteAccountAsync(int id)
+    {
+        return _repository.DeleteAccountAsync(id);
+    }
+
     public Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type)
     {
         return _repository.GetCategoriesAsync(type);
@@ -61,6 +66,16 @@ public class FinanceMasterService : IFinanceMasterService
         return _repository.CreateCategoryAsync(category);
     }
 
+    public Task<bool> UpdateCategoryAsync(int id, FinancialCategoryDto category)
+    {
+        return _repository.UpdateCategoryAsync(id, category);
+    }
+
+    public Task<bool> DeleteCategoryAsync(int id)
+    {
+        return _repository.DeleteCategoryAsync(id);
+    }
+
     public Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear)
     {
         return _repository.GetBudgetsAsync(academicYear);
@@ -69,6 +84,11 @@ public class FinanceMasterService : IFinanceMasterService
     public Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget)
     {
         return _repository.SaveBudgetAsync(budget);
+    }
+
+    public Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget)
+    {
+        return _repository.UpdateBudgetAsync(id, budget);
     }
 
     public Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status)
@@ -104,6 +124,11 @@ public class FinanceMasterService : IFinanceMasterService
     public Task<bool> UpdateFinanceSettingsAsync(FinanceSettingsDto settings)
     {
         return _repository.UpdateFinanceSettingsAsync(settings);
+    }
+
+    public Task<FinanceReportsSummaryDto> GetReportsSummaryAsync(string? academicYear)
+    {
+        return _repository.GetReportsSummaryAsync(academicYear);
     }
 
     public Task<DailyCollectionReportResponseDto> GetDailyCollectionReportAsync(string? date)
@@ -244,5 +269,30 @@ public class FinanceMasterService : IFinanceMasterService
     public Task<bool> DeleteHostelFeeConfigAsync(int id)
     {
         return _repository.DeleteHostelFeeConfigAsync(id);
+    }
+
+    public Task<List<FinanceUniformConfigDto>> GetUniformFeeConfigsAsync(string? search, string? className, string? academicYear, string? status)
+    {
+        return _repository.GetUniformFeeConfigsAsync(search, className, academicYear, status);
+    }
+
+    public Task<FinanceUniformConfigDto?> GetUniformFeeConfigByIdAsync(int id)
+    {
+        return _repository.GetUniformFeeConfigByIdAsync(id);
+    }
+
+    public Task<FinanceUniformConfigDto> CreateUniformFeeConfigAsync(CreateFinanceUniformConfigDto dto)
+    {
+        return _repository.CreateUniformFeeConfigAsync(dto);
+    }
+
+    public Task<FinanceUniformConfigDto?> UpdateUniformFeeConfigAsync(int id, CreateFinanceUniformConfigDto dto)
+    {
+        return _repository.UpdateUniformFeeConfigAsync(id, dto);
+    }
+
+    public Task<bool> DeleteUniformFeeConfigAsync(int id)
+    {
+        return _repository.DeleteUniformFeeConfigAsync(id);
     }
 }

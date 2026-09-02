@@ -1569,597 +1569,13 @@ const defaultExamSchedules: ExamSchedule[] = [
   },
 ];
 
-const initialFinanceTransactions: FinanceTransaction[] = [
-  {
-    id: "TXN-001",
-    transactionId: "TXN-2026-891001",
-    date: "2026-07-28",
-    time: "10:15 AM",
-    type: "Income",
-    category: "Student Tuition Fees",
-    sourceModule: "Student Fee Collection",
-    referenceNumber: "REC-2026-1001",
-    description: "Term 1 Tuition Fee Collection for Aarav Sharma (Class 10-A)",
-    amount: 18500,
-    paymentMode: "UPI",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Accounts Officer (Venkat)",
-    approvedBy: "Chief Accountant",
-    auditTrail: [
-      {
-        id: "AUD-1",
-        action: "Created",
-        user: "System Auto-Ledger",
-        timestamp: "2026-07-28 10:15 AM",
-        notes: "Auto-recorded from Fee Payment REC-2026-1001",
-      },
-    ],
-  },
-  {
-    id: "TXN-002",
-    transactionId: "TXN-2026-891002",
-    date: "2026-07-28",
-    time: "11:00 AM",
-    type: "Income",
-    category: "Admission Fees",
-    sourceModule: "Admissions",
-    referenceNumber: "ADM-2026-054",
-    description:
-      "New Student Admission & Registration Fee for Priya Patel (Class 1-B)",
-    amount: 25000,
-    paymentMode: "Bank Transfer",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Admission Officer",
-    approvedBy: "Principal",
-    auditTrail: [
-      {
-        id: "AUD-2",
-        action: "Created",
-        user: "Admissions Module",
-        timestamp: "2026-07-28 11:00 AM",
-        notes: "Admission confirmation fee",
-      },
-    ],
-  },
-  {
-    id: "TXN-003",
-    transactionId: "TXN-2026-891003",
-    date: "2026-07-27",
-    time: "04:30 PM",
-    type: "Expense",
-    category: "Employee Salaries",
-    sourceModule: "Payroll",
-    referenceNumber: "PAYROLL-JUL-2026",
-    description:
-      "Monthly Faculty & Staff Payroll Disbursement (July 2026 Batch)",
-    amount: 145000,
-    paymentMode: "Bank Transfer",
-    account: "Salary Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "HR Manager",
-    approvedBy: "Chief Accountant",
-    auditTrail: [
-      {
-        id: "AUD-3",
-        action: "Created",
-        user: "Payroll Module",
-        timestamp: "2026-07-27 04:30 PM",
-        notes: "Batch salary payout for 32 employees",
-      },
-    ],
-  },
-  {
-    id: "TXN-004",
-    transactionId: "TXN-2026-891004",
-    date: "2026-07-26",
-    time: "02:15 PM",
-    type: "Income",
-    category: "Hostel Fees",
-    sourceModule: "Hostel",
-    referenceNumber: "HST-REC-088",
-    description:
-      "Hostel Accommodation & Mess Fee Quarter 2 for Rohan Verma (Boys Block A)",
-    amount: 32000,
-    paymentMode: "Online",
-    account: "Hostel Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Chief Warden",
-    approvedBy: "Accounts Officer",
-    auditTrail: [
-      {
-        id: "AUD-4",
-        action: "Created",
-        user: "Hostel Module",
-        timestamp: "2026-07-26 02:15 PM",
-        notes: "Hostel booking payment",
-      },
-    ],
-  },
-  {
-    id: "TXN-005",
-    transactionId: "TXN-2026-891005",
-    date: "2026-07-25",
-    time: "09:45 AM",
-    type: "Income",
-    category: "Transport Fees",
-    sourceModule: "Transport",
-    referenceNumber: "TRP-REC-112",
-    description: "Bus Route #4 Monthly Pass Fee for Ananya Reddy",
-    amount: 4500,
-    paymentMode: "Cash",
-    account: "Transport Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Transport Manager",
-    approvedBy: "Accounts Officer",
-    auditTrail: [
-      {
-        id: "AUD-5",
-        action: "Created",
-        user: "Transport Module",
-        timestamp: "2026-07-25 09:45 AM",
-        notes: "Transport pass issued",
-      },
-    ],
-  },
-  {
-    id: "TXN-006",
-    transactionId: "TXN-2026-891006",
-    date: "2026-07-24",
-    time: "03:20 PM",
-    type: "Expense",
-    category: "Fuel Expenses",
-    sourceModule: "Transport",
-    referenceNumber: "TRP-EXP-034",
-    description:
-      "Diesel Refueling for School Buses KA-01-F-1234 & KA-01-F-5678",
-    amount: 18400,
-    paymentMode: "Card",
-    account: "Transport Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Transport Manager",
-    approvedBy: "Chief Accountant",
-    auditTrail: [
-      {
-        id: "AUD-6",
-        action: "Created",
-        user: "Transport Expense Entry",
-        timestamp: "2026-07-24 03:20 PM",
-        notes: "Indian Oil petrol bunk receipt #9921",
-      },
-    ],
-  },
-  {
-    id: "TXN-007",
-    transactionId: "TXN-2026-891007",
-    date: "2026-07-23",
-    time: "11:30 AM",
-    type: "Expense",
-    category: "Vendor Payments",
-    sourceModule: "Inventory",
-    referenceNumber: "PO-2026-789",
-    description:
-      "Purchase of Physics & Chemistry Laboratory Chemicals & Apparatus (Apex Scientific)",
-    amount: 42500,
-    paymentMode: "Bank Transfer",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Store Keeper",
-    approvedBy: "Principal",
-    auditTrail: [
-      {
-        id: "AUD-7",
-        action: "Created",
-        user: "Inventory Module",
-        timestamp: "2026-07-23 11:30 AM",
-        notes: "Purchase Order #PO-2026-789 settled",
-      },
-    ],
-  },
-  {
-    id: "TXN-008",
-    transactionId: "TXN-2026-891008",
-    date: "2026-07-22",
-    time: "01:10 PM",
-    type: "Income",
-    category: "Library Fines",
-    sourceModule: "Library",
-    referenceNumber: "LIB-FINE-044",
-    description: "Overdue Book Return Fine Collection (5 Days Late)",
-    amount: 150,
-    paymentMode: "Cash",
-    account: "Cash",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Librarian",
-    auditTrail: [
-      {
-        id: "AUD-8",
-        action: "Created",
-        user: "Library Module",
-        timestamp: "2026-07-22 01:10 PM",
-        notes: "Book issue ID ISS-104 fine",
-      },
-    ],
-  },
-  {
-    id: "TXN-009",
-    transactionId: "TXN-2026-891009",
-    date: "2026-07-21",
-    time: "10:00 AM",
-    type: "Income",
-    category: "Donations & Grants",
-    sourceModule: "Manual",
-    referenceNumber: "DON-2026-004",
-    description:
-      "Alumni Trust Annual Education Infrastructure Sponsorship & Endowment Fund",
-    amount: 100000,
-    paymentMode: "Cheque",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Principal",
-    approvedBy: "School Management Board",
-    auditTrail: [
-      {
-        id: "AUD-9",
-        action: "Created",
-        user: "Manual Transaction Entry",
-        timestamp: "2026-07-21 10:00 AM",
-        notes: "Cheque No. 445902 deposited",
-      },
-    ],
-  },
-  {
-    id: "TXN-010",
-    transactionId: "TXN-2026-891010",
-    date: "2026-07-20",
-    time: "05:00 PM",
-    type: "Expense",
-    category: "Electricity Bills",
-    sourceModule: "Manual",
-    referenceNumber: "UTIL-ELEC-JUL26",
-    description:
-      "Monthly Campus Electricity Tariff Payment (State Power Utility Board)",
-    amount: 38700,
-    paymentMode: "Bank Transfer",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Accounts Officer",
-    approvedBy: "Principal",
-    auditTrail: [
-      {
-        id: "AUD-10",
-        action: "Created",
-        user: "Accounts Entry",
-        timestamp: "2026-07-20 05:00 PM",
-        notes: "Consumer Account #998124501",
-      },
-    ],
-  },
-];
+const initialFinanceTransactions: FinanceTransaction[] = [];
 
-const initialFinancialAccounts: FinancialAccount[] = [
-  {
-    id: "ACC-01",
-    accountName: "Cash in Hand",
-    accountType: "Cash",
-    currentBalance: 48500,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-02",
-    accountName: "State Bank of India (Main Account)",
-    accountType: "Main Bank Account",
-    accountNumber: "30998124501",
-    bankName: "State Bank of India",
-    branchName: "MG Road Branch",
-    currentBalance: 1245000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-03",
-    accountName: "HDFC Salary Disbursement Account",
-    accountType: "Salary Account",
-    accountNumber: "50100234891",
-    bankName: "HDFC Bank",
-    branchName: "City Center",
-    currentBalance: 450000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-04",
-    accountName: "ICICI Hostel & Operations Account",
-    accountType: "Hostel Account",
-    accountNumber: "00120500981",
-    bankName: "ICICI Bank",
-    branchName: "Campus Branch",
-    currentBalance: 320000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-05",
-    accountName: "Axis Bank Transport Account",
-    accountType: "Transport Account",
-    accountNumber: "91802004561",
-    bankName: "Axis Bank",
-    branchName: "Industrial Suburb",
-    currentBalance: 185000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-06",
-    accountName: "Office Petty Cash Vault",
-    accountType: "Petty Cash Account",
-    currentBalance: 15000,
-    currency: "INR",
-    status: "Active",
-  },
-];
+const initialFinancialAccounts: FinancialAccount[] = [];
 
-const initialFinancialCategories: FinancialCategory[] = [
-  {
-    id: "CAT-INC-01",
-    name: "Student Tuition Fees",
-    type: "Income",
-    sourceModule: "Student Fee Collection",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-02",
-    name: "Admission Fees",
-    type: "Income",
-    sourceModule: "Admissions",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-03",
-    name: "Registration Fees",
-    type: "Income",
-    sourceModule: "Admissions",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-04",
-    name: "Examination Fees",
-    type: "Income",
-    sourceModule: "Examination",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-05",
-    name: "Hostel Fees",
-    type: "Income",
-    sourceModule: "Hostel",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-06",
-    name: "Transport Fees",
-    type: "Income",
-    sourceModule: "Transport",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-07",
-    name: "Library Fines",
-    type: "Income",
-    sourceModule: "Library",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-08",
-    name: "Certificate Fees",
-    type: "Income",
-    sourceModule: "Student Management",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-09",
-    name: "Uniform Sales",
-    type: "Income",
-    sourceModule: "Uniform",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-10",
-    name: "Donations & Grants",
-    type: "Income",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-INC-11",
-    name: "Miscellaneous Income",
-    type: "Income",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-01",
-    name: "Employee Salaries",
-    type: "Expense",
-    sourceModule: "Payroll",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-02",
-    name: "Vendor Payments",
-    type: "Expense",
-    sourceModule: "Inventory",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-03",
-    name: "Fuel Expenses",
-    type: "Expense",
-    sourceModule: "Transport",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-04",
-    name: "Vehicle Maintenance",
-    type: "Expense",
-    sourceModule: "Transport",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-05",
-    name: "Hostel Expenses",
-    type: "Expense",
-    sourceModule: "Hostel",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-06",
-    name: "Library Purchases",
-    type: "Expense",
-    sourceModule: "Library",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-07",
-    name: "Laboratory Equipment",
-    type: "Expense",
-    sourceModule: "Inventory",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-08",
-    name: "Electricity Bills",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-09",
-    name: "Water & Internet Bills",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-10",
-    name: "Building & Furniture Maintenance",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-11",
-    name: "Event & Festival Expenses",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-12",
-    name: "Petty Cash Expenses",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-];
+const initialFinancialCategories: FinancialCategory[] = [];
 
-const initialFinancialBudgets: FinancialBudget[] = [
-  {
-    id: "BDG-01",
-    categoryName: "Employee Salaries",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 2000000,
-    consumedAmount: 145000,
-    remainingAmount: 1855000,
-    status: "Active",
-  },
-  {
-    id: "BDG-02",
-    categoryName: "Fuel Expenses",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 250000,
-    consumedAmount: 18400,
-    remainingAmount: 231600,
-    status: "Active",
-  },
-  {
-    id: "BDG-03",
-    categoryName: "Laboratory Equipment",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 500000,
-    consumedAmount: 42500,
-    remainingAmount: 457500,
-    status: "Active",
-  },
-  {
-    id: "BDG-04",
-    categoryName: "Electricity Bills",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 400000,
-    consumedAmount: 38700,
-    remainingAmount: 361300,
-    status: "Active",
-  },
-  {
-    id: "BDG-05",
-    categoryName: "Event & Festival Expenses",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 300000,
-    consumedAmount: 0,
-    remainingAmount: 300000,
-    status: "Active",
-  },
-];
+const initialFinancialBudgets: FinancialBudget[] = [];
 const initialAlumniRecords: AlumniRecord[] = [
   {
     id: "ALM-101",
@@ -3303,55 +2719,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   });
 
-  // ERP Finance System States
-  const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => {
-    const version = localStorage.getItem("edu_db_fee_heads_v68");
-    if (!version) {
-      localStorage.setItem("edu_db_fee_heads_v68", "true");
-      localStorage.removeItem("fee_heads");
-      localStorage.removeItem("edu_db_fee_heads");
-      localStorage.removeItem("student_fee_installments");
-      localStorage.removeItem("edu_db_student_fee_installments");
-      localStorage.setItem("fee_heads", JSON.stringify(initialFeeHeads));
-      return initialFeeHeads;
+  // ERP Finance System Clean Slate Wipe Migration
+  useEffect(() => {
+    const wipeKey = "edu_db_finance_module_clean_slate_v2";
+    if (!localStorage.getItem(wipeKey)) {
+      localStorage.setItem(wipeKey, "true");
+      [
+        "fee_heads", "edu_db_fee_heads",
+        "dynamic_fee_structures", "edu_db_dynamic_fee_structures",
+        "fee_structures", "edu_db_fee_structures",
+        "fee_payments", "edu_db_fee_payments",
+        "student_fee_assignments", "edu_db_student_fee_assignments",
+        "scholarships", "edu_db_scholarships",
+        "student_scholarships", "edu_db_student_scholarships",
+        "discounts", "edu_db_discounts",
+        "student_discounts", "edu_db_student_discounts",
+        "fine_rules", "edu_db_fine_rules",
+        "refunds", "edu_db_refunds",
+        "finance_transactions", "edu_db_finance_transactions",
+        "financial_accounts", "edu_db_financial_accounts",
+        "financial_categories", "edu_db_financial_categories",
+        "financial_budgets", "edu_db_financial_budgets",
+        "finance_hostel_configs", "edu_db_finance_hostel_configs",
+        "finance_transport_configs", "edu_db_finance_transport_configs",
+        "finance_uniform_configs", "edu_db_finance_uniform_configs",
+        "student_fee_ledgers", "edu_db_student_fee_ledgers",
+        "student_fee_installments", "edu_db_student_fee_installments"
+      ].forEach((k) => localStorage.removeItem(k));
     }
-    const stored = getStored("fee_heads", initialFeeHeads);
-    return stored.map((fh) => {
-      if (
-        fh.name.toLowerCase().includes("tuition") &&
-        fh.frequency === "Monthly"
-      ) {
-        return { ...fh, frequency: "Quarterly" as const };
-      }
-      return fh;
-    });
-  });
+  }, []);
+
+  // ERP Finance System States
+  const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() =>
+    getStored("fee_heads", initialFeeHeads)
+  );
   const [dynamicFeeStructures, setDynamicFeeStructures] = useState<
     DynamicFeeStructure[]
-  >(() => {
-    const stored = getStored(
-      "edu_db_dynamic_fee_structures",
-      getStored("dynamic_fee_structures", initialDynamicFeeStructures),
-    );
-    const raw =
-      stored && stored.length > 0 ? stored : initialDynamicFeeStructures;
-    return raw.map((dfs) => {
-      const cleanItems = (dfs.items || []).filter((item) => {
-        if (!item) return false;
-        const name = (item.feeHeadName || "").trim();
-        return name !== "" && name !== "Fee Head" && name !== "Fee Head:";
-      });
-      const cleanTotal = cleanItems.reduce(
-        (sum, i) => sum + (i.amount || 0),
-        0,
-      );
-      return {
-        ...dfs,
-        items: cleanItems,
-        totalAmount: cleanTotal,
-      };
-    });
-  });
+  >(() => getStored("dynamic_fee_structures", initialDynamicFeeStructures));
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<
     StudentFeeAssignment[]
   >(() => getStored("student_fee_assignments", initialStudentFeeAssignments));
@@ -5024,6 +4428,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             }
 
+            let attendantId = (a.attendantId || "").toString();
+            let attendantName = a.attendantName || "";
+            let attendantMobile = a.attendantMobile || "";
+
             return {
               id: (a.id || a.assignmentId || "").toString(),
               branch: a.branch || "",
@@ -6346,21 +5754,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to fetch meetings from API", err);
     }
   };
-
-  const fetchFinanceData = async () => {
+  const fetchFinanceData = useCallback(async () => {
     if (activeRequests.current["finance-data"]) {
       return activeRequests.current["finance-data"];
     }
     const promise = (async () => {
       try {
-        const [headsRes, structsRes, assignmentsRes, paymentsRes, hostelFeesRes] =
-          await Promise.allSettled([
-            FinanceAPI.fetchFeeHeadsApi(),
-            FinanceAPI.fetchDynamicFeeStructuresApi(),
-            FinanceAPI.fetchStudentFeeAssignmentsApi(),
-            FinanceAPI.fetchFeePaymentsApi(),
-            FinanceAPI.fetchHostelFeeConfigsApi(),
-          ]);
+        const [
+          headsRes,
+          structsRes,
+          assignmentsRes,
+          paymentsRes,
+          hostelFeesRes,
+          uniformFeesRes,
+          refundsRes,
+          settingsRes,
+          txnsRes,
+          accountsRes,
+          catsRes,
+          budgetsRes,
+        ] = await Promise.allSettled([
+          FinanceAPI.fetchFeeHeadsApi(),
+          FinanceAPI.fetchDynamicFeeStructuresApi(),
+          FinanceAPI.fetchStudentFeeAssignmentsApi(),
+          FinanceAPI.fetchFeePaymentsApi(),
+          FinanceAPI.fetchHostelFeeConfigsApi(),
+          FinanceAPI.fetchUniformFeeConfigsApi(),
+          FinanceAPI.fetchFeeRefundRequestsApi(),
+          FinanceAPI.fetchFinanceGlobalSettingsApi(),
+          FinanceAPI.fetchFinanceTransactionsApi({ pageSize: 100 }),
+          FinanceAPI.fetchFinancialAccountsApi(),
+          FinanceAPI.fetchFinancialCategoriesApi(),
+          FinanceAPI.fetchFinancialBudgetsApi(),
+        ]);
         const extract = (r: PromiseSettledResult<any>) =>
           r.status === "fulfilled"
             ? Array.isArray(r.value)
@@ -6372,47 +5798,148 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const assignments = extract(assignmentsRes);
         const payments = extract(paymentsRes);
         const hostelFees = extract(hostelFeesRes);
-        if (heads.length) setFeeHeads(heads);
-        if (structs.length) {
-          setDynamicFeeStructures((prev) => {
-            const merged = [...prev];
-            structs.forEach((apiItem: any) => {
-              const idx = merged.findIndex(
-                (m) =>
-                  m.id === apiItem.id ||
-                  (m.className &&
-                    apiItem.className &&
-                    m.className.toLowerCase().trim() ===
-                      apiItem.className.toLowerCase().trim()),
-              );
-              if (idx >= 0) {
-                merged[idx] = { ...merged[idx], ...apiItem };
-              } else {
-                merged.push(apiItem);
-              }
-            });
-            return merged;
-          });
+        const uniformFees = extract(uniformFeesRes);
+        const refundItems = extract(refundsRes);
+        const apiTxns = extract(txnsRes);
+        const apiAccounts = extract(accountsRes);
+        const apiCats = extract(catsRes);
+        const apiBudgets = extract(budgetsRes);
+
+        const apiSettings = settingsRes.status === "fulfilled" ? (settingsRes.value?.data || settingsRes.value) : null;
+        if (apiSettings && typeof apiSettings === "object") {
+          setFinanceSettings((prev) => ({
+            ...prev,
+            academicYear: apiSettings.academicYear || prev.academicYear,
+            financialYear: apiSettings.financialYear || prev.financialYear,
+            defaultCurrency: apiSettings.defaultCurrency || apiSettings.currency || prev.defaultCurrency,
+            lateFeeRuleId: String(apiSettings.lateFeeRuleId || prev.lateFeeRuleId),
+            receiptPrefix: apiSettings.receiptPrefix || prev.receiptPrefix,
+            invoicePrefix: apiSettings.invoicePrefix || prev.invoicePrefix,
+            autoReceiptNo: typeof apiSettings.autoReceiptNo === "boolean" ? apiSettings.autoReceiptNo : prev.autoReceiptNo,
+            taxSettings: {
+              enabled: typeof apiSettings.taxSettings?.enabled === "boolean" ? apiSettings.taxSettings.enabled : prev.taxSettings?.enabled ?? true,
+              taxName: apiSettings.taxSettings?.taxName || prev.taxSettings?.taxName || "GST",
+              percentage: typeof apiSettings.taxSettings?.percentage === "number" ? apiSettings.taxSettings.percentage : prev.taxSettings?.percentage ?? 0,
+            },
+          }));
         }
-        if (assignments.length) setDbAssignments(assignments);
-        if (payments.length) setFeePayments(payments);
-        if (hostelFees.length) {
-          setFinanceHostelConfigs((prev) => {
-            const merged = [...prev];
-            hostelFees.forEach((apiItem: any) => {
-              const idx = merged.findIndex(
-                (m) => String(m.id) === String(apiItem.id) ||
-                       (String(m.hostelId) === String(apiItem.hostelId) && String(m.roomTypeId) === String(apiItem.roomTypeId))
-              );
-              if (idx >= 0) {
-                merged[idx] = { ...merged[idx], ...apiItem, id: String(apiItem.id || merged[idx].id) };
-              } else {
-                merged.push({ ...apiItem, id: String(apiItem.id) });
-              }
-            });
-            return merged;
-          });
-        }
+        setFeeHeads(heads);
+        setDynamicFeeStructures(structs);
+        setDbAssignments(assignments);
+        setFeePayments(payments);
+
+        setFinanceHostelConfigs(hostelFees.map((apiItem: any) => ({
+          id: String(apiItem.id || `FHC-${Date.now()}`),
+          hostelId: String(apiItem.hostelId || ""),
+          hostelName: apiItem.hostelName || "",
+          roomTypeId: String(apiItem.roomTypeId || ""),
+          roomTypeName: apiItem.roomTypeName || "",
+          roomId: apiItem.roomId || "",
+          roomNo: apiItem.roomNo || "All Rooms",
+          feePlan: apiItem.feePlan || "Annual",
+          hostelFee: Number(apiItem.hostelFee || 0),
+          securityDeposit: Number(apiItem.securityDeposit || 0),
+          effectiveFrom: apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
+          status: apiItem.status || "Active"
+        })));
+
+        setFinanceUniformConfigs(uniformFees.map((apiItem: any) => ({
+          id: String(apiItem.id || `FUC-${Date.now()}`),
+          academicYear: apiItem.academicYear || "2026-2027",
+          branch: apiItem.branch || "Main Campus",
+          className: apiItem.className || "",
+          gender: apiItem.gender || "Unisex",
+          uniformPackage: apiItem.uniformPackage || "",
+          uniformItemId: String(apiItem.uniformItemId || ""),
+          feePlan: apiItem.feePlan || "Annual",
+          feeAmount: Number(apiItem.feeAmount || 0),
+          effectiveFrom: apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
+          status: apiItem.status || "Active"
+        })));
+
+        setRefunds(refundItems.map((apiItem: any) => {
+          const rId = String(apiItem.id || apiItem.refundRequestId || Date.now());
+          const rNo = apiItem.refundNo || apiItem.refundRequestId || `RF-2026-${rId}`;
+          return {
+            id: rId,
+            refundNo: rNo,
+            receiptNo: apiItem.receiptNo || "REC-2026-0001",
+            studentId: String(apiItem.studentId || ""),
+            studentName: apiItem.studentName || "",
+            admissionNo: apiItem.admissionNo || "",
+            className: apiItem.className || "",
+            section: apiItem.section || "",
+            amount: Number(apiItem.refundAmount || apiItem.amount || 0),
+            reason: apiItem.reason || "Fee Refund",
+            approvedBy: apiItem.approvedBy || (apiItem.status === "Approved" ? "Dr. Eleanor Vance (Principal)" : "Pending Admin Review"),
+            refundMode: apiItem.paymentMode || apiItem.refundMode || "Bank Transfer",
+            refundDate: (apiItem.requestedDate || apiItem.refundDate || new Date().toISOString()).split("T")[0],
+            remarks: apiItem.remarks || "",
+            status: apiItem.status || "Pending",
+          };
+        }));
+
+        setFinanceTransactions(apiTxns.map((item: any) => {
+          const tId = item.transactionId || `TXN-${item.id}`;
+          return {
+            id: String(item.id || tId),
+            transactionId: tId,
+            date: item.date || (item.transactionDate ? String(item.transactionDate).split("T")[0] : new Date().toISOString().split("T")[0]),
+            time: item.time || "10:00 AM",
+            type: item.type === "Expense" ? "Expense" : "Income",
+            category: item.category || "General",
+            sourceModule: item.sourceModule || "Manual",
+            referenceNumber: item.referenceNumber || "",
+            description: item.description || "",
+            amount: Number(item.amount || 0),
+            paymentMode: item.paymentMode || "Bank Transfer",
+            account: item.account || "Main Bank Account",
+            branch: item.branch || "Main Campus",
+            academicYear: item.academicYear || "2025-2026",
+            status: item.status || "Completed",
+            createdBy: item.createdBy || "Finance Admin",
+            approvedBy: item.approvedBy || "Chief Accountant",
+            notes: item.notes || "",
+            attachments: item.attachmentName ? [item.attachmentName] : (item.attachments || [])
+          };
+        }));
+
+        setFinancialAccounts(apiAccounts.map((item: any) => ({
+          id: String(item.id || "ACC-" + Date.now()),
+          accountName: item.accountName,
+          accountType: item.accountType || "Main Bank Account",
+          accountNumber: item.accountNumber || "",
+          bankName: item.bankName || "",
+          branchName: item.branchName || "",
+          currentBalance: Number(item.currentBalance || 0),
+          currency: item.currency || "INR",
+          status: item.status === "Inactive" ? "Inactive" : "Active"
+        })));
+
+        setFinancialCategories(apiCats.map((item: any) => ({
+          id: String(item.id || "CAT-" + Date.now()),
+          name: item.name,
+          type: item.type === "Expense" ? "Expense" : "Income",
+          sourceModule: item.sourceModule || "Manual",
+          status: item.status === "Inactive" ? "Inactive" : "Active",
+          isSystem: typeof item.isSystem === "boolean" ? item.isSystem : false
+        })));
+
+        setFinancialBudgets(apiBudgets.map((item: any) => {
+          const bName = item.categoryName || item.department || "";
+          const alloc = Number(item.allocatedAmount || item.allocatedBudget || 0);
+          const cons = Number(item.consumedAmount || item.utilizedBudget || 0);
+          return {
+            id: String(item.id || "BDG-" + Date.now()),
+            categoryName: bName,
+            academicYear: item.academicYear || "2025-2026",
+            branch: item.branch || "Main Campus",
+            allocatedAmount: alloc,
+            consumedAmount: cons,
+            remainingAmount: Math.max(0, alloc - cons),
+            status: cons > alloc ? "Exceeded" : "Active"
+          };
+        }));
       } catch (err) {
         console.warn("Failed to fetch finance data from API", err);
       } finally {
@@ -6421,7 +5948,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["finance-data"] = promise;
     return promise;
-  };
+  }, []);
 
   const fetchFacultyTrainingData = async () => {
     try {
@@ -8281,13 +7808,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   c.pickupName === pObj?.pickupName) &&
                 c.status === "Active",
             );
-            const pFee =
+            const monthlyRate =
               pObj && (pObj.monthlyFee ?? 0) > 0
                 ? (pObj.monthlyFee ?? 0)
                 : ftc
                   ? ftc.feeAmount
-                  : 5500;
-            additionalFees += pFee;
+                  : 1500;
+            const annualTrpFee = monthlyRate * 12;
+            additionalFees += annualTrpFee;
           } else if (
             (app.studentType === "Hosteller" ||
               app.studentType === "Residential") &&
@@ -9671,6 +9199,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setFinanceTransactions((prev) => [newTxn, ...prev]);
 
+    // Backend API sync
+    FinanceAPI.createFinanceTransactionApi({
+      type: newTxn.type,
+      sourceModule: newTxn.sourceModule,
+      category: newTxn.category,
+      description: newTxn.description,
+      amount: newTxn.amount,
+      paymentMode: newTxn.paymentMode,
+      account: newTxn.account,
+      transactionDate: newTxn.date,
+      branch: newTxn.branch,
+      academicYear: newTxn.academicYear,
+      notes: newTxn.notes || "",
+      attachmentName: (newTxn.attachments && newTxn.attachments[0]) || ""
+    }).then((apiRes) => {
+      if (apiRes?.data?.id) {
+        setFinanceTransactions((prev) =>
+          prev.map((t) =>
+            t.transactionId === transactionId
+              ? { ...t, id: String(apiRes.data.id), transactionId: apiRes.data.transactionId || t.transactionId }
+              : t
+          )
+        );
+      }
+    }).catch((err) => {
+      console.warn("Backend add finance transaction fallback", err);
+    });
+
     // Update Account Balance
     setFinancialAccounts((prev) =>
       prev.map((acc) => {
@@ -9725,6 +9281,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             notes: `Transaction Reversed: ${reason}`,
           };
 
+          // Backend API sync
+          const numId = parseInt(t.id, 10);
+          if (!isNaN(numId)) {
+            FinanceAPI.reverseFinanceTransactionApi(numId, reason).catch((err) => {
+              console.warn("Backend reverse transaction fallback", err);
+            });
+          }
+
           // Offset Account Balance
           setFinancialAccounts((accs) =>
             accs.map((acc) => {
@@ -9767,6 +9331,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const id = "ACC-" + Math.floor(10 + Math.random() * 90);
     const newAcc: FinancialAccount = { ...accountData, id };
     setFinancialAccounts((prev) => [...prev, newAcc]);
+
+    // Backend API sync
+    FinanceAPI.createFinancialAccountApi({
+      accountName: newAcc.accountName,
+      accountType: newAcc.accountType,
+      accountNumber: newAcc.accountNumber || "",
+      bankName: newAcc.bankName || "",
+      branchName: newAcc.branchName || "",
+      currentBalance: newAcc.currentBalance,
+      currency: newAcc.currency || "INR",
+      status: newAcc.status || "Active"
+    }).then((apiRes) => {
+      if (apiRes?.data?.id) {
+        setFinancialAccounts((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, id: String(apiRes.data.id) } : a))
+        );
+      }
+    }).catch((err) => {
+      console.warn("Backend add financial account fallback", err);
+    });
+
     logActivity(
       "Created Financial Account",
       `Added Account ${newAcc.accountName}`,
@@ -9778,7 +9363,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     updates: Partial<FinancialAccount>,
   ) => {
     setFinancialAccounts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+      prev.map((a) => {
+        if (a.id === id) {
+          const updated = { ...a, ...updates };
+          const numId = parseInt(id, 10);
+          if (!isNaN(numId)) {
+            FinanceAPI.updateFinancialAccountApi(numId, updated).catch((err) => {
+              console.warn("Backend update financial account fallback", err);
+            });
+          }
+          return updated;
+        }
+        return a;
+      }),
     );
   };
 
@@ -9788,6 +9385,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const id = "CAT-" + Math.floor(100 + Math.random() * 900);
     const newCat: FinancialCategory = { ...categoryData, id };
     setFinancialCategories((prev) => [...prev, newCat]);
+
+    // Backend API sync
+    FinanceAPI.createFinancialCategoryApi({
+      name: newCat.name,
+      type: newCat.type,
+      sourceModule: newCat.sourceModule || "Manual",
+      status: newCat.status || "Active",
+      isSystem: newCat.isSystem || false
+    }).then((apiRes) => {
+      if (apiRes?.data?.id) {
+        setFinancialCategories((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, id: String(apiRes.data.id) } : c))
+        );
+      }
+    }).catch((err) => {
+      console.warn("Backend add financial category fallback", err);
+    });
+
     logActivity(
       "Created Financial Category",
       `Added ${newCat.type} Category ${newCat.name}`,
@@ -9799,7 +9414,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     updates: Partial<FinancialCategory>,
   ) => {
     setFinancialCategories((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+      prev.map((c) => {
+        if (c.id === id) {
+          const updated = { ...c, ...updates };
+          const numId = parseInt(id, 10);
+          if (!isNaN(numId)) {
+            FinanceAPI.updateFinancialCategoryApi(numId, updated).catch((err) => {
+              console.warn("Backend update category fallback", err);
+            });
+          }
+          return updated;
+        }
+        return c;
+      }),
     );
   };
 
@@ -9808,12 +9435,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       prev.map((b) => {
         if (b.id === id) {
           const remaining = Math.max(0, allocatedAmount - b.consumedAmount);
-          return {
+          const updated: FinancialBudget = {
             ...b,
             allocatedAmount,
             remainingAmount: remaining,
             status: b.consumedAmount > allocatedAmount ? "Exceeded" : "Active",
           };
+          const numId = parseInt(id, 10);
+          if (!isNaN(numId)) {
+            FinanceAPI.updateFinancialBudgetApi(numId, {
+              id: numId,
+              categoryName: b.categoryName,
+              department: b.categoryName,
+              academicYear: b.academicYear,
+              branch: b.branch,
+              allocatedAmount,
+              consumedAmount: b.consumedAmount,
+              status: updated.status
+            }).catch((err) => {
+              console.warn("Backend update budget fallback", err);
+            });
+          }
+          return updated;
         }
         return b;
       }),
@@ -10088,9 +9731,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const finalBreakdown: FeeHeadAssignmentBreakdown[] = [];
     const assignedHeads: FeeStructureItem[] = [];
 
-    // Pro-rata multiplier calculation
+    // Pro-rata / Monthly pro-rated multiplier calculation
     let proRataFactor = 1.0;
-    if (feePolicy === "Pro-rata" && admissionDate) {
+    if ((feePolicy === "Pro-rata" || feePolicy === "Monthly Pro-rated Fee" || feePolicy === "Monthly Pro-rated" || (feePolicy as string) === "Monthly") && admissionDate) {
       const admMonth = new Date(admissionDate).getMonth() + 1; // 1-12
       // Standard academic year June (6) to May (5) = 12 months
       const remainingMonths = Math.max(
@@ -10098,7 +9741,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         12 - (admMonth >= 6 ? admMonth - 6 : admMonth + 6),
       );
       proRataFactor = remainingMonths / 12;
-    } else if (feePolicy === "Term-wise" && admissionDate) {
+    } else if ((feePolicy === "Term-wise" || feePolicy === "Term-wise Fee") && admissionDate) {
       const admMonth = new Date(admissionDate).getMonth() + 1;
       proRataFactor = admMonth <= 9 ? 0.67 : 0.33;
     }
@@ -10124,7 +9767,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         isProRataEligible = true;
       }
 
-      if (feePolicy === "Custom" && customBreakdown) {
+      if ((feePolicy === "Custom" || feePolicy === "Custom Amount") && customBreakdown) {
         const found = customBreakdown.find(
           (c) =>
             c.feeHeadId === item.feeHeadId ||
@@ -10133,7 +9776,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (found && typeof found.assignedAmount === "number") {
           assignedAmt = found.assignedAmount;
         }
-      } else if (feePolicy === "Pro-rata" || feePolicy === "Term-wise") {
+      } else if (
+        feePolicy === "Pro-rata" ||
+        feePolicy === "Monthly Pro-rated Fee" ||
+        feePolicy === "Monthly Pro-rated" ||
+        feePolicy === "Term-wise" ||
+        feePolicy === "Term-wise Fee"
+      ) {
         if (isProRataEligible) {
           assignedAmt = Math.round(orig * proRataFactor);
         } else {
@@ -10189,7 +9838,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     try {
-      await FinanceAPI.createStudentFeeAssignmentApi(assignment);
+      await FinanceAPI.saveCustomStudentFeeAssignmentApi({
+        studentId: st.id,
+        dynamicFeeStructureId: dfs.id,
+        feePolicy,
+        admissionDate,
+        adjustmentReason,
+        totalAmount: assignedTotal,
+        breakdown: finalBreakdown
+      });
     } catch (err) {
       console.warn("API failed, using local", err);
     }
@@ -10210,11 +9867,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTimeout(() => generateStudentFeeLedger(studentId, dfs.academicYear), 50);
   };
 
-  const bulkAssignFeeStructure = (
+  const bulkAssignFeeStructure = async (
     studentIds: string[],
     feeStructureId: string,
   ) => {
     studentIds.forEach((id) => assignFeeStructure(id, feeStructureId));
+
+    try {
+      await FinanceAPI.bulkAssignStudentFeesApi({
+        studentIds,
+        dynamicFeeStructureId: feeStructureId
+      });
+    } catch (err) {
+      console.warn("Bulk assignment API failed, using local", err);
+    }
   };
 
   const updateStudentFeeAssignment = (
@@ -10734,21 +10400,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Requested Refund",
       `Created refund request ${refundNo} for ${formatCurrency(r.amount)}`,
     );
+
+    // Backend sync
+    FinanceAPI.createFeeRefundRequestApi({
+      studentId: Number(r.studentId) || 0,
+      studentName: r.studentName,
+      admissionNo: r.admissionNo || "",
+      className: r.className || "",
+      section: r.section || "",
+      receiptNo: r.receiptNo,
+      refundAmount: r.amount,
+      reason: r.reason,
+      paymentMode: r.refundMode,
+      remarks: r.remarks,
+    })
+      .then((res: any) => {
+        if (res?.data) {
+          const apiData = res.data;
+          setRefunds((prev) =>
+            prev.map((item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    id: String(apiData.id || item.id),
+                    refundNo: apiData.refundNo || apiData.refundRequestId || item.refundNo,
+                  }
+                : item
+            )
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend create refund request fallback to local state", err);
+      });
   };
 
   const updateRefundStatus = (
     id: string,
     status: Refund["status"],
     approvedBy = "Admin User",
+    remarks = ""
   ) => {
     setRefunds((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status, approvedBy } : r)),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (!isNaN(numericId)) {
+      FinanceAPI.processFeeRefundRequestApi(numericId, {
+        status,
+        remarks: remarks || `Refund ${status} by ${approvedBy}`,
+      }).catch((err) => {
+        console.warn("Backend process refund request fallback to local state", err);
+      });
+    }
   };
 
   // 12. Settings
   const updateFinanceSettings = (settings: Partial<FinanceSettings>) => {
-    setFinanceSettings((prev) => ({ ...prev, ...settings }));
+    setFinanceSettings((prev) => {
+      const updated = { ...prev, ...settings };
+      // Sync with backend API
+      FinanceAPI.updateFinanceGlobalSettingsApi({
+        academicYear: updated.academicYear,
+        financialYear: updated.financialYear,
+        defaultCurrency: updated.defaultCurrency,
+        currency: updated.defaultCurrency,
+        lateFeeRuleId: updated.lateFeeRuleId,
+        receiptPrefix: updated.receiptPrefix,
+        invoicePrefix: updated.invoicePrefix,
+        receiptFormat: updated.receiptFormat,
+        autoReceiptNo: updated.autoReceiptNo,
+        taxSettings: {
+          enabled: updated.taxSettings?.enabled ?? true,
+          taxName: updated.taxSettings?.taxName || "GST",
+          percentage: updated.taxSettings?.percentage ?? 0,
+        },
+      }).catch((err) => {
+        console.warn("Backend update finance settings fallback to local state", err);
+      });
+      return updated;
+    });
     logActivity(
       "Updated Finance Settings",
       "Configured tax, receipt format & currency settings",
@@ -17171,10 +16903,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const cDigitsMatch = (t: string, c: string) => t && c && t === c;
 
-  const addFinanceUniformConfig = (cData: Omit<FinanceUniformConfig, "id">) => {
+  const addFinanceUniformConfig = async (cData: Omit<FinanceUniformConfig, "id">) => {
+    let assignedId = "FUC-" + Date.now();
+    try {
+      const apiRes: any = await FinanceAPI.createUniformFeeConfigApi({
+        academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
+        branch: cData.branch || selectedBranch || "Main Campus",
+        className: cData.className,
+        gender: cData.gender,
+        uniformPackage: cData.uniformPackage,
+        feePlan: cData.feePlan || "Annual",
+        feeAmount: cData.feeAmount,
+        effectiveFrom: cData.effectiveFrom,
+        status: cData.status || "Active",
+      });
+      if (apiRes && apiRes.success && apiRes.data && apiRes.data.id) {
+        assignedId = String(apiRes.data.id);
+      }
+    } catch (e) {
+      console.warn("API createUniformFeeConfig failed, saving locally:", e);
+    }
+
     const newConfig: FinanceUniformConfig = {
       ...cData,
-      id: "FUC-" + Date.now(),
+      id: assignedId,
       branch: cData.branch || selectedBranch || "Main Campus",
       academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
       status: "Active",
@@ -17201,10 +16953,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     syncUniformConfigToFinanceFees(newConfig);
   };
 
-  const updateFinanceUniformConfig = (
+  const updateFinanceUniformConfig = async (
     id: string,
     updates: Partial<FinanceUniformConfig>,
   ) => {
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      try {
+        await FinanceAPI.updateUniformFeeConfigApi(numId, {
+          className: updates.className || '',
+          gender: updates.gender || 'Unisex',
+          uniformPackage: updates.uniformPackage || '',
+          feePlan: updates.feePlan || 'Annual',
+          feeAmount: updates.feeAmount || 0,
+          academicYear: updates.academicYear,
+          branch: updates.branch,
+          effectiveFrom: updates.effectiveFrom,
+          status: updates.status || 'Active',
+        });
+      } catch (e) {
+        console.warn("API updateUniformFeeConfig failed:", e);
+      }
+    }
+
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
       const updated = current.map((c) => {
@@ -17225,7 +16996,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  const deleteFinanceUniformConfig = (id: string) => {
+  const deleteFinanceUniformConfig = async (id: string) => {
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      try {
+        await FinanceAPI.deleteUniformFeeConfigApi(numId);
+      } catch (e) {
+        console.warn("API deleteUniformFeeConfig failed:", e);
+      }
+    }
+
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
       const updated = current.filter((c) => c.id !== id);

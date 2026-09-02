@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Dtos.FinanceManagement;
+namespace SMS.Api.Dtos.FinanceManagement;
 
 using System;
 using System.Collections.Generic;
@@ -305,6 +305,17 @@ public class PaymentModeSplitDto
     public int TransactionsCount { get; set; }
 }
 
+public class ClassWiseCollectionShareDto
+{
+    public string ClassName { get; set; } = string.Empty;
+    public decimal ExpectedAmount { get; set; }
+    public decimal CollectedAmount { get; set; }
+    public decimal PendingAmount => Math.Max(0m, ExpectedAmount - CollectedAmount);
+    public double Percentage => ExpectedAmount > 0 ? Math.Min(100.0, Math.Round((double)(CollectedAmount / ExpectedAmount) * 100, 1)) : 0;
+    public string FormattedExpected => $"₹{ExpectedAmount:N0}";
+    public string FormattedCollected => $"₹{CollectedAmount:N0}";
+}
+
 public class FinanceDashboardStatsDto
 {
     public decimal TotalExpectedRevenue { get; set; }
@@ -312,14 +323,29 @@ public class FinanceDashboardStatsDto
     public decimal TotalOutstandingDues { get; set; }
     public decimal TotalConcessionsGranted { get; set; }
     public decimal TodayCollectionAmount { get; set; }
+    public decimal MonthlyCollectionAmount { get; set; }
+    public int StudentsPaidCount { get; set; }
     public double CollectionEfficiencyPercentage { get; set; }
+
+    public decimal TransportRevenue { get; set; }
+    public decimal HostelRevenue { get; set; }
+    public decimal UniformRevenue { get; set; }
+    public decimal ScholarshipsGranted { get; set; }
+    public decimal FineCollected { get; set; }
 
     public string FormattedExpected => $"₹{TotalExpectedRevenue:N0}";
     public string FormattedCollected => $"₹{TotalCollectedRevenue:N0}";
     public string FormattedOutstanding => $"₹{TotalOutstandingDues:N0}";
     public string FormattedConcessions => $"₹{TotalConcessionsGranted:N0}";
     public string FormattedToday => $"₹{TodayCollectionAmount:N0}";
+    public string FormattedMonthly => $"₹{MonthlyCollectionAmount:N0}";
+    public string FormattedTransport => $"₹{TransportRevenue:N0}";
+    public string FormattedHostel => $"₹{HostelRevenue:N0}";
+    public string FormattedUniform => $"₹{UniformRevenue:N0}";
+    public string FormattedScholarships => $"₹{ScholarshipsGranted:N0}";
+    public string FormattedFine => $"₹{FineCollected:N0}";
 
+    public List<ClassWiseCollectionShareDto> ClassWiseRevenue { get; set; } = new();
     public List<MonthlyCollectionTrendDto> MonthlyTrends { get; set; } = new();
     public List<FeeHeadCollectionShareDto> HeadWiseDistribution { get; set; } = new();
     public List<PaymentModeSplitDto> PaymentModeDistribution { get; set; } = new();

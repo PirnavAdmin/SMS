@@ -97,8 +97,32 @@ export const WardenMasterView: React.FC = () => {
     });
   }, [wardens, staffList, hostels, searchQuery, filterHostel, effectiveHostel]);
 
+  const wardenCandidates = useMemo(() => {
+    const predefinedWardens = [
+      { staffId: 101, employeeId: 'STF-2026-NTS-01', staffName: 'Dr. Eleanor Vance', designation: 'Chief Hostel Warden' },
+      { staffId: 102, employeeId: 'STF-2026-NTS-02', staffName: 'Rajesh Kumar', designation: 'Senior Hostel Warden' },
+      { staffId: 103, employeeId: 'STF-2026-NTS-03', staffName: 'Savitri Devi', designation: 'Girls Hostel Warden' },
+      { staffId: 104, employeeId: 'STF-2026-NTS-04', staffName: 'Vikram Singh', designation: 'Assistant Hostel Warden' },
+    ];
+
+    const fromStaffList = (staffList || [])
+      .filter(s => {
+        const desig = (s.designation || '').toLowerCase();
+        const role = ((s as any).role || '').toLowerCase();
+        const cat = ((s as any).employeeCategory || '').toLowerCase();
+        return desig.includes('warden') || role.includes('warden') || cat.includes('warden');
+      })
+      .map(s => ({
+        ...s,
+        designation: s.designation || 'Hostel Warden'
+      }));
+
+    const combined = [...predefinedWardens, ...fromStaffList];
+    return Array.from(new Map(combined.map(item => [item.staffId, item])).values());
+  }, [staffList]);
+
   const handleOpenAdd = () => {
-    setSelectedStaffId(staffList.length > 0 ? staffList[0].staffId.toString() : '101');
+    setSelectedStaffId(wardenCandidates.length > 0 ? wardenCandidates[0].staffId.toString() : '101');
     setSelectedHostelId(hostels.length > 0 ? hostels[0].hostelId.toString() : '1');
     setSelectedBlock('Block A');
     setSelectedFloor('Floor 1');
@@ -113,7 +137,7 @@ export const WardenMasterView: React.FC = () => {
       return;
     }
 
-    const staffMember = (staffList || []).find(s => s.staffId.toString() === selectedStaffId);
+    const staffMember = (wardenCandidates || []).find(s => s.staffId.toString() === selectedStaffId);
     if (!staffMember) {
       addToast('error', 'Error', 'Selected staff member not found.');
       return;
@@ -277,40 +301,19 @@ export const WardenMasterView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Non-Teaching Staff Warden <span className="text-rose-500">*</span></label>
+                <label className="block font-semibold mb-1">Select Hostel Warden <span className="text-rose-500">*</span></label>
                 <select
                   value={selectedStaffId}
                   onChange={e => setSelectedStaffId(e.target.value)}
-                  className="w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white truncate outline-none"
+                  className="w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white truncate outline-none cursor-pointer"
                 >
-                  {(() => {
-                    // Filter staff list to strictly include Non-Teaching Staff Wardens (exclude Teachers)
-                    const nonTeachingStaff = [
-                      { staffId: 101, employeeId: 'STF-2026-NTS-01', staffName: 'Dr. Eleanor Vance', designation: 'Chief Hostel Warden' },
-                      { staffId: 102, employeeId: 'STF-2026-NTS-02', staffName: 'Rajesh Kumar', designation: 'Senior Hostel Warden' },
-                      { staffId: 103, employeeId: 'STF-2026-NTS-03', staffName: 'Savitri Devi', designation: 'Girls Hostel Warden' },
-                      { staffId: 104, employeeId: 'STF-2026-NTS-04', staffName: 'Vikram Singh', designation: 'Assistant Hostel Warden' },
-                      ...staffList.filter(s => {
-                        const desig = (s.designation || '').toLowerCase();
-                        const isTeacher = desig.includes('teacher') || desig.includes('tgt') || desig.includes('pgt') || desig.includes('prt');
-                        return !isTeacher;
-                      }).map(s => ({
-                        ...s,
-                        designation: s.designation?.toLowerCase().includes('teacher') ? 'Hostel Warden' : (s.designation || 'Hostel Warden')
-                      }))
-                    ];
-
-                    // Remove duplicates by staffId
-                    const uniqueNonTeaching = Array.from(new Map(nonTeachingStaff.map(item => [item.staffId, item])).values());
-
-                    return uniqueNonTeaching.map(s => (
-                      <option key={s.staffId} value={s.staffId}>
-                        {s.staffName} ({s.designation})
-                      </option>
-                    ));
-                  })()}
+                  {wardenCandidates.map(s => (
+                    <option key={s.staffId} value={s.staffId}>
+                      {s.staffName} ({s.designation})
+                    </option>
+                  ))}
                 </select>
-                <p className="text-[10px] font-semibold text-slate-400 mt-1">Non-Teaching staff directory auto-loaded for warden assignment.</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-1">Dedicated Hostel Warden directory auto-loaded for assignment.</p>
               </div>
 
               <div>

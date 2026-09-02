@@ -1234,7 +1234,7 @@ export interface DynamicFeeStructure {
   status: 'Active' | 'Inactive';
 }
 
-export type FeePolicyType = 'Full Annual Fee' | 'Pro-rata' | 'Term-wise' | 'Custom';
+export type FeePolicyType = 'Full Annual Fee' | 'Monthly Pro-rated Fee' | 'Monthly Pro-rated' | 'Pro-rata' | 'Term-wise' | 'Term-wise Fee' | 'Custom' | 'Custom Amount';
 
 export interface FeeHeadAssignmentBreakdown {
   feeHeadId: string;
@@ -1408,13 +1408,16 @@ export interface Refund {
   receiptNo: string;
   studentId: string;
   studentName: string;
+  admissionNo?: string;
+  className?: string;
+  section?: string;
   amount: number;
-  reason: 'Duplicate Payment' | 'Admission Cancelled' | 'Scholarship Adjustment' | 'Others';
+  reason: 'Duplicate Payment' | 'Admission Cancelled' | 'Scholarship Adjustment' | 'Excess Payment' | 'Transport Cancellation' | 'Hostel Cancellation' | 'Concession Adjustment' | 'Caution Deposit Return' | 'Others' | string;
   approvedBy: string;
-  refundMode: 'Bank Transfer' | 'Cash' | 'Cheque';
+  refundMode: 'Bank Transfer' | 'Cash' | 'Cheque' | 'UPI / Online' | string;
   refundDate: string;
   remarks: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
+  status: 'Approved' | 'Pending' | 'Rejected' | string;
 }
 
 export interface FinanceSettings {

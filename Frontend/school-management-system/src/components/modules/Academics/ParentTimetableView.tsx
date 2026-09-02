@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Printer } from 'lucide-react';
+import { Clock, Printer, CalendarOff } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
-import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
+import { getParentChildren, getParentTimetable, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentTimetableView: React.FC = () => {
-  const { students, timetable } = useData();
+  const { students, timetable, periodSettings, teacherAssignments, academicClasses, subjects: masterSubjects } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+  const [apiTimetableSlots, setApiTimetableSlots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -26,66 +28,84 @@ export const ParentTimetableView: React.FC = () => {
     return () => { isMounted = false; };
   }, [user?.email]);
 
-  // Match children by email or phone, or own ID if student
-  // Match children by email or phone accurately
-  let parentWards: any[] = [];
-  const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
-
-  if (isKumar) {
-    parentWards = [
-      {
-        id: '2',
-        studentId: 2,
-        firstName: 'pawankalyan',
-        lastName: '',
-        studentName: 'pawankalyan',
-        className: 'Class 6',
-        section: 'A',
-        status: 'Active'
-      }
-    ];
-  } else if (apiChildren.length > 0) {
-    parentWards = apiChildren.map(c => ({
-      id: String(c.studentId),
-      studentId: c.studentId,
-      firstName: c.firstName || c.studentName.split(' ')[0],
-      lastName: c.lastName || '',
-      studentName: c.studentName,
-      className: c.className || 'Class 6',
-      section: c.sectionName || 'A',
-      status: 'Active'
-    }));
-  } else {
+  const parentWards = React.useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
+    const isKumar = userName.includes('kumar') || userEmail.includes('kumar') || userEmail.includes('parent@pirnav.com');
 
-    const localMatches = students.filter(s => 
-      s.status === 'Active' && 
-      (
-        role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
-        (
-          (userEmail && (
-            s.guardianEmail?.toLowerCase() === userEmail || 
-            s.guardianPhone?.toLowerCase() === userEmail || 
-            s.contactEmail?.toLowerCase() === userEmail || 
-            s.contactPhone?.toLowerCase() === userEmail ||
-            s.fatherPhone?.toLowerCase() === userEmail ||
-            s.motherPhone?.toLowerCase() === userEmail
-          )) ||
-          (userName && (
-            s.fatherName?.toLowerCase() === userName ||
-            s.motherName?.toLowerCase() === userName ||
-            s.guardianName?.toLowerCase() === userName
-          ))
-        )
-      )
-    );
-    if (localMatches.length > 0) {
-      parentWards = localMatches;
+    if (isKumar) {
+      return [
+        {
+          id: '2',
+          studentId: 2,
+          firstName: 'pawankalyan',
+          lastName: '',
+          studentName: 'pawankalyan',
+          className: 'Class 6',
+          section: 'A',
+          status: 'Active'
+        }
+      ];
+    } else if (apiChildren.length > 0) {
+      return apiChildren.map(c => ({
+        id: String(c.studentId),
+        studentId: c.studentId,
+        firstName: c.firstName || c.studentName.split(' ')[0],
+        lastName: c.lastName || '',
+        studentName: c.studentName,
+        className: c.className || 'Class 6',
+        section: c.sectionName || 'A',
+        status: 'Active'
+      }));
     } else {
-      parentWards = students.filter(s => s.status === 'Active').slice(0, 1);
+      const localMatches = students.filter(s => 
+        s.status === 'Active' && 
+        (
+          role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
+          (
+            (userEmail && (
+              s.guardianEmail?.toLowerCase() === userEmail || 
+              s.guardianPhone?.toLowerCase() === userEmail || 
+              s.contactEmail?.toLowerCase() === userEmail || 
+              s.contactPhone?.toLowerCase() === userEmail ||
+              s.fatherPhone?.toLowerCase() === userEmail ||
+              s.motherPhone?.toLowerCase() === userEmail
+            )) ||
+            (userName && (
+              s.fatherName?.toLowerCase() === userName ||
+              s.motherName?.toLowerCase() === userName ||
+              s.guardianName?.toLowerCase() === userName
+            ))
+          )
+        )
+      );
+      return localMatches.length > 0 ? localMatches : students.filter(s => s.status === 'Active').slice(0, 1);
     }
-  }
+  }, [students, user, role, apiChildren]);
+
+  const currentWard = parentWards[selectedChildIdx] || parentWards[0];
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTimetable = async () => {
+      setLoading(true);
+      try {
+        const studentId = currentWard?.studentId || currentWard?.id;
+        if (studentId) {
+          const data = await getParentTimetable(Number(studentId));
+          if (isMounted && Array.isArray(data) && data.length > 0) {
+            setApiTimetableSlots(data);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load api timetable:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchTimetable();
+    return () => { isMounted = false; };
+  }, [currentWard]);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -97,46 +117,149 @@ export const ParentTimetableView: React.FC = () => {
     );
   }
 
-  const currentWard = parentWards[selectedChildIdx] || parentWards[0];
-  
-  // Filter the global timetable data for this specific ward's class and section for the whole week
-  const wardTimetableWholeWeek = timetable.filter(t => 
-    t.className === currentWard.className &&
-    t.section === currentWard.section &&
-    (!t.status || t.status === 'Published')
+  const norm = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
+  const wardClassNorm = norm(currentWard.className);
+  const wardSecNorm = norm(currentWard.section);
+
+  // Find class definition in Admin
+  const targetClass = (academicClasses || []).find(c => 
+    norm(c.name) === wardClassNorm || 
+    String(c.id) === String((currentWard as any)?.classId)
   );
 
-  const hasDbTimetable = wardTimetableWholeWeek.length > 0;
+  // Section Class Teacher
+  const secTeachers = (targetClass as any)?.sectionTeachers || {};
+  let sectionClassTeacherName = '';
+  Object.entries(secTeachers).forEach(([secKey, tVal]) => {
+    if (norm(secKey) === wardSecNorm || (!wardSecNorm && secKey)) {
+      if (tVal && typeof tVal === 'string' && tVal.trim() !== '' && tVal !== 'Unassigned') {
+        sectionClassTeacherName = tVal.trim();
+      }
+    }
+  });
+  if (!sectionClassTeacherName && targetClass?.classTeacher) {
+    sectionClassTeacherName = targetClass.classTeacher;
+  }
 
-  // Extract unique timeSlots from DB or fallback
-  const dbTimeSlots = Array.from(new Set(wardTimetableWholeWeek.map(t => t.timeSlot)))
-    .filter(Boolean)
-    .sort((a, b) => (a || '').localeCompare(b || ''));
+  // Teacher-Subject Assignments for this class and section
+  const directAssignments = (teacherAssignments || []).filter(ta => {
+    const taClassNorm = norm(ta.className);
+    const taSecNorm = norm(ta.section);
+    const matchesClass = taClassNorm === wardClassNorm || taClassNorm.includes(wardClassNorm) || wardClassNorm.includes(taClassNorm);
+    const matchesSection = !wardSecNorm || !taSecNorm || taSecNorm === 'all' || taSecNorm === wardSecNorm;
+    return matchesClass && matchesSection;
+  });
 
-  const staticFallbackTimetable = [
-    { id: 'mock-1', timeSlot: '08:30 AM - 09:15 AM', subject: 'Mathematics', subjectCode: 'MAT-101', teacherName: 'Viollet D\'Amore' },
-    { id: 'mock-2', timeSlot: '09:15 AM - 10:00 AM', subject: 'English', subjectCode: 'ENG-103', teacherName: 'Annamae Schmeler' },
-    { id: 'mock-short-break', timeSlot: '10:00 AM - 10:15 AM', subject: 'Break', isBreak: true },
-    { id: 'mock-3', timeSlot: '10:15 AM - 11:00 AM', subject: 'Chemistry', subjectCode: 'CHE-104', teacherName: 'Betsy Jast' },
-    { id: 'mock-4', timeSlot: '11:00 AM - 11:45 AM', subject: 'Mathematics', subjectCode: 'MAT-101', teacherName: 'Viollet D\'Amore' },
-    { id: 'mock-break', timeSlot: '11:45 AM - 12:30 PM', subject: 'Lunch Break', isBreak: true },
-    { id: 'mock-5', timeSlot: '12:30 PM - 01:15 PM', subject: 'English', subjectCode: 'ENG-103', teacherName: 'Annamae Schmeler' },
-    { id: 'mock-6', timeSlot: '01:15 PM - 02:00 PM', subject: 'Physics', subjectCode: 'PHY-102', teacherName: 'Robert Chen' },
-  ];
+  // Filter global database timetable matching this ward's class and section exactly as Admin does
+  const matchingDbSlots = (timetable || []).filter(t => {
+    const tClassNorm = norm(t.className);
+    const tSecNorm = norm(t.section);
+    const matchesClass = tClassNorm === wardClassNorm || tClassNorm.includes(wardClassNorm) || wardClassNorm.includes(tClassNorm);
+    const matchesSection = !wardSecNorm || !tSecNorm || tSecNorm === 'all' || tSecNorm === wardSecNorm;
+    return matchesClass && matchesSection;
+  });
 
-  const timeSlots = hasDbTimetable ? dbTimeSlots : staticFallbackTimetable.map(s => s.timeSlot);
+  // Combine API and DB slots
+  const explicitTimetableSlots = apiTimetableSlots.length > 0 ? apiTimetableSlots : matchingDbSlots;
 
-  const getSubjectCode = (subjectName: string) => {
-    if (!subjectName || subjectName === 'Break' || subjectName === 'Lunch Break') return '';
-    const name = subjectName.toLowerCase();
-    if (name.includes('math')) return 'MAT-101';
-    if (name.includes('english')) return 'ENG-103';
-    if (name.includes('physics')) return 'PHY-102';
-    if (name.includes('chemistry')) return 'CHE-104';
-    if (name.includes('biology')) return 'BIO-105';
-    if (name.includes('science')) return 'SCI-106';
-    if (name.includes('computer')) return 'CS-105';
-    return `${subjectName.substring(0, 3).toUpperCase()}-101`;
+  // Collect available class subjects and assigned teachers
+  const assignedSubjectList: Array<{ subject: string; teacherName: string; code: string }> = [];
+  
+  if (sectionClassTeacherName) {
+    const subMaster = (masterSubjects || []).find(s => s.name.toLowerCase().includes('math'));
+    assignedSubjectList.push({
+      subject: 'Mathematics',
+      teacherName: sectionClassTeacherName,
+      code: subMaster?.code || 'MATH'
+    });
+  }
+
+  directAssignments.forEach(ta => {
+    const sub = ta.subject || (ta as any).subjectName || '';
+    if (!sub) return;
+    const master = (masterSubjects || []).find(s => norm(s.name) === norm(sub));
+    const code = master?.code || (ta as any).subjectCode || '';
+    const exists = assignedSubjectList.find(item => norm(item.subject) === norm(sub));
+    if (!exists) {
+      assignedSubjectList.push({
+        subject: sub,
+        teacherName: ta.teacherName || sectionClassTeacherName || 'Faculty',
+        code
+      });
+    }
+  });
+
+  const hasTimetable = explicitTimetableSlots.length > 0 || assignedSubjectList.length > 0;
+
+  // Active periods timeline from periodSettings
+  const activePeriods = (periodSettings || []).filter(p => p.status === 'Active');
+  const fromSettings = activePeriods.map(p => `${p.startTime} - ${p.endTime}`);
+  const fromData = explicitTimetableSlots.map(t => t.timeSlot || t.periodTime || `${t.startTime || ''} - ${t.endTime || ''}`.trim());
+
+  const parseSortable = (ts: any) => {
+    if (!ts || typeof ts !== 'string') return 9999;
+    const match = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return 9999;
+    let [_, h, m, p] = match;
+    let hr = parseInt(h, 10);
+    if (p.toUpperCase() === 'PM' && hr !== 12) hr += 12;
+    if (p.toUpperCase() === 'AM' && hr === 12) hr = 0;
+    return hr * 60 + parseInt(m, 10);
+  };
+
+  const timeSlots = Array.from(new Set(hasTimetable ? (fromSettings.length > 0 ? fromSettings : fromData) : []))
+    .filter(s => s && s.trim() !== '' && s !== '-')
+    .sort((a, b) => parseSortable(a) - parseSortable(b));
+
+  const getSubjectCode = (subjectName: string, fallbackCode?: string) => {
+    if (!subjectName || subjectName.toLowerCase() === 'break' || subjectName.toLowerCase().includes('lunch')) return '';
+    const master = (masterSubjects || []).find(sub => norm(sub.name) === norm(subjectName));
+    if (master?.code) return master.code;
+    return fallbackCode || '';
+  };
+
+  // Helper to resolve slot details (from explicit DB/API slot or assigned subject schedule)
+  const getSlotDataForDayTime = (day: string, slot: string, pIdx: number) => {
+    // 1. Check explicit DB/API slot
+    const explicit = explicitTimetableSlots.find(t => {
+      const matchDay = !t.day || t.day === 'All' || t.day.toLowerCase() === day.toLowerCase();
+      const tSlot = (t.timeSlot || t.periodTime || `${t.startTime || ''} - ${t.endTime || ''}`).trim();
+      return matchDay && (tSlot === slot || tSlot.toLowerCase() === slot.toLowerCase() || tSlot.replace(/\s+/g, '') === slot.replace(/\s+/g, ''));
+    });
+
+    if (explicit) {
+      const subName = explicit.subject || explicit.subjectName || 'Subject';
+      return {
+        subject: subName,
+        subjectCode: getSubjectCode(subName, explicit.subjectCode),
+        teacherName: explicit.teacherName || explicit.facultyName || '',
+        roomNo: explicit.roomNo || '101',
+        isBreak: explicit.isBreak || subName.toLowerCase() === 'break' || subName.toLowerCase().includes('lunch')
+      };
+    }
+
+    // If explicit slots exist in DB for this class, don't invent unassigned cells
+    if (explicitTimetableSlots.length > 0) {
+      return null;
+    }
+
+    // 2. If no explicit slots exist in DB at all, map the class's assigned subjects
+    if (assignedSubjectList.length > 0) {
+      const dayIdx = days.indexOf(day);
+      const subjectIndex = (dayIdx + pIdx) % assignedSubjectList.length;
+      const allocated = assignedSubjectList[subjectIndex];
+      if (allocated) {
+        return {
+          subject: allocated.subject,
+          subjectCode: allocated.code || getSubjectCode(allocated.subject),
+          teacherName: allocated.teacherName,
+          roomNo: '101',
+          isBreak: false
+        };
+      }
+    }
+
+    return null;
   };
 
   return (
@@ -145,8 +268,8 @@ export const ParentTimetableView: React.FC = () => {
       {/* Page Header (No Print) */}
       <div className="flex justify-between items-center no-print">
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
-            <Clock className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          <div className="p-2.5 bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 rounded-2xl border border-sky-200 dark:border-sky-800 shadow-2xs">
+            <Clock className="w-6 h-6" />
           </div>
           Timetable
         </h2>
@@ -154,143 +277,162 @@ export const ParentTimetableView: React.FC = () => {
 
       {/* Ward Selector Tabs (No Print) */}
       {role !== 'Student' && parentWards.length > 1 && (
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl w-max no-print">
+        <div className="flex p-1 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-2xl w-max shadow-xs no-print">
           {parentWards.map((ward, idx) => (
             <button
               key={ward.id}
               onClick={() => setSelectedChildIdx(idx)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 selectedChildIdx === idx
-                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-white/50'
+                  ? 'bg-sky-50 dark:bg-slate-800 text-sky-700 dark:text-sky-400 shadow-xs border border-sky-200 dark:border-sky-700'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
-              {ward.firstName} {ward.lastName} <span className="text-[10px] font-medium opacity-70 ml-1">({ward.className}-{ward.section})</span>
+              {ward.firstName} {ward.lastName} <span className="text-[10px] font-bold opacity-60 ml-1">({ward.className}-{ward.section})</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Timetable Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 space-y-6">
-        
-        {/* School Header (Required for download/print, always visible on top) */}
-        <div className="pb-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3.5">
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase">PIRNAV SCHOOLS</h1>
-              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">Class Timetable</p>
+      {/* Timetable Content */}
+      {loading ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-12 text-center shadow-xs">
+          <div className="animate-spin w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full mx-auto" />
+          <p className="text-xs font-bold text-slate-400 mt-3">Loading timetable...</p>
+        </div>
+      ) : !hasTimetable ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-3.5">
+          <div className="w-16 h-16 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-200 dark:border-sky-800 shadow-2xs">
+            <CalendarOff className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+              Timetable Not Generated
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+              No timetable has been generated or published for <strong className="text-slate-700 dark:text-slate-200">{currentWard.className} — Section {currentWard.section}</strong> yet.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 overflow-hidden shadow-xs p-6 space-y-6">
+          
+          {/* School Header */}
+          <div className="pb-4 border-b border-sky-100 dark:border-sky-900/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
+            <div className="flex items-center gap-3.5">
+              <div>
+                <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase">PIRNAV SCHOOLS</h1>
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">Class Timetable</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <span className="inline-block px-3 py-1.5 bg-sky-50 dark:bg-sky-950/40 text-xs font-black text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 rounded-xl">
+                {currentWard.className} — Section {currentWard.section}
+              </span>
+
+              <button 
+                onClick={() => window.print()}
+                className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-xl text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-sky-50/60 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-sky-600" />
+                <span>Print / Download</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-            <span className="inline-block px-3 py-1.5 bg-brand-50/50 dark:bg-slate-800 text-xs font-black text-brand-700 dark:text-brand-400 border border-brand-200/50 dark:border-slate-700 rounded-lg">
-              {currentWard.className} — Section {currentWard.section}
-            </span>
-
-            <button 
-              onClick={() => window.print()}
-              className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print / Download</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Weekly Grid Table */}
-        <div className="overflow-x-auto">
-          <div className="min-w-[800px]">
-            <table className="w-full text-left border-collapse text-xs">
+          {/* Weekly Grid Table */}
+          <div className="overflow-x-auto rounded-xl border border-sky-200/80 dark:border-sky-800/80">
+            <table className="w-full text-left border-collapse text-xs min-w-[850px]">
               <thead>
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3 px-4 min-w-[140px]">Period & Time</th>
+                <tr className="bg-sky-50/80 dark:bg-sky-950/40 text-sky-900 dark:text-sky-300 font-extrabold uppercase tracking-wider border-b border-sky-200 dark:border-sky-800">
+                  <th className="sticky left-0 z-20 bg-sky-50 dark:bg-slate-900 py-3.5 px-4 min-w-[155px] border-r border-sky-200 dark:border-sky-800 shadow-xs">
+                    Period & Time
+                  </th>
                   {days.map(day => (
-                    <th key={day} className="py-3 px-4 text-center min-w-[130px]">{day}</th>
+                    <th key={day} className="py-3.5 px-3 text-center min-w-[125px]">{day}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="font-medium divide-y divide-slate-100 dark:divide-slate-800/80">
-                {timeSlots.length === 0 ? (
-                  <tr>
-                    <td colSpan={days.length + 1} className="py-16 text-center text-slate-400 dark:text-slate-500">
-                      No period slots allocated for {currentWard.className} - Section {currentWard.section}.
-                    </td>
-                  </tr>
-                ) : (
-                  timeSlots.map((slot, pIdx) => {
-                    const isFallbackBreak = !hasDbTimetable && staticFallbackTimetable.find(s => s.timeSlot === slot)?.isBreak;
-                    
-                    if (isFallbackBreak) {
-                      const breakObj = staticFallbackTimetable.find(s => s.timeSlot === slot);
-                      return (
-                        <tr key={slot} className="bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-bold">
-                          <td className="py-3 px-4 font-mono">{slot}</td>
-                          <td colSpan={days.length} className="py-3 px-4 text-center uppercase tracking-widest text-[11px]">
-                            ☕ {breakObj?.subject || 'Break Interval'}
-                          </td>
-                        </tr>
-                      );
-                    }
+              <tbody className="font-medium divide-y divide-sky-100/70 dark:divide-sky-900/30">
+                {timeSlots.map((slot, pIdx) => {
+                  const matchingPeriodSetting = activePeriods.find(p => `${p.startTime} - ${p.endTime}` === slot);
+                  const isBreakSlot = matchingPeriodSetting?.periodType === 'Break' || matchingPeriodSetting?.periodType === 'Lunch';
 
+                  if (isBreakSlot) {
                     return (
-                      <tr key={slot} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 text-slate-900 dark:text-slate-100">
-                        <td className="py-3 px-4 font-mono font-bold whitespace-nowrap bg-slate-50/40 dark:bg-slate-800/10">
-                          <span className="text-brand-600 dark:text-brand-400 block text-[9px] uppercase tracking-wider font-extrabold mb-0.5">
-                            Period {pIdx + 1}
-                          </span>
+                      <tr key={slot} className="bg-amber-50/60 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-bold border-y border-amber-200/60 dark:border-amber-900/40">
+                        <td className="sticky left-0 z-10 bg-amber-50 dark:bg-slate-900 py-2.5 px-4 font-mono font-bold text-xs border-r border-amber-200/60 dark:border-amber-900/40">
                           {slot}
                         </td>
-                        
-                        {days.map(day => {
-                          let match: any = null;
-                          if (hasDbTimetable) {
-                            match = wardTimetableWholeWeek.find(t => t.day === day && t.timeSlot === slot);
-                          } else {
-                            match = staticFallbackTimetable.find(s => s.timeSlot === slot);
-                          }
-
-                          if (match?.isBreak) {
-                            return (
-                              <td key={day} className="py-3 px-2 text-center align-middle bg-amber-50/20 dark:bg-amber-950/10 text-amber-700 font-extrabold">
-                                {match.subject}
-                              </td>
-                            );
-                          }
-
-                          return (
-                            <td key={day} className="py-3 px-2 text-center align-middle">
-                              {match ? (
-                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1 text-left mx-auto w-36 hover:shadow-xs transition-all">
-                                  <p className="font-extrabold text-slate-900 dark:text-white truncate">
-                                    {match.subject}
-                                    {(() => {
-                                      const code = match.subjectCode || getSubjectCode(match.subject);
-                                      return code ? ` (${code.toLowerCase()})` : '';
-                                    })()}
-                                  </p>
-                                  <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName || 'Instructor'}</p>
-                                  <div className="pt-1">
-                                    <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-[9px] font-mono font-bold text-slate-500 border border-slate-200 dark:border-slate-800">
-                                      {match.roomNo || 'Classroom'}
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-slate-350 dark:text-slate-600 italic text-[11px]">-</span>
-                              )}
-                            </td>
-                          );
-                        })}
+                        <td colSpan={days.length} className="py-2.5 px-4 text-center uppercase tracking-widest text-[11px] font-black">
+                          ☕ {matchingPeriodSetting?.periodName || 'Break Interval'}
+                        </td>
                       </tr>
                     );
-                  })
-                )}
+                  }
+
+                  return (
+                    <tr key={slot} className="hover:bg-sky-50/30 dark:hover:bg-slate-800/30 text-slate-900 dark:text-slate-100">
+                      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 py-3 px-4 font-mono font-bold whitespace-nowrap border-r border-sky-100 dark:border-sky-900/60 shadow-xs">
+                        <span className="text-sky-600 dark:text-sky-400 block text-[9.5px] uppercase tracking-wider font-extrabold mb-0.5">
+                          {matchingPeriodSetting?.periodName || `Period ${pIdx + 1}`}
+                        </span>
+                        <span className="text-slate-700 dark:text-slate-300 text-xs font-mono font-bold">
+                          {slot}
+                        </span>
+                      </td>
+                      
+                      {days.map(day => {
+                        const match = getSlotDataForDayTime(day, slot, pIdx);
+
+                        if (!match) {
+                          return (
+                            <td key={day} className="py-3 px-3 text-center text-slate-350 dark:text-slate-600">
+                              —
+                            </td>
+                          );
+                        }
+
+                        if (match.isBreak) {
+                          return (
+                            <td key={day} className="py-3 px-3 text-center bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-extrabold text-[11px]">
+                              ☕ {match.subject || 'Break'}
+                            </td>
+                          );
+                        }
+
+                        return (
+                          <td key={day} className="py-3 px-2 text-center">
+                            <div className="p-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-sky-100 dark:border-sky-900/40 space-y-1">
+                              <div className="font-extrabold text-slate-900 dark:text-white truncate">
+                                {match.subject}
+                                {match.subjectCode && (
+                                  <span className="text-[10px] text-slate-400 font-semibold ml-1">
+                                    ({match.subjectCode.toLowerCase()})
+                                  </span>
+                                )}
+                              </div>
+                              {match.teacherName && (
+                                <div className="text-[11px] font-bold text-sky-600 dark:text-sky-400 truncate">
+                                  {match.teacherName}
+                                </div>
+                              )}
+                              <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">
+                                {match.roomNo ? `Room ${String(match.roomNo).replace(/^Room\s*/i, '')}` : 'Room 101'}
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

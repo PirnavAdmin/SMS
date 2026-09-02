@@ -105,9 +105,57 @@ public class FinanceController : ControllerBase
     
     [HttpGet("fee-assignments")]
     public async Task<IActionResult> GetStudentFeeAssignments() => Ok(new { success = true, data = await _service.GetStudentFeeAssignmentsAsync() });
+
+    [HttpGet("fee-assignments/{id:int}")]
+    public async Task<IActionResult> GetStudentFeeAssignmentById(int id)
+    {
+        var item = await _service.GetStudentFeeAssignmentByIdAsync(id);
+        if (item == null) return NotFound(new { success = false, message = "Fee assignment not found." });
+        return Ok(new { success = true, data = item });
+    }
     
     [HttpPost("fee-assignments")]
-    public async Task<IActionResult> CreateStudentFeeAssignment([FromBody] StudentFeeAssignmentDto dto) => Ok(new { success = true, data = await _service.CreateStudentFeeAssignmentAsync(dto) });
+    public async Task<IActionResult> CreateStudentFeeAssignment([FromBody] StudentFeeAssignmentDto dto)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.StudentId))
+            return BadRequest(new { success = false, message = "Student ID is required." });
+        var res = await _service.CreateStudentFeeAssignmentAsync(dto);
+        return Ok(new { success = true, message = "Fee assignment saved successfully.", data = res });
+    }
+
+    [HttpPost("fee-assignments/bulk")]
+    public async Task<IActionResult> BulkAssignStudentFees([FromBody] BulkFeeAssignmentRequestDto request)
+    {
+        if (request == null || request.StudentIds == null || !request.StudentIds.Any())
+            return BadRequest(new { success = false, message = "At least one student must be selected." });
+        var list = await _service.BulkAssignStudentFeesAsync(request);
+        return Ok(new { success = true, message = $"Successfully assigned fee structure to {list.Count} students.", data = list });
+    }
+
+    [HttpPost("fee-assignments/custom")]
+    public async Task<IActionResult> SaveCustomStudentFeeAssignment([FromBody] CustomFeeAssignmentRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.StudentId))
+            return BadRequest(new { success = false, message = "Student ID is required." });
+        var res = await _service.SaveCustomStudentFeeAssignmentAsync(request);
+        return Ok(new { success = true, message = "Custom fee policy assignment saved successfully.", data = res });
+    }
+
+    [HttpPut("fee-assignments/{id:int}")]
+    public async Task<IActionResult> UpdateStudentFeeAssignment(int id, [FromBody] StudentFeeAssignmentDto dto)
+    {
+        var res = await _service.UpdateStudentFeeAssignmentAsync(id, dto);
+        if (res == null) return NotFound(new { success = false, message = "Fee assignment not found." });
+        return Ok(new { success = true, message = "Fee assignment updated successfully.", data = res });
+    }
+
+    [HttpDelete("fee-assignments/{id:int}")]
+    public async Task<IActionResult> DeleteStudentFeeAssignment(int id)
+    {
+        var success = await _service.DeleteStudentFeeAssignmentAsync(id);
+        if (!success) return NotFound(new { success = false, message = "Fee assignment not found." });
+        return Ok(new { success = true, message = "Fee assignment deleted successfully." });
+    }
     
     [HttpGet("fee-payments")]
     public async Task<IActionResult> GetFeePayments() => Ok(new { success = true, data = await _service.GetFeePaymentsAsync() });

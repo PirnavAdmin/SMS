@@ -30,12 +30,11 @@ export const FinanceMastersView: React.FC = () => {
     { id: 'scholarships', label: 'Scholarships', icon: Gift },
     { id: 'discounts', label: 'Discounts', icon: Percent },
     { id: 'fine-rules', label: 'Fine Rules', icon: AlertTriangle },
-    { id: 'transport-fee', label: 'Transport Fee', icon: Route },
     { id: 'hostel-fee', label: 'Hostel Fee', icon: Home },
-    { id: 'student-assignment', label: 'Fee Assignment', icon: UserPlus },
     { id: 'uniform-fee', label: 'Uniform Fee', icon: Shirt },
+    { id: 'student-assignment', label: 'Fee Assignment', icon: UserPlus },
     { id: 'refunds', label: 'Refund Management', icon: RotateCcw },
-    { id: 'settings', label: 'Fine Configurations', icon: SlidersHorizontal },
+    { id: 'settings', label: 'Finance Settings', icon: SlidersHorizontal },
   ] as const;
 
   const renderSubTabContent = () => {
@@ -52,10 +51,10 @@ export const FinanceMastersView: React.FC = () => {
         return <DiscountsView />;
       case 'fine-rules':
         return <FineRulesView />;
-      case 'transport-fee':
-        return <FinanceTransportConfigView />;
       case 'hostel-fee':
         return <FinanceHostelConfigView />;
+      case 'uniform-fee':
+        return <FinanceUniformConfigView />;
       case 'student-assignment':
         return <StudentFeeAssignmentView />;
       case 'refunds':

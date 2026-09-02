@@ -18,7 +18,12 @@ public interface IFinanceService
     Task DeleteDynamicFeeStructureAsync(int id);
     
     Task<IEnumerable<StudentFeeAssignmentDto>> GetStudentFeeAssignmentsAsync();
+    Task<StudentFeeAssignmentDto?> GetStudentFeeAssignmentByIdAsync(int id);
     Task<StudentFeeAssignmentDto> CreateStudentFeeAssignmentAsync(StudentFeeAssignmentDto assignment);
+    Task<List<StudentFeeAssignmentDto>> BulkAssignStudentFeesAsync(BulkFeeAssignmentRequestDto request);
+    Task<StudentFeeAssignmentDto> SaveCustomStudentFeeAssignmentAsync(CustomFeeAssignmentRequestDto request);
+    Task<StudentFeeAssignmentDto?> UpdateStudentFeeAssignmentAsync(int id, StudentFeeAssignmentDto assignment);
+    Task<bool> DeleteStudentFeeAssignmentAsync(int id);
     
     Task<IEnumerable<FeePaymentDto>> GetFeePaymentsAsync();
     Task<FeePaymentDto> CreateFeePaymentAsync(FeePaymentDto payment);
