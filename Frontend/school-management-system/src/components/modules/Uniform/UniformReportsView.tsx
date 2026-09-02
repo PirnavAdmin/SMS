@@ -7,6 +7,7 @@ import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { getItemPriceFromConfig, getUniformFeeForClass } from '../../../utils/uniformUtils';
+import { fetchUniformReportsApi } from '../../../api/uniform';
 
 interface UniformReportsViewProps {
   initialReportType?: string;
@@ -39,6 +40,17 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
       setReportType(initialReportType);
     }
   }, [initialReportType]);
+
+  React.useEffect(() => {
+    const fetchBackendReports = async () => {
+      try {
+        await fetchUniformReportsApi();
+      } catch (err) {
+        console.warn("Backend uniform reports notice:", err);
+      }
+    };
+    fetchBackendReports();
+  }, []);
 
   // Determine dynamic filter visibility
   const isReturnExchangeReport = [
