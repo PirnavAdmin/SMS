@@ -480,13 +480,15 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">{role} • {user?.email}</p>
               </div>
 
-              <button
-                onClick={() => { setShowUserMenu(false); onNavigate?.('profile-completion'); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-              >
-                <Edit className="w-4 h-4 text-sky-500" />
-                <span>Edit Profile</span>
-              </button>
+              {['Admin', 'Super Admin', 'Teacher'].includes(role) && (
+                <button
+                  onClick={() => { setShowUserMenu(false); onNavigate?.('profile-completion'); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Edit className="w-4 h-4 text-sky-500" />
+                  <span>Edit Profile</span>
+                </button>
+              )}
 
               <button
                 onClick={() => { setShowUserMenu(false); onOpenChangePass(); }}

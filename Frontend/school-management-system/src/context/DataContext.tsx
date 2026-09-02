@@ -6468,7 +6468,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateSchoolProfile = (profile: Partial<SchoolProfile>) => {
-    setSchoolProfile((prev) => ({ ...prev, ...profile }));
+    setSchoolProfile((prev) => {
+      const next = { ...prev, ...profile };
+      try {
+        localStorage.setItem("edu_db_profile", JSON.stringify(next));
+        localStorage.setItem("profile", JSON.stringify(next));
+        if (next.logoUrl) {
+          localStorage.setItem("school_logo", next.logoUrl);
+        }
+      } catch (e) {}
+      return next;
+    });
     logActivity(
       "Updated School Profile",
       "Updated school contact and settings",

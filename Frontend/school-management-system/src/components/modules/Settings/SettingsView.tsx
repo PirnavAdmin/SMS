@@ -228,6 +228,14 @@ export const SettingsView: React.FC = () => {
   const handleSaveProfile = (e: React.SyntheticEvent) => {
     e.preventDefault();
     updateSchoolProfile(profileForm);
+    try {
+      localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
+      localStorage.setItem("profile", JSON.stringify(profileForm));
+      if (profileForm.logoUrl) {
+        localStorage.setItem("school_logo", profileForm.logoUrl);
+      }
+    } catch (err) {}
+    window.dispatchEvent(new Event('school_profile_updated'));
     addToast('success', 'Settings Saved', 'School branding profile updated successfully.');
   };
 
