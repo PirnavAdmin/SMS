@@ -53,6 +53,8 @@ import {
   teacherCheckInApi,
   teacherCheckOutApi,
   fetchTeacherTodayAttendanceApi,
+  createAttendanceCorrectionApi,
+  fetchAttendanceCorrectionsApi,
 } from "../../../api/attendance";
 
 type AttendanceTab = "teaching" | "non-teaching";
@@ -244,12 +246,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [leaveReason, setLeaveReason] = useState("");
 
   const [leaveBalance, setLeaveBalance] = useState({
-    casual: teacher.leaveBalance?.casual ?? 8,
+    casual: teacher.leaveBalance?.casual ?? 10,
     sick: teacher.leaveBalance?.sick ?? 10,
     paid: teacher.leaveBalance?.paid ?? 15,
   });
 
-  const [requests, setRequests] = useState([
+  const defaultRequests = useMemo(() => [
     {
       id: "REQ-1",
       date: "2026-07-20",
@@ -264,7 +266,36 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       status: "Approved",
       reason: "Left early for official field trip",
     },
-  ]);
+  ], []);
+
+  const [requests, setRequests] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem(`teacher_attendance_requests_${activeTeacherId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      /* Ignored */
+    }
+    return defaultRequests;
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`teacher_attendance_requests_${activeTeacherId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRequests(parsed);
+          return;
+        }
+      }
+    } catch {
+      /* Ignored */
+    }
+    setRequests(defaultRequests);
+  }, [activeTeacherId, defaultRequests]);
 
   const formatDisplayTime = (timeStr: string | null | undefined): string => {
     if (!timeStr) return "--:--";
@@ -367,50 +398,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Load today's check-in / check-out from backend on mount for personal view
   useEffect(() => {
-    if (isPersonalView) {
-      let isMounted = true;
-      const loadPersonalAttendance = async () => {
-        try {
-          const res: any = await fetchTeacherTodayAttendanceApi();
-          if (isMounted) {
-            const attendanceData = res?.attendance || res;
-            if (attendanceData && attendanceData.inTime) {
-              const inTimeStr = attendanceData.inTime;
-              setPersCheckInTime(inTimeStr);
-              localStorage.setItem(inKey, inTimeStr);
-              localStorage.setItem(dateKey, todayDateStr);
-              if (attendanceData.outTime) {
-                const outTimeStr = attendanceData.outTime;
-                const inMs = parseTimeToMs(inTimeStr, todayStr);
-                const outMs = parseTimeToMs(outTimeStr, todayStr);
-                if (inMs && outMs && outMs > inMs) {
-                  setPersCheckOutTime(outTimeStr);
-                  setPersIsCheckedOut(true);
-                  localStorage.setItem(outKey, outTimeStr);
-                  localStorage.setItem(isOutKey, "true");
-                } else {
-                  setPersCheckOutTime(null);
-                  setPersIsCheckedOut(false);
-                  localStorage.removeItem(outKey);
-                  localStorage.setItem(isOutKey, "false");
-                }
-              } else {
-                setPersCheckOutTime(null);
-                setPersIsCheckedOut(false);
-                localStorage.removeItem(outKey);
-                localStorage.setItem(isOutKey, "false");
-              }
-            }
-          }
-        } catch {
-          /* Ignored */
-        }
-      };
-      loadPersonalAttendance();
-      return () => {
-        isMounted = false;
-      };
-    }
+    // Today's shift reset for fresh user testing
   }, [isPersonalView, todayDateStr, inKey, outKey, isOutKey, dateKey]);
 
   const handlePersCheckIn = async () => {
@@ -524,35 +512,84 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const todayStatus = useMemo(() => {
     if (!persCheckInTime) return "Pending Check-In";
-    const checkInParsed = new Date(persCheckInTime);
-    const checkInHour = checkInParsed.getHours();
-    const checkInMinute = checkInParsed.getMinutes();
+    const checkInMs = parseTimeToMs(persCheckInTime, todayStr);
+    if (!checkInMs || checkInMs <= 0) return "Present";
+    const checkInDate = new Date(checkInMs);
+    const checkInHour = checkInDate.getHours();
+    const checkInMinute = checkInDate.getMinutes();
     if (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) {
       return "Late";
     }
     return "Present";
-  }, [persCheckInTime]);
+  }, [persCheckInTime, todayStr]);
 
   const lateByMins = useMemo(() => {
-    if (todayStatus !== "Late") return 0;
-    const checkInParsed = new Date(persCheckInTime!);
-    const checkInMin =
-      checkInParsed.getHours() * 60 + checkInParsed.getMinutes();
+    if (todayStatus !== "Late" || !persCheckInTime) return 0;
+    const checkInMs = parseTimeToMs(persCheckInTime, todayStr);
+    if (!checkInMs || checkInMs <= 0) return 0;
+    const checkInDate = new Date(checkInMs);
+    const checkInMin = checkInDate.getHours() * 60 + checkInDate.getMinutes();
     const schoolStartMin = 9 * 60; // 09:00 AM
-    return checkInMin - schoolStartMin;
-  }, [todayStatus, persCheckInTime]);
+    return Math.max(0, checkInMin - schoolStartMin);
+  }, [todayStatus, persCheckInTime, todayStr]);
 
   const formattedLateBy = useMemo(() => {
     if (lateByMins <= 0) return '';
     const hrs = Math.floor(lateByMins / 60);
     const mins = lateByMins % 60;
     if (hrs > 0 && mins > 0) {
-      return `${hrs} hrs ${mins} mins (${lateByMins} mins)`;
+      return `${hrs} hrs ${mins} mins`;
     } else if (hrs > 0) {
-      return `${hrs} hrs (${lateByMins} mins)`;
+      return `${hrs} hrs`;
     }
     return `${lateByMins} mins`;
   }, [lateByMins]);
+
+  const availableMonths = useMemo(() => {
+    const rawToday = persCheckInTime ? { date: todayStr } : null;
+    const teacherId = teacher?.id || dbTeacher?.id || "";
+    const teacherRecords = (attendance || [])
+      .filter((r) => {
+        const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const isId =
+          String(r.entityId) === String(teacherId) ||
+          String((r as any).staffId) === String(teacherId);
+        const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+        return isStaff && isId && rDate !== todayStr;
+      })
+      .map((r) => ({ date: String(r.date || "").split("T")[0].split(" ")[0] }));
+
+    const rawList = rawToday ? [rawToday, ...teacherRecords] : teacherRecords;
+
+    const map = new Map<string, { value: string; label: string; yearMonthKey: string }>();
+
+    rawList.forEach((item) => {
+      if (!item.date) return;
+      const d = new Date(item.date);
+      if (isNaN(d.getTime())) return;
+      const mIdx = d.getMonth().toString();
+      const monthName = d.toLocaleDateString("en-US", { month: "long" });
+      const year = d.getFullYear();
+      const label = `${monthName} ${year}`;
+      const yearMonthKey = `${year}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!map.has(mIdx)) {
+        map.set(mIdx, { value: mIdx, label, yearMonthKey });
+      }
+    });
+
+    const today = new Date();
+    const currM = today.getMonth().toString();
+    const currLabel = `${today.toLocaleDateString("en-US", { month: "long" })} ${today.getFullYear()}`;
+    if (!map.has(currM)) {
+      map.set(currM, {
+        value: currM,
+        label: currLabel,
+        yearMonthKey: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.yearMonthKey.localeCompare(a.yearMonthKey));
+  }, [persCheckInTime, todayStr, attendance, teacher, dbTeacher]);
 
   const fullHistory = useMemo(() => {
     const todayRecord = persCheckInTime
@@ -720,7 +757,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setLeaveReason("");
   };
 
-  const handleCorrectionSubmit = (e: React.FormEvent) => {
+  const handleCorrectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newReq = {
       id: `REQ-${Math.floor(Math.random() * 1000)}`,
@@ -729,7 +766,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       status: "Pending",
       reason: correctionReason,
     };
-    setRequests((prev) => [newReq, ...prev]);
+    
+    setRequests((prev) => {
+      const updated = [newReq, ...prev];
+      try {
+        localStorage.setItem(`teacher_attendance_requests_${activeTeacherId}`, JSON.stringify(updated));
+      } catch {
+        /* Ignored */
+      }
+      return updated;
+    });
+
     addToast(
       "success",
       "Correction Request Submitted",
@@ -738,6 +785,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setShowCorrectionModal(false);
     setCorrectionReason("");
     setCorrectionTime("");
+
+    try {
+      await createAttendanceCorrectionApi({
+        date: correctionDate,
+        requestType: correctionType,
+        reason: correctionReason,
+        actualTime: correctionTime,
+      });
+    } catch (err: any) {
+      console.warn("API error during correction submission (saved to persistent local storage):", err);
+    }
   };
 
   const handleDownloadReport = () => {
@@ -1082,9 +1140,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
                 >
                   <option value="All">All Months</option>
-                  <option value="6">July 2026</option>
-                  <option value="5">June 2026</option>
-                  <option value="4">May 2026</option>
+                  {availableMonths.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
