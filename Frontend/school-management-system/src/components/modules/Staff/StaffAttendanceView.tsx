@@ -41,6 +41,7 @@ import {
   Edit,
 } from "lucide-react";
 import { formatToDDMMYYYY } from "../../../utils/dateValidation";
+import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
@@ -113,7 +114,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const robert = staff.find(s => (s.firstName || '').toLowerCase().includes('robert') || (s.lastName || '').toLowerCase().includes('teacher'));
     if (robert) return robert;
 
-    return staff.find(s => s.employeeCategory === "Teacher" || s.employeeCategory === "Teaching Staff");
+    return staff.find(s => s.employeeCategory === "Teacher" || (s.employeeCategory as string) === "Teaching Staff" || s.role === "Teacher");
   }, [user, staff]);
 
   // Teacher Profile resolution (Guarantees Robert Teacher / Junior Teacher English)
@@ -610,11 +611,35 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   };
 
   const handleDownloadReport = () => {
-    addToast(
-      "success",
-      "Report Export Started",
-      "Downloading personal attendance registry in Excel format.",
-    );
+    if (!fullHistory || fullHistory.length === 0) {
+      addToast("warning", "No Records", "No attendance records available to export.");
+      return;
+    }
+    const exportData = fullHistory.map((item) => ({
+      "Date": item.date,
+      "Employee Name": `${teacher.firstName} ${teacher.lastName}`,
+      "Designation": teacher.designation,
+      "Department": teacher.department,
+      "Check In": item.checkIn || "-",
+      "Check Out": item.checkOut || "-",
+      "Working Hours": item.workingHours || "-",
+      "Status": item.status,
+    }));
+    try {
+      exportToExcel(
+        exportData,
+        `Staff_Attendance_${teacher.firstName}_${teacher.lastName}_${new Date().toISOString().split("T")[0]}`,
+        "Personal Attendance"
+      );
+      addToast(
+        "success",
+        "Report Exported Successfully",
+        "Downloaded personal attendance registry in Excel format.",
+      );
+    } catch (err: any) {
+      console.error("Personal export error:", err);
+      addToast("error", "Export Failed", err.message || "Failed to export report.");
+    }
   };
 
   if (isPersonalView) {
@@ -2096,12 +2121,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               );
               const inTime =
                 existingRecordForTimes?.inTime ||
-                (status === "Present" || status === "Late"
+                ((status as string) === "Present" || (status as string) === "Late"
                   ? "08:30 AM"
                   : "");
               const outTime =
                 existingRecordForTimes?.outTime ||
-                (status === "Present" || status === "Late"
+                ((status as string) === "Present" || (status as string) === "Late"
                   ? "04:30 PM"
                   : "");
               const remarks = existingRecordForTimes?.remarks || "";
@@ -2287,11 +2312,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setIsExporting(true);
     setTimeout(() => {
       try {
-        let csvRows: string[] = [];
+        let excelRows: any[][] = [];
         let filename = "";
+        let sheetName = "Attendance";
 
         if (viewMode === "daily") {
           filename = `Staff_Daily_Attendance_${formatToDDMMYYYY(attendanceDate, "-")}`;
+          sheetName = "Daily Attendance";
           const headers = [
             "Attendance Date",
             "Employee ID",
@@ -2304,7 +2331,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             "Out Time",
             "Remarks",
           ];
-          csvRows.push(headers.join(","));
+          excelRows.push(headers);
 
           currentTabStaffList.forEach((s) => {
             const approvedLeave = getApprovedLeave(s.id, attendanceDate);
@@ -2316,18 +2343,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             const remarks = String(remarksMap[s.id] || "");
 
             const row = [
-              `"${formatToDDMMYYYY(attendanceDate, "-")}"`,
-              `"${s.empId || s.id}"`,
-              `"${s.firstName} ${s.lastName}"`,
-              `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
-              `"${s.department || "General"}"`,
-              `"${s.designation || "Staff"}"`,
-              `"${status}"`,
-              `"${inTime}"`,
-              `"${outTime}"`,
-              `"${remarks.replace(/"/g, '""')}"`,
+              formatToDDMMYYYY(attendanceDate, "-"),
+              s.empId || s.id,
+              `${s.firstName} ${s.lastName}`,
+              activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff",
+              s.department || "General",
+              s.designation || "Staff",
+              status,
+              inTime,
+              outTime,
+              remarks,
             ];
-            csvRows.push(row.join(","));
+            excelRows.push(row);
           });
         } else {
           const rangeLabel =
@@ -2335,9 +2362,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               ? `${formatToDDMMYYYY(regFromDate, "-")}_to_${formatToDDMMYYYY(regToDate, "-")}`
               : `${monthNames[regMonth]}_${regYear}`;
           filename = `Staff_Attendance_Register_${rangeLabel}`;
+          sheetName = "Monthly Register";
 
           const dateHeaders = registerDaysList.map(
-            (item) => `"${item.displayHeader}"`,
+            (item) => item.displayHeader,
           );
           const headers = [
             "Employee ID",
@@ -2351,7 +2379,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             "Leave (L)",
             "Attendance %",
           ];
-          csvRows.push(headers.join(","));
+          excelRows.push(headers);
 
           registerStaffList.forEach((s) => {
             let pCount = 0;
@@ -2394,7 +2422,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 else if (isWeekend) code = "W";
                 else code = "-";
               }
-              return `"${code}"`;
+              return code;
             });
 
             const totalRecordedDays = pCount + aCount + lCount + hdCount;
@@ -2404,22 +2432,22 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 : 0;
 
             const row = [
-              `"${s.empId || s.id}"`,
-              `"${s.firstName} ${s.lastName}"`,
-              `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
-              `"${s.department || "General"}"`,
-              `"${s.designation || "Staff"}"`,
+              s.empId || s.id,
+              `${s.firstName} ${s.lastName}`,
+              activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff",
+              s.department || "General",
+              s.designation || "Staff",
               ...dayStatuses,
-              `"${pCount}"`,
-              `"${aCount}"`,
-              `"${lCount}"`,
-              `"${pct}%"`,
+              pCount,
+              aCount,
+              lCount,
+              `${pct}%`,
             ];
-            csvRows.push(row.join(","));
+            excelRows.push(row);
           });
         }
 
-        if (csvRows.length <= 1) {
+        if (excelRows.length <= 1) {
           addToast(
             "warning",
             "No Records to Export",
@@ -2428,21 +2456,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           return;
         }
 
-        const blob = new Blob([csvRows.join("\n")], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${filename}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        exportToExcel(excelRows, filename, sheetName);
 
         addToast(
           "success",
           "Report Exported Successfully",
-          `Downloaded ${filename}.csv`,
+          `Downloaded ${filename}.xlsx with auto-fitted columns.`,
         );
       } catch (err: any) {
         console.error("Export failed:", err);
@@ -3339,7 +3358,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                               <button
                                 type="button"
                                 onClick={() => handleCellClick(s.id, item.dateStr)}
-                                disabled={!isEditingMonthly || isFuture || isBeforeJoining}
+                                disabled={!isEditingMonthly || Boolean(isFuture) || Boolean(isBeforeJoining)}
                                 className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto transition-all ${
                                   isEditingMonthly && !isFuture && !isBeforeJoining
                                     ? "hover:scale-110 active:scale-95 cursor-pointer"

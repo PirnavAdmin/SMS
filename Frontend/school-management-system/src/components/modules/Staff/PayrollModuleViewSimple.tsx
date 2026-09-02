@@ -29,6 +29,7 @@ import {
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { formatCurrency } from '../../../utils/currency';
+import { exportToExcel } from '../../../utils/excelExport';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -2070,32 +2071,29 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   const count = selectedHistoryIds.length;
                   if (count === 0) return;
                   
-                  // Create CSV string
                   const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
                   const rowsToDownload = historyRows.filter(r => selectedHistoryIds.includes(r.id));
-                  const csvRows = rowsToDownload.map(row => [
-                    row.month,
-                    `"${row.employeeName}"`,
-                    row.empId,
-                    row.grossSalary,
-                    row.deductions,
-                    row.netSalary,
-                    row.paymentDate || 'Pending',
-                    row.status
-                  ]);
-                  const csvContent = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
+                  const excelRows = [
+                    headers,
+                    ...rowsToDownload.map(row => [
+                      row.month,
+                      row.employeeName,
+                      row.empId,
+                      row.grossSalary,
+                      row.deductions,
+                      row.netSalary,
+                      row.paymentDate || 'Pending',
+                      row.status
+                    ])
+                  ];
                   
-                  // Download
-                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.setAttribute('href', url);
-                  link.setAttribute('download', `payslips_${new Date().getTime()}.csv`);
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-
-                  addToast('success', 'Download Started', `Downloading ${count} payslip(s) data.`);
+                  try {
+                    exportToExcel(excelRows, `payslips_${new Date().getTime()}`, 'Payslips');
+                    addToast('success', 'Download Complete', `Downloaded ${count} payslip(s) in Excel (.xlsx) format.`);
+                  } catch (err: any) {
+                    console.error("Payslip export error:", err);
+                    addToast('error', 'Download Failed', err.message || 'Failed to download payslips.');
+                  }
                 }} 
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
               >

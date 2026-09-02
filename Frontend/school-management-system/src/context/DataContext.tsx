@@ -6261,12 +6261,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     const promise = (async () => {
       try {
-        const [headsRes, structsRes, assignmentsRes, paymentsRes] =
+        const [headsRes, structsRes, assignmentsRes, paymentsRes, hostelFeesRes] =
           await Promise.allSettled([
             FinanceAPI.fetchFeeHeadsApi(),
             FinanceAPI.fetchDynamicFeeStructuresApi(),
             FinanceAPI.fetchStudentFeeAssignmentsApi(),
             FinanceAPI.fetchFeePaymentsApi(),
+            FinanceAPI.fetchHostelFeeConfigsApi(),
           ]);
         const extract = (r: PromiseSettledResult<any>) =>
           r.status === "fulfilled"
@@ -6278,6 +6279,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const structs = extract(structsRes);
         const assignments = extract(assignmentsRes);
         const payments = extract(paymentsRes);
+        const hostelFees = extract(hostelFeesRes);
         if (heads.length) setFeeHeads(heads);
         if (structs.length) {
           setDynamicFeeStructures((prev) => {
@@ -6302,6 +6304,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (assignments.length) setDbAssignments(assignments);
         if (payments.length) setFeePayments(payments);
+        if (hostelFees.length) {
+          setFinanceHostelConfigs((prev) => {
+            const merged = [...prev];
+            hostelFees.forEach((apiItem: any) => {
+              const idx = merged.findIndex(
+                (m) => String(m.id) === String(apiItem.id) ||
+                       (String(m.hostelId) === String(apiItem.hostelId) && String(m.roomTypeId) === String(apiItem.roomTypeId))
+              );
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...apiItem, id: String(apiItem.id || merged[idx].id) };
+              } else {
+                merged.push({ ...apiItem, id: String(apiItem.id) });
+              }
+            });
+            return merged;
+          });
+        }
       } catch (err) {
         console.warn("Failed to fetch finance data from API", err);
       } finally {
@@ -10468,6 +10487,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Added Finance Hostel Config",
       `Configured pricing for ${newC.hostelName}`,
     );
+
+    FinanceAPI.createHostelFeeConfigApi({
+      hostelId: String(newC.hostelId),
+      hostelName: newC.hostelName,
+      roomTypeId: String(newC.roomTypeId),
+      roomTypeName: newC.roomTypeName,
+      roomId: newC.roomId || "",
+      roomNo: newC.roomNo || "All Rooms",
+      feePlan: newC.feePlan,
+      hostelFee: newC.hostelFee,
+      securityDeposit: newC.securityDeposit,
+      effectiveFrom: newC.effectiveFrom,
+      status: newC.status,
+    }).then((res: any) => {
+      const apiItem = res?.data || res;
+      if (apiItem && apiItem.id) {
+        setFinanceHostelConfigs((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, id: String(apiItem.id) } : c)),
+        );
+      }
+    }).catch((err) => {
+      console.warn("Failed to persist hostel fee config to API:", err);
+    });
   };
 
   const updateFinanceHostelConfig = (
@@ -10477,10 +10519,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setFinanceHostelConfigs((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     );
+
+    FinanceAPI.updateHostelFeeConfigApi(id, updates).catch((err) => {
+      console.warn("Failed to update hostel fee config in API:", err);
+    });
   };
 
   const deleteFinanceHostelConfig = (id: string) => {
     setFinanceHostelConfigs((prev) => prev.filter((c) => c.id !== id));
+
+    FinanceAPI.deleteHostelFeeConfigApi(id).catch((err) => {
+      console.warn("Failed to delete hostel fee config from API:", err);
+    });
   };
 
   // 10. Student Hostel Assignment

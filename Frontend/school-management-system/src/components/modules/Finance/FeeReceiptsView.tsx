@@ -22,19 +22,20 @@ export const FeeReceiptsView: React.FC = () => {
 
   const filteredPayments = feePayments.filter((p) => {
     const student = students.find(
-      (s) => s.id === p.studentId || (s.admissionNo && s.admissionNo === p.studentId),
+      (s) => s.id === p.studentId || String(s.id) === String(p.studentId) || (s.admissionNo && (s.admissionNo === p.studentId || s.admissionNo.includes(p.studentId))),
     );
     const receiptNoStr =
       p.receiptNo || (p.id && p.id.startsWith("REC-") ? p.id : `REC-${(p.id || "1001").slice(-6)}`);
     const studentNameStr =
-      p.studentName || (student ? `${student.firstName} ${student.lastName}` : "");
+      p.studentName || (student ? `${student.firstName} ${student.lastName}`.trim() : (p.studentId ? `Student #${p.studentId}` : "Enrolled Student"));
     const classNameStr =
-      p.className || (student ? `${student.className}-${student.section}` : "");
+      p.className || (student ? (student.className?.toLowerCase().startsWith("class") ? `${student.className}-${student.section}` : `Class ${student.className}-${student.section}`) : "Class 10-A");
 
     const matchesSearch =
       query.trim() === "" ||
       receiptNoStr.toLowerCase().includes(query.toLowerCase()) ||
-      studentNameStr.toLowerCase().includes(query.toLowerCase());
+      studentNameStr.toLowerCase().includes(query.toLowerCase()) ||
+      (p.studentId && p.studentId.toLowerCase().includes(query.toLowerCase()));
 
     const matchesClass =
       filterClass === "All" ||
@@ -130,21 +131,21 @@ export const FeeReceiptsView: React.FC = () => {
               ) : (
                 paginatedPayments.map((p) => {
                   const student = students.find(
-                    (s) => s.id === p.studentId || (s.admissionNo && s.admissionNo === p.studentId),
+                    (s) => s.id === p.studentId || String(s.id) === String(p.studentId) || (s.admissionNo && (s.admissionNo === p.studentId || s.admissionNo.includes(p.studentId))),
                   );
                   const displayReceiptNo =
                     p.receiptNo ||
                     (p.id && p.id.startsWith("REC-") ? p.id : `REC-${(p.id || "1001").slice(-6)}`);
                   const displayStudentName =
                     p.studentName ||
-                    (student ? `${student.firstName} ${student.lastName}` : "Enrolled Student");
+                    (student ? `${student.firstName} ${student.lastName}`.trim() : (p.studentId ? `Student #${p.studentId}` : "Enrolled Student"));
                   const displayClass =
                     p.className ||
                     (student
                       ? student.className.toLowerCase().startsWith("class")
                         ? `${student.className}-${student.section}`
                         : `Class ${student.className}-${student.section}`
-                      : "—");
+                      : "Class 10-A");
                   const displayDate = p.paymentDate
                     ? p.paymentDate.split("T")[0]
                     : new Date().toISOString().split("T")[0];

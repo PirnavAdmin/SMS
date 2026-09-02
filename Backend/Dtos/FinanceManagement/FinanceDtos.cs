@@ -1,18 +1,5 @@
 namespace SMS.Api.Dtos.FinanceManagement;
 
-public class FeeHeadDto
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Frequency { get; set; } = string.Empty;
-    public decimal DefaultAmount { get; set; }
-    public bool IsRefundable { get; set; }
-    public bool IsTaxable { get; set; }
-    public string Category { get; set; } = string.Empty;
-    public string Status { get; set; } = "Active";
-}
-
 public class DynamicFeeStructureDto
 {
     public int Id { get; set; }

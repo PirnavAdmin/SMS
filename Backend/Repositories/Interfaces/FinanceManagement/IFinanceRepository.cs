@@ -11,7 +11,10 @@ public interface IFinanceRepository
     Task DeleteFeeHeadAsync(int id);
     
     Task<IEnumerable<DynamicFeeStructure>> GetDynamicFeeStructuresAsync();
+    Task<DynamicFeeStructure?> GetDynamicFeeStructureByIdAsync(int id);
     Task<DynamicFeeStructure> CreateDynamicFeeStructureAsync(DynamicFeeStructure structure);
+    Task<DynamicFeeStructure> UpdateDynamicFeeStructureAsync(DynamicFeeStructure structure);
+    Task DeleteDynamicFeeStructureAsync(int id);
     
     Task<IEnumerable<StudentFeeAssignment>> GetStudentFeeAssignmentsAsync();
     Task<StudentFeeAssignment> CreateStudentFeeAssignmentAsync(StudentFeeAssignment assignment);

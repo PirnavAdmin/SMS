@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
+import { exportToExcel } from '../../../utils/excelExport';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -469,62 +470,64 @@ export const AttendanceView = () => {
     addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, and Admin panels!');
   };
 
-  // CSV Exporter
+  // Excel Exporter
   const handleExportCSV = () => {
     if (filteredStudents.length === 0) {
       addToast('warning', 'Download Blocked', 'Roster list is empty.');
       return;
-    }setIsDownloading(true);
+    }
+    setIsDownloading(true);
    
     setTimeout(() => {
-      let csvContent = "data:text/csv;charset=utf-8,";
-     
-      if (dateMode === 'Daily') {
-        csvContent += "Roll No,Student Name,Class,Section,Status,Remarks\n";
-        filteredStudents.forEach(s => {
-          const status = getAttendanceStatus(s) || 'Unmarked';
-          const remark = remarksState[`${date}_${s.id}`] || "";
-          csvContent += `${s.rollNo},"${s.firstName} ${s.lastName}",${s.className},${s.section},${status},"${remark.replace(/"/g, '""')}"\n`;
-        });
-      } else {
-        const dateHeaders = matrixDates.map(d => d.split('-').slice(1).join('/')).join(",");
-        csvContent += `Roll No,Student Name,Class,Section,${dateHeaders},Present (P),Half Day (HD),Late (L),Absent (A),Attendance %\n`;
+      try {
+        const rows: any[][] = [];
+        let filename = "";
+        let sheetName = "Attendance";
+
+        if (dateMode === 'Daily') {
+          rows.push(["Roll No", "Student Name", "Class", "Section", "Status", "Remarks"]);
+          filteredStudents.forEach(s => {
+            const status = getAttendanceStatus(s) || 'Unmarked';
+            const remark = remarksState[`${date}_${s.id}`] || "";
+            rows.push([s.rollNo, `${s.firstName} ${s.lastName}`, s.className, s.section, status, remark]);
+          });
+          filename = `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${date}`;
+          sheetName = `Daily_${date}`;
+        } else {
+          const dateHeaders = matrixDates.map(d => d.split('-').slice(1).join('/'));
+          rows.push(["Roll No", "Student Name", "Class", "Section", ...dateHeaders, "Present (P)", "Half Day (HD)", "Late (L)", "Absent (A)", "Attendance %"]);
+         
+          filteredStudents.forEach(s => {
+            let pCount = 0;
+            let aCount = 0;
+            let hdCount = 0;
+            let lCount = 0;
+           
+            const dateCells = matrixDates.map(d => {
+              const status = getMatrixStatus(s, d);
+              if (status === 'Present') { pCount++; return 'P'; }
+              if (status === 'Absent') { aCount++; return 'A'; }
+              if (status === 'HalfDay') { hdCount++; return 'HD'; }
+              if (status === 'Late') { lCount++; return 'L'; }
+              return '-';
+            });
+           
+            const pct = matrixDates.length > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / matrixDates.length) * 100) : 0;
+            rows.push([s.rollNo, `${s.firstName} ${s.lastName}`, s.className, s.section, ...dateCells, pCount, hdCount, lCount, aCount, `${pct}%`]);
+          });
+          filename = `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${dateMode === 'Monthly' ? month : `${startDate}_to_${endDate}`}`;
+          sheetName = "Matrix Register";
+        }
        
-        filteredStudents.forEach(s => {
-          let pCount = 0;
-          let aCount = 0;
-          let hdCount = 0;
-          let lCount = 0;
-         
-          const dateCells = matrixDates.map(d => {
-            const status = getMatrixStatus(s, d);
-            if (status === 'Present') { pCount++; return 'P'; }
-            if (status === 'Absent') { aCount++; return 'A'; }
-            if (status === 'HalfDay') { hdCount++; return 'HD'; }
-            if (status === 'Late') { lCount++; return 'L'; }
-            return '-';
-          }).join(",");
-         
-          const pct = matrixDates.length > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / matrixDates.length) * 100) : 0;
-          csvContent += `${s.rollNo},"${s.firstName} ${s.lastName}",${s.className},${s.section},${dateCells},${pCount},${hdCount},${lCount},${aCount},${pct}%\n`;
-        });
+        exportToExcel(rows, filename, sheetName);
+        addToast('success', 'Download Complete', 'Attendance Excel report has been downloaded.');
+      } catch (err: any) {
+        console.error("Attendance export error:", err);
+        addToast('error', 'Export Failed', err.message || 'Failed to export attendance.');
+      } finally {
+        setIsDownloading(false);
       }
-     
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-     
-      const filename = dateMode === 'Daily'
-        ? `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${date}.csv`
-        : `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${dateMode === 'Monthly' ? month : `${startDate}_to_${endDate}`}.csv`;
-       
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setIsDownloading(false);
-      addToast('success', 'Download Complete', 'Attendance data has been downloaded.');
-    }, 800);
+    }, 400);
   };
 
   return (
