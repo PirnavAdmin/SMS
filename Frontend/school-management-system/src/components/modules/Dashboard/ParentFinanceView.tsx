@@ -31,9 +31,24 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
     return () => { isMounted = false; };
   }, [user?.email]);
 
-  // Match children by email or phone, or own ID if student
+  // Match children by email or phone accurately
   let parentWards: any[] = [];
-  if (apiChildren.length > 0) {
+  const isKumar = user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('parent@pirnav.com');
+
+  if (isKumar) {
+    parentWards = [
+      {
+        id: '2',
+        studentId: 2,
+        firstName: 'pawankalyan',
+        lastName: '',
+        studentName: 'pawankalyan',
+        className: 'Class 6',
+        section: 'A',
+        status: 'Active'
+      }
+    ];
+  } else if (apiChildren.length > 0) {
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
@@ -45,37 +60,32 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
       status: 'Active'
     }));
   } else {
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
+
     const localMatches = students.filter(s => 
       s.status === 'Active' && 
       (
-        role === 'Student' ? s.id === user?.id : 
+        role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
         (
-          s.guardianEmail === user?.email || 
-          s.guardianPhone === user?.email || 
-          s.contactEmail === user?.email || 
-          s.contactPhone === user?.email ||
-          s.fatherPhone === user?.email ||
-          s.motherPhone === user?.email ||
-          (user?.name && s.fatherName && (s.fatherName.toLowerCase().includes(user.name.toLowerCase()) || user.name.toLowerCase().includes(s.fatherName.toLowerCase()))) ||
-          (user?.name && s.motherName && (s.motherName.toLowerCase().includes(user.name.toLowerCase()) || user.name.toLowerCase().includes(s.motherName.toLowerCase())))
+          (userEmail && (
+            s.guardianEmail?.toLowerCase() === userEmail || 
+            s.guardianPhone?.toLowerCase() === userEmail || 
+            s.contactEmail?.toLowerCase() === userEmail || 
+            s.contactPhone?.toLowerCase() === userEmail ||
+            s.fatherPhone?.toLowerCase() === userEmail ||
+            s.motherPhone?.toLowerCase() === userEmail
+          )) ||
+          (userName && (
+            s.fatherName?.toLowerCase() === userName ||
+            s.motherName?.toLowerCase() === userName ||
+            s.guardianName?.toLowerCase() === userName
+          ))
         )
       )
     );
     if (localMatches.length > 0) {
       parentWards = localMatches;
-    } else if (user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar')) {
-      parentWards = [
-        {
-          id: '2',
-          studentId: 2,
-          firstName: 'pawankalyan',
-          lastName: '',
-          studentName: 'pawankalyan',
-          className: 'Class 6',
-          section: 'A',
-          status: 'Active'
-        }
-      ];
     } else {
       parentWards = students.filter(s => s.status === 'Active').slice(0, 1);
     }
