@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   X, Bus, Route as RouteIcon, Users, UserCheck, Phone, Clock,
   ArrowDown, ArrowUp, Search, History
@@ -220,7 +220,15 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
       'N/A'
     ).trim();
 
-    const pPoint = stAssignment?.pickupPoint || student.pickupPoint || matchedAdm?.pickupPoint || (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
+    const rawPoint = (
+      stAssignment?.pickupPoint ||
+      student.pickupPoint ||
+      matchedAdm?.pickupPoint ||
+      (student as any).dropPoint
+    );
+    const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
+      ? rawPoint.trim()
+      : (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
 
     return {
       id: student.id,
@@ -239,6 +247,29 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   });
 
   const displayStudentsList = assignedStudentsList;
+
+  // Dynamic Route-Specific Pickup Points (FOR THIS ROUTE ONLY)
+  const pointsSet = new Set<string>();
+  displayStops.forEach(stop => {
+    if (stop.label && stop.label !== 'N/A') {
+      pointsSet.add(stop.label);
+    }
+  });
+  assignedStudentsList.forEach(s => {
+    if (s.pickupPoint && s.pickupPoint !== 'N/A' && s.pickupPoint !== 'Default Stop') {
+      pointsSet.add(s.pickupPoint);
+    }
+  });
+  const routePickupPoints = Array.from(pointsSet);
+
+  // Dynamic Classes (from students assigned to this route)
+  const classSet = new Set<string>();
+  assignedStudentsList.forEach(s => {
+    if (s.className && s.className !== 'N/A') {
+      classSet.add(s.className);
+    }
+  });
+  const dynamicClasses = Array.from(classSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
   const historyLogs = vehicleAssignments.filter(va =>
     (String(va.vehicleId) === String(assignment.vehicleId) || va.vehicleNumber === assignment.vehicleNumber) &&
@@ -636,22 +667,23 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <select
                     value={filterPickup}
                     onChange={e => setFilterPickup(e.target.value)}
-                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white"
+                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
                   >
                     <option value="All">All Pickup Points</option>
-                    {displayStops.map(stop => <option key={stop.id} value={stop.label}>{stop.label}</option>)}
+                    {routePickupPoints.map(point => (
+                      <option key={point} value={point}>{point}</option>
+                    ))}
                   </select>
 
                   <select
                     value={filterClass}
                     onChange={e => setFilterClass(e.target.value)}
-                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white"
+                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
                   >
                     <option value="All">All Classes</option>
-                    <option value="Class 10">Class 10</option>
-                    <option value="Class 9">Class 9</option>
-                    <option value="Class 5">Class 5</option>
-                    <option value="Class 6">Class 6</option>
+                    {dynamicClasses.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
                   </select>
 
                   <ExportButton data={filteredStudents} filename={`assigned_students_${assignment.vehicleNumber}`} />

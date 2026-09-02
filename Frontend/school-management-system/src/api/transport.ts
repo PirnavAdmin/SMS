@@ -163,8 +163,35 @@ export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> 
 
 // --- Pickup Points ---
 
+// --- Pickup Points ---
+
 export const fetchPickupPointsApi = async (): Promise<PickupPoint[]> => {
-  return safeTransportApiCall<PickupPoint[]>('/api/transport/pickup-points', { method: 'GET' }, localPickupPoints);
+  const storedLocal = getStoredMock('pickup_points', localPickupPoints);
+  if (Array.isArray(storedLocal) && storedLocal.length > 0) {
+    localPickupPoints = storedLocal;
+  }
+
+  const res = await safeTransportApiCall<any>('/api/transport/pickup-points', { method: 'GET' }, localPickupPoints);
+  const items = Array.isArray(res) ? res : (res?.items || res?.data || []);
+
+  if (items.length === 0 && localPickupPoints.length > 0) {
+    return localPickupPoints;
+  }
+
+  // Merge items from API with localPickupPoints
+  const mergedMap = new Map<string, PickupPoint>();
+  localPickupPoints.forEach(p => mergedMap.set(String(p.id), p));
+  items.forEach((p: any) => {
+    const ptId = (p.id || p.pickupPointId || p.pickupId || '').toString();
+    if (ptId) {
+      mergedMap.set(ptId, { ...mergedMap.get(ptId), ...p });
+    }
+  });
+
+  const finalPoints = Array.from(mergedMap.values());
+  localPickupPoints = finalPoints;
+  setStoredMock('pickup_points', finalPoints);
+  return finalPoints;
 };
 
 export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint | undefined> => {
@@ -175,48 +202,79 @@ export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint |
 export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<PickupPoint> => {
   const newPoint = {
     id: data.id || `PK-${Date.now()}`,
-    pickupName: data.pickupName || '',
+    pickupName: data.pickupName || (data as any).pickupPointName || '',
     routeId: data.routeId || '',
     routeName: data.routeName || '',
     sequenceNumber: data.sequenceNumber || 1,
-    arrivalTime: data.arrivalTime || '',
+    arrivalTime: data.arrivalTime || data.morningPickupTime || '',
+    morningPickupTime: data.morningPickupTime || data.arrivalTime || '',
+    eveningDropTime: data.eveningDropTime || '',
     distanceFromSchoolKm: data.distanceFromSchoolKm || 0,
     monthlyFee: data.monthlyFee || 0,
     status: data.status || 'Active'
   } as unknown as PickupPoint;
 
-  localPickupPoints.push(newPoint);
-  setStoredMock('pickup_points', localPickupPoints);
-
-  return safeTransportApiCall<PickupPoint>(
-    '/api/transport/pickup-points',
-    { method: 'POST', body: JSON.stringify(data) },
+  localPickupPoints = [
+    ...localPickupPoints.filter(p => String(p.id) !== String(newPoint.id)),
     newPoint
-  );
+  ];
+  setStoredMock('pickup_points', localPickupPoints);
+  try {
+    localStorage.setItem('edu_db_pickup_points', JSON.stringify(localPickupPoints));
+  } catch (e) {}
+
+  try {
+    const res = await safeTransportApiCall<PickupPoint>(
+      '/api/transport/pickup-points',
+      { method: 'POST', body: JSON.stringify(data) },
+      newPoint
+    );
+    return res || newPoint;
+  } catch (err) {
+    return newPoint;
+  }
 };
 
 export const updatePickupPointApi = async (id: string, data: Partial<PickupPoint>): Promise<PickupPoint> => {
   const idx = localPickupPoints.findIndex(p => String(p.id) === id);
   if (idx !== -1) {
     localPickupPoints[idx] = { ...localPickupPoints[idx], ...data };
-    setStoredMock('pickup_points', localPickupPoints);
+  } else {
+    localPickupPoints.push({ id, ...data } as PickupPoint);
   }
-  const updated = localPickupPoints[idx] || (data as PickupPoint);
-  return safeTransportApiCall<PickupPoint>(
-    `/api/transport/pickup-points/${id}`,
-    { method: 'PUT', body: JSON.stringify(data) },
-    updated
-  );
+  setStoredMock('pickup_points', localPickupPoints);
+  try {
+    localStorage.setItem('edu_db_pickup_points', JSON.stringify(localPickupPoints));
+  } catch (e) {}
+
+  const updated = localPickupPoints.find(p => String(p.id) === id) || (data as PickupPoint);
+  try {
+    return await safeTransportApiCall<PickupPoint>(
+      `/api/transport/pickup-points/${id}`,
+      { method: 'PUT', body: JSON.stringify(data) },
+      updated
+    );
+  } catch (err) {
+    return updated;
+  }
 };
 
 export const deletePickupPointApi = async (id: string): Promise<{ success: boolean }> => {
   localPickupPoints = localPickupPoints.filter(p => String(p.id) !== id);
   setStoredMock('pickup_points', localPickupPoints);
-  return safeTransportApiCall<{ success: boolean }>(
-    `/api/transport/pickup-points/${id}`,
-    { method: 'DELETE' },
-    { success: true }
-  );
+  try {
+    localStorage.setItem('edu_db_pickup_points', JSON.stringify(localPickupPoints));
+  } catch (e) {}
+
+  try {
+    return await safeTransportApiCall<{ success: boolean }>(
+      `/api/transport/pickup-points/${id}`,
+      { method: 'DELETE' },
+      { success: true }
+    );
+  } catch (err) {
+    return { success: true };
+  }
 };
 
 // --- Vehicles ---

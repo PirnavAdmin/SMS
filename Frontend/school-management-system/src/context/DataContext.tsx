@@ -4732,10 +4732,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (points) {
           const mappedPoints = points.map((p: any) => ({
-            id: (p.id || p.pickupPointId || "").toString(),
-            routeId: (p.routeId || "").toString(),
+            id: (p.id || p.pickupPointId || p.pickupId || "").toString(),
+            routeId: (p.routeId || p.transportRouteId || "").toString(),
             routeName: p.routeName || p.selectRoute || "",
-            pickupName: p.pickupName || p.pickupPointName || "",
+            pickupName: p.pickupName || p.pickupPointName || p.stopName || "",
             landmark: p.landmark || "",
             sequenceNumber: Number(
               p.sequenceNumber !== undefined
@@ -4765,7 +4765,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ),
             status: normalizeStatus(p.status),
           }));
-          setPickupPoints(mappedPoints);
+
+          const deletedPickupTrack = new Set<string>(
+            JSON.parse(localStorage.getItem("edu_db_deleted_pickup_ids") || "[]"),
+          );
+          const localStoredPoints: PickupPoint[] = JSON.parse(
+            localStorage.getItem("edu_db_pickup_points") || "[]",
+          );
+
+          const mergedMap = new Map<string, PickupPoint>();
+
+          localStoredPoints.forEach((pt) => {
+            const key = (pt.id ? String(pt.id) : (pt.pickupName + "_" + pt.routeId)).toLowerCase();
+            if (!deletedPickupTrack.has(key) && !deletedPickupTrack.has(String(pt.id))) {
+              mergedMap.set(key, pt);
+            }
+          });
+
+          mappedPoints.forEach((pt: PickupPoint) => {
+            const key = (pt.id ? String(pt.id) : (pt.pickupName + "_" + pt.routeId)).toLowerCase();
+            if (!deletedPickupTrack.has(key) && !deletedPickupTrack.has(String(pt.id))) {
+              mergedMap.set(key, { ...mergedMap.get(key), ...pt });
+            }
+          });
+
+          const finalPickupPoints = Array.from(mergedMap.values());
+          setPickupPoints(finalPickupPoints);
+          localStorage.setItem("edu_db_pickup_points", JSON.stringify(finalPickupPoints));
         }
         if (vehicles) {
           const mappedVehicles = vehicles.map((v: any) => ({
@@ -4786,7 +4812,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             isAC: v.isAC === true,
             status: normalizeStatus(v.status),
           }));
-          setVehicleMasters(mappedVehicles);
+          const localStoredVehicles: VehicleMaster[] = JSON.parse(
+            localStorage.getItem("edu_db_vehicle_masters") || "[]",
+          );
+          const mergedVehiclesMap = new Map<string, VehicleMaster>();
+          localStoredVehicles.forEach(v => {
+            if (v && v.vehicleNumber) {
+              mergedVehiclesMap.set(String(v.id || v.vehicleNumber).toLowerCase(), v);
+            }
+          });
+          mappedVehicles.forEach((v: VehicleMaster) => {
+            if (v && v.vehicleNumber) {
+              const key = String(v.id || v.vehicleNumber).toLowerCase();
+              mergedVehiclesMap.set(key, { ...mergedVehiclesMap.get(key), ...v });
+            }
+          });
+          const finalVehicles = Array.from(mergedVehiclesMap.values());
+          setVehicleMasters(finalVehicles);
+          localStorage.setItem("edu_db_vehicle_masters", JSON.stringify(finalVehicles));
         }
         if (drivers) {
           const mappedDrivers = drivers.map((d: any) => ({
@@ -4805,7 +4848,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             experienceYears: Number(d.experienceYears || 0),
             status: normalizeStatus(d.status),
           }));
-          setDriverMasters(mappedDrivers);
+
+          const localStoredDrivers: DriverMaster[] = JSON.parse(
+            localStorage.getItem("edu_db_driver_masters") || "[]",
+          );
+          const mergedDriversMap = new Map<string, DriverMaster>();
+          localStoredDrivers.forEach(d => {
+            if (d && d.driverName) {
+              mergedDriversMap.set(String(d.id || d.driverName).toLowerCase(), d);
+            }
+          });
+          mappedDrivers.forEach((d: DriverMaster) => {
+            if (d && d.driverName) {
+              const key = String(d.id || d.driverName).toLowerCase();
+              mergedDriversMap.set(key, { ...mergedDriversMap.get(key), ...d });
+            }
+          });
+          const finalDrivers = Array.from(mergedDriversMap.values());
+          setDriverMasters(finalDrivers);
+          localStorage.setItem("edu_db_driver_masters", JSON.stringify(finalDrivers));
         }
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
@@ -4881,8 +4942,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               vehicleNumber,
               driverId,
               driverName,
-              attendantId: (a.attendantId || "").toString(),
-              attendantName: a.attendantName || a.selectBusAttendant || "",
+              attendantId,
+              attendantName,
+              attendantMobile,
               morningTripTime: a.morningTripTime || a.morningTrip || "",
               eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
               effectiveFrom: a.effectiveFrom || a.effectiveFromDate || "",
@@ -4890,12 +4952,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(a.status),
             };
           });
+
+          const localStoredAssignments: VehicleAssignment[] = JSON.parse(
+            localStorage.getItem("edu_db_vehicle_assignments") || "[]",
+          );
           const uniqueAssignmentsMap = new Map<string, any>();
-          mappedAssignments.forEach((item: any) => {
-            const key = item.id ? item.id.toString() : `${item.vehicleId}-${item.routeId}-${item.driverId}`;
-            uniqueAssignmentsMap.set(key, item);
+          localStoredAssignments.forEach((a: any) => {
+            if (a && (a.vehicleNumber || a.routeName)) {
+              const key = a.id ? a.id.toString() : `${a.vehicleNumber}-${a.routeName}`;
+              uniqueAssignmentsMap.set(key, a);
+            }
           });
-          setVehicleAssignments(Array.from(uniqueAssignmentsMap.values()));
+          mappedAssignments.forEach((item: any) => {
+            if (item && (item.vehicleNumber || item.routeName)) {
+              const key = item.id ? item.id.toString() : `${item.vehicleNumber}-${item.routeName}`;
+              const existing = uniqueAssignmentsMap.get(key) || {};
+              uniqueAssignmentsMap.set(key, {
+                ...existing,
+                ...item,
+                attendantId: item.attendantId || existing.attendantId || "",
+                attendantName: item.attendantName || existing.attendantName || "",
+                attendantMobile: item.attendantMobile || existing.attendantMobile || ""
+              });
+            }
+          });
+          const finalAssignments = Array.from(uniqueAssignmentsMap.values());
+          setVehicleAssignments(finalAssignments);
+          localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(finalAssignments));
         }
         if (maintenance) {
           const mappedMaintenance = maintenance.map((m: any) => {
@@ -13200,7 +13283,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (a) =>
           a.routeId === cleanId ||
           String(a.routeId) === cleanId ||
-          (routeCode && a.routeName === routeCode),
+          (routeCode && a.routeName === routeCode) ||
+          (routeName && a.routeName === routeName),
       );
       for (const a of assignmentsToDelete) {
         try {
@@ -13234,7 +13318,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (r) =>
             String(r.id) !== cleanId &&
             r.id !== id &&
-            (routeCode ? r.routeCode !== routeCode : true),
+            (routeCode ? r.routeCode !== routeCode : true) &&
+            (routeName ? r.routeName !== routeName : true),
         );
         localStorage.setItem("edu_db_route_masters", JSON.stringify(next));
         return next;
@@ -13244,7 +13329,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (p) =>
             p.routeId !== cleanId &&
             String(p.routeId) !== cleanId &&
-            (routeCode ? p.routeName !== routeCode : true),
+            (routeCode ? p.routeName !== routeCode : true) &&
+            (routeName ? p.routeName !== routeName : true),
         );
         localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
         return next;
@@ -13254,7 +13340,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (a) =>
             a.routeId !== cleanId &&
             String(a.routeId) !== cleanId &&
-            (routeCode ? a.routeName !== routeCode : true),
+            (routeCode ? a.routeName !== routeCode : true) &&
+            (routeName ? a.routeName !== routeName : true),
         );
         localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(next));
         return next;
@@ -13342,20 +13429,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : "Inactive",
         branch: (p as any).branch || selectedBranch || "Main Campus",
       } as any;
-      setPickupPoints((prev) => [...prev, newPt]);
+      setPickupPoints((prev) => {
+        const next = [...prev.filter((pt) => pt.id !== newPt.id), newPt];
+        localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
+        return next;
+      });
       logActivity(
         "Created Pickup Point",
         `Added stop ${newPt.pickupName} for ${newPt.routeName}`,
       );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
+    } catch (err: any) {
+      console.warn("API Sync fallback for create pickup point:", err);
+      addToast("warning", "API Warning", "Saved locally as backend API is unreachable or returned an error.");
       const id = "PP-" + Math.floor(100 + Math.random() * 900);
       const newPt: PickupPoint = {
         ...p,
         id,
         branch: (p as any).branch || selectedBranch || "Main Campus",
       } as any;
-      setPickupPoints((prev) => [...prev, newPt]);
+      setPickupPoints((prev) => {
+        const next = [...prev.filter((pt) => pt.id !== newPt.id), newPt];
+        localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
+        return next;
+      });
     }
   };
 
@@ -13363,6 +13459,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<PickupPoint>,
   ) => {
+    setPickupPoints((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...updates } : p));
+      localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
+      return next;
+    });
+
     try {
       const payload: any = {};
       if (updates.routeId !== undefined)
@@ -13409,44 +13511,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       await TransportAPI.updatePickupPointApi(id, payload as any);
-      setPickupPoints((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-      );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setPickupPoints((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-      );
+    } catch (err: any) {
+      console.warn("API Sync fallback for update pickup point:", err);
+      addToast("warning", "API Warning", "Updated locally as backend API is unreachable or returned an error.");
     }
   };
 
   const deletePickupPoint = async (id: string) => {
+    const cleanId = String(id || "").trim();
+    const targetPt = pickupPoints.find((x) => String(x.id) === cleanId || x.id === id);
+    const pName = targetPt?.pickupName;
+    const rId = targetPt?.routeId;
+
+    const deletedTrack = new Set<string>(
+      JSON.parse(localStorage.getItem("edu_db_deleted_pickup_ids") || "[]"),
+    );
+    deletedTrack.add(cleanId);
+    if (pName && rId) deletedTrack.add((pName + "_" + rId).toLowerCase());
+    localStorage.setItem(
+      "edu_db_deleted_pickup_ids",
+      JSON.stringify(Array.from(deletedTrack)),
+    );
+
+    setPickupPoints((prev) => {
+      const next = prev.filter((pt) => String(pt.id) !== cleanId && pt.id !== id);
+      localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
+      return next;
+    });
+
+    if (targetPt) {
+      setStudentTransports((prev) =>
+        prev.map((st) =>
+          st.routeId === targetPt.routeId && st.pickupPoint === targetPt.pickupName
+            ? { ...st, pickupPoint: "Unassigned" }
+            : st,
+        ),
+      );
+    }
+
     try {
-      const p = pickupPoints.find((x) => x.id === id);
       await TransportAPI.deletePickupPointApi(id);
-      setPickupPoints((prev) => prev.filter((pt) => pt.id !== id));
-      if (p) {
-        setStudentTransports((prev) =>
-          prev.map((st) =>
-            st.routeId === p.routeId && st.pickupPoint === p.pickupName
-              ? { ...st, pickupPoint: "Unassigned" }
-              : st,
-          ),
-        );
-      }
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const p = pickupPoints.find((x) => x.id === id);
-      setPickupPoints((prev) => prev.filter((pt) => pt.id !== id));
-      if (p) {
-        setStudentTransports((prev) =>
-          prev.map((st) =>
-            st.routeId === p.routeId && st.pickupPoint === p.pickupName
-              ? { ...st, pickupPoint: "Unassigned" }
-              : st,
-          ),
-        );
-      }
+    } catch (err: any) {
+      console.warn("API Sync fallback for delete pickup point:", err);
+      addToast("warning", "API Warning", "Deleted locally as backend API is unreachable or returned an error.");
     }
   };
 
@@ -14020,9 +14127,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         `Assigned ${normalizedAssignment.vehicleNumber} to ${normalizedAssignment.routeName} with ${normalizedAssignment.driverName}${normalizedAssignment.attendantName ? ` and ${normalizedAssignment.attendantName}` : ""}`,
       );
     } catch (err: any) {
-      console.error(err);
-      addToast("error", "Assignment Failed", err.message || "Failed to create vehicle assignment on the server.");
-      throw err;
+      console.warn("Backend API assignment error (falling back to local state):", err);
     }
   };
 
@@ -14106,53 +14211,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updates.status === "Active" || (updates.status as any) === true;
     }
 
+    setVehicleAssignments((prev) => {
+      const deactivateConflicts = (
+        items: VehicleAssignment[],
+      ): VehicleAssignment[] =>
+        items.map((existing) => {
+          const isActiveConflict =
+            existing.id !== id &&
+            (existing.status === "Active" || (existing.status as any) === true || String(existing.status).toLowerCase() === "true") &&
+            (merged.status === "Active" || (merged.status as any) === true || String(merged.status).toLowerCase() === "true") &&
+            (String(existing.vehicleId) === String(merged.vehicleId) ||
+              existing.vehicleNumber === merged.vehicleNumber ||
+              String(existing.routeId) === String(merged.routeId) ||
+              existing.routeName === merged.routeName ||
+              String(existing.driverId) === String(merged.driverId) ||
+              existing.driverName === merged.driverName);
+
+          if (!isActiveConflict) return existing;
+
+          return {
+            ...existing,
+            status: "Inactive" as const,
+            effectiveTo:
+              existing.effectiveTo ||
+              merged.effectiveFrom ||
+              new Date().toISOString().split("T")[0],
+          } as VehicleAssignment;
+        });
+
+      const sanitized: VehicleAssignment =
+        merged.status === "Inactive" && !merged.effectiveTo
+          ? { ...merged, effectiveTo: new Date().toISOString().split("T")[0] }
+          : merged;
+
+      const nextState = deactivateConflicts(prev).map((a) =>
+        a.id === id ? sanitized : a,
+      );
+      localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(nextState));
+      return nextState;
+    });
+
     try {
       await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
-      setVehicleAssignments((prev) => {
-        const deactivateConflicts = (
-          items: VehicleAssignment[],
-        ): VehicleAssignment[] =>
-          items.map((existing) => {
-            const isActiveConflict =
-              existing.id !== id &&
-              (existing.status === "Active" || (existing.status as any) === true || String(existing.status).toLowerCase() === "true") &&
-              (merged.status === "Active" || (merged.status as any) === true || String(merged.status).toLowerCase() === "true") &&
-              (String(existing.vehicleId) === String(merged.vehicleId) ||
-                existing.vehicleNumber === merged.vehicleNumber ||
-                String(existing.routeId) === String(merged.routeId) ||
-                existing.routeName === merged.routeName ||
-                String(existing.driverId) === String(merged.driverId) ||
-                existing.driverName === merged.driverName ||
-                (merged.attendantId &&
-                  String(existing.attendantId) === String(merged.attendantId)) ||
-                (merged.attendantName &&
-                  existing.attendantName === merged.attendantName));
-
-            if (!isActiveConflict) return existing;
-
-            return {
-              ...existing,
-              status: "Inactive" as const,
-              effectiveTo:
-                existing.effectiveTo ||
-                merged.effectiveFrom ||
-                new Date().toISOString().split("T")[0],
-            } as VehicleAssignment;
-          });
-
-        const sanitized: VehicleAssignment =
-          merged.status === "Inactive" && !merged.effectiveTo
-            ? { ...merged, effectiveTo: new Date().toISOString().split("T")[0] }
-            : merged;
-
-        return deactivateConflicts(prev).map((a) =>
-          a.id === id ? sanitized : a,
-        );
-      });
     } catch (err: any) {
-      console.error(err);
-      addToast("error", "Update Failed", err.message || "Failed to update vehicle assignment on the server.");
-      throw err;
+      console.warn("Backend API update error (fallback to local state):", err);
     }
   };
 
