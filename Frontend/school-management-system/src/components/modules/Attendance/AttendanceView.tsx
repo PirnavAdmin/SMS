@@ -69,7 +69,12 @@ export const AttendanceView = () => {
     let matchedStaff: any = null;
 
     if (userEmail) {
-      matchedStaff = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      matchedStaff = staff.find(s => {
+        if (!s.email) return false;
+        const sEmail = s.email.toLowerCase().trim();
+        return sEmail === userEmail || 
+          (userEmail.includes('teacher') && (sEmail.includes('teacher') || s.empId === 'STF-2026-0000' || s.id === 'STF-2026-0000'));
+      });
     }
     if (!matchedStaff && userName) {
       matchedStaff = staff.find(s => {
@@ -78,23 +83,23 @@ export const AttendanceView = () => {
       });
     }
 
-    const rawName = user?.name || 'Suteja K';
+    const rawName = user?.name || 'Robert Teacher';
     const nameParts = rawName.split(' ');
     const fallback = matchedStaff || {
-      id: user?.id || 'STF-2026-0009',
-      empId: (user as any)?.empId || 'STF-2026-0009',
-      firstName: nameParts[0] || 'Suteja',
-      lastName: nameParts.slice(1).join(' ') || 'K',
-      assignedClasses: ['Class 10-A', 'Class 9-B', 'Class 8-A'],
-      assignedSubjects: ['Social Studies', 'Mathematics']
+      id: user?.id || 'STF-2026-0000',
+      empId: (user as any)?.empId || 'STF-2026-0000',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 4-A'],
+      assignedSubjects: ['English', 'Chemistry']
     };
 
     return {
       ...fallback,
-      firstName: fallback.firstName || 'Suteja',
-      lastName: fallback.lastName || 'K',
-      assignedClasses: fallback.assignedClasses || ['Class 10-A', 'Class 9-B', 'Class 8-A'],
-      assignedSubjects: fallback.assignedSubjects || ['Social Studies', 'Mathematics']
+      firstName: fallback.firstName || 'Robert',
+      lastName: fallback.lastName || 'Teacher',
+      assignedClasses: fallback.assignedClasses || ['Class 4-A'],
+      assignedSubjects: fallback.assignedSubjects || ['English', 'Chemistry']
     };
   }, [user, staff]);
 

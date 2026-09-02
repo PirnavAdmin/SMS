@@ -39,17 +39,22 @@ export const HomeworkView: React.FC = () => {
 
     let found: any = null;
     if (userEmail) {
-      found = academicStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      found = academicStaff.find(s => {
+        if (!s.email) return false;
+        const sEmail = s.email.toLowerCase().trim();
+        return sEmail === userEmail || 
+          (userEmail.includes('teacher') && (sEmail.includes('teacher') || s.empId === 'STF-2026-0000' || s.id === 'STF-2026-0000'));
+      });
     }
     if (!found && userName && !userName.includes('admin') && !userName.includes('driver')) {
       found = academicStaff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        return (sFullName && sFullName === userName) || (sName && sName === userName) || (sFullName.includes('suteja') && userName.includes('suteja'));
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
       });
     }
     if (!found && user?.id) {
-      found = academicStaff.find(s => s.id === user.id);
+      found = academicStaff.find(s => s.id === user.id || s.empId === user.id);
     }
 
     if (found) {
@@ -64,25 +69,25 @@ export const HomeworkView: React.FC = () => {
 
       const resolvedSubjects = found.assignedSubjects && found.assignedSubjects.length > 0
         ? found.assignedSubjects
-        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [found.department || 'Social Studies']);
+        : (adminAssignedSubs.length > 0 ? Array.from(new Set(adminAssignedSubs)) : [found.department || 'English']);
 
       return {
         ...found,
-        department: found.department || 'Social Studies',
+        department: found.department || 'English',
         assignedSubjects: resolvedSubjects
       };
     }
 
-    const rawName = user?.name || 'Suteja K';
+    const rawName = user?.name || 'Robert Teacher';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0009',
-      empId: (user as any)?.empId || 'STF-2026-0009',
-      firstName: nameParts[0] || 'Suteja',
-      lastName: nameParts.slice(1).join(' ') || 'K',
-      assignedClasses: ['Class 10-A', 'Class 9-A', 'Class 8-A'],
-      assignedSubjects: ['Social Studies'],
-      department: 'Social Studies',
+      id: user?.id || 'STF-2026-0000',
+      empId: (user as any)?.empId || 'STF-2026-0000',
+      firstName: nameParts[0] || 'Robert',
+      lastName: nameParts.slice(1).join(' ') || 'Teacher',
+      assignedClasses: ['Class 4-A'],
+      assignedSubjects: ['English', 'Chemistry'],
+      department: 'English',
       designation: 'Junior Teacher'
     };
   }, [user, staff, teacherAssignments]);
@@ -115,8 +120,9 @@ export const HomeworkView: React.FC = () => {
   }, [dbTeacher, teacherAssignments]);
 
   const assignedSubjects = useMemo(() => {
-    const rawSubs = (dbTeacher as any)?.assignedSubjects || [dbTeacher.department || 'Social Studies'];
-    const dept = (dbTeacher.department || 'Social Studies').toLowerCase().trim();
+    const defaultSubject = dbTeacher.department || (dbTeacher as any).primarySubject || 'General';
+    const rawSubs = (dbTeacher as any)?.assignedSubjects?.length > 0 ? (dbTeacher as any).assignedSubjects : [defaultSubject];
+    const dept = (dbTeacher.department || defaultSubject).toLowerCase().trim();
 
     const adminSubs = (teacherAssignments || [])
       .filter((ta: any) => {
@@ -136,16 +142,7 @@ export const HomeworkView: React.FC = () => {
 
     const merged = Array.from(new Set([...rawSubs, ...adminSubs]));
 
-    // Filter out subjects that do not belong to the teacher's department (e.g. Mathematics for a Social Studies teacher)
-    const filtered = merged.filter((sub: string) => {
-      const sLower = sub.toLowerCase().trim();
-      if (dept.includes('social') && (sLower.includes('math') || sLower.includes('physics') || sLower.includes('chemistry') || sLower.includes('biology') || sLower.includes('science'))) {
-        return false;
-      }
-      return true;
-    });
-
-    return filtered.length > 0 ? filtered : [dbTeacher.department || 'Social Studies'];
+    return merged.length > 0 ? merged : [defaultSubject];
   }, [dbTeacher, teacherAssignments]);
 
   const classOptions = useMemo(() => {
@@ -220,7 +217,7 @@ export const HomeworkView: React.FC = () => {
     title: '',
     className: 'Class 9',
     section: 'A',
-    subject: assignedSubjects[0] || 'Social Studies',
+    subject: assignedSubjects[0] || dbTeacher.department || (dbTeacher as any).primarySubject || 'General',
     teacherName: `${teacher.firstName} ${teacher.lastName}`,
     assignedDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],

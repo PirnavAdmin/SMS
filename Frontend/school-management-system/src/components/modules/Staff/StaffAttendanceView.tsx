@@ -39,6 +39,7 @@ import {
   Check,
   ChevronLeft,
   Edit,
+  RotateCcw,
 } from "lucide-react";
 import { formatToDDMMYYYY } from "../../../utils/dateValidation";
 import { DailyAttendance, Staff } from "../../../types";
@@ -151,30 +152,59 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // PERSONAL TEACHER ATTENDANCE STATES
   const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
 
+  const activeTeacherId = useMemo(() => {
+    return teacher?.id || dbTeacher?.id || (user as any)?.empId || user?.id || 'default_teacher';
+  }, [teacher, dbTeacher, user]);
+
+  const inKey = `teacher_check_in_time_${activeTeacherId}`;
+  const outKey = `teacher_check_out_time_${activeTeacherId}`;
+  const isOutKey = `teacher_is_checked_out_${activeTeacherId}`;
+  const dateKey = `teacher_attendance_date_${activeTeacherId}`;
+
   const [persCheckInTime, setPersCheckInTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem("teacher_attendance_date");
+    const storedDate = localStorage.getItem(dateKey);
     if (storedDate && storedDate !== todayDateStr) {
-      localStorage.removeItem("teacher_check_in_time");
-      localStorage.removeItem("teacher_check_out_time");
-      localStorage.removeItem("teacher_is_checked_out");
-      localStorage.setItem("teacher_attendance_date", todayDateStr);
+      localStorage.removeItem(inKey);
+      localStorage.removeItem(outKey);
+      localStorage.removeItem(isOutKey);
+      localStorage.setItem(dateKey, todayDateStr);
       return null;
     }
-    return localStorage.getItem("teacher_check_in_time");
+    return localStorage.getItem(inKey);
   });
 
   const [persCheckOutTime, setPersCheckOutTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem("teacher_attendance_date");
+    const storedDate = localStorage.getItem(dateKey);
     if (storedDate && storedDate !== todayDateStr) return null;
-    const isOut = localStorage.getItem("teacher_is_checked_out") === "true";
-    return isOut ? localStorage.getItem("teacher_check_out_time") : null;
+    const isOut = localStorage.getItem(isOutKey) === "true";
+    return isOut ? localStorage.getItem(outKey) : null;
   });
 
   const [persIsCheckedOut, setPersIsCheckedOut] = useState<boolean>(() => {
-    const storedDate = localStorage.getItem("teacher_attendance_date");
+    const storedDate = localStorage.getItem(dateKey);
     if (storedDate && storedDate !== todayDateStr) return false;
-    return localStorage.getItem("teacher_is_checked_out") === "true";
+    return localStorage.getItem(isOutKey) === "true";
   });
+
+  useEffect(() => {
+    const storedDate = localStorage.getItem(dateKey);
+    if (storedDate && storedDate !== todayDateStr) {
+      localStorage.removeItem(inKey);
+      localStorage.removeItem(outKey);
+      localStorage.removeItem(isOutKey);
+      localStorage.setItem(dateKey, todayDateStr);
+      setPersCheckInTime(null);
+      setPersCheckOutTime(null);
+      setPersIsCheckedOut(false);
+    } else {
+      const inTime = localStorage.getItem(inKey);
+      const isOut = localStorage.getItem(isOutKey) === "true";
+      const outTime = isOut ? localStorage.getItem(outKey) : null;
+      setPersCheckInTime(inTime);
+      setPersCheckOutTime(outTime);
+      setPersIsCheckedOut(isOut);
+    }
+  }, [activeTeacherId, todayDateStr, inKey, outKey, isOutKey, dateKey]);
 
   const [persWorkingHours, setPersWorkingHours] = useState<string>("0h 0m");
   const [personalFilterDate, setPersonalFilterDate] = useState("");
@@ -243,36 +273,65 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return "--:--";
   };
 
+  const parseTimeToMs = (timeStr: string | null | undefined, baseDateStr?: string): number | null => {
+    if (!timeStr) return null;
+    const trimmed = timeStr.trim();
+    if (!trimmed || trimmed.toLowerCase().includes("invalid") || trimmed === "null" || trimmed === "undefined") return null;
+
+    // 1. Direct Date parsing (ISO string or standard date representation)
+    let d = new Date(trimmed);
+    if (!isNaN(d.getTime())) return d.getTime();
+
+    const refDate = baseDateStr ? new Date(baseDateStr) : new Date();
+    const year = refDate.getFullYear();
+    const month = refDate.getMonth();
+    const day = refDate.getDate();
+
+    // 2. Parse 12-hour format e.g. "09:51 AM", "9:51:00 PM"
+    const twelveHourMatch = trimmed.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
+    if (twelveHourMatch) {
+      let hours = parseInt(twelveHourMatch[1], 10);
+      const minutes = parseInt(twelveHourMatch[2], 10);
+      const seconds = twelveHourMatch[3] ? parseInt(twelveHourMatch[3], 10) : 0;
+      const period = twelveHourMatch[4].toUpperCase();
+
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      return new Date(year, month, day, hours, minutes, seconds).getTime();
+    }
+
+    // 3. Parse 24-hour format e.g. "09:51", "09:51:00"
+    const twentyFourMatch = trimmed.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (twentyFourMatch) {
+      const hours = parseInt(twentyFourMatch[1], 10);
+      const minutes = parseInt(twentyFourMatch[2], 10);
+      const seconds = twentyFourMatch[3] ? parseInt(twentyFourMatch[3], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds).getTime();
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     if (!persCheckInTime) {
       setPersWorkingHours("0h 0m");
       return;
     }
     const calcHours = () => {
-      let startMs = new Date(persCheckInTime).getTime();
-      if (isNaN(startMs) && persCheckInTime.includes("T")) {
-        const afterT = persCheckInTime.split("T")[1];
-        if (afterT) {
-          const parts = persCheckInTime.split("T");
-          startMs = new Date(`${parts[0]}T${afterT}`).getTime();
-        }
-      }
-      if (isNaN(startMs) || startMs <= 0) {
+      const startMs = parseTimeToMs(persCheckInTime, todayStr);
+      if (!startMs || startMs <= 0) {
         setPersWorkingHours("0h 0m");
         return;
       }
 
       let endMs = Date.now();
       if (persIsCheckedOut && persCheckOutTime) {
-        let outD = new Date(persCheckOutTime).getTime();
-        if (isNaN(outD) && persCheckOutTime.includes("T")) {
-          const afterT = persCheckOutTime.split("T")[1];
-          if (afterT) {
-            const parts = persCheckOutTime.split("T");
-            outD = new Date(`${parts[0]}T${afterT}`).getTime();
-          }
+        const outMs = parseTimeToMs(persCheckOutTime, todayStr);
+        if (outMs && outMs > startMs) {
+          endMs = outMs;
         }
-        if (!isNaN(outD) && outD > startMs) endMs = outD;
       }
 
       const diffMs = endMs - startMs;
@@ -288,7 +347,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     calcHours();
     const interval = setInterval(calcHours, 10000);
     return () => clearInterval(interval);
-  }, [persCheckInTime, persCheckOutTime, persIsCheckedOut]);
+  }, [persCheckInTime, persCheckOutTime, persIsCheckedOut, todayStr]);
 
   // Load today's check-in / check-out from backend on mount for personal view
   useEffect(() => {
@@ -300,25 +359,30 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           if (isMounted) {
             const attendanceData = res?.attendance || res;
             if (attendanceData && attendanceData.inTime) {
-              const inTimeStr = attendanceData.inTime.includes("T")
-                ? attendanceData.inTime
-                : `${todayDateStr}T${attendanceData.inTime}`;
+              const inTimeStr = attendanceData.inTime;
               setPersCheckInTime(inTimeStr);
-              localStorage.setItem("teacher_check_in_time", inTimeStr);
-              localStorage.setItem("teacher_attendance_date", todayDateStr);
+              localStorage.setItem(inKey, inTimeStr);
+              localStorage.setItem(dateKey, todayDateStr);
               if (attendanceData.outTime) {
-                const outTimeStr = attendanceData.outTime.includes("T")
-                  ? attendanceData.outTime
-                  : `${todayDateStr}T${attendanceData.outTime}`;
-                setPersCheckOutTime(outTimeStr);
-                setPersIsCheckedOut(true);
-                localStorage.setItem("teacher_check_out_time", outTimeStr);
-                localStorage.setItem("teacher_is_checked_out", "true");
+                const outTimeStr = attendanceData.outTime;
+                const inMs = parseTimeToMs(inTimeStr, todayStr);
+                const outMs = parseTimeToMs(outTimeStr, todayStr);
+                if (inMs && outMs && outMs > inMs) {
+                  setPersCheckOutTime(outTimeStr);
+                  setPersIsCheckedOut(true);
+                  localStorage.setItem(outKey, outTimeStr);
+                  localStorage.setItem(isOutKey, "true");
+                } else {
+                  setPersCheckOutTime(null);
+                  setPersIsCheckedOut(false);
+                  localStorage.removeItem(outKey);
+                  localStorage.setItem(isOutKey, "false");
+                }
               } else {
                 setPersCheckOutTime(null);
                 setPersIsCheckedOut(false);
-                localStorage.removeItem("teacher_check_out_time");
-                localStorage.setItem("teacher_is_checked_out", "false");
+                localStorage.removeItem(outKey);
+                localStorage.setItem(isOutKey, "false");
               }
             }
           }
@@ -331,7 +395,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         isMounted = false;
       };
     }
-  }, [isPersonalView, todayDateStr]);
+  }, [isPersonalView, todayDateStr, inKey, outKey, isOutKey, dateKey]);
 
   const handlePersCheckIn = async () => {
     try {
@@ -341,10 +405,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const isoStr = now.toISOString();
       const inTimeVal = attendanceData?.inTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       
-      localStorage.setItem("teacher_attendance_date", todayDateStr);
-      localStorage.setItem("teacher_check_in_time", isoStr);
-      localStorage.removeItem("teacher_check_out_time");
-      localStorage.setItem("teacher_is_checked_out", "false");
+      localStorage.setItem(dateKey, todayDateStr);
+      localStorage.setItem(inKey, isoStr);
+      localStorage.removeItem(outKey);
+      localStorage.setItem(isOutKey, "false");
       setPersCheckInTime(isoStr);
       setPersCheckOutTime(null);
       setPersIsCheckedOut(false);
@@ -371,9 +435,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const isoStr = now.toISOString();
       const outTimeVal = attendanceData?.outTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       
-      localStorage.setItem("teacher_attendance_date", todayDateStr);
-      localStorage.setItem("teacher_check_out_time", isoStr);
-      localStorage.setItem("teacher_is_checked_out", "true");
+      localStorage.setItem(dateKey, todayDateStr);
+      localStorage.setItem(outKey, isoStr);
+      localStorage.setItem(isOutKey, "true");
       setPersCheckOutTime(isoStr);
       setPersIsCheckedOut(true);
       addToast(
@@ -389,6 +453,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       console.error("Personal check-out error:", err);
       addToast("error", "Check Out Failed", err.message || "Could not record check out");
     }
+  };
+
+  const handleResetShift = () => {
+    localStorage.removeItem(inKey);
+    localStorage.removeItem(outKey);
+    localStorage.removeItem(isOutKey);
+    localStorage.removeItem(dateKey);
+    setPersCheckInTime(null);
+    setPersCheckOutTime(null);
+    setPersIsCheckedOut(false);
+    setPersWorkingHours("0h 0m");
+    addToast("info", "Shift Reset", "Today's shift attendance has been reset.");
   };
 
   const todayStatus = useMemo(() => {
@@ -447,9 +523,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       .map((r) => {
         let calcHours = "--";
         if (r.inTime && r.outTime) {
-          const startMs = new Date(r.inTime.includes('T') ? r.inTime : `${r.date}T${r.inTime}`).getTime();
-          const endMs = new Date(r.outTime.includes('T') ? r.outTime : `${r.date}T${r.outTime}`).getTime();
-          if (!isNaN(startMs) && !isNaN(endMs) && endMs > startMs) {
+          const startMs = parseTimeToMs(r.inTime, r.date);
+          const endMs = parseTimeToMs(r.outTime, r.date);
+          if (startMs && endMs && endMs > startMs) {
             const diffMins = Math.floor((endMs - startMs) / 60000);
             const hrs = Math.floor(diffMins / 60);
             const mins = diffMins % 60;

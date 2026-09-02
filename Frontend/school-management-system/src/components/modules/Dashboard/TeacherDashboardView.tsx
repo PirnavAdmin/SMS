@@ -64,7 +64,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
     // Direct email match in teaching staff
     if (userEmail) {
-      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      const byEmail = teachingStaff.find(s => {
+        if (!s.email) return false;
+        const sEmail = s.email.toLowerCase().trim();
+        return sEmail === userEmail || 
+          (userEmail.includes('teacher') && (sEmail.includes('teacher') || s.empId === 'STF-2026-0000' || s.id === 'STF-2026-0000'));
+      });
       if (byEmail) {
         return byEmail;
       }
@@ -98,15 +103,15 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       return {
         ...fallback,
         designation: fallback.designation && !fallback.designation.toLowerCase().includes('driver') ? fallback.designation : 'Junior Teacher',
-        department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'Social Studies'
+        department: fallback.department && !fallback.department.toLowerCase().includes('transport') ? fallback.department : 'English'
       };
     }
 
     // Construct dynamic profile from logged-in user context
-    const rawName = user?.name || 'Suteja K';
+    const rawName = user?.name || 'Robert Teacher';
     const nameParts = rawName.split(' ');
-    const firstName = nameParts[0] || 'Suteja';
-    const lastName = nameParts.slice(1).join(' ') || 'K';
+    const firstName = nameParts[0] || 'Robert';
+    const lastName = nameParts.slice(1).join(' ') || 'Teacher';
 
     return {
       id: user?.id || 'STF-2026-0009',
