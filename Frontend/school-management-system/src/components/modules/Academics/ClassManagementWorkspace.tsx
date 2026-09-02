@@ -79,11 +79,20 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
   const selectedTeacher = useMemo(() => {
     if (!value) return null;
     const valStr = String(value).trim().toLowerCase();
-    return teachers.find(t => 
-      String(t.id).trim().toLowerCase() === valStr ||
-      (t.name || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase() === valStr ||
-      (t.empId && (t.empId.toLowerCase() === valStr || valStr.includes(t.empId.toLowerCase())))
-    );
+    return teachers.find(t => {
+      const tId = String(t.id || '').trim().toLowerCase();
+      const tFullName = (t.name || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase();
+      const tFirst = (t.firstName || '').trim().toLowerCase();
+      const tLast = (t.lastName || '').trim().toLowerCase();
+      const tEmp = (t.empId || '').trim().toLowerCase();
+      return (
+        tId === valStr ||
+        tFullName === valStr ||
+        (tEmp && (tEmp === valStr || valStr.includes(tEmp))) ||
+        (tFirst.length > 2 && valStr.includes(tFirst)) ||
+        (tLast.length > 2 && valStr.includes(tLast))
+      );
+    });
   }, [teachers, value]);
 
   useEffect(() => {
@@ -113,7 +122,9 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
     });
   }, [teachers, search]);
 
-  const selectedFullName = selectedTeacher ? (selectedTeacher.name || `${selectedTeacher.firstName} ${selectedTeacher.lastName}`) : '';
+  const selectedFullName = selectedTeacher 
+    ? (selectedTeacher.name || `${selectedTeacher.firstName} ${selectedTeacher.lastName}`) 
+    : (value && isNaN(Number(value)) ? value : '');
   const selectedEmpCode = selectedTeacher ? (selectedTeacher.empId || selectedTeacher.id) : '';
 
   return (
@@ -132,10 +143,10 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
         }`}
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {selectedTeacher ? (
+          {selectedTeacher || (value && isNaN(Number(value))) ? (
             <>
               <span className="text-xs font-black text-slate-900 dark:text-white truncate">
-                {selectedFullName}
+                {selectedFullName || value}
               </span>
               {selectedEmpCode && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-600 shrink-0">
@@ -2477,12 +2488,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   const deptName = sub.department || 'General Academics';
                                   const mapping = teacherAssignments.find(ta => 
                                     (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) && 
-                                    ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() && 
-                                    ta.subject?.toLowerCase() === subName?.toLowerCase()
+                                    (ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() || (!ta.section && activeWorkspaceSection)) && 
+                                    (ta.subject?.toLowerCase() === subName?.toLowerCase() || ta.subject?.toLowerCase() === sub.name?.toLowerCase())
                                   );
 
-                                  const qualifiedTeachers = teachersList.filter(t => isTeacherForSubject(t, subName));
-                                  const displayTeachers = qualifiedTeachers.length > 0 ? qualifiedTeachers : teachersList;
+                                  const assignedVal = mapping?.teacherId || mapping?.teacherName || '';
 
                                   return (
                                     <div key={sub.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2.5 text-xs">
@@ -2503,9 +2513,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                       <div className="flex items-center gap-2">
                                         <div className="w-52 sm:w-60">
                                           <TeacherSearchDropdown
-                                            value={mapping?.teacherId || ''}
+                                            value={assignedVal}
                                             onChange={teacherId => handleAssignSubjectTeacher(subName, teacherId)}
-                                            teachers={displayTeachers}
+                                            teachers={teachersList}
                                             placeholder="Select Subject Teacher..."
                                           />
                                         </div>
