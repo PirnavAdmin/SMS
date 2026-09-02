@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Printer, FileText, FileCode, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { exportToExcel } from '../../utils/excelExport';
 
 interface PrintDropdownMenuProps {
   title?: string;
@@ -103,17 +104,14 @@ export const PrintDropdownMenu: React.FC<PrintDropdownMenuProps> = ({
       addToast('warning', 'No Records', 'No records available to export.');
       return;
     }
-    const keys = Object.keys(data[0]);
-    const headers = keys.join(',') + '\n';
-    const rows = data.map(row => keys.map(k => `"${String(row[k] !== undefined && row[k] !== null ? row[k] : '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + headers + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const cleanFilename = filename.toLowerCase().replace(/\s+/g, '_');
-    a.download = `${cleanFilename}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    addToast('success', 'Spreadsheet Exported', `Successfully downloaded CSV/Excel report for ${title}.`);
+    const cleanFilename = `${filename.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+    try {
+      exportToExcel(data, cleanFilename);
+      addToast('success', 'Spreadsheet Exported', `Successfully downloaded Excel report for ${title}.`);
+    } catch (err: any) {
+      console.error("Export error:", err);
+      addToast('error', 'Export Failed', err.message || 'Failed to export Excel file.');
+    }
   };
 
   return (

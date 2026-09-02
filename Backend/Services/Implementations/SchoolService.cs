@@ -948,13 +948,12 @@ public class SchoolService : ISchoolService
 		var app = await _schoolRepository.GetApplicationByIdAsync(id)
 			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
 
-		if (app.Status == "Enrolled")
+		if (app.Status != "Enrolled")
 		{
-			throw new BadRequestException("Application is already enrolled.");
+			app.Status = "Enrolled";
+			await _schoolRepository.SaveChangesAsync();
 		}
 
-		app.Status = "Enrolled";
-		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
 		return true;
 	}

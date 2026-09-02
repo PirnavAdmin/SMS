@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ArrowLeft,
   Briefcase,
   CheckCircle2,
   ChevronRight,
@@ -284,8 +285,8 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
 }
 
 const SectionCard: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <section className="rounded-[24px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
-    <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-4">
+  <section className="rounded-[24px] border border-brand-200/80 dark:border-brand-800/60 bg-white dark:bg-slate-950 shadow-xs overflow-hidden">
+    <div className="border-b border-brand-100 dark:border-brand-900/40 px-5 py-4 bg-brand-50/20 dark:bg-brand-950/20">
       <h3 className="text-sm font-black text-slate-900 dark:text-white">{title}</h3>
       <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
     </div>
@@ -1150,9 +1151,21 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-6xl space-y-6 animate-in fade-in">
-        <div className="rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl shadow-lg overflow-hidden">
-          <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-5 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl space-y-4 animate-in fade-in">
+        {/* Navigation Arrow to Dashboard */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => onComplete?.()}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-brand-200 dark:border-brand-800/60 text-brand-700 dark:text-brand-300 text-xs font-bold hover:bg-brand-50 dark:hover:bg-brand-950/60 transition-colors shadow-xs cursor-pointer group"
+          >
+            <ArrowLeft className="w-4 h-4 text-brand-600 dark:text-brand-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Go to Dashboard</span>
+          </button>
+        </div>
+
+        <div className="rounded-[28px] border border-brand-200 dark:border-brand-800/70 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl shadow-lg overflow-hidden">
+          <div className="border-b border-brand-100 dark:border-brand-900/50 px-5 py-5 sm:px-6 bg-brand-50/20 dark:bg-brand-950/20">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1165,25 +1178,6 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                 <p className="mt-1 max-w-3xl text-sm text-slate-500">
                   Fill in your personal, academic, banking, and document details. Your employee record will be marked complete when you submit this wizard.
                 </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {onComplete && (
-                  <button
-                    type="button"
-                    onClick={onComplete}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-sky-500 transition-all cursor-pointer"
-                  >
-                    <Home className="h-4 w-4" /> Go to Dashboard
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" /> Logout
-                </button>
               </div>
             </div>
 

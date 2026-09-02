@@ -153,15 +153,9 @@ export const ReportsView: React.FC = () => {
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                School Administration Reports Hub
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800 flex items-center gap-1">
-                <Filter className="w-2.5 h-2.5" /> Explicit Filter Dropdowns
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">Select a report module & category filter from the dropdowns or type a manual query to view matching data</p>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+              School Administration Reports Hub
+            </h2>
           </div>
         </div>
 
@@ -218,22 +212,17 @@ export const ReportsView: React.FC = () => {
         </div>
       </div>
 
-      {/* EXPLICIT DROPDOWN FILTERS & MANUAL OPTION TOOLBAR */}
-      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-3 text-xs print:hidden">
-        <div className="font-extrabold text-slate-900 dark:text-white flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-sky-600" /> Select Report & Filter Parameters
-          </span>
-          <span className="text-[11px] text-slate-400 font-normal">
-            Click dropdown to load options • Select manual entry for custom text search
-          </span>
-        </div>
+      {/* EXPLICIT DROPDOWN FILTERS & SEARCH TOOLBAR (SINGLE ROW) */}
+      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-2.5 text-xs print:hidden">
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Single Row Filters Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
           
           {/* 1. Report Module Dropdown */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Report Module <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+          <div className="lg:col-span-3">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
+              Report Module <span className="text-rose-500 font-bold ml-0.5">*</span>
+            </label>
             <select
               value={selectedModule}
               onChange={e => {
@@ -249,21 +238,13 @@ export const ReportsView: React.FC = () => {
               <option value="exams">📝 Academic Exam Marks Report ({examMarks.length})</option>
               <option value="MANUAL">✍️ Custom / Manual Report Entry</option>
             </select>
-
-            {selectedModule === 'MANUAL' && (
-              <input
-                type="text"
-                placeholder="Type custom report query..."
-                value={manualModuleInput}
-                onChange={e => setManualModuleInput(e.target.value)}
-                className="w-full mt-2 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
-              />
-            )}
           </div>
 
           {/* 2. Academic Class Dropdown (for Students & Exams) */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Academic Class Filter</label>
+          <div className="lg:col-span-3">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
+              Academic Class Filter
+            </label>
             <select
               value={selectedClass}
               onChange={e => {
@@ -279,21 +260,13 @@ export const ReportsView: React.FC = () => {
               ))}
               <option value="MANUAL">✍️ Custom / Manual Class Entry</option>
             </select>
-
-            {selectedClass === 'MANUAL' && (
-              <input
-                type="text"
-                placeholder="Type manual class (e.g. Class 10-B)..."
-                value={manualClassInput}
-                onChange={e => setManualClassInput(e.target.value)}
-                className="w-full mt-2 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
-              />
-            )}
           </div>
 
           {/* 3. Department / Role Filter (for Staff) */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Department / Category Filter</label>
+          <div className="lg:col-span-3">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
+              Department / Category Filter
+            </label>
             <select
               value={selectedDepartment}
               onChange={e => {
@@ -311,31 +284,59 @@ export const ReportsView: React.FC = () => {
               <option value="Transport">Transport Cell</option>
               <option value="MANUAL">✍️ Custom / Manual Dept Entry</option>
             </select>
+          </div>
 
+          {/* 4. Search Bar */}
+          <div className="lg:col-span-3">
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
+              Search Filtered Records
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none focus:border-sky-500 transition h-[38px] text-xs"
+              />
+            </div>
+          </div>
+
+        </div>
+
+        {/* Custom manual inputs if selected */}
+        {(selectedModule === 'MANUAL' || selectedClass === 'MANUAL' || selectedDepartment === 'MANUAL') && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            {selectedModule === 'MANUAL' && (
+              <input
+                type="text"
+                placeholder="Type custom report query..."
+                value={manualModuleInput}
+                onChange={e => setManualModuleInput(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
+              />
+            )}
+            {selectedClass === 'MANUAL' && (
+              <input
+                type="text"
+                placeholder="Type manual class (e.g. Class 10-B)..."
+                value={manualClassInput}
+                onChange={e => setManualClassInput(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
+              />
+            )}
             {selectedDepartment === 'MANUAL' && (
               <input
                 type="text"
                 placeholder="Type manual department..."
                 value={manualDeptInput}
                 onChange={e => setManualDeptInput(e.target.value)}
-                className="w-full mt-2 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
+                className="w-full px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
               />
             )}
           </div>
-
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative pt-1">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Type student name, admission no, employee ID, or receipt number to search..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none focus:border-sky-500 transition h-[36px]"
-          />
-        </div>
+        )}
       </div>
 
       {/* LIVE DATA TABLE PREVIEW */}

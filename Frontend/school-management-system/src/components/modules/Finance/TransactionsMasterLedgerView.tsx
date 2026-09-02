@@ -10,6 +10,7 @@ import { FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudge
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { exportToExcel } from '../../../utils/excelExport';
 
 export const TransactionsMasterLedgerView: React.FC = () => {
   const {
@@ -247,19 +248,33 @@ export const TransactionsMasterLedgerView: React.FC = () => {
 
   // Export functions
   const handleExportCSV = () => {
-    const headers = ['Transaction ID,Date,Type,Category,Source Module,Ref No,Description,Amount,Payment Mode,Account,Branch,Status,Created By'];
-    const rows = filteredTxns.map(t =>
-      `"${t.transactionId}","${t.date}","${t.type}","${t.category}","${t.sourceModule}","${t.referenceNumber}","${t.description.replace(/"/g, '""')}","${t.amount}","${t.paymentMode}","${t.account}","${t.branch}","${t.status}","${t.createdBy}"`
-    );
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Master_Finance_Ledger_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    addToast('success', 'Export Complete', 'Exported Master Ledger to CSV file.');
+    if (!filteredTxns || filteredTxns.length === 0) {
+      addToast('warning', 'No Records', 'No transactions match the current filters to export.');
+      return;
+    }
+    const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Source Module', 'Ref No', 'Description', 'Amount', 'Payment Mode', 'Account', 'Branch', 'Status', 'Created By'];
+    const rows = filteredTxns.map(t => [
+      t.transactionId,
+      t.date,
+      t.type,
+      t.category,
+      t.sourceModule,
+      t.referenceNumber,
+      t.description,
+      t.amount,
+      t.paymentMode,
+      t.account,
+      t.branch,
+      t.status,
+      t.createdBy
+    ]);
+    try {
+      exportToExcel([headers, ...rows], `Master_Finance_Ledger_${new Date().toISOString().split('T')[0]}`, 'Transactions');
+      addToast('success', 'Export Complete', 'Exported Master Ledger to Excel (.xlsx) file with auto-fitted columns.');
+    } catch (err: any) {
+      console.error("Ledger export error:", err);
+      addToast('error', 'Export Failed', err.message || 'Failed to export master ledger.');
+    }
   };
 
   return (

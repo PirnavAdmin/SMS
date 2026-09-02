@@ -42,6 +42,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { formatToDDMMYYYY } from "../../../utils/dateValidation";
+import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
@@ -94,57 +95,72 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Find logged-in teacher profile from DataContext staff
   const dbTeacher = useMemo(() => {
+    const uId = (user?.id || "").trim();
+    const uEmpId = ((user as any)?.empId || "").trim();
     const uEmail = (user?.email || "").toLowerCase().trim();
     const uName = (user?.name || "").toLowerCase().trim();
 
+    if (uId || uEmpId) {
+      const byId = staff.find(
+        (s) =>
+          (uId && (String(s.id) === uId || String(s.empId) === uId)) ||
+          (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))
+      );
+      if (byId) return byId;
+    }
+
     if (uEmail) {
-      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === uEmail);
+      const byEmail = staff.find(
+        (s) => s.email && s.email.toLowerCase().trim() === uEmail
+      );
       if (byEmail) return byEmail;
     }
 
     if (uName) {
-      const byName = staff.find(s => {
-        const full = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-        const sName = (s.name || '').toLowerCase().trim();
-        return full === uName || sName === uName || full.includes(uName) || uName.includes(full);
+      const byName = staff.find((s) => {
+        const full = `${s.firstName || ""} ${s.lastName || ""}`
+          .toLowerCase()
+          .trim();
+        const sName = (s.name || "").toLowerCase().trim();
+        return (full && full === uName) || (sName && sName === uName);
       });
       if (byName) return byName;
     }
 
-    const robert = staff.find(s => (s.firstName || '').toLowerCase().includes('robert') || (s.lastName || '').toLowerCase().includes('teacher'));
-    if (robert) return robert;
-
-    return staff.find(s => s.employeeCategory === "Teacher" || s.employeeCategory === "Teaching Staff");
+    return null;
   }, [user, staff]);
 
-  // Teacher Profile resolution (Guarantees Robert Teacher / Junior Teacher English)
+  // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
-    const rawName = user?.name || "Robert Teacher";
-    const parts = rawName.split(" ");
-    const defaultFirstName = parts[0] || "Robert";
-    const defaultLastName = parts.slice(1).join(" ") || "Teacher";
+    const rawName = user?.name || "";
+    const parts = rawName.trim() ? rawName.trim().split(" ") : [];
+    const defaultFirstName = parts[0] || (user as any)?.firstName || "";
+    const defaultLastName = parts.slice(1).join(" ") || (user as any)?.lastName || "";
 
     if (dbTeacher) {
       return {
         ...dbTeacher,
+        id: dbTeacher.id || user?.id || "",
+        empId: dbTeacher.empId || dbTeacher.id || user?.id || "",
         firstName: dbTeacher.firstName || defaultFirstName,
         lastName: dbTeacher.lastName || defaultLastName,
-        designation: dbTeacher.designation && !dbTeacher.designation.toLowerCase().includes('driver') ? dbTeacher.designation : 'Junior Teacher',
-        department: dbTeacher.department && !dbTeacher.department.toLowerCase().includes('transport') ? dbTeacher.department : 'English',
-        assignedClasses: (dbTeacher.assignedClasses && dbTeacher.assignedClasses.length > 0) ? dbTeacher.assignedClasses : ["Class 10-A", "Class 9-B", "Class 6-A"],
+        designation: dbTeacher.designation || (user as any)?.designation || "",
+        department: dbTeacher.department || (user as any)?.department || "",
+        assignedClasses: dbTeacher.assignedClasses || (user as any)?.assignedClasses || [],
+        assignedSubjects: (dbTeacher as any).assignedSubjects || (user as any)?.assignedSubjects || [],
         leaveBalance: dbTeacher.leaveBalance || { casual: 10, sick: 10, paid: 15 }
       };
     }
 
     return {
-      id: user?.id || "STF-2026-0000",
-      empId: "STF-2026-0000",
+      id: user?.id || (user as any)?.empId || "",
+      empId: (user as any)?.empId || user?.id || "",
       firstName: defaultFirstName,
       lastName: defaultLastName,
-      assignedClasses: ["Class 10-A", "Class 9-B", "Class 6-A"],
-      assignedSubjects: ["English", "Mathematics"],
-      department: "English",
-      designation: "Junior Teacher",
+      assignedClasses: (user as any)?.assignedClasses || [],
+      assignedSubjects: (user as any)?.assignedSubjects || [],
+      department: (user as any)?.department || "",
+      designation: (user as any)?.designation || "",
       leaveBalance: { casual: 10, sick: 10, paid: 15 },
     };
   }, [dbTeacher, user]);
@@ -412,6 +428,27 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       setPersCheckInTime(isoStr);
       setPersCheckOutTime(null);
       setPersIsCheckedOut(false);
+
+      const checkInHour = now.getHours();
+      const checkInMinute = now.getMinutes();
+      const computedStatus = (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) ? "Late" : "Present";
+      const teacherEmpId = teacher?.id || dbTeacher?.id || user?.id || "";
+
+      if (markAttendance && teacherEmpId) {
+        await markAttendance([{
+          id: `ATT-${Date.now()}-${teacherEmpId}`,
+          date: todayDateStr,
+          entityType: "Staff",
+          entityId: teacherEmpId,
+          status: computedStatus,
+          inTime: inTimeVal,
+          outTime: "",
+          remarks: "Checked In Online",
+          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "",
+          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || ""
+        }]);
+      }
+
       addToast(
         "success",
         "Checked In Successfully",
@@ -440,6 +477,24 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       localStorage.setItem(isOutKey, "true");
       setPersCheckOutTime(isoStr);
       setPersIsCheckedOut(true);
+
+      const teacherEmpId = teacher?.id || dbTeacher?.id || user?.id || "";
+
+      if (markAttendance && teacherEmpId) {
+        await markAttendance([{
+          id: `ATT-${Date.now()}-${teacherEmpId}`,
+          date: todayDateStr,
+          entityType: "Staff",
+          entityId: teacherEmpId,
+          status: todayStatus === "Late" ? "Late" : "Present",
+          inTime: persCheckInTime ? formatDisplayTime(persCheckInTime) : inTimeVal,
+          outTime: outTimeVal,
+          remarks: "Checked In & Out Online",
+          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "",
+          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || ""
+        }]);
+      }
+
       addToast(
         "info",
         "Checked Out Successfully",
@@ -686,11 +741,35 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   };
 
   const handleDownloadReport = () => {
-    addToast(
-      "success",
-      "Report Export Started",
-      "Downloading personal attendance registry in Excel format.",
-    );
+    if (!fullHistory || fullHistory.length === 0) {
+      addToast("warning", "No Records", "No attendance records available to export.");
+      return;
+    }
+    const exportData = fullHistory.map((item) => ({
+      "Date": item.date,
+      "Employee Name": `${teacher.firstName} ${teacher.lastName}`,
+      "Designation": teacher.designation,
+      "Department": teacher.department,
+      "Check In": item.checkIn || "-",
+      "Check Out": item.checkOut || "-",
+      "Working Hours": item.workingHours || "-",
+      "Status": item.status,
+    }));
+    try {
+      exportToExcel(
+        exportData,
+        `Staff_Attendance_${teacher.firstName}_${teacher.lastName}_${new Date().toISOString().split("T")[0]}`,
+        "Personal Attendance"
+      );
+      addToast(
+        "success",
+        "Report Exported Successfully",
+        "Downloaded personal attendance registry in Excel format.",
+      );
+    } catch (err: any) {
+      console.error("Personal export error:", err);
+      addToast("error", "Export Failed", err.message || "Failed to export report.");
+    }
   };
 
   if (isPersonalView) {
@@ -1582,13 +1661,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Helper: check if employee has approved leave on selected attendanceDate
   const getApprovedLeave = (empId: string, checkDate: string) => {
-    return (leaveApplications || []).find(
-      (app) =>
-        app.employeeId === empId &&
-        app.status === "Approved" &&
-        checkDate >= app.fromDate &&
-        checkDate <= app.toDate,
-    );
+    return (leaveApplications || []).find((app) => {
+      const isEmpMatch =
+        String(app.employeeId) === String(empId) ||
+        String(app.empId) === String(empId) ||
+        String((app as any).staffId) === String(empId);
+      const isStatusMatch = (app.status || "").toLowerCase() === "approved";
+      const fromStr = String(app.fromDate || "").split("T")[0];
+      const toStr = String(app.toDate || "").split("T")[0];
+      const targetStr = String(checkDate || "").split("T")[0];
+      return isEmpMatch && isStatusMatch && targetStr >= fromStr && targetStr <= toStr;
+    });
   };
 
   // Fetch daily attendance logs from API when filters change, and poll every 5s for live auto-reflection
@@ -1663,43 +1746,58 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const newOutTimeMap: typeof outTimeMap = {};
     const newRemarksMap: typeof remarksMap = {};
 
+    const targetDate = String(attendanceDate).split("T")[0];
+    const isToday = targetDate === todayStr;
+
     staff.forEach((s) => {
-      // 1. Check Approved Leave
-      const approvedLeave = getApprovedLeave(s.id, attendanceDate);
+      // 1. Check Approved Leave for this staff and this date
+      const approvedLeave =
+        getApprovedLeave(s.id, targetDate) ||
+        (s.empId ? getApprovedLeave(s.empId, targetDate) : undefined);
 
       // 2. Check Existing Recorded Attendance (flexible match on ID, entityType & date)
-      const targetDate = String(attendanceDate).split("T")[0];
-      const existing = (attendance || []).find(
-        (r) => {
-          const rDate = String(r.date || "").split("T")[0];
-          const isDateMatch = rDate === targetDate;
-          const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
-          const isIdMatch =
-            String(r.entityId) === String(s.id) ||
-            String(r.entityId) === String(s.empId) ||
-            String((r as any).staffId) === String(s.id) ||
-            String((r as any).employeeId) === String(s.id);
-          return isDateMatch && isStaffEntity && isIdMatch;
-        }
-      );
+      const existing = (attendance || []).find((r) => {
+        const rDate = String(r.date || "").split("T")[0];
+        const isDateMatch = rDate === targetDate;
+        const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const isIdMatch =
+          String(r.entityId) === String(s.id) ||
+          String(r.entityId) === String(s.empId) ||
+          String((r as any).staffId) === String(s.id) ||
+          String((r as any).staffId) === String(s.empId) ||
+          String((r as any).employeeId) === String(s.id) ||
+          String((r as any).employeeId) === String(s.empId);
+        return isDateMatch && isStaffEntity && isIdMatch;
+      });
 
-      if (existing) {
-        const normSt = normalizeStatus(existing.status);
-        newStatusMap[s.id] = normSt;
-        newInTimeMap[s.id] = existing.inTime || "";
-        newOutTimeMap[s.id] = existing.outTime || "";
-        newRemarksMap[s.id] = existing.remarks || "";
-      } else if (approvedLeave) {
+      // 3. Check if this staff is the logged in teacher and has checked in today
+      const isCurrentLoggedInTeacher =
+        (teacher && (teacher.id === s.id || teacher.empId === s.empId || teacher.id === s.empId || teacher.empId === s.id)) ||
+        (dbTeacher && (dbTeacher.id === s.id || dbTeacher.empId === s.empId || dbTeacher.id === s.empId || dbTeacher.empId === s.id));
+
+      if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? "HalfDay" : "Leave";
         newInTimeMap[s.id] = "";
         newOutTimeMap[s.id] = "";
-        newRemarksMap[s.id] =
-          `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"}`;
+        newRemarksMap[s.id] = approvedLeave.reason
+          ? `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"} (${approvedLeave.reason})`
+          : `Approved Leave: ${approvedLeave.leaveTypeName || "Leave"}`;
+      } else if (existing) {
+        const normSt = normalizeStatus(existing.status);
+        newStatusMap[s.id] = normSt;
+        newInTimeMap[s.id] = existing.inTime || (normSt === "Present" || normSt === "Late" ? "08:30 AM" : "");
+        newOutTimeMap[s.id] = existing.outTime || "";
+        newRemarksMap[s.id] = existing.remarks || "";
+      } else if (isToday && isCurrentLoggedInTeacher && persCheckInTime) {
+        newStatusMap[s.id] = todayStatus === "Late" ? "Late" : "Present";
+        newInTimeMap[s.id] = formatDisplayTime(persCheckInTime);
+        newOutTimeMap[s.id] = persCheckOutTime ? formatDisplayTime(persCheckOutTime) : "";
+        newRemarksMap[s.id] = persCheckOutTime ? "Checked In & Out" : "Checked In Online";
       } else {
-        newStatusMap[s.id] = "Present";
+        newStatusMap[s.id] = "Absent";
         newInTimeMap[s.id] = "";
         newOutTimeMap[s.id] = "";
-        newRemarksMap[s.id] = "";
+        newRemarksMap[s.id] = isToday ? "Not Checked In" : "Absent";
       }
     });
 
@@ -1708,7 +1806,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setOutTimeMap(newOutTimeMap);
     setRemarksMap(newRemarksMap);
     setOverrideLeaveSet(new Set());
-  }, [attendanceDate, staff, attendanceHash, leaveApplications, normalizeStatus, isDirty]);
+  }, [
+    attendanceDate,
+    staff,
+    attendanceHash,
+    leaveApplications,
+    normalizeStatus,
+    isDirty,
+    persCheckInTime,
+    persCheckOutTime,
+    todayStatus,
+    teacher,
+    dbTeacher,
+    todayStr
+  ]);
 
   // Reset dirty status on view filter changes to fetch fresh sync data
   useEffect(() => {
@@ -2172,12 +2283,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               );
               const inTime =
                 existingRecordForTimes?.inTime ||
-                (status === "Present" || status === "Late"
+                ((status as string) === "Present" || (status as string) === "Late"
                   ? "08:30 AM"
                   : "");
               const outTime =
                 existingRecordForTimes?.outTime ||
-                (status === "Present" || status === "Late"
+                ((status as string) === "Present" || (status as string) === "Late"
                   ? "04:30 PM"
                   : "");
               const remarks = existingRecordForTimes?.remarks || "";
@@ -2363,11 +2474,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setIsExporting(true);
     setTimeout(() => {
       try {
-        let csvRows: string[] = [];
+        let excelRows: any[][] = [];
         let filename = "";
+        let sheetName = "Attendance";
 
         if (viewMode === "daily") {
           filename = `Staff_Daily_Attendance_${formatToDDMMYYYY(attendanceDate, "-")}`;
+          sheetName = "Daily Attendance";
           const headers = [
             "Attendance Date",
             "Employee ID",
@@ -2380,30 +2493,32 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             "Out Time",
             "Remarks",
           ];
-          csvRows.push(headers.join(","));
+          excelRows.push(headers);
 
           currentTabStaffList.forEach((s) => {
-            const approvedLeave = getApprovedLeave(s.id, attendanceDate);
+            const approvedLeave =
+              getApprovedLeave(s.id, attendanceDate) ||
+              (s.empId ? getApprovedLeave(s.empId, attendanceDate) : undefined);
             const status = String(
-              attendanceMap[s.id] || (approvedLeave ? "Leave" : "Present")
+              attendanceMap[s.id] || (approvedLeave ? "Leave" : "Absent")
             );
             const inTime = String(inTimeMap[s.id] || "");
             const outTime = String(outTimeMap[s.id] || "");
             const remarks = String(remarksMap[s.id] || "");
 
             const row = [
-              `"${formatToDDMMYYYY(attendanceDate, "-")}"`,
-              `"${s.empId || s.id}"`,
-              `"${s.firstName} ${s.lastName}"`,
-              `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
-              `"${s.department || "General"}"`,
-              `"${s.designation || "Staff"}"`,
-              `"${status}"`,
-              `"${inTime}"`,
-              `"${outTime}"`,
-              `"${remarks.replace(/"/g, '""')}"`,
+              formatToDDMMYYYY(attendanceDate, "-"),
+              s.empId || s.id,
+              `${s.firstName} ${s.lastName}`,
+              activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff",
+              s.department || "General",
+              s.designation || "Staff",
+              status,
+              inTime,
+              outTime,
+              remarks,
             ];
-            csvRows.push(row.join(","));
+            excelRows.push(row);
           });
         } else {
           const rangeLabel =
@@ -2411,9 +2526,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               ? `${formatToDDMMYYYY(regFromDate, "-")}_to_${formatToDDMMYYYY(regToDate, "-")}`
               : `${monthNames[regMonth]}_${regYear}`;
           filename = `Staff_Attendance_Register_${rangeLabel}`;
+          sheetName = "Monthly Register";
 
           const dateHeaders = registerDaysList.map(
-            (item) => `"${item.displayHeader}"`,
+            (item) => item.displayHeader,
           );
           const headers = [
             "Employee ID",
@@ -2427,7 +2543,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             "Leave (L)",
             "Attendance %",
           ];
-          csvRows.push(headers.join(","));
+          excelRows.push(headers);
 
           registerStaffList.forEach((s) => {
             let pCount = 0;
@@ -2470,7 +2586,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 else if (isWeekend) code = "W";
                 else code = "-";
               }
-              return `"${code}"`;
+              return code;
             });
 
             const totalRecordedDays = pCount + aCount + lCount + hdCount;
@@ -2480,22 +2596,22 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 : 0;
 
             const row = [
-              `"${s.empId || s.id}"`,
-              `"${s.firstName} ${s.lastName}"`,
-              `"${activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff"}"`,
-              `"${s.department || "General"}"`,
-              `"${s.designation || "Staff"}"`,
+              s.empId || s.id,
+              `${s.firstName} ${s.lastName}`,
+              activeTab === "teaching" ? "Teaching Staff" : "Non-Teaching Staff",
+              s.department || "General",
+              s.designation || "Staff",
               ...dayStatuses,
-              `"${pCount}"`,
-              `"${aCount}"`,
-              `"${lCount}"`,
-              `"${pct}%"`,
+              pCount,
+              aCount,
+              lCount,
+              `${pct}%`,
             ];
-            csvRows.push(row.join(","));
+            excelRows.push(row);
           });
         }
 
-        if (csvRows.length <= 1) {
+        if (excelRows.length <= 1) {
           addToast(
             "warning",
             "No Records to Export",
@@ -2504,21 +2620,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           return;
         }
 
-        const blob = new Blob([csvRows.join("\n")], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${filename}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        exportToExcel(excelRows, filename, sheetName);
 
         addToast(
           "success",
           "Report Exported Successfully",
-          `Downloaded ${filename}.csv`,
+          `Downloaded ${filename}.xlsx with auto-fitted columns.`,
         );
       } catch (err: any) {
         console.error("Export failed:", err);
@@ -2892,13 +2999,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                       </tr>
                     ) : (
                       paginatedDailyStaffList.map((s) => {
-                        const approvedLeave = getApprovedLeave(
-                          s.id,
-                          attendanceDate,
-                        );
+                        const approvedLeave =
+                          getApprovedLeave(s.id, attendanceDate) ||
+                          (s.empId ? getApprovedLeave(s.empId, attendanceDate) : undefined);
                         const isLeaveLocked =
                           !!approvedLeave && !overrideLeaveSet.has(s.id);
-                        const currentStatus = attendanceMap[s.id] || "Present";
+                        const currentStatus =
+                          attendanceMap[s.id] || (approvedLeave ? "Leave" : "Absent");
 
                         return (
                           <tr
@@ -3033,7 +3140,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                   });
                                   setIsDirty(true);
                                 }}
-                                placeholder="08:30 AM"
+                                placeholder="--:--"
                                 className="w-24 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold outline-none disabled:opacity-40"
                               />
                             </td>
@@ -3058,7 +3165,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                   });
                                   setIsDirty(true);
                                 }}
-                                placeholder="04:30 PM"
+                                placeholder="--:--"
                                 className="w-24 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold outline-none disabled:opacity-40"
                               />
                             </td>
@@ -3415,7 +3522,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                               <button
                                 type="button"
                                 onClick={() => handleCellClick(s.id, item.dateStr)}
-                                disabled={!isEditingMonthly || isFuture || isBeforeJoining}
+                                disabled={!isEditingMonthly || Boolean(isFuture) || Boolean(isBeforeJoining)}
                                 className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto transition-all ${
                                   isEditingMonthly && !isFuture && !isBeforeJoining
                                     ? "hover:scale-110 active:scale-95 cursor-pointer"

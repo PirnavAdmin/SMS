@@ -4871,8 +4871,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         variant={confirmingApp?.status === "Enrolled" ? "success" : "danger"}
         message={
           confirmingApp?.status === "Enrolled"
-            ? `Are you sure you want to enroll applicant ${confirmingApp?.app.applicantName}? This will create their student record and transfer all data into Student Management.`
-            : `Are you sure you want to reject application #${confirmingApp?.app.applicationNo}?`
+            ? `Are you sure you want to enroll applicant ${confirmingApp?.app?.applicantName || "this applicant"}? This will create their student record and transfer all data into Student Management.`
+            : `Are you sure you want to reject application #${confirmingApp?.app?.applicationNo || ""}?`
         }
         confirmLabel={
           confirmingApp?.status === "Enrolled"
@@ -4880,7 +4880,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             : "Reject Application"
         }
         onConfirm={async () => {
-          if (confirmingApp) {
+          if (confirmingApp && confirmingApp.app) {
             setIsStatusUpdateLoading(true);
             try {
               const studentId = await updateAdmissionStatus(
@@ -4902,7 +4902,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   studentId ||
                   confirmingApp.app.id ||
                   confirmingApp.app.applicationNo;
-                setFeeSummaryStudentId(targetId);
+                if (targetId) {
+                  setFeeSummaryStudentId(targetId);
+                }
               }
               addToast(
                 confirmingApp.status === "Enrolled" ? "success" : "info",
@@ -4910,8 +4912,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   ? "Student Enrolled"
                   : "Application Rejected",
                 confirmingApp.status === "Enrolled"
-                  ? `Student record created for ${confirmingApp.app.applicantName}`
-                  : `Application #${confirmingApp.app.applicationNo} rejected`,
+                  ? `Student record created for ${confirmingApp.app.applicantName || "applicant"}`
+                  : `Application #${confirmingApp.app.applicationNo || ""} rejected`,
               );
               setConfirmingApp(null);
             } catch (err: any) {
@@ -4931,14 +4933,36 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       {/* Post-Admission Permanent Fee Ledger Summary Modal */}
       {feeSummaryStudentId &&
         (() => {
-          const ledger = getStudentFeeLedger(feeSummaryStudentId);
-          if (!ledger) return null;
+          let ledger: any = null;
+          try {
+            ledger = getStudentFeeLedger(feeSummaryStudentId);
+          } catch (err) {
+            console.error("Error retrieving student fee ledger:", err);
+          }
 
-          const appliedFeeItems = ledger.feeItems.filter(
-            (i) => i.isApplicable && i.originalAmount > 0,
+          if (!ledger) {
+            const st = students.find(s => s.id === feeSummaryStudentId || s.admissionNo === feeSummaryStudentId);
+            const adm = admissions.find(a => a.id === feeSummaryStudentId || a.applicationNo === feeSummaryStudentId);
+            ledger = {
+              studentName: st ? `${st.firstName} ${st.lastName}`.trim() : (adm?.applicantName || "Student"),
+              admissionNo: st?.admissionNo || adm?.applicationNo || feeSummaryStudentId,
+              className: st?.className || adm?.appliedClass || "Class 1",
+              section: st?.section || adm?.section || "A",
+              studentType: st?.studentType || adm?.studentType || "Day Scholar",
+              academicYear: selectedAcademicYear || "2026-2027",
+              feeItems: [],
+              totalScholarship: 0,
+              totalDiscount: 0,
+              totalPayable: st?.totalFee || 40500,
+            };
+          }
+
+          const feeItems = Array.isArray(ledger.feeItems) ? ledger.feeItems : [];
+          const appliedFeeItems = feeItems.filter(
+            (i: any) => i && i.isApplicable && (i.originalAmount || 0) > 0,
           );
-          const notApplicableItems = ledger.feeItems.filter(
-            (i) => !i.isApplicable,
+          const notApplicableItems = feeItems.filter(
+            (i: any) => i && !i.isApplicable,
           );
 
           return (
@@ -4970,7 +4994,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Student Name:
                     </span>
                     <span className="font-extrabold text-slate-900 dark:text-white">
-                      {ledger.studentName}
+                      {ledger.studentName || "Student"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -4978,7 +5002,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Admission No:
                     </span>
                     <span className="font-mono font-bold text-sky-600 dark:text-sky-400">
-                      {ledger.admissionNo}
+                      {ledger.admissionNo || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -4986,7 +5010,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Class & Section:
                     </span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {ledger.className} - {ledger.section}
+                      {ledger.className || "Class 1"} - {ledger.section || "A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -4994,7 +5018,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Student Type:
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px]">
-                      {ledger.studentType}
+                      {ledger.studentType || "Day Scholar"}
                     </span>
                   </div>
                 </div>
@@ -5005,20 +5029,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     Applied Fee Types
                   </h4>
                   <div className="space-y-1.5 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 bg-white dark:bg-slate-950">
-                    {appliedFeeItems.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between text-xs py-1 border-b border-slate-50 dark:border-slate-800/50 last:border-0"
-                      >
-                        <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{" "}
-                          {item.headName}
-                        </span>
-                        <span className="font-black text-slate-900 dark:text-white">
-                          {formatCurrency(item.originalAmount)}
-                        </span>
+                    {appliedFeeItems.length === 0 ? (
+                      <div className="text-xs text-slate-400 py-2 text-center">
+                        Standard Fee Structure Applied
                       </div>
-                    ))}
+                    ) : (
+                      appliedFeeItems.map((item: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between text-xs py-1 border-b border-slate-50 dark:border-slate-800/50 last:border-0"
+                        >
+                          <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{" "}
+                            {item.headName || "Fee Item"}
+                          </span>
+                          <span className="font-black text-slate-900 dark:text-white">
+                            {formatCurrency(item.originalAmount || 0)}
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -5029,17 +5059,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Not Applicable
                     </h4>
                     <div className="space-y-1 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 bg-slate-50/50 dark:bg-slate-900/50">
-                      {notApplicableItems.map((item, idx) => (
+                      {notApplicableItems.map((item: any, idx: number) => (
                         <div
                           key={idx}
                           className="flex items-center justify-between text-xs py-0.5 text-slate-400"
                         >
                           <span className="flex items-center gap-1.5 font-medium">
                             <XCircle className="w-3.5 h-3.5 text-rose-400" />{" "}
-                            {item.headName}
+                            {item.headName || "Fee Item"}
                           </span>
                           <span className="text-[10px] italic">
-                            {item.remarks}
+                            {item.remarks || "Not Opted"}
                           </span>
                         </div>
                       ))}
@@ -5049,16 +5079,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                 {/* Deductions & Net Payable */}
                 <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 space-y-2 text-xs">
-                  {ledger.totalScholarship > 0 && (
+                  {(ledger.totalScholarship || 0) > 0 && (
                     <div className="flex justify-between text-emerald-800 dark:text-emerald-300 font-semibold">
                       <span>Scholarship Deduction:</span>
-                      <span>- {formatCurrency(ledger.totalScholarship)}</span>
+                      <span>- {formatCurrency(ledger.totalScholarship || 0)}</span>
                     </div>
                   )}
-                  {ledger.totalDiscount > 0 && (
+                  {(ledger.totalDiscount || 0) > 0 && (
                     <div className="flex justify-between text-emerald-800 dark:text-emerald-300 font-semibold">
                       <span>Discount / Concession:</span>
-                      <span>- {formatCurrency(ledger.totalDiscount)}</span>
+                      <span>- {formatCurrency(ledger.totalDiscount || 0)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center pt-2 border-t border-emerald-200 dark:border-emerald-800">
@@ -5066,7 +5096,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Total Payable
                     </span>
                     <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency(ledger.totalPayable)}
+                      {formatCurrency(ledger.totalPayable || 0)}
                     </span>
                   </div>
                 </div>
@@ -5089,18 +5119,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         return;
                       }
 
-                      const applicableItems = ledger.feeItems.filter(
-                        (i) => i.isApplicable,
+                      const applicableItems = feeItems.filter(
+                        (i: any) => i && i.isApplicable,
                       );
-                      const notApplicableItems = ledger.feeItems.filter(
-                        (i) => !i.isApplicable,
+                      const notAppItems = feeItems.filter(
+                        (i: any) => i && !i.isApplicable,
                       );
 
                       const html = `
                       <!DOCTYPE html>
                       <html>
                         <head>
-                          <title>Student Fee Summary Statement - ${ledger.studentName} (${ledger.admissionNo})</title>
+                          <title>Student Fee Summary Statement - ${ledger.studentName || "Student"} (${ledger.admissionNo || "ADM"})</title>
                           <style>
                             @page { size: A4; margin: 15mm; }
                             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #0f172a; margin: 0; padding: 24px; font-size: 13px; background: white; }
@@ -5145,11 +5175,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           </div>
 
                           <div class="student-box">
-                            <div class="info-row"><span class="label">Student Name: </span><span class="value">${ledger.studentName}</span></div>
-                            <div class="info-row"><span class="label">Admission No: </span><span class="value">${ledger.admissionNo}</span></div>
-                            <div class="info-row"><span class="label">Class & Section: </span><span class="value">${ledger.className} - ${ledger.section}</span></div>
-                            <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear}</span></div>
-                            <div class="info-row"><span class="label">Student Category: </span><span class="value">${ledger.studentType}</span></div>
+                            <div class="info-row"><span class="label">Student Name: </span><span class="value">${ledger.studentName || "Student"}</span></div>
+                            <div class="info-row"><span class="label">Admission No: </span><span class="value">${ledger.admissionNo || "—"}</span></div>
+                            <div class="info-row"><span class="label">Class & Section: </span><span class="value">${ledger.className || "Class 1"} - ${ledger.section || "A"}</span></div>
+                            <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || "2026-2027"}</span></div>
+                            <div class="info-row"><span class="label">Student Category: </span><span class="value">${ledger.studentType || "Day Scholar"}</span></div>
                             <div class="info-row"><span class="label">Date of Statement: </span><span class="value">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
                           </div>
 
@@ -5164,11 +5194,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             <tbody>
                               ${applicableItems
                                 .map(
-                                  (item) => `
+                                  (item: any) => `
                                 <tr>
-                                  <td style="font-weight: 700; color: #0f172a;">${item.headName}</td>
+                                  <td style="font-weight: 700; color: #0f172a;">${item.headName || "Fee Item"}</td>
                                   <td style="color: #64748b;">${item.category || "General Fee"}</td>
-                                  <td style="text-align: right; font-weight: 700; font-family: monospace;">₹${item.originalAmount.toLocaleString("en-IN")}</td>
+                                  <td style="text-align: right; font-weight: 700; font-family: monospace;">₹${(item.originalAmount || 0).toLocaleString("en-IN")}</td>
                                 </tr>
                               `,
                                 )
@@ -5177,15 +5207,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           </table>
 
                           ${
-                            notApplicableItems.length > 0
+                            notAppItems.length > 0
                               ? `
                             <div class="not-applicable">
                               <div class="not-applicable-head">Not Applicable Fee Heads</div>
-                              ${notApplicableItems
+                              ${notAppItems
                                 .map(
-                                  (item) => `
+                                  (item: any) => `
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; color: #7f1d1d;">
-                                  <span>• ${item.headName}</span>
+                                  <span>• ${item.headName || "Fee Item"}</span>
                                   <span style="font-style: italic;">(Transport/Hostel Not Opted)</span>
                                 </div>
                               `,
@@ -5198,7 +5228,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                           <div class="total-box">
                             <span class="total-label">Total Net Annual Payable:</span>
-                            <span class="total-amount">₹${ledger.totalPayable.toLocaleString("en-IN")}</span>
+                            <span class="total-amount">₹${(ledger.totalPayable || 0).toLocaleString("en-IN")}</span>
                           </div>
 
                           <div class="footer-sig">
@@ -5232,33 +5262,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      const applicableItems = ledger.feeItems.filter(
-                        (i) => i.isApplicable,
+                      const applicableItems = feeItems.filter(
+                        (i: any) => i && i.isApplicable,
                       );
                       let text = `====================================================\n`;
                       text += `   ${schoolProfile?.name || "PIRNAV EDUCATIONAL INSTITUTIONS"}\n`;
                       text += `        STUDENT ANNUAL FEE SUMMARY STATEMENT\n`;
                       text += `====================================================\n\n`;
-                      text += `Student Name   : ${ledger.studentName}\n`;
-                      text += `Admission No   : ${ledger.admissionNo}\n`;
-                      text += `Class & Section: ${ledger.className} - ${ledger.section}\n`;
-                      text += `Academic Year  : ${ledger.academicYear}\n`;
-                      text += `Student Type   : ${ledger.studentType}\n`;
+                      text += `Student Name   : ${ledger.studentName || "Student"}\n`;
+                      text += `Admission No   : ${ledger.admissionNo || "—"}\n`;
+                      text += `Class & Section: ${ledger.className || "Class 1"} - ${ledger.section || "A"}\n`;
+                      text += `Academic Year  : ${ledger.academicYear || "2026-2027"}\n`;
+                      text += `Student Type   : ${ledger.studentType || "Day Scholar"}\n`;
                       text += `Date           : ${new Date().toLocaleDateString()}\n\n`;
                       text += `----------------------------------------------------\n`;
                       text += `APPLICABLE FEE HEAD BREAKDOWN\n`;
                       text += `----------------------------------------------------\n`;
-                      applicableItems.forEach((i) => {
-                        text += `${i.headName.padEnd(32)}: ₹${i.originalAmount.toLocaleString("en-IN")}\n`;
+                      applicableItems.forEach((i: any) => {
+                        text += `${(i.headName || "Fee Item").padEnd(32)}: ₹${(i.originalAmount || 0).toLocaleString("en-IN")}\n`;
                       });
-                      if (ledger.totalScholarship > 0) {
-                        text += `Scholarship Deduction           : -₹${ledger.totalScholarship.toLocaleString("en-IN")}\n`;
+                      if ((ledger.totalScholarship || 0) > 0) {
+                        text += `Scholarship Deduction           : -₹${(ledger.totalScholarship || 0).toLocaleString("en-IN")}\n`;
                       }
-                      if (ledger.totalDiscount > 0) {
-                        text += `Discount / Concession           : -₹${ledger.totalDiscount.toLocaleString("en-IN")}\n`;
+                      if ((ledger.totalDiscount || 0) > 0) {
+                        text += `Discount / Concession           : -₹${(ledger.totalDiscount || 0).toLocaleString("en-IN")}\n`;
                       }
                       text += `----------------------------------------------------\n`;
-                      text += `TOTAL NET ANNUAL PAYABLE        : ₹${ledger.totalPayable.toLocaleString("en-IN")}\n`;
+                      text += `TOTAL NET ANNUAL PAYABLE        : ₹${(ledger.totalPayable || 0).toLocaleString("en-IN")}\n`;
                       text += `====================================================\n`;
 
                       const blob = new Blob([text], {
@@ -5267,7 +5297,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `FeeSummary_${ledger.admissionNo}_${ledger.academicYear}.txt`;
+                      a.download = `FeeSummary_${ledger.admissionNo || "Student"}_${ledger.academicYear || "2026"}.txt`;
                       document.body.appendChild(a);
                       a.click();
                       document.body.removeChild(a);
@@ -5283,7 +5313,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       addToast(
                         "info",
                         "Navigating to Fee Collection",
-                        `Select ${ledger.studentName} in Fee Collection to record payment.`,
+                        `Select ${ledger.studentName || "student"} in Fee Collection to record payment.`,
                       );
                     }}
                     className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-xs text-white text-center shadow-md shadow-emerald-500/20 cursor-pointer transition-colors"

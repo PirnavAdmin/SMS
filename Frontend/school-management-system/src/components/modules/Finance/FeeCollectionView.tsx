@@ -1469,7 +1469,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <option value="ALL">All Classes</option>
                 {uniqueClassNames.map((cls) => (
                   <option key={cls} value={cls}>
-                    Class {cls}
+                    {cls.startsWith("Class") ? cls : `Class ${cls}`}
                   </option>
                 ))}
               </select>
