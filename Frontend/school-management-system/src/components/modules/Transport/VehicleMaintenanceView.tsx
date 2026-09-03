@@ -69,7 +69,7 @@ export const VehicleMaintenanceView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add
           </button>
-          <ExportButton data={vehicleMaintenances} filename="vehicle_maintenance_log" />
+          <ExportButton data={filteredMaintenances} filename="vehicle_maintenance_log" />
         </div>
       </div>
 

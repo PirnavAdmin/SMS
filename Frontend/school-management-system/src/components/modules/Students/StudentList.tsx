@@ -22,6 +22,7 @@ import { TransferStudentModal } from './TransferStudentModal';
 import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
 import { BRANCHES } from '../../../utils/validation';
+import { Pagination } from '../../common/Pagination';
 
 
 
@@ -753,51 +754,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
           {/* Footer Pagination matching Admin Admissions Style */}
           {myStudents.length > 0 && (
-            <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
-              <div className="flex items-center gap-3">
-                <span>
-                  Showing <strong className="text-slate-900 dark:text-white font-extrabold">{myStudents.length === 0 ? 0 : (teacherCurrentPage - 1) * teacherPageSize + 1}</strong> to{' '}
-                  <strong className="text-slate-900 dark:text-white font-extrabold">{Math.min(teacherCurrentPage * teacherPageSize, myStudents.length)}</strong> of{' '}
-                  <strong className="text-sky-600 dark:text-sky-400 font-extrabold">{myStudents.length}</strong> students
-                </span>
-
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span>Per page:</span>
-                  <select
-                    value={teacherPageSize}
-                    onChange={(e) => {
-                      setTeacherPageSize(Number(e.target.value));
-                      setTeacherCurrentPage(1);
-                    }}
-                    className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer"
-                  >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={teacherCurrentPage === 1}
-                  onClick={() => setTeacherCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-all shadow-2xs"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="font-bold text-slate-900 dark:text-white px-2">
-                  Page {teacherCurrentPage} of {teacherTotalPages}
-                </span>
-                <button
-                  disabled={teacherCurrentPage === teacherTotalPages}
-                  onClick={() => setTeacherCurrentPage(prev => Math.min(prev + 1, teacherTotalPages))}
-                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-all shadow-2xs"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+            <div className="px-4 pb-3">
+              <Pagination
+                currentPage={teacherCurrentPage}
+                totalItems={myStudents.length}
+                itemsPerPage={teacherPageSize}
+                onPageChange={setTeacherCurrentPage}
+                onItemsPerPageChange={(n) => { setTeacherPageSize(n); setTeacherCurrentPage(1); }}
+                label="students"
+              />
             </div>
           )}
         </div>
@@ -963,7 +928,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 </button>
               )}
             </div>
-            <span className="text-[11px] text-slate-400">Page {wardenCurrentPage} of {wardenTotalPages}</span>
           </div>
         </div>
 
@@ -1052,25 +1016,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
           {/* Table Pagination */}
           {wardenHostelStudents.length > 0 && (
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-slate-500">
-              <span>Showing {(wardenCurrentPage - 1) * wardenPageSize + 1} to {Math.min(wardenCurrentPage * wardenPageSize, wardenHostelStudents.length)} of {wardenHostelStudents.length} Hostel Students</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  disabled={wardenCurrentPage === 1}
-                  onClick={() => setWardenCurrentPage(p => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  Previous
-                </button>
-                <span>Page {wardenCurrentPage} of {wardenTotalPages}</span>
-                <button
-                  disabled={wardenCurrentPage === wardenTotalPages}
-                  onClick={() => setWardenCurrentPage(p => Math.min(wardenTotalPages, p + 1))}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  Next
-                </button>
-              </div>
+            <div className="px-4 pb-3">
+              <Pagination
+                currentPage={wardenCurrentPage}
+                totalItems={wardenHostelStudents.length}
+                itemsPerPage={wardenPageSize}
+                onPageChange={setWardenCurrentPage}
+                onItemsPerPageChange={(n) => { setWardenPageSize(n); setWardenCurrentPage(1); }}
+                label="Hostel Students"
+              />
             </div>
           )}
         </div>
@@ -1477,14 +1431,18 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
 
             {/* Roster Pagination Footer */}
-            <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
-              <span>Showing {paginatedRoster.length} of {filteredRoster.length} students in Section {selectedSection}</span>
-              <div className="flex items-center gap-2">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
-                <span className="font-bold text-slate-900 dark:text-white">Page {currentPage} of {totalPages}</span>
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+            {filteredRoster.length > 0 && (
+              <div className="px-4 pb-3">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredRoster.length}
+                  itemsPerPage={pageSize}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+                  label="students"
+                />
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}

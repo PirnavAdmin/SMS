@@ -9,6 +9,7 @@ import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
 import { Payslip } from '../../../types';
+import { Pagination } from '../../common/Pagination';
 
 export const DriverPayslipsView: React.FC = () => {
   const { user } = useAuth();
@@ -403,27 +404,15 @@ export const DriverPayslipsView: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between text-xs pt-2">
-            <span className="text-slate-400 text-[11px]">
-              Page {currentPage} of {totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+        {filteredPayslips.length > 0 && (
+          <div className="px-4 pb-3">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredPayslips.length}
+              itemsPerPage={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+              label="payslips"
+            />
           </div>
         )}
       </div>

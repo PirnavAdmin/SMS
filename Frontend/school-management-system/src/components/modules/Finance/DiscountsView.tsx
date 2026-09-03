@@ -199,7 +199,7 @@ export const DiscountsView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Create Discount
           </button>
-          <ExportButton data={discounts} filename="discounts" />
+          <ExportButton data={activeTab === 'master' ? filteredDiscounts : filteredAwardedList} filename="discounts" />
         </div>
       </div>
 

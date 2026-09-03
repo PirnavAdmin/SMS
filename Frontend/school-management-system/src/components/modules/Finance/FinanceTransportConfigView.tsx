@@ -177,7 +177,7 @@ export const FinanceTransportConfigView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add Transport Route Fee
           </button>
-          <ExportButton data={financeTransportConfigs} filename="finance_transport_configurations" />
+          <ExportButton data={filteredConfigs} filename="finance_transport_configurations" />
         </div>
       </div>
 

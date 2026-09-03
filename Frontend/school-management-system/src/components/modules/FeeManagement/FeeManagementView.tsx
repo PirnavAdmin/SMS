@@ -129,7 +129,7 @@ export const FeeManagementView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Configure Fee Structure
           </button>
-          <ExportButton data={feePayments} filename="fee_transactions" />
+          <ExportButton data={filteredPayments} filename="fee_transactions" />
         </div>
       </div>
 

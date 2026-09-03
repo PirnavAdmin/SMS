@@ -189,7 +189,8 @@ export const PrintableCertificateContainer: React.FC<
 
   return (
     <div
-      className="bg-white text-slate-900 p-8 sm:p-10 font-serif relative max-w-4xl mx-auto shadow-2xl space-y-6 print:shadow-none print:m-0 print:w-full print:max-w-none"
+      id="printable-certificate"
+      className="printable-area bg-white text-slate-900 p-8 sm:p-10 font-serif relative max-w-4xl mx-auto shadow-2xl space-y-6 print:shadow-none print:m-0 print:w-full print:max-w-none"
       style={getContainerStyle()}
     >
       {/* Top Accent Bar */}

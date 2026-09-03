@@ -188,7 +188,7 @@ export const WardenMasterView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Assign Warden
           </button>
-          <ExportButton data={wardens} filename="hostel_warden_assignments" />
+          <ExportButton data={filteredWardens} filename="hostel_warden_assignments" />
         </div>
       </div>
 

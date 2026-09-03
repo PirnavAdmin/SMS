@@ -72,7 +72,7 @@ export const StudentTransportView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Assign Transport
           </button>
-          <ExportButton data={studentTransports} filename="student_transports" />
+          <ExportButton data={filtered} filename="student_transports" />
         </div>
       </div>
 

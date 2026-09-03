@@ -8,6 +8,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { AlumniRecord, AlumniCurrentStatus, Student } from '../../../types';
+import { Pagination } from '../../common/Pagination';
 
 interface AlumniViewProps {
   onNavigate?: (module: string) => void;
@@ -420,44 +421,15 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
 
             {/* Alumni Pagination Footer */}
             {filteredAlumni.length > 0 && (
-              <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
-                <div className="flex items-center gap-2">
-                  <span>
-                    Showing {paginatedAlumni.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, filteredAlumni.length)} of {filteredAlumni.length} alumni records
-                  </span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="ml-2 px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                  >
-                    <option value={5}>5 per page</option>
-                    <option value={10}>10 per page</option>
-                    <option value={20}>20 per page</option>
-                    <option value={50}>50 per page</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition-all cursor-pointer"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="font-bold text-slate-900 dark:text-white px-2">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition-all cursor-pointer"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="px-4 pb-3">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredAlumni.length}
+                  itemsPerPage={pageSize}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+                  label="alumni records"
+                />
               </div>
             )}
           </div>

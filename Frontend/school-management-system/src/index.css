@@ -74,138 +74,126 @@
 /* Printing styling */
 @media print {
   @page {
-    size: auto;
-    margin: 5mm 6mm;
+    size: A4 portrait;
+    margin: 8mm;
   }
   @page landscape-layout {
-    size: landscape;
-    margin: 5mm 6mm;
+    size: A4 landscape;
+    margin: 8mm;
   }
-  body * {
-    visibility: hidden;
-  }
-  .overflow-x-auto, .overflow-hidden {
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    visibility: visible !important;
     overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  #printable-content, #printable-content *,
-  #printable-report-card, #printable-report-card *,
-  .report-card-sheet, .report-card-sheet *,
-  .printable-area, .printable-area * {
-    visibility: visible;
+
+  /* Hide navigation, sidebars, header buttons, form steps, modal controls & backdrops */
+  aside, nav, header,
+  .no-print, .no-print *,
+  .print\:hidden, .print\:hidden *,
+  button, input, select, textarea, label,
+  .toast-container, .modal-header, .modal-tabs, .form-step,
+  .modal-actions, .modal-footer {
+    display: none !important;
+    visibility: hidden !important;
   }
+
+  .overflow-x-auto, .overflow-hidden, .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* When a dedicated printable area exists, hide non-printable modal containers */
+  body:has(.printable-area, #printable-content, #printable-certificate, #printable-receipt) .modal-backdrop-hidden,
+  body:has(.printable-area, #printable-content, #printable-certificate, #printable-receipt) .modal-card-body > div:not(.printable-area, #printable-content, #printable-certificate) {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Target Printable Areas: render cleanly at origin */
   #printable-content,
-  #printable-report-card,
+  #printable-certificate,
+  #printable-receipt,
+  #printable-return-receipt,
+  #printable-exchange-receipt,
   .report-card-sheet,
   .printable-area {
-    position: absolute !important;
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 10px !important;
     background: white !important;
     color: #0f172a !important;
-    z-index: 999999 !important;
+    z-index: 9999999 !important;
     display: block !important;
+    visibility: visible !important;
+    box-shadow: none !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  #printable-content table,
-  .printable-area table {
+
+  #printable-content *,
+  #printable-certificate *,
+  #printable-receipt *,
+  #printable-return-receipt *,
+  #printable-exchange-receipt *,
+  .report-card-sheet *,
+  .printable-area * {
+    visibility: visible !important;
+  }
+
+  /* Clean Print Tables */
+  table {
     width: 100% !important;
-    table-layout: fixed !important;
+    table-layout: auto !important;
     border-collapse: collapse !important;
-    border: 1.5px solid #334155 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    border: 1px solid #64748b !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
   }
-  #printable-content th,
-  .printable-area th {
+
+  th {
     background-color: #f1f5f9 !important;
     color: #0f172a !important;
     font-weight: 800 !important;
-    font-size: 9.5px !important;
+    font-size: 10px !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    padding: 5px 3px !important;
-    border: 1px solid #94a3b8 !important;
-    text-align: center !important;
+    padding: 6px 8px !important;
+    border: 1px solid #64748b !important;
+    text-align: left !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  #printable-content th:first-child,
-  .printable-area th:first-child {
-    text-align: center !important;
-    width: 60% !important;
-  }
-  #printable-content.timetable-printable th:first-child,
-  .timetable-printable th:first-child {
-    width: 15% !important;
-  }
-  #printable-content.timetable-printable,
-  .timetable-printable {
-    page: landscape-layout !important;
-  }
-  #printable-content td,
-  .printable-area td {
+
+  td {
     color: #0f172a !important;
-    border: 1px solid #cbd5e1 !important;
-    min-width: 0 !important;
-    width: auto !important;
-    padding: 4px 3px !important;
-    font-size: 9px !important;
+    border: 1px solid #94a3b8 !important;
+    padding: 5px 8px !important;
+    font-size: 10px !important;
     word-break: break-word !important;
     vertical-align: middle !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  #printable-content td:first-child,
-  .printable-area td:first-child {
-    background-color: #f8fafc !important;
-    font-weight: 700 !important;
-    font-size: 9px !important;
-    text-align: center !important;
-  }
-  /* Strip all inner container cards in print so cells render cleanly */
-  #printable-content td > div,
-  .printable-area td > div {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 1px 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    background: transparent !important;
+
+  /* Reset cards & glassmorphism backgrounds for printing */
+  .glass-card, .glass-panel, .bg-white, .bg-slate-900, .bg-slate-800 {
+    background: white !important;
+    color: #0f172a !important;
     box-shadow: none !important;
-    text-align: center !important;
+    border-color: #cbd5e1 !important;
   }
-  #printable-content td > div span,
-  .printable-area td > div span {
-    border: none !important;
-    background: transparent !important;
-    padding: 0 !important;
-    font-size: 7.5px !important;
-    color: #64748b !important;
-  }
-  #printable-content .glass-card,
-  .printable-area .glass-card {
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
-  }
-  #printable-content .text-xs,
-  #printable-content .text-sm,
-  #printable-content .text-[11px] {
-    font-size: 8.5px !important;
-    line-height: 1.15 !important;
-  }
-  #printable-content .no-print,
-  #printable-content .no-print *,
-  #printable-content .print\:hidden,
-  #printable-content .print\:hidden *,
-  .no-print,
-  .no-print *,
-  .print\:hidden,
-  .print\:hidden * {
-    display: none !important;
-    visibility: hidden !important;
+
+  .text-white, .dark\:text-white {
+    color: #0f172a !important;
   }
 }
 

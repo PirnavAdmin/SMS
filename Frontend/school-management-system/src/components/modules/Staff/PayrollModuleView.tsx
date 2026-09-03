@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 import { formatCurrency } from '../../../utils/currency';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -752,41 +753,18 @@ function TableShell<T extends { id: string }>({
         </table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 text-xs font-semibold text-slate-500">
-          <span>
-            Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, sortedRows.length)} of {sortedRows.length}
-          </span>
-          <select
-            value={pageSize}
-            onChange={e => setPageSize(Number(e.target.value))}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-          >
-            {[5, 10, 15].map(size => <option key={size} value={size}>{size} / page</option>)}
-          </select>
+      {sortedRows.length > 0 && (
+        <div className="px-2 pt-2">
+          <Pagination
+            currentPage={page}
+            totalItems={sortedRows.length}
+            itemsPerPage={pageSize}
+            onPageChange={setPage}
+            onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+            label="records"
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPage(prev => Math.max(1, prev - 1))}
-            disabled={page === 1}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200"
-          >
-            <ChevronLeft className="h-4 w-4" /> Previous
-          </button>
-          <span className="text-xs font-bold text-slate-500">
-            Page {page} of {pageCount}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage(prev => Math.min(pageCount, prev + 1))}
-            disabled={page === pageCount}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200"
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      )}
     </section>
   );
 }

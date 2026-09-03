@@ -46,6 +46,7 @@ import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { DateInput } from "../../common/DateInput";
+import { Pagination } from "../../common/Pagination";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import {
   validate10DigitPhone,
@@ -4475,31 +4476,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         </div>
 
         {/* Footer Pagination */}
-        <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
-          <span>
-            Showing {paginated.length} of {filteredAdmissions.length} admission
-            applications
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
-              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-bold text-slate-900 dark:text-white">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+        {filteredAdmissions.length > 0 && (
+          <div className="px-4 pb-3">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredAdmissions.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+              label="applications"
+            />
           </div>
-        </div>
+        )}
       </div>
 
       {/* View Application Details Modal */}

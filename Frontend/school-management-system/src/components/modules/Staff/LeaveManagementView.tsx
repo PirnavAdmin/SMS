@@ -10,6 +10,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 
 const DEFAULT_LEAVE_TYPES: LeaveType[] = [
   { id: 'LT-001', name: 'Casual Leave', code: 'CL', maxDays: 10, isPaid: true, description: 'Annual casual leave for personal matters', requiresDocument: false },
@@ -883,30 +884,18 @@ export const LeaveManagementView: React.FC = () => {
             </table>
 
             {/* Pagination bar */}
-            <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
-              <span className="text-slate-500 font-medium">
-                Showing {filteredStaffForBalance.length > 0 ? (balanceCurrentPage - 1) * balancePageSize + 1 : 0} to {Math.min(balanceCurrentPage * balancePageSize, filteredStaffForBalance.length)} of {filteredStaffForBalance.length} records
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={balanceCurrentPage === 1}
-                  onClick={() => setBalanceCurrentPage((prev) => prev - 1)}
-                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border disabled:opacity-40 hover:bg-slate-50 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="font-bold text-slate-700 dark:text-slate-355">
-                  Page {balanceCurrentPage} of {totalBalancePages}
-                </span>
-                <button
-                  disabled={balanceCurrentPage === totalBalancePages}
-                  onClick={() => setBalanceCurrentPage((prev) => prev + 1)}
-                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border disabled:opacity-40 hover:bg-slate-50 transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+            {filteredStaffForBalance.length > 0 && (
+              <div className="px-4 pb-3">
+                <Pagination
+                  currentPage={balanceCurrentPage}
+                  totalItems={filteredStaffForBalance.length}
+                  itemsPerPage={balancePageSize}
+                  onPageChange={setBalanceCurrentPage}
+                  onItemsPerPageChange={(n) => { setBalancePageSize(n); setBalanceCurrentPage(1); }}
+                  label="staff records"
+                />
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
