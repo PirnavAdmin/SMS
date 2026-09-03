@@ -8,6 +8,7 @@ import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
 import { getCategorySizes, getUniformPackageFeeByClass, getUniformFeeForClass, getItemFeeFromFinanceConfig, getItemPriceFromConfig, normalizeUniformCategoryName, calculateClothOrItemPrice } from '../../../utils/uniformUtils';
 import { Pagination } from '../../common/Pagination';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface StudentUniformViewProps {
   initialStatusFilter?: string;
@@ -3414,7 +3415,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 <div className="flex justify-between items-center border-b-2 border-slate-900 pb-4">
                   <div className="flex items-center gap-3.5">
                     {schoolProfile?.logoUrl || (schoolProfile as any)?.logo ? (
-                      <img src={schoolProfile?.logoUrl || (schoolProfile as any)?.logo} alt="School Logo" className="w-12 h-12 object-contain rounded-xl shadow-xs" />
+                      <img src={resolveMediaUrl(schoolProfile?.logoUrl || (schoolProfile as any)?.logo)} alt="School Logo" className="w-12 h-12 object-contain rounded-xl shadow-xs" />
                     ) : (
                       <div className="w-11 h-11 rounded-xl bg-slate-900 text-white font-black text-xl flex items-center justify-center shadow-md">
                         {(schoolProfile?.name || schoolProfile?.schoolName || 'P').charAt(0).toUpperCase()}
@@ -4016,7 +4017,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 <div className="flex justify-between items-center border-b-2 border-emerald-900 pb-4">
                   <div className="flex items-center gap-3.5">
                     {schoolProfile?.logoUrl || (schoolProfile as any)?.logo ? (
-                      <img src={schoolProfile?.logoUrl || (schoolProfile as any)?.logo} alt="School Logo" className="w-12 h-12 object-contain rounded-xl shadow-xs" />
+                      <img src={resolveMediaUrl(schoolProfile?.logoUrl || (schoolProfile as any)?.logo)} alt="School Logo" className="w-12 h-12 object-contain rounded-xl shadow-xs" />
                     ) : (
                       <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white font-black text-xl flex items-center justify-center shadow-md">
                         {(schoolProfile?.name || schoolProfile?.schoolName || 'P').charAt(0).toUpperCase()}
@@ -4204,7 +4205,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                   <div className="flex items-center gap-3">
                     {schoolProfile?.logoUrl || (schoolProfile as any)?.logo ? (
-                      <img src={schoolProfile?.logoUrl || (schoolProfile as any)?.logo} alt="School Logo" className="w-12 h-12 object-contain rounded-xl shadow-xs" />
+                      <img src={resolveMediaUrl(schoolProfile?.logoUrl || (schoolProfile as any)?.logo)} alt="School Logo" className="w-12 h-12 object-contain rounded-xl shadow-xs" />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-sky-600 text-white flex items-center justify-center text-xl font-black shadow-md">
                         {(schoolProfile?.name || schoolProfile?.schoolName || 'P').charAt(0).toUpperCase()}

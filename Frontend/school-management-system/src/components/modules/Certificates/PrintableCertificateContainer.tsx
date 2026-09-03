@@ -1,6 +1,7 @@
 import React from "react";
 import { CertificateTemplateConfig, SchoolProfile } from "../../../types";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
+import { resolveMediaUrl } from "../../../utils/mediaUtils";
 
 export interface PrintableCertificateContainerProps {
   template: CertificateTemplateConfig;
@@ -70,7 +71,7 @@ export const PrintableCertificateContainer: React.FC<
     "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
   const schoolPhone = schoolProfile.phone || "+91 9123456789";
   const schoolEmail = schoolProfile.email || "contact@pirnavschools.edu";
-  const schoolLogoUrl = schoolProfile.logoUrl || '/pirnav-school-logo.png';
+  const schoolLogoUrl = resolveMediaUrl(schoolProfile.logoUrl);
 
   // Header Style Variations
   const getContainerStyle = () => {

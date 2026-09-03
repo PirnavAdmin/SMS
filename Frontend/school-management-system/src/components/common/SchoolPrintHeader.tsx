@@ -1,6 +1,7 @@
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { resolveMediaUrl } from '../../utils/mediaUtils';
 
 interface SchoolPrintHeaderProps {
   title?: string;
@@ -17,7 +18,7 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
 }) => {
   const { schoolProfile } = useData();
 
-  const logoUrl = schoolProfile?.logoUrl || '/pirnav-school-logo.png';
+  const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
   const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
   const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
   const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';

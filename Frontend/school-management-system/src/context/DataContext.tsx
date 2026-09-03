@@ -6120,9 +6120,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     window.addEventListener("school_profile_updated", handleProfileUpdate);
     window.addEventListener("storage", handleProfileUpdate);
+    window.addEventListener("focus", loadSchoolSettingsFromDb);
+
+    const syncInterval = setInterval(loadSchoolSettingsFromDb, 60000);
+
     return () => {
       window.removeEventListener("school_profile_updated", handleProfileUpdate);
       window.removeEventListener("storage", handleProfileUpdate);
+      window.removeEventListener("focus", loadSchoolSettingsFromDb);
+      clearInterval(syncInterval);
     };
   }, []);
 

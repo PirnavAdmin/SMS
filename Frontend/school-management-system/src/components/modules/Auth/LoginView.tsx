@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { UserRole } from '../../../types';
 import { fetchSchoolSettingsApi } from '../../../api/settings';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface LoginViewProps {
   onBack?: () => void;
@@ -185,7 +186,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
         <div className="relative z-20 w-full max-w-2xl text-white space-y-12">
           <div>
             <div className="inline-flex p-3 rounded-2xl bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl mb-8">
-              <img src={currentLogo} alt="School Logo" className="h-16 max-w-[200px] object-contain" />
+              <img src={resolveMediaUrl(currentLogo)} alt="School Logo" className="h-16 max-w-[200px] object-contain" />
             </div>
             <h1 className="text-5xl xl:text-6xl font-black tracking-tight leading-[1.1] mb-6">
               Empowering the <br />
@@ -239,7 +240,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
             {/* Minimalist Universal Header */}
           <div className="mb-6">
             <div className="lg:hidden inline-flex p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md mb-4 max-w-[160px]">
-              <img src={currentLogo} alt="School Logo" className="h-10 object-contain" />
+              <img src={resolveMediaUrl(currentLogo)} alt="School Logo" className="h-10 object-contain" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               Sign In

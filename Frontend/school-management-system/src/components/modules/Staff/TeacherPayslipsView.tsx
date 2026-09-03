@@ -20,6 +20,7 @@ import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
 import { Payslip } from '../../../types';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 export const TeacherPayslipsView: React.FC = () => {
   const { user } = useAuth();
@@ -265,7 +266,7 @@ export const TeacherPayslipsView: React.FC = () => {
         <body>
           <div class="payslip-sheet">
             <div class="header-banner">
-              ${schoolProfile?.logoUrl ? `<img src="${schoolProfile.logoUrl}" style="max-height: 48px; margin-bottom: 4px; object-fit: contain;" />` : ''}
+              ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="max-height: 48px; margin-bottom: 4px; object-fit: contain;" />` : ''}
               <div class="school-title">${(schoolProfile?.name || schoolProfile?.schoolName || 'PIRNAV EDUCATIONAL INSTITUTION').toUpperCase()}</div>
               <div class="sub-logo">Official Monthly Salary Slip</div>
               <div class="doc-heading">SALARY PAYSLIP - ${p.month.toUpperCase()}</div>
@@ -587,7 +588,7 @@ export const TeacherPayslipsView: React.FC = () => {
               <div className="flex items-center gap-3">
                 {schoolProfile?.logoUrl ? (
                   <img
-                    src={schoolProfile.logoUrl}
+                    src={resolveMediaUrl(schoolProfile.logoUrl)}
                     alt={schoolProfile?.name || 'School Logo'}
                     className="w-10 h-10 object-contain rounded-2xl border border-slate-200 dark:border-slate-800 p-1 bg-white shrink-0 shadow-sm"
                   />

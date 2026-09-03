@@ -46,6 +46,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { hasModuleAccess } from "../../utils/rbac";
+import { resolveMediaUrl } from "../../utils/mediaUtils";
 
 interface SidebarProps {
   activeModule: string;
@@ -532,7 +533,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {schoolProfile?.logoUrl ? (
               <img
-                src={schoolProfile.logoUrl}
+                src={resolveMediaUrl(schoolProfile.logoUrl)}
                 alt="School Logo"
                 className="max-h-8 max-w-8 object-contain"
               />
@@ -548,7 +549,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {schoolProfile?.logoUrl ? (
               <img
-                src={schoolProfile.logoUrl}
+                src={resolveMediaUrl(schoolProfile.logoUrl)}
                 alt="School Logo"
                 className="max-h-10 max-w-[190px] object-contain"
               />
