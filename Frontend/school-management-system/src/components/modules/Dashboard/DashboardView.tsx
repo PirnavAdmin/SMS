@@ -63,7 +63,7 @@ const PremiumDonutChart: React.FC<{
   return (
     <div className="flex items-center justify-between w-full h-full gap-2.5 text-left">
       {/* Circle SVG */}
-      <div className="relative flex items-center justify-center shrink-0 w-[110px] h-[110px] group/chart cursor-pointer">
+      <div className="relative flex items-center justify-center shrink-0 w-[105px] h-[105px] group/chart cursor-pointer">
         <svg className="w-full h-full transform rotate-0" viewBox="0 0 80 80">
           <circle
             cx="40"
@@ -172,44 +172,44 @@ const PremiumDonutChart: React.FC<{
       </div>
 
       {/* Legend list */}
-      <div className="flex-1 flex flex-col justify-center space-y-1.5 pl-1.5 text-[10.5px]">
+      <div className="flex-1 flex flex-col justify-center space-y-1 pl-1.5 text-[10px]">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-            <span className="font-bold text-slate-700 dark:text-slate-350">Present</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="font-bold text-slate-700 dark:text-slate-300">Present</span>
           </div>
           <span className="font-extrabold text-slate-900 dark:text-white">
             {presentVal} ({presentPct}%)
           </span>
         </div>
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
-            <span className="font-bold text-slate-700 dark:text-slate-350">Absent</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+            <span className="font-bold text-slate-700 dark:text-slate-300">Absent</span>
           </div>
           <span className="font-extrabold text-slate-900 dark:text-white">
             {absentVal} ({absentPct}%)
           </span>
         </div>
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
-            <span className="font-bold text-slate-700 dark:text-slate-350">Late</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span className="font-bold text-slate-700 dark:text-slate-300">Late</span>
           </div>
           <span className="font-extrabold text-slate-900 dark:text-white">
             {lateVal} ({latePct}%)
           </span>
         </div>
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" style={{ backgroundColor: '#fb923c' }} />
-            <span className="font-bold text-slate-700 dark:text-slate-350">Half Day</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" style={{ backgroundColor: '#fb923c' }} />
+            <span className="font-bold text-slate-700 dark:text-slate-300">Half Day</span>
           </div>
           <span className="font-extrabold text-slate-900 dark:text-white">
             {halfDayVal} ({halfDayPct}%)
           </span>
         </div>
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[10px] text-slate-400 font-bold flex justify-between">
+        <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800/80 text-[9.5px] text-slate-400 font-bold flex justify-between">
           <span>Total {type === 'students' ? 'Students' : type === 'teaching-staff' ? 'Teaching Staff' : type === 'non-teaching-staff' ? 'Non-Teaching Staff' : 'Staff'}</span>
           <span>{total}</span>
         </div>
@@ -902,60 +902,82 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
+        {/* Top Row: Student Attendance, Staff Attendance, Events & Holidays */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Student Attendance Donut */}
-          <div onClick={() => onNavigate('attendance')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-6 rounded-2xl space-y-4 cursor-pointer flex flex-col h-[320px]">
-            <div className="flex items-start justify-between gap-2 shrink-0 text-left">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Student Attendance</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Today's overall student attendance</p>
+          <div onClick={() => onNavigate('attendance')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+            {/* Header */}
+            <div className="shrink-0 space-y-0.5 text-left">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Student Attendance</h3>
+              <div className="flex items-center justify-between min-h-[22px]">
+                <p className="text-[11px] text-slate-500">Today's overall student attendance</p>
               </div>
             </div>
             
-            <div className="flex-1 flex items-center justify-center min-h-0">
+            <div className="flex-1 flex items-center justify-center min-h-0 pt-1">
               <PremiumDonutChart stats={attendanceStats} type="students" />
             </div>
           </div>
 
           {/* Staff Attendance Donut */}
-          <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-6 rounded-2xl space-y-4 cursor-pointer flex flex-col h-[320px]">
-            <div className="flex items-start justify-between gap-2 shrink-0">
-              <div className="text-left">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Today's {staffAttendanceTab.toLowerCase()} staff attendance</p>
-              </div>
-              <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-sky-200 dark:border-sky-800 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => setStaffAttendanceTab('Teaching')}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all duration-200 ${staffAttendanceTab === 'Teaching' ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+          <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+            {/* Header */}
+            <div className="shrink-0 space-y-0.5 text-left">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>
+              <div className="flex items-center justify-between min-h-[22px] gap-2">
+                <p className="text-[11px] text-slate-500 truncate">
+                  Today's {staffAttendanceTab.toLowerCase()} staff
+                </p>
+                {/* Down right toggle button */}
+                <div
+                  className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-sky-200 dark:border-sky-800 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Teaching
-                </button>
-                <button
-                  onClick={() => setStaffAttendanceTab('Non-Teaching')}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all duration-200 ${staffAttendanceTab === 'Non-Teaching' ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                  Non-Teaching
-                </button>
+                  <button
+                    onClick={() => setStaffAttendanceTab('Teaching')}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all duration-200 ${
+                      staffAttendanceTab === 'Teaching'
+                        ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    Teaching
+                  </button>
+                  <button
+                    onClick={() => setStaffAttendanceTab('Non-Teaching')}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all duration-200 ${
+                      staffAttendanceTab === 'Non-Teaching'
+                        ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    Non-Teaching
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center min-h-0">
+            <div className="flex-1 flex items-center justify-center min-h-0 pt-1">
               <PremiumDonutChart stats={activeStaffStats} type={staffAttendanceTab === 'Teaching' ? 'teaching-staff' : 'non-teaching-staff'} />
             </div>
           </div>
 
-          {/* Upcoming Events */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-6 rounded-2xl space-y-4 cursor-pointer flex flex-col h-[320px]">
-            <div className="flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2 min-w-0 text-left">
-                <Calendar className="w-5 h-5 text-sky-600 shrink-0" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Upcoming Events & Holidays</h3>
+          {/* Events & Holidays */}
+          <div onClick={() => onNavigate('events')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+            <div className="shrink-0 space-y-0.5 text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0 text-left">
+                  <Calendar className="w-4.5 h-4.5 text-sky-600 shrink-0" />
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-tight truncate">Events & Holidays</h3>
+                </div>
+                <span className="text-[10px] font-bold text-sky-600 hover:underline shrink-0">View All</span>
               </div>
-              <span className="text-[10px] font-bold text-sky-600 hover:underline">View All</span>
+              <div className="min-h-[22px] flex items-center">
+                <p className="text-[11px] text-slate-500">Upcoming calendar activities</p>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[160px] pt-1">
               {upcomingEventsAndHolidays.length === 0 ? (
                 <p className="text-xs text-slate-500 py-2 text-center">No upcoming events.</p>
               ) : upcomingEventsAndHolidays.map(e => {
@@ -994,21 +1016,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Bottom Row: Pending Approvals, Upcoming Examinations and Teacher Birthdays (Symmetric 3 equal columns layout) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Bottom Row: Pending Approvals, Upcoming Examinations and Teacher Birthdays */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Pending Approvals */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs p-6 rounded-2xl space-y-4 flex flex-col h-[280px]">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <Bell className="w-5 h-5 text-amber-500" />
+                <Bell className="w-4.5 h-4.5 text-amber-500" />
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Pending Approvals</h3>
               </div>
               <button onClick={() => onNavigate('staff-leave')} className="text-xs font-bold text-sky-600 hover:text-sky-700">View All</button>
             </div>
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('admissions')} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Admission Approvals</span>
                 <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-450 border border-rose-200">
@@ -1017,7 +1039,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('staff')} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Staff Requests</span>
                 <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-450 border border-amber-200">
@@ -1026,7 +1048,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('staff-leave')} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Leave Requests</span>
                 <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-450 border border-emerald-200">
@@ -1035,7 +1057,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('fees')} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Fee Concessions</span>
                 <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-450 border border-sky-200">
@@ -1046,15 +1068,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Examinations */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs p-6 rounded-2xl space-y-4 flex flex-col h-[280px]">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-indigo-500" />
+                <ClipboardList className="w-4.5 h-4.5 text-indigo-500" />
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Upcoming Examinations</h3>
               </div>
               <button onClick={() => onNavigate('examination')} className="text-xs font-bold text-sky-600 hover:text-sky-700">View All</button>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
               {validExams.length === 0 ? (
                 <p className="text-xs text-slate-500 py-4 text-center">No exams scheduled.</p>
               ) : validExams.map(ex => {
@@ -1062,9 +1084,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   ? `${ex.applicableClasses.length} Classes`
                   : '2 Classes';
                 return (
-                  <div key={ex.id} className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 text-xs transition-all shadow-2xs">
+                  <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 text-xs transition-all shadow-2xs">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
+                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
                         <Calendar className="w-4 h-4" />
                       </div>
                       <div className="text-left min-w-0">
@@ -1084,12 +1106,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Teacher Birthdays */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs p-6 rounded-2xl space-y-4 flex flex-col h-[280px]">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
             <div className="flex items-center gap-2 shrink-0">
-              <Cake className="w-5 h-5 text-rose-500" />
+              <Cake className="w-4.5 h-4.5 text-rose-500" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Faculty & Staff Birthdays</h3>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
               {upcomingBirthdays.length === 0 ? (
                  <p className="text-xs text-slate-500 py-4 text-center">No upcoming birthdays.</p>
               ) : upcomingBirthdays.map(b => (
