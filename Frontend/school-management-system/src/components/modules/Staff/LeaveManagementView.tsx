@@ -42,6 +42,8 @@ export const LeaveManagementView: React.FC = () => {
 
   const userRole = (role || user?.role || '').toLowerCase();
   const isTeacher = userRole === 'teacher';
+  const isDriver = userRole === 'driver';
+  const isSelfServiceStaff = isTeacher || isDriver;
   const hasApprovalPermission = ['admin', 'principal', 'hr'].includes(userRole);
 
   // Active Tab
@@ -49,7 +51,7 @@ export const LeaveManagementView: React.FC = () => {
     hasApprovalPermission ? 'queue' : 'applications'
   );
 
-  // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
+  // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors) for teachers
   const teachingStaff = staff.filter(s => {
     const des = (s.designation || '').toLowerCase();
     const dept = (s.department || '').toLowerCase();
@@ -63,11 +65,53 @@ export const LeaveManagementView: React.FC = () => {
     (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
   ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
 
-  // Filter applications for current user if teacher
+  const driverStaffMember = useMemo(() => {
+    const uEmail = user?.email?.toLowerCase().trim();
+    const uName = user?.name?.toLowerCase().trim();
+    const uId = user?.id ? String(user.id).trim() : '';
+    const uEmpId = (user as any)?.empId ? String((user as any).empId).trim() : '';
+
+    const matched = staff.find(s =>
+      (uId && (String(s.id) === uId || String(s.empId) === uId)) ||
+      (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId)) ||
+      (uEmail && s.email && s.email.toLowerCase().trim() === uEmail) ||
+      (uName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === uName) ||
+      (uName && s.firstName && s.firstName.toLowerCase() === uName.split(' ')[0])
+    );
+    if (matched) return matched;
+
+    const fromDriverDesignation = staff.find(s =>
+      (s.designation || '').toLowerCase().includes('driver') ||
+      (s.department || '').toLowerCase().includes('transport')
+    );
+    if (fromDriverDesignation) return fromDriverDesignation;
+
+    const parts = (user?.name || 'Nag Sahoo').trim().split(' ');
+    return {
+      id: user?.id || '3',
+      firstName: parts[0] || 'Nag',
+      lastName: parts.slice(1).join(' ') || 'Sahoo',
+      department: 'Transport Dept',
+      designation: 'Driver',
+      employeeCategory: 'Non-Teaching Staff',
+      empId: (user as any)?.empId || user?.id || 'STF-2026-0003',
+      leaveBalance: { casual: 10, sick: 10, paid: 15 }
+    } as any;
+  }, [staff, user]);
+
+  // Filter applications for current user if teacher or driver
   const myApplications = leaveApplications.filter(a => {
-    if (!isTeacher) return true;
+    if (!isSelfServiceStaff) return true;
+    if (isDriver) {
+      if (driverStaffMember && (a.employeeId === driverStaffMember.id || a.empId === driverStaffMember.empId)) return true;
+      if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
+      if (user?.id && (String(a.employeeId) === String(user.id) || String(a.empId) === String(user.id))) return true;
+      if (a.designation?.toLowerCase().includes('driver') || a.department?.toLowerCase().includes('transport')) return true;
+      return false;
+    }
     if (teacherStaffMember && (a.employeeId === teacherStaffMember.id || a.empId === teacherStaffMember.empId)) return true;
     if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
+    if (user?.id && (String(a.employeeId) === String(user.id) || String(a.empId) === String(user.id))) return true;
     return false;
   });
 
@@ -86,6 +130,26 @@ export const LeaveManagementView: React.FC = () => {
   }, [query, balanceCategoryFilter]);
 
   const filteredStaffForBalance = useMemo(() => {
+    if (isDriver) {
+      const driverMatches = staff.filter(s =>
+        (driverStaffMember && (s.id === driverStaffMember.id || s.empId === driverStaffMember.empId)) ||
+        (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+        (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
+        (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
+      );
+      return driverMatches.length > 0 ? driverMatches : [driverStaffMember];
+    }
+
+    if (isTeacher) {
+      const teacherMatches = staff.filter(s =>
+        (teacherStaffMember && (s.id === teacherStaffMember.id || s.empId === teacherStaffMember.empId)) ||
+        (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+        (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
+        (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
+      );
+      return teacherMatches.length > 0 ? teacherMatches : [teacherStaffMember];
+    }
+
     const isTeaching = (s: Staff) => {
       return (
         s.employeeCategory === "Teacher" ||
@@ -95,11 +159,6 @@ export const LeaveManagementView: React.FC = () => {
     };
 
     return staff.filter(s => {
-      if (isTeacher) {
-        if (teacherStaffMember && s.id === teacherStaffMember.id) return true;
-        if (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
-        return false;
-      }
       const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
       
       let matchesCategory = true;
@@ -111,7 +170,7 @@ export const LeaveManagementView: React.FC = () => {
 
       return matchesQuery && matchesCategory;
     });
-  }, [staff, isTeacher, teacherStaffMember, user, query, balanceCategoryFilter]);
+  }, [staff, isDriver, isTeacher, driverStaffMember, teacherStaffMember, user, query, balanceCategoryFilter]);
 
   const totalBalancePages = Math.ceil(filteredStaffForBalance.length / balancePageSize) || 1;
 
@@ -149,10 +208,10 @@ export const LeaveManagementView: React.FC = () => {
   }>({ show: false, available: 0, requested: 0, appData: null });
 
   // Summaries Calculations
-  const targetList = isTeacher ? myApplications : leaveApplications;
-  const pendingCount = targetList.filter(a => a.status === 'Pending').length;
-  const approvedCount = targetList.filter(a => a.status === 'Approved').length;
-  const rejectedCount = targetList.filter(a => a.status === 'Rejected').length;
+  const targetList = isTeacher || isDriver ? myApplications : leaveApplications;
+  const pendingCount = targetList.filter(a => (a.status || '').toLowerCase() === 'pending').length;
+  const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
+  const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
   
   // Aggregate total leave balance for current active staff
   const totalBalance = staff.reduce((sum, s) => {
@@ -482,7 +541,9 @@ export const LeaveManagementView: React.FC = () => {
               onClick={() => {
                 setEditingApplication(null);
                 resetApplyForm();
-                if (isTeacher && teacherStaffMember) {
+                if (isDriver && driverStaffMember) {
+                  setApplyForm(prev => ({ ...prev, employeeId: driverStaffMember.id }));
+                } else if (isTeacher && teacherStaffMember) {
                   setApplyForm(prev => ({ ...prev, employeeId: teacherStaffMember.id }));
                 }
                 setIsApplyOpen(true);
@@ -636,10 +697,11 @@ export const LeaveManagementView: React.FC = () => {
                 </thead>
                 <tbody className="divide-y font-medium">
                   {(() => {
-                    const filteredList = myApplications.filter(app => {
+                    const baseApps = isTeacher || isDriver ? myApplications : leaveApplications;
+                    const filteredList = baseApps.filter(app => {
                       const nameMatch = !query || app.employeeName.toLowerCase().includes(query.toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
-                      const statusMatch = filterStatus === 'All' || app.status === filterStatus;
+                      const statusMatch = filterStatus === 'All' || (app.status || '').toLowerCase() === filterStatus.toLowerCase();
                       const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
                       return nameMatch && catMatch && statusMatch && typeMatch;
                     });
@@ -750,34 +812,36 @@ export const LeaveManagementView: React.FC = () => {
       {/* TAB CONTENT: LEAVE BALANCE */}
       {activeTab === 'balance' && (
         <div className="space-y-4">
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-60">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search by staff..."
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
-              />
-            </div>
+          {!isSelfServiceStaff && (
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-60">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="Search by staff..."
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
+                />
+              </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span>
-              <div className="relative w-full sm:w-48">
-                <select
-                  value={balanceCategoryFilter}
-                  onChange={e => setBalanceCategoryFilter(e.target.value as any)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border outline-none font-bold text-slate-700 dark:text-slate-355 cursor-pointer appearance-none pr-8"
-                >
-                  <option value="All">All Categories</option>
-                  <option value="Teaching Staff">Teaching Staff</option>
-                  <option value="Non-Teaching Staff">Non-Teaching Staff</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span>
+                <div className="relative w-full sm:w-48">
+                  <select
+                    value={balanceCategoryFilter}
+                    onChange={e => setBalanceCategoryFilter(e.target.value as any)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border outline-none font-bold text-slate-700 dark:text-slate-355 cursor-pointer appearance-none pr-8"
+                  >
+                    <option value="All">All Categories</option>
+                    <option value="Teaching Staff">Teaching Staff</option>
+                    <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="glass-card rounded-2xl overflow-hidden border bg-white dark:bg-slate-900">
             <table className="w-full text-center border-collapse text-xs">
@@ -865,22 +929,22 @@ export const LeaveManagementView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y font-medium">
-                {leaveApplications.filter(app => app.status === 'Pending').length === 0 ? (
+                {leaveApplications.filter(app => (app.status || '').toLowerCase() === 'pending').length === 0 ? (
                   <tr><td colSpan={8} className="text-center py-8 text-slate-400">All pending leave applications processed.</td></tr>
                 ) : (
                   leaveApplications
-                    .filter(app => app.status === 'Pending')
+                    .filter(app => (app.status || '').toLowerCase() === 'pending')
                     .map((app, idx) => (
                       <tr key={app.id} className="hover:bg-slate-50">
                         <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{idx + 1}</td>
                         <td className="py-3 px-4 text-center">
                           <p className="font-bold text-slate-800">{app.employeeName}</p>
-                          <p className="text-[10px] text-slate-400">{app.designation} • {app.empId}</p>
+                          <p className="text-[10px] text-slate-400">{app.designation} • {app.empId || app.employeeId}</p>
                         </td>
                         <td className="py-3 px-4 font-semibold text-sky-600 text-center">{app.leaveTypeName}</td>
                         <td className="py-3 px-4 text-center">{app.appliedDate}</td>
                         <td className="py-3 px-4 text-center">{app.fromDate} to {app.toDate}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 text-center">{app.numberOfDays} Days</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 text-center">{app.numberOfDays || (app as any).daysCount || 1} Days</td>
                         <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate text-center">{app.reason}</td>
                         <td className="py-3 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">

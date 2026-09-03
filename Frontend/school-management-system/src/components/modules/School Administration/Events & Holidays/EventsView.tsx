@@ -95,7 +95,8 @@ export const EventsView: React.FC = () => {
   const userRoleStr = (role || '').toLowerCase();
   const isLibrarianRole = userRoleStr.includes('librarian') || userRoleStr.includes('library');
   const isWardenRole = userRoleStr.includes('warden') || userRoleStr.includes('hostel');
-  const canManageEvents = role !== 'Student' && role !== 'Parent' && !isLibrarianRole && !isWardenRole;
+  const isDriverRole = userRoleStr.includes('driver') || userRoleStr.includes('chauffeur');
+  const canManageEvents = role !== 'Student' && role !== 'Parent' && userRoleStr !== 'student' && userRoleStr !== 'parent' && !isLibrarianRole && !isWardenRole && !isDriverRole;
 
   const { addToast } = useToast();
 

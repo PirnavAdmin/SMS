@@ -3341,6 +3341,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
   }, [attendance]);
   useEffect(() => {
+    localStorage.setItem("edu_db_leave_applications", JSON.stringify(leaveApplications));
+    localStorage.setItem("leave_applications", JSON.stringify(leaveApplications));
+  }, [leaveApplications]);
+  useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
   }, [subjects]);
   useEffect(() => {
@@ -6064,6 +6068,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchStudents();
 
       if (!isParentOrStudent) {
+        fetchStaff();
         fetchAcademicClasses();
         fetchSubjects();
         fetchPeriods();
@@ -6073,6 +6078,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchPayrollComponents();
         fetchPayrollRuns();
         fetchPayslips();
+        fetchLeaveApplications();
+        fetchLeaveTypes();
+        fetchLeaveBalances();
+        fetchDailyAttendance(new Date().toISOString().split("T")[0]);
       }
     }
     const allowedAdmissionsRoles = [
@@ -6083,7 +6092,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
-      fetchStaff();
     }
   }, [isAuthenticated, role]);
 
@@ -17049,37 +17057,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     const promise = (async () => {
       try {
+        const normalizeLeaveStatus = (st: string | undefined): LeaveApplication["status"] => {
+          if (!st) return "Pending";
+          const lower = st.trim().toLowerCase();
+          if (lower === "approved") return "Approved";
+          if (lower === "rejected") return "Rejected";
+          if (lower === "cancelled" || lower === "canceled") return "Cancelled";
+          return "Pending";
+        };
+
         const response = await fetchLeaveApplicationsApi();
         if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
             id:
               item.leaveApplicationId?.toString() || item.id?.toString() || "",
             employeeId: item.staffId?.toString() || item.id?.toString() || "",
-            employeeName: item.staffName,
+            employeeName: item.staffName || item.employeeName || "Staff Member",
             empId: item.empId || item.employeeId,
-            department: item.department || "Administration",
+            department: item.department || "Transport Dept",
             designation: item.designation || "Staff",
             branchId: activeBranchId || "BR-001",
             branch: item.branch || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
             leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
-            leaveTypeName: item.leaveTypeName,
+            leaveTypeName: item.leaveTypeName || "Leave",
             fromDate: item.fromDate,
             toDate: item.toDate,
             isHalfDay: item.isHalfDay,
-            numberOfDays: item.requestedDays,
-            reason: item.reason,
+            numberOfDays: Number(item.requestedDays || item.numberOfDays || item.daysCount || 1),
+            reason: item.reason || "",
             attachments: [],
-            status: item.status,
-            appliedDate: item.appliedDate,
+            status: normalizeLeaveStatus(item.status),
+            appliedDate: item.appliedDate || new Date().toISOString().split("T")[0],
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
           setLeaveApplications((prev) => {
             const apiIds = new Set(mapped.map((m) => m.id));
             const localOnly = prev.filter((p) => !apiIds.has(p.id));
-            return [...mapped, ...localOnly];
+            const merged = [...mapped, ...localOnly];
+            localStorage.setItem("edu_db_leave_applications", JSON.stringify(merged));
+            localStorage.setItem("leave_applications", JSON.stringify(merged));
+            return merged;
           });
         }
       } catch (err) {
@@ -17226,6 +17246,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setLeaveApplications((prev) => {
       const updated = [newApp, ...prev];
+      localStorage.setItem("edu_db_leave_applications", JSON.stringify(updated));
+      localStorage.setItem("leave_applications", JSON.stringify(updated));
       localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
       return updated;
     });
