@@ -398,6 +398,19 @@ export const DriverLeaveView: React.FC = () => {
             </div>
 
             <form onSubmit={handleApplySubmit} className="p-4 sm:p-5 space-y-4">
+              {/* Applicant Employee */}
+              <div className="space-y-1">
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
+                  Applicant Employee <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={`${matchedDriver.driverName || user?.name || 'Nag Sahoo'} (${matchedDriver.employeeId || 'STF-2026-0003'} - Driver)`}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-not-allowed outline-none"
+                />
+              </div>
+
               {/* Leave Type Select */}
               <div className="space-y-1">
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300">

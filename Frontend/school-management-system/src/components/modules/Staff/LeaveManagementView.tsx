@@ -243,7 +243,12 @@ export const LeaveManagementView: React.FC = () => {
     attachments: [] as string[]
   });
 
-  const selectedStaffMember = (isTeacher && teacherStaffMember) ? teacherStaffMember : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
+  const selectedStaffMember = isDriver
+    ? driverStaffMember
+    : (isTeacher && teacherStaffMember)
+    ? teacherStaffMember
+    : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
+
   const selectedLeaveType = leaveTypes.find(t => t.id === applyForm.leaveTypeId);
 
   const calculateDays = (from: string, to: string, half: boolean) => {
@@ -269,7 +274,9 @@ export const LeaveManagementView: React.FC = () => {
   // Submit Leave application
   const handleApplySubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const employee = (isTeacher && teacherStaffMember) 
+    const employee = isDriver
+      ? driverStaffMember
+      : (isTeacher && teacherStaffMember) 
       ? teacherStaffMember 
       : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
 
@@ -1056,11 +1063,17 @@ export const LeaveManagementView: React.FC = () => {
                 <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
                   Applicant Employee <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                {isTeacher && teacherStaffMember ? (
+                {isSelfServiceStaff || isDriver || isTeacher ? (
                   <input
                     type="text"
                     disabled
-                    value={`${teacherStaffMember.firstName} ${teacherStaffMember.lastName} (${teacherStaffMember.empId} - ${teacherStaffMember.designation || 'Teacher'})`}
+                    value={
+                      isDriver && driverStaffMember
+                        ? `${driverStaffMember.firstName || ''} ${driverStaffMember.lastName || ''} (${driverStaffMember.empId || driverStaffMember.employeeId || 'STF-2026-0003'} - ${driverStaffMember.designation || 'Driver'})`.trim()
+                        : teacherStaffMember
+                        ? `${teacherStaffMember.firstName} ${teacherStaffMember.lastName} (${teacherStaffMember.empId} - ${teacherStaffMember.designation || 'Teacher'})`
+                        : `${user?.name || 'Nag Sahoo'} (${(user as any)?.empId || user?.id || 'STF-2026-0003'} - Driver)`
+                    }
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold cursor-not-allowed outline-none text-xs"
                   />
                 ) : (
