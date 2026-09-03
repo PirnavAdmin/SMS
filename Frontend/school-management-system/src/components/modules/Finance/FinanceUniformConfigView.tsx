@@ -6,6 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { getUniformPackageFeeByClass, normalizeUniformCategoryName } from '../../../utils/uniformUtils';
+import { Pagination } from '../../common/Pagination';
 
 export const FinanceUniformConfigView: React.FC = () => {
   const {
@@ -26,6 +27,8 @@ export const FinanceUniformConfigView: React.FC = () => {
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<FinanceUniformConfig | null>(null);
   const [deletingConfig, setDeletingConfig] = useState<FinanceUniformConfig | null>(null);
@@ -89,6 +92,10 @@ export const FinanceUniformConfigView: React.FC = () => {
 
     return matchQuery && matchClass;
   });
+
+  const paginatedConfigs = React.useMemo(() => {
+    return filteredConfigs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredConfigs, currentPage, itemsPerPage]);
 
   // Dynamic uniform items mapped from Uniform Management module into Base Package and Additional Purchase
   const uniformItemsList = React.useMemo(() => {
@@ -275,14 +282,20 @@ export const FinanceUniformConfigView: React.FC = () => {
             type="text"
             placeholder="Search uniform config by package or branch..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => {
+              setQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
           />
         </div>
 
         <select
           value={filterClass}
-          onChange={e => setFilterClass(e.target.value)}
+          onChange={e => {
+            setFilterClass(e.target.value);
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
         >
           <option value="All">All Classes ({academicClasses.length})</option>
@@ -312,16 +325,27 @@ export const FinanceUniformConfigView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredConfigs.map(c => (
+                paginatedConfigs.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                       <Shirt className="w-4 h-4 text-sky-500 shrink-0" /> {c.className}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
                       {(() => {
-                        let pkgStr = c.uniformPackage || '';
-                        if (pkgStr.toLowerCase().includes('base package') || pkgStr.toLowerCase() === 'base package') {
-                          pkgStr = 'Uniform Base Package (Admission Kit)';
+                        let pkgStr = (c.uniformPackage || '').trim();
+                        const lower = pkgStr.toLowerCase();
+
+                        if (!lower.includes('boys') && !lower.includes('girls')) {
+                          if (lower.includes('base package') || lower.includes('admission kit') || lower === 'base package') {
+                            const genLower = (c.gender || '').toLowerCase();
+                            if (genLower === 'female' || genLower.includes('girl')) {
+                              pkgStr = 'Girls Base Package (Admission Kit)';
+                            } else if (genLower === 'male' || genLower.includes('boy')) {
+                              pkgStr = 'Boys Base Package (Admission Kit)';
+                            } else {
+                              pkgStr = 'Base Package (Admission Kit)';
+                            }
+                          }
                         }
                         return `${pkgStr} ${(c as any).fabricMeterage ? `[${(c as any).fabricMeterage}]` : ''}`.trim();
                       })()}
@@ -355,6 +379,20 @@ export const FinanceUniformConfigView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {filteredConfigs.length > 0 && (
+          <div className="px-4 pb-4">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredConfigs.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+              itemsPerPageOptions={[10, 25, 50, 100]}
+              label="configurations"
+            />
+          </div>
+        )}
       </div>
 
       {/* Modal */}
