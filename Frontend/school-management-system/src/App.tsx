@@ -28,6 +28,10 @@ import { LeaveManagementView } from "./components/modules/Staff/LeaveManagementV
 import { StaffAttendanceView } from "./components/modules/Staff/StaffAttendanceView";
 import { PayrollModuleView } from "./components/modules/Staff/PayrollModuleViewSimple";
 import { TeacherPayslipsView } from "./components/modules/Staff/TeacherPayslipsView";
+import { DriverProfileView } from "./components/modules/Staff/DriverProfileView";
+import { DriverAttendanceView } from "./components/modules/Staff/DriverAttendanceView";
+import { DriverLeaveView } from "./components/modules/Staff/DriverLeaveView";
+import { DriverPayslipsView } from "./components/modules/Staff/DriverPayslipsView";
 import { AdmissionsView } from "./components/modules/Admissions/AdmissionsView";
 import { AcademicDashboardView } from "./components/modules/Academics/AcademicDashboardView";
 import { ClassManagementWorkspace } from "./components/modules/Academics/ClassManagementWorkspace";
@@ -52,6 +56,7 @@ import { LibrarianAttendanceView } from "./components/modules/Library/LibrarianA
 import { LibraryTimetableView } from "./components/modules/Library/LibraryTimetableView";
 import { TransportView } from "./components/modules/Transport/TransportView";
 import { TransportContainerView } from "./components/modules/Transport/TransportContainerView";
+import { DriverTransportPortalView } from "./components/modules/Transport/DriverTransportPortalView";
 import { HostelView } from "./components/modules/Hostel/HostelView";
 import { HostelContainerView } from "./components/modules/Hostel/HostelContainerView";
 import { InventoryView } from "./components/modules/Inventory/InventoryView";
@@ -282,18 +287,28 @@ const MainLayout: React.FC = () => {
         ) : (
           <AlumniView />
         );
+      case "driver-profile":
+        return <DriverProfileView />;
+      case "driver-attendance":
+        return <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />;
+      case "driver-leave":
+        return <LeaveManagementView />;
+      case "driver-payslips":
+        return <TeacherPayslipsView />;
       case "teacher-profile":
       case "teacher-my-profile":
-        return <TeacherProfileView />;
+        return userRole === "driver" ? <DriverProfileView /> : <TeacherProfileView />;
       case "staff":
       case "staff-teachers":
       case "staff-directory":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
         if (userRole === "teacher") return <TeacherProfileView />;
+        if (userRole === "driver") return <DriverProfileView />;
         return <StaffList onNavigate={setActiveModule} />;
       case "staff-non-teaching":
         if (userRole === "teacher") return <TeacherProfileView />;
+        if (userRole === "driver") return <DriverProfileView />;
         return userRole === "parent" || userRole === "student" ? (
           <ParentTeacherInfoView />
         ) : (
@@ -301,30 +316,25 @@ const MainLayout: React.FC = () => {
         );
       case "staff-add":
         if (userRole === "teacher") return <TeacherProfileView />;
+        if (userRole === "driver") return <DriverProfileView />;
         return userRole === "parent" || userRole === "student" ? (
           <ParentTeacherInfoView />
         ) : (
           <StaffRegistrationPage onNavigate={setActiveModule} />
         );
       case "staff-attendance":
-        return userRole === "parent" || userRole === "student" ? (
-          <ParentTeacherInfoView />
-        ) : (
-          <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />
-        );
+        if (userRole === "parent" || userRole === "student")
+          return <ParentTeacherInfoView />;
+        return <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />;
       case "staff-leave":
-        return userRole === "parent" || userRole === "student" ? (
-          <ParentTeacherInfoView />
-        ) : (
-          <LeaveManagementView />
-        );
+        if (userRole === "parent" || userRole === "student")
+          return <ParentTeacherInfoView />;
+        return <LeaveManagementView />;
       case "staff-my-payslips":
       case "teacher-payslips":
-        return userRole === "parent" || userRole === "student" ? (
-          <ParentTeacherInfoView />
-        ) : (
-          <TeacherPayslipsView />
-        );
+        if (userRole === "parent" || userRole === "student")
+          return <ParentTeacherInfoView />;
+        return <TeacherPayslipsView />;
       case "admissions":
       case "admissions-add":
         return userRole === "parent" || userRole === "student" ? (
@@ -449,9 +459,13 @@ const MainLayout: React.FC = () => {
       case "library-timetable":
         return <LibraryTimetableView />;
       case "transport":
-        return userRole === "parent" || userRole === "student" ? (
-          <ParentBusInfoView />
-        ) : (
+        if (userRole === "parent" || userRole === "student") {
+          return <ParentBusInfoView />;
+        }
+        if (userRole === "driver") {
+          return <DriverTransportPortalView onNavigate={setActiveModule} />;
+        }
+        return (
           <TransportContainerView
             initialTab="transport-dashboard"
             onTabChange={setActiveModule}

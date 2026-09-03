@@ -21,7 +21,7 @@ public class LibrarianAttendance
 
     public string CheckInTime { get; set; } = "08:30 AM";
 
-    public string CheckOutTime { get; set; } = "05:00 PM";
+    public string? CheckOutTime { get; set; } = "05:00 PM";
 
     public double TotalHours { get; set; } = 8.5;
 

@@ -73,9 +73,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
 
+        var studentIntIds = students.Select(s => s.StudentId).ToList();
         var hostelAllocations = await _context.StudentBedAllocations.AsNoTracking()
-            .Where(b => studentIdsStr.Contains(b.StudentId.ToString()) && b.Status == "Occupied")
-            .Select(b => b.StudentId)
+            .Where(b => b.StudentId.HasValue && studentIntIds.Contains(b.StudentId.Value) && b.Status == "Occupied")
+            .Select(b => b.StudentId!.Value)
             .ToListAsync();
 
         var items = new List<FeeCollectionStudentSummaryDto>();

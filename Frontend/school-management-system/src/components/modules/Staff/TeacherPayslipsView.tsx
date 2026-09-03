@@ -32,19 +32,40 @@ export const TeacherPayslipsView: React.FC = () => {
   const [itemsPerPage] = useState(5);
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
-  // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
-  const teachingStaff = staff.filter(s => {
-    const des = (s.designation || '').toLowerCase();
-    const dept = (s.department || '').toLowerCase();
-    const cat = (s.employeeCategory || '').toLowerCase();
-    return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
-  });
+  const isDriver = (user?.role || '').toLowerCase() === 'driver';
 
-  const teacherStaffMember = teachingStaff.find(s =>
-    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
-    (s.phone && user?.phone && s.phone === user.phone) ||
-    (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
-  ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
+  const teacherStaffMember = useMemo(() => {
+    const uEmail = user?.email?.toLowerCase().trim();
+    const uName = user?.name?.toLowerCase().trim();
+    const uRole = (user?.role || '').toLowerCase();
+
+    // 1. Direct match on email / name / id in full staff list
+    const directMatch = staff.find(s =>
+      (uEmail && s.email && s.email.toLowerCase().trim() === uEmail) ||
+      (uName && `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim() === uName) ||
+      (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
+    );
+    if (directMatch) return directMatch;
+
+    // 2. Driver role fallback
+    if (uRole === 'driver') {
+      const driverStaff = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('driver') ||
+        (s.department || '').toLowerCase().includes('transport')
+      );
+      if (driverStaff) return driverStaff;
+    }
+
+    // 3. Teaching staff fallback for teachers
+    const teachingStaff = staff.filter(s => {
+      const des = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      const cat = (s.employeeCategory || '').toLowerCase();
+      return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
+    });
+
+    return teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
+  }, [staff, user]);
 
   // Synthesize realistic historical payslips for the teacher if none or few exist in state
   const teacherPayslips: Payslip[] = useMemo(() => {
@@ -83,6 +104,15 @@ export const TeacherPayslipsView: React.FC = () => {
         basicSalary: m.basic,
         hra: m.hra,
         da: m.da,
+        grossSalary: gross,
+        pfDeduction: m.pf,
+        lopDeduction: m.lop,
+        otherDeductions: 200,
+        netSalary: net,
+        bankAccount: teacherStaffMember?.bankDetails?.accountNumber || 'XXXX-XXXX-4829',
+        disbursedDate: m.date,
+        paymentDate: m.date,
+        status: 'Paid',
         grossSalary: gross,
         pfDeduction: m.pf,
         lopDeduction: m.lop,
@@ -350,50 +380,47 @@ export const TeacherPayslipsView: React.FC = () => {
   }, [sortedPayslips]);
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <IndianRupee className="w-6 h-6 text-brand-600" /> My Payslips
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <IndianRupee className="w-5 h-5 text-sky-600 dark:text-sky-400" /> My Payslips
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            View and download your monthly salary slips and payment statements.
-          </p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 flex items-center justify-center font-bold shrink-0">
-            <FileText className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="glass-card p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 flex items-center justify-center font-bold shrink-0">
+            <FileText className="w-5 h-5" />
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400">Available Statements</span>
-            <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{sortedPayslips.length} Payslips</p>
+            <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mt-0.5">{sortedPayslips.length} Payslips</p>
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center font-bold shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
+        <div className="glass-card p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center font-bold shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">Latest Statement</span>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+            <p className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
               {latestPayslip ? latestPayslip.month : 'N/A'}
             </p>
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 flex items-center justify-center font-bold shrink-0">
-            <IndianRupee className="w-6 h-6" />
+        <div className="glass-card p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 flex items-center justify-center font-bold shrink-0">
+            <IndianRupee className="w-5 h-5" />
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400">Total Net Salary Paid</span>
-            <p className="text-xl font-black text-sky-600 dark:text-sky-400 mt-0.5">
+            <p className="text-lg sm:text-xl font-black text-sky-600 dark:text-sky-400 mt-0.5">
               {formatCurrency(totalNetDisbursed)}
             </p>
           </div>
@@ -401,15 +428,15 @@ export const TeacherPayslipsView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+      <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by pay month..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none focus:border-sky-500"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none focus:border-sky-500"
           />
         </div>
 
@@ -418,82 +445,82 @@ export const TeacherPayslipsView: React.FC = () => {
             <select
               value={selectedYear}
               onChange={e => setSelectedYear(e.target.value)}
-              className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
             >
               <option value="All">All Years</option>
               <option value="2026">Year 2026</option>
               <option value="2025">Year 2025</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           <div className="relative">
             <select
               value={sortOrder}
               onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')}
-              className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
             >
               <option value="desc">Sort: Latest Month First</option>
               <option value="asc">Sort: Oldest Month First</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
       </div>
 
       {/* Payslips Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border">
+      <div className="glass-card rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-center border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
-                <th className="py-3.5 px-4 text-center">S.No.</th>
-                <th className="py-3.5 px-4 text-center">Pay Month</th>
-                <th className="py-3.5 px-4 text-center">Disbursed Date</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center">Actions</th>
+              <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                <th className="py-2.5 px-3 text-center">S.No.</th>
+                <th className="py-2.5 px-3 text-center">Pay Month</th>
+                <th className="py-2.5 px-3 text-center">Disbursed Date</th>
+                <th className="py-2.5 px-3 text-center">Status</th>
+                <th className="py-2.5 px-3 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
               {paginatedPayslips.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                  <td colSpan={5} className="text-center py-8 text-slate-400 font-medium">
                     No payslips found matching your search.
                   </td>
                 </tr>
               ) : (
                 paginatedPayslips.map((p, idx) => (
-                  <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-500 text-center">
+                  <tr key={p.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-500 text-center">
                       {(currentPage - 1) * itemsPerPage + idx + 1}
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-center">
-                      <span className="inline-flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-sky-600" />
+                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white text-center">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                         {p.month}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-500 text-center">
+                    <td className="py-2.5 px-3 font-mono text-slate-500 dark:text-slate-400 text-center">
                       {p.disbursedDate}
                     </td>
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-2.5 px-3 text-center">
                       <Badge variant="success">Disbursed</Badge>
                     </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => setViewingPayslip(p)}
-                          className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                          title="Preview Payslip"
+                          className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-600 dark:text-sky-400 border border-sky-200/80 dark:border-sky-800 transition-colors cursor-pointer shadow-xs"
+                          title="View Payslip"
                         >
-                          <Eye className="w-3.5 h-3.5 text-sky-600" /> View
+                          <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDownloadPayslip(p)}
-                          className="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                          className="p-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-xs transition-all cursor-pointer"
                           title="Download PDF / Print"
                         >
-                          <Download className="w-3.5 h-3.5" /> Download
+                          <Download className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -506,20 +533,20 @@ export const TeacherPayslipsView: React.FC = () => {
 
         {/* Pagination Controls */}
         {sortedPayslips.length > 0 && (
-          <div className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="text-slate-500 font-medium">
               Showing <span className="font-bold text-slate-800 dark:text-slate-200">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
               <span className="font-bold text-slate-800 dark:text-slate-200">{Math.min(currentPage * itemsPerPage, sortedPayslips.length)}</span> of{' '}
               <span className="font-bold text-slate-800 dark:text-slate-200">{sortedPayslips.length}</span> payslips
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 flex items-center gap-1 cursor-pointer transition-all"
+                className="px-2.5 py-1 rounded-lg border bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 flex items-center gap-1 cursor-pointer transition-all text-xs"
               >
-                <ChevronLeft className="w-4 h-4" /> Previous
+                <ChevronLeft className="w-3.5 h-3.5" /> Previous
               </button>
 
               <div className="flex items-center gap-1">
@@ -527,9 +554,9 @@ export const TeacherPayslipsView: React.FC = () => {
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-lg font-bold text-xs transition-all cursor-pointer ${
                       currentPage === page
-                        ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20'
+                        ? 'bg-sky-600 text-white shadow-xs'
                         : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border hover:bg-slate-50'
                     }`}
                   >
@@ -541,9 +568,9 @@ export const TeacherPayslipsView: React.FC = () => {
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 flex items-center gap-1 cursor-pointer transition-all"
+                className="px-2.5 py-1 rounded-lg border bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 flex items-center gap-1 cursor-pointer transition-all text-xs"
               >
-                Next <ChevronRight className="w-4 h-4" />
+                Next <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

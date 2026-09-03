@@ -3253,6 +3253,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
   }, [attendance]);
   useEffect(() => {
+    localStorage.setItem("edu_db_leave_applications", JSON.stringify(leaveApplications));
+    localStorage.setItem("leave_applications", JSON.stringify(leaveApplications));
+  }, [leaveApplications]);
+  useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
   }, [subjects]);
   useEffect(() => {
@@ -5976,6 +5980,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchStudents();
 
       if (!isParentOrStudent) {
+        fetchStaff();
         fetchAcademicClasses();
         fetchSubjects();
         fetchPeriods();
@@ -5985,6 +5990,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchPayrollComponents();
         fetchPayrollRuns();
         fetchPayslips();
+        fetchLeaveApplications();
+        fetchLeaveTypes();
+        fetchLeaveBalances();
+        fetchDailyAttendance(new Date().toISOString().split("T")[0]);
       }
     }
     const allowedAdmissionsRoles = [
@@ -5995,7 +6004,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
-      fetchStaff();
     }
   }, [isAuthenticated, role]);
 
@@ -12399,8 +12407,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ?.toLowerCase()
               .includes(
                 `${student.firstName.toLowerCase()} ${student.lastName.toLowerCase()}`,
-              ))),
-    );
+              )))
+    ).filter((t) => {
+      const descLow = (t.description || "").toLowerCase();
+      const isReturnedIssue = (studentUniformIssues || []).some((i) => {
+        const isStudent =
+          i.studentId === targetId || (admNo && i.admissionNo === admNo);
+        if (!isStudent) return false;
+        const isRet =
+          (i.status as string) === "Returned" ||
+          (i.status as string) === "Cancelled" ||
+          (i.notes || "").toLowerCase().includes("returned");
+        if (!isRet) return false;
+        const itemClean = (i.itemName || i.itemCategory || "")
+          .replace(/\s*\(extra\)/gi, "")
+          .trim()
+          .toLowerCase();
+        return itemClean && itemClean.length > 2 && descLow.includes(itemClean);
+      });
+      return !isReturnedIssue;
+    });
 
     const totalFromTxns = extraTxns.reduce(
       (sum, t) => sum + (t.amount || 0),
@@ -16314,88 +16340,167 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setUniformInventory((prev) => prev.filter((i) => i.id !== id));
   };
 
-  // Student Uniform issues CRUD
-  const addStudentUniformIssue = async (
-    issueData: Omit<StudentUniformIssue, "id">,
+  // Helper to sync inventory & catalog stock on issue or return
+  const syncUniformStockOnIssueOrReturn = (
+    action: "issue" | "return",
+    itemInfo: {
+      itemId?: string;
+      itemName?: string;
+      itemCategory?: string;
+      quantity?: number;
+      size?: string;
+    }
   ) => {
-    const id = "UIS-" + Math.floor(10 + Math.random() * 90);
+    const qty = Number(itemInfo.quantity) || 1;
+    const rawName = (itemInfo.itemName || itemInfo.itemCategory || '').trim();
+    if (!rawName && !itemInfo.itemId) return;
 
-    // Reduce stock if issued
-    if (issueData.status === "Issued" || issueData.status === "Replaced") {
-      const issueItemName = (issueData.itemName || "")
-        .replace(/\(extra\)/gi, "")
-        .replace(/\(extra purchase\)/gi, "")
-        .toLowerCase()
-        .trim();
-      let calculatedNewStock: number | null = null;
+    const cleanName = rawName
+      .replace(/\s*\(extra\)/gi, '')
+      .replace(/\s*\(extra purchase\)/gi, '')
+      .replace(/\s*\(admission kit\)/gi, '')
+      .replace(/\s*\(base admission kit\)/gi, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
 
-      setUniformInventory((prevInv) => {
-        let idx = prevInv.findIndex((i) =>
-          Boolean(
-            issueData.itemId &&
-            (i.itemId === issueData.itemId || i.id === issueData.itemId),
-          ),
-        );
-        if (idx === -1 && issueItemName) {
-          idx = prevInv.findIndex((i) => {
-            const itemCat = (i.category || "").toLowerCase().trim();
-            const itemName = (i.itemName || "").toLowerCase().trim();
-            return (
-              itemName === issueItemName ||
-              itemCat === issueItemName ||
-              itemName.includes(issueItemName) ||
-              issueItemName.includes(itemName)
-            );
-          });
-        }
-        if (idx === -1) return prevInv;
-        return prevInv.map((item, index) => {
+    const normSize = (itemInfo.size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // 1. Update uniformInventory
+    setUniformInventory((prevInv) => {
+      let idx = prevInv.findIndex((i) =>
+        Boolean(itemInfo.itemId && (i.itemId === itemInfo.itemId || i.id === itemInfo.itemId))
+      );
+
+      if (idx === -1 && cleanName) {
+        idx = prevInv.findIndex((i) => {
+          const invCat = (i.category || i.itemName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const invName = (i.itemName || i.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+          const nameMatch =
+            invCat === cleanName ||
+            invName === cleanName ||
+            invCat.includes(cleanName) ||
+            cleanName.includes(invCat) ||
+            invName.includes(cleanName) ||
+            cleanName.includes(invName);
+
+          if (nameMatch) {
+            if (normSize && (i.size || (i as any).meterRange)) {
+              const invSize = (i.size || (i as any).meterRange || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              return invSize === normSize || invSize.includes(normSize) || normSize.includes(invSize);
+            }
+            return true;
+          }
+
+          // Keyword fallback matches for Girls Package, Boys Package, Cloth, Sports
+          if (cleanName.includes('girl') && (invCat.includes('girl') || invName.includes('girl'))) return true;
+          if (cleanName.includes('boy') && (invCat.includes('boy') || invName.includes('boy'))) return true;
+          if ((cleanName.includes('cloth') || cleanName.includes('fabric')) && (invCat.includes('cloth') || invCat.includes('fabric') || invName.includes('cloth') || invName.includes('fabric'))) return true;
+
+          return false;
+        });
+      }
+
+      let updatedInv = prevInv;
+
+      if (idx !== -1) {
+        updatedInv = prevInv.map((item, index) => {
           if (index === idx) {
-            calculatedNewStock = Math.max(
-              0,
-              item.currentStock - issueData.quantity,
-            );
+            const newStock = action === "issue"
+              ? Math.max(0, item.currentStock - qty)
+              : item.currentStock + qty;
+
             const newStatus =
-              calculatedNewStock === 0
+              newStock === 0
                 ? "Out of Stock"
-                : calculatedNewStock <= (item.minimumStock || 10)
+                : newStock <= (item.minimumStock || 10)
                   ? "Low Stock"
                   : "In Stock";
+
             return {
               ...item,
-              currentStock: calculatedNewStock,
+              currentStock: newStock,
               status: newStatus,
+              lastUpdated: new Date().toISOString().split('T')[0]
             };
           }
           return item;
         });
+      } else if (action === "issue" && rawName) {
+        const newInvItem: UniformInventoryItem = {
+          id: `INV-AUTO-${Date.now()}`,
+          itemId: itemInfo.itemId || `ITEM-${Date.now()}`,
+          itemName: rawName,
+          category: rawName,
+          size: itemInfo.size || 'M',
+          color: 'Standard',
+          openingStock: 100,
+          currentStock: Math.max(0, 100 - qty),
+          minimumStock: 10,
+          unitPrice: 500,
+          supplier: 'Main Warehouse',
+          lastUpdated: new Date().toISOString().split('T')[0],
+          status: (100 - qty) <= 10 ? 'Low Stock' : 'In Stock'
+        };
+        updatedInv = [newInvItem, ...prevInv];
+      }
+
+      try {
+        localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(updatedInv));
+        localStorage.setItem("uniform_inventory", JSON.stringify(updatedInv));
+      } catch (e) {}
+
+      return updatedInv;
+    });
+
+    // 2. Update uniforms catalog availableStock
+    setUniforms((prevU) => {
+      let idx = prevU.findIndex((u) => Boolean(itemInfo.itemId && u.id === itemInfo.itemId));
+
+      if (idx === -1 && cleanName) {
+        idx = prevU.findIndex((u) => {
+          const uCat = (u.category || u.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const isMatch = uCat === cleanName || uCat.includes(cleanName) || cleanName.includes(uCat);
+          if (isMatch) return true;
+          if (cleanName.includes('girl') && uCat.includes('girl')) return true;
+          if (cleanName.includes('boy') && uCat.includes('boy')) return true;
+          if ((cleanName.includes('cloth') || cleanName.includes('fabric')) && (uCat.includes('cloth') || uCat.includes('fabric'))) return true;
+          return false;
+        });
+      }
+
+      if (idx === -1) return prevU;
+
+      const updatedU = prevU.map((u, index) => {
+        if (index === idx) {
+          const curAvail = u.availableStock !== undefined ? u.availableStock : (u.openingStock || 100);
+          const nextAvail = action === "issue" ? Math.max(0, curAvail - qty) : curAvail + qty;
+          return { ...u, availableStock: nextAvail };
+        }
+        return u;
       });
 
-      setUniforms((prevU) => {
-        let idx = prevU.findIndex((u) =>
-          Boolean(issueData.itemId && u.id === issueData.itemId),
-        );
-        if (idx === -1 && issueItemName) {
-          const normIssueSize = (issueData.size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          idx = prevU.findIndex((u) => {
-            const uCat = (u.category || u.name || "").toLowerCase().trim();
-            const isCatMatch = uCat === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
-            if (!isCatMatch) return false;
-            if (normIssueSize) {
-              const uSizeNorm = (u.size || (u as any).meterRange || "").toLowerCase().replace(/[^a-z0-9]/g, '');
-              return uSizeNorm === normIssueSize || uSizeNorm.includes(normIssueSize) || normIssueSize.includes(uSizeNorm);
-            }
-            return true;
-          });
-        }
-        if (idx === -1) return prevU;
-        return prevU.map((u, index) => {
-          if (index === idx) {
-            const nextAvail = Math.max(0, (u.availableStock || 0) - issueData.quantity);
-            return { ...u, availableStock: nextAvail };
-          }
-          return u;
-        });
+      try {
+        localStorage.setItem("edu_db_uniforms", JSON.stringify(updatedU));
+        localStorage.setItem("uniforms", JSON.stringify(updatedU));
+      } catch (e) {}
+
+      return updatedU;
+    });
+  };
+
+  // Student Uniform issues CRUD
+  const addStudentUniformIssue = async (
+    issueData: Omit<StudentUniformIssue, "id">,
+  ) => {
+    // Reduce warehouse inventory & catalog stock if issued
+    if (issueData.status === "Issued" || issueData.status === "Replaced" || !issueData.status) {
+      syncUniformStockOnIssueOrReturn("issue", {
+        itemId: issueData.itemId,
+        itemName: issueData.itemName,
+        itemCategory: (issueData as any).itemCategory,
+        quantity: issueData.quantity,
+        size: issueData.size
       });
     }
 
@@ -16473,118 +16578,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStatus = updates.status;
     const qty = issueToUpdate.quantity;
     const issueItemName = (issueToUpdate.itemName || "").toLowerCase();
-    const cleanIssueItemName = issueItemName.replace(/\s*\(extra\)/gi, "").trim();
     const itemId = issueToUpdate.itemId;
 
-    // Returning an item (increases stock by exact quantity)
+    // Adjust inventory stock on status change
     if (newStatus === "Returned" && oldStatus !== "Returned") {
-      let calculatedNewStock: number | null = null;
-
-      setUniformInventory((prevInv) => {
-        let idx = prevInv.findIndex((i) =>
-          Boolean(itemId && (i.itemId === itemId || i.id === itemId)),
-        );
-        if (idx === -1 && cleanIssueItemName) {
-          idx = prevInv.findIndex((i) => {
-            const itemCat = (i.category || "").toLowerCase();
-            const itemName = (i.itemName || "").toLowerCase();
-            return itemName === cleanIssueItemName || itemCat === cleanIssueItemName || itemName.includes(cleanIssueItemName) || cleanIssueItemName.includes(itemName);
-          });
-        }
-        if (idx === -1) return prevInv;
-        return prevInv.map((item, index) => {
-          if (index === idx) {
-            calculatedNewStock = item.currentStock + qty;
-            const st =
-              calculatedNewStock === 0
-                ? "Out of Stock"
-                : calculatedNewStock <= (item.minimumStock || 10)
-                  ? "Low Stock"
-                  : "In Stock";
-            return { ...item, currentStock: calculatedNewStock, status: st };
-          }
-          return item;
-        });
+      syncUniformStockOnIssueOrReturn("return", {
+        itemId: issueToUpdate.itemId,
+        itemName: issueToUpdate.itemName,
+        quantity: issueToUpdate.quantity,
+        size: issueToUpdate.size
       });
-
-      setUniforms((prevU) => {
-        let idx = prevU.findIndex((u) => Boolean(itemId && u.id === itemId));
-        if (idx === -1 && cleanIssueItemName) {
-          idx = prevU.findIndex((u) => {
-            const uCat = (u.category || u.name || "").toLowerCase().trim();
-            const isCatMatch = uCat === cleanIssueItemName || uCat.includes(cleanIssueItemName) || cleanIssueItemName.includes(uCat);
-            if (!isCatMatch) return false;
-            if (issueToUpdate.size) {
-              return (u.size || u.meterRange || "").toLowerCase().trim() === issueToUpdate.size.toLowerCase().trim();
-            }
-            return true;
-          });
-        }
-        if (idx === -1) return prevU;
-        return prevU.map((u, index) => {
-          if (index === idx) {
-            const maxCap = u.openingStock !== undefined ? u.openingStock : (u.initialStock !== undefined ? u.initialStock : 150);
-            const nextAvail = Math.min(maxCap, (u.availableStock || 0) + qty);
-            return { ...u, availableStock: nextAvail };
-          }
-          return u;
-        });
-      });
-    }
-    // Re-issuing a returned item (decreases stock)
-    else if (
-      (newStatus === "Issued" || newStatus === "Replaced") &&
-      oldStatus === "Returned"
-    ) {
-      let calculatedNewStock: number | null = null;
-
-      setUniformInventory((prevInv) => {
-        let idx = prevInv.findIndex((i) =>
-          Boolean(itemId && (i.itemId === itemId || i.id === itemId)),
-        );
-        if (idx === -1 && issueItemName) {
-          idx = prevInv.findIndex((i) => {
-            const itemCat = (i.category || "").toLowerCase();
-            const itemName = (i.itemName || "").toLowerCase();
-            return itemName === issueItemName || itemCat === issueItemName;
-          });
-        }
-        if (idx === -1) return prevInv;
-        return prevInv.map((item, index) => {
-          if (index === idx) {
-            calculatedNewStock = Math.max(0, item.currentStock - qty);
-            const st =
-              calculatedNewStock === 0
-                ? "Out of Stock"
-                : calculatedNewStock <= (item.minimumStock || 10)
-                  ? "Low Stock"
-                  : "In Stock";
-            return { ...item, currentStock: calculatedNewStock, status: st };
-          }
-          return item;
-        });
-      });
-
-      setUniforms((prevU) => {
-        let idx = prevU.findIndex((u) => Boolean(itemId && u.id === itemId));
-        if (idx === -1 && issueItemName) {
-          idx = prevU.findIndex((u) => {
-            const uCat = (u.category || "").toLowerCase();
-            const uName = (u.name || "").toLowerCase();
-            return uCat === issueItemName || uName === issueItemName;
-          });
-        }
-        if (idx === -1) return prevU;
-        return prevU.map((u, index) => {
-          if (index === idx) {
-            const nextAvail =
-              calculatedNewStock !== null
-                ? calculatedNewStock
-                : Math.max(0, (u.availableStock || 0) - qty);
-            return { ...u, availableStock: nextAvail };
-          }
-          return u;
-        });
+    } else if ((newStatus === "Issued" || newStatus === "Replaced") && oldStatus === "Returned") {
+      syncUniformStockOnIssueOrReturn("issue", {
+        itemId: issueToUpdate.itemId,
+        itemName: issueToUpdate.itemName,
+        quantity: issueToUpdate.quantity,
+        size: issueToUpdate.size
       });
     }
     // Handling Size Exchange (e.g. exchanging from Size L to Size M)
@@ -17023,37 +17032,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     const promise = (async () => {
       try {
+        const normalizeLeaveStatus = (st: string | undefined): LeaveApplication["status"] => {
+          if (!st) return "Pending";
+          const lower = st.trim().toLowerCase();
+          if (lower === "approved") return "Approved";
+          if (lower === "rejected") return "Rejected";
+          if (lower === "cancelled" || lower === "canceled") return "Cancelled";
+          return "Pending";
+        };
+
         const response = await fetchLeaveApplicationsApi();
         if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
             id:
               item.leaveApplicationId?.toString() || item.id?.toString() || "",
             employeeId: item.staffId?.toString() || item.id?.toString() || "",
-            employeeName: item.staffName,
+            employeeName: item.staffName || item.employeeName || "Staff Member",
             empId: item.empId || item.employeeId,
-            department: item.department || "Administration",
+            department: item.department || "Transport Dept",
             designation: item.designation || "Staff",
             branchId: activeBranchId || "BR-001",
             branch: item.branch || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
             leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
-            leaveTypeName: item.leaveTypeName,
+            leaveTypeName: item.leaveTypeName || "Leave",
             fromDate: item.fromDate,
             toDate: item.toDate,
             isHalfDay: item.isHalfDay,
-            numberOfDays: item.requestedDays,
-            reason: item.reason,
+            numberOfDays: Number(item.requestedDays || item.numberOfDays || item.daysCount || 1),
+            reason: item.reason || "",
             attachments: [],
-            status: item.status,
-            appliedDate: item.appliedDate,
+            status: normalizeLeaveStatus(item.status),
+            appliedDate: item.appliedDate || new Date().toISOString().split("T")[0],
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
           setLeaveApplications((prev) => {
             const apiIds = new Set(mapped.map((m) => m.id));
             const localOnly = prev.filter((p) => !apiIds.has(p.id));
-            return [...mapped, ...localOnly];
+            const merged = [...mapped, ...localOnly];
+            localStorage.setItem("edu_db_leave_applications", JSON.stringify(merged));
+            localStorage.setItem("leave_applications", JSON.stringify(merged));
+            return merged;
           });
         }
       } catch (err) {
@@ -17200,6 +17221,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setLeaveApplications((prev) => {
       const updated = [newApp, ...prev];
+      localStorage.setItem("edu_db_leave_applications", JSON.stringify(updated));
+      localStorage.setItem("leave_applications", JSON.stringify(updated));
       localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
       return updated;
     });

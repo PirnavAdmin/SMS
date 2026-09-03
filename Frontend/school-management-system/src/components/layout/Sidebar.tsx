@@ -118,6 +118,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
     activeModule === "teacher-profile" ||
+    activeModule.startsWith("driver-") ||
+    activeModule.startsWith("teacher-") ||
     activeModule.startsWith("parent-teacher-");
   const isAcademicsActive =
     activeModule.startsWith("academic-") ||
@@ -291,7 +293,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
 
   const transportSubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student" || role.toLowerCase() === "driver"
       ? []
       : [
           {
@@ -337,6 +339,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const staffSubItems =
     role.toLowerCase() === "parent" || role.toLowerCase() === "student"
       ? []
+      : role.toLowerCase() === "driver"
+      ? [
+          { id: "driver-profile", label: "My Profile", icon: User },
+          {
+            id: "driver-attendance",
+            label: "My Attendance",
+            icon: CalendarCheck,
+          },
+          { id: "driver-leave", label: "Leave Management", icon: FileText },
+          { id: "driver-payslips", label: "My Payslips", icon: IndianRupee },
+        ]
       : role.toLowerCase() === "teacher"
       ? [
           { id: "teacher-profile", label: "My Profile", icon: User },
@@ -809,6 +822,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               role.toLowerCase() === "student"
                             ) {
                               setActiveModule("parent-bus-info");
+                            } else if (role.toLowerCase() === "driver") {
+                              setActiveModule("transport");
                             } else {
                               setActiveModule("transport-dashboard");
                             }
@@ -833,6 +848,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               {role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
                                 ? "Transport"
+                                : role.toLowerCase() === "driver"
+                                ? "My Bus & Route"
                                 : "Transport Management"}
                             </span>
                           )}
@@ -1172,6 +1189,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               role.toLowerCase() === "student"
                             ) {
                               setActiveModule("parent-teacher-info");
+                            } else if (role.toLowerCase() === "driver") {
+                              setActiveModule("driver-profile");
                             } else if (role.toLowerCase() === "teacher") {
                               setActiveModule("teacher-profile");
                             } else {
@@ -1216,6 +1235,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isPayroll = sub.id === "staff-payroll";
                             const isSubActive =
                               activeModule === sub.id ||
+                              (sub.id === "driver-profile" &&
+                                ["driver-profile", "staff", "staff-directory"].includes(activeModule)) ||
+                              (sub.id === "driver-attendance" &&
+                                ["driver-attendance", "staff-attendance"].includes(activeModule)) ||
+                              (sub.id === "driver-leave" &&
+                                ["driver-leave", "staff-leave"].includes(activeModule)) ||
+                              (sub.id === "driver-payslips" &&
+                                ["driver-payslips", "staff-my-payslips", "teacher-payslips"].includes(activeModule)) ||
                               (sub.id === "teacher-profile" &&
                                 [
                                   "teacher-profile",

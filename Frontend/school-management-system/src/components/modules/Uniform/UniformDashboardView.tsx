@@ -306,7 +306,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Card 1: Total Items */}
         <div 
           onClick={() => onNavigate?.('masters', 'items')}
@@ -381,24 +381,6 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
           </div>
           <h3 className="text-lg font-black text-slate-900 dark:text-white mt-3">{lowStockItems} Items</h3>
         </div>
-
-        {/* Card 6: Extra Sales (Only extra items purchased outside admission kit) */}
-        <div 
-          onClick={() => onNavigate?.('reports', undefined, 'Additional Uniform Sales')}
-          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-sm transition-all group"
-          title="Click to view extra sales revenue"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Extra Sales</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-500 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all">
-              <IndianRupee className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white mt-2">{formatCurrency(extraItemsSalesValue)}</h3>
-            <p className="text-[9px] font-bold text-slate-400">Extra Counter Sales</p>
-          </div>
-        </div>
       </div>
 
       {/* Visual Analytics */}
@@ -454,35 +436,70 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
           <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
             {(() => {
               const catMap = new Map<string, number>();
-              (uniforms || []).forEach(u => {
-                const cat = u.category || u.name;
-                if (!cat) return;
-                const lower = cat.toLowerCase();
-                const szLower = (u.size || '').toLowerCase();
-                if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-                // Remove rogue Cloth Medium / M items
-                if ((lower.includes('cloth') || lower.includes('fabric')) && (szLower === 'medium' || szLower === 'm')) return;
 
-                const normCat = normalizeUniformCategoryName(cat);
-                const existing = catMap.get(normCat) || 0;
-                catMap.set(normCat, existing + (u.availableStock || 0));
+              (uniformInventory || []).forEach(inv => {
+                if (!inv) return;
+                const catName = inv.itemName || inv.category || '';
+                if (!catName) return;
+                const lower = catName.toLowerCase();
+                if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+
+                const normCat = normalizeUniformCategoryName(catName);
+                const currentVal = catMap.get(normCat) ?? inv.currentStock;
+                catMap.set(normCat, Math.min(currentVal, inv.currentStock));
               });
+
+              if (catMap.size === 0) {
+                (uniforms || []).forEach(u => {
+                  const cat = u.category || u.name;
+                  if (!cat) return;
+                  const lower = cat.toLowerCase();
+                  if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+                  const normCat = normalizeUniformCategoryName(cat);
+                  const existing = catMap.get(normCat) || 0;
+                  catMap.set(normCat, existing + (u.availableStock || 0));
+                });
+              }
+
+              const cleanNorm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+
               const grouped = Array.from(catMap.entries()).map(([category, stock]) => {
-                let finalStock = stock;
-                if (category.toLowerCase().includes('cloth')) {
-                  finalStock = Math.min(400, stock);
+                const normCatKey = cleanNorm(category);
+
+                const activeIssuedUnits = (studentUniformIssues || []).reduce((acc, issue) => {
+                  if (!issue || issue.status === 'Returned' || issue.status === 'Cancelled') return acc;
+                  const notesLower = (issue.notes || '').toLowerCase();
+                  if (notesLower.includes('returned') || notesLower.includes('cancelled')) return acc;
+
+                  const issueNameNorm = cleanNorm(issue.itemName || (issue as any).itemCategory || '');
+
+                  let isMatch = issueNameNorm === normCatKey || issueNameNorm.includes(normCatKey) || normCatKey.includes(issueNameNorm);
+                  if (!isMatch) {
+                    if (normCatKey.includes('girl') && issueNameNorm.includes('girl')) isMatch = true;
+                    if (normCatKey.includes('boy') && issueNameNorm.includes('boy')) isMatch = true;
+                    if ((normCatKey.includes('cloth') || normCatKey.includes('fabric')) && (issueNameNorm.includes('cloth') || issueNameNorm.includes('fabric'))) isMatch = true;
+                  }
+
+                  if (isMatch) {
+                    return acc + (Number(issue.quantity) || 1);
+                  }
+                  return acc;
+                }, 0);
+
+                let baseStock = stock;
+                if (category.toLowerCase().includes('package') || category.toLowerCase().includes('kit')) {
+                  baseStock = 100;
                 }
-                return { category, stock: finalStock };
+
+                const currentAvailStock = Math.max(0, baseStock - activeIssuedUnits);
+
+                return { category, stock: currentAvailStock, total: baseStock };
               });
+
               const colors = ['bg-sky-500', 'bg-blue-500', 'bg-emerald-500', 'bg-indigo-500', 'bg-purple-500'];
-              const maxCatStock = Math.max(...grouped.map(g => g.stock), 1);
 
               return grouped.map((item, i) => {
-                const issuedForCat = (studentUniformIssues || [])
-                  .filter(issue => (issue.status === 'Issued' || issue.status === 'Replaced') && (issue.itemName || '').toLowerCase().includes(item.category.toLowerCase()))
-                  .reduce((acc, issue) => acc + (Number(issue.quantity) || 1), 0);
-                const initialTotal = item.stock + issuedForCat;
-                const percent = initialTotal > 0 ? Math.min(100, Math.max(10, Math.round((item.stock / initialTotal) * 100))) : 100;
+                const percent = item.total > 0 ? Math.min(100, Math.max(10, Math.round((item.stock / item.total) * 100))) : 100;
                 return (
                   <div key={item.category} className="space-y-1">
                     <div className="flex justify-between text-xs font-semibold">

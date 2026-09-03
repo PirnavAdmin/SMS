@@ -10,7 +10,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
-  const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
+  const { login, loginOffline, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
 
   const [dynamicLogo, setDynamicLogo] = useState<string>(() => {

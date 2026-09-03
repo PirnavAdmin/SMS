@@ -1235,13 +1235,28 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       localStorage.setItem('edu_db_finance_transactions', JSON.stringify(updatedTxns));
     } catch (e) {}
 
-    // 5. Cancel / remove any pending fee installments from localStorage
+    // 5. Cancel / remove any pending fee installments from state & localStorage
     try {
-      const storedInsts = JSON.parse(localStorage.getItem('edu_db_student_fee_installments') || '[]');
       const itemClean = (issue.itemName || '').replace(/\s*\(extra\)/gi, '').trim().toLowerCase();
       const stdClean = (issue.studentName || '').toLowerCase().trim();
       const admClean = (issue.admissionNo || '').toLowerCase().trim();
 
+      if (setStudentFeeInstallments) {
+        setStudentFeeInstallments(prev => (prev || []).filter((inst: any) => {
+          if (!inst) return false;
+          const instStd = (inst.studentId || inst.admissionNo || inst.studentName || '').toLowerCase();
+          const termName = (inst.termName || inst.feeHeadName || '').toLowerCase();
+          const isStudent = (admClean && instStd.includes(admClean)) || (stdClean && instStd.includes(stdClean)) || inst.studentId === issue.studentId;
+          const isItemMatch = termName.includes('uniform') || (itemClean && itemClean.length > 2 && termName.includes(itemClean));
+
+          if (isStudent && isItemMatch && inst.status !== 'Paid') {
+            return false; // Remove unpaid returned item installment
+          }
+          return true;
+        }));
+      }
+
+      const storedInsts = JSON.parse(localStorage.getItem('edu_db_student_fee_installments') || '[]');
       const updatedInsts = storedInsts.filter((inst: any) => {
         if (!inst) return true;
         const instStd = (inst.studentId || inst.admissionNo || inst.studentName || '').toLowerCase();

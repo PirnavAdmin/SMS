@@ -58,6 +58,7 @@ import {
   formatToDDMMYYYY,
   formatToISO,
 } from "../../../utils/dateValidation";
+import { getUniformFeeForClass } from "../../../utils/uniformUtils";
 import { formatCurrency } from "../../../utils/currency";
 import {
   calculateLateAdmissionFees,
@@ -2026,19 +2027,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     );
 
     const gnd = formData.gender || "Unisex";
-    const matchingConfig = (financeUniformConfigs || []).find(
-      (c) =>
-        c && c.status !== "Inactive" &&
-        (c.className === clsName || (c.className && clsName && c.className.toLowerCase().replace(/[^a-z0-9]/g, '') === clsName.toLowerCase().replace(/[^a-z0-9]/g, ''))) &&
-        (gnd.toLowerCase().includes("female")
-          ? (c.gender === "Female" || c.gender === "Unisex" || !c.gender)
-          : gnd.toLowerCase().includes("male")
-            ? (c.gender === "Male" || c.gender === "Unisex" || !c.gender)
-            : true),
-    ) || (financeUniformConfigs || []).find(
-      (c) => c && c.status !== "Inactive" && (c.className === clsName || (c.className && clsName && c.className.toLowerCase().replace(/[^a-z0-9]/g, '') === clsName.toLowerCase().replace(/[^a-z0-9]/g, '')))
-    );
-    const uniFeeAmount = matchingConfig ? Number(matchingConfig.feeAmount) || 0 : 0;
+    const uniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
 
     const feeInputs: FeeItemInput[] = baseItems.map((i) => {
       const isMandatory = isItemMandatory(i);
@@ -4046,6 +4035,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           ).some((idOrName) =>
                             isOptionalFeeMatched(idOrName, item)
                           );
+                          const lowerName = (item.feeHeadName || "").toLowerCase();
+                          const isUniform = lowerName.includes("uniform") || lowerName.includes("kit");
+                          const gnd = formData.gender || "Unisex";
+                          const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
+                          const displayAmount = isUniform && currentUniFeeAmount > 0 ? currentUniFeeAmount : item.amount;
+                          const displayName = isUniform ? "Uniform & Accessories" : item.feeHeadName;
+
                           return (
                             <label
                               key={item.feeHeadId}
@@ -4082,10 +4078,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               />
                               <div>
                                 <span className="block font-bold text-slate-900 dark:text-white text-xs">
-                                  {item.feeHeadName}
+                                  {displayName}
                                 </span>
                                 <span className="block text-[10px] text-slate-500">
-                                  {formatCurrency(item.amount)}
+                                  {formatCurrency(displayAmount)}
                                 </span>
                               </div>
                             </label>
