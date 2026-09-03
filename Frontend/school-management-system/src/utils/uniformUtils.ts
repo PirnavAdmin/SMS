@@ -247,7 +247,7 @@ export const getUniformFeeForClass = (
   const feeStructures = Array.isArray(financeUniformConfigsParam) ? financeUniformConfigsParam : (feeStructuresParam || []);
 
   // 1. Check User's Uniform Configurations (Finance & Fees -> Uniform Setup / Configs)
-  if (Array.isArray(financeUniformConfigs) && financeUniformConfigs.length > 0 && rawClass) {
+  if (Array.isArray(financeUniformConfigs) && financeUniformConfigs.length > 0) {
     const activeConfigs = [...financeUniformConfigs].reverse().filter(c => {
       if (!c || c.status === 'Inactive') return false;
       const pkgName = (c.uniformPackage || c.packageName || c.category || c.name || '').toLowerCase();
@@ -259,11 +259,11 @@ export const getUniformFeeForClass = (
     const isTargetFemale = targetGender.includes('female') || targetGender.includes('girl');
     const isTargetMale = targetGender.includes('male') || targetGender.includes('boy');
 
-    // Exact class & gender match first (Male/Boys or Female/Girls)
-    const exactGenderMatch = activeConfigs.find(c => {
+    // 1a. Exact class match + gender match
+    const exactClassAndGender = activeConfigs.find(c => {
       const cClass = (c.className || '').toLowerCase().trim();
       if (cClass === 'all classes' || cClass === 'all') return false;
-      if (!checkExactClassMatch(rawClass, cClass)) return false;
+      if (rawClass && !checkExactClassMatch(rawClass, cClass)) return false;
 
       const cGender = (c.gender || '').toLowerCase().trim();
       const cPkg = (c.uniformPackage || '').toLowerCase();
@@ -272,19 +272,43 @@ export const getUniformFeeForClass = (
       if (isTargetMale) return cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys') || cGender === 'unisex' || cGender === 'all' || !cGender;
       return true;
     });
-
-    if (exactGenderMatch && exactGenderMatch.feeAmount && Number(exactGenderMatch.feeAmount) > 0) {
-      return Number(exactGenderMatch.feeAmount);
+    if (exactClassAndGender && exactClassAndGender.feeAmount && Number(exactClassAndGender.feeAmount) > 0) {
+      return Number(exactClassAndGender.feeAmount);
     }
 
-    // Direct match by class alone in activeConfigs
-    const anyClassMatch = activeConfigs.find(c => {
+    // 1b. Exact class match (any gender / unisex)
+    const exactClassAnyGender = activeConfigs.find(c => {
       const cClass = (c.className || '').toLowerCase().trim();
       if (cClass === 'all classes' || cClass === 'all') return false;
-      return checkExactClassMatch(rawClass, cClass);
+      return rawClass && checkExactClassMatch(rawClass, cClass);
     });
-    if (anyClassMatch && anyClassMatch.feeAmount && Number(anyClassMatch.feeAmount) > 0) {
-      return Number(anyClassMatch.feeAmount);
+    if (exactClassAnyGender && exactClassAnyGender.feeAmount && Number(exactClassAnyGender.feeAmount) > 0) {
+      return Number(exactClassAnyGender.feeAmount);
+    }
+
+    // 1c. All Classes match + gender match
+    const allClassGenderMatch = activeConfigs.find(c => {
+      const cClass = (c.className || '').toLowerCase().trim();
+      if (cClass !== 'all classes' && cClass !== 'all') return false;
+
+      const cGender = (c.gender || '').toLowerCase().trim();
+      const cPkg = (c.uniformPackage || '').toLowerCase();
+
+      if (isTargetFemale) return cGender.includes('female') || cGender.includes('girl') || cPkg.includes('girls') || cGender === 'unisex' || cGender === 'all' || !cGender;
+      if (isTargetMale) return cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys') || cGender === 'unisex' || cGender === 'all' || !cGender;
+      return true;
+    });
+    if (allClassGenderMatch && allClassGenderMatch.feeAmount && Number(allClassGenderMatch.feeAmount) > 0) {
+      return Number(allClassGenderMatch.feeAmount);
+    }
+
+    // 1d. All Classes match (any gender)
+    const allClassAnyGender = activeConfigs.find(c => {
+      const cClass = (c.className || '').toLowerCase().trim();
+      return cClass === 'all classes' || cClass === 'all';
+    });
+    if (allClassAnyGender && allClassAnyGender.feeAmount && Number(allClassAnyGender.feeAmount) > 0) {
+      return Number(allClassAnyGender.feeAmount);
     }
   }
 

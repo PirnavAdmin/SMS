@@ -172,15 +172,17 @@ export const TeacherProfileView: React.FC = () => {
       })
       .map(t => t.subject);
 
-    const fromStaff = dbTeacher?.assignedSubjects || [];
+    const fromStaff = (dbTeacher?.assignedSubjects || []).filter(s => s !== 'Mathematics');
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
+    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable]))
+      .filter(Boolean)
+      .filter(s => s !== 'Mathematics') as string[];
 
     if (fromStaff.length > 0) {
       return fromStaff;
     }
 
-    const defaultSub = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'Mathematics';
+    const defaultSub = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'General';
     return merged.length > 0 ? merged : [defaultSub];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
@@ -205,7 +207,7 @@ export const TeacherProfileView: React.FC = () => {
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
     const nameParts = (user?.name || 'Faculty Member').split(' ');
     const defaultFullName = dbFullName || `${nameParts[0] || 'Faculty'} ${nameParts.slice(1).join(' ') || 'Member'}`.trim();
-    const fallbackDept = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'Mathematics';
+    const fallbackDept = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'General';
 
     return {
       staffId: dbTeacher?.id || (user as any)?.empId || user?.id || 'STF-2026-0009',

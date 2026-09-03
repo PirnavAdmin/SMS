@@ -12,6 +12,7 @@ interface AuthContextType {
   selectedAcademicYear: string;
   setSelectedAcademicYear: (academicYear: string) => void;
   login: (emailOrPhone: string, password?: string, role?: UserRole) => Promise<boolean>;
+  loginOffline: (role?: UserRole) => void;
   logout: () => void;
   setRole: (role: UserRole) => void;
   changePassword: (oldPass: string, newPass: string) => Promise<boolean>;
@@ -71,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const saved = localStorage.getItem('auth_user');
       const savedToken = localStorage.getItem('auth_token');
-      if (saved && savedToken && savedToken !== 'offline-bypass-dev-token') {
+      if (saved && savedToken) {
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
@@ -97,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [token, setToken] = useState<string | null>(() => {
     const t = localStorage.getItem('auth_token');
-    return (t && t !== 'offline-bypass-dev-token') ? t : null;
+    return t || null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -126,6 +127,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updated);
       localStorage.setItem('auth_user', JSON.stringify(updated));
     }
+  };
+
+  const loginOffline = (chosenRole: UserRole = 'Admin') => {
+    const offlineUser: User = {
+      ...defaultAdminUser,
+      role: chosenRole,
+      name: chosenRole === 'Admin' ? 'Dr. Eleanor Vance (Dev Admin)' : `Demo ${chosenRole}`
+    };
+    setUser(offlineUser);
+    setRoleState(chosenRole);
+    setToken('dev-admin-token');
+    localStorage.setItem('auth_user', JSON.stringify(offlineUser));
+    localStorage.setItem('auth_token', 'dev-admin-token');
+    localStorage.setItem('roles', JSON.stringify([chosenRole]));
   };
 
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
@@ -228,7 +243,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token && token !== 'offline-bypass-dev-token', selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token, selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, loginOffline, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
   );
 };
 

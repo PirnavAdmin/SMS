@@ -65,7 +65,8 @@ export const CommunicationView: React.FC = () => {
 
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
   const isWardenRole = userRole.includes('warden');
-  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole && !isWardenRole;
+  const isDriverRole = userRole.includes('driver') || userRole.includes('chauffeur');
+  const canModify = (userRole.includes('admin') || userRole.includes('teacher') || userRole.includes('principal') || userRole.includes('staff') || userRole.includes('super_admin')) && !isLibrarianRole && !isWardenRole && !isDriverRole;
 
   // Form State
   const [title, setTitle] = useState('');
@@ -186,8 +187,15 @@ export const CommunicationView: React.FC = () => {
 
   // Combined circular list sorted by pinned status first
   const displayAnnouncements: AnnouncementItem[] = useMemo(() => {
-    return [...localList].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [localList]);
+    let list = [...localList];
+    if (isDriverRole) {
+      list = list.filter(a => {
+        const target = (a.targetAudience || 'ALL').toUpperCase();
+        return target === 'ALL' || target === 'STAFF ONLY' || target === 'STAFF' || a.category === 'URGENT' || a.category === 'HOLIDAY';
+      });
+    }
+    return list.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+  }, [localList, isDriverRole]);
 
   // Helper to persist list
   const updateLocalList = (newList: AnnouncementItem[]) => {
@@ -514,7 +522,7 @@ export const CommunicationView: React.FC = () => {
       </div>
 
       {/* LEVEL 2: Navigation Bar (Tab Switcher) Aligned Cleanly */}
-      {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') && (
+      {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isDriverRole) && (
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
             <button
@@ -545,7 +553,7 @@ export const CommunicationView: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole) ? (
+      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole || isDriverRole) ? (
         <MeetingsView />
       ) : (
         <div className="space-y-4 max-w-full">

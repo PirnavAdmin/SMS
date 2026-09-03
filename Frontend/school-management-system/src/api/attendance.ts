@@ -163,3 +163,16 @@ export const teacherCheckOutApi = async (remarks?: string) => {
     body: JSON.stringify({ remarks: remarks || '' })
   });
 };
+
+export const createAttendanceCorrectionApi = async (payload: { date: string; requestType: string; reason: string; actualTime?: string }) => {
+  return apiClient('/api/teacher/attendance/corrections', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchAttendanceCorrectionsApi = async () => {
+  return apiClient('/api/teacher/attendance/corrections', {
+    method: 'GET'
+  });
+};

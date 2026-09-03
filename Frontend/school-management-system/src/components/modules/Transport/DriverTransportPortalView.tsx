@@ -1,0 +1,565 @@
+import React, { useState, useMemo } from 'react';
+import {
+  Bus, MapPin, Users, Phone, ShieldCheck, Clock, Navigation,
+  CheckCircle2, AlertCircle, Signal, UserCheck, Calendar,
+  ArrowRight, Radio, Search, ChevronRight, PhoneCall, RefreshCw, Eye
+} from 'lucide-react';
+import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
+import { Badge } from '../../common/Badge';
+import { TransportGPSTrackingView } from './TransportGPSTrackingView';
+import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
+import { TransportScrollableTabs } from './TransportScrollableTabs';
+
+interface DriverTransportPortalViewProps {
+  onNavigate?: (module: string) => void;
+}
+
+const formatTripTime = (value?: string) => {
+  if (!value) return 'Not set';
+  if (value.includes('AM') || value.includes('PM')) return value;
+
+  const [hourText, minuteText] = value.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
+};
+
+export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps> = ({ onNavigate }) => {
+  const { user } = useAuth();
+  const {
+    students = [],
+    staff = [],
+    vehicleAssignments = [],
+    vehicleMasters = [],
+    driverMasters = [],
+    routeMasters = [],
+    pickupPoints = [],
+    busAttendants = [],
+    studentTransports = [],
+    admissions = []
+  } = useData();
+
+  const [activeTab, setActiveTab] = useState<'my-bus' | 'stops' | 'students' | 'gps'>('my-bus');
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStopFilter, setSelectedStopFilter] = useState('All');
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [boardedMap, setBoardedMap] = useState<Record<string, boolean>>({});
+
+  // 1. Identify Driver
+  const matchedDriver = useMemo(() => {
+    const userEmail = (user?.email || '').trim().toLowerCase();
+    const userName = (user?.name || '').trim().toLowerCase();
+    const userPhone = (user?.phone || '').trim().toLowerCase();
+    const userEmpId = (user?.id || '').trim().toLowerCase();
+
+    const fromMaster = driverMasters.find(d =>
+      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId)) ||
+      (userEmail && d.email?.toLowerCase() === userEmail) ||
+      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
+      (userName && d.driverName?.toLowerCase() === userName) ||
+      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
+    );
+
+    if (fromMaster) return fromMaster;
+
+    const fromStaff = staff.find(s =>
+      (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
+      (userEmail && s.email?.toLowerCase() === userEmail) ||
+      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
+    );
+
+    if (fromStaff) {
+      return {
+        id: fromStaff.id,
+        driverName: `${fromStaff.firstName} ${fromStaff.lastName}`,
+        licenseNumber: (fromStaff as any).licenseNumber || 'DL-2026-9874',
+        mobileNumber: fromStaff.phone || '+91-9878645565',
+        employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`,
+        status: 'Active' as const,
+        experienceYears: 6
+      };
+    }
+
+    return driverMasters[0] || {
+      id: '1',
+      driverName: user?.name || 'Nag Sahoo',
+      licenseNumber: 'DL-2026-9874',
+      mobileNumber: '+91-9878645565',
+      employeeId: 'DRV-001',
+      status: 'Active' as const,
+      experienceYears: 8
+    };
+  }, [user, driverMasters, staff]);
+
+  // 2. Resolve Active Assignment
+  const currentAssignment = useMemo(() => {
+    const driverId = String(matchedDriver.id).trim();
+    const driverName = (matchedDriver.driverName || '').trim().toLowerCase();
+    const driverEmpId = (matchedDriver.employeeId || '').trim().toLowerCase();
+
+    const matched = vehicleAssignments.find(va => {
+      const vaDriverId = String(va.driverId || '').trim();
+      const vaDriverName = (va.driverName || '').trim().toLowerCase();
+      const vaDriverEmpId = (va.driverEmployeeId || '').trim().toLowerCase();
+
+      return (
+        (driverId && vaDriverId === driverId) ||
+        (driverName && vaDriverName === driverName) ||
+        (driverEmpId && vaDriverEmpId === driverEmpId)
+      );
+    });
+
+    if (matched) return matched;
+    return vehicleAssignments.find(va => va.status === 'Active') || vehicleAssignments[0] || null;
+  }, [matchedDriver, vehicleAssignments]);
+
+  const assignedVehicle = useMemo(() => {
+    if (!currentAssignment) return vehicleMasters[0] || null;
+    return vehicleMasters.find(v =>
+      (currentAssignment.vehicleId && String(v.id).trim() === String(currentAssignment.vehicleId).trim()) ||
+      (currentAssignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === currentAssignment.vehicleNumber.trim().toUpperCase())
+    ) || vehicleMasters[0] || null;
+  }, [currentAssignment, vehicleMasters]);
+
+  const assignedRoute = useMemo(() => {
+    if (!currentAssignment) return routeMasters[0] || null;
+    return routeMasters.find(r =>
+      (currentAssignment.routeId && String(r.id).trim() === String(currentAssignment.routeId).trim()) ||
+      (currentAssignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase()) ||
+      (currentAssignment.routeName && r.routeCode && r.routeCode.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase())
+    ) || routeMasters[0] || null;
+  }, [currentAssignment, routeMasters]);
+
+  const targetRouteId = assignedRoute?.id ? String(assignedRoute.id).trim() : (currentAssignment?.routeId ? String(currentAssignment.routeId).trim() : '');
+  const targetRouteName = (assignedRoute?.routeName || currentAssignment?.routeName || '').trim().toLowerCase();
+  const targetRouteCode = (assignedRoute?.routeCode || '').trim().toLowerCase();
+
+  const assignedAttendant = useMemo(() => {
+    if (!currentAssignment) return { name: 'Blast Bobby', employeeId: 'ATT-2026-01', mobile: '+91-9878909876' };
+
+    const attendant = busAttendants.find(a =>
+      (currentAssignment.attendantId && (String(a.id) === String(currentAssignment.attendantId) || a.employeeId === currentAssignment.attendantId)) ||
+      (currentAssignment.attendantName && a.attendantName?.trim().toLowerCase() === currentAssignment.attendantName?.trim().toLowerCase())
+    );
+
+    const matchedStaff = staff.find(s => {
+      const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const attName = (currentAssignment.attendantName || attendant?.attendantName || '').trim().toLowerCase();
+      const staffEmpId = (s.employeeId || s.id || '').trim().toLowerCase();
+      const targetEmpId = (attendant?.employeeId || currentAssignment.attendantEmployeeId || currentAssignment.attendantId || '').trim().toLowerCase();
+
+      return (
+        (targetEmpId && staffEmpId === targetEmpId) ||
+        (attName && (staffFullName === attName || staffFullName.includes(attName) || attName.includes(staffFullName)))
+      );
+    });
+
+    const name = (currentAssignment.attendantName && currentAssignment.attendantName.toUpperCase() !== 'UNASSIGNED' && currentAssignment.attendantName.trim() !== '')
+      ? currentAssignment.attendantName
+      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName}` : 'Blast Bobby'));
+
+    let empCode = attendant?.employeeId || matchedStaff?.employeeId || currentAssignment.attendantEmployeeId || 'ATT-2026-01';
+    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '+91-9878909876';
+
+    return {
+      name,
+      employeeId: empCode,
+      mobile
+    };
+  }, [currentAssignment, busAttendants, staff]);
+
+  const routeStops = useMemo(() => {
+    return pickupPoints
+      .filter(p =>
+        (p.routeId && targetRouteId && String(p.routeId).trim() === targetRouteId) ||
+        (p.routeName && targetRouteName && p.routeName.trim().toLowerCase() === targetRouteName)
+      )
+      .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+  }, [pickupPoints, targetRouteId, targetRouteName]);
+
+  // Strictly Assigned Students for this bus / route
+  const assignedStudents = useMemo(() => {
+    const studentMap = new Map<string, any>();
+    const hasValidRoute = (targetRouteName !== '' && targetRouteName !== 'unassigned' && targetRouteName !== 'n/a') || targetRouteId !== '';
+    if (!hasValidRoute) return [];
+
+    studentTransports.forEach(st => {
+      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+      if (!isStatusActive) return;
+
+      const stRouteId = String(st.routeId || '').trim();
+      const stRouteName = (st.routeName || '').trim().toLowerCase();
+
+      const matchRt = Boolean(
+        (targetRouteId && stRouteId && stRouteId === targetRouteId) ||
+        (targetRouteName && stRouteName && (stRouteName === targetRouteName || (targetRouteCode && stRouteName === targetRouteCode)))
+      );
+
+      if (!matchRt) return;
+
+      const student = students.find(s =>
+        (st.studentId && s.id && String(st.studentId).trim() === String(s.id).trim()) ||
+        (st.admissionNo && s.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(s.admissionNo).trim().toLowerCase())
+      );
+
+      const matchedAdm = admissions.find(a =>
+        (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase()) ||
+        (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase()) ||
+        (st.studentId && a.id && String(a.id).trim() === String(st.studentId).trim())
+      );
+
+      const key = String(student?.id || st.studentId || student?.admissionNo || st.admissionNo || st.id);
+      const fullName = (student?.name || `${student?.firstName || ''} ${student?.lastName || ''}`.trim() || st.studentName || matchedAdm?.applicantName || 'Student Passenger').trim();
+      const pName = (student?.fatherName || (student as any)?.fatherFullName || student?.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student?.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+      const pMobile = (
+        student?.fatherPhone ||
+        (student as any)?.fatherMobile ||
+        (student as any)?.fatherMobileNo ||
+        (student as any)?.fatherContact ||
+        student?.parentPhone ||
+        (student as any)?.parentContact ||
+        student?.phone ||
+        (student as any)?.mobileNumber ||
+        matchedAdm?.phone ||
+        '+91-9878645500'
+      ).trim();
+
+      const rawPoint = st.pickupPoint || student?.pickupPoint || matchedAdm?.pickupPoint;
+      const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
+        ? rawPoint.trim()
+        : (routeStops.length > 0 ? routeStops[0].pickupName : 'Main Gate Stop');
+
+      studentMap.set(key, {
+        id: student?.id || st.studentId || key,
+        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || 'ADM-001',
+        studentName: fullName,
+        gender: student?.gender || matchedAdm?.gender || 'Male',
+        className: student?.className || matchedAdm?.appliedClass || 'Class 8',
+        section: student?.section || 'A',
+        rollNo: student?.rollNo || '1',
+        pickupPoint: pPoint,
+        parentName: pName,
+        parentMobile: pMobile
+      });
+    });
+
+    students.forEach(student => {
+      const stStatus = (student.status || '').toLowerCase();
+      if (stStatus === 'inactive' || stStatus === 'discontinued' || stStatus === 'transferred' || stStatus === 'withdrawn') {
+        return;
+      }
+
+      const key = String(student.id || student.admissionNo);
+      if (studentMap.has(key)) return;
+
+      const otherAssignment = studentTransports.find(st => {
+        const isActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+        if (!isActive) return false;
+        return (
+          (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
+          (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+        );
+      });
+      if (otherAssignment) return;
+
+      const matchedAdm = admissions.find(a =>
+        (a.registrationNo && student.admissionNo && a.registrationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
+        (a.applicationNo && student.admissionNo && a.applicationNo.trim().toLowerCase() === student.admissionNo.trim().toLowerCase()) ||
+        (a.id && student.id && String(a.id).trim() === String(student.id).trim())
+      );
+
+      const studRoute = (student.busRoute || matchedAdm?.busRoute || '').trim().toLowerCase();
+      const studRouteId = String(student.routeId || '').trim();
+
+      const matchProfileRt = Boolean(
+        (targetRouteId && studRouteId && studRouteId === targetRouteId) ||
+        (targetRouteId && studRoute && studRoute === targetRouteId) ||
+        (targetRouteName && studRoute && (studRoute === targetRouteName || (targetRouteCode && studRoute === targetRouteCode)))
+      );
+
+      if (matchProfileRt) {
+        const fullName = (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || matchedAdm?.applicantName || 'Student Passenger').trim();
+        const pName = (student.fatherName || (student as any)?.fatherFullName || student.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+        const pMobile = (
+          student.fatherPhone ||
+          (student as any)?.fatherMobile ||
+          (student as any)?.fatherMobileNo ||
+          (student as any)?.fatherContact ||
+          student.parentPhone ||
+          (student as any)?.parentContact ||
+          student.phone ||
+          (student as any)?.mobileNumber ||
+          matchedAdm?.phone ||
+          '+91-9878645500'
+        ).trim();
+
+        const rawPoint = student.pickupPoint || matchedAdm?.pickupPoint;
+        const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
+          ? rawPoint.trim()
+          : (routeStops.length > 0 ? routeStops[0].pickupName : 'Main Gate Stop');
+
+        studentMap.set(key, {
+          id: student.id,
+          admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
+          studentName: fullName,
+          gender: student.gender || matchedAdm?.gender || 'Male',
+          className: student.className || matchedAdm?.appliedClass || 'Class 8',
+          section: student.section || 'A',
+          rollNo: student.rollNo || '1',
+          pickupPoint: pPoint,
+          parentName: pName,
+          parentMobile: pMobile
+        });
+      }
+    });
+
+    return Array.from(studentMap.values());
+  }, [students, studentTransports, admissions, targetRouteId, targetRouteName, targetRouteCode, routeStops]);
+
+  const filteredStudents = useMemo(() => {
+    return assignedStudents.filter(s => {
+      const matchSearch =
+        studentSearch.trim() === '' ||
+        s.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        s.admissionNo.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        s.parentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        s.pickupPoint.toLowerCase().includes(studentSearch.toLowerCase());
+
+      const matchStop = selectedStopFilter === 'All' || s.pickupPoint === selectedStopFilter;
+      return matchSearch && matchStop;
+    });
+  }, [assignedStudents, studentSearch, selectedStopFilter]);
+
+  const toggleBoarding = (studentId: string) => {
+    setBoardedMap(prev => ({
+      ...prev,
+      [studentId]: !prev[studentId]
+    }));
+  };
+
+  const seatingCapacity = assignedVehicle?.capacity || currentAssignment?.vehicleCapacity || 50;
+  const morningTime = formatTripTime(currentAssignment?.morningTripTime || '07:00');
+  const eveningTime = formatTripTime(currentAssignment?.eveningTripTime || '15:45');
+
+  const DRIVER_TABS = useMemo(() => [
+    { id: 'my-bus', label: 'Vehicle & Trip Overview', icon: Bus },
+    { id: 'stops', label: `Route Stops (${routeStops.length})`, icon: MapPin },
+    { id: 'students', label: `Bus Passengers (${assignedStudents.length})`, icon: Users },
+    { id: 'gps', label: 'Live GPS & Map', icon: Navigation }
+  ], [routeStops.length, assignedStudents.length]);
+
+  return (
+    <div className="space-y-3.5 animate-in fade-in max-w-7xl mx-auto pb-8">
+      {/* 1. Header Container */}
+      <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Bus className="w-5 h-5 text-sky-600" /> My Assigned Transport Operations
+          </h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Assigned Bus: <span className="font-bold text-slate-800 dark:text-slate-200">{assignedVehicle?.vehicleNumber || 'AP04 Z 4567'}</span> • Route: <span className="font-bold text-slate-800 dark:text-slate-200">{assignedRoute?.routeName || 'Banjara Hills Route'}</span>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {currentAssignment && (
+            <button
+              onClick={() => setIsDetailsModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-300 hover:bg-sky-100 font-bold text-[11px] flex items-center gap-1.5 border border-sky-200 dark:border-sky-800 cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" /> Full Operational Manifest
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Separate Navigation Tabs */}
+      <TransportScrollableTabs
+        tabs={DRIVER_TABS}
+        activeId={activeTab}
+        onChange={(id) => setActiveTab(id as any)}
+        sticky={false}
+      />
+
+      {/* 3. Tab Contents Container */}
+      <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm">
+        {activeTab === 'my-bus' && (
+          <div className="space-y-4">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Bus Plate & Model</span>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedVehicle?.vehicleNumber || 'AP04 Z 4567'}</div>
+                <p className="text-[11px] text-slate-500 font-mono">Reg: {assignedVehicle?.registrationNumber || 'REG-5646'} • {assignedVehicle?.vehicleType || 'Bus'}</p>
+              </div>
+
+              <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Route</span>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedRoute?.routeName || 'Banjara Hills Route'}</div>
+                <p className="text-[11px] text-emerald-600 font-bold">{routeStops.length} Stops • {assignedRoute?.totalDistanceKm || 25} km</p>
+              </div>
+
+              <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Bus Attendant</span>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedAttendant.name}</div>
+                <a href={`tel:${assignedAttendant.mobile}`} className="text-[11px] text-sky-600 hover:underline font-bold flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> {assignedAttendant.mobile}
+                </a>
+              </div>
+            </div>
+
+            {/* Schedule Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-sky-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-sky-600" /> Morning Trip Schedule
+                  </span>
+                  <Badge variant="success" size="sm">Active</Badge>
+                </div>
+                <div className="text-lg font-black text-slate-900 dark:text-white font-mono">{morningTime}</div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">First pickup starts at Stop #1 and terminates at School Campus.</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-sky-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" /> Evening Drop Schedule
+                  </span>
+                  <Badge variant="warning" size="sm">Scheduled</Badge>
+                </div>
+                <div className="text-lg font-black text-slate-900 dark:text-white font-mono">{eveningTime}</div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">Bus departs from School Campus dropping students in reverse order.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'stops' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {routeStops.map((stop, idx) => {
+                const count = assignedStudents.filter(s => s.pickupPoint === stop.pickupName).length;
+                return (
+                  <div key={stop.id || idx} className="glass-card p-3 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-[11px] flex items-center justify-center">
+                        #{idx + 1}
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-slate-500">
+                        {stop.morningPickupTime || stop.arrivalTime || morningTime}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{stop.pickupName}</h4>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1.5 border-t border-sky-100 dark:border-sky-900/60">
+                      <span>{stop.distanceFromSchoolKm || 3.5} km</span>
+                      <span className="font-bold text-emerald-600">{count} Passengers</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'students' && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={studentSearch}
+                  onChange={e => setStudentSearch(e.target.value)}
+                  placeholder="Search passenger..."
+                  className="pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-900 dark:text-white outline-none w-52"
+                />
+              </div>
+
+              {routeStops.length > 0 && (
+                <select
+                  value={selectedStopFilter}
+                  onChange={e => setSelectedStopFilter(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                >
+                  <option value="All">All Stops ({assignedStudents.length} Students)</option>
+                  {routeStops.map((s, idx) => (
+                    <option key={idx} value={s.pickupName}>{s.pickupName}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredStudents.map(student => {
+                const isBoarded = !!boardedMap[student.id];
+                return (
+                  <div
+                    key={student.id}
+                    className={`p-3 rounded-xl border transition-all space-y-2 bg-white dark:bg-slate-900 shadow-sm ${isBoarded ? 'border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-400/30' : 'border-sky-200/80 dark:border-sky-800'}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-black text-xs text-slate-900 dark:text-white">{student.studentName}</h4>
+                        <div className="text-[10px] font-mono text-slate-400">
+                          Adm: {student.admissionNo} • {student.className} - {student.section}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toggleBoarding(student.id)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition-all flex items-center gap-1 cursor-pointer ${isBoarded ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-100 hover:text-emerald-800'}`}
+                      >
+                        <CheckCircle2 className="w-2.5 h-2.5" /> {isBoarded ? 'On Bus' : 'Board'}
+                      </button>
+                    </div>
+
+                    <div className="space-y-1 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                        <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <span className="font-bold truncate">{student.pickupPoint}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                        <span className="text-[10px] truncate">Guardian: {student.parentName}</span>
+                        <a
+                          href={`tel:${student.parentMobile}`}
+                          className="text-[10px] text-sky-600 dark:text-sky-400 font-bold hover:underline flex items-center gap-1 shrink-0"
+                        >
+                          <Phone className="w-2.5 h-2.5" /> Call
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'gps' && (
+          <TransportGPSTrackingView
+            initialVehicleId={assignedVehicle?.id || currentAssignment?.vehicleId}
+            allowedVehicleId={assignedVehicle?.id || currentAssignment?.vehicleId}
+            allowedVehicleNumber={assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber}
+            allowedRouteId={assignedRoute?.id || currentAssignment?.routeId}
+          />
+        )}
+      </div>
+
+      {/* Modal */}
+      {currentAssignment && (
+        <VehicleTripDetailsModal
+          assignment={currentAssignment}
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+};

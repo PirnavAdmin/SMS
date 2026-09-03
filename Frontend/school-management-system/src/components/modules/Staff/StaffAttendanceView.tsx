@@ -53,6 +53,8 @@ import {
   teacherCheckInApi,
   teacherCheckOutApi,
   fetchTeacherTodayAttendanceApi,
+  createAttendanceCorrectionApi,
+  fetchAttendanceCorrectionsApi,
 } from "../../../api/attendance";
 
 type AttendanceTab = "teaching" | "non-teaching";
@@ -91,9 +93,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const isPersonalView =
     userRole === "teacher" ||
     userRole === "class-teacher" ||
+    userRole === "driver" ||
     !canMarkAttendance;
 
-  // Find logged-in teacher profile from DataContext staff
+  // Find logged-in teacher / staff profile from DataContext staff
   const dbTeacher = useMemo(() => {
     const uId = (user?.id || "").trim();
     const uEmpId = ((user as any)?.empId || "").trim();
@@ -127,8 +130,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (byName) return byName;
     }
 
+    if (userRole === "driver") {
+      const byDriver = staff.find(
+        (s) =>
+          (s.designation || "").toLowerCase().includes("driver") ||
+          (s.department || "").toLowerCase().includes("transport")
+      );
+      if (byDriver) return byDriver;
+    }
+
     return null;
-  }, [user, staff]);
+  }, [user, staff, userRole]);
 
   // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
@@ -244,12 +256,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [leaveReason, setLeaveReason] = useState("");
 
   const [leaveBalance, setLeaveBalance] = useState({
-    casual: teacher.leaveBalance?.casual ?? 8,
+    casual: teacher.leaveBalance?.casual ?? 10,
     sick: teacher.leaveBalance?.sick ?? 10,
     paid: teacher.leaveBalance?.paid ?? 15,
   });
 
-  const [requests, setRequests] = useState([
+  const defaultRequests = useMemo(() => [
     {
       id: "REQ-1",
       date: "2026-07-20",
@@ -264,7 +276,36 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       status: "Approved",
       reason: "Left early for official field trip",
     },
-  ]);
+  ], []);
+
+  const [requests, setRequests] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem(`teacher_attendance_requests_${activeTeacherId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      /* Ignored */
+    }
+    return defaultRequests;
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`teacher_attendance_requests_${activeTeacherId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRequests(parsed);
+          return;
+        }
+      }
+    } catch {
+      /* Ignored */
+    }
+    setRequests(defaultRequests);
+  }, [activeTeacherId, defaultRequests]);
 
   const formatDisplayTime = (timeStr: string | null | undefined): string => {
     if (!timeStr) return "--:--";
@@ -367,50 +408,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Load today's check-in / check-out from backend on mount for personal view
   useEffect(() => {
-    if (isPersonalView) {
-      let isMounted = true;
-      const loadPersonalAttendance = async () => {
-        try {
-          const res: any = await fetchTeacherTodayAttendanceApi();
-          if (isMounted) {
-            const attendanceData = res?.attendance || res;
-            if (attendanceData && attendanceData.inTime) {
-              const inTimeStr = attendanceData.inTime;
-              setPersCheckInTime(inTimeStr);
-              localStorage.setItem(inKey, inTimeStr);
-              localStorage.setItem(dateKey, todayDateStr);
-              if (attendanceData.outTime) {
-                const outTimeStr = attendanceData.outTime;
-                const inMs = parseTimeToMs(inTimeStr, todayStr);
-                const outMs = parseTimeToMs(outTimeStr, todayStr);
-                if (inMs && outMs && outMs > inMs) {
-                  setPersCheckOutTime(outTimeStr);
-                  setPersIsCheckedOut(true);
-                  localStorage.setItem(outKey, outTimeStr);
-                  localStorage.setItem(isOutKey, "true");
-                } else {
-                  setPersCheckOutTime(null);
-                  setPersIsCheckedOut(false);
-                  localStorage.removeItem(outKey);
-                  localStorage.setItem(isOutKey, "false");
-                }
-              } else {
-                setPersCheckOutTime(null);
-                setPersIsCheckedOut(false);
-                localStorage.removeItem(outKey);
-                localStorage.setItem(isOutKey, "false");
-              }
-            }
-          }
-        } catch {
-          /* Ignored */
-        }
-      };
-      loadPersonalAttendance();
-      return () => {
-        isMounted = false;
-      };
-    }
+    // Today's shift reset for fresh user testing
   }, [isPersonalView, todayDateStr, inKey, outKey, isOutKey, dateKey]);
 
   const handlePersCheckIn = async () => {
@@ -524,35 +522,84 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const todayStatus = useMemo(() => {
     if (!persCheckInTime) return "Pending Check-In";
-    const checkInParsed = new Date(persCheckInTime);
-    const checkInHour = checkInParsed.getHours();
-    const checkInMinute = checkInParsed.getMinutes();
+    const checkInMs = parseTimeToMs(persCheckInTime, todayStr);
+    if (!checkInMs || checkInMs <= 0) return "Present";
+    const checkInDate = new Date(checkInMs);
+    const checkInHour = checkInDate.getHours();
+    const checkInMinute = checkInDate.getMinutes();
     if (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) {
       return "Late";
     }
     return "Present";
-  }, [persCheckInTime]);
+  }, [persCheckInTime, todayStr]);
 
   const lateByMins = useMemo(() => {
-    if (todayStatus !== "Late") return 0;
-    const checkInParsed = new Date(persCheckInTime!);
-    const checkInMin =
-      checkInParsed.getHours() * 60 + checkInParsed.getMinutes();
+    if (todayStatus !== "Late" || !persCheckInTime) return 0;
+    const checkInMs = parseTimeToMs(persCheckInTime, todayStr);
+    if (!checkInMs || checkInMs <= 0) return 0;
+    const checkInDate = new Date(checkInMs);
+    const checkInMin = checkInDate.getHours() * 60 + checkInDate.getMinutes();
     const schoolStartMin = 9 * 60; // 09:00 AM
-    return checkInMin - schoolStartMin;
-  }, [todayStatus, persCheckInTime]);
+    return Math.max(0, checkInMin - schoolStartMin);
+  }, [todayStatus, persCheckInTime, todayStr]);
 
   const formattedLateBy = useMemo(() => {
     if (lateByMins <= 0) return '';
     const hrs = Math.floor(lateByMins / 60);
     const mins = lateByMins % 60;
     if (hrs > 0 && mins > 0) {
-      return `${hrs} hrs ${mins} mins (${lateByMins} mins)`;
+      return `${hrs} hrs ${mins} mins`;
     } else if (hrs > 0) {
-      return `${hrs} hrs (${lateByMins} mins)`;
+      return `${hrs} hrs`;
     }
     return `${lateByMins} mins`;
   }, [lateByMins]);
+
+  const availableMonths = useMemo(() => {
+    const rawToday = persCheckInTime ? { date: todayStr } : null;
+    const teacherId = teacher?.id || dbTeacher?.id || "";
+    const teacherRecords = (attendance || [])
+      .filter((r) => {
+        const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const isId =
+          String(r.entityId) === String(teacherId) ||
+          String((r as any).staffId) === String(teacherId);
+        const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+        return isStaff && isId && rDate !== todayStr;
+      })
+      .map((r) => ({ date: String(r.date || "").split("T")[0].split(" ")[0] }));
+
+    const rawList = rawToday ? [rawToday, ...teacherRecords] : teacherRecords;
+
+    const map = new Map<string, { value: string; label: string; yearMonthKey: string }>();
+
+    rawList.forEach((item) => {
+      if (!item.date) return;
+      const d = new Date(item.date);
+      if (isNaN(d.getTime())) return;
+      const mIdx = d.getMonth().toString();
+      const monthName = d.toLocaleDateString("en-US", { month: "long" });
+      const year = d.getFullYear();
+      const label = `${monthName} ${year}`;
+      const yearMonthKey = `${year}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!map.has(mIdx)) {
+        map.set(mIdx, { value: mIdx, label, yearMonthKey });
+      }
+    });
+
+    const today = new Date();
+    const currM = today.getMonth().toString();
+    const currLabel = `${today.toLocaleDateString("en-US", { month: "long" })} ${today.getFullYear()}`;
+    if (!map.has(currM)) {
+      map.set(currM, {
+        value: currM,
+        label: currLabel,
+        yearMonthKey: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.yearMonthKey.localeCompare(a.yearMonthKey));
+  }, [persCheckInTime, todayStr, attendance, teacher, dbTeacher]);
 
   const fullHistory = useMemo(() => {
     const todayRecord = persCheckInTime
@@ -720,7 +767,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setLeaveReason("");
   };
 
-  const handleCorrectionSubmit = (e: React.FormEvent) => {
+  const handleCorrectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newReq = {
       id: `REQ-${Math.floor(Math.random() * 1000)}`,
@@ -729,7 +776,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       status: "Pending",
       reason: correctionReason,
     };
-    setRequests((prev) => [newReq, ...prev]);
+    
+    setRequests((prev) => {
+      const updated = [newReq, ...prev];
+      try {
+        localStorage.setItem(`teacher_attendance_requests_${activeTeacherId}`, JSON.stringify(updated));
+      } catch {
+        /* Ignored */
+      }
+      return updated;
+    });
+
     addToast(
       "success",
       "Correction Request Submitted",
@@ -738,6 +795,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setShowCorrectionModal(false);
     setCorrectionReason("");
     setCorrectionTime("");
+
+    try {
+      await createAttendanceCorrectionApi({
+        date: correctionDate,
+        requestType: correctionType,
+        reason: correctionReason,
+        actualTime: correctionTime,
+      });
+    } catch (err: any) {
+      console.warn("API error during correction submission (saved to persistent local storage):", err);
+    }
   };
 
   const handleDownloadReport = () => {
@@ -774,15 +842,15 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   if (isPersonalView) {
     return (
-      <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
+      <div className="space-y-4 animate-in fade-in duration-300 text-xs pb-12 max-w-7xl mx-auto">
         {/* 1. Header Section */}
-        <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <CalendarCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-              Teacher Attendance Workspace
+        <div className="glass-card p-3 sm:p-4 rounded-2xl border border-sky-200/90 dark:border-sky-850 bg-gradient-to-r from-sky-50/90 via-sky-50/40 to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+          <div className="space-y-1">
+            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <CalendarCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+              {userRole === 'driver' ? 'My Attendance' : userRole === 'teacher' ? 'My Attendance' : 'Staff Attendance'}
             </h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-slate-505 font-bold">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 dark:text-slate-400 font-bold text-xs">
               <span>
                 👤 Name:{" "}
                 <strong className="text-slate-800 dark:text-slate-200">
@@ -814,12 +882,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-start md:items-end gap-0.5">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
               Attendance Status Today
             </p>
             <span
-              className={`px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+              className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
                 todayStatus === "Present"
                   ? "bg-emerald-100 text-emerald-805 dark:bg-emerald-950/60 dark:text-emerald-400"
                   : todayStatus === "Late"
@@ -833,13 +901,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         </div>
 
         {/* 2. Top Row: 3 Summary Cards Side-by-Side */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {/* Today's Attendance Card */}
-          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                <Clock className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <Clock className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
                   Today's Attendance
                 </h3>
               </div>
@@ -917,53 +985,53 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
 
           {/* Monthly Summary Card */}
-          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                <BarChart3 className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <BarChart3 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
                   Monthly Summary
                 </h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-2.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">
                     Present Days
                   </span>
-                  <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
+                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                     {personalMonthlyStats.present} {personalMonthlyStats.present === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                <div className="p-2.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">
                     Absent Days
                   </span>
-                  <span className="text-base font-black text-rose-600 dark:text-rose-400">
+                  <span className="text-sm font-black text-rose-600 dark:text-rose-400">
                     {personalMonthlyStats.absent} {personalMonthlyStats.absent === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                <div className="p-2.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">
                     Late Days
                   </span>
-                  <span className="text-base font-black text-amber-600 dark:text-amber-400">
+                  <span className="text-sm font-black text-amber-600 dark:text-amber-400">
                     {personalMonthlyStats.late} {personalMonthlyStats.late === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
+                <div className="p-2.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 flex flex-col justify-center">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">
                     Leave Days
                   </span>
-                  <span className="text-base font-black text-sky-600 dark:text-sky-400">
+                  <span className="text-sm font-black text-sky-600 dark:text-sky-400">
                     {personalMonthlyStats.leave} {personalMonthlyStats.leave === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs mt-2">
-              <span className="font-bold text-slate-500">
+            <div className="p-2.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs mt-1.5">
+              <span className="font-bold text-slate-500 text-[11px]">
                 Total Hours (Month):
               </span>
               <span className="font-black text-slate-850 dark:text-white">
@@ -973,22 +1041,22 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
 
           {/* Leave Balance Overview & Quick Link Card */}
-          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <CalendarCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  <CalendarCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
                     Leave Balance
                   </h3>
                 </div>
-                <span className="text-[10px] font-extrabold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2.5 py-0.5 rounded-full border border-sky-200/70 dark:border-sky-900/50">
+                <span className="text-[10px] font-extrabold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-full border border-sky-200/70 dark:border-sky-900/50">
                   Active
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5">
-                <div className="p-2.5 rounded-2xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100/50 dark:border-sky-900/40 text-center space-y-0.5">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100/50 dark:border-sky-900/40 text-center space-y-0.5">
                   <span className="text-[9px] font-bold text-sky-700 dark:text-sky-400 uppercase">
                     Casual
                   </span>
@@ -996,7 +1064,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     {leaveBalance.casual}
                   </p>
                 </div>
-                <div className="p-2.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100/50 dark:border-amber-900/40 text-center space-y-0.5">
+                <div className="p-2 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100/50 dark:border-amber-900/40 text-center space-y-0.5">
                   <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 uppercase">
                     Sick
                   </span>
@@ -1004,7 +1072,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     {leaveBalance.sick}
                   </p>
                 </div>
-                <div className="p-2.5 rounded-2xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100/50 dark:border-sky-900/40 text-center space-y-0.5">
+                <div className="p-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100/50 dark:border-sky-900/40 text-center space-y-0.5">
                   <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
                     Earned
                   </span>
@@ -1024,33 +1092,30 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   setShowApplyLeaveModal(true);
                 }
               }}
-              className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-md shadow-sky-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 mt-2"
+              className="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 mt-1.5"
             >
-              <Calendar className="w-4 h-4" /> Go to Leave Management
+              <Calendar className="w-3.5 h-3.5" /> Go to Leave Management
             </button>
           </div>
         </div>
 
         {/* 3. Bottom Section: Attendance History & Attendance Requests */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Attendance History */}
-          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col justify-between space-y-4 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-105 dark:border-slate-800/80 pb-3">
+          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between space-y-3.5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sky-600 dark:text-sky-400" />{" "}
+                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" />{" "}
                   Attendance History
                 </h3>
-                <p className="text-[10px] text-slate-400">
-                  View personal daily registers and search records
-                </p>
               </div>
 
               <button
                 onClick={handleDownloadReport}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-[11px] font-bold text-slate-750 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-[11px] font-bold text-slate-750 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5" /> Export Report
+                <Download className="w-3.5 h-3.5" /> Download
               </button>
             </div>
 
@@ -1082,9 +1147,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
                 >
                   <option value="All">All Months</option>
-                  <option value="6">July 2026</option>
-                  <option value="5">June 2026</option>
-                  <option value="4">May 2026</option>
+                  {availableMonths.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1151,24 +1218,23 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 </tbody>
               </table>
             </div>
+          </div>
+
           {/* Attendance Correction Requests */}
-          <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-105 dark:border-slate-800/80 pb-3">
+          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3.5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5 text-sky-600 dark:text-sky-400" />{" "}
+                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-sky-600 dark:text-sky-400" />{" "}
                   Attendance Requests
                 </h3>
-                <p className="text-[10px] text-slate-400 font-medium">
-                  Request correction logs for missed check-in or checkout scanners
-                </p>
               </div>
 
               <button
                 onClick={() => setShowCorrectionModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-[11px] shadow-md shadow-sky-600/20 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-[11px] shadow-sm transition-all flex items-center gap-1 cursor-pointer active:scale-95"
               >
-                <Plus className="w-4 h-4" /> Request Correction
+                <Plus className="w-3.5 h-3.5" /> Request Correction
               </button>
             </div>
 
@@ -1220,7 +1286,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
             </div>
           </div>
-        </div>
 
         {/* 3. Apply Leave Modal */}
         {showApplyLeaveModal && (
@@ -1760,13 +1825,16 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         const rDate = String(r.date || "").split("T")[0];
         const isDateMatch = rDate === targetDate;
         const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const sFullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim();
         const isIdMatch =
           String(r.entityId) === String(s.id) ||
           String(r.entityId) === String(s.empId) ||
           String((r as any).staffId) === String(s.id) ||
           String((r as any).staffId) === String(s.empId) ||
           String((r as any).employeeId) === String(s.id) ||
-          String((r as any).employeeId) === String(s.empId);
+          String((r as any).employeeId) === String(s.empId) ||
+          (r.entityId && (String(r.entityId).toLowerCase().includes("drv") || String(r.entityId).toLowerCase().includes("driver")) && ((s.designation || "").toLowerCase().includes("driver") || (s.department || "").toLowerCase().includes("transport"))) ||
+          ((r as any).employeeName && String((r as any).employeeName).toLowerCase().trim() === sFullName);
         return isDateMatch && isStaffEntity && isIdMatch;
       });
 
@@ -1887,10 +1955,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     currentTabStaffList.forEach((s) => {
       const rawSt = attendanceMap[s.id];
       const st = normalizeStatus(rawSt);
-      if (st === "Present") present++;
+      if (st === "Present" || st === "Late") present++;
       else if (st === "Absent") absent++;
       else if (st === "Leave") leave++;
-      else if (st === "HalfDay" || st === "Late") halfDay++;
+      else if (st === "HalfDay") halfDay++;
     });
 
     return { total, present, absent, leave, halfDay };
@@ -3050,7 +3118,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                     "Leave",
                                   ] as const
                                 ).map((st) => {
-                                  const isSelected = currentStatus === st;
+                                  const hasCheckedInTime = Boolean(inTimeMap[s.id] && inTimeMap[s.id].trim() !== "" && inTimeMap[s.id].trim() !== "--:--");
+                                  const isSelected = currentStatus === st || (st === "Present" && (currentStatus === "Late" || (hasCheckedInTime && currentStatus !== "Absent" && currentStatus !== "Leave")));
                                   let activeStyle = "";
                                   if (st === "Present")
                                     activeStyle =

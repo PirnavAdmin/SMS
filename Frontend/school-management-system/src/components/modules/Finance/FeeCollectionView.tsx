@@ -1230,11 +1230,92 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
+    // Filter out any unpaid fee installments for returned/cancelled uniform items for this student
+    const returnedStudentIssues = (studentUniformIssues || []).filter((issue) => {
+      const isForStudent =
+        (issue.studentId &&
+          (issue.studentId === selectedStudent.id ||
+            issue.studentId === selectedStudent.admissionNo)) ||
+        (issue.admissionNo &&
+          (issue.admissionNo === selectedStudent.id ||
+            issue.admissionNo === selectedStudent.admissionNo)) ||
+        (issue.studentName &&
+          `${selectedStudent.firstName} ${selectedStudent.lastName}`
+            .toLowerCase()
+            .trim() === issue.studentName.toLowerCase().trim());
+
+      return (
+        isForStudent &&
+        ((issue.status as any) === "Returned" ||
+          (issue.status as any) === "Cancelled" ||
+          (issue.notes || "").toLowerCase().includes("returned"))
+      );
+    });
+
+    if (returnedStudentIssues.length > 0) {
+      for (let i = combined.length - 1; i >= 0; i--) {
+        const c = combined[i];
+        const isUnifHead =
+          c.feeHeadId === "FH-04" ||
+          c.feeHeadId === "FH-UNI-BASE" ||
+          c.feeHeadId === "FH-UNI-EXTRA" ||
+          (c.feeHeadName || "").toLowerCase().includes("uniform");
+
+        if (!isUnifHead) continue;
+
+        const termLow = (c.termName || "").toLowerCase();
+
+        const matchesReturnedItem = returnedStudentIssues.some((ret) => {
+          const notesLower = (ret.notes || "").toLowerCase();
+          const isExplicitlyPaidNote =
+            (notesLower.includes("fees paid") ||
+              notesLower.includes("paid at counter") ||
+              notesLower.includes("already paid")) &&
+            !notesLower.includes("unpaid") &&
+            !notesLower.includes("not paid") &&
+            !notesLower.includes("to be paid") &&
+            !notesLower.includes("pending");
+
+          const isItemPaid =
+            Boolean((ret as any).wasPaid) ||
+            (ret.status as string) === "Paid" ||
+            isExplicitlyPaidNote;
+
+          // If paid, keep paid item installment in combined
+          if (isItemPaid) return false;
+
+          // If unpaid and returned: match by ID or item name
+          if (c.id === ret.id || c.id.includes(ret.id)) return true;
+
+          const itemClean = (ret.itemName || ret.itemCategory || "")
+            .replace(/\s*\(extra\)/gi, "")
+            .trim()
+            .toLowerCase();
+
+          if (itemClean && itemClean.length >= 2 && termLow.includes(itemClean)) {
+            return true;
+          }
+
+          if (ret.type === "Additional Purchase" || ret.itemName) {
+            const cleanCatName = (ret.itemName || "").toLowerCase().trim();
+            if (cleanCatName && termLow.includes(cleanCatName)) return true;
+          }
+
+          return false;
+        });
+
+        if (matchesReturnedItem && c.status !== "Paid" && c.dueAmount > 0) {
+          combined.splice(i, 1);
+        }
+      }
+    }
+
     return combined;
   }, [
     selectedStudent,
     studentFeeLedgers,
     studentFeeInstallments,
+    studentUniformIssues,
     selectedAcademicYear,
     financeSettings,
   ]);

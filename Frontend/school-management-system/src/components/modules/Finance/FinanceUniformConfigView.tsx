@@ -6,6 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { getUniformPackageFeeByClass, normalizeUniformCategoryName } from '../../../utils/uniformUtils';
+import { Pagination } from '../../common/Pagination';
 
 export const FinanceUniformConfigView: React.FC = () => {
   const {
@@ -17,6 +18,7 @@ export const FinanceUniformConfigView: React.FC = () => {
     academicClasses,
     uniformCategories,
     uniforms,
+    uniformSizes,
     selectedBranch,
     selectedAcademicYear
   } = useData();
@@ -25,6 +27,8 @@ export const FinanceUniformConfigView: React.FC = () => {
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<FinanceUniformConfig | null>(null);
   const [deletingConfig, setDeletingConfig] = useState<FinanceUniformConfig | null>(null);
@@ -41,8 +45,28 @@ export const FinanceUniformConfigView: React.FC = () => {
     status: 'Active'
   });
 
+  const fabricSizeOptions = React.useMemo(() => {
+    const defaultSizes = ['1.0M - 1.5M', '1.5M - 2.0M', '2.0M - 2.5M', '2.5M - 3.0M'];
+    const configuredFabricSizes = (uniformSizes || [])
+      .map(s => (s.sizeName || (s as any).sizeCodeName || (s as any).name || '').trim())
+      .filter(Boolean);
+
+    const merged = Array.from(new Set([...configuredFabricSizes, ...defaultSizes]));
+    return merged;
+  }, [uniformSizes]);
+
   const filteredConfigs = financeUniformConfigs.filter(c => {
     if (!c) return false;
+
+    // Filter by navbar selected Academic Year
+    if (selectedAcademicYear) {
+      const normSelYear = (selectedAcademicYear || '').replace(/\s+/g, '').toLowerCase();
+      const normCfgYear = (c.academicYear || '').replace(/\s+/g, '').toLowerCase();
+      if (normCfgYear && normSelYear && normCfgYear !== normSelYear && !normCfgYear.includes(normSelYear) && !normSelYear.includes(normCfgYear)) {
+        return false;
+      }
+    }
+
     const qLower = query.toLowerCase().trim();
     const matchQuery = !qLower ||
                        (c.uniformPackage || '').toLowerCase().includes(qLower) ||
@@ -69,87 +93,92 @@ export const FinanceUniformConfigView: React.FC = () => {
     return matchQuery && matchClass;
   });
 
-  // Dynamic uniform items mapped from Uniform Management module (categories, inventory, apparel & packages)
+  const paginatedConfigs = React.useMemo(() => {
+    return filteredConfigs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredConfigs, currentPage, itemsPerPage]);
+
+  // Dynamic uniform items mapped from Uniform Management module into Base Package and Additional Purchase
   const uniformItemsList = React.useMemo(() => {
-    const packageItemsMap = new Map<string, { name: string; defaultGender?: string; defaultPrice?: number }>();
-    const apparelItemsMap = new Map<string, { name: string; defaultGender?: string; defaultPrice?: number }>();
-    const additionalItemsMap = new Map<string, { name: string; defaultGender?: string; defaultPrice?: number }>();
+    const basePackagesMap = new Map<string, { name: string; defaultGender?: string }>();
+    const additionalItemsMap = new Map<string, { name: string; defaultGender?: string }>();
 
-    // 1. Standard Built-in Admission Packages
-    const standardPackages = [
-      { name: 'Full Kit', defaultGender: 'Unisex', defaultPrice: 3500 },
-      { name: 'Boys Uniform Package (Admission Kit)', defaultGender: 'Male', defaultPrice: 3200 },
-      { name: 'Girls Uniform Package (Admission Kit)', defaultGender: 'Female', defaultPrice: 3200 },
-      { name: 'Sports Uniform Kit', defaultGender: 'Unisex', defaultPrice: 1800 },
-      { name: 'Cloth / Fabric Package', defaultGender: 'Unisex', defaultPrice: 600 }
+    // 1. Base Packages (strictly Boys Base Package, Girls Base Package, and Cloth)
+    const baseList = [
+      { name: 'Boys Base Package (Admission Kit)', defaultGender: 'Male' },
+      { name: 'Girls Base Package (Admission Kit)', defaultGender: 'Female' },
+      { name: 'Cloth', defaultGender: 'Unisex' }
     ];
-    standardPackages.forEach(p => packageItemsMap.set(p.name.toLowerCase().trim(), p));
+    baseList.forEach(b => basePackagesMap.set(b.name.toLowerCase().trim(), b));
 
-    // 2. Uniform Categories created in Uniform Management
+    const isBaseItem = (name: string) => {
+      const lower = name.toLowerCase().trim();
+      return lower.includes('boys base package') ||
+             lower.includes('girls base package') ||
+             lower === 'cloth' ||
+             lower === 'cloth / fabric package' ||
+             lower === 'cloth/fabric package' ||
+             lower === 'cloth package' ||
+             lower === 'fabric package';
+    };
+
+    // 2. Additional Items from uniformCategories
     (uniformCategories || []).forEach(cat => {
       const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
       if (!rawName) return;
       const lower = rawName.toLowerCase().trim();
-      let gen: string = 'Unisex';
+      let gen: 'Male' | 'Female' | 'Unisex' = 'Unisex';
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      if (lower.includes('package') || lower.includes('kit') || lower.includes('admission')) {
-        if (!packageItemsMap.has(lower)) {
-          packageItemsMap.set(lower, { name: rawName, defaultGender: gen });
-        }
-      } else {
-        if (!apparelItemsMap.has(lower)) {
-          apparelItemsMap.set(lower, { name: rawName, defaultGender: gen });
-        }
+      if (!isBaseItem(lower) && !additionalItemsMap.has(lower)) {
+        additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
       }
     });
 
-    // 3. Uniform Items / Inventory Types created in Uniform Management
+    // 3. Additional Items from uniforms catalog
     (uniforms || []).forEach(u => {
       if (!u) return;
       const rawName = (u.category || (u as any).name || (u as any).itemName || '').trim();
       if (!rawName) return;
       const lower = rawName.toLowerCase().trim();
-      const price = (u as any).price || (u as any).unitPrice || (u as any).standardPrice;
-      let gen = u.gender || 'Unisex';
+      let gen: 'Male' | 'Female' | 'Unisex' = (u.gender as any) || 'Unisex';
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      if (lower.includes('package') || lower.includes('kit') || lower.includes('admission')) {
-        if (!packageItemsMap.has(lower)) {
-          packageItemsMap.set(lower, { name: rawName, defaultGender: gen, defaultPrice: price });
-        } else if (price && !packageItemsMap.get(lower)?.defaultPrice) {
-          packageItemsMap.get(lower)!.defaultPrice = price;
-        }
-      } else if (
-        lower.includes('shirt') || lower.includes('trouser') || lower.includes('pant') ||
-        lower.includes('skirt') || lower.includes('frock') || lower.includes('blazer') ||
-        lower.includes('sweater') || lower.includes('track') || lower.includes('tie') ||
-        lower.includes('belt') || lower.includes('sock') || lower.includes('shoe') ||
-        lower.includes('cloth') || lower.includes('fabric') || lower.includes('t-shirt')
-      ) {
-        if (!apparelItemsMap.has(lower)) {
-          apparelItemsMap.set(lower, { name: rawName, defaultGender: gen, defaultPrice: price });
-        } else if (price && !apparelItemsMap.get(lower)?.defaultPrice) {
-          apparelItemsMap.get(lower)!.defaultPrice = price;
-        }
-      } else {
-        if (!additionalItemsMap.has(lower)) {
-          additionalItemsMap.set(lower, { name: rawName, defaultGender: gen, defaultPrice: price });
-        } else if (price && !additionalItemsMap.get(lower)?.defaultPrice) {
-          additionalItemsMap.get(lower)!.defaultPrice = price;
-        }
+      if (!isBaseItem(lower) && !additionalItemsMap.has(lower)) {
+        additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
+      }
+    });
+
+    // Default standard additional items
+    const defaultAdditionalNames = [
+      'Sports Uniform Kit',
+      'Sports Tracksuit Kit',
+      'Tracksuit Kit',
+      'Shirt',
+      'Trousers',
+      'Skirt',
+      'Blazer',
+      'Sweater',
+      'Shoes',
+      'Socks',
+      'Tie',
+      'Belt',
+      'Cap'
+    ];
+
+    defaultAdditionalNames.forEach(name => {
+      const lower = name.toLowerCase().trim();
+      if (!isBaseItem(lower) && !additionalItemsMap.has(lower)) {
+        additionalItemsMap.set(lower, { name, defaultGender: 'Unisex' });
       }
     });
 
     return {
-      packages: Array.from(packageItemsMap.values()),
-      apparel: Array.from(apparelItemsMap.values()),
-      additional: Array.from(additionalItemsMap.values()),
+      basePackages: Array.from(basePackagesMap.values()),
+      additionalItems: Array.from(additionalItemsMap.values()),
       all: [
-        ...Array.from(packageItemsMap.values()),
-        ...Array.from(apparelItemsMap.values()),
+        ...Array.from(basePackagesMap.values()),
         ...Array.from(additionalItemsMap.values())
       ]
     };
@@ -169,16 +198,10 @@ export const FinanceUniformConfigView: React.FC = () => {
       nextGender = 'Female';
     }
 
-    let nextAmount = form.feeAmount;
-    if (found?.defaultPrice !== undefined && (!form.feeAmount || form.feeAmount === 3500 || form.feeAmount === 7000)) {
-      nextAmount = found.defaultPrice;
-    }
-
     setForm(prev => ({
       ...prev,
       uniformPackage: selectedName,
-      gender: nextGender,
-      feeAmount: nextAmount
+      gender: nextGender
     }));
   };
 
@@ -211,7 +234,10 @@ export const FinanceUniformConfigView: React.FC = () => {
       return;
     }
 
-    const payload = form as Omit<FinanceUniformConfig, 'id'>;
+    const payload = {
+      ...form,
+      academicYear: selectedAcademicYear || form.academicYear || financeSettings.academicYear || '2026-2027',
+    } as Omit<FinanceUniformConfig, 'id'>;
 
     if (editingConfig) {
       updateFinanceUniformConfig(editingConfig.id, payload);
@@ -256,14 +282,20 @@ export const FinanceUniformConfigView: React.FC = () => {
             type="text"
             placeholder="Search uniform config by package or branch..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => {
+              setQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
           />
         </div>
 
         <select
           value={filterClass}
-          onChange={e => setFilterClass(e.target.value)}
+          onChange={e => {
+            setFilterClass(e.target.value);
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
         >
           <option value="All">All Classes ({academicClasses.length})</option>
@@ -280,7 +312,6 @@ export const FinanceUniformConfigView: React.FC = () => {
                 <th className="py-3 px-4">Class / Grade</th>
                 <th className="py-3 px-4">Uniform Package / Item</th>
                 <th className="py-3 px-4">Gender</th>
-                <th className="py-3 px-4">Academic Year</th>
                 <th className="py-3 px-4 text-right">Fee Amount</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
@@ -289,31 +320,37 @@ export const FinanceUniformConfigView: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {filteredConfigs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
                     No active uniform fee configurations found{filterClass !== 'All' ? ` for ${filterClass}` : ''}. Click "+ Add Uniform Fee" to create new parameters.
                   </td>
                 </tr>
               ) : (
-                filteredConfigs.map(c => (
+                paginatedConfigs.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                       <Shirt className="w-4 h-4 text-sky-500 shrink-0" /> {c.className}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
                       {(() => {
-                        let pkgStr = c.uniformPackage || '';
-                        if (pkgStr.toLowerCase().includes('base package') || pkgStr.toLowerCase() === 'base package') {
-                          pkgStr = 'Uniform Base Package (Admission Kit)';
+                        let pkgStr = (c.uniformPackage || '').trim();
+                        const lower = pkgStr.toLowerCase();
+
+                        if (!lower.includes('boys') && !lower.includes('girls')) {
+                          if (lower.includes('base package') || lower.includes('admission kit') || lower === 'base package') {
+                            const genLower = (c.gender || '').toLowerCase();
+                            if (genLower === 'female' || genLower.includes('girl')) {
+                              pkgStr = 'Girls Base Package (Admission Kit)';
+                            } else if (genLower === 'male' || genLower.includes('boy')) {
+                              pkgStr = 'Boys Base Package (Admission Kit)';
+                            } else {
+                              pkgStr = 'Base Package (Admission Kit)';
+                            }
+                          }
                         }
                         return `${pkgStr} ${(c as any).fabricMeterage ? `[${(c as any).fabricMeterage}]` : ''}`.trim();
                       })()}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">{c.gender}</td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-[10px]">
-                        {c.academicYear || '2026-2027'}
-                      </span>
-                    </td>
                     <td className="py-3.5 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm">
                       {formatCurrency(c.feeAmount || 0)}
                     </td>
@@ -342,6 +379,20 @@ export const FinanceUniformConfigView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {filteredConfigs.length > 0 && (
+          <div className="px-4 pb-4">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredConfigs.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+              itemsPerPageOptions={[10, 25, 50, 100]}
+              label="configurations"
+            />
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -395,54 +446,45 @@ export const FinanceUniformConfigView: React.FC = () => {
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold outline-none cursor-pointer"
                 >
                   <option value="">-- Select Package / Item --</option>
-                  
-                  {uniformItemsList.packages.length > 0 && (
-                    <optgroup label="Uniform Packages & Kits (Uniform Management)">
-                      {uniformItemsList.packages.map(pkg => (
-                        <option key={pkg.name} value={pkg.name}>
-                          {pkg.name} {pkg.defaultPrice ? `(₹${pkg.defaultPrice.toLocaleString()})` : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
 
-                  {uniformItemsList.apparel.length > 0 && (
-                    <optgroup label="Apparel & Uniform Items (Uniform Management)">
-                      {uniformItemsList.apparel.map(item => (
-                        <option key={item.name} value={item.name}>
-                          {item.name} {item.defaultPrice ? `(₹${item.defaultPrice.toLocaleString()})` : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
+                  <optgroup label="Base Package">
+                    {uniformItemsList.basePackages.map(pkg => (
+                      <option key={pkg.name} value={pkg.name}>
+                        {pkg.name}
+                      </option>
+                    ))}
+                  </optgroup>
 
-                  {uniformItemsList.additional.length > 0 && (
-                    <optgroup label="Additional Uniform Items (Uniform Management)">
-                      {uniformItemsList.additional.map(item => (
-                        <option key={item.name} value={item.name}>
-                          {item.name} {item.defaultPrice ? `(₹${item.defaultPrice.toLocaleString()})` : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
+                  <optgroup label="Additional Purchase">
+                    {uniformItemsList.additionalItems.map(item => (
+                      <option key={item.name} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 
               {/* Fabric Measurement Specification Dropdown (if Cloth/Fabric item selected) */}
               {((form.uniformPackage || '').toLowerCase().includes('cloth') || (form.uniformPackage || '').toLowerCase().includes('fabric') || (form.uniformPackage || '').toLowerCase().includes('unstitched')) && (
                 <div className="p-3 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl space-y-1.5 animate-in fade-in">
-                  <label className="block text-[11px] font-extrabold text-amber-900 dark:text-amber-300">Fabric Measurement Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block text-[11px] font-extrabold text-amber-900 dark:text-amber-300">Cloth Fabric Size / Meterage Length <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
+                    required
                     value={(form as any).fabricMeterage || ''}
                     onChange={e => setForm({ ...form, fabricMeterage: e.target.value } as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
                   >
-                    <option value="">All Meterage Lengths (Standard)</option>
-                    <option value="1.0m - 1.5m">1.0m - 1.5m (Primary Kids)</option>
-                    <option value="1.5m - 2.0m">1.5m - 2.0m (Junior Wing)</option>
-                    <option value="2.0m - 2.5m">2.0m - 2.5m (Senior Wing)</option>
-                    <option value="2.5m - 3.0m">2.5m - 3.0m (Custom Cut)</option>
+                    <option value="">-- Select Meterage Size (e.g. 1.5M - 2.0M) --</option>
+                    {fabricSizeOptions.map(sz => (
+                      <option key={sz} value={sz}>
+                        {sz}
+                      </option>
+                    ))}
                   </select>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                    Configure the exact fee amount (₹) for this specific fabric size below.
+                  </p>
                 </div>
               )}
 

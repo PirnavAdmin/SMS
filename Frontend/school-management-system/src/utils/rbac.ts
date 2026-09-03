@@ -57,7 +57,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'dashboard', 'transport', 'communication', 'events', 'training'
   ],
   'Driver': [
-    'dashboard', 'transport', 'communication', 'events', 'training'
+    'dashboard', 'transport', 'communication', 'events', 'staff'
   ],
   'Hostel Warden': [
     'dashboard', 'hostel', 'students', 'communication', 'events'
@@ -97,7 +97,9 @@ export const hasModuleAccess = (role: any, moduleId: ModuleId | string): boolean
   if (moduleId === 'transfer-certificates') moduleId = 'certificates';
   if (moduleId === 'librarian-attendance') moduleId = 'library';
   if (moduleId === 'library-timetable') moduleId = 'library';
-  const baseModule = moduleId.split('-')[0] as ModuleId;
+  if (typeof moduleId === 'string' && moduleId.startsWith('driver-')) moduleId = 'staff';
+  if (typeof moduleId === 'string' && moduleId.startsWith('teacher-')) moduleId = 'staff';
+  const baseModule = (moduleId as string).split('-')[0] as ModuleId;
   const lookupRole = normalizeRoleForRbac(role);
   const allowedModules = ROLE_PERMISSIONS[lookupRole] || ROLE_PERMISSIONS['Staff'] || [];
   return allowedModules.includes(baseModule) || allowedModules.includes(moduleId as ModuleId);
