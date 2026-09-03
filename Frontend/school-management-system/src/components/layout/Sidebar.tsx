@@ -63,6 +63,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { role, user } = useAuth();
   const { schoolProfile, admissions, students } = useData();
+  const [logoLoadError, setLogoLoadError] = useState(false);
+
+  React.useEffect(() => {
+    setLogoLoadError(false);
+  }, [schoolProfile?.logoUrl]);
 
   let isHosteller = true;
   let usesTransport = true;
@@ -531,10 +536,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setCollapsed(false)}
             title={schoolProfile?.name || "School Dashboard"}
           >
-            {schoolProfile?.logoUrl ? (
+            {schoolProfile?.logoUrl && !logoLoadError ? (
               <img
                 src={resolveMediaUrl(schoolProfile.logoUrl)}
                 alt="School Logo"
+                onError={() => setLogoLoadError(true)}
                 className="max-h-8 max-w-8 object-contain"
               />
             ) : (
@@ -547,10 +553,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setActiveModule("dashboard")}
             title={schoolProfile?.name || "School Dashboard"}
           >
-            {schoolProfile?.logoUrl ? (
+            {schoolProfile?.logoUrl && !logoLoadError ? (
               <img
                 src={resolveMediaUrl(schoolProfile.logoUrl)}
                 alt="School Logo"
+                onError={() => setLogoLoadError(true)}
                 className="max-h-10 max-w-[190px] object-contain"
               />
             ) : (
