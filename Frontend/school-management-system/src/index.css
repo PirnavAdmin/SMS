@@ -74,109 +74,75 @@
 /* Printing styling */
 @media print {
   @page {
-    size: A4 portrait;
+    size: auto;
     margin: 8mm;
   }
   @page landscape-layout {
-    size: A4 landscape;
+    size: landscape;
     margin: 8mm;
   }
 
   html, body {
     background: #ffffff !important;
-    color: #0f172a !important;
-    visibility: visible !important;
+    color: #000000 !important;
     overflow: visible !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Hide navigation, sidebars, header buttons, form steps, modal controls & backdrops */
+  /* Hide navigation bars, sidebars, headers & no-print controls */
   aside, nav, header,
   .no-print, .no-print *,
   .print\:hidden, .print\:hidden *,
-  button, input, select, textarea, label,
-  .toast-container, .modal-header, .modal-tabs, .form-step,
-  .modal-actions, .modal-footer {
+  .toast-container {
     display: none !important;
-    visibility: hidden !important;
   }
 
-  .overflow-x-auto, .overflow-hidden, .overflow-y-auto {
+  /* Allow containers to expand and overflow cleanly for print */
+  .overflow-x-auto, .overflow-hidden, .overflow-y-auto, .max-h-screen, .h-screen {
     overflow: visible !important;
     max-height: none !important;
+    height: auto !important;
   }
 
-  /* When a dedicated printable area exists, hide non-printable modal containers */
-  body:has(.printable-area, #printable-content, #printable-certificate, #printable-receipt) .modal-backdrop-hidden,
-  body:has(.printable-area, #printable-content, #printable-certificate, #printable-receipt) .modal-card-body > div:not(.printable-area, #printable-content, #printable-certificate) {
-    background: transparent !important;
+  /* Reset dark backgrounds & shadows for clean ink on white paper */
+  .glass-card, .glass-panel, .bg-white, .bg-slate-900, .bg-slate-800, .bg-slate-950 {
+    background: #ffffff !important;
+    color: #000000 !important;
     box-shadow: none !important;
-    border: none !important;
+    border-color: #cbd5e1 !important;
   }
 
-  /* Target Printable Areas: render cleanly at origin */
-  #printable-content,
-  #printable-certificate,
-  #printable-receipt,
-  #printable-return-receipt,
-  #printable-exchange-receipt,
-  .report-card-sheet,
-  .printable-area {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 10px !important;
-    background: white !important;
-    color: #0f172a !important;
-    z-index: 9999999 !important;
-    display: block !important;
-    visibility: visible !important;
-    box-shadow: none !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+  .text-white, .dark\:text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
+    color: #000000 !important;
   }
 
-  #printable-content *,
-  #printable-certificate *,
-  #printable-receipt *,
-  #printable-return-receipt *,
-  #printable-exchange-receipt *,
-  .report-card-sheet *,
-  .printable-area * {
-    visibility: visible !important;
-  }
-
-  /* Clean Print Tables */
+  /* Table print optimization */
   table {
     width: 100% !important;
-    table-layout: auto !important;
     border-collapse: collapse !important;
-    border: 1px solid #64748b !important;
-    margin-top: 8px !important;
-    margin-bottom: 8px !important;
+    border: 1px solid #475569 !important;
+    margin: 10px 0 !important;
+    background: #ffffff !important;
   }
 
   th {
     background-color: #f1f5f9 !important;
-    color: #0f172a !important;
+    color: #000000 !important;
     font-weight: 800 !important;
-    font-size: 10px !important;
-    text-transform: uppercase !important;
+    font-size: 11px !important;
     padding: 6px 8px !important;
-    border: 1px solid #64748b !important;
+    border: 1px solid #475569 !important;
     text-align: left !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   td {
-    color: #0f172a !important;
-    border: 1px solid #94a3b8 !important;
-    padding: 5px 8px !important;
+    color: #000000 !important;
+    border: 1px solid #64748b !important;
+    padding: 6px 8px !important;
     font-size: 10px !important;
     word-break: break-word !important;
     vertical-align: middle !important;
@@ -184,16 +150,24 @@
     print-color-adjust: exact !important;
   }
 
-  /* Reset cards & glassmorphism backgrounds for printing */
-  .glass-card, .glass-panel, .bg-white, .bg-slate-900, .bg-slate-800 {
-    background: white !important;
-    color: #0f172a !important;
+  /* Dedicated Printable Document Containers */
+  #printable-content,
+  #printable-certificate,
+  #printable-receipt,
+  #printable-return-receipt,
+  #printable-exchange-receipt,
+  .report-card-sheet,
+  .printable-area {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    display: block !important;
     box-shadow: none !important;
-    border-color: #cbd5e1 !important;
-  }
-
-  .text-white, .dark\:text-white {
-    color: #0f172a !important;
   }
 }
 
