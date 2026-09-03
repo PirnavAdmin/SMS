@@ -496,6 +496,17 @@ using (var scope = app.Services.CreateScope())
         // Safe Schema Auto-Initialization for Core, Transport, Hostel & Timetable Modules
         var tableSqls = new[]
         {
+            @"CREATE TABLE IF NOT EXISTS `branches` (
+                `BranchId` int NOT NULL AUTO_INCREMENT,
+                `BranchName` varchar(150) NOT NULL,
+                `BranchCode` varchar(50) NOT NULL DEFAULT '',
+                `Address` varchar(500) NULL,
+                `Phone` varchar(50) NULL,
+                `Email` varchar(100) NULL,
+                `Status` varchar(20) NOT NULL DEFAULT 'Active',
+                PRIMARY KEY (`BranchId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
             @"CREATE TABLE IF NOT EXISTS `departments` (
                 `DepartmentId` int NOT NULL AUTO_INCREMENT,
                 `DepartmentName` varchar(150) NOT NULL,
@@ -1249,11 +1260,33 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("uniform_types", "IncludedItemsJson", "LONGTEXT NULL");
         EnsureColumnExists("uniform_sizes", "ShoulderSpec", "VARCHAR(50) NULL");
 
-        EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
-        EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
-        EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
-        EnsureColumnExists("payroll_configs", "CycleJson", "LONGTEXT NULL");
-        EnsureColumnExists("payroll_configs", "OvertimeJson", "LONGTEXT NULL");
+        EnsureColumnExists("branches", "BranchName", "varchar(150) NOT NULL");
+        EnsureColumnExists("branches", "BranchCode", "varchar(50) NOT NULL DEFAULT ''");
+        EnsureColumnExists("branches", "Address", "varchar(500) NULL");
+        EnsureColumnExists("branches", "Phone", "varchar(50) NULL");
+        EnsureColumnExists("branches", "Email", "varchar(100) NULL");
+        EnsureColumnExists("branches", "Status", "varchar(20) NOT NULL DEFAULT 'Active'");
+
+        EnsureColumnExists("Branches", "BranchName", "varchar(150) NOT NULL");
+        EnsureColumnExists("Branches", "BranchCode", "varchar(50) NOT NULL DEFAULT ''");
+        EnsureColumnExists("Branches", "Address", "varchar(500) NULL");
+        EnsureColumnExists("Branches", "Phone", "varchar(50) NULL");
+        EnsureColumnExists("Branches", "Email", "varchar(100) NULL");
+        EnsureColumnExists("Branches", "Status", "varchar(20) NOT NULL DEFAULT 'Active'");
+
+        try
+        {
+            var conn = context.Database.GetDbConnection();
+            bool closeConn = false;
+            if (conn.State != System.Data.ConnectionState.Open) { conn.Open(); closeConn = true; }
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE `branches` SET `BranchCode` = CONCAT('BR-', `BranchId`) WHERE `BranchCode` IS NULL OR `BranchCode` = '';";
+                cmd.ExecuteNonQuery();
+            }
+            if (closeConn) conn.Close();
+        }
+        catch { }
 
         void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
         {
@@ -1924,7 +1957,12 @@ using (var scope = app.Services.CreateScope())
             var exists = await context.Branches.AnyAsync(b => b.BranchName == branchName);
             if (!exists)
             {
-                await context.Branches.AddAsync(new Branch { BranchName = branchName });
+                await context.Branches.AddAsync(new Branch 
+                { 
+                    BranchName = branchName,
+                    BranchCode = branchName.Length > 5 ? branchName.Substring(0, 5).Trim().ToUpper() : branchName.Trim().ToUpper(),
+                    Status = "Active"
+                });
             }
         }
         await context.SaveChangesAsync();
@@ -2046,7 +2084,7 @@ using (var scope = app.Services.CreateScope())
             var staff2 = staffMembers.ElementAtOrDefault(1);
 
             // Fetch a default subject to satisfy FK constraint on teacher_assignments
-            var defaultSubject = await context.Subjects.FirstOrDefaultAsync();
+            var defaultSubject = await context.Subjects.OrderBy(s => s.SubjectId).FirstOrDefaultAsync();
             var defaultSubjectId = defaultSubject?.SubjectId ?? 1;
 
             for (var classNumber = 1;
@@ -2396,8 +2434,8 @@ using (var scope = app.Services.CreateScope())
 
             if (tablesReady)
             {
-                var defaultBranch = await context.Branches.FirstOrDefaultAsync();
-                var defaultAcademicYear = await context.AcademicYears.FirstOrDefaultAsync();
+                var defaultBranch = await context.Branches.OrderBy(b => b.BranchId).FirstOrDefaultAsync();
+                var defaultAcademicYear = await context.AcademicYears.OrderBy(y => y.AcademicYearId).FirstOrDefaultAsync();
 
                 if (defaultBranch != null && defaultAcademicYear != null)
                 {
@@ -2590,9 +2628,9 @@ using (var scope = app.Services.CreateScope())
         // =================================================
         if (!await context.TeacherSubjectAssignments.AnyAsync())
         {
-            var firstClass = await context.Classes.FirstOrDefaultAsync();
-            var firstSec = await context.ClassSections.FirstOrDefaultAsync();
-            var firstSub = await context.Subjects.FirstOrDefaultAsync();
+            var firstClass = await context.Classes.OrderBy(c => c.ClassId).FirstOrDefaultAsync();
+            var firstSec = await context.ClassSections.OrderBy(s => s.SectionId).FirstOrDefaultAsync();
+            var firstSub = await context.Subjects.OrderBy(s => s.SubjectId).FirstOrDefaultAsync();
             var firstTeacher = await context.Staff.FirstOrDefaultAsync(s => s.IsActive == true);
 
             if (firstClass != null && firstSec != null && firstSub != null && firstTeacher != null)
