@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 import { useAuth } from '../../../../context/AuthContext';
+import { useToast } from '../../../../context/ToastContext';
 import {
   Holiday, SchoolEvent, UnifiedCalendarEvent, UnifiedEventType, HolidayType, EventCategory, Student, Staff
 } from '../../../../types';
@@ -93,7 +94,8 @@ export const EventsView: React.FC = () => {
   const { role } = useAuth();
   const userRoleStr = (role || '').toLowerCase();
   const isLibrarianRole = userRoleStr.includes('librarian') || userRoleStr.includes('library');
-  const canManageEvents = role !== 'Student' && role !== 'Parent' && !isLibrarianRole;
+  const isWardenRole = userRoleStr.includes('warden') || userRoleStr.includes('hostel');
+  const canManageEvents = role !== 'Student' && role !== 'Parent' && !isLibrarianRole && !isWardenRole;
 
   const { addToast } = useToast();
 
