@@ -116,7 +116,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     } else {
       setForm({
         ...defaultBasicStaffFormState(defaultCategory),
-        empId: getNextEmployeeId(staff),
+        empId: getNextEmployeeId(staff, defaultCategory),
       });
     }
 

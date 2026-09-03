@@ -39,13 +39,17 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const [form, setForm] = useState<BasicStaffFormState>(() => ({
-    ...defaultBasicStaffFormState(getInitialCategory()),
-    empId: getNextEmployeeId(staff)
-  }));
+  const [form, setForm] = useState<BasicStaffFormState>(() => {
+    const initCat = getInitialCategory();
+    return {
+      ...defaultBasicStaffFormState(initCat),
+      empId: getNextEmployeeId(staff, initCat)
+    };
+  });
 
   useEffect(() => {
-    setForm(prev => (prev.empId ? prev : { ...prev, empId: getNextEmployeeId(staff) }));
+    const initCat = getInitialCategory();
+    setForm(prev => (prev.empId ? prev : { ...prev, empId: getNextEmployeeId(staff, initCat) }));
   }, [staff]);
 
   const handleChange = (field: keyof BasicStaffFormState, value: any) => {

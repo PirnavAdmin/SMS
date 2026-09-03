@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { useData } from "../../../context/DataContext";
+import { resolveMediaUrl } from "../../../utils/mediaUtils";
 import { useHostel } from "../../../context/HostelContext";
 import { useToast } from "../../../context/ToastContext";
 
@@ -325,7 +326,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               {schoolProfile?.logoUrl && (
                 <img
-                  src={schoolProfile.logoUrl}
+                  src={resolveMediaUrl(schoolProfile.logoUrl)}
                   alt="School Logo"
                   className="h-6 w-auto max-w-[120px] object-contain rounded-md bg-white/20 p-0.5"
                 />

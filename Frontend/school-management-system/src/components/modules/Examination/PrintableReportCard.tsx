@@ -4,6 +4,7 @@ import { Student, ExamSetup, ExamMark, ProcessedResult } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { calculateCompetitionRanks } from './utils/ranking';
 import { calculateStudentResult } from './utils/resultCalculation';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 export interface PrintableReportCardProps {
   student: Student | null;
@@ -39,7 +40,8 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   }
   const directLogoKey = typeof window !== 'undefined' ? (localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || localStorage.getItem('schoolLogo')) : null;
 
-  const logoUrl = schoolProfile?.logoUrl || savedProfile?.logoUrl || contextData.schoolProfile?.logoUrl || directLogoKey || '/pirnav-school-logo.png';
+  const rawLogo = schoolProfile?.logoUrl || savedProfile?.logoUrl || contextData.schoolProfile?.logoUrl || directLogoKey;
+  const logoUrl = resolveMediaUrl(rawLogo);
 
   const allExamMarks = contextData.examMarks;
   const allProcessedResults = contextData.processedResults;

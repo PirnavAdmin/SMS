@@ -227,7 +227,7 @@ export const ScholarshipsView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Create Scholarship
           </button>
-          <ExportButton data={scholarships} filename="scholarships" />
+          <ExportButton data={activeTab === 'master' ? filteredScholarships : filteredAwardedList} filename="scholarships" />
         </div>
       </div>
 

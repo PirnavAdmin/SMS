@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
+import { generateNextStudentId, generateNextAdmissionNo } from "../utils/idGenerator";
 import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
@@ -6120,9 +6121,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     window.addEventListener("school_profile_updated", handleProfileUpdate);
     window.addEventListener("storage", handleProfileUpdate);
+    window.addEventListener("focus", loadSchoolSettingsFromDb);
+
+    const syncInterval = setInterval(loadSchoolSettingsFromDb, 60000);
+
     return () => {
       window.removeEventListener("school_profile_updated", handleProfileUpdate);
       window.removeEventListener("storage", handleProfileUpdate);
+      window.removeEventListener("focus", loadSchoolSettingsFromDb);
+      clearInterval(syncInterval);
     };
   }, []);
 
@@ -6130,10 +6137,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     stData: Omit<Student, "id">,
     skipApiCall = false,
   ): Student => {
-    const id = "STU-" + Math.floor(100 + Math.random() * 900);
+    const id = (stData as any).id || generateNextStudentId(students);
+    const admissionNo = stData.admissionNo || generateNextAdmissionNo(students);
     const newStudent: Student = {
       ...stData,
       id,
+      admissionNo,
       section: stData.section || "",
       rollNo: stData.rollNo || "",
       branch: stData.branch || selectedBranch || "Main Campus",

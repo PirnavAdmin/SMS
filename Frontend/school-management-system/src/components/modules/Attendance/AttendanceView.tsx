@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { exportToExcel } from '../../../utils/excelExport';
+import { Pagination } from '../../common/Pagination';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -986,45 +987,15 @@ export const AttendanceView = () => {
             )}
             {/* Pagination Controls */}
             {filteredStudents.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                <p className="text-xs text-slate-500 font-bold font-mono">Showing {paginatedStudents.length} of {filteredStudents.length} records</p>
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
-                    <span>Show:</span>
-                    <select
-                      value={itemsPerPage}
-                      onChange={e => {
-                        setItemsPerPage(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-855 border border-slate-200 dark:border-slate-750 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-brand-500 transition-colors"
-                    >
-                      <option value={10}>10 students</option>
-                      <option value={25}>25 students</option>
-                      <option value={50}>50 students</option>
-                      <option value={100}>100 students</option>
-                    </select>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 disabled:opacity-50 transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Page {currentPage} of {totalPages}</span>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 disabled:opacity-50 transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div className="pt-2">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredStudents.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+                  label="students"
+                />
               </div>
             )}
           </div>

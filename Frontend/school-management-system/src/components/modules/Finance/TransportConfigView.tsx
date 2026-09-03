@@ -96,7 +96,7 @@ export const TransportConfigView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add Route Master
           </button>
-          <ExportButton data={erpTransportRoutes} filename="transport_routes" />
+          <ExportButton data={filteredRoutes} filename="transport_routes" />
         </div>
       </div>
 

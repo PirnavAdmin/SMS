@@ -31,6 +31,7 @@ import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { StaffFormModal } from "./StaffFormModal";
 import { StaffProfileDrawer } from "./StaffProfileDrawerEnhanced";
+import { Pagination } from "../../common/Pagination";
 import { DocumentRequirementMasterModal } from "./DocumentRequirementMasterModal";
 import {
   normalizeStaffType,
@@ -1056,30 +1057,18 @@ export const StaffList: React.FC<{
         </div>
 
         {/* Pagination bar */}
-        <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
-          <span className="text-slate-500">
-            Showing {paginated.length} of {filtered.length} employees
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
-              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border disabled:opacity-40"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-bold">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border disabled:opacity-40"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+        {filtered.length > 0 && (
+          <div className="px-4 pb-3">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filtered.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+              label="employees"
+            />
           </div>
-        </div>
+        )}
       </div>
 
       <StaffFormModal

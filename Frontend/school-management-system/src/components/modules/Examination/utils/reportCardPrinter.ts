@@ -1,4 +1,5 @@
 import { ProcessedResult, ExamSetup, SubjectItem } from '../../../../types';
+import { resolveMediaUrl } from '../../../../utils/mediaUtils';
 
 export function generateReportCardHtml(
   data: ProcessedResult,
@@ -42,7 +43,7 @@ export function generateReportCardHtml(
     <div class="report-card-container" style="max-width: 800px; margin: 0 auto 30px auto; border: 2px solid #0284c7; border-radius: 16px; padding: 24px; background: #ffffff; page-break-after: always;">
       <!-- Header -->
         <div style="display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px;">
-          <img src="${schoolProfile?.logoUrl || '/pirnav-school-logo.png'}" style="width: 55px; height: 55px; border-radius: 10px; object-fit: contain;" alt="Logo" />
+          ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="width: 55px; height: 55px; border-radius: 10px; object-fit: contain;" alt="Logo" />` : ''}
           <div style="text-align: left;">
             <div style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1;">${schoolName}</div>
             <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 2px;">${schoolAddress} ${schoolContact ? `• ${schoolContact}` : ''}</div>

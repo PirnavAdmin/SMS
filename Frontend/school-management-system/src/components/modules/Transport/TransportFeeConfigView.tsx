@@ -44,7 +44,7 @@ export const TransportFeeConfigView: React.FC = () => {
           <p className="text-xs text-slate-500">Configure pickup-point driven monthly, quarterly, half-yearly & annual transport fee matrix</p>
         </div>
 
-        <ExportButton data={pickupPoints} filename="transport_fee_matrix" />
+        <ExportButton data={filteredPoints} filename="transport_fee_matrix" />
       </div>
 
       {/* Filter */}

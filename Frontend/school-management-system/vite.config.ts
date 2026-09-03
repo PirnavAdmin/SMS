@@ -27,6 +27,14 @@ export default defineConfig(({ mode }) => {
             });
           }
         },
+        '/uploads': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: false,
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+        },
       },
     },
   };

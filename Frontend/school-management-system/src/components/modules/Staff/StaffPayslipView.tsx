@@ -3,6 +3,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { FileText, Printer, Search, HelpCircle } from 'lucide-react';
 import { Payslip } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 export const StaffPayslipView: React.FC = () => {
   const { payslips, schoolProfile } = useData();
@@ -44,7 +45,7 @@ export const StaffPayslipView: React.FC = () => {
           <body>
             <div class="header">
               <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px;">
-                <img src="${schoolProfile?.logoUrl || '/pirnav-school-logo.png'}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo" />
+                ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo" />` : ''}
                 <div>
                   <h2 style="margin: 0; font-size: 18px; color: #0284c7;">${schoolProfile?.name || 'Pirnav Educational Institutions'}</h2>
                   <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">${schoolProfile?.address || ''}</p>

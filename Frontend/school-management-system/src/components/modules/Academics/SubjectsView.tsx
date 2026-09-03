@@ -13,6 +13,7 @@ import {
   fetchDesignationsApi, createDesignationApi, updateDesignationApi, deleteDesignationApi
 } from '../../../api/academic';
 import { teachingDesignationNames } from '../Staff/staffFlowOptions';
+import { Pagination } from '../../common/Pagination';
 
 export const SubjectsView: React.FC = () => {
   const { 
@@ -722,25 +723,16 @@ export const SubjectsView: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>Page {currentPage} of {totalPages}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
+            {filteredSubjects.length > 0 && (
+              <div className="px-4 pb-3">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredSubjects.length}
+                  itemsPerPage={pageSize}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+                  label="subjects"
+                />
               </div>
             )}
           </div>
@@ -875,25 +867,16 @@ export const SubjectsView: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            {deptTotalPages > 1 && (
-              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>Page {deptCurrentPage} of {deptTotalPages}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={deptCurrentPage === 1}
-                    onClick={() => setDeptCurrentPage(p => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    disabled={deptCurrentPage === deptTotalPages}
-                    onClick={() => setDeptCurrentPage(p => Math.min(deptTotalPages, p + 1))}
-                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
+            {filteredDepartments.length > 0 && (
+              <div className="px-4 pb-3">
+                <Pagination
+                  currentPage={deptCurrentPage}
+                  totalItems={filteredDepartments.length}
+                  itemsPerPage={deptPageSize}
+                  onPageChange={setDeptCurrentPage}
+                  onItemsPerPageChange={(n) => { setDeptPageSize(n); setDeptCurrentPage(1); }}
+                  label="departments"
+                />
               </div>
             )}
           </div>
@@ -1015,25 +998,16 @@ export const SubjectsView: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            {desigTotalPages > 1 && (
-              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>Page {desigCurrentPage} of {desigTotalPages}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={desigCurrentPage === 1}
-                    onClick={() => setDesigCurrentPage(p => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    disabled={desigCurrentPage === desigTotalPages}
-                    onClick={() => setDesigCurrentPage(p => Math.min(desigTotalPages, p + 1))}
-                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
+            {filteredDesignations.length > 0 && (
+              <div className="px-4 pb-3">
+                <Pagination
+                  currentPage={desigCurrentPage}
+                  totalItems={filteredDesignations.length}
+                  itemsPerPage={desigPageSize}
+                  onPageChange={setDesigCurrentPage}
+                  onItemsPerPageChange={(n) => { setDesigPageSize(n); setDesigCurrentPage(1); }}
+                  label="designations"
+                />
               </div>
             )}
           </div>

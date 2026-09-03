@@ -1,6 +1,7 @@
 import React from "react";
 import { CertificateTemplateConfig, SchoolProfile } from "../../../types";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
+import { resolveMediaUrl } from "../../../utils/mediaUtils";
 
 export interface PrintableCertificateContainerProps {
   template: CertificateTemplateConfig;
@@ -70,7 +71,7 @@ export const PrintableCertificateContainer: React.FC<
     "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
   const schoolPhone = schoolProfile.phone || "+91 9123456789";
   const schoolEmail = schoolProfile.email || "contact@pirnavschools.edu";
-  const schoolLogoUrl = schoolProfile.logoUrl || '/pirnav-school-logo.png';
+  const schoolLogoUrl = resolveMediaUrl(schoolProfile.logoUrl);
 
   // Header Style Variations
   const getContainerStyle = () => {
@@ -188,7 +189,8 @@ export const PrintableCertificateContainer: React.FC<
 
   return (
     <div
-      className="bg-white text-slate-900 p-8 sm:p-10 font-serif relative max-w-4xl mx-auto shadow-2xl space-y-6 print:shadow-none print:m-0 print:w-full print:max-w-none"
+      id="printable-certificate"
+      className="printable-area bg-white text-slate-900 p-8 sm:p-10 font-serif relative max-w-4xl mx-auto shadow-2xl space-y-6 print:shadow-none print:m-0 print:w-full print:max-w-none"
       style={getContainerStyle()}
     >
       {/* Top Accent Bar */}

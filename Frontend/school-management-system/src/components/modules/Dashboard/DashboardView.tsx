@@ -921,7 +921,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Staff Attendance Donut */}
-          <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+          <div onClick={() => onNavigate('staff-attendance')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
             {/* Header */}
             <div className="shrink-0 space-y-0.5 text-left">
               <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>

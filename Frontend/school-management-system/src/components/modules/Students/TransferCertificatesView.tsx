@@ -10,6 +10,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { TransferStudentModal } from './TransferStudentModal';
 import { Student, TcRecord } from '../../../types';
+import { Pagination } from '../../common/Pagination';
 
 interface TransferCertificatesViewProps {
   onNavigate?: (module: string) => void;
@@ -173,7 +174,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
         </div>
 
         <div className="flex items-center gap-3">
-          <ExportButton data={tcRegister} filename="transfer_certificates_register" />
+          <ExportButton data={activeDataset} filename="transfer_certificates_register" />
         </div>
       </div>
 
@@ -404,46 +405,17 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
             </table>
           </div>
 
-          {/* Pagination Footer */}
+          {/* Pagination */}
           {eligibleActiveStudents.length > 0 && (
-            <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
-              <div className="flex items-center gap-3">
-                <span>
-                  Showing {paginatedDataset.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, eligibleActiveStudents.length)} of {eligibleActiveStudents.length} student(s)
-                </span>
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                >
-                  <option value={10}>10 per page</option>
-                  <option value={20}>20 per page</option>
-                  <option value={50}>50 per page</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all flex items-center gap-1 cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" /> Previous
-                </button>
-                <span className="font-bold text-slate-900 dark:text-white px-2">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all flex items-center gap-1 cursor-pointer"
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+            <div className="px-4 pb-3">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={eligibleActiveStudents.length}
+                itemsPerPage={pageSize}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+                label="students"
+              />
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
+import { Pagination } from '../../common/Pagination';
 
 export const FeeReceiptsView: React.FC = () => {
   const { feePayments, academicClasses, students } = useData();
@@ -195,38 +196,16 @@ export const FeeReceiptsView: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer */}
+        {/* Pagination */}
         {filteredPayments.length > 0 && (
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <span className="text-slate-500 font-medium">
-              Showing <strong className="text-slate-900 dark:text-white">{startIndex + 1}</strong> to{' '}
-              <strong className="text-slate-900 dark:text-white">{Math.min(startIndex + ITEMS_PER_PAGE, filteredPayments.length)}</strong> of{' '}
-              <strong className="text-slate-900 dark:text-white">{filteredPayments.length}</strong> receipts
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer"
-              >
-                Previous
-              </button>
-
-              <span className="px-3 py-1.5 font-extrabold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/60 rounded-xl">
-                Page {currentPage} of {totalPages}
-              </span>
-
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
+          <div className="px-4 pb-3">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredPayments.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+              label="receipts"
+            />
           </div>
         )}
       </div>

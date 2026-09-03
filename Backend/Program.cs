@@ -309,7 +309,17 @@ app.UseCors();
 app.UseMiddleware<ExceptionMiddleware>();
 
 // Enable Static Files (for uploads, branding logos, and documents)
-app.UseStaticFiles();
+var contentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".webp"] = "image/webp";
+contentTypeProvider.Mappings[".svg"] = "image/svg+xml";
+contentTypeProvider.Mappings[".png"] = "image/png";
+contentTypeProvider.Mappings[".jpg"] = "image/jpeg";
+contentTypeProvider.Mappings[".jpeg"] = "image/jpeg";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypeProvider
+});
 
 // Enable Swagger UI unconditionally
 app.UseSwagger();

@@ -7,6 +7,7 @@ import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateV
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 
 import { DateInput } from '../../common/DateInput';
+import { generateNextAdmissionNo } from '../../../utils/idGenerator';
 
 interface StudentFormModalProps {
   isOpen: boolean;
@@ -268,8 +269,12 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       setHasSiblings(false);
       setSiblingsCount(1);
       setSiblingDetails([]);
+      setFormData(prev => ({
+        ...prev,
+        admissionNo: generateNextAdmissionNo(students)
+      }));
     }
-  }, [studentToEdit]);
+  }, [studentToEdit, isOpen, students]);
 
   if (!isOpen) return null;
 

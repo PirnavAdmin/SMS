@@ -2,6 +2,7 @@ import React from 'react';
 import { Download, Printer, X, Shield, Phone, MapPin, Building } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface PrintableIDCardProps {
   student: Student | null;
@@ -48,11 +49,13 @@ export const PrintableIDCard: React.FC<PrintableIDCardProps> = ({
 
             {/* School Header */}
             <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-              <img
-                src={schoolProfile.logoUrl || '/pirnav-school-logo.png'}
-                alt=""
-                className="w-10 h-10 rounded-xl object-contain ring-2 ring-brand-500/30 shrink-0 bg-white"
-              />
+              {schoolProfile.logoUrl && (
+                <img
+                  src={resolveMediaUrl(schoolProfile.logoUrl)}
+                  alt=""
+                  className="w-10 h-10 rounded-xl object-contain ring-2 ring-brand-500/30 shrink-0 bg-white"
+                />
+              )}
               <div className="truncate">
                 <h4 className="font-black text-xs uppercase tracking-wider text-white truncate print:text-slate-900">
                   {schoolProfile.name}
