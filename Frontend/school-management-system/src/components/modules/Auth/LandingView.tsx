@@ -74,17 +74,17 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   // School Campus Backdrop Image
   const bgCampusImage = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2000&auto=format&fit=crop';
 
-  // Dynamic School Info State loaded from API / localStorage with fallback defaults
+  // Dynamic School Info State loaded from API / localStorage with no hardcoded fallback text or logos
   const [schoolInfo, setSchoolInfo] = useState<DynamicSchoolInfo>(() => {
     return {
-      name: localStorage.getItem('school_name') || 'Pirnav Educational Institution',
-      logoUrl: localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || pirnavLogo,
-      address: localStorage.getItem('school_address') || 'Pirnav Knowledge Campus, Main District Road',
-      email: localStorage.getItem('school_email') || 'info@pirnavschool.edu',
-      phone: localStorage.getItem('school_phone') || '+1 (800) 555-PIRNAV',
-      website: localStorage.getItem('school_website') || 'www.pirnavschool.edu',
-      tagline: localStorage.getItem('school_tagline') || 'Empowering Minds, Shaping Tomorrow.',
-      affiliation: localStorage.getItem('school_affiliation') || 'CBSE & State Board Accredited',
+      name: localStorage.getItem('school_name') || '',
+      logoUrl: localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
+      address: localStorage.getItem('school_address') || '',
+      email: localStorage.getItem('school_email') || '',
+      phone: localStorage.getItem('school_phone') || '',
+      website: localStorage.getItem('school_website') || '',
+      tagline: localStorage.getItem('school_tagline') || '',
+      affiliation: localStorage.getItem('school_affiliation') || '',
     };
   });
 
@@ -117,30 +117,48 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   useEffect(() => {
     let isMounted = true;
 
-    fetchSchoolSettingsApi()
-      .then((res: any) => {
-        if (!isMounted) return;
-        const data = res?.data || res;
-        if (data) {
-          const updated: DynamicSchoolInfo = {
-            name: data.schoolName || data.name || schoolInfo.name,
-            logoUrl: data.logoUrl || data.logo || schoolInfo.logoUrl,
-            address: data.address || data.schoolAddress || schoolInfo.address,
-            email: data.email || data.contactEmail || schoolInfo.email,
-            phone: data.phone || data.contactPhone || schoolInfo.phone,
-            website: data.website || schoolInfo.website,
-            tagline: data.tagline || data.motto || schoolInfo.tagline,
-            affiliation: data.affiliation || data.board || schoolInfo.affiliation,
-          };
-          setSchoolInfo(updated);
-          localStorage.setItem('school_name', updated.name);
-          if (updated.logoUrl) localStorage.setItem('school_logo', updated.logoUrl);
-          if (updated.address) localStorage.setItem('school_address', updated.address);
-          if (updated.email) localStorage.setItem('school_email', updated.email);
-          if (updated.phone) localStorage.setItem('school_phone', updated.phone);
-        }
-      })
-      .catch(() => {});
+    const loadSchoolSettings = () => {
+      const savedName = localStorage.getItem('school_name');
+      const savedLogo = localStorage.getItem('school_logo') || localStorage.getItem('logoUrl');
+      const savedAddr = localStorage.getItem('school_address');
+
+      if (savedName || savedLogo || savedAddr) {
+        setSchoolInfo(prev => ({
+          ...prev,
+          name: savedName || prev.name,
+          logoUrl: savedLogo || prev.logoUrl,
+          address: savedAddr || prev.address
+        }));
+      }
+
+      fetchSchoolSettingsApi()
+        .then((res: any) => {
+          if (!isMounted) return;
+          const data = res?.data || res;
+          if (data) {
+            const updated: DynamicSchoolInfo = {
+              name: data.schoolName || data.name || savedName || '',
+              logoUrl: data.logoUrl || data.logo || savedLogo || '',
+              address: data.address || data.schoolAddress || savedAddr || '',
+              email: data.email || data.contactEmail || '',
+              phone: data.phone || data.contactPhone || '',
+              website: data.website || '',
+              tagline: data.tagline || data.motto || '',
+              affiliation: data.affiliation || data.board || '',
+            };
+            setSchoolInfo(updated);
+            if (updated.name) localStorage.setItem('school_name', updated.name);
+            if (updated.logoUrl) localStorage.setItem('school_logo', updated.logoUrl);
+            if (updated.address) localStorage.setItem('school_address', updated.address);
+          }
+        })
+        .catch(() => {});
+    };
+
+    loadSchoolSettings();
+
+    window.addEventListener('school_profile_updated', loadSchoolSettings);
+    window.addEventListener('storage', loadSchoolSettings);
 
     fetchNotificationsApi()
       .then((res: any) => {
@@ -161,6 +179,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
     return () => {
       isMounted = false;
+      window.removeEventListener('school_profile_updated', loadSchoolSettings);
+      window.removeEventListener('storage', loadSchoolSettings);
     };
   }, []);
 
@@ -382,7 +402,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   alt={schoolInfo.name}
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = pirnavLogo;
+                    (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
               ) : (
@@ -593,7 +613,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                         <GraduationCap className="w-4 h-4" />
                       </div>
                       <div>
-                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white">Pirnav ERP Live Console</h3>
+                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white truncate max-w-[220px]" title={`${schoolInfo.name} Live Console`}>
+                          {schoolInfo.name} Live Console
+                        </h3>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Smart Campus Ecosystem</p>
                       </div>
                     </div>
@@ -1185,7 +1207,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                     alt={schoolInfo.name}
                     className="w-full h-full object-contain"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = pirnavLogo;
+                      (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (

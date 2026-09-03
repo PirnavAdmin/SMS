@@ -26,12 +26,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const { addToast } = useToast();
 
   const [schoolName, setSchoolName] = useState<string>(() => {
-    return localStorage.getItem('school_name') || 'Pirnav Educational Institution';
+    return localStorage.getItem('school_name') || '';
   });
 
-  // Dynamic School Logo state (Identical logic to LandingView)
+  // Dynamic School Logo state (No default logo fallback)
   const [dynamicLogo, setDynamicLogo] = useState<string>(() => {
-    return localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || pirnavLogo;
+    return localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '';
   });
 
   useEffect(() => {
@@ -228,16 +228,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
             
             {/* School Logo & Title Header inside Card */}
             <div className="mb-6 flex flex-col items-center text-center space-y-2">
-              <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-950 p-1.5 shadow-xl border border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-center overflow-hidden">
-                <img
-                  src={dynamicLogo || pirnavLogo}
-                  alt={schoolName}
-                  className="w-full h-full object-contain p-0.5"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = pirnavLogo;
-                  }}
-                />
-              </div>
+              {dynamicLogo && (
+                <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-950 p-1.5 shadow-xl border border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={dynamicLogo}
+                    alt={schoolName || 'School Logo'}
+                    className="w-full h-full object-contain p-0.5"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
 
               <div>
                 <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
