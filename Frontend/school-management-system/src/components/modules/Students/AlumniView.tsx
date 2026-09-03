@@ -469,7 +469,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
             {/* Batch-wise Report */}
             <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-brand-600" /> Batch-wise Alumni Breakdown
+                <GraduationCap className="w-4 h-4 text-brand-600" /> Batch-wise Alumni
               </h3>
               <div className="space-y-3">
                 {uniqueBatches.map(batch => {

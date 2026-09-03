@@ -587,7 +587,7 @@ export const AttendanceView = () => {
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="Daily">Daily</option>
-              <option value="Monthly">Month-wise</option>
+              <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
             </select>
           </div>

@@ -4882,11 +4882,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             ? "Confirm Student Enrollment"
             : "Confirm Application Rejection"
         }
-        subtitle={
-          confirmingApp?.status === "Enrolled"
-            ? "Finalize Admission & Create Student Profile"
-            : "Application Status Update"
-        }
         variant={confirmingApp?.status === "Enrolled" ? "success" : "danger"}
         message={
           confirmingApp?.status === "Enrolled"

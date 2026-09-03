@@ -467,7 +467,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    Hostel Bed Occupancy Breakdown
+                    Hostel Bed Occupancy
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
                     Live distribution of occupied, vacant, and out-pass beds
@@ -496,7 +496,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                     Hostel Buildings & Room Occupancy
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
-                    Live Bed Occupancy Breakdown by Hostel Building
+                    Live Bed Occupancy by Hostel Building
                   </p>
                 </div>
               </div>

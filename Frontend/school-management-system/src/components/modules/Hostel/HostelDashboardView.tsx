@@ -121,7 +121,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800 pb-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Home className="w-7 h-7 text-sky-500" /> Hostel Executive Dashboard
+            <Home className="w-7 h-7 text-sky-500" /> Hostel Dashboard
           </h2>
         </div>
       </div>
@@ -255,7 +255,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
               <div className="flex items-center gap-2">
                 <PieChart className="w-5 h-5 text-sky-600" />
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
-                  Overall Hostel Bed Occupancy Breakdown
+                  Overall Hostel Bed Occupancy
                 </span>
               </div>
               <span className="text-xs font-mono font-bold text-sky-600 dark:text-sky-400">

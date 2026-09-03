@@ -86,9 +86,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {subtitle || defaultSubtitle}
-              </p>
+              {subtitle && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {subtitle}
+                </p>
+              )}
             </div>
           </div>
           <button 

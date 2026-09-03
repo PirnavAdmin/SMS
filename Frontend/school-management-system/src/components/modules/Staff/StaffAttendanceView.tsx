@@ -2987,7 +2987,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
                 <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-center col-span-2 sm:col-span-1">
                   <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">
-                    Half Day / Late
+                    Half Day
                   </p>
                   <p className="text-lg font-black text-amber-800 dark:text-amber-300 mt-0.5">
                     {liveSummaryStats.halfDay}

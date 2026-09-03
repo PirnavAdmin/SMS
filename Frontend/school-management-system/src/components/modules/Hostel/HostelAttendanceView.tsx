@@ -410,7 +410,7 @@ export const HostelAttendanceView: React.FC = () => {
           </div>
 
           <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 text-center col-span-2 sm:col-span-1">
-            <p className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">HALF DAY / LATE</p>
+            <p className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">HALF DAY</p>
             <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{lateCount}</p>
           </div>
         </div>

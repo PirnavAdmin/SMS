@@ -611,7 +611,6 @@ export const TeacherProfileView: React.FC = () => {
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                   <Edit2 className="w-4 h-4 text-sky-600" /> Edit Teacher Profile
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium">Update personal details, contact info, qualifications, and profile picture</p>
               </div>
               <button
                 onClick={() => setIsEditModalOpen(false)}
