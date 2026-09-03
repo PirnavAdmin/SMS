@@ -1,4 +1,5 @@
 import { Staff, StaffDocType } from "../../../types";
+import { generateNextEmployeeId as genNextEmpId } from "../../../utils/idGenerator";
 
 export type StaffType = "Teaching Staff" | "Non-Teaching Staff";
 export type EmployeeCategory = "Teacher" | "Staff" | StaffType;
@@ -899,17 +900,8 @@ export function getDocumentRequirements(category?: string) {
     : nonTeachingDocumentRequirements;
 }
 
-export function getNextEmployeeId(staff: Staff[]) {
-  const year = new Date().getFullYear();
-  const numbers = staff
-    .map((item) => {
-      const match = (item.empId || "").match(/\d+$/);
-      return match ? parseInt(match[0], 10) : 0;
-    })
-    .filter((value): value is number => Number.isFinite(value) && value > 0);
-
-  const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-  return `STF-${year}-${String(next).padStart(4, "0")}`;
+export function getNextEmployeeId(staff: Staff[], category?: string) {
+  return genNextEmpId(staff, category);
 }
 
 export function buildBasicStaffCreatePayload(

@@ -22,6 +22,13 @@ import {
   deleteBranchApi,
   fetchAcademicYearsApi
 } from '../../../api/settings';
+import { 
+  getIdSequenceSettings, 
+  saveIdSequenceSettings, 
+  buildPreviewId, 
+  IdSequenceSettings,
+  CustomIdSequence
+} from '../../../utils/idGenerator';
 
 export interface CampusItem {
   id: string;
@@ -149,7 +156,50 @@ export const SettingsView: React.FC = () => {
       initialLoadedRef.current = true;
     }
   }, [schoolProfile]);
-  const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'academic-year' | 'certificates' | 'backup' | 'audit'>('profile');
+
+  const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'academic-year' | 'id-format' | 'certificates' | 'backup' | 'audit'>('profile');
+
+  // Automated ID Sequence Configuration State
+  const [idForm, setIdForm] = useState<IdSequenceSettings>(getIdSequenceSettings);
+
+  const handleSaveIdSettings = () => {
+    saveIdSequenceSettings(idForm);
+    addToast('success', 'ID Formats Saved', 'Automated ID and serial number settings updated successfully.');
+  };
+
+  const handleAddCustomIdSequence = () => {
+    const newSeq: CustomIdSequence = {
+      id: `custom_${Date.now()}`,
+      name: `Custom Format ${(idForm.customSequences || []).length + 1}`,
+      prefix: 'CUST',
+      startNo: 101,
+      padding: 4,
+      includeYear: true,
+      separator: '-',
+      position: 'start'
+    };
+
+    setIdForm(prev => ({
+      ...prev,
+      customSequences: [...(prev.customSequences || []), newSeq]
+    }));
+    addToast('success', 'Custom ID Rule Added', 'A new custom ID sequence card has been added.');
+  };
+
+  const handleDeleteCustomIdSequence = (seqId: string) => {
+    setIdForm(prev => ({
+      ...prev,
+      customSequences: (prev.customSequences || []).filter(s => s.id !== seqId)
+    }));
+    addToast('info', 'Custom ID Rule Removed', 'Removed custom ID sequence rule.');
+  };
+
+  const handleUpdateCustomSequence = (seqId: string, updates: Partial<CustomIdSequence>) => {
+    setIdForm(prev => ({
+      ...prev,
+      customSequences: (prev.customSequences || []).map(s => s.id === seqId ? { ...s, ...updates } : s)
+    }));
+  };
 
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState('');
@@ -441,67 +491,79 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-brand-600" /> School Settings
+      {/* 1. School Settings Header Title Container */}
+      <div className="bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-sky-200 dark:border-sky-900/60 shadow-sm">
+        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+          <SettingsIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+          <span>School Settings</span>
         </h2>
       </div>
 
-      {/* Settings Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'profile' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          School Branding Profile
-        </button>
-        <button
-          onClick={() => setActiveTab('campus')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-            activeTab === 'campus' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5" /> Campus Configuration ({campuses.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('academic-year')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-            activeTab === 'academic-year' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Calendar className="w-3.5 h-3.5" /> Academic Year Configuration ({(academicYears || []).length})
-        </button>
-        <button
-          onClick={() => setActiveTab('certificates')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-            activeTab === 'certificates' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Award className="w-3.5 h-3.5" /> Certificate Templates ({certificateTemplates.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('backup')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'backup' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Backup & Restore
-        </button>
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'audit' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          System Audit Logs ({auditLogs.length})
-        </button>
+      {/* 2. Separate Navigation Tabs Container */}
+      <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-sky-200 dark:border-sky-900/60 shadow-sm">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'profile' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            School Branding Profile
+          </button>
+          <button
+            onClick={() => setActiveTab('campus')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'campus' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            Campus Configuration ({campuses.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('academic-year')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'academic-year' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            Academic Year Configuration ({(academicYears || []).length})
+          </button>
+          <button
+            onClick={() => setActiveTab('id-format')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'id-format' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            Automated ID Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('certificates')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'certificates' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            Certificate Templates ({certificateTemplates.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('backup')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'backup' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            Backup & Restore
+          </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'audit' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 border border-sky-200 dark:border-sky-900/60 hover:border-sky-400 shadow-sm'
+            }`}
+          >
+            System Audit Logs ({auditLogs.length})
+          </button>
+        </div>
       </div>
 
       {/* TAB 1: SCHOOL BRANDING PROFILE */}
       {activeTab === 'profile' && (
-        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-2xl border border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl space-y-4 max-w-2xl border border-sky-200 dark:border-sky-900/60 shadow-sm">
           <h3 className="font-bold text-sm text-slate-900 dark:text-white">School Profile Setup</h3>
           <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
             <div>
@@ -591,10 +653,576 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
+      {/* TAB: AUTOMATED ID SEQUENCE SETTINGS */}
+      {activeTab === 'id-format' && (
+        <div className="space-y-6 max-w-5xl">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-200 dark:border-sky-900/60 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-sky-500" /> Automated ID & Serial Number Sequence Settings
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleAddCustomIdSequence}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-300 dark:border-slate-700"
+              >
+                <Plus className="w-4 h-4 text-sky-600" /> Add Custom ID Format
+              </button>
+              <button
+                onClick={handleSaveIdSettings}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+              >
+                <Save className="w-4 h-4" /> Save All ID Formats
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* 1. STUDENT ID FORMAT CARD */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-4 border border-sky-200 dark:border-sky-900/60 shadow-sm">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-sky-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Student ID</h4>
+                </div>
+              </div>
+
+              {/* Live Preview Badge */}
+              <div className="p-3 rounded-2xl bg-slate-950 text-white border border-slate-800 text-center space-y-1">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live Preview</div>
+                <div className="text-base font-mono font-extrabold text-sky-400">
+                  {buildPreviewId(
+                    idForm.studentIdPrefix,
+                    idForm.studentIdStartNo,
+                    idForm.studentIdPadding,
+                    idForm.studentIdIncludeYear,
+                    idForm.studentIdSeparator,
+                    idForm.studentIdPosition
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">ID Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.studentIdPrefix}
+                      onChange={e => setIdForm({ ...idForm, studentIdPrefix: e.target.value.toUpperCase() })}
+                      placeholder="e.g. STU"
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Tag Placement</label>
+                    <select
+                      value={idForm.studentIdPosition || 'start'}
+                      onChange={e => setIdForm({ ...idForm, studentIdPosition: e.target.value as any })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="start">Start (Prefix)</option>
+                      <option value="middle">Middle</option>
+                      <option value="end">End (Suffix)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.studentIdStartNo}
+                      onChange={e => setIdForm({ ...idForm, studentIdStartNo: parseInt(e.target.value) || 1 })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Padding</label>
+                    <select
+                      value={idForm.studentIdPadding}
+                      onChange={e => setIdForm({ ...idForm, studentIdPadding: parseInt(e.target.value) })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Separator</label>
+                    <select
+                      value={idForm.studentIdSeparator}
+                      onChange={e => setIdForm({ ...idForm, studentIdSeparator: e.target.value })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Year Tag</label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none h-[38px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors hover:border-sky-300">
+                      <input
+                        type="checkbox"
+                        checked={idForm.studentIdIncludeYear}
+                        onChange={e => setIdForm({ ...idForm, studentIdIncludeYear: e.target.checked })}
+                        className="w-4 h-4 rounded text-sky-600 accent-sky-600 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. TEACHING STAFF ID FORMAT CARD */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-4 border border-sky-200 dark:border-sky-900/60 shadow-sm">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-indigo-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Teaching Staff ID</h4>
+                </div>
+              </div>
+
+              {/* Live Preview Badge */}
+              <div className="p-3 rounded-2xl bg-slate-950 text-white border border-slate-800 text-center space-y-1">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live Preview</div>
+                <div className="text-base font-mono font-extrabold text-indigo-400">
+                  {buildPreviewId(
+                    idForm.teachingIdPrefix,
+                    idForm.teachingIdStartNo,
+                    idForm.teachingIdPadding,
+                    idForm.teachingIdIncludeYear,
+                    idForm.teachingIdSeparator,
+                    idForm.teachingIdPosition
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">ID Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.teachingIdPrefix}
+                      onChange={e => setIdForm({ ...idForm, teachingIdPrefix: e.target.value.toUpperCase() })}
+                      placeholder="e.g. TCH or FAC"
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Tag Placement</label>
+                    <select
+                      value={idForm.teachingIdPosition || 'start'}
+                      onChange={e => setIdForm({ ...idForm, teachingIdPosition: e.target.value as any })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="start">Start (Prefix)</option>
+                      <option value="middle">Middle</option>
+                      <option value="end">End (Suffix)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.teachingIdStartNo}
+                      onChange={e => setIdForm({ ...idForm, teachingIdStartNo: parseInt(e.target.value) || 1 })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Padding</label>
+                    <select
+                      value={idForm.teachingIdPadding}
+                      onChange={e => setIdForm({ ...idForm, teachingIdPadding: parseInt(e.target.value) })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Separator</label>
+                    <select
+                      value={idForm.teachingIdSeparator}
+                      onChange={e => setIdForm({ ...idForm, teachingIdSeparator: e.target.value })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Year Tag</label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none h-[38px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors hover:border-indigo-300">
+                      <input
+                        type="checkbox"
+                        checked={idForm.teachingIdIncludeYear}
+                        onChange={e => setIdForm({ ...idForm, teachingIdIncludeYear: e.target.checked })}
+                        className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. NON-TEACHING STAFF ID FORMAT CARD */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-4 border border-sky-200 dark:border-sky-900/60 shadow-sm">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-purple-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Non-Teaching Staff ID</h4>
+                </div>
+              </div>
+
+              {/* Live Preview Badge */}
+              <div className="p-3 rounded-2xl bg-slate-950 text-white border border-slate-800 text-center space-y-1">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live Preview</div>
+                <div className="text-base font-mono font-extrabold text-purple-400">
+                  {buildPreviewId(
+                    idForm.nonTeachingIdPrefix,
+                    idForm.nonTeachingIdStartNo,
+                    idForm.nonTeachingIdPadding,
+                    idForm.nonTeachingIdIncludeYear,
+                    idForm.nonTeachingIdSeparator,
+                    idForm.nonTeachingIdPosition
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">ID Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.nonTeachingIdPrefix}
+                      onChange={e => setIdForm({ ...idForm, nonTeachingIdPrefix: e.target.value.toUpperCase() })}
+                      placeholder="e.g. NTS or STF"
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Tag Placement</label>
+                    <select
+                      value={idForm.nonTeachingIdPosition || 'start'}
+                      onChange={e => setIdForm({ ...idForm, nonTeachingIdPosition: e.target.value as any })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="start">Start (Prefix)</option>
+                      <option value="middle">Middle</option>
+                      <option value="end">End (Suffix)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.nonTeachingIdStartNo}
+                      onChange={e => setIdForm({ ...idForm, nonTeachingIdStartNo: parseInt(e.target.value) || 1 })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Padding</label>
+                    <select
+                      value={idForm.nonTeachingIdPadding}
+                      onChange={e => setIdForm({ ...idForm, nonTeachingIdPadding: parseInt(e.target.value) })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Separator</label>
+                    <select
+                      value={idForm.nonTeachingIdSeparator}
+                      onChange={e => setIdForm({ ...idForm, nonTeachingIdSeparator: e.target.value })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Year Tag</label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none h-[38px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors hover:border-purple-300">
+                      <input
+                        type="checkbox"
+                        checked={idForm.nonTeachingIdIncludeYear}
+                        onChange={e => setIdForm({ ...idForm, nonTeachingIdIncludeYear: e.target.checked })}
+                        className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. ADMISSION NO FORMAT CARD */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-4 border border-sky-200 dark:border-sky-900/60 shadow-sm">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-emerald-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Admission No</h4>
+                </div>
+              </div>
+
+              {/* Live Preview Badge */}
+              <div className="p-3 rounded-2xl bg-slate-950 text-white border border-slate-800 text-center space-y-1">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live Preview</div>
+                <div className="text-base font-mono font-extrabold text-emerald-400">
+                  {buildPreviewId(
+                    idForm.admissionNoPrefix,
+                    idForm.admissionNoStartNo,
+                    idForm.admissionNoPadding,
+                    idForm.admissionNoIncludeYear,
+                    idForm.admissionNoSeparator,
+                    idForm.admissionNoPosition
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Admission Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.admissionNoPrefix}
+                      onChange={e => setIdForm({ ...idForm, admissionNoPrefix: e.target.value.toUpperCase() })}
+                      placeholder="e.g. ADM or PIR/ADM"
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Tag Placement</label>
+                    <select
+                      value={idForm.admissionNoPosition || 'start'}
+                      onChange={e => setIdForm({ ...idForm, admissionNoPosition: e.target.value as any })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="start">Start (Prefix)</option>
+                      <option value="middle">Middle</option>
+                      <option value="end">End (Suffix)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.admissionNoStartNo}
+                      onChange={e => setIdForm({ ...idForm, admissionNoStartNo: parseInt(e.target.value) || 1 })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Padding</label>
+                    <select
+                      value={idForm.admissionNoPadding}
+                      onChange={e => setIdForm({ ...idForm, admissionNoPadding: parseInt(e.target.value) })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Separator</label>
+                    <select
+                      value={idForm.admissionNoSeparator}
+                      onChange={e => setIdForm({ ...idForm, admissionNoSeparator: e.target.value })}
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Year Tag</label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none h-[38px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors hover:border-emerald-300">
+                      <input
+                        type="checkbox"
+                        checked={idForm.admissionNoIncludeYear}
+                        onChange={e => setIdForm({ ...idForm, admissionNoIncludeYear: e.target.checked })}
+                        className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CUSTOM USER CREATED ID FORMAT CARDS */}
+            {(idForm.customSequences || []).map((seq) => (
+              <div key={seq.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-4 border border-sky-200 dark:border-sky-900/60 shadow-sm relative group">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 flex-1 pr-2">
+                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                    <input
+                      type="text"
+                      value={seq.name}
+                      onChange={e => handleUpdateCustomSequence(seq.id, { name: e.target.value })}
+                      placeholder="Format Name (e.g. Bus Pass)"
+                      className="font-bold text-sm text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 focus:border-amber-500 focus:outline-none w-full"
+                    />
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCustomIdSequence(seq.id)}
+                    className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                    title="Delete Custom ID Format"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Live Preview Badge */}
+                <div className="p-3 rounded-2xl bg-slate-950 text-white border border-slate-800 text-center space-y-1">
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live Preview</div>
+                  <div className="text-base font-mono font-extrabold text-amber-400">
+                    {buildPreviewId(
+                      seq.prefix,
+                      seq.startNo,
+                      seq.padding,
+                      seq.includeYear,
+                      seq.separator,
+                      seq.position
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">ID Prefix</label>
+                      <input
+                        type="text"
+                        value={seq.prefix}
+                        onChange={e => handleUpdateCustomSequence(seq.id, { prefix: e.target.value.toUpperCase() })}
+                        placeholder="e.g. BUS"
+                        className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Tag Placement</label>
+                      <select
+                        value={seq.position || 'start'}
+                        onChange={e => handleUpdateCustomSequence(seq.id, { position: e.target.value as any })}
+                        className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                      >
+                        <option value="start">Start (Prefix)</option>
+                        <option value="middle">Middle</option>
+                        <option value="end">End (Suffix)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Start No.</label>
+                      <input
+                        type="number"
+                        value={seq.startNo}
+                        onChange={e => handleUpdateCustomSequence(seq.id, { startNo: parseInt(e.target.value) || 1 })}
+                        className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Padding</label>
+                      <select
+                        value={seq.padding}
+                        onChange={e => handleUpdateCustomSequence(seq.id, { padding: parseInt(e.target.value) })}
+                        className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                      >
+                        <option value={3}>3 (001)</option>
+                        <option value={4}>4 (0001)</option>
+                        <option value={5}>5 (00001)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Separator</label>
+                      <select
+                        value={seq.separator}
+                        onChange={e => handleUpdateCustomSequence(seq.id, { separator: e.target.value })}
+                        className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs"
+                      >
+                        <option value="-">Hyphen (-)</option>
+                        <option value="/">Slash (/)</option>
+                        <option value=".">Dot (.)</option>
+                        <option value="">None</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Year Tag</label>
+                      <label className="flex items-center gap-2 cursor-pointer select-none h-[38px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors hover:border-amber-300">
+                        <input
+                          type="checkbox"
+                          checked={seq.includeYear}
+                          onChange={e => handleUpdateCustomSequence(seq.id, { includeYear: e.target.checked })}
+                          className="w-4 h-4 rounded text-amber-600 accent-amber-600 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Include</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+          </div>
+        </div>
+      )}
+
       {/* TAB 2: CAMPUS CONFIGURATION */}
       {activeTab === 'campus' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-200 dark:border-sky-900/60 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-indigo-600" /> Campus & Branch Master
@@ -612,7 +1240,7 @@ export const SettingsView: React.FC = () => {
             {campuses.map(campus => (
               <div
                 key={campus.id}
-                className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative group"
+                className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-3 border border-sky-200 dark:border-sky-900/60 shadow-sm relative group"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
@@ -665,7 +1293,7 @@ export const SettingsView: React.FC = () => {
       {/* TAB 3: ACADEMIC YEAR CONFIGURATION */}
       {activeTab === 'academic-year' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-200 dark:border-sky-900/60 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-sky-600" /> Academic Year Master & Sessions
@@ -683,7 +1311,7 @@ export const SettingsView: React.FC = () => {
             {filteredAcademicYears.map(ay => (
               <div
                 key={ay.id}
-                className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
+                className="bg-white dark:bg-slate-900 p-4 rounded-2xl space-y-3 border border-sky-200 dark:border-sky-900/60 shadow-sm relative"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
@@ -747,7 +1375,7 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 5: BACKUP & RESTORE */}
       {activeTab === 'backup' && (
-        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-xl border border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl space-y-4 max-w-xl border border-sky-200 dark:border-sky-900/60 shadow-sm">
           <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <Database className="w-4 h-4 text-emerald-600" /> Database Backup & Recovery
           </h3>
@@ -767,7 +1395,7 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 6: SYSTEM AUDIT LOGS */}
       {activeTab === 'audit' && (
-        <div className="glass-card rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-sky-200 dark:border-sky-900/60 shadow-sm">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
