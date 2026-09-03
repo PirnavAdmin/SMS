@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Settings as SettingsIcon, Save, Database, Activity, RefreshCw, Building2, 
   Plus, Edit, Trash2, CheckCircle, XCircle, Search, MapPin, Phone, Mail, 
@@ -141,8 +141,13 @@ export const SettingsView: React.FC = () => {
   const { addToast } = useToast();
 
   const [profileForm, setProfileForm] = useState(schoolProfile);
+  const initialLoadedRef = useRef(false);
+
   useEffect(() => {
-    setProfileForm(schoolProfile);
+    if (!initialLoadedRef.current && (schoolProfile.name || schoolProfile.address || schoolProfile.logoUrl)) {
+      setProfileForm(schoolProfile);
+      initialLoadedRef.current = true;
+    }
   }, [schoolProfile]);
   const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'academic-year' | 'certificates' | 'backup' | 'audit'>('profile');
 
@@ -246,9 +251,9 @@ export const SettingsView: React.FC = () => {
     try {
       localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
       localStorage.setItem("profile", JSON.stringify(profileForm));
-      if (profileForm.logoUrl) {
-        localStorage.setItem("school_logo", profileForm.logoUrl);
-      }
+      localStorage.setItem("school_logo", profileForm.logoUrl || "");
+      localStorage.setItem("logoUrl", profileForm.logoUrl || "");
+      localStorage.setItem("schoolLogo", profileForm.logoUrl || "");
     } catch (err) {}
     window.dispatchEvent(new Event('school_profile_updated'));
     addToast('success', 'Settings Saved', 'School branding profile updated successfully.');

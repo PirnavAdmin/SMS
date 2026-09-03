@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Services.Implementations;
+namespace SMS.Api.Services.Implementations;
 
 using System;
 using System.Net;
@@ -50,7 +50,7 @@ public class EmailNotificationService : IEmailNotificationService
 
             var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
                 ? portalUrl 
-                : "https://skimpily-chafe-harmless.ngrok-free.dev";
+                : "https://unison-guileless-managing.ngrok-free.dev";
 
             var cleanName = string.IsNullOrWhiteSpace(recipientName) ? "User" : recipientName.Trim();
             var cleanRole = string.IsNullOrWhiteSpace(roleName) ? "Member" : roleName.Trim();

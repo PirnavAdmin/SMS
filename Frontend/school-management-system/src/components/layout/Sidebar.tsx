@@ -515,25 +515,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div
             className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors overflow-hidden p-1"
             onClick={() => setCollapsed(false)}
-            title="School Dashboard"
+            title={schoolProfile?.name || "School Dashboard"}
           >
-            <img
-              src={schoolProfile?.logoUrl || "/pirnav-school-logo.png"}
-              alt="School Logo"
-              className="max-h-8 max-w-8 object-contain"
-            />
+            {schoolProfile?.logoUrl ? (
+              <img
+                src={schoolProfile.logoUrl}
+                alt="School Logo"
+                className="max-h-8 max-w-8 object-contain"
+              />
+            ) : (
+              <School className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+            )}
           </div>
         ) : (
           <div
             className="flex items-center justify-center w-52 h-12 select-none cursor-pointer px-2 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
             onClick={() => setActiveModule("dashboard")}
-            title="School Dashboard"
+            title={schoolProfile?.name || "School Dashboard"}
           >
-            <img
-              src={schoolProfile?.logoUrl || "/pirnav-school-logo.png"}
-              alt="School Logo"
-              className="max-h-10 max-w-[190px] object-contain"
-            />
+            {schoolProfile?.logoUrl ? (
+              <img
+                src={schoolProfile.logoUrl}
+                alt="School Logo"
+                className="max-h-10 max-w-[190px] object-contain"
+              />
+            ) : (
+              <div className="flex items-center gap-2 px-2">
+                <School className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
+                <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
+                  {schoolProfile?.name || "School Portal"}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

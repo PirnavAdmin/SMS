@@ -434,6 +434,10 @@ import {
   updateMeetingApi,
   deleteMeetingApi,
 } from "../api/communication";
+import {
+  fetchSchoolSettingsApi,
+  updateSchoolSettingsApi,
+} from "../api/settings";
 
 export interface AcademicClass {
   id: string;
@@ -6023,8 +6027,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.setItem("school_logo", next.logoUrl);
           localStorage.setItem("logoUrl", next.logoUrl);
           localStorage.setItem("schoolLogo", next.logoUrl);
+        } else {
+          localStorage.removeItem("school_logo");
+          localStorage.removeItem("logoUrl");
+          localStorage.removeItem("schoolLogo");
         }
       } catch (e) {}
+
+      // Asynchronously persist to database table
+      updateSchoolSettingsApi({
+        schoolName: next.name,
+        tagline: next.tagline,
+        address: next.address,
+        phone: next.phone,
+        email: next.email,
+        website: next.website,
+        principalName: next.principalName,
+        logoUrl: next.logoUrl || "",
+      }).catch((err) => {
+        console.warn("Failed to save school settings to backend API:", err);
+      });
+
       return next;
     });
     try {
@@ -6037,12 +6060,52 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
+    const loadSchoolSettingsFromDb = async () => {
+      try {
+        const res: any = await fetchSchoolSettingsApi();
+        const data = res?.data || res;
+        if (data && (data.schoolName !== undefined || data.logoUrl !== undefined || data.address !== undefined)) {
+          setSchoolProfile((prev) => {
+            const next = {
+              ...prev,
+              name: data.schoolName || data.name || prev.name,
+              tagline: data.tagline !== undefined ? data.tagline : (data.motto || prev.tagline),
+              address: data.address !== undefined ? data.address : prev.address,
+              phone: data.phone !== undefined ? data.phone : prev.phone,
+              email: data.email !== undefined ? data.email : prev.email,
+              website: data.website !== undefined ? data.website : (data.websiteUrl || prev.website),
+              principalName: data.principalName !== undefined ? data.principalName : prev.principalName,
+              logoUrl: data.logoUrl !== undefined ? data.logoUrl : prev.logoUrl,
+            };
+            try {
+              localStorage.setItem("edu_db_profile", JSON.stringify(next));
+              localStorage.setItem("profile", JSON.stringify(next));
+              if (next.logoUrl) {
+                localStorage.setItem("school_logo", next.logoUrl);
+                localStorage.setItem("logoUrl", next.logoUrl);
+                localStorage.setItem("schoolLogo", next.logoUrl);
+              } else {
+                localStorage.removeItem("school_logo");
+                localStorage.removeItem("logoUrl");
+                localStorage.removeItem("schoolLogo");
+              }
+            } catch (e) {}
+            return next;
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch school branding from backend database:", err);
+      }
+    };
+    loadSchoolSettingsFromDb();
+
     const handleProfileUpdate = () => {
       try {
         const stored = localStorage.getItem("edu_db_profile") || localStorage.getItem("profile");
         if (stored) {
           const parsed = JSON.parse(stored);
-          setSchoolProfile(prev => ({ ...prev, ...parsed }));
+          const schoolLogo = localStorage.getItem("school_logo") ?? parsed.logoUrl ?? "";
+          setSchoolProfile(prev => ({ ...prev, ...parsed, logoUrl: schoolLogo }));
         }
       } catch (e) {}
     };

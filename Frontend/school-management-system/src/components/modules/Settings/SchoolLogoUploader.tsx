@@ -4,6 +4,7 @@ import {
   CheckCircle2, AlertTriangle, Trash2, RefreshCw, Eye, 
   FileImage, Info, Sparkles, Sun, Moon, Check, X
 } from 'lucide-react';
+import { uploadSchoolLogoFileApi, uploadSchoolLogoApi } from '../../../api/settings';
 
 interface SchoolLogoUploaderProps {
   value: string;
@@ -172,6 +173,16 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
   useEffect(() => {
     if (value) {
       analyzeImage(value);
+    } else {
+      setMeta(null);
+      setUrlInput('');
+      setValidation({
+        isValid: true,
+        formatValid: true,
+        sizeValid: true,
+        dimensionQuality: 'good',
+        warnings: []
+      });
     }
   }, [value, analyzeImage]);
 
@@ -207,10 +218,10 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
       return;
     }
 
-    // 3. Read file as Data URL
+    // 3. Read file as Data URL for instant preview & analyze
     setIsLoading(true);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
       if (dataUrl) {
         onChange(dataUrl);
@@ -219,6 +230,23 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
           format: fileExt.toUpperCase(),
           name: file.name
         });
+
+        // 4. Asynchronously upload to backend API & store image URL in database
+        try {
+          const res = await uploadSchoolLogoFileApi(file);
+          if (res && res.logoUrl) {
+            onChange(res.logoUrl);
+            try {
+              localStorage.setItem("school_logo", res.logoUrl);
+              localStorage.setItem("logoUrl", res.logoUrl);
+              window.dispatchEvent(new Event("school_profile_updated"));
+            } catch {}
+          }
+        } catch (apiErr) {
+          console.warn("Backend logo file upload note:", apiErr);
+        } finally {
+          setIsLoading(false);
+        }
       }
     };
     reader.onerror = () => {
@@ -261,22 +289,46 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
     setIsDragging(false);
   };
 
-  const handleApplyUrl = () => {
+  const handleApplyUrl = async () => {
     if (!urlInput.trim()) return;
-    onChange(urlInput.trim());
-    analyzeImage(urlInput.trim());
+    const finalUrl = urlInput.trim();
+    onChange(finalUrl);
+    analyzeImage(finalUrl);
+    try {
+      await uploadSchoolLogoApi(finalUrl);
+      localStorage.setItem("school_logo", finalUrl);
+      window.dispatchEvent(new Event("school_profile_updated"));
+    } catch (err) {
+      console.warn("Backend logo URL update note:", err);
+    }
   };
 
-  const handleResetDefault = () => {
+  const handleResetDefault = async () => {
     onChange(defaultLogo);
     setUrlInput(defaultLogo);
     analyzeImage(defaultLogo);
+    try {
+      await uploadSchoolLogoApi(defaultLogo, 'PNG');
+      localStorage.setItem("school_logo", defaultLogo);
+      localStorage.setItem("logoUrl", defaultLogo);
+      localStorage.setItem("schoolLogo", defaultLogo);
+      window.dispatchEvent(new Event("school_profile_updated"));
+    } catch (err) {}
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     onChange('');
     setUrlInput('');
     setMeta(null);
+    try {
+      localStorage.setItem("school_logo", "");
+      localStorage.setItem("logoUrl", "");
+      localStorage.setItem("schoolLogo", "");
+      await uploadSchoolLogoApi('');
+      window.dispatchEvent(new Event("school_profile_updated"));
+    } catch (err) {
+      console.warn("Backend logo clear note:", err);
+    }
   };
 
   return (

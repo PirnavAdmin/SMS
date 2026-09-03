@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { School, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, Shield, GraduationCap, UserCircle2, ChevronDown, Briefcase, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { UserRole } from '../../../types';
+import { fetchSchoolSettingsApi } from '../../../api/settings';
 
 interface LoginViewProps {
   onBack?: () => void;
@@ -11,6 +12,22 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
+
+  const [dynamicLogo, setDynamicLogo] = useState<string>(() => {
+    return localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '/pirnav-school-logo.png';
+  });
+
+  useEffect(() => {
+    fetchSchoolSettingsApi()
+      .then((res: any) => {
+        const data = res?.data || res;
+        if (data?.logoUrl) {
+          setDynamicLogo(data.logoUrl);
+          localStorage.setItem('school_logo', data.logoUrl);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const [rememberMe, setRememberMe] = useState(() => {
     return localStorage.getItem('remember_me') === 'true';
@@ -143,9 +160,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
     }
   };
 
-  const currentLogo = typeof window !== 'undefined'
+  const currentLogo = dynamicLogo || (typeof window !== 'undefined'
     ? (localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '/pirnav-school-logo.png')
-    : '/pirnav-school-logo.png';
+    : '/pirnav-school-logo.png');
 
   return (
     <div className="h-screen w-full flex font-sans overflow-hidden relative bg-brand-950">

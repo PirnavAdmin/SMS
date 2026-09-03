@@ -35,10 +35,28 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (fetchError) {
+    // If ngrok tunnel fails or hits limit on localhost, transparently fallback to direct backend port 5151
+    if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+      const localUrl = `http://127.0.0.1:5151${endpoint}`;
+      try {
+        response = await fetch(localUrl, {
+          ...options,
+          headers,
+        });
+      } catch {
+        throw fetchError;
+      }
+    } else {
+      throw fetchError;
+    }
+  }
 
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {

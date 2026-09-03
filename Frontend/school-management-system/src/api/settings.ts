@@ -18,6 +18,43 @@ export const uploadSchoolLogoApi = async (logoData: string, logoFormat?: string)
   });
 };
 
+export const uploadSchoolLogoFileApi = async (file: File) => {
+  const token = localStorage.getItem('auth_token');
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const headers: HeadersInit = {
+    'ngrok-skip-browser-warning': 'true',
+  };
+  if (token && token !== 'null' && token !== 'undefined') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  const url = `${baseUrl}/api/Settings/logo/upload`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Upload failed with status: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+      const fallbackUrl = `http://127.0.0.1:5151/api/Settings/logo/upload`;
+      const fallbackRes = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+      if (fallbackRes.ok) return await fallbackRes.json();
+    }
+    throw err;
+  }
+};
+
 export const updateCertificateTemplatesApi = async (templates: any) => {
   return apiClient('/api/Settings/certificate-templates', {
     method: 'POST',

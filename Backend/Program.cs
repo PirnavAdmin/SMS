@@ -190,6 +190,10 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFacultyTrainingService, 
 // Executive Dashboard Analytics Module
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.Dashboard.IDashboardService, SMS.Api.Services.Implementations.Dashboard.DashboardService>();
 
+// Settings and School Branding Module
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.Settings.ISettingsRepository, SMS.Api.Repositories.Implementations.Settings.SettingsRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.Settings.ISettingsService, SMS.Api.Services.Implementations.Settings.SettingsService>();
+
 // =========================================================
 // 3. JWT AUTHENTICATION
 // =========================================================
@@ -296,19 +300,20 @@ var app = builder.Build();
 // 5. MIDDLEWARE PIPELINE
 // =========================================================
 
-app.UseCors();
-app.UseMiddleware<ExceptionMiddleware>();
-
-// Enable Swagger UI unconditionally
-app.UseSwagger();
-app.UseSwaggerUI();
-
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
-app.UseHttpsRedirection();
+app.UseCors();
+app.UseMiddleware<ExceptionMiddleware>();
+
+// Enable Static Files (for uploads, branding logos, and documents)
+app.UseStaticFiles();
+
+// Enable Swagger UI unconditionally
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseAuthentication();
 app.UseAuthorization();
