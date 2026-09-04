@@ -466,7 +466,11 @@ namespace SMS.Api.Services.Implementations.Settings
                     .Select(a => a.ApplicationNo)
                     .ToListAsync();
 
-                maxExisting = ExtractMaxNumber(studentAdmissions.Concat(appAdmissions), prefix);
+                var appRegNos = await _context.AdmissionApplications
+                    .Select(a => a.RegistrationNo)
+                    .ToListAsync();
+
+                maxExisting = ExtractMaxNumber(studentAdmissions.Concat(appAdmissions).Concat(appRegNos), prefix);
             }
             else if (normType == "teaching" || normType == "teacher" || normType == "teachingstaff")
             {
@@ -504,7 +508,8 @@ namespace SMS.Api.Services.Implementations.Settings
             {
                 var customSeq = (config.CustomSequences ?? new List<CustomIdSequenceDto>())
                     .FirstOrDefault(s => string.Equals(s.Id, customId, StringComparison.OrdinalIgnoreCase) ||
-                                         string.Equals(s.Name, customId, StringComparison.OrdinalIgnoreCase));
+                                         string.Equals(s.Name, customId, StringComparison.OrdinalIgnoreCase) ||
+                                         string.Equals(s.FormatKey, customId, StringComparison.OrdinalIgnoreCase));
 
                 if (customSeq != null)
                 {
@@ -555,17 +560,32 @@ namespace SMS.Api.Services.Implementations.Settings
             int max = 0;
             var cleanPrefix = (prefix ?? string.Empty).Trim();
 
-            foreach (var item in items)
+            var itemList = items?.Where(i => !string.IsNullOrWhiteSpace(i)).ToList() ?? new List<string?>();
+            var targetItems = !string.IsNullOrEmpty(cleanPrefix) && itemList.Any(i => i!.Contains(cleanPrefix, StringComparison.OrdinalIgnoreCase))
+                ? itemList.Where(i => i!.Contains(cleanPrefix, StringComparison.OrdinalIgnoreCase))
+                : itemList;
+
+            foreach (var item in targetItems)
             {
                 if (string.IsNullOrWhiteSpace(item)) continue;
 
                 var matches = Regex.Matches(item, @"\d+");
-                if (matches.Count > 0)
+                if (matches.Count == 0) continue;
+
+                foreach (Match m in matches)
                 {
-                    var lastMatch = matches[matches.Count - 1].Value;
-                    if (int.TryParse(lastMatch, out int val) && val > max)
+                    if (int.TryParse(m.Value, out int val))
                     {
-                        max = val;
+                        // If multiple numbers exist and this looks like a year, skip it
+                        if (matches.Count > 1 && val >= 2020 && val <= 2035)
+                        {
+                            continue;
+                        }
+
+                        if (val > max)
+                        {
+                            max = val;
+                        }
                     }
                 }
             }
