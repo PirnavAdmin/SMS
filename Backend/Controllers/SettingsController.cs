@@ -90,8 +90,10 @@ namespace SMS.Api.Controllers
         // POST: api/Settings/logo/upload
         [HttpPost("logo/upload")]
         [AllowAnonymous]
-        public async Task<IActionResult> UploadLogoFile([FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadLogoFile([FromForm] UploadLogoFileRequest request)
         {
+            var file = request?.File ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
             if (file == null || file.Length == 0)
                 return BadRequest("No image file provided.");
 

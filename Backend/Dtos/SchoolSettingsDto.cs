@@ -77,4 +77,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("logoFormat")]
         public string? LogoFormat { get; set; }
     }
+
+    public class UploadLogoFileRequest
+    {
+        public Microsoft.AspNetCore.Http.IFormFile? File { get; set; }
+    }
 }

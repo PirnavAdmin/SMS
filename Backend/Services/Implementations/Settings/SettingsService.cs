@@ -373,9 +373,10 @@ namespace SMS.Api.Services.Implementations.Settings
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
 
+            var key = !string.IsNullOrWhiteSpace(dto.FormatKey) ? dto.FormatKey : (!string.IsNullOrWhiteSpace(dto.Id) ? dto.Id : $"custom_{DateTime.UtcNow.Ticks}");
             var format = new AutomatedIdFormat
             {
-                FormatKey = string.IsNullOrWhiteSpace(dto.Id) ? $"custom_{DateTime.UtcNow.Ticks}" : dto.Id,
+                FormatKey = key,
                 Name = string.IsNullOrWhiteSpace(dto.Name) ? "Custom Format" : dto.Name,
                 Prefix = dto.Prefix,
                 StartNo = dto.StartNo,
