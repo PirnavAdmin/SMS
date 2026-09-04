@@ -2373,9 +2373,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() =>
     getStored("timetable", initialTimetable),
   );
-  const [homework, setHomework] = useState<Homework[]>(() =>
-    getStored("homework", initialHomework),
-  );
+  const [homework, setHomework] = useState<Homework[]>(() => {
+    const raw = getStored("homework", initialHomework);
+    if (Array.isArray(raw)) {
+      return raw.map((hw: any) => {
+        let sec = (hw.section || "").trim();
+        let cls = (hw.className || "").trim();
+        if (cls.includes("-")) {
+          const parts = cls.split("-");
+          cls = parts[0].trim();
+          if (!sec && parts[1]) sec = parts[1].trim();
+        }
+        return {
+          ...hw,
+          className: cls || "Class 9",
+          section: sec || "A",
+        };
+      });
+    }
+    return raw;
+  });
   const [books, setBooks] = useState<BookItem[]>(() =>
     getStored("books", initialBooks),
   );
@@ -2396,15 +2413,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const stored = getStored("holidays", initialHolidays);
-    if (!stored || stored.length <= 1) {
-      localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
-      return initialHolidays;
-    }
-    return stored;
+    const rawList = (!stored || stored.length <= 1) ? initialHolidays : stored;
+    const seen = new Set<string>();
+    const unique: Holiday[] = [];
+    rawList.forEach((h: any) => {
+      const cleanName = (h.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanName}_${h.startDate}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(h);
+      }
+    });
+    return unique;
   });
-  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() =>
-    getStored("school_events", initialSchoolEvents),
-  );
+  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => {
+    const stored = getStored("school_events", initialSchoolEvents);
+    const rawList = (!stored || stored.length === 0) ? initialSchoolEvents : stored;
+    const seen = new Set<string>();
+    const unique: SchoolEvent[] = [];
+    rawList.forEach((e: any) => {
+      const cleanTitle = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanTitle}_${e.startDate}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(e);
+      }
+    });
+    return unique;
+  });
   const [birthdays] = useState<Birthday[]>(() => {
     const val = getStored("birthdays", initialBirthdays);
     if (
@@ -5367,10 +5403,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? response
         : response?.data?.items || response?.data || [];
       if (Array.isArray(items) && items.length > 0) {
+        const normalizedItems = items.map((hw: any) => {
+          let sec = (hw.section || "").trim();
+          let cls = (hw.className || "").trim();
+          if (cls.includes("-")) {
+            const parts = cls.split("-");
+            cls = parts[0].trim();
+            if (!sec && parts[1]) sec = parts[1].trim();
+          }
+          return {
+            ...hw,
+            className: cls || "Class 9",
+            section: sec || "A",
+          };
+        });
         setHomework((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
+          const apiIds = new Set(normalizedItems.map((i: any) => i.id));
           const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
+          return [...normalizedItems, ...localOnly];
         });
       }
     } catch (err) {
@@ -5582,7 +5632,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             academicYear: d.academicYear || "2026-2027",
             branch: d.branch || selectedBranch || "Main Campus",
             notes: d.notes || d.actionRemarks || "",
-            type: d.transactionType?.includes("Baseline")
+            type: (
+              d.type === "Base Package" ||
+              d.transactionType === "Base Package" ||
+              (d.transactionType && (d.transactionType.toLowerCase().includes("baseline") || d.transactionType.toLowerCase().includes("base"))) ||
+              (d.itemName && (d.itemName.toLowerCase().includes("package") || d.itemName.toLowerCase().includes("base") || d.itemName.toLowerCase().includes("kit"))) ||
+              (d.notes && (d.notes.toLowerCase().includes("base package") || d.notes.toLowerCase().includes("admission kit")))
+            ) && d.type !== "Additional Purchase" && d.transactionType !== "Additional Purchase" && !d.notes?.toLowerCase().includes("additional purchase")
               ? "Base Package"
               : "Additional Purchase",
             price: Number(d.totalAmount || 0),

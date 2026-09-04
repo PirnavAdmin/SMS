@@ -62,34 +62,48 @@ export const EventsView: React.FC = () => {
     loadBackendEventsData();
   }, []);
 
-  // Ensure default realistic holidays are populated into DataContext if initial count is small
-  React.useEffect(() => {
-    if (holidays && holidays.length > 0 && holidays.length < 15) {
-      const existingNames = new Set(holidays.map(h => h.name.toLowerCase()));
-      REALISTIC_HOLIDAYS_2026_2027.forEach(rh => {
-        if (!existingNames.has(rh.name.toLowerCase())) {
-          addHoliday(rh);
-        }
-      });
-    }
-  }, [holidays, REALISTIC_HOLIDAYS_2026_2027, addHoliday]);
-
   const displayHolidays = useMemo(() => {
     const rawList = (holidays && holidays.length > 0) ? holidays : REALISTIC_HOLIDAYS_2026_2027;
-    return rawList.map(h => {
-      let normType: HolidayType = h.type;
-      const t = (h.type || '').toString().trim().toUpperCase();
-      if (t === 'NATIONAL') normType = 'National';
-      else if (t === 'GAZETTED') normType = 'Gazetted';
-      else if (t === 'FESTIVAL') normType = 'Festival';
-      else if (t === 'VACATION') normType = 'Vacation';
-      else if (t === 'RESTRICTED' || t === 'OPTIONAL') normType = 'Optional';
-      return {
-        ...h,
-        type: normType
-      };
+    const seen = new Set<string>();
+    const unique: Holiday[] = [];
+
+    rawList.forEach(h => {
+      const cleanName = (h.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanName}_${h.startDate}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        let normType: HolidayType = h.type;
+        const t = (h.type || '').toString().trim().toUpperCase();
+        if (t === 'NATIONAL') normType = 'National';
+        else if (t === 'GAZETTED') normType = 'Gazetted';
+        else if (t === 'FESTIVAL') normType = 'Festival';
+        else if (t === 'VACATION') normType = 'Vacation';
+        else if (t === 'RESTRICTED' || t === 'OPTIONAL') normType = 'Optional';
+        unique.push({
+          ...h,
+          type: normType
+        });
+      }
     });
+
+    return unique;
   }, [holidays, REALISTIC_HOLIDAYS_2026_2027]);
+
+  const displaySchoolEvents = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: SchoolEvent[] = [];
+
+    (schoolEvents || []).forEach(e => {
+      const cleanTitle = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanTitle}_${e.startDate}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(e);
+      }
+    });
+
+    return unique;
+  }, [schoolEvents]);
 
   const { role } = useAuth();
   const userRoleStr = (role || '').toLowerCase();
@@ -450,7 +464,20 @@ export const EventsView: React.FC = () => {
       }
     });
 
-    return eventsList;
+    // Deduplicate all calendar events by normalized title + date
+    const seenEventKeys = new Set<string>();
+    const deduplicatedEventsList: UnifiedCalendarEvent[] = [];
+
+    eventsList.forEach(item => {
+      const cleanTitle = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanTitle}_${item.date}`;
+      if (!seenEventKeys.has(key)) {
+        seenEventKeys.add(key);
+        deduplicatedEventsList.push(item);
+      }
+    });
+
+    return deduplicatedEventsList;
   }, [schoolEvents, displayHolidays, exams, examSchedules, meetings, admissions, announcements, students, staff, currentDate]);
 
   // Filtered Events for Calendar & Agenda
@@ -1421,7 +1448,7 @@ export const EventsView: React.FC = () => {
       {activeTab === 'school-events' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-semibold">
-            {schoolEvents.map(evt => (
+            {displaySchoolEvents.map(evt => (
               <div key={evt.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-3.5 hover:border-sky-500 dark:hover:border-sky-400 transition">
                 <div className="flex justify-between items-start">
                   <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">

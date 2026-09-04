@@ -572,7 +572,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       return itemDate.getTime() >= today.getTime();
     });
 
-    return upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
+    const seen = new Set<string>();
+    const deduplicated = upcoming.filter(item => {
+      const key = `${(item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '')}_${item.date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return deduplicated.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
   }, [schoolEvents, announcements, holidays]);
 
   // Valid examinations (upcoming or ongoing, sorted by date)

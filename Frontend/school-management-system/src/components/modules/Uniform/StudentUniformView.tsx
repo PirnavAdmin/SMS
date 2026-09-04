@@ -505,7 +505,17 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const normKey = (stdName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     const catalogItem = uniforms.find(u => u.category === issue.itemName || u.name === issue.itemName);
-    const isExplicitBasePkg = issue.type === 'Base Package' || (issue.itemName && issue.itemName.includes('Package') && !issue.itemName.includes('(Extra)') && !issue.type?.includes('Additional') && !issue.notes?.includes('Additional'));
+    const isExplicitBasePkg = issue.type === 'Base Package' || (
+      issue.itemName &&
+      (issue.itemName.toLowerCase().includes('package') ||
+       issue.itemName.toLowerCase().includes('base') ||
+       issue.itemName.toLowerCase().includes('kit') ||
+       issue.itemName.toLowerCase().includes('cloth')) &&
+      !issue.itemName.toLowerCase().includes('(extra)') &&
+      !issue.notes?.toLowerCase().includes('additional purchase') &&
+      issue.type !== 'Additional Purchase' &&
+      issue.type !== 'Additional Base Package'
+    );
 
     const itemPrice = isExplicitBasePkg
       ? getPackageFeeForStudent(clsName, issue.price, stMatch?.gender)
@@ -2545,13 +2555,16 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={e => {
+                                  const isSel = e.target.checked;
+                                  const curQ = Number(form.quantity) || 1;
                                   setExtraItemsState(prev => ({
                                     ...prev,
                                     [item.id]: {
                                       ...itemState,
+                                      quantity: curQ,
                                       unitPrice: item.unitPrice,
                                       availableStock: item.stock,
-                                      isSelected: e.target.checked
+                                      isSelected: isSel
                                     }
                                   }));
                                 }}
@@ -2782,7 +2795,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                                   return deduplicatedPkgs.map(u => (
                                     <option key={u.id} value={u.id}>
-                                      •  {u.category || u.name}
+                                      {u.category || u.name}
                                     </option>
                                   ));
                                 })()}
@@ -2919,7 +2932,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid ${form.type === 'Additional Purchase' ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
@@ -2942,40 +2955,49 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     })()}
                   </select>
                 </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Quantity <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={modalType === 'Replace' || Number(form.quantity) <= 1}
-                      onClick={() => setForm({ ...form, quantity: Math.max(1, (Number(form.quantity) || 1) - 1) })}
-                      className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
-                    >
-                      -
-                    </button>
-                    <input
-                      disabled={modalType === 'Replace'}
-                      type="number"
-                      required
-                      min={1}
-                      placeholder="e.g. 1"
-                      value={form.quantity === ('' as any) ? '' : form.quantity}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setForm({ ...form, quantity: val === '' ? ('' as any) : Number(val) });
-                      }}
-                      className="w-full text-center px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border disabled:opacity-60 font-bold text-xs"
-                    />
-                    <button
-                      type="button"
-                      disabled={modalType === 'Replace'}
-                      onClick={() => setForm({ ...form, quantity: (Number(form.quantity) || 0) + 1 })}
-                      className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
-                    >
-                      +
-                    </button>
+                {form.type !== 'Additional Purchase' && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Quantity <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={modalType === 'Replace' || Number(form.quantity) <= 1}
+                        onClick={() => {
+                          const newQ = Math.max(1, (Number(form.quantity) || 1) - 1);
+                          setForm(prev => ({ ...prev, quantity: newQ }));
+                        }}
+                        className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
+                      >
+                        -
+                      </button>
+                      <input
+                        disabled={modalType === 'Replace'}
+                        type="number"
+                        required
+                        min={1}
+                        placeholder="e.g. 1"
+                        value={form.quantity === ('' as any) ? '' : form.quantity}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const newQ = val === '' ? ('' as any) : Math.max(1, Number(val) || 1);
+                          setForm(prev => ({ ...prev, quantity: newQ }));
+                        }}
+                        className="w-full text-center px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border disabled:opacity-60 font-bold text-xs"
+                      />
+                      <button
+                        type="button"
+                        disabled={modalType === 'Replace'}
+                        onClick={() => {
+                          const newQ = (Number(form.quantity) || 0) + 1;
+                          setForm(prev => ({ ...prev, quantity: newQ }));
+                        }}
+                        className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {(() => {
@@ -3545,7 +3567,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                 <tbody className="divide-y divide-slate-100">
                                   {displayExtraPurchaseItems.map(item => {
                                     const cleanName = item.itemName.replace(/\s*\(Extra\)/gi, '').trim();
-                                    const itemPrice = item.price || getItemPriceFromConfig(item.itemCategory || item.itemName, financeUniformConfigs);
+                                    const itemPrice = calculateClothOrItemPrice(item.itemName || item.itemCategory, item.size || 'M', item.price, financeUniformConfigs, receiptStudent.className, receiptStudent.gender);
                                     const totalAmount = itemPrice * (item.quantity || 1);
 
                                     const notesLower = (item.notes || '').toLowerCase();
@@ -4554,7 +4576,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                             <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
                               {(() => {
                                 const currentSizeStr = item.size || 'M';
-                                const effUnitPrice = calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs);
+                                const effUnitPrice = (item.price !== undefined && item.price > 0 && item.price !== 35 && item.price !== 85)
+                                  ? item.price
+                                  : calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs, student.className, student.gender);
                                 return formatCurrency(effUnitPrice * (item.quantity || 1));
                               })()}
                             </td>

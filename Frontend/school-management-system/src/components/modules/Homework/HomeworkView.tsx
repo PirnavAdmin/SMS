@@ -86,9 +86,9 @@ export const HomeworkView: React.FC = () => {
       empId: (user as any)?.empId || 'STF-2026-0000',
       firstName: nameParts[0] || 'Robert',
       lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 9-A'],
-      assignedSubjects: ['Social Studies'],
-      department: 'Social Studies',
+      assignedClasses: ['Class 4-A'],
+      assignedSubjects: ['English', 'Chemistry'],
+      department: 'English',
       designation: 'Junior Teacher'
     };
   }, [user, staff, teacherAssignments]);
@@ -172,6 +172,24 @@ export const HomeworkView: React.FC = () => {
   const cleanSectionName = (sec: string) => {
     if (!sec) return '';
     return sec.replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim();
+  };
+
+  const formatClassRoom = (hw: { className?: string; section?: string }) => {
+    let cls = (hw?.className || 'Class 9').trim();
+    let sec = (hw?.section || '').trim();
+
+    if (cls.includes('-')) {
+      const parts = cls.split('-');
+      cls = parts[0].trim();
+      if (!sec && parts[1]) sec = parts[1].trim();
+    }
+
+    if (!cls.toLowerCase().startsWith('class') && !cls.toLowerCase().startsWith('grade')) {
+      cls = `Class ${cls}`;
+    }
+
+    const displaySec = sec || 'A';
+    return `${cls}-${displaySec}`;
   };
 
   const rbacHomework = useMemo(() => {
@@ -293,17 +311,11 @@ export const HomeworkView: React.FC = () => {
     setAttachments([]);
     setSelectedStudentIds([]);
     setStudentSearchQuery('');
-
-    const firstClassStr = teacherAssignedClasses[0] || 'Class 9-A';
-    const firstParts = firstClassStr.split('-');
-    const defaultCls = firstParts[0].trim();
-    const defaultSec = firstParts[1]?.trim() || 'A';
-
     setFormData({
       title: '',
-      className: defaultCls,
-      section: defaultSec,
-      subject: subjectOptions[0] || assignedSubjects[0] || 'General',
+      className: classOptions[0] || 'Class 10',
+      section: teacherAssignedClasses[0]?.split('-')[1] || 'A',
+      subject: subjectOptions[0] || 'Mathematics',
       teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
       assignedDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
@@ -327,8 +339,6 @@ export const HomeworkView: React.FC = () => {
     setStudentSearchQuery('');
     setFormData({
       ...hw,
-      className: (hw.className || 'Class 9').includes('-') ? hw.className.split('-')[0].trim() : (hw.className || 'Class 9'),
-      section: (hw.section || '').replace(/^section\s*/i, '').replace(/^sec\s*/i, '').trim() || 'A',
       status: hw.status || 'Published',
       publishToType: hw.publishToType || 'Class',
       publishedStudentIds: hw.publishedStudentIds || []
@@ -354,13 +364,10 @@ export const HomeworkView: React.FC = () => {
       return;
     }
 
-    const cleanCls = (formData.className || 'Class 9').trim();
-    const cleanSec = (formData.section || 'A').replace(/^section\s*/i, '').replace(/^sec\s*/i, '').trim() || 'A';
-
     const dataToSave = { 
       ...formData, 
-      className: cleanCls.includes('-') ? cleanCls.split('-')[0].trim() : cleanCls,
-      section: cleanSec,
+      className: (formData.className || 'Class 9').trim(),
+      section: (formData.section || 'A').trim(),
       attachments,
       status: statusMode,
       publishedStudentIds: formData.publishToType === 'Students' ? selectedStudentIds : []
@@ -379,198 +386,55 @@ export const HomeworkView: React.FC = () => {
 
   const sectionOptions = useMemo(() => {
     const set = new Set<string>();
-    const targetCls = filterClass === 'All' ? '' : cleanClassName(filterClass);
 
-    (academicClasses || []).forEach((c: any) => {
-      const cName = cleanClassName(c.name || c.className || '');
-      if (!targetCls || cName === targetCls) {
-        if (c.sections && Array.isArray(c.sections)) {
-          c.sections.forEach((sec: any) => {
-            const sName = typeof sec === 'string' ? sec : (sec.name || sec.sectionName || '');
-            const clean = cleanSectionName(sName);
-            if (clean) set.add(clean);
-          });
-        }
-      }
-    });
-
-    (teacherAssignments || []).forEach((ta: any) => {
-      if (!targetCls || cleanClassName(ta.className || '') === targetCls) {
-        if (ta.section) {
-          const clean = cleanSectionName(ta.section);
-          if (clean) set.add(clean);
-        }
-      }
-    });
-
-    (students || []).forEach((s: any) => {
-      if (!targetCls || cleanClassName(s.className || '') === targetCls) {
-        if (s.section) {
-          const clean = cleanSectionName(s.section);
-          if (clean) set.add(clean);
-        }
-      }
-    });
-
-    teacherAssignedClasses.forEach((c: string) => {
-      const parts = c.split('-');
-      if (!targetCls || cleanClassName(parts[0]) === targetCls) {
-        if (parts[1]) {
-          const clean = cleanSectionName(parts[1]);
-          if (clean) set.add(clean);
-        }
-      }
-    });
-
-    return Array.from(set).filter(Boolean).sort();
-  }, [filterClass, teacherAssignedClasses, teacherAssignments, students, academicClasses]);
-
-  const formSectionOptions = useMemo(() => {
-    const targetCls = cleanClassName(formData.className || '');
-    const set = new Set<string>();
-
-    (academicClasses || []).forEach((c: any) => {
-      const cName = cleanClassName(c.name || c.className || '');
-      if (cName === targetCls && c.sections && Array.isArray(c.sections)) {
-        c.sections.forEach((sec: any) => {
-          const sName = typeof sec === 'string' ? sec : (sec.name || sec.sectionName || '');
-          const clean = cleanSectionName(sName);
-          if (clean) set.add(clean);
-        });
-      }
-    });
-
-    (teacherAssignments || []).forEach((ta: any) => {
-      if (cleanClassName(ta.className || '') === targetCls && ta.section) {
-        const clean = cleanSectionName(ta.section);
-        if (clean) set.add(clean);
-      }
-    });
-
-    (students || []).forEach((s: any) => {
-      if (cleanClassName(s.className || '') === targetCls && s.section) {
-        const clean = cleanSectionName(s.section);
-        if (clean) set.add(clean);
-      }
-    });
-
-    teacherAssignedClasses.forEach((c: string) => {
-      const parts = c.split('-');
-      if (cleanClassName(parts[0]) === targetCls && parts[1]) {
-        const clean = cleanSectionName(parts[1]);
-        if (clean) set.add(clean);
-      }
-    });
-
-    const result = Array.from(set).filter(Boolean).sort();
-    return result.length > 0 ? result : ['A'];
-  }, [formData.className, academicClasses, teacherAssignments, students, teacherAssignedClasses]);
-
-  useEffect(() => {
-    if (formSectionOptions.length > 0 && !formSectionOptions.includes(cleanSectionName(formData.section || ''))) {
-      setFormData(prev => ({ ...prev, section: formSectionOptions[0] }));
-    }
-  }, [formSectionOptions]);
-
-  // Dynamically resolve subject options for the selected class and section in modal
-  const formSubjectOptions = useMemo(() => {
-    const targetCls = cleanClassName(formData.className || '');
-    const targetSec = cleanSectionName(formData.section || '');
-    const set = new Set<string>();
-
-    const tFirstName = (dbTeacher.firstName || '').toLowerCase().trim();
-    const tLastName = (dbTeacher.lastName || '').toLowerCase().trim();
-    const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
-    const tDept = (dbTeacher.department || (dbTeacher as any).primarySubject || '').toLowerCase().trim();
-
-    // 1. Filter teacherAssignments for target class & section matching teacher
-    (teacherAssignments || []).forEach((ta: any) => {
-      if (!ta || !ta.subject) return;
-      const clsMatch = cleanClassName(ta.className || '') === targetCls;
-      const secMatch = !targetSec || cleanSectionName(ta.section || '') === targetSec;
-
-      if (clsMatch && secMatch) {
-        if (role === 'Super Admin' || role === 'School Admin') {
-          set.add(ta.subject);
-        } else {
-          const taName = (ta.teacherName || '').toLowerCase();
-          const matchesTeacher = (tFullName && taName.includes(tFullName)) ||
-            (tFirstName.length > 2 && taName.includes(tFirstName)) ||
-            (tLastName.length > 2 && taName.includes(tLastName)) ||
-            (ta.teacherId && (String(ta.teacherId) === String(dbTeacher.id) || String(ta.teacherId) === String((dbTeacher as any).empId)));
-          
-          if (matchesTeacher) {
-            set.add(ta.subject);
-          }
-        }
-      }
-    });
-
-    if (set.size > 0) {
-      const res = Array.from(set);
-      if (tDept && tDept !== 'mathematics' && !tDept.includes('math')) {
-        return res.filter(s => s.toLowerCase() !== 'mathematics');
-      }
-      return res;
-    }
-
-    // 2. Filter existing homework entries for target class & section matching teacher
-    (homework || []).forEach((hw: any) => {
-      if (!hw || !hw.subject) return;
-      const clsMatch = cleanClassName(hw.className || '') === targetCls;
-      const secMatch = !targetSec || cleanSectionName(hw.section || '') === targetSec;
-      if (clsMatch && secMatch) {
-        const hwTeacher = (hw.teacherName || '').toLowerCase();
-        const isMatch = (tFullName && hwTeacher.includes(tFullName)) ||
-          (tFirstName && tFirstName.length > 2 && hwTeacher.includes(tFirstName)) ||
-          role === 'Super Admin' || role === 'School Admin';
-        if (isMatch) {
-          set.add(hw.subject);
-        }
-      }
-    });
-
-    if (set.size > 0) {
-      const res = Array.from(set);
-      if (tDept && tDept !== 'mathematics' && !tDept.includes('math')) {
-        return res.filter(s => s.toLowerCase() !== 'mathematics');
-      }
-      return res;
-    }
-
-    // 3. Fallback to teacher's assigned subjects
-    if (assignedSubjects.length > 0) {
-      const res = assignedSubjects.filter(s => Boolean(s));
-      if (tDept && tDept !== 'mathematics' && !tDept.includes('math')) {
-        const filtered = res.filter(s => s.toLowerCase() !== 'mathematics');
-        if (filtered.length > 0) return filtered;
-      } else {
-        return res;
-      }
-    }
-
-    // 4. Fallback to academicClasses for targetCls
-    const clsObj = (academicClasses || []).find((c: any) => cleanClassName(c.name || '') === targetCls);
-    if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
-      const rawSubs = clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.subjectName || s.name || s.subjectCode || ''));
-      const clean = rawSubs.filter(Boolean);
-      const filtered = clean.filter((s: string) => {
-        if (tDept && tDept !== 'mathematics' && !tDept.includes('math') && s.toLowerCase() === 'mathematics') {
-          return false;
-        }
-        return true;
+    if (filterClass === 'All') {
+      teacherAssignedClasses.forEach(c => {
+        const sec = cleanSectionName(c.split('-')[1]);
+        if (sec) set.add(sec);
       });
-      if (filtered.length > 0) return Array.from(new Set<string>(filtered));
+      (teacherAssignments || []).forEach((ta: any) => {
+        if (ta.section) set.add(cleanSectionName(ta.section));
+      });
+      students.forEach(s => {
+        if (s.section) set.add(cleanSectionName(s.section));
+      });
+      (academicClasses || []).forEach(c => {
+        if (c.sections && Array.isArray(c.sections)) {
+          c.sections.forEach((s: string) => set.add(cleanSectionName(s)));
+        }
+      });
+    } else {
+      const targetCls = cleanClassName(filterClass);
+
+      teacherAssignedClasses.forEach(c => {
+        if (cleanClassName(c.split('-')[0]) === targetCls) {
+          const sec = cleanSectionName(c.split('-')[1]);
+          if (sec) set.add(sec);
+        }
+      });
+
+      (teacherAssignments || []).forEach((ta: any) => {
+        if (cleanClassName(ta.className) === targetCls && ta.section) {
+          set.add(cleanSectionName(ta.section));
+        }
+      });
+
+      students.forEach(s => {
+        if (cleanClassName(s.className) === targetCls && s.section) {
+          set.add(cleanSectionName(s.section));
+        }
+      });
+
+      (academicClasses || []).forEach(c => {
+        if (cleanClassName(c.name) === targetCls && c.sections && Array.isArray(c.sections)) {
+          c.sections.forEach((s: string) => set.add(cleanSectionName(s)));
+        }
+      });
     }
 
-    return ['Social Studies'];
-  }, [formData.className, formData.section, dbTeacher, teacherAssignments, homework, assignedSubjects, academicClasses, role]);
-
-  useEffect(() => {
-    if (formSubjectOptions.length > 0 && !formSubjectOptions.includes(formData.subject)) {
-      setFormData(prev => ({ ...prev, subject: formSubjectOptions[0] }));
-    }
-  }, [formSubjectOptions]);
+    const arr = Array.from(set).filter(Boolean).sort();
+    return arr.length > 0 ? arr : ['A', 'B'];
+  }, [filterClass, teacherAssignedClasses, teacherAssignments, students, academicClasses]);
 
   const handleClassFilterChange = (newClass: string) => {
     setFilterClass(newClass);
@@ -666,7 +530,7 @@ export const HomeworkView: React.FC = () => {
             >
               <option value="All">All Sections</option>
               {sectionOptions.map(sec => (
-                <option key={sec} value={sec}>{sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`}</option>
+                <option key={sec} value={sec}>Section {sec}</option>
               ))}
             </select>
           </div>
@@ -745,20 +609,7 @@ export const HomeworkView: React.FC = () => {
                     return (
                       <tr key={hw.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/30 text-slate-855 dark:text-slate-200">
                         <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{hw.title}</td>
-                        <td className="py-3 px-4 font-bold text-sky-650">
-                          {(() => {
-                            let cls = (hw.className || '').trim();
-                            let sec = (hw.section || '').replace(/^section\s*/i, '').replace(/^sec\s*/i, '').trim();
-                            if (!cls) return '-';
-                            if (cls.includes('-')) {
-                              const parts = cls.split('-');
-                              const cName = parts[0].trim();
-                              const cSec = parts[1]?.trim() || sec || 'A';
-                              return `${cName}-${cSec}`;
-                            }
-                            return `${cls}-${sec || 'A'}`;
-                          })()}
-                        </td>
+                        <td className="py-3 px-4 font-bold text-sky-650">{formatClassRoom(hw)}</td>
                         <td className="py-3 px-4">{hw.subject}</td>
                         <td className="py-3 px-4 font-mono font-bold text-rose-600 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" /> {hw.dueDate}
@@ -860,7 +711,26 @@ export const HomeworkView: React.FC = () => {
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Class</label>
                   <select 
                     value={formData.className} 
-                    onChange={e => setFormData({ ...formData, className: e.target.value })} 
+                    onChange={e => {
+                      const selectedCls = e.target.value;
+                      const availableSecs = Array.from(new Set(
+                        students
+                          .filter(s => cleanClassName(s.className) === cleanClassName(selectedCls))
+                          .map(s => cleanSectionName(s.section))
+                          .concat(
+                            teacherAssignedClasses
+                              .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(selectedCls))
+                              .map(c => cleanSectionName(c.split('-')[1]))
+                          )
+                          .concat(['A', 'B'])
+                          .filter(Boolean)
+                      ));
+                      setFormData(prev => ({
+                        ...prev,
+                        className: selectedCls,
+                        section: availableSecs[0] || 'A'
+                      }));
+                    }} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
                     {classOptions.map(c => (
@@ -875,8 +745,19 @@ export const HomeworkView: React.FC = () => {
                     onChange={e => setFormData({ ...formData, section: e.target.value })} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
-                    {formSectionOptions.map(sec => (
-                      <option key={sec} value={sec}>{sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`}</option>
+                    {Array.from(new Set(
+                      students
+                        .filter(s => cleanClassName(s.className) === cleanClassName(formData.className || ''))
+                        .map(s => cleanSectionName(s.section))
+                        .concat(
+                          teacherAssignedClasses
+                            .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
+                            .map(c => cleanSectionName(c.split('-')[1]))
+                        )
+                        .concat(['A', 'B'])
+                        .filter(Boolean)
+                    )).map(sec => (
+                      <option key={sec} value={sec}>Sec {sec}</option>
                     ))}
                   </select>
                 </div>
@@ -887,7 +768,7 @@ export const HomeworkView: React.FC = () => {
                     onChange={e => setFormData({ ...formData, subject: e.target.value })} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
-                    {formSubjectOptions.map(s => (
+                    {subjectOptions.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -1335,7 +1216,7 @@ export const HomeworkView: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-[10.5px]">
                 <div>
                   <span className="block text-[8.5px] text-slate-400 uppercase font-bold">Class & Subject</span>
-                  <p className="text-slate-855 dark:text-slate-200 mt-0.5">{viewingHomework.className}-{viewingHomework.section} &bull; {viewingHomework.subject}</p>
+                  <p className="text-slate-855 dark:text-slate-200 mt-0.5">{formatClassRoom(viewingHomework)} &bull; {viewingHomework.subject}</p>
                 </div>
                 <div>
                   <span className="block text-[8.5px] text-slate-400 uppercase font-bold">Due Date</span>
