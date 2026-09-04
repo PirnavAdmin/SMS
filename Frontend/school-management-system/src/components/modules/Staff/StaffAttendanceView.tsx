@@ -41,7 +41,7 @@ import {
   Edit,
   RotateCcw,
 } from "lucide-react";
-import { formatToDDMMYYYY } from "../../../utils/dateValidation";
+import { formatToDDMMYYYY, formatToISO } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -564,10 +564,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         const isId =
           String(r.entityId) === String(teacherId) ||
           String((r as any).staffId) === String(teacherId);
-        const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+        const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
         return isStaff && isId && rDate !== todayStr;
       })
-      .map((r) => ({ date: String(r.date || "").split("T")[0].split(" ")[0] }));
+      .map((r) => ({ date: formatToISO(String(r.date || "").split("T")[0].split(" ")[0]) }));
 
     const rawList = rawToday ? [rawToday, ...teacherRecords] : teacherRecords;
 
@@ -575,7 +575,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
     rawList.forEach((item) => {
       if (!item.date) return;
-      const d = new Date(item.date);
+      const iso = formatToISO(item.date);
+      const d = new Date(iso);
       if (isNaN(d.getTime())) return;
       const mIdx = d.getMonth().toString();
       const monthName = d.toLocaleDateString("en-US", { month: "long" });
@@ -619,7 +620,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         const isId =
           String(r.entityId) === String(teacherId) ||
           String((r as any).staffId) === String(teacherId);
-        const rDate = String(r.date || "").split("T")[0].split(" ")[0];
+        const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
         return isStaff && isId && rDate !== todayStr;
       })
       .map((r) => {
@@ -637,7 +638,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           }
         }
         return {
-          date: String(r.date || "").split("T")[0].split(" ")[0],
+          date: formatToISO(String(r.date || "").split("T")[0].split(" ")[0]),
           checkIn: formatDisplayTime(r.inTime),
           checkOut: formatDisplayTime(r.outTime),
           workingHours: calcHours,
@@ -647,15 +648,32 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
     const list = todayRecord ? [todayRecord, ...teacherRecords] : teacherRecords;
 
-    return list.filter((item) => {
-      if (personalFilterDate && item.date !== personalFilterDate) return false;
+    // SORT ALL RECORDS BY ISO DATE IN DESCENDING ORDER (NEWEST DATE FIRST)
+    const sortedList = [...list].sort((a, b) => {
+      const isoA = formatToISO(a.date);
+      const isoB = formatToISO(b.date);
+      return isoB.localeCompare(isoA);
+    });
+
+    return sortedList.filter((item) => {
+      const isoItemDate = formatToISO(item.date);
+      if (personalFilterDate) {
+        const isoFilterDate = formatToISO(personalFilterDate);
+        if (isoItemDate !== isoFilterDate) return false;
+      }
       if (personalFilterMonth !== "All") {
-        const itemMonth = new Date(item.date).getMonth();
+        const d = new Date(isoItemDate);
+        const itemMonth = isNaN(d.getTime()) ? -1 : d.getMonth();
         if (itemMonth.toString() !== personalFilterMonth) return false;
       }
       if (personalSearchQuery) {
         const q = personalSearchQuery.toLowerCase();
-        return item.date.includes(q) || item.status.toLowerCase().includes(q);
+        const displayDateStr = formatToDDMMYYYY(isoItemDate, "-").toLowerCase();
+        return (
+          isoItemDate.toLowerCase().includes(q) ||
+          displayDateStr.includes(q) ||
+          (item.status || "").toLowerCase().includes(q)
+        );
       }
       return true;
     });
