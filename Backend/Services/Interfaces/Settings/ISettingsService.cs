@@ -15,5 +15,7 @@ namespace SMS.Api.Services.Interfaces.Settings
         Task<IdSequenceSettingsDto> GetIdSequenceSettingsAsync();
         Task<IdSequenceSettingsDto> UpdateIdSequenceSettingsAsync(IdSequenceSettingsDto dto);
         Task<GeneratedIdResponseDto> GenerateNextIdAsync(string type, string? customId = null);
+        Task<bool> DeleteCustomIdFormatAsync(string formatKey);
+        Task<AutomatedIdFormatDto> AddOrUpdateCustomIdFormatAsync(CustomIdSequenceDto dto);
     }
 }

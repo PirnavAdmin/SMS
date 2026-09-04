@@ -147,3 +147,17 @@ export const fetchNextGeneratedIdApi = async (type: string, sequenceId?: string)
   }
   return apiClient(`/api/Settings/id-sequences/next?${query.toString()}`, { method: 'GET' });
 };
+
+export const addOrUpdateCustomIdFormatApi = async (customFormat: any) => {
+  return apiClient('/api/Settings/id-sequences/custom', {
+    method: 'POST',
+    body: JSON.stringify(customFormat)
+  });
+};
+
+export const deleteCustomIdFormatApi = async (formatKey: string) => {
+  return apiClient(`/api/Settings/id-sequences/custom/${encodeURIComponent(formatKey)}`, {
+    method: 'DELETE'
+  });
+};
+

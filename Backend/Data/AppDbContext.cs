@@ -19,6 +19,7 @@ namespace SMS.Api.Data
         public DbSet<Admin> Admins { get; set; } = null!;
         public DbSet<School> Schools { get; set; } = null!;
         public DbSet<SchoolSettings> SchoolSettings { get; set; } = null!;
+        public DbSet<AutomatedIdFormat> AutomatedIdFormats { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<SystemNotification> SystemNotifications { get; set; } = null!;
 

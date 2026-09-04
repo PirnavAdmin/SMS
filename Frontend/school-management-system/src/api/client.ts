@@ -58,6 +58,19 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     }
   }
 
+  if (!response.ok && url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+    try {
+      const localUrl = `http://127.0.0.1:5151${endpoint}`;
+      const fallbackRes = await fetch(localUrl, {
+        ...options,
+        headers,
+      });
+      if (fallbackRes.ok) {
+        response = fallbackRes;
+      }
+    } catch { }
+  }
+
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {
       const hadToken = !!localStorage.getItem('auth_token');

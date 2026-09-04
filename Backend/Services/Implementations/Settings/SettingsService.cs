@@ -204,36 +204,216 @@ namespace SMS.Api.Services.Implementations.Settings
 
         public async Task<IdSequenceSettingsDto> GetIdSequenceSettingsAsync()
         {
-            var json = await _repository.GetIdSequenceSettingsJsonAsync();
-            if (string.IsNullOrWhiteSpace(json))
+            var formats = await _repository.GetAutomatedIdFormatsAsync();
+            var result = new IdSequenceSettingsDto();
+
+            var studentFormat = formats.FirstOrDefault(f => string.Equals(f.FormatKey, "student", StringComparison.OrdinalIgnoreCase));
+            if (studentFormat != null)
             {
-                return new IdSequenceSettingsDto();
+                result.StudentIdPrefix = studentFormat.Prefix;
+                result.StudentIdStartNo = studentFormat.StartNo;
+                result.StudentIdPadding = studentFormat.Padding;
+                result.StudentIdIncludeYear = studentFormat.IncludeYear;
+                result.StudentIdSeparator = studentFormat.Separator;
+                result.StudentIdPosition = studentFormat.Position;
             }
 
+            var admissionFormat = formats.FirstOrDefault(f => string.Equals(f.FormatKey, "admission", StringComparison.OrdinalIgnoreCase));
+            if (admissionFormat != null)
+            {
+                result.AdmissionNoPrefix = admissionFormat.Prefix;
+                result.AdmissionNoStartNo = admissionFormat.StartNo;
+                result.AdmissionNoPadding = admissionFormat.Padding;
+                result.AdmissionNoIncludeYear = admissionFormat.IncludeYear;
+                result.AdmissionNoSeparator = admissionFormat.Separator;
+                result.AdmissionNoPosition = admissionFormat.Position;
+            }
+
+            var teachingFormat = formats.FirstOrDefault(f => string.Equals(f.FormatKey, "teaching", StringComparison.OrdinalIgnoreCase));
+            if (teachingFormat != null)
+            {
+                result.TeachingIdPrefix = teachingFormat.Prefix;
+                result.TeachingIdStartNo = teachingFormat.StartNo;
+                result.TeachingIdPadding = teachingFormat.Padding;
+                result.TeachingIdIncludeYear = teachingFormat.IncludeYear;
+                result.TeachingIdSeparator = teachingFormat.Separator;
+                result.TeachingIdPosition = teachingFormat.Position;
+            }
+
+            var nonTeachingFormat = formats.FirstOrDefault(f => string.Equals(f.FormatKey, "non-teaching", StringComparison.OrdinalIgnoreCase));
+            if (nonTeachingFormat != null)
+            {
+                result.NonTeachingIdPrefix = nonTeachingFormat.Prefix;
+                result.NonTeachingIdStartNo = nonTeachingFormat.StartNo;
+                result.NonTeachingIdPadding = nonTeachingFormat.Padding;
+                result.NonTeachingIdIncludeYear = nonTeachingFormat.IncludeYear;
+                result.NonTeachingIdSeparator = nonTeachingFormat.Separator;
+                result.NonTeachingIdPosition = nonTeachingFormat.Position;
+            }
+
+            var customList = formats.Where(f => f.IsCustom).Select(f => new CustomIdSequenceDto
+            {
+                Id = f.FormatKey,
+                Name = f.Name,
+                Prefix = f.Prefix,
+                StartNo = f.StartNo,
+                Padding = f.Padding,
+                IncludeYear = f.IncludeYear,
+                Separator = f.Separator,
+                Position = f.Position
+            }).ToList();
+
+            result.CustomSequences = customList;
+
+            result.AllFormats = formats.Select(f => new AutomatedIdFormatDto
+            {
+                Id = f.Id,
+                FormatKey = f.FormatKey,
+                Name = f.Name,
+                Prefix = f.Prefix,
+                StartNo = f.StartNo,
+                Padding = f.Padding,
+                IncludeYear = f.IncludeYear,
+                Separator = f.Separator,
+                Position = f.Position,
+                IsCustom = f.IsCustom
+            }).ToList();
+
+            // Also keep SchoolSettings.IdSequenceSettingsJson synchronized
             try
             {
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var settings = JsonSerializer.Deserialize<IdSequenceSettingsDto>(json, options);
-                return settings ?? new IdSequenceSettingsDto();
+                var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                await _repository.UpdateIdSequenceSettingsAsync(json);
             }
-            catch
-            {
-                return new IdSequenceSettingsDto();
-            }
+            catch { }
+
+            return result;
         }
 
         public async Task<IdSequenceSettingsDto> UpdateIdSequenceSettingsAsync(IdSequenceSettingsDto dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
 
-            var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions
+            var incomingFormats = new List<AutomatedIdFormat>
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false
-            });
+                new AutomatedIdFormat
+                {
+                    FormatKey = "student",
+                    Name = "Student ID",
+                    Prefix = dto.StudentIdPrefix,
+                    StartNo = dto.StudentIdStartNo,
+                    Padding = dto.StudentIdPadding,
+                    IncludeYear = dto.StudentIdIncludeYear,
+                    Separator = dto.StudentIdSeparator,
+                    Position = dto.StudentIdPosition,
+                    IsCustom = false
+                },
+                new AutomatedIdFormat
+                {
+                    FormatKey = "teaching",
+                    Name = "Teaching Staff ID",
+                    Prefix = dto.TeachingIdPrefix,
+                    StartNo = dto.TeachingIdStartNo,
+                    Padding = dto.TeachingIdPadding,
+                    IncludeYear = dto.TeachingIdIncludeYear,
+                    Separator = dto.TeachingIdSeparator,
+                    Position = dto.TeachingIdPosition,
+                    IsCustom = false
+                },
+                new AutomatedIdFormat
+                {
+                    FormatKey = "non-teaching",
+                    Name = "Non-Teaching Staff ID",
+                    Prefix = dto.NonTeachingIdPrefix,
+                    StartNo = dto.NonTeachingIdStartNo,
+                    Padding = dto.NonTeachingIdPadding,
+                    IncludeYear = dto.NonTeachingIdIncludeYear,
+                    Separator = dto.NonTeachingIdSeparator,
+                    Position = dto.NonTeachingIdPosition,
+                    IsCustom = false
+                },
+                new AutomatedIdFormat
+                {
+                    FormatKey = "admission",
+                    Name = "Admission No",
+                    Prefix = dto.AdmissionNoPrefix,
+                    StartNo = dto.AdmissionNoStartNo,
+                    Padding = dto.AdmissionNoPadding,
+                    IncludeYear = dto.AdmissionNoIncludeYear,
+                    Separator = dto.AdmissionNoSeparator,
+                    Position = dto.AdmissionNoPosition,
+                    IsCustom = false
+                }
+            };
 
-            await _repository.UpdateIdSequenceSettingsAsync(json);
-            return dto;
+            if (dto.CustomSequences != null)
+            {
+                foreach (var custom in dto.CustomSequences)
+                {
+                    incomingFormats.Add(new AutomatedIdFormat
+                    {
+                        FormatKey = string.IsNullOrWhiteSpace(custom.Id) ? $"custom_{DateTime.UtcNow.Ticks}" : custom.Id,
+                        Name = string.IsNullOrWhiteSpace(custom.Name) ? "Custom Format" : custom.Name,
+                        Prefix = custom.Prefix,
+                        StartNo = custom.StartNo,
+                        Padding = custom.Padding,
+                        IncludeYear = custom.IncludeYear,
+                        Separator = custom.Separator,
+                        Position = custom.Position,
+                        IsCustom = true
+                    });
+                }
+            }
+
+            await _repository.BulkSaveIdFormatsAsync(incomingFormats);
+            return await GetIdSequenceSettingsAsync();
+        }
+
+        public async Task<AutomatedIdFormatDto> AddOrUpdateCustomIdFormatAsync(CustomIdSequenceDto dto)
+        {
+            if (dto == null) throw new ArgumentNullException(nameof(dto));
+
+            var format = new AutomatedIdFormat
+            {
+                FormatKey = string.IsNullOrWhiteSpace(dto.Id) ? $"custom_{DateTime.UtcNow.Ticks}" : dto.Id,
+                Name = string.IsNullOrWhiteSpace(dto.Name) ? "Custom Format" : dto.Name,
+                Prefix = dto.Prefix,
+                StartNo = dto.StartNo,
+                Padding = dto.Padding,
+                IncludeYear = dto.IncludeYear,
+                Separator = dto.Separator,
+                Position = dto.Position,
+                IsCustom = true
+            };
+
+            var saved = await _repository.SaveOrUpdateIdFormatAsync(format);
+
+            // Trigger sync to SchoolSettingsJson
+            await GetIdSequenceSettingsAsync();
+
+            return new AutomatedIdFormatDto
+            {
+                Id = saved.Id,
+                FormatKey = saved.FormatKey,
+                Name = saved.Name,
+                Prefix = saved.Prefix,
+                StartNo = saved.StartNo,
+                Padding = saved.Padding,
+                IncludeYear = saved.IncludeYear,
+                Separator = saved.Separator,
+                Position = saved.Position,
+                IsCustom = saved.IsCustom
+            };
+        }
+
+        public async Task<bool> DeleteCustomIdFormatAsync(string formatKey)
+        {
+            var deleted = await _repository.DeleteCustomIdFormatAsync(formatKey);
+            if (deleted)
+            {
+                await GetIdSequenceSettingsAsync();
+            }
+            return deleted;
         }
 
         public async Task<GeneratedIdResponseDto> GenerateNextIdAsync(string type, string? customId = null)
