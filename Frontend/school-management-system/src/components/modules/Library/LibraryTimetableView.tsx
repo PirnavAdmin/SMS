@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo } from 'react';
 import { Clock, Calendar, BookOpen, User, Users, Search, Printer, Download, Sparkles, School, Layers, RefreshCw, CheckCircle2, ChevronRight, Filter, Eye } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';

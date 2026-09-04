@@ -210,5 +210,54 @@ namespace SMS.Api.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        // POST: api/Settings/id-sequences/custom
+        [HttpPost("id-sequences/custom")]
+        [AllowAnonymous]
+        public async Task<IActionResult> AddOrUpdateCustomIdSequence([FromBody] CustomIdSequenceDto dto)
+        {
+            if (dto == null) return BadRequest("Invalid custom ID sequence payload.");
+
+            try
+            {
+                var saved = await _settingsService.AddOrUpdateCustomIdFormatAsync(dto);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Custom ID format saved successfully to database.",
+                    data = saved
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // DELETE: api/Settings/id-sequences/custom/{formatKey}
+        [HttpDelete("id-sequences/custom/{formatKey}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteCustomIdSequence(string formatKey)
+        {
+            if (string.IsNullOrWhiteSpace(formatKey)) return BadRequest("Format key is required.");
+
+            try
+            {
+                var deleted = await _settingsService.DeleteCustomIdFormatAsync(formatKey);
+                if (!deleted)
+                {
+                    return NotFound(new { success = false, message = "Custom ID format not found or cannot delete standard formats." });
+                }
+                return Ok(new
+                {
+                    success = true,
+                    message = "Custom ID format deleted successfully from database."
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

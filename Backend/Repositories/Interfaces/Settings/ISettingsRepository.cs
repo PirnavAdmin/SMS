@@ -12,5 +12,9 @@ namespace SMS.Api.Repositories.Interfaces.Settings
         Task<bool> UpdateCampusesAsync(string json);
         Task<string?> GetIdSequenceSettingsJsonAsync();
         Task<bool> UpdateIdSequenceSettingsAsync(string json);
+        Task<System.Collections.Generic.List<AutomatedIdFormat>> GetAutomatedIdFormatsAsync();
+        Task<AutomatedIdFormat> SaveOrUpdateIdFormatAsync(AutomatedIdFormat format);
+        Task<bool> DeleteCustomIdFormatAsync(string formatKey);
+        Task<bool> BulkSaveIdFormatsAsync(System.Collections.Generic.List<AutomatedIdFormat> formats);
     }
 }

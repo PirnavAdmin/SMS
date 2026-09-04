@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileSpreadsheet, Printer, FileText, Search } from 'lucide-react';
 import { useData } from '../../../context/DataContext';

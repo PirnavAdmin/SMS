@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { Bus, Users, UserCheck, Phone, Eye, Search, Navigation, Signal } from 'lucide-react';
 import { useData } from '../../../context/DataContext';

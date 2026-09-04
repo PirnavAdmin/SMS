@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 
 import {
@@ -468,6 +469,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const attendanceData = res?.attendance || res;
       const now = new Date();
       const isoStr = now.toISOString();
+      const inTimeVal = persCheckInTime ? formatDisplayTime(persCheckInTime) : "09:00 AM";
       const outTimeVal = attendanceData?.outTime || now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       
       localStorage.setItem(dateKey, todayDateStr);

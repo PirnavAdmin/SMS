@@ -252,7 +252,7 @@ export function generateNextEmployeeId(staff: Staff[] = [], category?: string): 
   
   if (isTeaching) {
     const existingEmpIds = staff
-      .filter(s => !s.employeeCategory || s.employeeCategory === "Teaching Staff" || s.employeeCategory === "Teacher")
+      .filter(s => !s.employeeCategory || (s.employeeCategory as string) === "Teaching Staff" || s.employeeCategory === "Teacher")
       .map(s => s.empId || s.id || '')
       .filter(Boolean);
 
@@ -267,7 +267,7 @@ export function generateNextEmployeeId(staff: Staff[] = [], category?: string): 
     );
   } else {
     const existingEmpIds = staff
-      .filter(s => s.employeeCategory === "Non-Teaching Staff" || s.employeeCategory === "Staff")
+      .filter(s => (s.employeeCategory as string) === "Non-Teaching Staff" || s.employeeCategory === "Staff")
       .map(s => s.empId || s.id || '')
       .filter(Boolean);
 

@@ -1421,9 +1421,22 @@ export interface Refund {
 }
 
 export interface FinanceSettings {
-  academicYear: string;
+  academicYear?: string;
   activeAcademicYear?: string;
-  defaultCurrency: string;
+  currency?: string;
+  defaultCurrency?: string;
+  paymentGatewayEnabled?: boolean;
+  autoInvoiceGeneration?: boolean;
+  invoiceDueDays?: number;
+  taxRatePct?: number;
+  taxRegistrationNo?: string;
+  bankName?: string;
+  bankBranch?: string;
+  accountName?: string;
+  accountNo?: string;
+  ifscCode?: string;
+  lateFeeDailyAmount?: number;
+  lateFeeGraceDays?: number;
   receiptFormat: string;
   lateFeeRuleId: string;
   receiptPrefix: string;
@@ -1897,14 +1910,19 @@ export interface UniformSupplier {
 
 export interface UniformInventoryItem {
   id: string;
-  itemId: string;
+  itemId?: string;
   itemName: string;
   category: string;
-  size: string;
+  size?: string;
+  color?: string;
   openingStock: number;
   currentStock: number;
   minimumStock: number;
-  reorderLevel: number;
+  reorderLevel?: number;
+  reorderPoint?: number;
+  unitPrice?: number;
+  supplier?: string;
+  lastRestockedDate?: string;
   status: 'In Stock' | 'Low Stock' | 'Out of Stock';
   lastUpdated?: string;
 }
@@ -1915,10 +1933,10 @@ export interface StudentUniformIssue {
   studentName: string;
   admissionNo: string;
   className: string;
-  section: string;
-  itemId: string;
+  section?: string;
+  itemId?: string;
   itemName: string;
-  size: string;
+  size?: string;
   quantity: number;
   issueDate: string;
   status: 'Issued' | 'Returned' | 'Replaced' | string;
@@ -1927,6 +1945,8 @@ export interface StudentUniformIssue {
   academicYear?: string;
   branch?: string;
   notes?: string;
+  actionRemarks?: string;
+  newSize?: string;
   type?: 'Base Package' | 'Additional Purchase' | 'Additional Base Package' | string;
   price?: number;
   gender?: string;

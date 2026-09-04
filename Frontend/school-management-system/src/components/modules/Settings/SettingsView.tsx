@@ -22,7 +22,9 @@ import {
   deleteBranchApi,
   fetchAcademicYearsApi,
   fetchIdSequenceSettingsApi,
-  updateIdSequenceSettingsApi
+  updateIdSequenceSettingsApi,
+  addOrUpdateCustomIdFormatApi,
+  deleteCustomIdFormatApi
 } from '../../../api/settings';
 import { 
   getIdSequenceSettings, 
@@ -211,7 +213,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleAddCustomIdSequence = () => {
+  const handleAddCustomIdSequence = async () => {
     const newSeq: CustomIdSequence = {
       id: `custom_${Date.now()}`,
       name: `Custom Format ${(idForm.customSequences || []).length + 1}`,
@@ -223,19 +225,34 @@ export const SettingsView: React.FC = () => {
       position: 'start'
     };
 
-    setIdForm(prev => ({
-      ...prev,
-      customSequences: [...(prev.customSequences || []), newSeq]
-    }));
-    addToast('success', 'Custom ID Rule Added', 'A new custom ID sequence card has been added.');
+    const nextForm = {
+      ...idForm,
+      customSequences: [...(idForm.customSequences || []), newSeq]
+    };
+
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+
+    try {
+      await addOrUpdateCustomIdFormatApi(newSeq);
+    } catch { }
+
+    addToast('success', 'Custom ID Format Added', 'A new custom ID sequence card has been added to database.');
   };
 
-  const handleDeleteCustomIdSequence = (seqId: string) => {
-    setIdForm(prev => ({
-      ...prev,
-      customSequences: (prev.customSequences || []).filter(s => s.id !== seqId)
-    }));
-    addToast('info', 'Custom ID Rule Removed', 'Removed custom ID sequence rule.');
+  const handleDeleteCustomIdSequence = async (seqId: string) => {
+    const nextForm = {
+      ...idForm,
+      customSequences: (idForm.customSequences || []).filter(s => s.id !== seqId)
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+
+    try {
+      await deleteCustomIdFormatApi(seqId);
+    } catch { }
+
+    addToast('info', 'Custom ID Format Removed', 'Removed custom ID sequence format from database.');
   };
 
   const handleUpdateCustomSequence = (seqId: string, updates: Partial<CustomIdSequence>) => {

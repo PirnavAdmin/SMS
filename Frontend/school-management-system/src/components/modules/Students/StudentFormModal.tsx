@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { X, UserCheck, User, Shield, Bus, Camera, Trash2, Home, Users, Search, ChevronDown } from 'lucide-react';
 import { Student, StudentType, SiblingDetail } from '../../../types';

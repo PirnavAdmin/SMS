@@ -121,7 +121,11 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     if (reportType === 'Low Stock' && (inv.currentStock === 0 || inv.currentStock > inv.minimumStock)) return false;
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
-      return inv.itemName.toLowerCase().includes(q) || inv.category.toLowerCase().includes(q) || inv.size.toLowerCase().includes(q);
+      return (
+        inv.itemName.toLowerCase().includes(q) ||
+        inv.category.toLowerCase().includes(q) ||
+        (inv.size || '').toLowerCase().includes(q)
+      );
     }
     return true;
   });
@@ -181,7 +185,12 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
-      return i.studentName.toLowerCase().includes(q) || i.admissionNo.toLowerCase().includes(q) || i.itemName.toLowerCase().includes(q) || i.size.toLowerCase().includes(q);
+      return (
+        i.studentName.toLowerCase().includes(q) ||
+        i.admissionNo.toLowerCase().includes(q) ||
+        i.itemName.toLowerCase().includes(q) ||
+        (i.size || '').toLowerCase().includes(q)
+      );
     }
     return true;
   });

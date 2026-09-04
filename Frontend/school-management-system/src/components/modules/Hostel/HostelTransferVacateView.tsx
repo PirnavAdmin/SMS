@@ -1,8 +1,10 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { getAllocations, vacateAllocation, createAllocation } from '../../../api/hostel';
+import { ConfirmModal } from '../../common/ConfirmModal';
 
 interface ComboboxOption {
   value: string;

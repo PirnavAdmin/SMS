@@ -11736,8 +11736,10 @@ export const initialStudentHostels: StudentHostel[] = [];
 export const initialRefunds: Refund[] = [];
 
 export const initialFinanceSettings: FinanceSettings = {
+  academicYear: '2026-2027',
   activeAcademicYear: '2026-2027',
   currency: 'INR',
+  defaultCurrency: 'INR',
   paymentGatewayEnabled: false,
   autoInvoiceGeneration: false,
   invoiceDueDays: 15,
@@ -11749,7 +11751,19 @@ export const initialFinanceSettings: FinanceSettings = {
   accountNo: '',
   ifscCode: '',
   lateFeeDailyAmount: 10,
-  lateFeeGraceDays: 5
+  lateFeeGraceDays: 5,
+  receiptFormat: 'REC-{YYYY}-{0000}',
+  lateFeeRuleId: '',
+  receiptPrefix: 'REC',
+  invoicePrefix: 'INV',
+  paymentModes: ['Cash', 'UPI', 'Cheque', 'Bank Transfer', 'Online'],
+  financialYear: '2026-2027',
+  autoReceiptNo: true,
+  taxSettings: {
+    enabled: false,
+    taxName: 'GST',
+    percentage: 0
+  }
 };
 
 export const initialRouteMasters: RouteMaster[] = [

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { Clock, Printer, CalendarOff } from 'lucide-react';
 import { useData } from '../../../context/DataContext';

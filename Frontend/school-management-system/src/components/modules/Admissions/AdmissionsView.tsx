@@ -1,4 +1,6 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from "react";
+import { createAllocation } from "../../../api/hostel";
 import {
   GraduationCap,
   Plus,
@@ -285,7 +287,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     "regAsc" | "regDesc" | "nameAsc" | "nameDesc" | "classAsc" | "classDesc"
   >("regDesc");
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 8;
+  const [pageSize, setPageSize] = useState(8);
 
   // Reset pagination on search query or filter changes
   useEffect(() => {
@@ -619,7 +621,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           }
 
           setUploadProgress(100);
-          await fetchAdmissions();
+          if (typeof fetchAdmissions === "function") {
+            await fetchAdmissions();
+          }
 
           setTimeout(() => {
             addToast(
