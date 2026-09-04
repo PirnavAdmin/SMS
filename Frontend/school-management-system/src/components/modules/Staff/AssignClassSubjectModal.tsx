@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, BookOpen } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -14,8 +14,15 @@ export const AssignClassSubjectModal: React.FC<AssignClassSubjectModalProps> = (
   const { updateStaff } = useData();
   const { addToast } = useToast();
 
-  const [classesStr, setClassesStr] = useState(staff?.assignedClasses.join(', ') || 'Class 10-A, Class 11-B');
-  const [subjectsStr, setSubjectsStr] = useState(staff?.assignedSubjects.join(', ') || 'Mathematics, Physics');
+  const [classesStr, setClassesStr] = useState((staff?.assignedClasses || []).join(', '));
+  const [subjectsStr, setSubjectsStr] = useState((staff?.assignedSubjects || []).join(', '));
+
+  useEffect(() => {
+    if (staff) {
+      setClassesStr((staff.assignedClasses || []).join(', '));
+      setSubjectsStr((staff.assignedSubjects || []).join(', '));
+    }
+  }, [staff, isOpen]);
 
   if (!isOpen || !staff) return null;
 

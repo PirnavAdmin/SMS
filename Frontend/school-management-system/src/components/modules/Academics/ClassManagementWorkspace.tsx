@@ -480,17 +480,18 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     const subjectsStr = [
       t.primarySubject,
       t.secondarySubject,
+      t.specialization,
       ...(t.assignedSubjects || [])
     ].filter(Boolean);
     
-    const offeredSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Computer Science', 'Economics', 'Accountancy', 'Business Studies'];
-    const matchedOffered = offeredSubjects.filter(sub => 
-      (t.designation || '').toLowerCase().includes(sub.toLowerCase()) ||
-      (t.department || '').toLowerCase().includes(sub.toLowerCase())
-    );
-    const allTeacherSubjects = Array.from(new Set([...subjectsStr, ...matchedOffered])).map(s => s.toLowerCase());
-    const target = subName.toLowerCase();
-    return allTeacherSubjects.some(s => s.includes(target) || target.includes(s));
+    // Also check active teacherAssignments
+    const assignedSubs = (teacherAssignments || [])
+      .filter(ta => String(ta.teacherId) === String(t.id) && ta.subject)
+      .map(ta => ta.subject);
+
+    const allTeacherSubjects = Array.from(new Set([...subjectsStr, ...assignedSubs])).map(s => s.toLowerCase().trim());
+    const target = (subName || '').toLowerCase().trim();
+    return allTeacherSubjects.some(s => s === target || s.includes(target) || target.includes(s));
   };
 
   // Subject list search
@@ -2378,7 +2379,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       (String(ta.teacherId) === String(t.id) || (ta.teacherName && (t.name || `${t.firstName} ${t.lastName}`).toLowerCase() === ta.teacherName.toLowerCase()))
                     );
                   });
-                  const mappedSubjectsForClass = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
+                  const mappedSubjectsForClass = (activeClass.subjects || []).map((subName: string, index: number) => {
+                    const master = subjects.find(s => s.name.toLowerCase() === subName.toLowerCase());
+                    return master || {
+                      id: `SUB-CLASS-${index}-${subName.replace(/\s+/g, '')}`,
+                      name: subName,
+                      code: subName.slice(0, 3).toUpperCase(),
+                      department: 'General Academics',
+                      status: 'Active'
+                    };
+                  });
 
                   return (
                     <div className="space-y-6 animate-in fade-in">
@@ -2426,23 +2436,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                             {/* Designation & Subject */}
                             {selectedClassTeacher && (() => {
-                              const subjectsStr = [
-                                selectedClassTeacher.primarySubject,
-                                selectedClassTeacher.secondarySubject,
-                                ...(selectedClassTeacher.assignedSubjects || [])
-                              ].filter(Boolean);
-                              
-                              if (subjectsStr.length === 0) {
-                                const offeredSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Computer Science', 'Economics', 'Accountancy', 'Business Studies'];
-                                const extracted = offeredSubjects.filter(sub => 
-                                  (selectedClassTeacher.designation || '').toLowerCase().includes(sub.toLowerCase()) ||
-                                  (selectedClassTeacher.department || '').toLowerCase().includes(sub.toLowerCase())
-                                );
-                                if (extracted.length > 0) {
-                                  subjectsStr.push(...extracted);
-                                }
-                              }
-                              const uniqueSubjects = Array.from(new Set(subjectsStr)).join(', ');
+                              const enrolledSubjects = (selectedClassTeacher.assignedSubjects && selectedClassTeacher.assignedSubjects.length > 0)
+                                ? selectedClassTeacher.assignedSubjects
+                                : [selectedClassTeacher.primarySubject, selectedClassTeacher.secondarySubject, selectedClassTeacher.specialization]
+                                    .filter((s): s is string => Boolean(s && typeof s === 'string' && s.trim() !== ''));
+
+                              const displaySubjects = enrolledSubjects.length > 0
+                                ? enrolledSubjects.join(', ')
+                                : (selectedClassTeacher.department && !['administration', 'general', 'academics'].includes(selectedClassTeacher.department.toLowerCase())
+                                    ? selectedClassTeacher.department
+                                    : 'None Assigned');
+
                               return (
                                 <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl space-y-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                                   <div className="flex items-start justify-between gap-3">
@@ -2453,8 +2457,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   </div>
                                   <div className="flex items-start justify-between gap-3">
                                     <span className="text-slate-400 shrink-0">Subject:</span>
-                                    <span className="text-slate-900 dark:text-white font-extrabold text-right truncate max-w-[160px]">
-                                      {uniqueSubjects || 'General'}
+                                    <span className="text-slate-900 dark:text-white font-extrabold text-right truncate max-w-[160px]" title={displaySubjects}>
+                                      {displaySubjects}
                                     </span>
                                   </div>
                                 </div>
@@ -2484,15 +2488,57 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               ) : (
                                 mappedSubjectsForClass.map(sub => {
                                   const subName = sub.name;
-                                  const subCode = sub.code || sub.subjectId;
+                                  const subCode = sub.code || (sub as any).subjectId;
                                   const deptName = sub.department || 'General Academics';
+                                  const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
                                   const mapping = teacherAssignments.find(ta => 
-                                    (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) && 
-                                    (ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() || (!ta.section && activeWorkspaceSection)) && 
-                                    (ta.subject?.toLowerCase() === subName?.toLowerCase() || ta.subject?.toLowerCase() === sub.name?.toLowerCase())
+                                    norm(ta.className) === norm(activeClass.name) && 
+                                    norm(ta.section) === norm(activeWorkspaceSection) && 
+                                    (ta.subject?.toLowerCase() === subName?.toLowerCase() || norm(ta.subject) === norm(subName))
                                   );
 
                                   const assignedVal = mapping?.teacherId || mapping?.teacherName || '';
+
+                                  // Filter teaching staff to those specific to this subject or department
+                                  const eligibleSubjectTeachers = teachersList.filter(t => {
+                                    const cleanSub = subName.toLowerCase().trim();
+                                    const cleanDept = (deptName || '').toLowerCase().trim();
+
+                                    // 1. Check assignedSubjects
+                                    const hasAssigned = (t.assignedSubjects || []).some((s: string) => s.toLowerCase().trim() === cleanSub);
+                                    if (hasAssigned) return true;
+
+                                    // 2. Check primarySubject / secondarySubject / specialization
+                                    const prim = (t.primarySubject || '').toLowerCase().trim();
+                                    const sec = (t.secondarySubject || '').toLowerCase().trim();
+                                    const spec = (t.specialization || '').toLowerCase().trim();
+                                    if (prim === cleanSub || sec === cleanSub || spec === cleanSub) return true;
+
+                                    // 3. Check department matching
+                                    const tDept = (t.department || '').toLowerCase().trim();
+                                    if (tDept && cleanDept && tDept !== 'academics' && tDept !== 'general' && (tDept === cleanDept || tDept === cleanSub)) {
+                                      return true;
+                                    }
+
+                                    // 4. Check designation matching
+                                    const desig = (t.designation || '').toLowerCase().trim();
+                                    if (desig.includes(cleanSub) || (cleanDept && desig.includes(cleanDept))) {
+                                      return true;
+                                    }
+
+                                    // 5. Always include currently assigned teacher so selection displays accurately
+                                    if (assignedVal) {
+                                      const cleanAssigned = String(assignedVal).trim().toLowerCase();
+                                      const tFullName = (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase();
+                                      if (String(t.id).toLowerCase() === cleanAssigned || (t.empId && String(t.empId).toLowerCase() === cleanAssigned) || tFullName === cleanAssigned) {
+                                        return true;
+                                      }
+                                    }
+
+                                    return false;
+                                  });
+
+                                  const dropdownTeachers = eligibleSubjectTeachers.length > 0 ? eligibleSubjectTeachers : teachersList;
 
                                   return (
                                     <div key={sub.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2.5 text-xs">
@@ -2515,8 +2561,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                           <TeacherSearchDropdown
                                             value={assignedVal}
                                             onChange={teacherId => handleAssignSubjectTeacher(subName, teacherId)}
-                                            teachers={teachersList}
-                                            placeholder="Select Subject Teacher..."
+                                            teachers={dropdownTeachers}
+                                            placeholder={`Select ${subName} Teacher...`}
                                           />
                                         </div>
                                         {mapping && (
@@ -2574,7 +2620,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   );
                                   return {
                                     subject: sub.name,
-                                    code: sub.code || sub.subjectId,
+                                    code: sub.code || (sub as any).subjectId,
                                     teacherName: ta?.teacherName
                                   };
                                 });

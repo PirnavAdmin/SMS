@@ -315,6 +315,7 @@ import {
   deletePeriodApi,
   fetchTimetableForClassSectionApi,
   mapSubjectApi,
+  assignTeacherApi,
   saveTimetableSlotApi,
   deleteTimetableSlotApi,
   fetchClassTeacherAssignmentsApi,
@@ -1223,6 +1224,7 @@ interface DataContextType {
 
   timetable: TimetableSlot[];
   addTimetableSlot: (slot: Omit<TimetableSlot, "id">) => Promise<void>;
+  bulkAddTimetableSlots?: (slots: TimetableSlot[]) => void;
   updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => Promise<void>;
   deleteTimetableSlot: (id: string) => Promise<void>;
   clearClassTimetable: (className: string, section: string) => Promise<void>;
@@ -1240,6 +1242,7 @@ interface DataContextType {
 
   periodSettings: PeriodSetting[];
   addPeriodSetting: (data: Omit<PeriodSetting, "id">) => Promise<void>;
+  bulkAddPeriodSettings?: (periods: PeriodSetting[]) => void;
   updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => Promise<void>;
   deletePeriodSetting: (id: string) => Promise<void>;
   bulkAssignPeriods: (classKeys: string[]) => void;
@@ -4775,18 +4778,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   }
                 });
 
+              const backendWeeklyPeriods: Record<string, number> = {};
+              if (Array.isArray(c.curriculumSubjects)) {
+                c.curriculumSubjects.forEach((cs: any) => {
+                  const sName = cs.subjectName || cs.name;
+                  const wPeriods = cs.weeklyPeriods ?? cs.weekly_periods ?? cs.periodsPerWeek;
+                  if (sName && typeof wPeriods === "number") {
+                    backendWeeklyPeriods[sName] = wPeriods;
+                  }
+                });
+              }
+
+              const subs =
+                Array.isArray(c.curriculumSubjects) && c.curriculumSubjects.length > 0
+                  ? c.curriculumSubjects
+                      .map((cs: any) => cs.subjectName || cs.name || "")
+                      .filter(Boolean)
+                  : localCls?.subjects && localCls.subjects.length > 0
+                    ? localCls.subjects
+                    : c.subjects || [];
+
               return {
                 id: classIdStr,
                 name: classNameStr,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
                 sectionTeachers: sectionTeachersMap,
                 teacher: c.teacher || Object.values(sectionTeachersMap)[0] || "Unassigned",
-                subjects: Array.isArray(c.curriculumSubjects)
-                  ? c.curriculumSubjects.map(
-                      (cs: any) => cs.subjectName || cs.name || "",
-                    )
-                  : c.subjects || [],
-                weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
+                subjects: subs,
+                weeklyPeriods: {
+                  ...(localCls?.weeklyPeriods || {}),
+                  ...(c.weeklyPeriods || {}),
+                  ...backendWeeklyPeriods,
+                },
                 sectionDetails: secDetails,
               };
             });
@@ -6706,68 +6729,90 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    // 3. Update academicClasses state with sectionTeachers map
+    // 3. Update academicClasses state with sectionTeachers map & auto-mapped subjects and weeklyPeriods
     setAcademicClasses((prevClasses) => {
-      return prevClasses.map((cls) => {
-        const matchingSec = classes.find((cs) => {
+      const nextClasses = prevClasses.map((cls) => {
+        const matchingClassSecs = classes.filter((cs) => {
           const [cName] = cs.split("-");
           return norm(cName) === norm(cls.name);
         });
-        if (matchingSec) {
-          const parts = matchingSec.split("-");
-          const secLetter = parts[1]?.trim() || "A";
+
+        if (matchingClassSecs.length > 0) {
           const currentSecTeachers = { ...(cls.sectionTeachers || {}) };
-          if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
-            currentSecTeachers[secLetter] = teacherFullName;
-          }
+          matchingClassSecs.forEach((cs) => {
+            const parts = cs.split("-");
+            const secLetter = parts[1]?.trim() || "A";
+            if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
+              currentSecTeachers[secLetter] = teacherFullName;
+            }
+          });
+
+          // Also ensure subjects are added to this class
+          const existingSubjects = [...(cls.subjects || [])];
+          const existingWeeklyPeriods = { ...(cls.weeklyPeriods || {}) };
+          let subjectsChanged = false;
+
+          subjects.forEach((subject) => {
+            if (!existingSubjects.some((s) => s.toLowerCase() === subject.toLowerCase())) {
+              existingSubjects.push(subject);
+              subjectsChanged = true;
+            }
+            if (!existingWeeklyPeriods[subject]) {
+              existingWeeklyPeriods[subject] = 5;
+            }
+          });
+
           return {
             ...cls,
             sectionTeachers: currentSecTeachers,
+            subjects: existingSubjects,
+            weeklyPeriods: existingWeeklyPeriods,
           };
         }
         return cls;
       });
+
+      localStorage.setItem("edu_db_academic_classes", JSON.stringify(nextClasses));
+      return nextClasses;
     });
 
-    // 4. Auto-map subjects to class curriculum
+    // 4. Auto-map subjects to backend API for each assigned class
     classes.forEach((classSec) => {
       const parts = classSec.split("-");
       const className = parts[0]?.trim();
+      const secLetter = parts[1]?.trim() || "A";
 
       const classObj = academicClasses.find(
         (c) => norm(c.name) === norm(className),
       );
       if (classObj) {
-        let subjectsUpdated = false;
-        const updatedSubjects = [...(classObj.subjects || [])];
-
         subjects.forEach((subject) => {
-          if (!updatedSubjects.includes(subject)) {
-            updatedSubjects.push(subject);
-            subjectsUpdated = true;
+          const wp = classObj.weeklyPeriods?.[subject] || 5;
+          mapSubjectApi(classObj.id, {
+            subject_name: subject,
+            weekly_periods: wp,
+          }).catch((err) => {
+            console.error(
+              `Failed to map subject "${subject}" to class "${classObj.name}":`,
+              err,
+            );
+          });
 
-            mapSubjectApi(classObj.id, {
-              subject_name: subject,
-              weekly_periods: 5,
-            }).catch((err) => {
-              console.error(
-                `Failed to map subject "${subject}" to class "${classObj.name}":`,
-                err,
-              );
-            });
-          }
+          assignTeacherApi(classObj.id, secLetter, {
+            teacher_id: String(teacher.id),
+            role: "Subject Teacher",
+            subject_name: subject,
+          }).catch(() => {
+            // Non-blocking fallback
+          });
         });
 
-        if (subjectsUpdated) {
-          setAcademicClasses((prev) => {
-            const next = prev.map((c) =>
-              c.id === classObj.id ? { ...c, subjects: updatedSubjects } : c,
-            );
-            localStorage.setItem(
-              "edu_db_academic_classes",
-              JSON.stringify(next),
-            );
-            return next;
+        if (teacher.isClassTeacherEligible || (teacher.designation && teacher.designation.toLowerCase().includes("class teacher"))) {
+          assignTeacherApi(classObj.id, secLetter, {
+            teacher_id: String(teacher.id),
+            role: "Class Teacher",
+          }).catch(() => {
+            // Non-blocking fallback
           });
         }
       }
@@ -8600,6 +8645,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Reset Class Periods",
       `Reverted ${className}-${section} to master template`,
     );
+  };
+
+  const bulkAddPeriodSettings = (newPeriods: PeriodSetting[]) => {
+    setPeriodSettings((prev) => {
+      const existingKeys = new Set(
+        prev.map(
+          (p) => `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`
+        )
+      );
+      const toAdd = newPeriods.filter(
+        (p) =>
+          !existingKeys.has(
+            `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`
+          )
+      );
+      const updated = [...prev, ...toAdd];
+      try {
+        localStorage.setItem("edu_db_period_settings", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   const addTeacherAssignment = (data: Omit<TeacherAssignment, "id">) => {
@@ -15896,20 +15962,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (t) => t.className === className && t.section === section,
     );
 
-    setTimetable((prev) =>
-      prev.filter((t) => !(t.className === className && t.section === section)),
-    );
+    setTimetable((prev) => {
+      const updated = prev.filter((t) => !(t.className === className && t.section === section));
+      try {
+        localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     try {
       await Promise.all(
         existing.map(async (t) => {
-          const numericId = t.id.startsWith("TT-") ? t.id.replace("TT-", "") : t.id;
+          const numericId = t.id.startsWith("TT-") || t.id.startsWith("SLOT-") ? t.id.replace("TT-", "").replace("SLOT-", "") : t.id;
           await deleteTimetableSlotApi(numericId);
         }),
       );
     } catch (err) {
       console.warn("Failed to clear timetable slots from backend", err);
     }
+  };
+
+  const bulkAddTimetableSlots = (newSlots: TimetableSlot[]) => {
+    setTimetable((prev) => {
+      const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+      const affectedKeys = new Set(newSlots.map(s => `${norm(s.className)}-${norm(s.section)}`));
+      const filtered = prev.filter(s => !affectedKeys.has(`${norm(s.className)}-${norm(s.section)}`));
+      const updated = [...filtered, ...newSlots];
+      try {
+        localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   const addHomework = async (hwData: Omit<Homework, "id">) => {
@@ -18415,8 +18498,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         sectionName,
         academicYear,
       );
-      if (res?.success && Array.isArray(res.data)) {
-        setTimetable(res.data);
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        setTimetable((prev) => {
+          const cls = academicClasses.find(
+            (c) =>
+              c.id === classId ||
+              c.id === `CL-${classId}` ||
+              c.name.toLowerCase().trim() === classId.toLowerCase().trim(),
+          );
+          const targetClassName = cls?.name || classId;
+
+          const mappedSlots: TimetableSlot[] = res.data.map((item: any) => {
+            const timeSlotStr =
+              item.timeSlot ||
+              (item.startTime && item.endTime
+                ? `${item.startTime} - ${item.endTime}`
+                : "");
+            return {
+              id:
+                item.slotId?.toString() ||
+                item.id?.toString() ||
+                `SLOT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              className: item.className || targetClassName,
+              section: item.section || item.sectionName || sectionName,
+              day: item.day || item.dayOfWeek || "Monday",
+              timeSlot: timeSlotStr,
+              startTime: item.startTime,
+              endTime: item.endTime,
+              periodNumber: item.periodNumber || item.periodId || 1,
+              subject: item.subject || item.subjectName || "",
+              subjectId: item.subjectId?.toString(),
+              teacherName: item.teacherName || "",
+              teacherId: item.teacherId?.toString(),
+              roomNo: item.roomNo || "",
+              academicYear: item.academicYear || academicYear,
+              status: item.status || "Draft",
+            };
+          });
+
+          const filtered = prev.filter(
+            (t) =>
+              !(
+                t.className.toLowerCase().trim() === targetClassName.toLowerCase().trim() &&
+                t.section.toLowerCase().trim() === sectionName.toLowerCase().trim()
+              ),
+          );
+          const updated = [...filtered, ...mappedSlots];
+          try {
+            localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
       }
     } catch (err) {
       console.warn("Failed to load timetable for class section", err);
@@ -19061,12 +19193,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         saveCoScholasticAssessment,
         timetable: filteredTimetable,
         addTimetableSlot,
+        bulkAddTimetableSlots,
         updateTimetableSlot,
         deleteTimetableSlot,
         clearClassTimetable,
         publishClassTimetable,
         periodSettings,
         addPeriodSetting,
+        bulkAddPeriodSettings,
         updatePeriodSetting,
         deletePeriodSetting,
         bulkAssignPeriods,

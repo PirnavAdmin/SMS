@@ -101,9 +101,9 @@ export const ParentTeacherInfoView: React.FC = () => {
         });
 
         const teacherKey = (matchedStaff?.empId || matchedStaff?.id || sectionClassTeacherVal).toLowerCase().trim();
-        const subName = matchedStaff?.specialization || matchedStaff?.primarySubject || (matchedStaff?.department && !matchedStaff.department.toLowerCase().includes('teaching') ? matchedStaff.department : '') || 'Mathematics';
+        const subName = matchedStaff?.assignedSubjects?.[0] || matchedStaff?.primarySubject || matchedStaff?.specialization || (matchedStaff?.department && !matchedStaff.department.toLowerCase().includes('teaching') ? matchedStaff.department : '') || 'General';
         const subMaster = (masterSubjects || []).find(sub => sub.name.toLowerCase() === subName.toLowerCase());
-        const subCode = subMaster?.code || (matchedStaff?.empId ? `EMP-${matchedStaff.empId}` : 'MATH');
+        const subCode = subMaster?.code || (matchedStaff?.empId ? `EMP-${matchedStaff.empId}` : '');
 
         teacherMap.set(teacherKey, {
           id: matchedStaff?.id || matchedStaff?.empId || teacherKey,
