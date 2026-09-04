@@ -18,15 +18,18 @@ public class SchoolService : ISchoolService
 	private readonly ISchoolRepository _schoolRepository;
 	private readonly Data.AppDbContext _context;
 	private readonly IEmailNotificationService _emailNotificationService;
+	private readonly SMS.Api.Services.Interfaces.Settings.ISettingsService _settingsService;
 
 	public SchoolService(
 		ISchoolRepository schoolRepository,
 		Data.AppDbContext context,
-		IEmailNotificationService emailNotificationService)
+		IEmailNotificationService emailNotificationService,
+		SMS.Api.Services.Interfaces.Settings.ISettingsService settingsService)
 	{
 		_schoolRepository = schoolRepository;
 		_context = context;
 		_emailNotificationService = emailNotificationService;
+		_settingsService = settingsService;
 	}
 
 	// --- DEPARTMENTS ---
@@ -791,7 +794,16 @@ public class SchoolService : ISchoolService
 			}
 		}
 
-		string nextRegNo = $"REG-{maxSeq + 1}";
+		string nextRegNo;
+		try
+		{
+			var genAdmission = await _settingsService.GenerateNextIdAsync("admission");
+			nextRegNo = genAdmission?.NextId ?? $"ADM-{DateTime.UtcNow.Year}-{maxSeq + 1:D4}";
+		}
+		catch
+		{
+			nextRegNo = $"ADM-{DateTime.UtcNow.Year}-{maxSeq + 1:D4}";
+		}
 
 		var app = new AdmissionApplication
 		{
@@ -1096,10 +1108,25 @@ public class SchoolService : ISchoolService
 								}
 								else
 								{
+									string studentRollNo = existing.RollNo ?? "";
+									if (string.IsNullOrWhiteSpace(studentRollNo))
+									{
+										try
+										{
+											var genStudent = await _settingsService.GenerateNextIdAsync("student");
+											studentRollNo = genStudent?.NextId ?? $"STU-{DateTime.UtcNow.Year}-1001";
+										}
+										catch
+										{
+											studentRollNo = $"STU-{DateTime.UtcNow.Year}-1001";
+										}
+										existing.RollNo = studentRollNo;
+									}
+
 									var newStudent = new Student
 									{
 										AdmissionNumber = existing.ApplicationNo ?? app.RegistrationNo ?? $"ADM-{existing.AdmissionId}",
-										RollNumber = existing.RollNo ?? $"R-{existing.AdmissionId}",
+										RollNumber = studentRollNo,
 										StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim(),
 										DateOfBirth = existing.Dob ?? app.DateOfBirth,
 										Gender = existing.Gender ?? app.Gender,
@@ -1827,8 +1854,33 @@ public class SchoolService : ISchoolService
 			dto.ClassId,
 			dto.SectionId);
 
-		var admissionNumber = dto.AdmissionNumber.Trim();
-		var rollNumber = dto.RollNumber.Trim();
+		var admissionNumber = dto.AdmissionNumber?.Trim() ?? string.Empty;
+		if (string.IsNullOrWhiteSpace(admissionNumber))
+		{
+			try
+			{
+				var genAdmission = await _settingsService.GenerateNextIdAsync("admission");
+				admissionNumber = genAdmission?.NextId ?? $"ADM-{DateTime.UtcNow.Year}-{DateTime.UtcNow.Ticks % 10000:D4}";
+			}
+			catch
+			{
+				admissionNumber = $"ADM-{DateTime.UtcNow.Year}-{DateTime.UtcNow.Ticks % 10000:D4}";
+			}
+		}
+
+		var rollNumber = dto.RollNumber?.Trim() ?? string.Empty;
+		if (string.IsNullOrWhiteSpace(rollNumber))
+		{
+			try
+			{
+				var genStudent = await _settingsService.GenerateNextIdAsync("student");
+				rollNumber = genStudent?.NextId ?? $"STU-{DateTime.UtcNow.Year}-{DateTime.UtcNow.Ticks % 10000:D4}";
+			}
+			catch
+			{
+				rollNumber = $"STU-{DateTime.UtcNow.Year}-{DateTime.UtcNow.Ticks % 10000:D4}";
+			}
+		}
 
 		if (await _schoolRepository.AdmissionNumberExistsAsync(admissionNumber))
 			throw new InvalidOperationException($"Admission number '{admissionNumber}' already exists.");

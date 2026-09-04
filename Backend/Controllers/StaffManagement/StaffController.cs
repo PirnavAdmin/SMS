@@ -21,9 +21,9 @@ public class StaffController : ControllerBase
     }
 
     [HttpGet("next-emp-id")]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-    public async Task<IActionResult> GetNextEmployeeId() =>
-        Ok(new { success = true, data = new { nextEmployeeId = await _staffService.GetNextEmployeeIdAsync() } });
+    [AllowAnonymous]
+    public async Task<IActionResult> GetNextEmployeeId([FromQuery] string? category) =>
+        Ok(new { success = true, data = new { nextEmployeeId = await _staffService.GetNextEmployeeIdAsync(category) } });
 
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
