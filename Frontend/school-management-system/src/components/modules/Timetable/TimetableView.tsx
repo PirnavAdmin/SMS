@@ -1391,7 +1391,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header & Global Filters */}
-      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs no-print">
         <div className="space-y-1">
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> {activeTab === 'period-settings' ? 'Period Settings' : activeTab === 'teacher-timetable' ? 'Teachers Timetable' : 'Class Timetable'}
@@ -2239,106 +2239,112 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-left">
-                      {baseDays.map(day => {
-                        const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                    {/* TEACHER TIMETABLE 2D WEEKLY MATRIX GRID TABLE ("PERIODIC TABLE" FORMAT) */}
+                    <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 shadow-xl print:shadow-none print:border-none">
+                      <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                        <thead>
+                          <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                            <th className="py-3.5 px-4 min-w-[150px] print:min-w-0 print:py-2 print:px-2">Period & Time</th>
+                            {baseDays.map(d => (
+                              <th key={d} className="py-3.5 px-4 text-center min-w-[140px] print:min-w-0 print:py-2 print:px-2">{d}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="font-medium divide-y divide-slate-100 dark:divide-slate-800/80">
+                          {masterSchoolTimeline.map((timelinePeriod) => {
+                            const isBreak = timelinePeriod.type === 'Break' || timelinePeriod.type === 'Lunch';
+                            
+                            if (isBreak) {
+                              return (
+                                <tr key={timelinePeriod.slot} className="bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-bold print:bg-slate-100">
+                                  <td className="py-2.5 px-4 font-mono print:py-1.5 print:px-2">
+                                    <span className="text-[10px] block font-extrabold uppercase text-amber-700 dark:text-amber-400 print:text-slate-900">{timelinePeriod.name}</span>
+                                    {timelinePeriod.slot}
+                                  </td>
+                                  <td colSpan={baseDays.length} className="py-2.5 px-4 text-center uppercase tracking-widest text-[11px] print:py-1.5 print:px-2">
+                                    ☕ {timelinePeriod.name} ({timelinePeriod.type})
+                                  </td>
+                                </tr>
+                              );
+                            }
 
-                        return (
-                          <div key={day} className="space-y-3 p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80">
-                            <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
-                              <h4 className="font-black text-xs uppercase tracking-wider text-sky-700 dark:text-sky-400">
-                                {day}
-                              </h4>
-                              <span className="text-[10px] font-bold text-slate-400">
-                                {teacherSlots.length} Teaching Period{teacherSlots.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
+                            return (
+                              <tr key={timelinePeriod.slot} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                                <td className="py-3 px-4 font-mono font-bold whitespace-nowrap bg-slate-50/50 dark:bg-slate-800/20 print:py-1.5 print:px-2 print:bg-slate-50">
+                                  <span className="text-sky-600 dark:text-sky-400 block text-[10px] uppercase tracking-wider print:text-slate-900">
+                                    {timelinePeriod.name}
+                                  </span>
+                                  {timelinePeriod.slot}
+                                </td>
+                                {baseDays.map(day => {
+                                  const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                                  const matchSlots = teacherSlots.filter(s => s.timeSlot === timelinePeriod.slot);
 
-                            <div className="space-y-2">
-                              {masterSchoolTimeline.map((timelinePeriod) => {
-                                const matchSlot = teacherSlots.find(s => s.timeSlot === timelinePeriod.slot);
-                                const isClashing = matchSlot ? clashingSlotIds.has(matchSlot.id) : false;
-                                const status = getPeriodStatus(timelinePeriod.slot);
+                                  if (matchSlots.length === 0) {
+                                    return (
+                                      <td key={day} className="py-2.5 px-2 text-center align-middle print:py-1.5 print:px-1">
+                                        <span className="text-[11px] print:text-[9.5px] font-medium text-slate-400 dark:text-slate-500 italic">Free / Prep</span>
+                                      </td>
+                                    );
+                                  }
 
-                                if (timelinePeriod.type === 'Break' || timelinePeriod.type === 'Lunch') {
+                                  const isClashing = matchSlots.length > 1 || matchSlots.some(s => clashingSlotIds.has(s.id));
+
                                   return (
-                                    <div
-                                      key={timelinePeriod.slot}
-                                      className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-center space-y-0.5"
-                                    >
-                                      <p className="text-[9.5px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider">{timelinePeriod.name}</p>
-                                      <p className="text-[8.5px] font-mono text-amber-600 dark:text-amber-500 font-bold">{timelinePeriod.slot}</p>
-                                    </div>
+                                    <td key={day} className="py-2 px-2 align-middle print:py-1 print:px-1">
+                                      {matchSlots.map(matchSlot => {
+                                        const classSec = `${matchSlot.className}-${matchSlot.section}`;
+                                        const subject = matchSlot.subject;
+                                        const room = getDisplayRoom(matchSlot.roomNo, matchSlot.className, matchSlot.section);
+
+                                        return (
+                                          <div
+                                            key={matchSlot.id}
+                                            className={`p-2.5 print:p-1.5 rounded-2xl print:rounded-lg border space-y-1 print:space-y-0.5 relative group text-left mx-auto max-w-[150px] shadow-xs ${
+                                              isClashing
+                                                ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+                                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700/80 hover:border-sky-400 transition-all'
+                                            }`}
+                                          >
+                                            <div className="flex items-center justify-between">
+                                              <span className="font-black text-xs print:text-[10px] text-sky-700 dark:text-sky-400 print:text-slate-900 truncate">{classSec}</span>
+                                            </div>
+                                            <p className="font-extrabold text-xs print:text-[10px] text-slate-900 dark:text-white truncate">{subject}</p>
+                                            {room && (
+                                              <p className={`text-[9.5px] print:text-[8.5px] font-bold truncate ${room === 'No Classroom Assigned' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
+                                                🏫 {room}
+                                              </p>
+                                            )}
+
+                                            <div className="no-print absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white/90 dark:bg-slate-900/90 rounded-lg p-0.5 shadow-sm border border-slate-200 dark:border-slate-700">
+                                              <button
+                                                onClick={() => {
+                                                  setEditingSlot(matchSlot);
+                                                  setFormData(matchSlot);
+                                                  setIsFormOpen(true);
+                                                }}
+                                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 rounded transition-colors"
+                                              >
+                                                <Edit className="w-3 h-3" />
+                                              </button>
+                                              <button
+                                                onClick={() => setDeletingSlot(matchSlot)}
+                                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </td>
                                   );
-                                }
-
-                                if (matchSlot) {
-                                  const classSec = `${matchSlot.className}-${matchSlot.section}`;
-                                  const subject = matchSlot.subject;
-                                  const room = getDisplayRoom(matchSlot.roomNo, matchSlot.className, matchSlot.section);
-
-                                  return (
-                                    <div
-                                      key={timelinePeriod.slot}
-                                      className={`p-2.5 rounded-2xl border transition-all space-y-1 relative group ${
-                                        isClashing
-                                          ? 'bg-rose-50 dark:bg-rose-950/25 border-rose-200 dark:border-rose-900/50'
-                                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400">
-                                        <span>{timelinePeriod.name}</span>
-                                        <span className={isClashing ? 'text-rose-600 font-extrabold' : 'text-sky-600'}>
-                                          {classSec}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{subject}</p>
-                                      {room && (
-                                        <p className={`text-[9px] font-bold truncate ${room === 'No Classroom Assigned' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
-                                          🏫 {room}
-                                        </p>
-                                      )}
-                                      <p className="text-[9px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
-
-                                      <div className="absolute right-1.5 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white/90 dark:bg-slate-900/90 rounded-lg p-0.5 shadow-sm border border-slate-100 dark:border-slate-800">
-                                        <button
-                                          onClick={() => {
-                                            setEditingSlot(matchSlot);
-                                            setFormData(matchSlot);
-                                            setIsFormOpen(true);
-                                          }}
-                                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 rounded transition-colors"
-                                        >
-                                          <Edit className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          onClick={() => setDeletingSlot(matchSlot)}
-                                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-600 rounded transition-colors"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-
-                                return (
-                                  <div
-                                    key={timelinePeriod.slot}
-                                    className="p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 space-y-1"
-                                  >
-                                    <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400">
-                                      <span>{timelinePeriod.name}</span>
-                                      <span>Free / Prep</span>
-                                    </div>
-                                    <p className="text-[9.5px] font-mono text-slate-400 font-medium">{timelinePeriod.slot}</p>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </>
                 );
