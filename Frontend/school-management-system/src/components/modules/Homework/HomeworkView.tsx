@@ -174,6 +174,24 @@ export const HomeworkView: React.FC = () => {
     return sec.replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim();
   };
 
+  const formatClassRoom = (hw: { className?: string; section?: string }) => {
+    let cls = (hw?.className || 'Class 9').trim();
+    let sec = (hw?.section || '').trim();
+
+    if (cls.includes('-')) {
+      const parts = cls.split('-');
+      cls = parts[0].trim();
+      if (!sec && parts[1]) sec = parts[1].trim();
+    }
+
+    if (!cls.toLowerCase().startsWith('class') && !cls.toLowerCase().startsWith('grade')) {
+      cls = `Class ${cls}`;
+    }
+
+    const displaySec = sec || 'A';
+    return `${cls}-${displaySec}`;
+  };
+
   const rbacHomework = useMemo(() => {
     if (role === 'Super Admin' || role === 'School Admin') {
       return homework;
@@ -348,6 +366,8 @@ export const HomeworkView: React.FC = () => {
 
     const dataToSave = { 
       ...formData, 
+      className: (formData.className || 'Class 9').trim(),
+      section: (formData.section || 'A').trim(),
       attachments,
       status: statusMode,
       publishedStudentIds: formData.publishToType === 'Students' ? selectedStudentIds : []
@@ -589,7 +609,7 @@ export const HomeworkView: React.FC = () => {
                     return (
                       <tr key={hw.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/30 text-slate-855 dark:text-slate-200">
                         <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{hw.title}</td>
-                        <td className="py-3 px-4 font-bold text-sky-650">{hw.className}-{hw.section}</td>
+                        <td className="py-3 px-4 font-bold text-sky-650">{formatClassRoom(hw)}</td>
                         <td className="py-3 px-4">{hw.subject}</td>
                         <td className="py-3 px-4 font-mono font-bold text-rose-600 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" /> {hw.dueDate}
@@ -691,7 +711,26 @@ export const HomeworkView: React.FC = () => {
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Class</label>
                   <select 
                     value={formData.className} 
-                    onChange={e => setFormData({ ...formData, className: e.target.value })} 
+                    onChange={e => {
+                      const selectedCls = e.target.value;
+                      const availableSecs = Array.from(new Set(
+                        students
+                          .filter(s => cleanClassName(s.className) === cleanClassName(selectedCls))
+                          .map(s => cleanSectionName(s.section))
+                          .concat(
+                            teacherAssignedClasses
+                              .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(selectedCls))
+                              .map(c => cleanSectionName(c.split('-')[1]))
+                          )
+                          .concat(['A', 'B'])
+                          .filter(Boolean)
+                      ));
+                      setFormData(prev => ({
+                        ...prev,
+                        className: selectedCls,
+                        section: availableSecs[0] || 'A'
+                      }));
+                    }} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
                     {classOptions.map(c => (
@@ -1177,7 +1216,7 @@ export const HomeworkView: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-[10.5px]">
                 <div>
                   <span className="block text-[8.5px] text-slate-400 uppercase font-bold">Class & Subject</span>
-                  <p className="text-slate-855 dark:text-slate-200 mt-0.5">{viewingHomework.className}-{viewingHomework.section} &bull; {viewingHomework.subject}</p>
+                  <p className="text-slate-855 dark:text-slate-200 mt-0.5">{formatClassRoom(viewingHomework)} &bull; {viewingHomework.subject}</p>
                 </div>
                 <div>
                   <span className="block text-[8.5px] text-slate-400 uppercase font-bold">Due Date</span>
