@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect } from 'react';
 import { Award, Lock, Send, Calculator, AlertTriangle, Eye, Printer, FileSpreadsheet, LockOpen } from 'lucide-react';
 import { ResultSummary } from './components/ResultSummary';

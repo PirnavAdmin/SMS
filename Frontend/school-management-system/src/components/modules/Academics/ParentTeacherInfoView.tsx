@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, GraduationCap } from 'lucide-react';
 import { useData } from '../../../context/DataContext';

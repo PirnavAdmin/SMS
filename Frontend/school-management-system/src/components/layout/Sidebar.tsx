@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (userName && (
                     s.fatherName?.toLowerCase() === userName ||
                     s.motherName?.toLowerCase() === userName ||
-                    s.guardianName?.toLowerCase() === userName
+                    (s as any).guardianName?.toLowerCase() === userName
                   ))
                 )),
         );

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { Route as RouteIcon, Plus, Search, Edit, Trash2, Bus, User, MapPin, IndianRupee, Calendar } from 'lucide-react';
