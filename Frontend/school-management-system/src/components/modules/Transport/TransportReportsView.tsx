@@ -13,6 +13,7 @@ import {
   Search,
   ChevronDown
 } from 'lucide-react';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { formatCurrency } from '../../../utils/currency';
@@ -405,8 +406,9 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         </div>
       )}
 
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 space-y-3 p-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 space-y-3 p-4">
+        <SchoolPrintHeader title={`Transport Report - ${selectedReportLabel}`} subtitle={`Total Filtered Records: ${filteredRows.length}`} />
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 no-print">
           <div>
             <h3 className="font-black text-base text-slate-900 dark:text-white">{selectedReportLabel}</h3>
             <p className="text-[11px] text-slate-400">Total Records: {filteredRows.length}</p>

@@ -10,5 +10,7 @@ namespace SMS.Api.Repositories.Interfaces.Settings
         Task<string> UpdateLogoAsync(string logoUrl, string? logoFormat = null);
         Task<bool> UpdateCertificateTemplatesAsync(string json);
         Task<bool> UpdateCampusesAsync(string json);
+        Task<string?> GetIdSequenceSettingsJsonAsync();
+        Task<bool> UpdateIdSequenceSettingsAsync(string json);
     }
 }

@@ -7,6 +7,7 @@ import {
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ExportButton } from '../../common/ExportButton';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import * as FinanceAPI from '../../../api/finance';
 
 const REPORT_CATEGORIES = [
@@ -685,7 +686,11 @@ export const FinanceReportsView: React.FC = () => {
           </div>
 
           {/* Dynamic Table */}
-          <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+          <div id="printable-content" className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl p-4 print:p-0 print:border-none">
+            <SchoolPrintHeader
+              title={`Finance Report - ${generatedReportType}`}
+              subtitle={`Total Filtered Records: ${filteredData.length}`}
+            />
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">

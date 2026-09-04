@@ -7,6 +7,7 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 import { Pagination } from '../../common/Pagination';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 
 export const FeeReceiptsView: React.FC = () => {
   const { feePayments, academicClasses, students } = useData();
@@ -107,7 +108,11 @@ export const FeeReceiptsView: React.FC = () => {
       </div>
 
       {/* Receipts Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 p-4 print:p-0 print:border-none">
+        <SchoolPrintHeader
+          title="Fee Collection & Receipts Register"
+          subtitle={`Total Receipts: ${filteredPayments.length}`}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>

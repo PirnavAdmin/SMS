@@ -11,6 +11,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { TransferStudentModal } from './TransferStudentModal';
 import { Student, TcRecord } from '../../../types';
 import { Pagination } from '../../common/Pagination';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 
 interface TransferCertificatesViewProps {
   onNavigate?: (module: string) => void;
@@ -272,7 +273,11 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
 
       {/* TAB CONTENT 1: ISSUE TC WORKFLOW (ELIGIBLE STUDENTS) */}
       {activeTab === 'issue' && (
-        <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+        <div id="printable-content" className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs p-4 print:p-0 print:border-none">
+          <SchoolPrintHeader
+            title="Transfer Certificate Eligibility Register"
+            subtitle={`Total Eligible Students: ${filteredStudents.length}`}
+          />
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
@@ -423,7 +428,11 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
 
       {/* TAB CONTENT 2: TC REGISTER */}
       {activeTab === 'register' && (
-        <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs space-y-4">
+        <div id="printable-content" className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs space-y-4 p-4 print:p-0 print:border-none">
+          <SchoolPrintHeader
+            title="Issued Transfer Certificates Register"
+            subtitle={`Total Issued TCs: ${filteredTcRecords.length}`}
+          />
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>

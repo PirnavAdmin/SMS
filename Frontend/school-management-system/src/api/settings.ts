@@ -124,3 +124,26 @@ export const deleteAcademicYearApi = async (id: number | string) => {
     method: 'DELETE'
   });
 };
+
+// ============================
+// AUTOMATED ID SETTINGS APIs
+// ============================
+
+export const fetchIdSequenceSettingsApi = async () => {
+  return apiClient('/api/Settings/id-sequences', { method: 'GET' });
+};
+
+export const updateIdSequenceSettingsApi = async (settings: any) => {
+  return apiClient('/api/Settings/id-sequences', {
+    method: 'POST',
+    body: JSON.stringify(settings)
+  });
+};
+
+export const fetchNextGeneratedIdApi = async (type: string, sequenceId?: string) => {
+  const query = new URLSearchParams({ type });
+  if (sequenceId) {
+    query.append('sequenceId', sequenceId);
+  }
+  return apiClient(`/api/Settings/id-sequences/next?${query.toString()}`, { method: 'GET' });
+};

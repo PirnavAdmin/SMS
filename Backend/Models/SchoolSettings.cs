@@ -39,6 +39,8 @@ namespace SMS.Api.Models
 
         public string CertificateTemplatesJson { get; set; } = "[]";
 
+        public string? IdSequenceSettingsJson { get; set; } = null;
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

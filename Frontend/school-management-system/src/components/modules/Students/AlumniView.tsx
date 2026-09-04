@@ -9,6 +9,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { AlumniRecord, AlumniCurrentStatus, Student } from '../../../types';
 import { Pagination } from '../../common/Pagination';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 
 interface AlumniViewProps {
   onNavigate?: (module: string) => void;
@@ -306,7 +307,11 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Alumni Table Card */}
-          <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+          <div id="printable-content" className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs p-4 print:p-0 print:border-none">
+            <SchoolPrintHeader
+              title="Alumni Directory Report"
+              subtitle={`Total Filtered Alumni: ${filteredAlumni.length}`}
+            />
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
