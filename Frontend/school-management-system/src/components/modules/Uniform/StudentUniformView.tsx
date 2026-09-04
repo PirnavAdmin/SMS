@@ -4576,7 +4576,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                             <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
                               {(() => {
                                 const currentSizeStr = item.size || 'M';
-                                const effUnitPrice = calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs, student.className, student.gender);
+                                const effUnitPrice = (item.price !== undefined && item.price > 0 && item.price !== 35 && item.price !== 85)
+                                  ? item.price
+                                  : calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs, student.className, student.gender);
                                 return formatCurrency(effUnitPrice * (item.quantity || 1));
                               })()}
                             </td>

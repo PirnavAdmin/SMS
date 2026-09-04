@@ -463,16 +463,17 @@ export const calculateClothOrItemPrice = (
     if (finalSize.includes('3.0')) return 1000;
   }
 
-  // Lookup exact price configured in Finance & Fees Setup for non-cloth items first!
+  // 1. If explicit unit price was saved on transaction/item, prioritize it!
+  if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
+    return currentUnitPrice;
+  }
+
+  // 2. Fall back to exact price configured in Finance & Fees Setup for non-cloth items
   if (Array.isArray(financeConfigs) && financeConfigs.length > 0 && itemName) {
     const configuredFee = getItemFeeFromFinanceConfig(className, itemName, gender, financeConfigs, currentUnitPrice);
     if (configuredFee > 0 && configuredFee !== 35 && configuredFee !== 85) {
       return configuredFee;
     }
-  }
-
-  if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
-    return currentUnitPrice;
   }
 
   return 600;
