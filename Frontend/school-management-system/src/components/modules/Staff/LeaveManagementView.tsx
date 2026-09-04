@@ -39,7 +39,7 @@ export const LeaveManagementView: React.FC = () => {
 
   const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
 
-  const { user, role } = useAuth();
+  const { user, role, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
   const userRole = (role || user?.role || '').toLowerCase();
@@ -111,11 +111,28 @@ export const LeaveManagementView: React.FC = () => {
       if (a.designation?.toLowerCase().includes('driver') || a.department?.toLowerCase().includes('transport')) return true;
       return false;
     }
-    if (teacherStaffMember && (a.employeeId === teacherStaffMember.id || a.empId === teacherStaffMember.empId)) return true;
+    if (teacherStaffMember && (
+      a.employeeId === teacherStaffMember.id || 
+      a.empId === teacherStaffMember.empId ||
+      a.employeeId === teacherStaffMember.empId || 
+      a.empId === teacherStaffMember.id
+    )) return true;
     if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
     if (user?.id && (String(a.employeeId) === String(user.id) || String(a.empId) === String(user.id))) return true;
     return false;
   });
+
+  // Filter applications by selected branch/campus for Admin
+  const campusApplications = useMemo(() => {
+    return leaveApplications.filter(a => {
+      if (!selectedBranch || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses' || selectedBranch === 'All') return true;
+      const appBranch = a.branch || (a as any).branchId || '';
+      if (!appBranch) return true;
+      const cleanApp = appBranch.trim().toLowerCase();
+      const cleanSel = selectedBranch.trim().toLowerCase();
+      return cleanApp === cleanSel || cleanApp.includes(cleanSel) || cleanSel.includes(cleanApp);
+    });
+  }, [leaveApplications, selectedBranch]);
 
   // Filter States
   const [query, setQuery] = useState('');
@@ -129,7 +146,7 @@ export const LeaveManagementView: React.FC = () => {
 
   useEffect(() => {
     setBalanceCurrentPage(1);
-  }, [query, balanceCategoryFilter]);
+  }, [query, balanceCategoryFilter, selectedBranch]);
 
   const filteredStaffForBalance = useMemo(() => {
     if (isDriver) {
@@ -170,9 +187,19 @@ export const LeaveManagementView: React.FC = () => {
         matchesCategory = !isTeaching(s);
       }
 
-      return matchesQuery && matchesCategory;
+      let matchesBranch = true;
+      if (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' && selectedBranch !== 'All') {
+        const staffBranch = (s as any).branch || s.branchId || '';
+        if (staffBranch) {
+          const cleanStaffB = staffBranch.trim().toLowerCase();
+          const cleanSelB = selectedBranch.trim().toLowerCase();
+          matchesBranch = cleanStaffB === cleanSelB || cleanStaffB.includes(cleanSelB) || cleanSelB.includes(cleanStaffB);
+        }
+      }
+
+      return matchesQuery && matchesCategory && matchesBranch;
     });
-  }, [staff, isDriver, isTeacher, driverStaffMember, teacherStaffMember, user, query, balanceCategoryFilter]);
+  }, [staff, isDriver, isTeacher, driverStaffMember, teacherStaffMember, user, query, balanceCategoryFilter, selectedBranch]);
 
   const totalBalancePages = Math.ceil(filteredStaffForBalance.length / balancePageSize) || 1;
 
@@ -210,7 +237,7 @@ export const LeaveManagementView: React.FC = () => {
   }>({ show: false, available: 0, requested: 0, appData: null });
 
   // Summaries Calculations
-  const targetList = isTeacher || isDriver ? myApplications : leaveApplications;
+  const targetList = isTeacher || isDriver ? myApplications : campusApplications;
   const pendingCount = targetList.filter(a => (a.status || '').toLowerCase() === 'pending').length;
   const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
   const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
@@ -288,6 +315,7 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     const availableBal = getAvailableBalance(employee, lType.name);
+    const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || 'Main Campus';
 
     const appData: Omit<LeaveApplication, 'id'> = {
       employeeId: employee.id,
@@ -295,7 +323,8 @@ export const LeaveManagementView: React.FC = () => {
       empId: employee.empId,
       department: employee.department,
       designation: employee.designation,
-      branch: (employee as any).branch || 'Main Campus',
+      branch: empBranch,
+      branchId: (employee as any).branchId || (employee as any).branch || (selectedBranch as any)?.id || empBranch,
       employeeCategory: employee.employeeCategory || (employee.role === 'Teacher' ? 'Teacher' : 'Staff'),
       leaveTypeId: lType.id,
       leaveTypeName: lType.name,
@@ -699,7 +728,7 @@ export const LeaveManagementView: React.FC = () => {
                 </thead>
                 <tbody className="divide-y font-medium">
                   {(() => {
-                    const baseApps = isTeacher || isDriver ? myApplications : leaveApplications;
+                    const baseApps = isTeacher || isDriver ? myApplications : campusApplications;
                     const filteredList = baseApps.filter(app => {
                       const nameMatch = !query || app.employeeName.toLowerCase().includes(query.toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
@@ -919,10 +948,10 @@ export const LeaveManagementView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y font-medium">
-                {leaveApplications.filter(app => (app.status || '').toLowerCase() === 'pending').length === 0 ? (
+                {campusApplications.filter(app => (app.status || '').toLowerCase() === 'pending').length === 0 ? (
                   <tr><td colSpan={8} className="text-center py-8 text-slate-400">All pending leave applications processed.</td></tr>
                 ) : (
-                  leaveApplications
+                  campusApplications
                     .filter(app => (app.status || '').toLowerCase() === 'pending')
                     .map((app, idx) => (
                       <tr key={app.id} className="hover:bg-slate-50">

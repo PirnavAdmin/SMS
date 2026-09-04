@@ -15562,8 +15562,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveStudentAttendance = (record: any) => {
     setStudentAttendance((prev) => {
-      const filtered = prev.filter((r) => r.studentId !== record.studentId);
-      return [...filtered, record];
+      const recordDate = String(record.date || "").split("T")[0];
+      const filtered = prev.filter(
+        (r) => !(String(r.studentId) === String(record.studentId) && String(r.date || "").split("T")[0] === recordDate)
+      );
+      const updated = [...filtered, { ...record, date: recordDate }];
+      try {
+        const str = JSON.stringify(updated);
+        localStorage.setItem("edu_db_student_attendance", str);
+        localStorage.setItem("student_attendance", str);
+        localStorage.setItem("sms_student_attendance", str);
+      } catch {}
+      return updated;
     });
     logActivity(
       "Saved Student Attendance",
@@ -18082,7 +18092,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           : app
       );
-      localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
+      const dataStr = JSON.stringify(updated);
+      localStorage.setItem("edu_db_leave_applications", dataStr);
+      localStorage.setItem("leave_applications", dataStr);
+      localStorage.setItem("sms_leave_applications", dataStr);
       return updated;
     });
 

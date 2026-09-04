@@ -39,9 +39,18 @@ const getLocalDateString = (d: Date) => {
   return `${year}-${monthVal}-${dayVal}`;
 };
 
+const normalizeClass = (c: string) => (c || '').replace(/^class\s*/i, '').trim();
+const normalizeSec = (s: string) => (s || '').replace(/^section\s*/i, '').trim().toUpperCase();
+
+const getRegisterKey = (cls: string, sec: string, d: string) => {
+  const cleanCls = normalizeClass(cls);
+  const cleanSec = normalizeSec(sec);
+  return `${cleanCls}_${cleanSec}_${d}`;
+};
+
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], saveStudentAttendance, teacherAssignments = [], timetable = [] } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], saveStudentAttendance, teacherAssignments = [], timetable = [] } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -269,6 +278,24 @@ export const AttendanceView = () => {
     return saved ? JSON.parse(saved) : {};
   });
  
+  // Cross-tab / cross-role storage sync
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'sms_attendance_registry' && e.newValue) {
+        try {
+          setAttendanceRegistry(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === 'sms_attendance_remarks' && e.newValue) {
+        try {
+          setRemarksState(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const classStudents = React.useMemo(() => {
     return realStudents.filter(s => {
       const selectedClassNormalized = selectedClass.startsWith('Class ') ? selectedClass : `Class ${selectedClass}`;
@@ -277,21 +304,43 @@ export const AttendanceView = () => {
       return classMatch && sectionMatch;
     });
   }, [realStudents, selectedClass, selectedSection]);
- 
+
   // Unique key for the current register
-  const registerKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
- 
-  const currentAttendance: AttendanceState = attendanceRegistry[registerKey] || {};
- 
+  const registerKey = getRegisterKey(selectedClass === 'All Classes' ? 'All' : selectedClass, selectedSection === 'All Sections' ? 'All' : selectedSection, date);
+  const legacyRegisterKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
+
+  const currentAttendance: AttendanceState = attendanceRegistry[registerKey] || attendanceRegistry[legacyRegisterKey] || {};
+
   // Status computation for UI rendering (Daily View)
   const getAttendanceStatus = (student: Student): AttendanceStatus => {
-    if (selectedClass === 'All Classes' || selectedSection === 'All Sections') {
-      const specificKey = `${student.className}_${student.section}_${selectedSubject}_${date}`;
-      return attendanceRegistry[specificKey]?.[student.id] || null;
+    const normKey = getRegisterKey(student.className, student.section, date);
+    if (attendanceRegistry[normKey]?.[student.id]) {
+      return attendanceRegistry[normKey][student.id];
     }
-    return currentAttendance[student.id] || null;
+    const classSecKey = `${student.className}_${student.section}_${date}`;
+    if (attendanceRegistry[classSecKey]?.[student.id]) {
+      return attendanceRegistry[classSecKey][student.id];
+    }
+    const specKey = `${student.className}_${student.section}_${selectedSubject}_${date}`;
+    if (attendanceRegistry[specKey]?.[student.id]) {
+      return attendanceRegistry[specKey][student.id];
+    }
+    if (currentAttendance[student.id]) {
+      return currentAttendance[student.id];
+    }
+    if (Array.isArray(studentAttendance)) {
+      const match = studentAttendance.find(
+        (record: any) =>
+          String(record.studentId) === String(student.id) &&
+          String(record.date || '').split('T')[0] === date
+      );
+      if (match?.status) {
+        return match.status as AttendanceStatus;
+      }
+    }
+    return null;
   };
- 
+
   // Generate date array for Matrix View
   const matrixDates = React.useMemo(() => {
     if (dateMode === 'Daily') return [];
@@ -325,10 +374,31 @@ export const AttendanceView = () => {
     }
     return dates;
   }, [dateMode, month, startDate, endDate]);
- 
+
   const getMatrixStatus = (student: Student, dateStr: string): AttendanceStatus => {
-    const specificKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
-    return attendanceRegistry[specificKey]?.[student.id] || null;
+    const normKey = getRegisterKey(student.className, student.section, dateStr);
+    if (attendanceRegistry[normKey]?.[student.id]) {
+      return attendanceRegistry[normKey][student.id];
+    }
+    const classSecKey = `${student.className}_${student.section}_${dateStr}`;
+    if (attendanceRegistry[classSecKey]?.[student.id]) {
+      return attendanceRegistry[classSecKey][student.id];
+    }
+    const specKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
+    if (attendanceRegistry[specKey]?.[student.id]) {
+      return attendanceRegistry[specKey][student.id];
+    }
+    if (Array.isArray(studentAttendance)) {
+      const match = studentAttendance.find(
+        (record: any) =>
+          String(record.studentId) === String(student.id) &&
+          String(record.date || '').split('T')[0] === dateStr
+      );
+      if (match?.status) {
+        return match.status as AttendanceStatus;
+      }
+    }
+    return null;
   };
  
   const filteredStudents = React.useMemo(() => {
@@ -352,17 +422,45 @@ export const AttendanceView = () => {
   // Single mark handler
   const handleSingleMark = (studentId: string, status: AttendanceStatus) => {
     if (!isEditable) return;
+    const targetStudent = classStudents.find(s => String(s.id) === String(studentId));
+    const targetClass = targetStudent ? targetStudent.className : selectedClass;
+    const targetSec = targetStudent ? targetStudent.section : selectedSection;
+    const normKey = getRegisterKey(targetClass, targetSec, date);
+    const specKey = `${targetClass}_${targetSec}_${selectedSubject}_${date}`;
+    const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
+
+    let newStatus: AttendanceStatus = status;
     setAttendanceRegistry(prev => {
-      const updatedRegister = { ...(prev[registerKey] || {}) };
-     
-      if (updatedRegister[studentId] === status) {
-        delete updatedRegister[studentId]; // Toggle off
+      const normReg = { ...(prev[normKey] || {}) };
+      const specReg = { ...(prev[specKey] || {}) };
+      const legacyReg = { ...(prev[legacyKey] || {}) };
+      if (normReg[studentId] === status || specReg[studentId] === status) {
+        newStatus = null;
+        delete normReg[studentId];
+        delete specReg[studentId];
+        delete legacyReg[studentId];
       } else {
-        updatedRegister[studentId] = status;
+        normReg[studentId] = status;
+        specReg[studentId] = status;
+        legacyReg[studentId] = status;
       }
-     
-      return { ...prev, [registerKey]: updatedRegister };
+      const updated = { ...prev, [normKey]: normReg, [specKey]: specReg, [legacyKey]: legacyReg };
+      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      return updated;
     });
+
+    if (targetStudent && saveStudentAttendance && newStatus) {
+      saveStudentAttendance({
+        studentId: targetStudent.id,
+        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+        className: targetStudent.className,
+        section: targetStudent.section,
+        date: date,
+        status: newStatus,
+        remarks: remarksState[`${date}_${targetStudent.id}`] || '',
+        markedBy: user?.name || teacherFullName
+      });
+    }
   };
  
   // Matrix cell click toggle handler
@@ -378,27 +476,65 @@ export const AttendanceView = () => {
     else if (currentStatus === 'Late') nextStatus = 'Absent';
     else if (currentStatus === 'Absent') nextStatus = null;
    
-    const specificKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
+    const normKey = getRegisterKey(student.className, student.section, dateStr);
+    const specKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
     setAttendanceRegistry(prev => {
-      const updatedRegister = { ...(prev[specificKey] || {}) };
+      const normReg = { ...(prev[normKey] || {}) };
+      const specReg = { ...(prev[specKey] || {}) };
       if (nextStatus === null) {
-        delete updatedRegister[student.id];
+        delete normReg[student.id];
+        delete specReg[student.id];
       } else {
-        updatedRegister[student.id] = nextStatus;
+        normReg[student.id] = nextStatus;
+        specReg[student.id] = nextStatus;
       }
-      return { ...prev, [specificKey]: updatedRegister };
+      const updated = { ...prev, [normKey]: normReg, [specKey]: specReg };
+      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      return updated;
     });
+
+    if (saveStudentAttendance && nextStatus) {
+      saveStudentAttendance({
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        className: student.className,
+        section: student.section,
+        date: dateStr,
+        status: nextStatus,
+        remarks: remarksState[`${dateStr}_${student.id}`] || '',
+        markedBy: user?.name || teacherFullName
+      });
+    }
   };
  
   // Mark entire class
   const markAllClass = (status: AttendanceStatus) => {
     if (!isEditable) return;
     setAttendanceRegistry(prev => {
-      const updatedRegister = { ...(prev[registerKey] || {}) };
+      const updated = { ...prev };
       classStudents.forEach(st => {
-        updatedRegister[st.id] = status;
+        const normKey = getRegisterKey(st.className, st.section, date);
+        const specKey = `${st.className}_${st.section}_${selectedSubject}_${date}`;
+        const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
+        updated[normKey] = { ...(updated[normKey] || {}), [st.id]: status };
+        updated[specKey] = { ...(updated[specKey] || {}), [st.id]: status };
+        updated[legacyKey] = { ...(updated[legacyKey] || {}), [st.id]: status };
+
+        if (saveStudentAttendance) {
+          saveStudentAttendance({
+            studentId: st.id,
+            studentName: `${st.firstName} ${st.lastName}`,
+            className: st.className,
+            section: st.section,
+            date: date,
+            status: status,
+            remarks: remarksState[`${date}_${st.id}`] || '',
+            markedBy: user?.name || teacherFullName
+          });
+        }
       });
-      return { ...prev, [registerKey]: updatedRegister };
+      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      return updated;
     });
   };
  
@@ -455,7 +591,7 @@ export const AttendanceView = () => {
     localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
 
     classStudents.forEach(st => {
-      const status = currentAttendance[st.id] || getAttendanceStatus(st) || 'Present';
+      const status = getAttendanceStatus(st) || 'Present';
       const remark = remarksState[`${date}_${st.id}`] || '';
       if (saveStudentAttendance) {
         saveStudentAttendance({
