@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
-import { generateNextStudentId, generateNextAdmissionNo } from "../utils/idGenerator";
+import { generateNextStudentId, generateNextAdmissionNo, generateNextEmployeeId, saveIdSequenceSettings } from "../utils/idGenerator";
 import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
@@ -442,6 +442,7 @@ import {
 import {
   fetchSchoolSettingsApi,
   updateSchoolSettingsApi,
+  fetchIdSequenceSettingsApi,
 } from "../api/settings";
 
 export interface AcademicClass {
@@ -5984,6 +5985,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
 
+      // Sync automated ID sequence settings from database
+      fetchIdSequenceSettingsApi()
+        .then((res: any) => {
+          if (res && res.success && res.data) {
+            saveIdSequenceSettings(res.data);
+          }
+        })
+        .catch(() => {});
+
       if (!isParentOrStudent) {
         fetchStaff();
         fetchAcademicClasses();
@@ -6709,17 +6719,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addStaff = (staffData: Omit<Staff, "id">): Staff => {
-    const id = "STF-" + Math.floor(100 + Math.random() * 900);
+    const assignedEmpId = staffData.empId || generateNextEmployeeId(staff, staffData.employeeCategory);
+    const id = assignedEmpId;
     const newStaff: Staff = {
       ...staffData,
       id,
+      empId: assignedEmpId,
       status: staffData.status || "Active",
       branch: staffData.branch || selectedBranch || "Main Campus",
       profileStatus: staffData.profileStatus || "Incomplete",
     };
 
     createStaffApi({
-      employeeId: staffData.empId,
+      employeeId: assignedEmpId,
       isActive: staffData.status === "Active" || staffData.status === undefined,
       employeeCategory:
         staffData.employeeCategory === "Teacher"

@@ -109,41 +109,38 @@ export const ReportsView: React.FC = () => {
     }
   }, [activeTab, filteredStudents, filteredStaff, filteredFeePayments, filteredExamMarks]);
 
+  const [isPrinting, setIsPrinting] = useState(false);
+
   const totalPages = Math.max(1, Math.ceil(currentDataset.length / pageSize));
   const paginatedData = useMemo(() => {
+    if (isPrinting) return currentDataset;
     const start = (page - 1) * pageSize;
     return currentDataset.slice(start, start + pageSize);
-  }, [currentDataset, page, pageSize]);
+  }, [currentDataset, page, pageSize, isPrinting]);
 
-  const handlePrintReport = async () => {
-    try {
-      const res: any = await fetchPrintReportTemplateApi({
-        module: activeTab,
-        classFilter: effectiveClass,
-        departmentFilter: effectiveDept,
-        search: searchQuery
-      });
-      if (res?.htmlTemplate) {
-        const printWin = window.open('', '_blank');
-        if (printWin) {
-          printWin.document.write(res.htmlTemplate);
-          printWin.document.close();
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn("Print template API error:", e);
-    }
-    window.print();
+  const handlePrintReport = () => {
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 150);
   };
+
+  const reportTitle = useMemo(() => {
+    if (activeTab === 'students') return 'OFFICIAL STUDENT DIRECTORY REPORT';
+    if (activeTab === 'staff') return 'FACULTY & STAFF REPORT';
+    if (activeTab === 'fees') return 'FINANCIAL FEE LEDGER REPORT';
+    if (activeTab === 'exams') return 'ACADEMIC EXAM MARKS REPORT';
+    return 'SCHOOL ADMINISTRATIVE MASTER REPORT';
+  }, [activeTab]);
 
   return (
     <div id="printable-content" className="printable-area space-y-6 animate-in fade-in text-left">
       
       {/* Official School Header for Print Output */}
       <SchoolPrintHeader
-        title="SCHOOL ADMINISTRATIVE MASTER REPORT"
-        subtitle={`Generated Report (${selectedModule || 'Selective Filter'})`}
+        title={reportTitle}
+        subtitle={`Filter: ${effectiveClass !== 'All' ? `Class ${effectiveClass}` : 'All Classes'}${effectiveDept !== 'All' ? ` • Dept: ${effectiveDept}` : ''} • Total Records: ${currentDataset.length}`}
       />
 
       {/* Top Header Banner */}
@@ -178,7 +175,7 @@ export const ReportsView: React.FC = () => {
       </div>
 
       {/* Real-time KPI Cards Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs print:hidden">
         <div className="p-4 bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-2xl shadow-xs text-left">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Total Active Students</span>
@@ -359,15 +356,15 @@ export const ReportsView: React.FC = () => {
             {/* STUDENT DIRECTORY REPORT TABLE */}
             {activeTab === 'students' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px]">
+                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5">Admission No</th>
-                      <th className="px-4 py-3.5">Student Name</th>
-                      <th className="px-4 py-3.5">Class & Section</th>
-                      <th className="px-4 py-3.5">Guardian Details</th>
-                      <th className="px-4 py-3.5">Phone Number</th>
-                      <th className="px-4 py-3.5">Status</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Admission No</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Student Name</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Class & Section</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Guardian Details</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Phone Number</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -380,17 +377,17 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(s => (
                         <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600">{s.admissionNo}</td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{s.admissionNo}</td>
                           <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">
                             {s.firstName} {s.lastName}
                           </td>
-                          <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">
+                          <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                             {s.className} - {s.section || 'A'}
                           </td>
                           <td className="px-4 py-3.5 text-slate-500">{s.fatherName || s.motherName || 'N/A'}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-600">{s.fatherPhone || s.phone || 'N/A'}</td>
-                          <td className="px-4 py-3.5">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200">
+                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{s.fatherPhone || s.phone || 'N/A'}</td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 whitespace-nowrap inline-block">
                               {s.status || 'Active'}
                             </span>
                           </td>
@@ -405,15 +402,15 @@ export const ReportsView: React.FC = () => {
             {/* STAFF HR REPORT TABLE */}
             {activeTab === 'staff' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px]">
+                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5">Emp ID</th>
-                      <th className="px-4 py-3.5">Employee Name</th>
-                      <th className="px-4 py-3.5">Department</th>
-                      <th className="px-4 py-3.5">Designation</th>
-                      <th className="px-4 py-3.5">Role Type</th>
-                      <th className="px-4 py-3.5">Contact Phone</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Emp ID</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Employee Name</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Department</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Designation</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Role Type</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Contact Phone</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -426,18 +423,18 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(st => (
                         <tr key={st.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600">{st.empId || st.id}</td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{st.empId || st.id}</td>
                           <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">
                             {st.firstName} {st.lastName}
                           </td>
                           <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{st.department || 'Academics'}</td>
                           <td className="px-4 py-3.5 text-slate-600">{st.designation || st.role}</td>
-                          <td className="px-4 py-3.5">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200">
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 whitespace-nowrap inline-block">
                               {st.employeeCategory || (st.role === 'Teacher' ? 'Teaching' : 'Staff')}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5 font-mono text-slate-600">{st.phone || 'N/A'}</td>
+                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{st.phone || 'N/A'}</td>
                         </tr>
                       ))
                     )}
@@ -449,15 +446,15 @@ export const ReportsView: React.FC = () => {
             {/* FINANCIAL FEE LEDGER REPORT TABLE */}
             {activeTab === 'fees' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px]">
+                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5">Receipt No</th>
-                      <th className="px-4 py-3.5">Student Name</th>
-                      <th className="px-4 py-3.5">Fee Category</th>
-                      <th className="px-4 py-3.5">Amount Paid</th>
-                      <th className="px-4 py-3.5">Payment Mode</th>
-                      <th className="px-4 py-3.5">Date</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Receipt No</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Student Name</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Fee Category</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Amount Paid</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Payment Mode</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -470,12 +467,12 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(p => (
                         <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600">{p.receiptNo || p.id}</td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{p.receiptNo || p.id}</td>
                           <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">{p.studentName || 'Student'}</td>
                           <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{p.feeHeadName || p.category || 'Tuition Fee'}</td>
-                          <td className="px-4 py-3.5 font-mono font-black text-emerald-600">₹{Number(p.amount || 0).toLocaleString('en-IN')}</td>
-                          <td className="px-4 py-3.5 font-bold text-slate-600">{p.paymentMode || 'Online'}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-500">{p.paymentDate || p.date || '2026-08-10'}</td>
+                          <td className="px-4 py-3.5 font-mono font-black text-emerald-600 whitespace-nowrap">₹{Number(p.amount || 0).toLocaleString('en-IN')}</td>
+                          <td className="px-4 py-3.5 font-bold text-slate-600 whitespace-nowrap">{p.paymentMode || 'Online'}</td>
+                          <td className="px-4 py-3.5 font-mono text-slate-500 whitespace-nowrap">{p.paymentDate || p.date || '2026-08-10'}</td>
                         </tr>
                       ))
                     )}
@@ -487,15 +484,15 @@ export const ReportsView: React.FC = () => {
             {/* ACADEMIC EXAM MARKS REPORT TABLE */}
             {activeTab === 'exams' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px]">
+                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5">Student ID</th>
-                      <th className="px-4 py-3.5">Exam / Subject</th>
-                      <th className="px-4 py-3.5">Marks Obtained</th>
-                      <th className="px-4 py-3.5">Total Marks</th>
-                      <th className="px-4 py-3.5">Grade</th>
-                      <th className="px-4 py-3.5">Remarks</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Student ID</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Exam / Subject</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Marks Obtained</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Total Marks</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Grade</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Remarks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -508,11 +505,11 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(m => (
                         <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600">{m.studentId}</td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{m.studentId}</td>
                           <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">{m.subject}</td>
-                          <td className="px-4 py-3.5 font-mono font-bold text-slate-900 dark:text-white">{m.marksObtained}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-500">{m.totalMarks}</td>
-                          <td className="px-4 py-3.5 font-bold text-emerald-600">{m.grade || 'A1'}</td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">{m.marksObtained}</td>
+                          <td className="px-4 py-3.5 font-mono text-slate-500 whitespace-nowrap">{m.totalMarks}</td>
+                          <td className="px-4 py-3.5 font-bold text-emerald-600 whitespace-nowrap">{m.grade || 'A1'}</td>
                           <td className="px-4 py-3.5 text-slate-500">{m.remarks || 'Evaluated'}</td>
                         </tr>
                       ))
@@ -524,7 +521,7 @@ export const ReportsView: React.FC = () => {
 
             {/* PAGINATION FOOTER */}
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs print:hidden">
                 <span className="text-slate-500 font-medium">
                   Showing <span className="font-bold text-slate-900 dark:text-white">{Math.min((page - 1) * pageSize + 1, currentDataset.length)}</span> to{' '}
                   <span className="font-bold text-slate-900 dark:text-white">{Math.min(page * pageSize, currentDataset.length)}</span> of{' '}

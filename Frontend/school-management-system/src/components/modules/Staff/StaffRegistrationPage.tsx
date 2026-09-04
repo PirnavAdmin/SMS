@@ -67,7 +67,8 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
       ...prev,
       employeeCategory: value,
       department: '',
-      designation: ''
+      designation: '',
+      empId: getNextEmployeeId(staff, value)
     }));
   };
 

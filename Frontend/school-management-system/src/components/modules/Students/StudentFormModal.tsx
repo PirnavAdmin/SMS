@@ -8,7 +8,7 @@ import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateV
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 
 import { DateInput } from '../../common/DateInput';
-import { generateNextAdmissionNo } from '../../../utils/idGenerator';
+import { generateNextAdmissionNo, generateNextStudentId } from '../../../utils/idGenerator';
 
 interface StudentFormModalProps {
   isOpen: boolean;
@@ -64,7 +64,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     dueFee: 4500,
     attendancePct: 100,
     gpa: 4.0,
-    admissionNo: 'ADM2026-' + Math.floor(100 + Math.random() * 900),
+    admissionNo: '',
     rollNo: ''
   });
 
@@ -272,7 +272,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       setSiblingDetails([]);
       setFormData(prev => ({
         ...prev,
-        admissionNo: generateNextAdmissionNo(students)
+        admissionNo: generateNextAdmissionNo(students),
+        rollNo: generateNextStudentId(students)
       }));
     }
   }, [studentToEdit, isOpen, students]);

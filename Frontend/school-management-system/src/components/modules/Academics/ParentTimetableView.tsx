@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Printer, CalendarOff } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { getParentChildren, getParentTimetable, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentTimetableView: React.FC = () => {
@@ -267,27 +268,19 @@ export const ParentTimetableView: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 overflow-hidden shadow-xs p-6 space-y-6">
           
           {/* School Header */}
-          <div className="pb-4 border-b border-sky-100 dark:border-sky-900/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
-            <div className="flex items-center gap-3.5">
-              <div>
-                <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase">PIRNAV SCHOOLS</h1>
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">Class Timetable</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-              <span className="inline-block px-3 py-1.5 bg-sky-50 dark:bg-sky-950/40 text-xs font-black text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 rounded-xl">
-                {currentWard.className} — Section {currentWard.section}
-              </span>
-
-              <button 
-                onClick={() => window.print()}
-                className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-xl text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-sky-50/60 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-sky-600" />
-                <span>Print / Download</span>
-              </button>
-            </div>
+          <SchoolPrintHeader
+            title={`Class Timetable - ${currentWard.className} (Section ${currentWard.section})`}
+            subtitle={`Student: ${currentWard.name || ''}`}
+          />
+          
+          <div className="flex items-center justify-end gap-3 no-print">
+            <button 
+              onClick={() => window.print()}
+              className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-xl text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-sky-50/60 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-sky-600" />
+              <span>Print / Download</span>
+            </button>
           </div>
 
           {/* Weekly Grid Table */}

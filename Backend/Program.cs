@@ -616,6 +616,15 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`ClassId`, `SubjectId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
+            @"CREATE TABLE IF NOT EXISTS `class_subject_mappings` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `class_id` int NOT NULL,
+                `subject_id` int NOT NULL,
+                `weekly_periods` int NOT NULL DEFAULT 5,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_class_subject` (`class_id`, `subject_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
             @"CREATE TABLE IF NOT EXISTS `staff` (
                 `StaffId` int NOT NULL AUTO_INCREMENT,
                 `EmployeeId` varchar(50) NOT NULL,

@@ -20,21 +20,40 @@ public class StaffService : IStaffService
     private readonly ISchoolRepository _schoolRepository;
     private readonly AppDbContext _context;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly SMS.Api.Services.Interfaces.Settings.ISettingsService _settingsService;
 
     public StaffService(
         ISchoolRepository schoolRepository,
         AppDbContext context,
-        IEmailNotificationService emailNotificationService)
+        IEmailNotificationService emailNotificationService,
+        SMS.Api.Services.Interfaces.Settings.ISettingsService settingsService)
     {
         _schoolRepository = schoolRepository;
         _context = context;
         _emailNotificationService = emailNotificationService;
+        _settingsService = settingsService;
     }
 
-    public async Task<string> GetNextEmployeeIdAsync()
+    public async Task<string> GetNextEmployeeIdAsync(string? category = null)
     {
+        bool isTeaching = string.IsNullOrWhiteSpace(category) || 
+                          category.Equals("Teaching Staff", StringComparison.OrdinalIgnoreCase) || 
+                          category.Equals("Teacher", StringComparison.OrdinalIgnoreCase);
+
+        try
+        {
+            var genResult = await _settingsService.GenerateNextIdAsync(isTeaching ? "teaching" : "non-teaching");
+            if (genResult != null && !string.IsNullOrWhiteSpace(genResult.NextId))
+            {
+                return genResult.NextId;
+            }
+        }
+        catch { }
+
+        // Fallback
         var existingIds = await _schoolRepository.GetAllEmployeeIdsAsync();
         int maxNumber = 0;
+        string prefix = isTeaching ? "TCH" : "NTS";
 
         foreach (var id in existingIds)
         {
@@ -47,7 +66,7 @@ public class StaffService : IStaffService
         }
 
         int nextNumber = maxNumber + 1;
-        return $"EMP{nextNumber:D3}";
+        return $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
     }
 
     public async Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department)
@@ -141,7 +160,7 @@ public class StaffService : IStaffService
     {
         var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) 
             ? dto.EmployeeId 
-            : await GetNextEmployeeIdAsync();
+            : await GetNextEmployeeIdAsync(dto.EmployeeCategory);
 
         var staff = new Staff
         {

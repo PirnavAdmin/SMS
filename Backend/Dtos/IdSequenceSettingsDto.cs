@@ -5,8 +5,22 @@ namespace SMS.Api.Dtos
 {
     public class CustomIdSequenceDto
     {
+        private string _id = string.Empty;
+        private string _formatKey = string.Empty;
+
         [JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
+        public string Id 
+        { 
+            get => !string.IsNullOrWhiteSpace(_id) ? _id : _formatKey; 
+            set => _id = value; 
+        }
+
+        [JsonPropertyName("formatKey")]
+        public string FormatKey 
+        { 
+            get => !string.IsNullOrWhiteSpace(_formatKey) ? _formatKey : _id; 
+            set => _formatKey = value; 
+        }
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;

@@ -78,6 +78,7 @@ import {
   RoomType,
   BedAllocation,
 } from "../../../api/hostel";
+import { generateNextAdmissionNo, generateNextStudentId } from "../../../utils/idGenerator";
 
 interface ComboboxOption {
   value: string;
@@ -1801,8 +1802,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             let list = stored ? JSON.parse(stored) : [];
             if (!Array.isArray(list)) list = [];
 
-            const stId = `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-            const admNo = `ADM-2026-${Math.floor(100 + Math.random() * 900)}`;
+            const stId = generateNextStudentId(students);
+            const admNo = generateNextAdmissionNo(students);
 
             const newRecord = {
               id: stId,
@@ -1852,9 +1853,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             roomMasters.find((r) => String(r.id) === String(formData.hostelRoom));
 
           createAllocation({
-            studentId: `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+            studentId: generateNextStudentId(students),
             studentName: fullApplicantName,
-            admissionNo: `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
+            admissionNo: generateNextAdmissionNo(students),
             hostelId: Number(formData.hostelBlock) || 1,
             hostelName: selBlk?.hostelName || "Ramachandra Bhavan Block",
             roomId: Number(formData.hostelRoom) || 201,

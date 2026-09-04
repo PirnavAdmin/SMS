@@ -140,15 +140,26 @@ export function buildFormattedId(
 
   // Extract highest numerical suffix in existing IDs
   let maxSeq = Math.max(0, (startNo || 1) - 1);
-  
-  existingIds.forEach((idStr) => {
+  const targetIds = cleanPrefix && existingIds.some(s => s && s.toUpperCase().includes(cleanPrefix))
+    ? existingIds.filter(s => s && s.toUpperCase().includes(cleanPrefix))
+    : existingIds;
+
+  targetIds.forEach((idStr) => {
     if (!idStr) return;
     const digitsMatch = idStr.match(/\d+/g);
     if (digitsMatch) {
-      const num = parseInt(digitsMatch[digitsMatch.length - 1], 10);
-      if (!isNaN(num) && num > maxSeq) {
-        maxSeq = num;
-      }
+      digitsMatch.forEach((dig) => {
+        const num = parseInt(dig, 10);
+        if (!isNaN(num)) {
+          // If multiple digit matches exist and this one looks like a 4-digit year, ignore it
+          if (digitsMatch.length > 1 && num >= 2020 && num <= 2035) {
+            return;
+          }
+          if (num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      });
     }
   });
 
