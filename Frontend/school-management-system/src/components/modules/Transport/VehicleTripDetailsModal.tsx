@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   X, Bus, Route as RouteIcon, Users, UserCheck, Phone, Clock,

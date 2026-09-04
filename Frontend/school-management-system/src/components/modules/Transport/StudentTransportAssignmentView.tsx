@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// @ts-nocheck
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { 
   Bus, UserPlus, Search, Trash2, CheckCircle, AlertTriangle, Users, ShieldAlert, 

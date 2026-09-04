@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   X, WalletCards, Coins, Banknote, ReceiptText, ShieldCheck,

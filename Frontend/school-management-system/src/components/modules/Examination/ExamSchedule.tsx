@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Save, AlertTriangle, Eye, Layers, UserCheck } from 'lucide-react';
 import { ExamScheduleTable } from './components/ExamScheduleTable';

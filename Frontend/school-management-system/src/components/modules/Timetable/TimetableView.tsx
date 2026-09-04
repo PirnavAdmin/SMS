@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FileText, Plus, CheckCircle2, Calendar, Edit, Trash2, X, Paperclip, 

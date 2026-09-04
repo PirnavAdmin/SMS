@@ -31,7 +31,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     isPackage: true
   });
 
-  const [categorySelections, setCategorySelections] = useState<{ [catName: string]: { selected: boolean, quantity: string } }>({});
+  const [categorySelections, setCategorySelections] = useState<{ [catName: string]: { selected: boolean; quantity: string; size?: string; meterRange?: string } }>({});
   const [packageSizeStock, setPackageSizeStock] = useState<{ [sz: string]: number }>({
     'XS': 30,
     'S': 50,
@@ -80,10 +80,9 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       .map(c => typeof c === 'string' ? c : (c.name || (c as any).categoryName || (c as any).category || ''))
       .filter(cName => {
         if (!cName) return false;
-        const lower = cName.toLowerCase();
-        const isBasePkg = (lower.includes('boys') || lower.includes('girls')) && (lower.includes('package') || lower.includes('kit'));
-        const isClothPkg = lower.includes('unstitched') || lower.includes('cloth') || lower.includes('fabric');
-        return !isBasePkg && !isClothPkg;
+        const lower = cName.toLowerCase().trim();
+        const isBasePkg = (lower.includes('boys base') || lower.includes('girls base')) && (lower.includes('package') || lower.includes('kit'));
+        return !isBasePkg;
       })
   ));
 
