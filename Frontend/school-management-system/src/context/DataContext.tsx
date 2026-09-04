@@ -15858,9 +15858,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addHomework = async (hwData: Omit<Homework, "id">) => {
     const id = "HW-" + Math.floor(100 + Math.random() * 900);
+    const cleanSec = ((hwData as any).section || "").replace(/^section\s*/i, "").replace(/^sec\s*/i, "").trim() || "A";
     const newHw: Homework = {
       ...hwData,
       id,
+      section: cleanSec,
       branch: (hwData as any).branch || selectedBranch || "Main Campus",
     } as any;
     setHomework((prev) => [newHw, ...prev]);
@@ -15897,7 +15899,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateHomework = async (id: string, updates: Partial<Homework>) => {
     setHomework((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, ...updates } : h)),
+      prev.map((h) => {
+        if (h.id !== id) return h;
+        const cleanSec = (updates.section || h.section || "").replace(/^section\s*/i, "").replace(/^sec\s*/i, "").trim() || "A";
+        return { ...h, ...updates, section: cleanSec };
+      }),
     );
 
     try {
