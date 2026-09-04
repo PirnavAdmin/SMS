@@ -5582,7 +5582,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             academicYear: d.academicYear || "2026-2027",
             branch: d.branch || selectedBranch || "Main Campus",
             notes: d.notes || d.actionRemarks || "",
-            type: d.transactionType?.includes("Baseline")
+            type: (
+              d.type === "Base Package" ||
+              d.transactionType === "Base Package" ||
+              (d.transactionType && (d.transactionType.toLowerCase().includes("baseline") || d.transactionType.toLowerCase().includes("base"))) ||
+              (d.itemName && (d.itemName.toLowerCase().includes("package") || d.itemName.toLowerCase().includes("base") || d.itemName.toLowerCase().includes("kit"))) ||
+              (d.notes && (d.notes.toLowerCase().includes("base package") || d.notes.toLowerCase().includes("admission kit")))
+            ) && d.type !== "Additional Purchase" && d.transactionType !== "Additional Purchase" && !d.notes?.toLowerCase().includes("additional purchase")
               ? "Base Package"
               : "Additional Purchase",
             price: Number(d.totalAmount || 0),

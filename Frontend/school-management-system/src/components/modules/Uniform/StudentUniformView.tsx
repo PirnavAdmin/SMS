@@ -505,7 +505,17 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const normKey = (stdName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     const catalogItem = uniforms.find(u => u.category === issue.itemName || u.name === issue.itemName);
-    const isExplicitBasePkg = issue.type === 'Base Package' || (issue.itemName && issue.itemName.includes('Package') && !issue.itemName.includes('(Extra)') && !issue.type?.includes('Additional') && !issue.notes?.includes('Additional'));
+    const isExplicitBasePkg = issue.type === 'Base Package' || (
+      issue.itemName &&
+      (issue.itemName.toLowerCase().includes('package') ||
+       issue.itemName.toLowerCase().includes('base') ||
+       issue.itemName.toLowerCase().includes('kit') ||
+       issue.itemName.toLowerCase().includes('cloth')) &&
+      !issue.itemName.toLowerCase().includes('(extra)') &&
+      !issue.notes?.toLowerCase().includes('additional purchase') &&
+      issue.type !== 'Additional Purchase' &&
+      issue.type !== 'Additional Base Package'
+    );
 
     const itemPrice = isExplicitBasePkg
       ? getPackageFeeForStudent(clsName, issue.price, stMatch?.gender)
