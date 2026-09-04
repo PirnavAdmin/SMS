@@ -12,5 +12,8 @@ namespace SMS.Api.Services.Interfaces.Settings
         Task<string> UploadLogoFileAsync(IFormFile file);
         Task<bool> UpdateCertificateTemplatesAsync(object templates);
         Task<bool> UpdateCampusesAsync(object campuses);
+        Task<IdSequenceSettingsDto> GetIdSequenceSettingsAsync();
+        Task<IdSequenceSettingsDto> UpdateIdSequenceSettingsAsync(IdSequenceSettingsDto dto);
+        Task<GeneratedIdResponseDto> GenerateNextIdAsync(string type, string? customId = null);
     }
 }

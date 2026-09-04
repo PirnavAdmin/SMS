@@ -455,7 +455,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold rounded-lg text-xs sm:text-sm shadow-md shadow-sky-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span>Sign In to ERP</span>
+              <span>Sign In</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -530,7 +530,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-lg text-center shadow-md shadow-sky-500/20 flex items-center justify-center gap-2 active:scale-98 transition-all text-xs"
               >
                 <Lock className="w-3.5 h-3.5" />
-                Sign In to ERP
+                Sign In
               </button>
             </div>
           </div>

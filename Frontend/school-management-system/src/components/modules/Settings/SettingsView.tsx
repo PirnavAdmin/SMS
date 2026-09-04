@@ -20,7 +20,9 @@ import {
   createBranchApi,
   updateBranchApi,
   deleteBranchApi,
-  fetchAcademicYearsApi
+  fetchAcademicYearsApi,
+  fetchIdSequenceSettingsApi,
+  updateIdSequenceSettingsApi
 } from '../../../api/settings';
 import { 
   getIdSequenceSettings, 
@@ -161,10 +163,52 @@ export const SettingsView: React.FC = () => {
 
   // Automated ID Sequence Configuration State
   const [idForm, setIdForm] = useState<IdSequenceSettings>(getIdSequenceSettings);
+  const [isSavingIdSettings, setIsSavingIdSettings] = useState(false);
 
-  const handleSaveIdSettings = () => {
-    saveIdSequenceSettings(idForm);
-    addToast('success', 'ID Formats Saved', 'Automated ID and serial number settings updated successfully.');
+  useEffect(() => {
+    let isMounted = true;
+    const loadIdSettings = async () => {
+      try {
+        const res = await fetchIdSequenceSettingsApi();
+        if (res && res.data && isMounted) {
+          setIdForm(prev => ({
+            ...prev,
+            ...res.data,
+            customSequences: Array.isArray(res.data.customSequences) ? res.data.customSequences : (prev.customSequences || [])
+          }));
+          saveIdSequenceSettings({
+            ...getIdSequenceSettings(),
+            ...res.data,
+            customSequences: Array.isArray(res.data.customSequences) ? res.data.customSequences : []
+          });
+        }
+      } catch (err) {
+        console.warn('Could not load automated ID settings from backend API, using local fallback:', err);
+      }
+    };
+    loadIdSettings();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleSaveIdSettings = async () => {
+    setIsSavingIdSettings(true);
+    try {
+      saveIdSequenceSettings(idForm);
+      const res = await updateIdSequenceSettingsApi(idForm);
+      if (res && res.data) {
+        setIdForm(prev => ({
+          ...prev,
+          ...res.data,
+          customSequences: Array.isArray(res.data.customSequences) ? res.data.customSequences : (prev.customSequences || [])
+        }));
+      }
+      addToast('success', 'ID Formats Saved Live', 'Automated ID and custom serial formats saved to live database successfully.');
+    } catch (err: any) {
+      saveIdSequenceSettings(idForm);
+      addToast('warning', 'Saved Locally', 'Saved to browser cache. ' + (err?.message || ''));
+    } finally {
+      setIsSavingIdSettings(false);
+    }
   };
 
   const handleAddCustomIdSequence = () => {
@@ -671,9 +715,11 @@ export const SettingsView: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveIdSettings}
-                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+                disabled={isSavingIdSettings}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-2 transition-all shrink-0 cursor-pointer"
               >
-                <Save className="w-4 h-4" /> Save All ID Formats
+                {isSavingIdSettings ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSavingIdSettings ? 'Saving...' : 'Save All ID Formats'}
               </button>
             </div>
           </div>

@@ -146,5 +146,69 @@ namespace SMS.Api.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        // GET: api/Settings/id-sequences
+        [HttpGet("id-sequences")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetIdSequences()
+        {
+            try
+            {
+                var settings = await _settingsService.GetIdSequenceSettingsAsync();
+                return Ok(new
+                {
+                    success = true,
+                    data = settings
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: api/Settings/id-sequences
+        [HttpPost("id-sequences")]
+        [HttpPut("id-sequences")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateIdSequences([FromBody] IdSequenceSettingsDto dto)
+        {
+            if (dto == null) return BadRequest("Invalid ID sequence payload.");
+
+            try
+            {
+                var updated = await _settingsService.UpdateIdSequenceSettingsAsync(dto);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Automated ID sequence settings saved successfully to database.",
+                    data = updated
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: api/Settings/id-sequences/next
+        [HttpGet("id-sequences/next")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GenerateNextId([FromQuery] string type = "student", [FromQuery] string? sequenceId = null)
+        {
+            try
+            {
+                var result = await _settingsService.GenerateNextIdAsync(type, sequenceId);
+                return Ok(new
+                {
+                    success = true,
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

@@ -673,8 +673,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === "finance-dashboard" &&
-                                activeModule === "fees") ||
                               (sub.id === "finance-masters" &&
                                 [
                                   "finance-fee-heads",
