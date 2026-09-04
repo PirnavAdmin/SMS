@@ -539,6 +539,23 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`Id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
+            @"CREATE TABLE IF NOT EXISTS `automated_id_formats` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `FormatKey` varchar(100) NOT NULL,
+                `Name` varchar(150) NOT NULL,
+                `Prefix` varchar(50) NOT NULL DEFAULT '',
+                `StartNo` int NOT NULL DEFAULT 1,
+                `Padding` int NOT NULL DEFAULT 4,
+                `IncludeYear` tinyint(1) NOT NULL DEFAULT 1,
+                `Separator` varchar(10) NOT NULL DEFAULT '-',
+                `Position` varchar(20) NOT NULL DEFAULT 'start',
+                `IsCustom` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `ux_automated_id_key` (`FormatKey`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
             @"CREATE TABLE IF NOT EXISTS `branches` (
                 `BranchId` int NOT NULL AUTO_INCREMENT,
                 `BranchName` varchar(150) NOT NULL,
@@ -1266,6 +1283,19 @@ using (var scope = app.Services.CreateScope())
             }
             catch { }
         }
+
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+                INSERT INTO `automated_id_formats` (`FormatKey`, `Name`, `Prefix`, `StartNo`, `Padding`, `IncludeYear`, `Separator`, `Position`, `IsCustom`)
+                VALUES 
+                ('student', 'Student ID', 'STU', 1001, 4, 1, '-', 'start', 0),
+                ('teaching', 'Teaching Staff ID', 'TCH', 501, 4, 1, '-', 'start', 0),
+                ('non-teaching', 'Non-Teaching Staff ID', 'NTS', 801, 4, 1, '-', 'start', 0),
+                ('admission', 'Admission No', 'ADM', 2001, 4, 1, '-', 'start', 0)
+                ON DUPLICATE KEY UPDATE `FormatKey`=`FormatKey`;");
+        }
+        catch { }
 
         void EnsureColumnExists(string table, string column, string columnDef)
         {

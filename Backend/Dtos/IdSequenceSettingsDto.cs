@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace SMS.Api.Dtos
@@ -111,6 +111,43 @@ namespace SMS.Api.Dtos
         // Custom Automated Sequences
         [JsonPropertyName("customSequences")]
         public List<CustomIdSequenceDto> CustomSequences { get; set; } = new List<CustomIdSequenceDto>();
+
+        // Complete list of all formats (4 fixed + custom ones) for direct table reflection
+        [JsonPropertyName("allFormats")]
+        public List<AutomatedIdFormatDto> AllFormats { get; set; } = new List<AutomatedIdFormatDto>();
+    }
+
+    public class AutomatedIdFormatDto
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("formatKey")]
+        public string FormatKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("prefix")]
+        public string Prefix { get; set; } = string.Empty;
+
+        [JsonPropertyName("startNo")]
+        public int StartNo { get; set; } = 1;
+
+        [JsonPropertyName("padding")]
+        public int Padding { get; set; } = 4;
+
+        [JsonPropertyName("includeYear")]
+        public bool IncludeYear { get; set; } = true;
+
+        [JsonPropertyName("separator")]
+        public string Separator { get; set; } = "-";
+
+        [JsonPropertyName("position")]
+        public string Position { get; set; } = "start";
+
+        [JsonPropertyName("isCustom")]
+        public bool IsCustom { get; set; } = false;
     }
 
     public class GeneratedIdResponseDto
