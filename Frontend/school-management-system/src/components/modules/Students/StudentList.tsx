@@ -1245,8 +1245,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         /* ---------------------------------------------------- */
         <div className="space-y-6">
 
-          {/* HEADER ROW */}
-          <div className="flex items-center gap-3">
+          {/* HEADER ROW (Hidden in Print) */}
+          <div className="flex items-center gap-3 no-print">
             <button
               onClick={handleBackToOverview}
               className="p-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shadow-xs transition-colors shrink-0 flex items-center justify-center cursor-pointer h-9 w-9"
@@ -1272,8 +1272,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </h2>
           </div>
 
-          {/* ROSTER TABLE FILTERS BAR */}
-          <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          {/* ROSTER TABLE FILTERS BAR (Hidden in Print) */}
+          <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 no-print">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {/* Search Name */}
               <div className="relative flex-1">

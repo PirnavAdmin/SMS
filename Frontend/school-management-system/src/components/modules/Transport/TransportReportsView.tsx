@@ -287,7 +287,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Transport Reports
@@ -305,7 +305,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         </div>
       </div>
 
-      <div className="w-full sm:w-72 relative">
+      <div className="w-full sm:w-72 relative no-print">
         <label className="block text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">
           Select Report Type
         </label>
@@ -330,7 +330,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         </div>
       </div>
 
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800">
+      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800 no-print">
         <div className="relative w-full sm:w-64">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input

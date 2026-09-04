@@ -393,6 +393,10 @@ import {
   fetchUniformTypesApi,
   fetchUniformDistributionsApi,
   issueUniformApi,
+  adjustUniformStockApi,
+  deleteUniformDistributionApi,
+  returnUniformApi,
+  exchangeUniformApi,
   createUniformTypeApi,
   updateUniformTypeApi,
   deleteUniformTypeApi,
@@ -16531,7 +16535,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (e) {}
 
     try {
-      const res: any = await issueStudentUniformApi({
+      const res: any = await issueUniformApi({
         studentId: issueData.studentId ? (parseInt(issueData.studentId.replace(/\D/g, ''), 10) || undefined) : undefined,
         admissionNo: issueData.admissionNo || issueData.studentId || '',
         studentName: issueData.studentName || '',
@@ -16797,7 +16801,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (idOrQuery && !idOrQuery.startsWith("UIS-")) {
       try {
-        await deleteStudentUniformDistributionApi(idOrQuery);
+        await deleteUniformDistributionApi(idOrQuery);
       } catch (err) {
         console.warn("Failed to delete uniform distribution on backend:", err);
       }
@@ -17060,7 +17064,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             empId: item.empId || item.employeeId,
             department: item.department || "Transport Dept",
             designation: item.designation || "Staff",
-            branchId: activeBranchId || "BR-001",
+            branchId: (selectedBranch as any)?.id || (typeof selectedBranch === "string" ? selectedBranch : "") || "BR-001",
             branch: item.branch || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
@@ -17222,7 +17226,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newApp: LeaveApplication = {
       id: newId,
       ...appData,
-      branchId: activeBranchId || "BR-001",
+      branchId: (selectedBranch as any)?.id || (typeof selectedBranch === "string" ? selectedBranch : "") || "BR-001",
       branch: (appData as any).branch || "Main Campus",
       status: appData.status || "Pending",
       appliedDate: appData.appliedDate || new Date().toISOString().split("T")[0],
