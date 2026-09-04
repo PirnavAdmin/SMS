@@ -615,8 +615,8 @@ export const StaffList: React.FC<{
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Title Header */}
-      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+      {/* Title Header (Hidden in Print) */}
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs no-print">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />{" "}
@@ -654,8 +654,8 @@ export const StaffList: React.FC<{
         </div>
       </div>
 
-      {/* Top Segmented Tab Switches (2 Staff Types: Teaching & Non-Teaching) */}
-      <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 w-full sm:w-fit border border-slate-200/40 dark:border-slate-800">
+      {/* Top Segmented Tab Switches (Hidden in Print) */}
+      <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 w-full sm:w-fit border border-slate-200/40 dark:border-slate-800 no-print">
         {[
           {
             key: "Teaching Staff",
@@ -689,8 +689,8 @@ export const StaffList: React.FC<{
         })}
       </div>
 
-      {/* Advanced Filters Block */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+      {/* Advanced Filters Block (Hidden in Print) */}
+      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm no-print">
         <div className="flex flex-col md:flex-row flex-wrap items-center gap-3">
           {/* Query search */}
           <div className="relative flex-[2] min-w-[200px] w-full">

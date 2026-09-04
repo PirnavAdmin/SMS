@@ -75,11 +75,11 @@
 @media print {
   @page {
     size: auto;
-    margin: 8mm;
+    margin: 6mm 10mm;
   }
   @page landscape-layout {
     size: landscape;
-    margin: 8mm;
+    margin: 6mm 10mm;
   }
 
   html, body {
@@ -87,16 +87,34 @@
     color: #000000 !important;
     overflow: visible !important;
     height: auto !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Hide navigation bars, sidebars, headers & no-print controls */
+  /* Hide navigation sidebars, top headers, action buttons, filter cards, search inputs, pagination footers */
   aside, nav, header,
   .no-print, .no-print *,
   .print\:hidden, .print\:hidden *,
-  .toast-container {
+  .toast-container,
+  button,
+  .pagination-container,
+  .pagination-bar {
     display: none !important;
+  }
+
+  /* Expand layout containers to 100% page width, strip floating card borders & shadows */
+  #root, main, .space-y-6, .space-y-4, .space-y-8,
+  .glass-card, .glass-panel, .bg-white, .bg-slate-900, .bg-slate-800, .bg-slate-950 {
+    background: transparent !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Allow containers to expand and overflow cleanly for print */
@@ -106,44 +124,39 @@
     height: auto !important;
   }
 
-  /* Reset dark backgrounds & shadows for clean ink on white paper */
-  .glass-card, .glass-panel, .bg-white, .bg-slate-900, .bg-slate-800, .bg-slate-950 {
-    background: #ffffff !important;
-    color: #000000 !important;
-    box-shadow: none !important;
-    border-color: #cbd5e1 !important;
-  }
-
-  .text-white, .dark\:text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
+  .text-white, .dark\:text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900 {
     color: #000000 !important;
   }
 
-  /* Table print optimization */
+  /* Full Width Table Print Optimization */
   table {
     width: 100% !important;
+    max-width: 100% !important;
     border-collapse: collapse !important;
-    border: 1px solid #475569 !important;
-    margin: 10px 0 !important;
+    border: 1.5px solid #0f172a !important;
+    margin: 12px 0 !important;
     background: #ffffff !important;
   }
 
   th {
     background-color: #f1f5f9 !important;
-    color: #000000 !important;
+    color: #0f172a !important;
     font-weight: 800 !important;
     font-size: 11px !important;
-    padding: 6px 8px !important;
-    border: 1px solid #475569 !important;
+    text-transform: uppercase !important;
+    padding: 8px 10px !important;
+    border: 1px solid #334155 !important;
     text-align: left !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   td {
-    color: #000000 !important;
-    border: 1px solid #64748b !important;
-    padding: 6px 8px !important;
-    font-size: 10px !important;
+    color: #0f172a !important;
+    border: 1px solid #475569 !important;
+    padding: 7px 10px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
     word-break: break-word !important;
     vertical-align: middle !important;
     -webkit-print-color-adjust: exact !important;
@@ -162,12 +175,14 @@
     left: auto !important;
     top: auto !important;
     width: 100% !important;
+    max-width: 100% !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
     display: block !important;
     box-shadow: none !important;
+    border: none !important;
   }
 }
 

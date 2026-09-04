@@ -412,14 +412,14 @@ export const FinanceReportsView: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in">
       {/* Title */}
-      <div>
+      <div className="no-print">
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <FileSpreadsheet className="w-6 h-6 text-sky-500" />Finance Reports
         </h2>
-        </div>
+      </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* KPI Cards (Hidden in Print) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 no-print">
         <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Today's Collection</span>
           <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">{formatCurrency(todayCollection)}</h4>
@@ -457,8 +457,8 @@ export const FinanceReportsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Report Selector & Filter Panel */}
-      <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+      {/* Report Selector & Filter Panel (Hidden in Print) */}
+      <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 no-print">
         <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Report Selection & Parameters</h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

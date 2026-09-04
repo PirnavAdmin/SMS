@@ -53,7 +53,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 pb-1 select-none border-t border-slate-200/80 dark:border-slate-800/80 ${className}`}>
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 pb-1 select-none border-t border-slate-200/80 dark:border-slate-800/80 no-print print:hidden ${className}`}>
       {/* Left side: Showing X to Y of Z records */}
       <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
         Showing <span className="font-black text-slate-800 dark:text-slate-200">{startItem}</span> to{' '}
