@@ -10,6 +10,7 @@ import { DataProvider, useData } from "./context/DataContext";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { GlobalSearchModal } from "./components/common/GlobalSearchModal";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { LandingView } from "./components/modules/Auth/LandingView";
 import { LoginView } from "./components/modules/Auth/LoginView";
 import { ProfileCompletionView } from "./components/modules/Auth/ProfileCompletionView";
@@ -575,21 +576,23 @@ const MainLayout: React.FC = () => {
 
 export function App() {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <HostelProvider>
-            <ExaminationProvider>
-              <HRProvider>
-                <DataProvider>
-                  <MainLayout />
-                </DataProvider>
-              </HRProvider>
-            </ExaminationProvider>
-          </HostelProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <HostelProvider>
+              <ExaminationProvider>
+                <HRProvider>
+                  <DataProvider>
+                    <MainLayout />
+                  </DataProvider>
+                </HRProvider>
+              </ExaminationProvider>
+            </HostelProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -1056,7 +1056,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 </span>
               </div>
               <div 
-                onClick={isLibrarian ? undefined : () => onNavigate('fees')} 
+                onClick={isLibrarian ? undefined : () => onNavigate('finance-fee-collection')} 
                 className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Fee Concessions</span>
