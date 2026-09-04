@@ -80,10 +80,9 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       .map(c => typeof c === 'string' ? c : (c.name || (c as any).categoryName || (c as any).category || ''))
       .filter(cName => {
         if (!cName) return false;
-        const lower = cName.toLowerCase();
-        const isBasePkg = (lower.includes('boys') || lower.includes('girls')) && (lower.includes('package') || lower.includes('kit'));
-        const isClothPkg = lower.includes('unstitched') || lower.includes('cloth') || lower.includes('fabric');
-        return !isBasePkg && !isClothPkg;
+        const lower = cName.toLowerCase().trim();
+        const isBasePkg = (lower.includes('boys base') || lower.includes('girls base')) && (lower.includes('package') || lower.includes('kit'));
+        return !isBasePkg;
       })
   ));
 

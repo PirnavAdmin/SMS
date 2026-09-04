@@ -111,18 +111,16 @@ export const FinanceUniformConfigView: React.FC = () => {
     ];
     baseList.forEach(b => basePackagesMap.set(b.name.toLowerCase().trim(), b));
 
-    const isBaseItem = (name: string) => {
+    const isExcludedFromAdditional = (name: string) => {
       const lower = name.toLowerCase().trim();
-      return lower.includes('boys base package') ||
-             lower.includes('girls base package') ||
-             lower === 'cloth' ||
-             lower === 'cloth / fabric package' ||
-             lower === 'cloth/fabric package' ||
-             lower === 'cloth package' ||
-             lower === 'fabric package';
+      if (lower.includes('boys') || lower.includes('girls')) return true;
+      if (lower.includes('base package') || lower.includes('admission kit')) return true;
+      if (lower === 'uniform package' || lower === 'package' || lower.includes('package(')) return true;
+      if (lower === 'cloth' || lower.includes('cloth package') || lower.includes('fabric package')) return true;
+      return false;
     };
 
-    // 2. Additional Items from uniformCategories
+    // 2. Items from uniformCategories
     (uniformCategories || []).forEach(cat => {
       const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
       if (!rawName) return;
@@ -131,12 +129,12 @@ export const FinanceUniformConfigView: React.FC = () => {
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      if (!isBaseItem(lower) && !additionalItemsMap.has(lower)) {
+      if (!isExcludedFromAdditional(rawName) && !additionalItemsMap.has(lower)) {
         additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
       }
     });
 
-    // 3. Additional Items from uniforms catalog
+    // 3. Items from uniforms catalog
     (uniforms || []).forEach(u => {
       if (!u) return;
       const rawName = (u.category || (u as any).name || (u as any).itemName || '').trim();
@@ -146,32 +144,8 @@ export const FinanceUniformConfigView: React.FC = () => {
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      if (!isBaseItem(lower) && !additionalItemsMap.has(lower)) {
+      if (!isExcludedFromAdditional(rawName) && !additionalItemsMap.has(lower)) {
         additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
-      }
-    });
-
-    // Default standard additional items
-    const defaultAdditionalNames = [
-      'Sports Uniform Kit',
-      'Sports Tracksuit Kit',
-      'Tracksuit Kit',
-      'Shirt',
-      'Trousers',
-      'Skirt',
-      'Blazer',
-      'Sweater',
-      'Shoes',
-      'Socks',
-      'Tie',
-      'Belt',
-      'Cap'
-    ];
-
-    defaultAdditionalNames.forEach(name => {
-      const lower = name.toLowerCase().trim();
-      if (!isBaseItem(lower) && !additionalItemsMap.has(lower)) {
-        additionalItemsMap.set(lower, { name, defaultGender: 'Unisex' });
       }
     });
 
