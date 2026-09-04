@@ -15,6 +15,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { StudentFormModal } from './StudentFormModal';
 import { StudentProfileDrawer } from './StudentProfileDrawer';
 import { PromoteStudentModal } from './PromoteStudentModal';
@@ -1307,7 +1308,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           </div>
 
           {/* STUDENT ROSTER TABLE (EXACT COLUMNS REQUESTED) */}
-          <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs p-4 print:p-0 print:border-none">
+            <SchoolPrintHeader
+              title={`Student Roster - ${selectedClass === 'All' ? 'All Classes' : selectedClass}${selectedSection ? ` (Section ${selectedSection})` : ''}`}
+              subtitle={`Total Filtered Students: ${filteredRoster.length}`}
+            />
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>

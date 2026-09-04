@@ -4,6 +4,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 
@@ -472,8 +473,9 @@ export const HostelReportsView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md space-y-3 p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div id="printable-content" className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md space-y-3 p-4">
+          <SchoolPrintHeader title={`Hostel Report - ${effectiveReportName}`} subtitle={`Total Records: ${reportData.length}`} />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3 no-print">
             <h3 className="font-black text-base text-slate-900 dark:text-white">{effectiveReportName}</h3>
             <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950 px-3 py-1 rounded-full">
               Total Records: {reportData.length}

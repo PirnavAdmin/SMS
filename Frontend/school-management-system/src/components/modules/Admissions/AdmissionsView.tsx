@@ -47,6 +47,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { DateInput } from "../../common/DateInput";
 import { Pagination } from "../../common/Pagination";
+import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import {
   validate10DigitPhone,
@@ -2964,7 +2965,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      1. Father Mobile <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      Father Mobile <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -2986,7 +2987,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      2. Mother Mobile
+                      Mother Mobile
                     </label>
                     <input
                       type="text"
@@ -3005,7 +3006,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      3. Alternate Mobile
+                      Alternate Mobile
                     </label>
                     <input
                       type="text"
@@ -3026,7 +3027,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      4. Email Address
+                      Email Address
                     </label>
                     <input
                       type="text"
@@ -4336,8 +4337,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       </div>
 
       {/* Applications Table Format View */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="overflow-x-auto p-4">
+      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 print:p-0 print:border-none">
+        <SchoolPrintHeader
+          title="Admissions Applications Register"
+          subtitle={`Total Records: ${filteredAdmissions.length}`}
+        />
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">

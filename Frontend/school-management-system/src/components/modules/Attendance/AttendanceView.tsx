@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { exportToExcel } from '../../../utils/excelExport';
 import { Pagination } from '../../common/Pagination';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -778,7 +779,11 @@ export const AttendanceView = () => {
  
             {/* Table View Toggle */}
             {dateMode === 'Daily' ? (
-              <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden mt-2">
+              <div id="printable-content" className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden mt-2 p-4 print:p-0 print:border-none">
+                <SchoolPrintHeader
+                  title={`Daily Attendance Register - Class ${selectedClass} (${selectedSection})`}
+                  subtitle={`Date: ${selectedDate}`}
+                />
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">

@@ -32,6 +32,7 @@ import { ConfirmModal } from "../../common/ConfirmModal";
 import { StaffFormModal } from "./StaffFormModal";
 import { StaffProfileDrawer } from "./StaffProfileDrawerEnhanced";
 import { Pagination } from "../../common/Pagination";
+import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { DocumentRequirementMasterModal } from "./DocumentRequirementMasterModal";
 import {
   normalizeStaffType,
@@ -887,7 +888,11 @@ export const StaffList: React.FC<{
       </div>
 
       {/* Directory Table Grid */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm p-4 print:p-0 print:border-none">
+        <SchoolPrintHeader
+          title={`Faculty & Staff Directory${activeTab ? ` - ${activeTab}` : ''}`}
+          subtitle={`Total Filtered Staff: ${filteredStaff.length}`}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>

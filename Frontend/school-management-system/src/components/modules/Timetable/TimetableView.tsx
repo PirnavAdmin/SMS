@@ -10,6 +10,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { AutoTimetableGeneratorModal } from './AutoTimetableGeneratorModal';
 import { 
   fetchPeriodsApi, savePeriodApi, deletePeriodApi,
@@ -1451,19 +1452,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       {/* TAB 1: CLASS TIMETABLE (WEEKLY GRID) */}
       {activeTab === 'class-timetable' && (
         <div id="printable-content" className="space-y-4 timetable-printable">
-          <div className="hidden print:block pb-3 mb-2 border-b-2 border-slate-800">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-900">PIRNAV SCHOOLS</h1>
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Class Timetable • Academic Year {academicYear}</p>
-              </div>
-              <div className="text-right">
-                <span className="inline-block px-3 py-1 bg-slate-100 text-xs font-black text-slate-900 border border-slate-300 rounded-lg">
-                  {selectedClass} — Section {selectedSection}
-                </span>
-              </div>
-            </div>
-          </div>
+          <SchoolPrintHeader
+            title={`Class Timetable - ${selectedClass} (Section ${selectedSection})`}
+            subtitle={`Academic Session: ${academicYear}`}
+          />
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print">
             <div className="flex flex-wrap items-center gap-3">
               {/* Class Selector */}
@@ -2039,10 +2031,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       {/* TAB 3: TEACHER TIMETABLE */}
       {activeTab === 'teacher-timetable' && (
         <div id="printable-content" className="space-y-6 timetable-printable">
-          <div className="hidden print:block mb-4 text-center border-b pb-4">
-            <h1 className="text-2xl font-black">Teacher Timetable</h1>
-            <p className="text-sm font-bold text-slate-600 mt-2">Teacher: {selectedTeacherName} | Year: {academicYear}</p>
-          </div>
+          <SchoolPrintHeader
+            title={`Teacher Timetable - ${selectedTeacherName}`}
+            subtitle={`Academic Session: ${academicYear}`}
+          />
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 no-print">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Teacher:</label>
