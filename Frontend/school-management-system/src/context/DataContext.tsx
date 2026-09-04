@@ -464,7 +464,7 @@ const initialClasses: AcademicClass[] = [
     sections: ["A", "B"],
     sectionTeachers: { A: "Sarah Jenkins", B: "Jonathan Miller" },
     teacher: "Sarah Jenkins",
-    subjects: ["Mathematics", "Physics", "Chemistry", "English", "History"],
+    subjects: ["Social Studies", "Physics", "Chemistry", "English", "History"],
   },
   {
     id: "CL-10",

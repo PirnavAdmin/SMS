@@ -128,15 +128,12 @@ export const HomeworkView: React.FC = () => {
     const adminSubs = (teacherAssignments || [])
       .filter((ta: any) => {
         if (!ta || !ta.subject) return false;
-        const taName = (ta.teacherName || '').toLowerCase();
-        const tFirstName = (dbTeacher.firstName || '').toLowerCase().trim();
-        const tLastName = (dbTeacher.lastName || '').toLowerCase().trim();
+        const taName = (ta.teacherName || '').toLowerCase().trim();
         const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+        const tId = String(dbTeacher.id || (dbTeacher as any).empId || '');
 
-        return (tFullName && taName.includes(tFullName)) || 
-          (tFirstName.length > 2 && taName.includes(tFirstName)) ||
-          (tLastName.length > 2 && taName.includes(tLastName)) ||
-          (ta.teacherId && (String(ta.teacherId) === String(dbTeacher.id) || String(ta.teacherId) === String((dbTeacher as any).empId)));
+        return (tFullName && (taName === tFullName || taName.includes(tFullName))) ||
+          (ta.teacherId && String(ta.teacherId) === tId);
       })
       .map((ta: any) => ta.subject)
       .filter(Boolean);
@@ -315,7 +312,7 @@ export const HomeworkView: React.FC = () => {
       title: '',
       className: classOptions[0] || 'Class 10',
       section: teacherAssignedClasses[0]?.split('-')[1] || 'A',
-      subject: subjectOptions[0] || 'Mathematics',
+      subject: formSubjectOptions[0] || 'Social Studies',
       teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
       assignedDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
@@ -433,8 +430,132 @@ export const HomeworkView: React.FC = () => {
     }
 
     const arr = Array.from(set).filter(Boolean).sort();
-    return arr.length > 0 ? arr : ['A', 'B'];
+    return arr;
   }, [filterClass, teacherAssignedClasses, teacherAssignments, students, academicClasses]);
+
+  // Dynamically resolve section options for selected class in modal
+  const formSectionOptions = useMemo(() => {
+    const targetCls = cleanClassName(formData.className || '');
+    const set = new Set<string>();
+
+    (academicClasses || []).forEach(c => {
+      if (cleanClassName(c.name || '') === targetCls && c.sections && Array.isArray(c.sections)) {
+        c.sections.forEach((s: string) => {
+          const clean = cleanSectionName(s);
+          if (clean) set.add(clean);
+        });
+      }
+    });
+
+    (teacherAssignments || []).forEach((ta: any) => {
+      if (cleanClassName(ta.className || '') === targetCls && ta.section) {
+        const clean = cleanSectionName(ta.section);
+        if (clean) set.add(clean);
+      }
+    });
+
+    (students || []).forEach((s: any) => {
+      if (cleanClassName(s.className || '') === targetCls && s.section) {
+        const clean = cleanSectionName(s.section);
+        if (clean) set.add(clean);
+      }
+    });
+
+    teacherAssignedClasses.forEach((c: string) => {
+      const parts = c.split('-');
+      if (cleanClassName(parts[0]) === targetCls && parts[1]) {
+        const clean = cleanSectionName(parts[1]);
+        if (clean) set.add(clean);
+      }
+    });
+
+    const result = Array.from(set).filter(Boolean).sort();
+    return result;
+  }, [formData.className, academicClasses, teacherAssignments, students, teacherAssignedClasses]);
+
+  useEffect(() => {
+    if (formSectionOptions.length > 0 && !formSectionOptions.includes(cleanSectionName(formData.section || ''))) {
+      setFormData(prev => ({ ...prev, section: formSectionOptions[0] }));
+    }
+  }, [formSectionOptions]);
+
+  // Dynamically resolve subject options for the selected class and section in modal
+  const formSubjectOptions = useMemo(() => {
+    const targetCls = cleanClassName(formData.className || '');
+    const targetSec = cleanSectionName(formData.section || '');
+    const set = new Set<string>();
+
+    const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+    const tDept = (dbTeacher.department || (dbTeacher as any).primarySubject || '').toLowerCase().trim();
+    const tId = String(dbTeacher.id || (dbTeacher as any).empId || '');
+    const isMathTeacher = tDept.includes('math');
+
+    // 1. Filter teacherAssignments for target class & section matching teacher
+    (teacherAssignments || []).forEach((ta: any) => {
+      if (!ta || !ta.subject) return;
+      const clsMatch = cleanClassName(ta.className || '') === targetCls;
+      const secMatch = !targetSec || cleanSectionName(ta.section || '') === targetSec;
+
+      if (clsMatch && secMatch) {
+        const taName = (ta.teacherName || '').toLowerCase().trim();
+        const matchesTeacher = (tFullName && (taName === tFullName || taName.includes(tFullName))) ||
+          (ta.teacherId && String(ta.teacherId) === tId);
+        
+        if (matchesTeacher || role === 'Super Admin' || role === 'School Admin') {
+          set.add(ta.subject);
+        }
+      }
+    });
+
+    if (set.size > 0) {
+      const res = Array.from(set);
+      return isMathTeacher ? res : res.filter(s => !s.toLowerCase().includes('math'));
+    }
+
+    // 2. Filter existing homework entries for target class & section matching teacher
+    (homework || []).forEach((hw: any) => {
+      if (!hw || !hw.subject) return;
+      const clsMatch = cleanClassName(hw.className || '') === targetCls;
+      const secMatch = !targetSec || cleanSectionName(hw.section || '') === targetSec;
+      if (clsMatch && secMatch) {
+        const hwTeacher = (hw.teacherName || '').toLowerCase().trim();
+        const isMatch = (tFullName && (hwTeacher === tFullName || hwTeacher.includes(tFullName))) ||
+          role === 'Super Admin' || role === 'School Admin';
+        if (isMatch) {
+          set.add(hw.subject);
+        }
+      }
+    });
+
+    if (set.size > 0) {
+      const res = Array.from(set);
+      return isMathTeacher ? res : res.filter(s => !s.toLowerCase().includes('math'));
+    }
+
+    // 3. Fallback to teacher's assigned subjects
+    if (assignedSubjects.length > 0) {
+      const res = assignedSubjects.filter(s => Boolean(s));
+      const filtered = isMathTeacher ? res : res.filter(s => !s.toLowerCase().includes('math'));
+      if (filtered.length > 0) return filtered;
+    }
+
+    // 4. Fallback to academicClasses for targetCls
+    const clsObj = (academicClasses || []).find((c: any) => cleanClassName(c.name || '') === targetCls);
+    if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
+      const rawSubs = clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.subjectName || s.name || s.subjectCode || ''));
+      const clean = rawSubs.filter(Boolean);
+      const filtered = clean.filter((s: string) => isMathTeacher || !s.toLowerCase().includes('math'));
+      if (filtered.length > 0) return Array.from(new Set<string>(filtered));
+    }
+
+    return ['Social Studies'];
+  }, [formData.className, formData.section, dbTeacher, teacherAssignments, homework, assignedSubjects, academicClasses, role]);
+
+  useEffect(() => {
+    if (formSubjectOptions.length > 0 && !formSubjectOptions.includes(formData.subject)) {
+      setFormData(prev => ({ ...prev, subject: formSubjectOptions[0] }));
+    }
+  }, [formSubjectOptions]);
 
   const handleClassFilterChange = (newClass: string) => {
     setFilterClass(newClass);
@@ -745,19 +866,8 @@ export const HomeworkView: React.FC = () => {
                     onChange={e => setFormData({ ...formData, section: e.target.value })} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
-                    {Array.from(new Set(
-                      students
-                        .filter(s => cleanClassName(s.className) === cleanClassName(formData.className || ''))
-                        .map(s => cleanSectionName(s.section))
-                        .concat(
-                          teacherAssignedClasses
-                            .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(formData.className || ''))
-                            .map(c => cleanSectionName(c.split('-')[1]))
-                        )
-                        .concat(['A', 'B'])
-                        .filter(Boolean)
-                    )).map(sec => (
-                      <option key={sec} value={sec}>Sec {sec}</option>
+                    {formSectionOptions.map(sec => (
+                      <option key={sec} value={sec}>{sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`}</option>
                     ))}
                   </select>
                 </div>
@@ -768,7 +878,7 @@ export const HomeworkView: React.FC = () => {
                     onChange={e => setFormData({ ...formData, subject: e.target.value })} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
-                    {subjectOptions.map(s => (
+                    {formSubjectOptions.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
