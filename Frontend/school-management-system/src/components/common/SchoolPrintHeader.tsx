@@ -29,37 +29,37 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
 
   return (
     <div className={`w-full pb-4 mb-6 border-b-2 border-slate-900 ${showAlways ? 'block' : 'hidden print:block'} ${className}`}>
-      <div className="flex flex-col items-center justify-center text-center gap-2">
+      <div className="flex flex-row items-center justify-between gap-5">
         {/* School Logo */}
         <div className="shrink-0">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt={schoolName}
-              className="w-16 h-16 object-contain rounded-xl mx-auto"
+              className="w-28 h-28 sm:w-32 sm:h-32 object-contain rounded-xl"
             />
           ) : (
-            <div className="flex items-center justify-center gap-2 px-4 py-1.5 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-xs mx-auto">
-              <GraduationCap className="w-6 h-6 text-sky-600 dark:text-sky-400" />
-              <span className="text-xl font-black italic tracking-wider text-sky-700 dark:text-sky-400">
-                PIRNAV <span className="text-[9px] font-bold tracking-widest uppercase block text-sky-600 text-center not-italic">SCHOOLS</span>
+            <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-xs">
+              <GraduationCap className="w-12 h-12 text-sky-600 dark:text-sky-400 shrink-0" />
+              <span className="text-2xl font-black italic tracking-wider text-sky-700 dark:text-sky-400">
+                PIRNAV <span className="text-[11px] font-bold tracking-widest uppercase block text-sky-600 text-center not-italic">SCHOOLS</span>
               </span>
             </div>
           )}
         </div>
 
         {/* School Profile Details */}
-        <div className="text-center font-sans space-y-0.5">
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-wide text-center">
+        <div className="text-center font-sans space-y-1 flex-1 pr-2">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-wider text-center">
             {schoolName}
           </h1>
           {tagline && (
-            <p className="text-xs font-bold text-sky-700 dark:text-sky-400 italic text-center">{tagline}</p>
+            <p className="text-xs sm:text-sm font-bold text-sky-700 dark:text-sky-400 italic text-center">{tagline}</p>
           )}
-          <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 text-center">
+          <p className="text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-300 text-center max-w-2xl mx-auto">
             {address}
           </p>
-          <div className="flex items-center justify-center gap-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 flex-wrap">
+          <div className="flex items-center justify-center gap-3 text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 flex-wrap text-center">
             <span>Ph: {phone}</span>
             <span>•</span>
             <span>Email: {email}</span>

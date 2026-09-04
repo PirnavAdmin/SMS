@@ -9,6 +9,7 @@ import { LeaveApplication, LeaveType, Holiday, Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
@@ -28,7 +29,8 @@ export const LeaveManagementView: React.FC = () => {
     leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType,
     leaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
     holidays, addHoliday, updateHoliday, deleteHoliday,
-    fetchLeaveTypes, fetchLeaveApplications, fetchLeaveBalances
+    fetchLeaveTypes, fetchLeaveApplications, fetchLeaveBalances,
+    schoolProfile
   } = useData();
 
   useEffect(() => {
@@ -466,16 +468,29 @@ export const LeaveManagementView: React.FC = () => {
   const handlePrintApplication = (app: LeaveApplication) => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
+      const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
+      const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
+      const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
+      const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
+      const phone = schoolProfile?.phone || '+91 9123456789';
+      const email = schoolProfile?.email || 'contact@pirnavschools.edu';
+      const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+
       printWindow.document.write(`
         <html>
           <head>
             <title>Leave Application Slip - ${app.employeeName}</title>
             <style>
               body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 35px; color: #1e293b; line-height: 1.5; }
-              .header { text-align: center; border-bottom: 3px double #0284c7; padding-bottom: 20px; margin-bottom: 25px; }
-              .logo { font-size: 24px; font-weight: 900; color: #0369a1; letter-spacing: 1px; }
-              .sub-logo { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 3px; }
-              .title { font-size: 15px; font-weight: 800; color: #0f172a; margin-top: 15px; background: #f0f9ff; display: inline-block; padding: 6px 18px; border-radius: 6px; border: 1px solid #bae6fd; }
+              .header-container { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px; }
+              .school-logo { width: 110px; height: 110px; object-fit: contain; flex-shrink: 0; border-radius: 14px; }
+              .school-details { flex: 1; text-align: center; }
+              .school-name { font-size: 24px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.8px; margin: 0; text-align: center; }
+              .school-tagline { font-size: 12px; font-weight: 700; color: #0369a1; font-style: italic; margin-top: 2px; text-align: center; }
+              .school-address { font-size: 11px; font-weight: 600; color: #475569; margin-top: 3px; text-align: center; }
+              .school-meta { font-size: 10px; font-weight: 700; color: #64748b; margin-top: 4px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; text-align: center; }
+              .title-bar { text-align: center; margin-top: 14px; margin-bottom: 20px; }
+              .title { font-size: 14px; font-weight: 900; color: #0f172a; background: #f0f9ff; display: inline-block; padding: 6px 18px; border-radius: 6px; border: 1px solid #bae6fd; text-transform: uppercase; }
               .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; font-size: 13px; }
               .card { background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; }
               .label { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
@@ -485,10 +500,17 @@ export const LeaveManagementView: React.FC = () => {
             </style>
           </head>
           <body>
-            <div class="header">
-              <div class="logo">PIRNAV EDUCATIONAL INSTITUTION</div>
-              <div class="sub-logo">Human Resource & Administrative Management</div>
-              <div class="title">OFFICIAL LEAVE APPLICATION SLIP</div>
+            <div class="header-container">
+              ${logoUrl ? `<img src="${logoUrl}" alt="${schoolName}" class="school-logo" />` : `<div style="width:100px; height:100px; background:#0284c7; color:#ffffff; border-radius:16px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:36px; flex-shrink:0;">P</div>`}
+              <div class="school-details">
+                <h1 class="school-name">${schoolName}</h1>
+                ${tagline ? `<div class="school-tagline">${tagline}</div>` : ''}
+                <div class="school-address">${address}</div>
+                <div class="school-meta">Ph: ${phone} • Email: ${email} • Acad. Year: ${academicYearStr}</div>
+              </div>
+            </div>
+            <div class="title-bar">
+              <div class="title">Official Leave Application Slip</div>
             </div>
             
             <div class="grid">

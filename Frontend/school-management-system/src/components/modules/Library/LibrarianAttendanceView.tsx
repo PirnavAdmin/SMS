@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Pagination } from '../../common/Pagination';
+import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import * as LibraryAPI from '../../../api/library';
 
 import { exportToExcel } from '../../../utils/excelExport';
@@ -574,12 +575,10 @@ export const LibrarianAttendanceView: React.FC = () => {
 
       {/* Printable Area for Filtered Librarian Attendance Logs */}
       <div id="printable-content" className="hidden print:block space-y-4 p-4">
-        <div className="text-center border-b pb-3 mb-4">
-          <h1 className="text-lg font-black uppercase text-slate-900">Pirnav Schools — Librarian Attendance Report</h1>
-          <p className="text-xs text-slate-600 font-medium mt-1">
-            Filter View: <strong className="uppercase">{attendanceViewMode}</strong> ({selectedAttendanceDate}) • Total Logs: <strong>{filteredAttendance.length}</strong>
-          </p>
-        </div>
+        <SchoolPrintHeader
+          title="Librarian Attendance Report"
+          subtitle={`Filter View: ${attendanceViewMode.toUpperCase()} (${selectedAttendanceDate}) • Total Logs: ${filteredAttendance.length}`}
+        />
 
         <table className="w-full text-left text-xs border-collapse border border-slate-300">
           <thead>
