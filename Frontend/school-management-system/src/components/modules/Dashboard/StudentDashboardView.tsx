@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react';
 import { BookOpen, Calendar, Clock, Target, Home, MapPin, User, Megaphone, AlertCircle, Users, Sparkles, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';

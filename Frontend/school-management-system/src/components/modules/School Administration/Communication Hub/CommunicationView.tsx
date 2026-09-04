@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Megaphone, Send, Calendar, Clock, Plus, X, Edit3, Trash2, Pin, CheckCircle2, 

@@ -31,7 +31,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     isPackage: true
   });
 
-  const [categorySelections, setCategorySelections] = useState<{ [catName: string]: { selected: boolean, quantity: string } }>({});
+  const [categorySelections, setCategorySelections] = useState<{ [catName: string]: { selected: boolean; quantity: string; size?: string; meterRange?: string } }>({});
   const [packageSizeStock, setPackageSizeStock] = useState<{ [sz: string]: number }>({
     'XS': 30,
     'S': 50,

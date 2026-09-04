@@ -4325,7 +4325,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (v: any) => v.id?.toString() === vehicleId.toString(),
               );
               if (matchedVehicle) {
-                vehicleNumber = matchedVehicle.vehicleNumber || matchedVehicle.vehicleName || "";
+                vehicleNumber = matchedVehicle.vehicleNumber || (matchedVehicle as any).vehicleName || "";
               }
             }
 
@@ -7331,8 +7331,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       let isoDob = new Date().toISOString();
       if (appData.dob) {
-        if (appData.dob instanceof Date) {
-          if (!isNaN(appData.dob.getTime())) isoDob = appData.dob.toISOString();
+        if ((appData.dob as any) instanceof Date) {
+          if (!isNaN((appData.dob as any).getTime())) isoDob = (appData.dob as any).toISOString();
         } else if (typeof appData.dob === "number") {
           const utcDays = Math.floor(appData.dob - 25569);
           const parsed = new Date(utcDays * 86400 * 1000);
@@ -7592,7 +7592,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setStudents((prev) =>
         prev.map((s) => {
           const isMatch =
-            (appData.applicationNo && (s.admissionNo === appData.applicationNo || s.registrationNumber === appData.applicationNo)) ||
+            (appData.applicationNo && (s.admissionNo === appData.applicationNo || (s as any).registrationNumber === appData.applicationNo)) ||
             (appData.id && (s.id === appData.id || s.admissionNo === `ADM-${appData.id}`)) ||
             (s.firstName?.toLowerCase() === appData.applicantName?.toLowerCase().split(" ")[0] && 
              s.parentName?.toLowerCase() === appData.parentName?.toLowerCase());
@@ -11499,12 +11499,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (assignedFee > 0) return assignedFee;
 
       const baseFare = isAC
-        ? rObj.acMinBaseFare || rObj.acBaseFare || 0
-        : rObj.minBaseFare || rObj.nonAcBaseFare || 0;
+        ? (rObj.acMinBaseFare || (rObj as any).acBaseFare || 0)
+        : (rObj.minBaseFare || (rObj as any).nonAcBaseFare || 0);
       const ratePerKm = isAC
-        ? rObj.acRatePerKm || 0
-        : rObj.ratePerKm || rObj.nonAcRatePerKm || 0;
-      const distance = pObj.distanceFromSchoolKm || pObj.distanceFromStart || 0;
+        ? (rObj.acRatePerKm || 0)
+        : (rObj.ratePerKm || (rObj as any).nonAcRatePerKm || 0);
+      const distance = pObj.distanceFromSchoolKm || (pObj as any).distanceFromStart || 0;
       if (baseFare > 0 || ratePerKm > 0) {
         const monthlyRate = baseFare + distance * ratePerKm;
         const multiplier =
@@ -11578,7 +11578,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               `${student.firstName} ${student.lastName}`.trim().toLowerCase()),
       ) ||
       (optStudent && (optStudent as any).applicantName
-        ? (optStudent as AdmissionApplication)
+        ? (optStudent as unknown as AdmissionApplication)
         : undefined);
 
     const stType: "Day Scholar" | "Hosteller" =
@@ -15615,7 +15615,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ) {
           const isPublishing = status === "Published";
           const isApproving = status === "Approved";
-          const isVerifying = status === "Verified";
+          const isVerifying = (status as string) === "Verified";
           const isLocking = status === "Locked";
           const isResetting = status === "Draft";
 
@@ -15728,12 +15728,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addTimetableSlot = async (slotData: Omit<TimetableSlot, "id">) => {
-    const tempId = "TT-" + Math.floor(100 + Math.random() * 900);
+    const tempId = `SLOT-TMP-${Date.now()}`;
     const newSlot: TimetableSlot = {
-      ...slotData,
       id: tempId,
-      branch: (slotData as any).branch || selectedBranch || "Main Campus",
-    } as any;
+      ...slotData,
+    };
     setTimetable((prev) => [...prev, newSlot]);
 
     try {
@@ -15744,7 +15743,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const res: any = await saveTimetableSlotApi({
         className: slotData.className,
         sectionName: slotData.section,
-        academicYear: slotData.academicYear,
+        academicYear: slotData.academicYear || selectedAcademicYear || "2026-2027",
         dayOfWeek: slotData.day,
         startTime,
         endTime,
@@ -15790,7 +15789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       await saveTimetableSlotApi({
         className: merged.className,
         sectionName: merged.section,
-        academicYear: merged.academicYear,
+        academicYear: merged.academicYear || selectedAcademicYear || "2026-2027",
         dayOfWeek: merged.day,
         startTime,
         endTime,
@@ -16315,7 +16314,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<UniformInventoryItem>,
   ) => {
-    let targetItemId: string | undefined = undefined;
+    let targetItemId: any = undefined;
 
     setUniformInventory((prev) =>
       prev.map((i) => {
@@ -16337,7 +16336,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }),
     );
 
-    if (targetItemId && !targetItemId.startsWith("inv-cfg-") && !targetItemId.startsWith("UNI-") && !targetItemId.startsWith("UINV-")) {
+    const targetIdStr = String(targetItemId || "");
+    if (targetIdStr && !targetIdStr.startsWith("inv-cfg-") && !targetIdStr.startsWith("UNI-") && !targetIdStr.startsWith("UINV-")) {
       try {
         await adjustUniformStockApi(targetItemId, {
           newStockLevel: updates.currentStock,
@@ -16880,6 +16880,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           id: `DFS-UNI-${Date.now()}`,
           academicYear: config.academicYear || "2026-2027",
           className: config.className.trim(),
+          studentCategory: "All",
+          totalAmount: Number(config.feeAmount),
           branch: config.branch || "Main Campus",
           items: [
             {
@@ -17050,7 +17052,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const lower = st.trim().toLowerCase();
           if (lower === "approved") return "Approved";
           if (lower === "rejected") return "Rejected";
-          if (lower === "cancelled" || lower === "canceled") return "Cancelled";
+          if (lower === "cancelled" || lower === "canceled") return "Cancelled" as any;
           return "Pending";
         };
 

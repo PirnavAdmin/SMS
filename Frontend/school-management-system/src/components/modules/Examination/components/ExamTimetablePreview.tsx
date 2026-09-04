@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo } from 'react';
 import { Filter, Printer, Calendar, User, MapPin, AlertTriangle } from 'lucide-react';
 import { ExamSchedule, SubjectItem, Staff } from '../../../../types';

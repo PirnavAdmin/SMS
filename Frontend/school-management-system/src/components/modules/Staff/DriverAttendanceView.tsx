@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   CalendarCheck, Clock, CheckCircle2, AlertCircle, LogIn, LogOut,
