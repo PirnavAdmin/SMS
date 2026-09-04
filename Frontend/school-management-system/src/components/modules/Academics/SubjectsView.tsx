@@ -50,7 +50,9 @@ export const SubjectsView: React.FC = () => {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 8;
+  const [pageSize, setPageSize] = useState(8);
+  const [deptPageSize, setDeptPageSize] = useState(8);
+  const [desigPageSize, setDesigPageSize] = useState(8);
 
   // Department State
   const [deptQuery, setDeptQuery] = useState('');
@@ -128,11 +130,11 @@ export const SubjectsView: React.FC = () => {
     setDesigCurrentPage(1);
   }, [desigQuery, desigCategoryFilter]);
 
-  const deptTotalPages = Math.ceil(filteredDepartments.length / pageSize) || 1;
-  const paginatedDepartments = filteredDepartments.slice((deptCurrentPage - 1) * pageSize, deptCurrentPage * pageSize);
+  const deptTotalPages = Math.ceil(filteredDepartments.length / deptPageSize) || 1;
+  const paginatedDepartments = filteredDepartments.slice((deptCurrentPage - 1) * deptPageSize, deptCurrentPage * deptPageSize);
 
-  const desigTotalPages = Math.ceil(filteredDesignations.length / pageSize) || 1;
-  const paginatedDesignations = filteredDesignations.slice((desigCurrentPage - 1) * pageSize, desigCurrentPage * pageSize);
+  const desigTotalPages = Math.ceil(filteredDesignations.length / desigPageSize) || 1;
+  const paginatedDesignations = filteredDesignations.slice((desigCurrentPage - 1) * desigPageSize, desigCurrentPage * desigPageSize);
 
 
   const loadSubjects = async () => {

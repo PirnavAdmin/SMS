@@ -890,8 +890,8 @@ export const StaffList: React.FC<{
       {/* Directory Table Grid */}
       <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm p-4 print:p-0 print:border-none">
         <SchoolPrintHeader
-          title={`Faculty & Staff Directory${activeTab ? ` - ${activeTab}` : ''}`}
-          subtitle={`Total Filtered Staff: ${filteredStaff.length}`}
+          title={`Faculty & Staff Directory${activeCategory ? ` - ${activeCategory}` : ''}`}
+          subtitle={`Total Filtered Staff: ${sorted.length}`}
         />
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">

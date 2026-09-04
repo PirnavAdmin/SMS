@@ -782,7 +782,7 @@ export const AttendanceView = () => {
               <div id="printable-content" className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden mt-2 p-4 print:p-0 print:border-none">
                 <SchoolPrintHeader
                   title={`Daily Attendance Register - Class ${selectedClass} (${selectedSection})`}
-                  subtitle={`Date: ${selectedDate}`}
+                  subtitle={`Date: ${date}`}
                 />
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
