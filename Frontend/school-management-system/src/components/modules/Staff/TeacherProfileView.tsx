@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Mail, Phone, Building, GraduationCap, Briefcase, MapPin, Calendar, 
   Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2
@@ -9,7 +9,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 
 export const TeacherProfileView: React.FC = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { staff = [], teacherAssignments = [], timetable = [], updateStaff } = useData();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -55,14 +55,14 @@ export const TeacherProfileView: React.FC = () => {
     const rawName = user?.name || (firstStaff ? `${firstStaff.firstName} ${firstStaff.lastName}` : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return firstStaff || {
-      id: user?.id || (user as any)?.empId || 'STF-001',
-      empId: (user as any)?.empId || user?.id || 'STF-001',
-      firstName: nameParts[0] || 'Faculty',
-      lastName: nameParts.slice(1).join(' ') || 'Member',
+      id: user?.id || (user as any)?.empId || 'STF-2026-0009',
+      empId: (user as any)?.empId || user?.id || 'STF-2026-0009',
+      firstName: nameParts[0] || 'Sutej',
+      lastName: nameParts.slice(1).join(' ') || 'Kola',
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
-      department: (user as any)?.department || 'Academics',
+      department: (user as any)?.department || 'Social Studies',
       designation: (user as any)?.designation || 'Teacher',
       qualification: (user as any)?.qualification || 'Academic Qualification Completed',
       experience: (user as any)?.experience || 'Teaching Experience'
@@ -111,7 +111,7 @@ export const TeacherProfileView: React.FC = () => {
         const taName = (ta.teacherName || '').toLowerCase();
         return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
       })
-      .map(ta => ta.className ? (ta.className.startsWith('Class ') ? ta.className.split('-')[0].trim() : `Class ${ta.className.split('-')[0].trim()}`) : null);
+      .map(ta => ta.className ? (ta.className.startsWith('Class ') ? ta.className : `Class ${ta.className}`) : null);
 
     const fromTimetable = timetable
       .filter(t => {
@@ -186,15 +186,15 @@ export const TeacherProfileView: React.FC = () => {
     return merged.length > 0 ? merged : [defaultSub];
   }, [dbTeacher, user, teacherAssignments, timetable]);
 
-  // User-scoped Local Storage key for Teacher self-edits
+  // User-scoped Local Storage key for Teacher self-edits (using stable ID/email)
   const userStorageKey = useMemo(() => {
-    const idStr = (user?.email || user?.id || user?.name || 'default').toLowerCase().trim();
+    const idStr = (user?.id || user?.email || dbTeacher?.id || 'STF-2026-0009').toLowerCase().trim();
     return `teacher_self_profile_edits_${idStr}`;
-  }, [user]);
+  }, [user, dbTeacher]);
 
   const [localEdit, setLocalEdit] = useState<any>(() => {
     try {
-      const idStr = (user?.email || user?.id || user?.name || 'default').toLowerCase().trim();
+      const idStr = (user?.id || user?.email || dbTeacher?.id || 'STF-2026-0009').toLowerCase().trim();
       const scopedKey = `teacher_self_profile_edits_${idStr}`;
       const saved = localStorage.getItem(scopedKey);
       if (saved) return JSON.parse(saved);
@@ -205,14 +205,13 @@ export const TeacherProfileView: React.FC = () => {
   // Reactive teacher profile construction merging Admin master data & teacher edits
   const profile = useMemo(() => {
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || 'Faculty Member').split(' ');
-    const defaultFullName = dbFullName || `${nameParts[0] || 'Faculty'} ${nameParts.slice(1).join(' ') || 'Member'}`.trim();
+    const defaultFullName = dbFullName || user?.name || 'Sutej Kola';
     const fallbackDept = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'General';
 
     return {
       staffId: dbTeacher?.id || (user as any)?.empId || user?.id || 'STF-2026-0009',
       employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0009',
-      fullName: localEdit?.fullName || defaultFullName,
+      fullName: localEdit?.fullName || dbFullName || user?.name || 'Sutej Kola',
       email: localEdit?.email || dbTeacher?.email || user?.email || 'suryatejakola12@gmail.com',
       mobile: localEdit?.mobile || dbTeacher?.phone || '98765432197',
       gender: localEdit?.gender || dbTeacher?.gender || 'Male',
@@ -234,6 +233,17 @@ export const TeacherProfileView: React.FC = () => {
       profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
     };
   }, [dbTeacher, user, dynamicAssignedClasses, dynamicAssignedSections, dynamicAssignedSubjects, localEdit]);
+
+  // Auto-sync active profile name to AuthContext user object if logged in user is this teacher
+  useEffect(() => {
+    if (user && profile.fullName && user.name !== profile.fullName) {
+      const updatedUser = { ...user, name: profile.fullName };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      } catch (e) {}
+    }
+  }, [profile.fullName, user, setUser]);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
