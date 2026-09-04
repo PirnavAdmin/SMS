@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 public interface IStaffService
 {
-    Task<string> GetNextEmployeeIdAsync();
+    Task<string> GetNextEmployeeIdAsync(string? category = null);
     Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department);
     Task<StaffResponseDto> GetStaffByIdAsync(int id);
     Task<List<StaffDropdownDto>> GetTeachersForDropdownAsync(string? search);

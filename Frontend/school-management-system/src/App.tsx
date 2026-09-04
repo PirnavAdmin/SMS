@@ -553,7 +553,7 @@ const MainLayout: React.FC = () => {
       />
 
       <main
-        className={`pt-18 pb-8 px-3 sm:px-4 transition-all duration-300 ${
+        className={`pt-18 pb-8 px-3 sm:px-4 transition-all duration-300 print:ml-0 print:m-0 print:p-0 print:w-full ${
           collapsed ? "ml-20" : "ml-64"
         }`}
       >

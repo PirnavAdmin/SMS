@@ -4,6 +4,7 @@ import { Clock, Calendar, BookOpen, User, Users, Search, Printer, Download, Spar
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { TimetableSlot } from '../../../types';
 import * as LibraryAPI from '../../../api/library';
 
@@ -12,7 +13,7 @@ export const LibraryTimetableView: React.FC = () => {
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
   const isReadOnlyAccess = !isLibrarian;
 
-  const { timetable, academicClasses, students, addTimetableSlot } = useData();
+  const { timetable, academicClasses, students, addTimetableSlot, schoolProfile } = useData();
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'today' | 'weekly-matrix' | 'class-view'>('today');
@@ -371,6 +372,14 @@ export const LibraryTimetableView: React.FC = () => {
       `;
     }
 
+    const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
+    const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
+    const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
+    const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
+    const phone = schoolProfile?.phone || '+91 9123456789';
+    const email = schoolProfile?.email || 'contact@pirnavschools.edu';
+    const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+
     const fullHtml = `
       <!DOCTYPE html>
       <html>
@@ -378,9 +387,16 @@ export const LibraryTimetableView: React.FC = () => {
           <title>${titleText}</title>
           <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; color: #0f172a; }
-            .header { border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-            .school-name { font-size: 20px; font-weight: 900; color: #0284c7; letter-spacing: 0.5px; }
-            .sub-title { font-size: 11px; color: #64748b; margin-top: 2px; }
+            .header-container { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px; }
+            .school-logo { width: 110px; height: 110px; object-fit: contain; flex-shrink: 0; border-radius: 14px; }
+            .school-details { flex: 1; text-align: center; }
+            .school-name { font-size: 24px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.8px; margin: 0; text-align: center; }
+            .school-tagline { font-size: 12px; font-weight: 700; color: #0369a1; font-style: italic; margin-top: 2px; text-align: center; }
+            .school-address { font-size: 11px; font-weight: 600; color: #475569; margin-top: 3px; text-align: center; }
+            .school-meta { font-size: 10px; font-weight: 700; color: #64748b; margin-top: 4px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; text-align: center; }
+            .report-title-bar { margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; }
+            .report-title { font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a; letter-spacing: 0.5px; }
+            .report-subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
             .footer { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 10px; color: #94a3b8; }
             @media print {
               body { margin: 10mm; }
@@ -388,19 +404,22 @@ export const LibraryTimetableView: React.FC = () => {
           </style>
         </head>
         <body>
-          <div class="header">
-            <div>
-              <div class="school-name">PIRNAV SCHOOLS</div>
-              <div class="sub-title">Central Digital Library Timetable & Period Schedule</div>
+          <div class="header-container">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${schoolName}" class="school-logo" />` : `<div style="width:100px; height:100px; background:#0284c7; color:#ffffff; border-radius:16px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:36px; flex-shrink:0;">P</div>`}
+            <div class="school-details">
+              <h1 class="school-name">${schoolName}</h1>
+              ${tagline ? `<div class="school-tagline">${tagline}</div>` : ''}
+              <div class="school-address">${address}</div>
+              <div class="school-meta">Ph: ${phone} • Email: ${email} • Acad. Year: ${academicYearStr}</div>
             </div>
-            <div style="text-align: right;">
-              <div style="font-size: 12px; font-weight: bold; color: #0f172a;">Academic Year: 2026–27</div>
-              <div style="font-size: 10px; color: #64748b;">Printed on: ${new Date().toLocaleDateString()}</div>
-            </div>
+          </div>
+          <div class="report-title-bar">
+            <div class="report-title">Central Digital Library Timetable & Period Schedule</div>
+            <div class="report-subtitle">Printed on: ${new Date().toLocaleDateString()}</div>
           </div>
           ${contentHtml}
           <div class="footer">
-            Generated by Pirnav School Management System • Central Digital Library Desk
+            Generated by ${schoolName} • Central Digital Library Desk
           </div>
           <script>
             window.onload = function() {

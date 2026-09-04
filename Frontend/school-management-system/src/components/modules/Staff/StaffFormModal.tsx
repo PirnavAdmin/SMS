@@ -139,6 +139,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       employeeCategory: value,
       department: "",
       designation: "",
+      empId: staffToEdit ? prev.empId : getNextEmployeeId(staff, value),
     }));
   };
 

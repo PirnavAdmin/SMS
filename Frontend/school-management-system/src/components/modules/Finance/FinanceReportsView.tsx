@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { ExportButton } from '../../common/ExportButton';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import * as FinanceAPI from '../../../api/finance';
@@ -25,26 +26,23 @@ const REPORTS_BY_CATEGORY: Record<ReportCategory, string[]> = {
     'Daily Collection',
     'Monthly Collection',
     'Yearly Collection',
-    'Term-wise Collection',
-    'Term-wise Outstanding',
-    'Overdue Collection',
-    'Upcoming Dues',
-    'Academic Year Collection',
-    'Outstanding by Academic Year',
-    'Branch Wise Collection',
-    'Class Wise Collection',
-    'Section Wise Collection',
-    'Collection Summary'
+    'Head-wise Collection',
+    'Defaulter List',
+    'Class-wise Collection',
+    'Outstanding Summary'
   ],
   'Student Reports': [
-    'Student Ledger',
-    'Pending Fees'
+    'Concession Report',
+    'Discount Report',
+    'Scholarship Report',
+    'Fee Structure Assign',
+    'Student Ledger'
   ],
   'Fee Reports': [
-    'Fee Head Wise Collection',
-    'Scholarship Report',
-    'Discount Report',
-    'Fine Report'
+    'Structure Matrix',
+    'Schedule Status',
+    'Fine Collection',
+    'Head Master'
   ],
   'Service Reports': [
     'Hostel Collection',
@@ -61,7 +59,8 @@ export const FinanceReportsView: React.FC = () => {
     studentScholarships,
     getStudentFeeOutstandingSummary,
     getStudentFeeLedger,
-    financeSettings
+    financeSettings,
+    schoolProfile
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
@@ -372,6 +371,14 @@ export const FinanceReportsView: React.FC = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
+    const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
+    const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
+    const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
+    const phone = schoolProfile?.phone || '+91 9123456789';
+    const email = schoolProfile?.email || 'contact@pirnavschools.edu';
+    const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+
     const headers = Object.keys(currentData[0] || {}).slice(0, 7);
     const rowsHtml = displayedData.map(row => `
       <tr>
@@ -384,16 +391,35 @@ export const FinanceReportsView: React.FC = () => {
         <head>
           <title>${generatedReportType} Report</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; }
-            h2 { margin-bottom: 5px; color: #0284c7; }
-            p { color: #64748b; font-size: 12px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th { background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; text-align: left; }
+            body { font-family: 'Segoe UI', sans-serif; padding: 20px; color: #1e293b; }
+            .header-container { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px; }
+            .school-logo { width: 110px; height: 110px; object-fit: contain; flex-shrink: 0; border-radius: 14px; }
+            .school-details { flex: 1; text-align: center; }
+            .school-name { font-size: 24px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.8px; margin: 0; text-align: center; }
+            .school-tagline { font-size: 12px; font-weight: 700; color: #0369a1; font-style: italic; margin-top: 2px; text-align: center; }
+            .school-address { font-size: 11px; font-weight: 600; color: #475569; margin-top: 3px; text-align: center; }
+            .school-meta { font-size: 10px; font-weight: 700; color: #64748b; margin-top: 4px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; text-align: center; }
+            .report-title-bar { margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; }
+            .report-title { font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a; }
+            .report-subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 16px; }
+            th { background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; text-align: left; font-weight: 800; }
           </style>
         </head>
         <body>
-          <h2>School ERP - ${generatedReportType}</h2>
-          <p>Generated Date: ${new Date().toLocaleDateString()} • Total Records: ${totalRecords} • Filtered Total: ${formatCurrency(totalAmountSum)}</p>
+          <div class="header-container">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${schoolName}" class="school-logo" />` : `<div style="width:100px; height:100px; background:#0284c7; color:#ffffff; border-radius:16px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:36px; flex-shrink:0;">P</div>`}
+            <div class="school-details">
+              <h1 class="school-name">${schoolName}</h1>
+              ${tagline ? `<div class="school-tagline">${tagline}</div>` : ''}
+              <div class="school-address">${address}</div>
+              <div class="school-meta">Ph: ${phone} • Email: ${email} • Acad. Year: ${academicYearStr}</div>
+            </div>
+          </div>
+          <div class="report-title-bar">
+            <div class="report-title">Finance Report — ${generatedReportType}</div>
+            <div class="report-subtitle">Generated Date: ${new Date().toLocaleDateString()} • Total Records: ${totalRecords} • Filtered Total: ${formatCurrency(totalAmountSum)}</div>
+          </div>
           <table>
             <thead>
               <tr>${headers.map(h => `<th>${h.toUpperCase()}</th>`).join('')}</tr>

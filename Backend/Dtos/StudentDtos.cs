@@ -115,13 +115,11 @@ public class StudentDetailsDto
 // Used when creating a student
 public class CreateStudentDto
 {
-    [Required]
     [MaxLength(50)]
-    public string AdmissionNumber { get; set; } = string.Empty;
+    public string? AdmissionNumber { get; set; }
 
-    [Required]
     [MaxLength(30)]
-    public string RollNumber { get; set; } = string.Empty;
+    public string? RollNumber { get; set; }
 
     [Required]
     [MaxLength(150)]
