@@ -494,6 +494,16 @@ using (var scope = app.Services.CreateScope())
                         cmd.ExecuteNonQuery();
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `OutTime` to `staff_attendances`.");
                     }
+
+                    // Upgrade SchoolSettings table to add IdSequenceSettingsJson column if not exists
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'IdSequenceSettingsJson';";
+                    var idSeqExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (idSeqExists == 0)
+                    {
+                        cmd.CommandText = "ALTER TABLE `SchoolSettings` ADD COLUMN `IdSequenceSettingsJson` longtext NULL;";
+                        cmd.ExecuteNonQuery();
+                        System.Console.WriteLine("[Database Schema Upgrade] Added column `IdSequenceSettingsJson` to `SchoolSettings`.");
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -511,6 +521,24 @@ using (var scope = app.Services.CreateScope())
         // Safe Schema Auto-Initialization for Core, Transport, Hostel & Timetable Modules
         var tableSqls = new[]
         {
+            @"CREATE TABLE IF NOT EXISTS `SchoolSettings` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `SchoolName` varchar(250) NOT NULL DEFAULT 'Pirnav Educational Institutions',
+                `Tagline` varchar(250) NULL DEFAULT 'Empowering Minds, Shaping Tomorrow',
+                `Address` text NULL,
+                `Phone` varchar(50) NULL DEFAULT '+91 9123456789',
+                `Email` varchar(100) NULL DEFAULT 'contact@pirnavschools.edu',
+                `Website` varchar(150) NULL DEFAULT 'https://pirnavschools.edu',
+                `PrincipalName` varchar(150) NULL DEFAULT 'Dr. Eleanor Vance',
+                `LogoUrl` text NULL,
+                `LogoFormat` varchar(20) NOT NULL DEFAULT 'PNG',
+                `CampusesJson` longtext NULL,
+                `CertificateTemplatesJson` longtext NULL,
+                `IdSequenceSettingsJson` longtext NULL,
+                `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
             @"CREATE TABLE IF NOT EXISTS `branches` (
                 `BranchId` int NOT NULL AUTO_INCREMENT,
                 `BranchName` varchar(150) NOT NULL,

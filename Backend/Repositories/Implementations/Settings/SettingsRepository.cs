@@ -63,6 +63,7 @@ namespace SMS.Api.Repositories.Implementations.Settings
             if (!string.IsNullOrWhiteSpace(settings.LogoFormat)) existing.LogoFormat = settings.LogoFormat;
             if (settings.CampusesJson != null) existing.CampusesJson = settings.CampusesJson;
             if (settings.CertificateTemplatesJson != null) existing.CertificateTemplatesJson = settings.CertificateTemplatesJson;
+            if (settings.IdSequenceSettingsJson != null) existing.IdSequenceSettingsJson = settings.IdSequenceSettingsJson;
 
             existing.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -95,6 +96,21 @@ namespace SMS.Api.Repositories.Implementations.Settings
         {
             var existing = await GetOrCreateSettingsInternalAsync();
             existing.CampusesJson = json;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<string?> GetIdSequenceSettingsJsonAsync()
+        {
+            var existing = await GetOrCreateSettingsInternalAsync();
+            return existing.IdSequenceSettingsJson;
+        }
+
+        public async Task<bool> UpdateIdSequenceSettingsAsync(string json)
+        {
+            var existing = await GetOrCreateSettingsInternalAsync();
+            existing.IdSequenceSettingsJson = json;
             existing.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
