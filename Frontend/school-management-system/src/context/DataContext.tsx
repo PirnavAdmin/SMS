@@ -10828,32 +10828,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Match FeeHead from master registry as SOURCE OF TRUTH for frequency
       const feeHead = feeHeads.find((fh) => {
         if (!fh) return false;
-        if (
-          item.headId &&
-          fh.id &&
-          fh.id.toLowerCase() === item.headId.toLowerCase()
-        )
-          return true;
-        if (
-          item.headName &&
-          fh.name &&
-          fh.name.toLowerCase() === item.headName.toLowerCase()
-        )
-          return true;
-        if (
-          item.category &&
-          fh.category &&
-          (item.category.toLowerCase() === fh.category.toLowerCase() ||
-            item.category.toLowerCase().includes(fh.category.toLowerCase()))
-        )
-          return true;
-        if (
-          item.headName &&
-          fh.name &&
-          (item.headName.toLowerCase().includes(fh.name.toLowerCase()) ||
-            fh.name.toLowerCase().includes(item.headName.toLowerCase()))
-        )
-          return true;
+        const fhIdStr = fh.id != null ? String(fh.id).toLowerCase() : "";
+        const itemIdStr = item.headId != null ? String(item.headId).toLowerCase() : "";
+        if (itemIdStr && fhIdStr && fhIdStr === itemIdStr) return true;
+
+        const fhNameStr = fh.name != null ? String(fh.name).toLowerCase() : "";
+        const itemNameStr = item.headName != null ? String(item.headName).toLowerCase() : "";
+        if (itemNameStr && fhNameStr && fhNameStr === itemNameStr) return true;
+
+        const fhCatStr = fh.category != null ? String(fh.category).toLowerCase() : "";
+        const itemCatStr = item.category != null ? String(item.category).toLowerCase() : "";
+        if (itemCatStr && fhCatStr && (itemCatStr === fhCatStr || itemCatStr.includes(fhCatStr))) return true;
+
+        if (itemNameStr && fhNameStr && (itemNameStr.includes(fhNameStr) || fhNameStr.includes(itemNameStr))) return true;
+
         return false;
       });
 
@@ -15958,12 +15946,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const clearClassTimetable = async (className: string, section: string) => {
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
     const existing = timetable.filter(
-      (t) => t.className === className && t.section === section,
+      (t) => norm(t.className) === norm(className) && norm(t.section) === norm(section),
     );
 
     setTimetable((prev) => {
-      const updated = prev.filter((t) => !(t.className === className && t.section === section));
+      const updated = prev.filter((t) => !(norm(t.className) === norm(className) && norm(t.section) === norm(section)));
       try {
         localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
       } catch (e) {}
@@ -15973,8 +15962,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await Promise.all(
         existing.map(async (t) => {
-          const numericId = t.id.startsWith("TT-") || t.id.startsWith("SLOT-") ? t.id.replace("TT-", "").replace("SLOT-", "") : t.id;
-          await deleteTimetableSlotApi(numericId);
+          const rawId = String(t.id || "").trim();
+          if (/^\d+$/.test(rawId) || /^TT-\d+$/i.test(rawId)) {
+            const numericId = rawId.replace(/^TT-/i, "");
+            await deleteTimetableSlotApi(numericId).catch(() => {});
+          }
         }),
       );
     } catch (err) {
@@ -18536,11 +18528,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
 
+          const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+          const existingLocal = prev.filter(
+            (t) =>
+              norm(t.className) === norm(targetClassName) &&
+              norm(t.section) === norm(sectionName),
+          );
+
+          // If local memory has freshly generated slots and backend returned fewer slots due to conflict, preserve local slots
+          if (existingLocal.length > mappedSlots.length && mappedSlots.length === 0) {
+            return prev;
+          }
+
           const filtered = prev.filter(
             (t) =>
               !(
-                t.className.toLowerCase().trim() === targetClassName.toLowerCase().trim() &&
-                t.section.toLowerCase().trim() === sectionName.toLowerCase().trim()
+                norm(t.className) === norm(targetClassName) &&
+                norm(t.section) === norm(sectionName)
               ),
           );
           const updated = [...filtered, ...mappedSlots];
@@ -18695,8 +18699,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const targetStudent = students.find(
         (s) =>
-          s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-          s.id.toLowerCase() === admNo.toLowerCase(),
+          (s.admissionNo != null && String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+          (s.id != null && String(s.id).toLowerCase() === admNo.toLowerCase()),
       );
 
       if (!targetStudent) {
@@ -18770,8 +18774,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const targetStudent = students.find(
           (s) =>
-            s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-            s.id.toLowerCase() === admNo.toLowerCase(),
+            (s.admissionNo != null && String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+            (s.id != null && String(s.id).toLowerCase() === admNo.toLowerCase()),
         );
         if (!targetStudent) {
           errorCount++;
@@ -18829,8 +18833,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const targetStudent = students.find(
           (s) =>
-            s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-            s.id.toLowerCase() === admNo.toLowerCase(),
+            (s.admissionNo != null && String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+            (s.id != null && String(s.id).toLowerCase() === admNo.toLowerCase()),
         );
         if (!targetStudent) {
           errorCount++;
@@ -18884,8 +18888,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const targetStudent = students.find(
           (s) =>
-            s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-            s.id.toLowerCase() === admNo.toLowerCase(),
+            (s.admissionNo != null && String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+            (s.id != null && String(s.id).toLowerCase() === admNo.toLowerCase()),
         );
         if (!targetStudent) {
           errorCount++;

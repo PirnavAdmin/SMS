@@ -541,8 +541,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       <div className="relative z-10">
         
         {/* Hero Section */}
-        <section id="hero" className="relative pt-6 sm:pt-10 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
+        <section id="hero" className="relative pt-4 sm:pt-6 pb-5 sm:pb-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
             
             {/* Left Hero Content */}
             <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left">
@@ -793,7 +793,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Stats Counter Section */}
-        <section className="border-y border-slate-200/60 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+        <section className="border-y border-slate-200/60 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md py-4 sm:py-5 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4">
             {stats.map((stat, i) => {
               const Icon = stat.icon;
@@ -812,8 +812,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Campus Life & School Infrastructure Gallery Section */}
-        <section id="campus-life" className="py-10 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-6 space-y-2">
+        <section id="campus-life" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
               <ImageIcon className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" /> Campus Infrastructure & Life
             </div>
@@ -826,7 +826,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           </div>
 
           {/* Gallery Filter Tabs */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
             {[
               { id: 'all', label: 'All Campus View' },
               { id: 'classrooms', label: 'Smart Classrooms' },
@@ -890,8 +890,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Portal Role Launcher Section */}
-        <section id="portals" className="py-10 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
-          <div className="text-center max-w-3xl mx-auto mb-8 space-y-2">
+        <section id="portals" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
               <Lock className="w-3.5 h-3.5" /> Sign In Portals
             </div>
@@ -903,7 +903,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
             {portalRoles.map((role) => {
               const Icon = role.icon;
               return (
@@ -951,8 +951,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* ERP Modules Showcase */}
-        <section id="features" className="py-10 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
-          <div className="text-center max-w-3xl mx-auto mb-6 space-y-2">
+        <section id="features" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
               <Building2 className="w-3.5 h-3.5" /> Complete Ecosystem
             </div>
@@ -965,7 +965,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           </div>
 
           {/* Tab Filters */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
             {[
               { id: 'all', label: 'All Modules' },
               { id: 'academic', label: 'Academics & Exams' },
@@ -987,7 +987,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           </div>
 
           {/* Feature Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
             {filteredFeatures.map((feat, i) => {
               const Icon = feat.icon;
               return (
@@ -1007,7 +1007,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Dynamic Notice Board & Announcements */}
-        <section id="notices" className="py-10 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+        <section id="notices" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
             
             <div className="lg:col-span-5 space-y-3">
@@ -1032,7 +1032,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               </div>
             </div>
 
-            <div className="lg:col-span-7 space-y-3">
+            <div className="lg:col-span-7 space-y-2.5">
               {notices.map((notice) => (
                 <div
                   key={notice.id}
@@ -1066,8 +1066,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Testimonials Section */}
-        <section className="py-10 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
-          <div className="text-center max-w-3xl mx-auto mb-8 space-y-2">
+        <section className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
               <HeartHandshake className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Testimonials & Community Voices
             </div>
@@ -1079,7 +1079,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {testimonials.map((t, idx) => (
               <div key={idx} className="p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 shadow-md backdrop-blur-md">
                 <div className="space-y-2">
@@ -1110,8 +1110,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Institutional Mission Banner */}
-        <section className="py-10 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
-          <div className="bg-white/80 dark:bg-slate-900/85 border border-white/60 dark:border-slate-800 rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-xl backdrop-blur-xl">
+        <section className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="bg-white/80 dark:bg-slate-900/85 border border-white/60 dark:border-slate-800 rounded-2xl p-5 sm:p-6 relative overflow-hidden shadow-xl backdrop-blur-xl">
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
               
               <div className="space-y-3">
@@ -1194,7 +1194,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       )}
 
       {/* Compact Dynamic Footer Section */}
-      <footer id="contact" className="relative z-10 border-t border-slate-800/90 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl pt-6 sm:pt-8 pb-4 px-4 sm:px-6 lg:px-8 text-slate-300 dark:text-slate-400">
+      <footer id="contact" className="relative z-10 border-t border-slate-800/90 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl pt-5 sm:pt-6 pb-4 px-4 sm:px-6 lg:px-8 text-slate-300 dark:text-slate-400">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-6">
           
           {/* Dynamic Institution Contact Info (Direct Logo without background box) */}

@@ -58,7 +58,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     }
   }
 
-  if (!response.ok && url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+  if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504) && url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
     try {
       const localUrl = `http://127.0.0.1:5151${endpoint}`;
       const fallbackRes = await fetch(localUrl, {

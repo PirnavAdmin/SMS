@@ -431,10 +431,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [academicClasses, selectedClass]
   );
 
-  const classTimetable = useMemo(() => 
-    timetable.filter(t => t.className === selectedClass && t.section === selectedSection),
-    [timetable, selectedClass, selectedSection]
-  );
+  const classTimetable = useMemo(() => {
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    return timetable.filter(
+      t => norm(t.className) === norm(selectedClass) && norm(t.section) === norm(selectedSection)
+    );
+  }, [timetable, selectedClass, selectedSection]);
 
   useEffect(() => {
     if (selectedClass && selectedSection && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
@@ -484,15 +486,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
   }, [isBulkAssignModalOpen, periodSettings, academicClasses]);
 
-  const activeBranchPeriods = useMemo(() => {
-    const specific = periodSettings.filter(p => 
-      p.className === selectedClass && 
-      p.section === selectedSection && 
-      p.status === 'Active'
-    );
-    return specific.sort((a, b) => a.sequence - b.sequence);
-  }, [periodSettings, selectedClass, selectedSection]);
-
   // Master periods with strict deduplication
   const masterPeriods = useMemo(() => {
     const masterRaw = periodSettings.filter(p => 
@@ -531,6 +524,19 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     return uniqueMaster;
   }, [periodSettings]);
+
+  const activeBranchPeriods = useMemo(() => {
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const specific = periodSettings.filter(p => 
+      norm(p.className) === norm(selectedClass) && 
+      norm(p.section) === norm(selectedSection) && 
+      p.status === 'Active'
+    );
+    if (specific.length > 0) {
+      return specific.sort((a, b) => a.sequence - b.sequence);
+    }
+    return masterPeriods;
+  }, [periodSettings, selectedClass, selectedSection, masterPeriods]);
 
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
@@ -628,27 +634,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [autoAssignedTeacher, formData.subject]);
 
   const getDisplayRoom = (slotRoom?: string, className?: string, section?: string): string => {
-    const trimmedSlot = (slotRoom || '').trim();
-    if (
-      trimmedSlot &&
-      trimmedSlot.toLowerCase() !== 'classroom' &&
-      trimmedSlot.toLowerCase() !== 'unassigned' &&
-      trimmedSlot.toLowerCase() !== 'undefined' &&
-      trimmedSlot.toLowerCase() !== 'null'
-    ) {
-      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
-        return `Room ${trimmedSlot}`;
-      }
-      return trimmedSlot;
-    }
-
-    // Lookup from section details in academicClasses
     const targetClass = className || selectedClass;
     const targetSection = section || selectedSection;
-    const cls = academicClasses.find(
-      c => c.name?.toLowerCase().trim() === targetClass?.toLowerCase().trim()
-    );
-    const secRoom = cls?.sectionDetails?.[targetSection]?.roomNo?.trim();
+
+    // 1. Check Class Management sectionDetails first for pre-configured room number
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const cls = academicClasses.find(c => norm(c.name) === norm(targetClass));
+    const secDetails = cls?.sectionDetails?.[targetSection] ||
+                       cls?.sectionDetails?.[targetSection?.toUpperCase()] ||
+                       cls?.sectionDetails?.[targetSection?.toLowerCase()];
+    const secRoom = secDetails?.roomNo?.trim() || (secDetails as any)?.roomNumber?.trim();
 
     if (
       secRoom &&
@@ -661,6 +656,28 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         return `Room ${secRoom}`;
       }
       return secRoom;
+    }
+
+    // 2. Check slotRoom from the timetable slot if present and non-generic
+    const trimmedSlot = (slotRoom || '').trim();
+    if (
+      trimmedSlot &&
+      trimmedSlot.toLowerCase() !== 'classroom' &&
+      trimmedSlot.toLowerCase() !== 'unassigned' &&
+      trimmedSlot.toLowerCase() !== 'undefined' &&
+      trimmedSlot.toLowerCase() !== 'null' &&
+      !/^Room\s+[A-Z]$/i.test(trimmedSlot)
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
+        return `Room ${trimmedSlot}`;
+      }
+      return trimmedSlot;
+    }
+
+    // 3. Dynamic room formatting from class name & section (e.g. Class 5 Sec A -> Room 5-A)
+    if (targetClass && targetSection) {
+      const cleanClass = targetClass.replace(/class/gi, '').trim();
+      return `Room ${cleanClass}-${targetSection}`;
     }
 
     return 'No Classroom Assigned';
