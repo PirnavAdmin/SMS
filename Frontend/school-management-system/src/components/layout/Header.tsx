@@ -21,7 +21,22 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass, onNavigate }) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const { announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, academicYears } = useData();
+  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, academicYears } = useData();
+
+  const currentStaff = useMemo(() => {
+    if (!user) return null;
+    const userEmail = (user.email || '').toLowerCase().trim();
+    const userId = (user.id || (user as any)?.empId || '').trim();
+    return staff.find(s =>
+      (s.email && s.email.toLowerCase().trim() === userEmail) ||
+      (s.id && s.id === userId) ||
+      (s.empId && s.empId === userId)
+    );
+  }, [staff, user]);
+
+  const displayName = currentStaff
+    ? `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim()
+    : (user?.name || 'User');
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -468,7 +483,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
               className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"
             />
             <div className="hidden md:block text-left">
-              <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{user?.name}</p>
+              <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{displayName}</p>
               <p className="text-[10px] text-slate-400 leading-tight">{role}</p>
             </div>
           </button>
@@ -476,7 +491,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 space-y-1">
               <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl mb-1">
-                <p className="text-xs font-bold text-slate-900 dark:text-white">{user?.name}</p>
+                <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">{role} • {user?.email}</p>
               </div>
 

@@ -970,9 +970,10 @@ export function buildBasicStaffCreatePayload(
     pinCode: form.pinCode || "",
     country: form.country ? form.country.trim() : "",
     aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
-    panNumber: form.panNumber ? form.panNumber.trim() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
+    primarySubject: isTeaching ? (form.assignedSubjects?.[0] || '') : '',
+    secondarySubject: isTeaching ? (form.assignedSubjects?.[1] || '') : '',
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",
     qualifications: form.qualifications as any,
     experienceRecords: form.experiences as any,
@@ -1082,6 +1083,8 @@ export function buildBasicStaffUpdatePayload(
     panNumber: form.panNumber ? form.panNumber.trim() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
+    primarySubject: isTeaching ? (form.assignedSubjects?.[0] || '') : '',
+    secondarySubject: isTeaching ? (form.assignedSubjects?.[1] || '') : '',
     isClassTeacherEligible: isTeaching && form.isClassTeacher === "Yes",
     profileStatus: (form.firstName && form.lastName && form.dob && form.mobileNumber && form.department && form.designation)
       ? "Completed"

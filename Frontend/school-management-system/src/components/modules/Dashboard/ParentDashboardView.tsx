@@ -370,11 +370,17 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       return itemDate.getTime() >= today.getTime();
     });
 
-    if (upcoming.length > 0) {
-      return upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
-    }
+    const targetList = upcoming.length > 0 ? upcoming : all;
 
-    return all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
+    const seen = new Set<string>();
+    const deduplicated = targetList.filter(item => {
+      const key = `${(item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '')}_${item.date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return deduplicated.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
   }, [schoolEvents, announcements, holidays, exams]);
 
   const greeting = useMemo(() => {

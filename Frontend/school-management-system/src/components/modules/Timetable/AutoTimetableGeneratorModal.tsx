@@ -9,7 +9,7 @@ import { PeriodSetting, TimetableSlot } from '../../../types';
 import { useData, AcademicClass } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { generateTimetableApi } from '../../../api/academic';
+import { saveTimetableSlotApi } from '../../../api/academic';
 
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
@@ -114,10 +114,13 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     teacherAssignments,
     subjects,
     addPeriodSetting,
+    bulkAddPeriodSettings,
     periodSettings,
     timetable,
     addTimetableSlot,
+    bulkAddTimetableSlots,
     deleteTimetableSlot,
+    clearClassTimetable,
     fetchPeriods
   } = useData();
   const { selectedBranch } = useAuth();
@@ -241,6 +244,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
   // Auto-populate timetable with mapped subjects/teachers
   const [autoAssignMappedSubjects, setAutoAssignMappedSubjects] = useState(true);
+  const [avoidTeacherConflicts, setAvoidTeacherConflicts] = useState(true);
+  const [maxPeriodsPerDayPerSubject, setMaxPeriodsPerDayPerSubject] = useState(2);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Add new break handler
@@ -501,6 +506,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
     setIsGenerating(true);
 
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+
     try {
       const apiPayload = {
         academicYear,
@@ -518,21 +525,234 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         autoAssignMappedSubjects
       };
 
-      const res: any = await generateTimetableApi(apiPayload);
-      if (res?.success) {
-        if (fetchPeriods) {
-          await fetchPeriods(true);
-        }
-        addToast(
-          'success',
-          'Auto-Generation Complete! 🎉',
-          `Timetable successfully generated on the server for the selected class sections.`
-        );
-        if (onSuccess) onSuccess();
-        onClose();
-      } else {
-        throw new Error(res?.message || 'Failed to generate timetable.');
+      // 1. Prepare Period Settings in memory
+      const newPeriodSettings: PeriodSetting[] = calculationResult.periods.map((p, idx) => ({
+        id: `PS-AUTO-${Date.now()}-${idx + 1}`,
+        periodName: p.name,
+        startTime: p.startTime,
+        endTime: p.endTime,
+        periodType: p.type,
+        sequence: p.sequence,
+        status: 'Active',
+        academicYear,
+        branch: selectedBranch || 'Main Campus'
+      }));
+
+      if (bulkAddPeriodSettings) {
+        bulkAddPeriodSettings(newPeriodSettings);
       }
+
+      // 2. Generate Timetable Slots in memory respecting weeklyPeriods & teacher assignments
+      const teachingPeriods = calculationResult.periods.filter(p => p.type === 'Teaching');
+      const teacherScheduleMap = new Map<string, string>(); // key: `${day}-${periodNumber}-${teacherId}` -> classSec
+      const newTimetableSlots: TimetableSlot[] = [];
+
+      for (const classSec of selectedClassSections) {
+        const parts = classSec.split('-');
+        const className = parts[0]?.trim();
+        const section = parts[1]?.trim() || 'A';
+
+        const cls = academicClasses.find(c => norm(c.name) === norm(className));
+        const mappedSubs = cls?.subjects || [];
+        const weeklyPeriodsMap = cls?.weeklyPeriods || {};
+
+        if (!autoAssignMappedSubjects || mappedSubs.length === 0) {
+          continue;
+        }
+
+        // Build list of subject requests from Class Management configuration
+        const subjectRequests = mappedSubs.map(subName => {
+          const rawCount = weeklyPeriodsMap[subName];
+          const count = (typeof rawCount === 'number' && rawCount >= 0) ? rawCount : 5;
+          const mapping = teacherAssignments.find(ta =>
+            norm(ta.className) === norm(className) &&
+            norm(ta.section) === norm(section) &&
+            norm(ta.subject) === norm(subName)
+          );
+          const teacherName = mapping?.teacherName || '';
+          const teacherId = mapping?.teacherId || '';
+
+          return {
+            subject: subName,
+            count,
+            teacherName,
+            teacherId
+          };
+        }).filter(req => req.count > 0);
+
+        const numDays = workingDays.length;
+        const numPeriods = teachingPeriods.length;
+
+        // Create daily buckets for even distribution across working days
+        const dayBuckets: { subject: string; teacherName: string; teacherId?: string }[][] = Array.from(
+          { length: numDays },
+          () => []
+        );
+
+        // Sort subjects by count descending so subjects with most periods are placed first
+        const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
+
+        sortedRequests.forEach((req, sIdx) => {
+          const dayOffset = sIdx % numDays;
+
+          for (let i = 0; i < req.count; i++) {
+            let bestDay = -1;
+            let minLoad = 9999;
+
+            for (let d = 0; d < numDays; d++) {
+              const targetDay = (dayOffset + d) % numDays;
+              const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
+              if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
+                if (dayBuckets[targetDay].length < minLoad) {
+                  minLoad = dayBuckets[targetDay].length;
+                  bestDay = targetDay;
+                }
+              }
+            }
+
+            // Fallback if maxPeriodsPerDay limit prevents placement
+            if (bestDay === -1) {
+              for (let d = 0; d < numDays; d++) {
+                const targetDay = (dayOffset + d) % numDays;
+                if (dayBuckets[targetDay].length < numPeriods) {
+                  if (dayBuckets[targetDay].length < minLoad) {
+                    minLoad = dayBuckets[targetDay].length;
+                    bestDay = targetDay;
+                  }
+                }
+              }
+            }
+
+            if (bestDay !== -1) {
+              dayBuckets[bestDay].push({
+                subject: req.subject,
+                teacherName: req.teacherName,
+                teacherId: req.teacherId
+              });
+            }
+          }
+        });
+
+        // Place daily buckets into the day's teaching period slots
+        for (let d = 0; d < numDays; d++) {
+          const dayName = workingDays[d];
+          const subjectsForToday = dayBuckets[d];
+          const periodSlotsAssigned: (typeof subjectsForToday[0] | null)[] = Array(numPeriods).fill(null);
+
+          subjectsForToday.forEach((item, itemIdx) => {
+            const preferredStartPeriod = (d + itemIdx) % numPeriods;
+            let chosenPeriodIdx = -1;
+
+            // Try to find a period slot with no teacher conflict
+            for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
+              const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
+              if (periodSlotsAssigned[pIdx] === null) {
+                const period = teachingPeriods[pIdx];
+                const key = `${dayName}-${period.sequence || pIdx + 1}-${item.teacherId || item.teacherName}`;
+                if (!avoidTeacherConflicts || !item.teacherId || !teacherScheduleMap.has(key)) {
+                  chosenPeriodIdx = pIdx;
+                  break;
+                }
+              }
+            }
+
+            // Fallback to any empty period
+            if (chosenPeriodIdx === -1) {
+              for (let pIdx = 0; pIdx < numPeriods; pIdx++) {
+                if (periodSlotsAssigned[pIdx] === null) {
+                  chosenPeriodIdx = pIdx;
+                  break;
+                }
+              }
+            }
+
+            if (chosenPeriodIdx !== -1) {
+              periodSlotsAssigned[chosenPeriodIdx] = item;
+              const period = teachingPeriods[chosenPeriodIdx];
+              const teacherKey = `${dayName}-${period.sequence || chosenPeriodIdx + 1}-${item.teacherId || item.teacherName}`;
+              if (item.teacherId) {
+                teacherScheduleMap.set(teacherKey, classSec);
+              }
+            }
+          });
+
+          // ONLY create TimetableSlot objects for periods with assigned subjects.
+          // Unassigned / Free periods are NOT added so they remain empty in the grid.
+          for (let pIdx = 0; pIdx < numPeriods; pIdx++) {
+            const assigned = periodSlotsAssigned[pIdx];
+            if (assigned) {
+              const period = teachingPeriods[pIdx];
+              const slotTime = `${period.startTime} - ${period.endTime}`;
+
+              newTimetableSlots.push({
+                id: `SLOT-AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                className,
+                section,
+                day: dayName as any,
+                timeSlot: slotTime,
+                periodNumber: period.sequence || (pIdx + 1),
+                subject: assigned.subject,
+                teacherName: assigned.teacherName,
+                teacherId: assigned.teacherId,
+                roomNo: `Room ${section}`,
+                academicYear,
+                status: 'Draft',
+                branch: selectedBranch || 'Main Campus'
+              });
+            }
+          }
+        }
+      }
+
+      // Clear previous timetable slots for selected class sections
+      if (clearClassTimetable) {
+        for (const classSec of selectedClassSections) {
+          const parts = classSec.split('-');
+          const className = parts[0]?.trim();
+          const section = parts[1]?.trim() || 'A';
+          clearClassTimetable(className, section);
+        }
+      }
+
+      if (bulkAddTimetableSlots) {
+        bulkAddTimetableSlots(newTimetableSlots);
+      }
+
+      // 3. Persist exact generated slots to backend asynchronously
+      try {
+        newTimetableSlots.forEach(slot => {
+          const times = slot.timeSlot.split('-');
+          const startTime = times[0]?.trim() || '';
+          const endTime = times[1]?.trim() || '';
+          saveTimetableSlotApi({
+            className: slot.className,
+            sectionName: slot.section,
+            academicYear: slot.academicYear || academicYear || "2026-2027",
+            dayOfWeek: slot.day,
+            startTime,
+            endTime,
+            subjectName: slot.subject,
+            teacherName: slot.teacherName,
+            teacherId: slot.teacherId,
+            roomNo: slot.roomNo,
+          }).catch(() => {});
+        });
+      } catch (e) {
+        console.warn('Backend timetable slot save skipped:', e);
+      }
+
+      if (fetchPeriods) {
+        fetchPeriods(true).catch(() => {});
+      }
+
+      addToast(
+        'success',
+        'Auto-Generation Complete! 🎉',
+        `Timetable schedule successfully generated for ${selectedClassSections.length} class section(s).`
+      );
+
+      if (onSuccess) onSuccess();
+      onClose();
     } catch (err: any) {
       console.error('Error generating auto timetable:', err);
       addToast('error', 'Generation Error', err.message || 'Failed to generate timetable slots.');

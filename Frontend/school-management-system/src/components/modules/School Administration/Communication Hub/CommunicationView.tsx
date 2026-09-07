@@ -76,6 +76,8 @@ export const CommunicationView: React.FC = () => {
   const [broadcastTime, setBroadcastTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [emergencyDate, setEmergencyDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const [customEmergTitle, setCustomEmergTitle] = useState('');
+  const [customEmergContent, setCustomEmergContent] = useState('');
   const [target, setTarget] = useState<'STUDENTS ONLY' | 'STAFF ONLY' | 'PARENTS ONLY' | 'ALL'>('ALL');
   const [category, setCategory] = useState<'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL'>('GENERAL');
   const [sendSMS, setSendSMS] = useState(true);
@@ -225,8 +227,12 @@ export const CommunicationView: React.FC = () => {
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
-  // Trigger Emergency Dispatch Quick Actions (Weather & Safety Drill Only) with Date & Time
-  const handleTriggerEmergency = async (type: 'weather' | 'safety_drill') => {
+  // Trigger Emergency Dispatch Quick Actions with Date & Time
+  const handleTriggerEmergency = async (
+    type: 'weather' | 'safety_drill' | 'bandh' | 'bereavement' | 'custom',
+    customTitleStr?: string,
+    customMsgStr?: string
+  ) => {
     let emergencyTitle = '';
     let emergencyContent = '';
 
@@ -238,6 +244,15 @@ export const CommunicationView: React.FC = () => {
     } else if (type === 'safety_drill') {
       emergencyTitle = '🛡️ EMERGENCY NOTICE: Mandatory Campus Safety & Evacuation Drill';
       emergencyContent = `Special notice regarding Mandatory Campus Safety & Evacuation Drill (${formattedDateTime}). All faculty, staff, and students please prepare for the scheduled campus drill.`;
+    } else if (type === 'bandh') {
+      emergencyTitle = '🚩 URGENT EMERGENCY ALERT: Unforeseen Bandh / City Strike - School Closed Today';
+      emergencyContent = `High priority notification: Due to an unforeseen City-wide Bandh / General Strike (${formattedDateTime}), the school campus will remain CLOSED today for student and staff safety. Please stay safe. Further updates will follow.`;
+    } else if (type === 'bereavement') {
+      emergencyTitle = '🕊️ EMERGENCY NOTICE: Sudden School Closure & Condolence Advisory';
+      emergencyContent = `Solemn notification (${formattedDateTime}): School is closed today due to an unexpected bereavement / emergency announcement. Deepest condolences. Regular classes will resume on the next working day.`;
+    } else if (type === 'custom') {
+      emergencyTitle = customTitleStr ? `⚡ HIGH PRIORITY EMERGENCY: ${customTitleStr}` : '⚡ URGENT HIGH-PRIORITY EMERGENCY BROADCAST';
+      emergencyContent = customMsgStr ? `${customMsgStr} (${formattedDateTime})` : `Urgent emergency advisory (${formattedDateTime}): All parents, students, and staff please take immediate note of this high priority announcement.`;
     }
 
     let serverId = `ANN-${Date.now()}`;
@@ -759,30 +774,118 @@ export const CommunicationView: React.FC = () => {
             </p>
 
             <div className="space-y-3">
+              {/* Preset 1: Weather */}
               <div
                 onClick={() => handleTriggerEmergency('weather')}
                 className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 hover:border-rose-400 transition-all flex items-center justify-between cursor-pointer group shadow-xs"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg">☔</span>
-                  <span className="font-black text-xs sm:text-sm text-rose-700 dark:text-rose-300">
-                    Weather & Rainy Holiday Alert
-                  </span>
+                  <div>
+                    <span className="font-black text-xs sm:text-sm text-rose-700 dark:text-rose-300 block">
+                      Weather & Rainy Holiday Alert
+                    </span>
+                    <span className="text-[10px] text-rose-600/80 dark:text-rose-400/80 font-medium">Instant broadcast for heavy rain & unexpected weather holidays</span>
+                  </div>
                 </div>
-                <Send className="w-4 h-4 text-rose-600 group-hover:translate-x-1 transition-transform" />
+                <Send className="w-4 h-4 text-rose-600 group-hover:translate-x-1 transition-transform shrink-0" />
               </div>
 
+              {/* Preset 2: Bandh / City Strike */}
+              <div
+                onClick={() => handleTriggerEmergency('bandh')}
+                className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 hover:border-amber-400 transition-all flex items-center justify-between cursor-pointer group shadow-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🚩</span>
+                  <div>
+                    <span className="font-black text-xs sm:text-sm text-amber-800 dark:text-amber-300 block">
+                      Unforeseen Bandh / City Strike Alert
+                    </span>
+                    <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-medium">Emergency closure alert for sudden strikes & transportation disruption</span>
+                  </div>
+                </div>
+                <Send className="w-4 h-4 text-amber-600 group-hover:translate-x-1 transition-transform shrink-0" />
+              </div>
+
+              {/* Preset 3: Bereavement / Condolence */}
+              <div
+                onClick={() => handleTriggerEmergency('bereavement')}
+                className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 hover:border-purple-400 transition-all flex items-center justify-between cursor-pointer group shadow-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🕊️</span>
+                  <div>
+                    <span className="font-black text-xs sm:text-sm text-purple-800 dark:text-purple-300 block">
+                      Sudden Closure & Bereavement Notice
+                    </span>
+                    <span className="text-[10px] text-purple-700/80 dark:text-purple-400/80 font-medium">High-priority condolence & unexpected campus closure advisory</span>
+                  </div>
+                </div>
+                <Send className="w-4 h-4 text-purple-600 group-hover:translate-x-1 transition-transform shrink-0" />
+              </div>
+
+              {/* Preset 4: Safety Drill */}
               <div
                 onClick={() => handleTriggerEmergency('safety_drill')}
                 className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 transition-all flex items-center justify-between cursor-pointer group shadow-xs"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg">🛡️</span>
-                  <span className="font-black text-xs sm:text-sm text-sky-700 dark:text-sky-300">
-                    Campus Safety Drill Notice
-                  </span>
+                  <div>
+                    <span className="font-black text-xs sm:text-sm text-sky-700 dark:text-sky-300 block">
+                      Campus Safety Drill Notice
+                    </span>
+                    <span className="text-[10px] text-sky-600/80 dark:text-sky-400/80 font-medium">Scheduled evacuation & mandatory safety drill broadcast</span>
+                  </div>
                 </div>
-                <Send className="w-4 h-4 text-sky-600 group-hover:translate-x-1 transition-transform" />
+                <Send className="w-4 h-4 text-sky-600 group-hover:translate-x-1 transition-transform shrink-0" />
+              </div>
+
+              {/* Custom High Priority Emergency Section */}
+              <div className="p-4 rounded-2xl bg-red-50/90 dark:bg-red-950/40 border-2 border-red-300 dark:border-red-800 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚡</span>
+                    <span className="font-black text-xs sm:text-sm text-red-900 dark:text-red-200">
+                      Custom High-Priority Emergency Alert
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-wider">High Priority</span>
+                </div>
+
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={customEmergTitle}
+                    onChange={e => setCustomEmergTitle(e.target.value)}
+                    placeholder="Emergency Headline (e.g. Unforeseen Bandh / Emergency Closure)"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-red-500 text-slate-900 dark:text-white"
+                  />
+                  <textarea
+                    rows={2}
+                    value={customEmergContent}
+                    onChange={e => setCustomEmergContent(e.target.value)}
+                    placeholder="Type urgent details/instructions to dispatch immediately to all parents, students & staff..."
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-slate-700 text-xs font-medium outline-none focus:border-red-500 text-slate-900 dark:text-white resize-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!customEmergTitle && !customEmergContent) {
+                        addToast('warning', 'Empty Emergency Advisory', 'Please enter a title or message for custom emergency alert.');
+                        return;
+                      }
+                      handleTriggerEmergency('custom', customEmergTitle, customEmergContent);
+                      setCustomEmergTitle('');
+                      setCustomEmergContent('');
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Dispatch Custom High-Priority SMS & Push Alert</span>
+                  </button>
+                </div>
               </div>
             </div>
 

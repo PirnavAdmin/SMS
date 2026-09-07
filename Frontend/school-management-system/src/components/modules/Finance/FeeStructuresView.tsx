@@ -129,23 +129,39 @@ export const FeeStructuresView: React.FC = () => {
 
   const handleClassChange = (newClass: string) => {
     setClassName(newClass);
-    // Clear previously selected fee types and entered amounts to prevent stale values
-    setSelectedHeadIds([]);
-    setSelectedHeadAmounts({});
 
     if (newClass) {
       setIsLoadingFeeTypes(true);
+
       const uniFee = getUniformFeeForClass(newClass, '', financeUniformConfigs);
-      if (uniFee && uniFee > 0) {
-        const uniHead = activeFeeHeads.find((h) => (h.name || "").toLowerCase().includes("uniform") || h.id === 'FH-04');
-        if (uniHead) {
-          setSelectedHeadAmounts((prev) => ({ ...prev, [uniHead.id]: String(uniFee) }));
+      const uniHead = activeFeeHeads.find((h) => (h.name || "").toLowerCase().includes("uniform") || (h.name || "").toLowerCase().includes("package") || h.id === 'FH-04');
+
+      const initialHeadIds: string[] = [];
+      const initialAmounts: Record<string, string> = {};
+
+      if (uniHead) {
+        initialHeadIds.push(uniHead.id);
+        if (uniFee && uniFee > 0) {
+          initialAmounts[uniHead.id] = String(uniFee);
         }
       }
+
+      // Auto-select mandatory fee heads when class changes
+      activeFeeHeads.forEach((h) => {
+        if (h.mandatory !== false && !initialHeadIds.includes(h.id)) {
+          initialHeadIds.push(h.id);
+        }
+      });
+
+      setSelectedHeadIds(initialHeadIds);
+      setSelectedHeadAmounts(initialAmounts);
+
       setTimeout(() => {
         setIsLoadingFeeTypes(false);
       }, 250);
     } else {
+      setSelectedHeadIds([]);
+      setSelectedHeadAmounts({});
       setIsLoadingFeeTypes(false);
     }
   };

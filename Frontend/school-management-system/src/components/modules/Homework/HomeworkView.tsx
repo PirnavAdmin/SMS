@@ -174,6 +174,24 @@ export const HomeworkView: React.FC = () => {
     return sec.replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim();
   };
 
+  const formatClassRoom = (hw: { className?: string; section?: string }) => {
+    let cls = (hw?.className || 'Class 9').trim();
+    let sec = (hw?.section || '').trim();
+
+    if (cls.includes('-')) {
+      const parts = cls.split('-');
+      cls = parts[0].trim();
+      if (!sec && parts[1]) sec = parts[1].trim();
+    }
+
+    if (!cls.toLowerCase().startsWith('class') && !cls.toLowerCase().startsWith('grade')) {
+      cls = `Class ${cls}`;
+    }
+
+    const displaySec = sec || 'A';
+    return `${cls}-${displaySec}`;
+  };
+
   const rbacHomework = useMemo(() => {
     if (role === 'Super Admin' || role === 'School Admin') {
       return homework;
@@ -199,6 +217,7 @@ export const HomeworkView: React.FC = () => {
   // Filters State
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
+  const [filterSection, setFilterSection] = useState('All');
   const [filterSubject, setFilterSubject] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All'); // All, Draft, Published, Due Today
   const [filterDate, setFilterDate] = useState('');
@@ -347,6 +366,8 @@ export const HomeworkView: React.FC = () => {
 
     const dataToSave = { 
       ...formData, 
+      className: (formData.className || 'Class 9').trim(),
+      section: (formData.section || 'A').trim(),
       attachments,
       status: statusMode,
       publishedStudentIds: formData.publishToType === 'Students' ? selectedStudentIds : []
@@ -363,12 +384,74 @@ export const HomeworkView: React.FC = () => {
     setIsBigScreenOpen(false);
   };
 
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+
+    if (filterClass === 'All') {
+      teacherAssignedClasses.forEach(c => {
+        const sec = cleanSectionName(c.split('-')[1]);
+        if (sec) set.add(sec);
+      });
+      (teacherAssignments || []).forEach((ta: any) => {
+        if (ta.section) set.add(cleanSectionName(ta.section));
+      });
+      students.forEach(s => {
+        if (s.section) set.add(cleanSectionName(s.section));
+      });
+      (academicClasses || []).forEach(c => {
+        if (c.sections && Array.isArray(c.sections)) {
+          c.sections.forEach((s: string) => set.add(cleanSectionName(s)));
+        }
+      });
+    } else {
+      const targetCls = cleanClassName(filterClass);
+
+      teacherAssignedClasses.forEach(c => {
+        if (cleanClassName(c.split('-')[0]) === targetCls) {
+          const sec = cleanSectionName(c.split('-')[1]);
+          if (sec) set.add(sec);
+        }
+      });
+
+      (teacherAssignments || []).forEach((ta: any) => {
+        if (cleanClassName(ta.className) === targetCls && ta.section) {
+          set.add(cleanSectionName(ta.section));
+        }
+      });
+
+      students.forEach(s => {
+        if (cleanClassName(s.className) === targetCls && s.section) {
+          set.add(cleanSectionName(s.section));
+        }
+      });
+
+      (academicClasses || []).forEach(c => {
+        if (cleanClassName(c.name) === targetCls && c.sections && Array.isArray(c.sections)) {
+          c.sections.forEach((s: string) => set.add(cleanSectionName(s)));
+        }
+      });
+    }
+
+    const arr = Array.from(set).filter(Boolean).sort();
+    return arr.length > 0 ? arr : ['A', 'B'];
+  }, [filterClass, teacherAssignedClasses, teacherAssignments, students, academicClasses]);
+
+  const handleClassFilterChange = (newClass: string) => {
+    setFilterClass(newClass);
+    setFilterSection('All');
+  };
+
   // Roster filter list calculations
   const filteredHomeworkList = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     return rbacHomework.filter(h => {
       const matchQuery = h.title.toLowerCase().includes(query.toLowerCase()) || h.description.toLowerCase().includes(query.toLowerCase());
-      const matchClass = filterClass === 'All' || h.className === filterClass;
+      const matchClass = filterClass === 'All' || cleanClassName(h.className) === cleanClassName(filterClass);
+      
+      const matchSection = filterSection === 'All' || 
+        cleanSectionName(h.section) === cleanSectionName(filterSection) ||
+        (h.className && cleanSectionName(h.className.split('-')[1]) === cleanSectionName(filterSection));
+
       const matchSubject = filterSubject === 'All' || h.subject === filterSubject;
       const matchDate = filterDate ? h.dueDate === filterDate || h.assignedDate === filterDate : true;
       
@@ -381,9 +464,9 @@ export const HomeworkView: React.FC = () => {
         matchStatus = h.dueDate === todayStr;
       }
 
-      return matchQuery && matchClass && matchSubject && matchDate && matchStatus;
+      return matchQuery && matchClass && matchSection && matchSubject && matchDate && matchStatus;
     });
-  }, [rbacHomework, query, filterClass, filterSubject, filterStatus, filterDate]);
+  }, [rbacHomework, query, filterClass, filterSection, filterSubject, filterStatus, filterDate]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
@@ -414,7 +497,7 @@ export const HomeworkView: React.FC = () => {
 
       {/* Search & Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="relative lg:col-span-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -429,12 +512,25 @@ export const HomeworkView: React.FC = () => {
           <div>
             <select
               value={filterClass}
-              onChange={e => setFilterClass(e.target.value)}
+              onChange={e => handleClassFilterChange(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
             >
               <option value="All">All Classes</option>
               {classOptions.map(c => (
                 <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={filterSection}
+              onChange={e => setFilterSection(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
+            >
+              <option value="All">All Sections</option>
+              {sectionOptions.map(sec => (
+                <option key={sec} value={sec}>Section {sec}</option>
               ))}
             </select>
           </div>
@@ -513,7 +609,7 @@ export const HomeworkView: React.FC = () => {
                     return (
                       <tr key={hw.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/30 text-slate-855 dark:text-slate-200">
                         <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{hw.title}</td>
-                        <td className="py-3 px-4 font-bold text-sky-650">{hw.className}-{hw.section}</td>
+                        <td className="py-3 px-4 font-bold text-sky-650">{formatClassRoom(hw)}</td>
                         <td className="py-3 px-4">{hw.subject}</td>
                         <td className="py-3 px-4 font-mono font-bold text-rose-600 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" /> {hw.dueDate}
@@ -615,7 +711,26 @@ export const HomeworkView: React.FC = () => {
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Class</label>
                   <select 
                     value={formData.className} 
-                    onChange={e => setFormData({ ...formData, className: e.target.value })} 
+                    onChange={e => {
+                      const selectedCls = e.target.value;
+                      const availableSecs = Array.from(new Set(
+                        students
+                          .filter(s => cleanClassName(s.className) === cleanClassName(selectedCls))
+                          .map(s => cleanSectionName(s.section))
+                          .concat(
+                            teacherAssignedClasses
+                              .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(selectedCls))
+                              .map(c => cleanSectionName(c.split('-')[1]))
+                          )
+                          .concat(['A', 'B'])
+                          .filter(Boolean)
+                      ));
+                      setFormData(prev => ({
+                        ...prev,
+                        className: selectedCls,
+                        section: availableSecs[0] || 'A'
+                      }));
+                    }} 
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
                   >
                     {classOptions.map(c => (
@@ -1101,7 +1216,7 @@ export const HomeworkView: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-[10.5px]">
                 <div>
                   <span className="block text-[8.5px] text-slate-400 uppercase font-bold">Class & Subject</span>
-                  <p className="text-slate-855 dark:text-slate-200 mt-0.5">{viewingHomework.className}-{viewingHomework.section} &bull; {viewingHomework.subject}</p>
+                  <p className="text-slate-855 dark:text-slate-200 mt-0.5">{formatClassRoom(viewingHomework)} &bull; {viewingHomework.subject}</p>
                 </div>
                 <div>
                   <span className="block text-[8.5px] text-slate-400 uppercase font-bold">Due Date</span>

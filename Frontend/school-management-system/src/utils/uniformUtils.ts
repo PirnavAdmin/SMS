@@ -397,11 +397,11 @@ export const getItemFeeFromFinanceConfig = (
     }
   }
 
-  if (fallbackPrice && fallbackPrice > 0 && fallbackPrice !== 85) {
+  if (fallbackPrice && fallbackPrice > 0 && fallbackPrice !== 85 && fallbackPrice !== 35) {
     return fallbackPrice;
   }
 
-  return 350;
+  return 600;
 };
 
 export const getItemPriceFromConfig = (
@@ -411,6 +411,72 @@ export const getItemPriceFromConfig = (
   gender: string = ''
 ): number => {
   return getItemFeeFromFinanceConfig(className, itemName, gender, financeUniformConfigs);
+};
+
+export const calculateClothOrItemPrice = (
+  itemName: string = '',
+  sizeStr: string = '',
+  currentUnitPrice?: number,
+  financeConfigs: any[] = [],
+  className: string = '',
+  gender: string = ''
+): number => {
+  const rawName = (itemName || '').toLowerCase();
+  const isCloth = rawName.includes('cloth') || rawName.includes('fabric') || rawName.includes('unstitched');
+
+  const cleanSize = (sizeStr || '').toLowerCase().trim();
+  const finalSize = cleanSize.includes('->') ? cleanSize.split('->')[1].trim() : cleanSize;
+
+  if (isCloth) {
+    if (Array.isArray(financeConfigs) && financeConfigs.length > 0) {
+      const activeClothConfigs = financeConfigs.filter(c => {
+        if (!c || c.status === 'Inactive') return false;
+        const pkg = (c.uniformPackage || c.packageName || c.name || '').toLowerCase();
+        return pkg.includes('cloth') || pkg.includes('fabric') || pkg.includes('unstitched');
+      });
+
+      const cfgMatch = activeClothConfigs.find(c => {
+        const pkgStr = (c.uniformPackage || c.packageName || c.name || c.fabricMeterage || '').toLowerCase();
+        if (finalSize.includes('1.0') || (finalSize.includes('1.5') && !finalSize.includes('2.0'))) {
+          return pkgStr.includes('1.0') || pkgStr.includes('1.5');
+        }
+        if (finalSize.includes('2.0') && !finalSize.includes('2.5')) {
+          return pkgStr.includes('2.0') || pkgStr.includes('1.5m - 2.0m');
+        }
+        if (finalSize.includes('2.5') && !finalSize.includes('3.0')) {
+          return pkgStr.includes('2.5') || pkgStr.includes('2.0m - 2.5m');
+        }
+        if (finalSize.includes('3.0')) {
+          return pkgStr.includes('3.0') || pkgStr.includes('2.5m - 3.0m');
+        }
+        return pkgStr.includes(finalSize);
+      });
+
+      if (cfgMatch && cfgMatch.feeAmount && Number(cfgMatch.feeAmount) > 0) {
+        return Number(cfgMatch.feeAmount);
+      }
+    }
+
+    if (finalSize.includes('1.0') || (finalSize.includes('1.5') && !finalSize.includes('2.0'))) return 400;
+    if (finalSize.includes('2.0') && !finalSize.includes('2.5')) return 600;
+    if (finalSize.includes('2.5') && !finalSize.includes('3.0')) return 800;
+    if (finalSize.includes('3.0')) return 1000;
+  }
+
+  // 1. If explicit unit price was saved on transaction/item, prioritize it!
+  if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
+    return currentUnitPrice;
+  }
+
+  // 2. Fall back to exact price configured in Finance & Fees Setup for non-cloth items
+  if (Array.isArray(financeConfigs) && financeConfigs.length > 0 && itemName) {
+    const configuredFee = getItemFeeFromFinanceConfig(className, itemName, gender, financeConfigs, currentUnitPrice);
+    if (configuredFee > 0 && configuredFee !== 35 && configuredFee !== 85) {
+      return configuredFee;
+    }
+  }
+
+  return 600;
 };
 
 export const getStudentUniformFeeStatus = (
@@ -508,60 +574,4 @@ export const getStudentUniformFeeStatus = (
     paymentMode: '',
     source: isOptedAtAdmission ? 'Fee Pending at Finance' : 'Uniform Not Opted at Admission'
   };
-};
-
-export const calculateClothOrItemPrice = (
-  itemName: string = '',
-  sizeStr: string = '',
-  currentUnitPrice?: number,
-  financeConfigs: any[] = []
-): number => {
-  const rawName = (itemName || '').toLowerCase();
-  const isCloth = rawName.includes('cloth') || rawName.includes('fabric') || rawName.includes('unstitched');
-
-  const cleanSize = (sizeStr || '').toLowerCase().trim();
-  const finalSize = cleanSize.includes('->') ? cleanSize.split('->')[1].trim() : cleanSize;
-
-  if (isCloth) {
-    if (Array.isArray(financeConfigs) && financeConfigs.length > 0) {
-      const activeClothConfigs = financeConfigs.filter(c => {
-        if (!c || c.status === 'Inactive') return false;
-        const pkg = (c.uniformPackage || c.packageName || c.name || '').toLowerCase();
-        return pkg.includes('cloth') || pkg.includes('fabric') || pkg.includes('unstitched');
-      });
-
-      const cfgMatch = activeClothConfigs.find(c => {
-        const pkgStr = (c.uniformPackage || c.packageName || c.name || c.fabricMeterage || '').toLowerCase();
-        if (finalSize.includes('1.0') || (finalSize.includes('1.5') && !finalSize.includes('2.0'))) {
-          return pkgStr.includes('1.0') || pkgStr.includes('1.5');
-        }
-        if (finalSize.includes('2.0') && !finalSize.includes('2.5')) {
-          return pkgStr.includes('2.0') || pkgStr.includes('1.5m - 2.0m');
-        }
-        if (finalSize.includes('2.5') && !finalSize.includes('3.0')) {
-          return pkgStr.includes('2.5') || pkgStr.includes('2.0m - 2.5m');
-        }
-        if (finalSize.includes('3.0')) {
-          return pkgStr.includes('3.0') || pkgStr.includes('2.5m - 3.0m');
-        }
-        return pkgStr.includes(finalSize);
-      });
-
-      if (cfgMatch && cfgMatch.feeAmount && Number(cfgMatch.feeAmount) > 0) {
-        return Number(cfgMatch.feeAmount);
-      }
-    }
-
-    // Exact user pricing tiers configured in Finance Setup:
-    // 1.0m - 1.5m (1.5M) -> ₹400
-    // 1.5m - 2.0m (2.0M) -> ₹600
-    // 2.0m - 2.5m (2.5M) -> ₹800
-    // 2.5m - 3.0m (3.0M) -> ₹1,000
-    if (finalSize.includes('1.0') || (finalSize.includes('1.5') && !finalSize.includes('2.0'))) return 400;
-    if (finalSize.includes('2.0') && !finalSize.includes('2.5')) return 600;
-    if (finalSize.includes('2.5') && !finalSize.includes('3.0')) return 800;
-    if (finalSize.includes('3.0')) return 1000;
-  }
-
-  return currentUnitPrice && currentUnitPrice > 0 ? currentUnitPrice : 600;
 };

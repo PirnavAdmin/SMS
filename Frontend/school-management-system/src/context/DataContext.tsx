@@ -315,6 +315,7 @@ import {
   deletePeriodApi,
   fetchTimetableForClassSectionApi,
   mapSubjectApi,
+  assignTeacherApi,
   saveTimetableSlotApi,
   deleteTimetableSlotApi,
   fetchClassTeacherAssignmentsApi,
@@ -1223,6 +1224,7 @@ interface DataContextType {
 
   timetable: TimetableSlot[];
   addTimetableSlot: (slot: Omit<TimetableSlot, "id">) => Promise<void>;
+  bulkAddTimetableSlots?: (slots: TimetableSlot[]) => void;
   updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => Promise<void>;
   deleteTimetableSlot: (id: string) => Promise<void>;
   clearClassTimetable: (className: string, section: string) => Promise<void>;
@@ -1240,6 +1242,7 @@ interface DataContextType {
 
   periodSettings: PeriodSetting[];
   addPeriodSetting: (data: Omit<PeriodSetting, "id">) => Promise<void>;
+  bulkAddPeriodSettings?: (periods: PeriodSetting[]) => void;
   updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => Promise<void>;
   deletePeriodSetting: (id: string) => Promise<void>;
   bulkAssignPeriods: (classKeys: string[]) => void;
@@ -2373,9 +2376,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() =>
     getStored("timetable", initialTimetable),
   );
-  const [homework, setHomework] = useState<Homework[]>(() =>
-    getStored("homework", initialHomework),
-  );
+  const [homework, setHomework] = useState<Homework[]>(() => {
+    const raw = getStored("homework", initialHomework);
+    if (Array.isArray(raw)) {
+      return raw.map((hw: any) => {
+        let sec = (hw.section || "").trim();
+        let cls = (hw.className || "").trim();
+        if (cls.includes("-")) {
+          const parts = cls.split("-");
+          cls = parts[0].trim();
+          if (!sec && parts[1]) sec = parts[1].trim();
+        }
+        return {
+          ...hw,
+          className: cls || "Class 9",
+          section: sec || "A",
+        };
+      });
+    }
+    return raw;
+  });
   const [books, setBooks] = useState<BookItem[]>(() =>
     getStored("books", initialBooks),
   );
@@ -2396,15 +2416,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const stored = getStored("holidays", initialHolidays);
-    if (!stored || stored.length <= 1) {
-      localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
-      return initialHolidays;
-    }
-    return stored;
+    const rawList = (!stored || stored.length <= 1) ? initialHolidays : stored;
+    const seen = new Set<string>();
+    const unique: Holiday[] = [];
+    rawList.forEach((h: any) => {
+      const cleanName = (h.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanName}_${h.startDate}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(h);
+      }
+    });
+    return unique;
   });
-  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() =>
-    getStored("school_events", initialSchoolEvents),
-  );
+  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => {
+    const stored = getStored("school_events", initialSchoolEvents);
+    const rawList = (!stored || stored.length === 0) ? initialSchoolEvents : stored;
+    const seen = new Set<string>();
+    const unique: SchoolEvent[] = [];
+    rawList.forEach((e: any) => {
+      const cleanTitle = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${cleanTitle}_${e.startDate}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(e);
+      }
+    });
+    return unique;
+  });
   const [birthdays] = useState<Birthday[]>(() => {
     const val = getStored("birthdays", initialBirthdays);
     if (
@@ -4739,18 +4778,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   }
                 });
 
+              const backendWeeklyPeriods: Record<string, number> = {};
+              if (Array.isArray(c.curriculumSubjects)) {
+                c.curriculumSubjects.forEach((cs: any) => {
+                  const sName = cs.subjectName || cs.name;
+                  const wPeriods = cs.weeklyPeriods ?? cs.weekly_periods ?? cs.periodsPerWeek;
+                  if (sName && typeof wPeriods === "number") {
+                    backendWeeklyPeriods[sName] = wPeriods;
+                  }
+                });
+              }
+
+              const subs =
+                Array.isArray(c.curriculumSubjects) && c.curriculumSubjects.length > 0
+                  ? c.curriculumSubjects
+                      .map((cs: any) => cs.subjectName || cs.name || "")
+                      .filter(Boolean)
+                  : localCls?.subjects && localCls.subjects.length > 0
+                    ? localCls.subjects
+                    : c.subjects || [];
+
               return {
                 id: classIdStr,
                 name: classNameStr,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
                 sectionTeachers: sectionTeachersMap,
                 teacher: c.teacher || Object.values(sectionTeachersMap)[0] || "Unassigned",
-                subjects: Array.isArray(c.curriculumSubjects)
-                  ? c.curriculumSubjects.map(
-                      (cs: any) => cs.subjectName || cs.name || "",
-                    )
-                  : c.subjects || [],
-                weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
+                subjects: subs,
+                weeklyPeriods: {
+                  ...(localCls?.weeklyPeriods || {}),
+                  ...(c.weeklyPeriods || {}),
+                  ...backendWeeklyPeriods,
+                },
                 sectionDetails: secDetails,
               };
             });
@@ -5367,10 +5426,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? response
         : response?.data?.items || response?.data || [];
       if (Array.isArray(items) && items.length > 0) {
+        const normalizedItems = items.map((hw: any) => {
+          let sec = (hw.section || "").trim();
+          let cls = (hw.className || "").trim();
+          if (cls.includes("-")) {
+            const parts = cls.split("-");
+            cls = parts[0].trim();
+            if (!sec && parts[1]) sec = parts[1].trim();
+          }
+          return {
+            ...hw,
+            className: cls || "Class 9",
+            section: sec || "A",
+          };
+        });
         setHomework((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
+          const apiIds = new Set(normalizedItems.map((i: any) => i.id));
           const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
+          return [...normalizedItems, ...localOnly];
         });
       }
     } catch (err) {
@@ -5582,7 +5655,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             academicYear: d.academicYear || "2026-2027",
             branch: d.branch || selectedBranch || "Main Campus",
             notes: d.notes || d.actionRemarks || "",
-            type: d.transactionType?.includes("Baseline")
+            type: (
+              d.type === "Base Package" ||
+              d.transactionType === "Base Package" ||
+              (d.transactionType && (d.transactionType.toLowerCase().includes("baseline") || d.transactionType.toLowerCase().includes("base"))) ||
+              (d.itemName && (d.itemName.toLowerCase().includes("package") || d.itemName.toLowerCase().includes("base") || d.itemName.toLowerCase().includes("kit"))) ||
+              (d.notes && (d.notes.toLowerCase().includes("base package") || d.notes.toLowerCase().includes("admission kit")))
+            ) && d.type !== "Additional Purchase" && d.transactionType !== "Additional Purchase" && !d.notes?.toLowerCase().includes("additional purchase")
               ? "Base Package"
               : "Additional Purchase",
             price: Number(d.totalAmount || 0),
@@ -6650,68 +6729,90 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    // 3. Update academicClasses state with sectionTeachers map
+    // 3. Update academicClasses state with sectionTeachers map & auto-mapped subjects and weeklyPeriods
     setAcademicClasses((prevClasses) => {
-      return prevClasses.map((cls) => {
-        const matchingSec = classes.find((cs) => {
+      const nextClasses = prevClasses.map((cls) => {
+        const matchingClassSecs = classes.filter((cs) => {
           const [cName] = cs.split("-");
           return norm(cName) === norm(cls.name);
         });
-        if (matchingSec) {
-          const parts = matchingSec.split("-");
-          const secLetter = parts[1]?.trim() || "A";
+
+        if (matchingClassSecs.length > 0) {
           const currentSecTeachers = { ...(cls.sectionTeachers || {}) };
-          if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
-            currentSecTeachers[secLetter] = teacherFullName;
-          }
+          matchingClassSecs.forEach((cs) => {
+            const parts = cs.split("-");
+            const secLetter = parts[1]?.trim() || "A";
+            if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
+              currentSecTeachers[secLetter] = teacherFullName;
+            }
+          });
+
+          // Also ensure subjects are added to this class
+          const existingSubjects = [...(cls.subjects || [])];
+          const existingWeeklyPeriods = { ...(cls.weeklyPeriods || {}) };
+          let subjectsChanged = false;
+
+          subjects.forEach((subject) => {
+            if (!existingSubjects.some((s) => s.toLowerCase() === subject.toLowerCase())) {
+              existingSubjects.push(subject);
+              subjectsChanged = true;
+            }
+            if (!existingWeeklyPeriods[subject]) {
+              existingWeeklyPeriods[subject] = 5;
+            }
+          });
+
           return {
             ...cls,
             sectionTeachers: currentSecTeachers,
+            subjects: existingSubjects,
+            weeklyPeriods: existingWeeklyPeriods,
           };
         }
         return cls;
       });
+
+      localStorage.setItem("edu_db_academic_classes", JSON.stringify(nextClasses));
+      return nextClasses;
     });
 
-    // 4. Auto-map subjects to class curriculum
+    // 4. Auto-map subjects to backend API for each assigned class
     classes.forEach((classSec) => {
       const parts = classSec.split("-");
       const className = parts[0]?.trim();
+      const secLetter = parts[1]?.trim() || "A";
 
       const classObj = academicClasses.find(
         (c) => norm(c.name) === norm(className),
       );
       if (classObj) {
-        let subjectsUpdated = false;
-        const updatedSubjects = [...(classObj.subjects || [])];
-
         subjects.forEach((subject) => {
-          if (!updatedSubjects.includes(subject)) {
-            updatedSubjects.push(subject);
-            subjectsUpdated = true;
+          const wp = classObj.weeklyPeriods?.[subject] || 5;
+          mapSubjectApi(classObj.id, {
+            subject_name: subject,
+            weekly_periods: wp,
+          }).catch((err) => {
+            console.error(
+              `Failed to map subject "${subject}" to class "${classObj.name}":`,
+              err,
+            );
+          });
 
-            mapSubjectApi(classObj.id, {
-              subject_name: subject,
-              weekly_periods: 5,
-            }).catch((err) => {
-              console.error(
-                `Failed to map subject "${subject}" to class "${classObj.name}":`,
-                err,
-              );
-            });
-          }
+          assignTeacherApi(classObj.id, secLetter, {
+            teacher_id: String(teacher.id),
+            role: "Subject Teacher",
+            subject_name: subject,
+          }).catch(() => {
+            // Non-blocking fallback
+          });
         });
 
-        if (subjectsUpdated) {
-          setAcademicClasses((prev) => {
-            const next = prev.map((c) =>
-              c.id === classObj.id ? { ...c, subjects: updatedSubjects } : c,
-            );
-            localStorage.setItem(
-              "edu_db_academic_classes",
-              JSON.stringify(next),
-            );
-            return next;
+        if (teacher.isClassTeacherEligible || (teacher.designation && teacher.designation.toLowerCase().includes("class teacher"))) {
+          assignTeacherApi(classObj.id, secLetter, {
+            teacher_id: String(teacher.id),
+            role: "Class Teacher",
+          }).catch(() => {
+            // Non-blocking fallback
           });
         }
       }
@@ -8544,6 +8645,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Reset Class Periods",
       `Reverted ${className}-${section} to master template`,
     );
+  };
+
+  const bulkAddPeriodSettings = (newPeriods: PeriodSetting[]) => {
+    setPeriodSettings((prev) => {
+      const existingKeys = new Set(
+        prev.map(
+          (p) => `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`
+        )
+      );
+      const toAdd = newPeriods.filter(
+        (p) =>
+          !existingKeys.has(
+            `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`
+          )
+      );
+      const updated = [...prev, ...toAdd];
+      try {
+        localStorage.setItem("edu_db_period_settings", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   const addTeacherAssignment = (data: Omit<TeacherAssignment, "id">) => {
@@ -15574,8 +15696,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveStudentAttendance = (record: any) => {
     setStudentAttendance((prev) => {
-      const filtered = prev.filter((r) => r.studentId !== record.studentId);
-      return [...filtered, record];
+      const recordDate = String(record.date || "").split("T")[0];
+      const filtered = prev.filter(
+        (r) => !(String(r.studentId) === String(record.studentId) && String(r.date || "").split("T")[0] === recordDate)
+      );
+      const updated = [...filtered, { ...record, date: recordDate }];
+      try {
+        const str = JSON.stringify(updated);
+        localStorage.setItem("edu_db_student_attendance", str);
+        localStorage.setItem("student_attendance", str);
+        localStorage.setItem("sms_student_attendance", str);
+      } catch {}
+      return updated;
     });
     logActivity(
       "Saved Student Attendance",
@@ -15830,14 +15962,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (t) => t.className === className && t.section === section,
     );
 
-    setTimetable((prev) =>
-      prev.filter((t) => !(t.className === className && t.section === section)),
-    );
+    setTimetable((prev) => {
+      const updated = prev.filter((t) => !(t.className === className && t.section === section));
+      try {
+        localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     try {
       await Promise.all(
         existing.map(async (t) => {
-          const numericId = t.id.startsWith("TT-") ? t.id.replace("TT-", "") : t.id;
+          const numericId = t.id.startsWith("TT-") || t.id.startsWith("SLOT-") ? t.id.replace("TT-", "").replace("SLOT-", "") : t.id;
           await deleteTimetableSlotApi(numericId);
         }),
       );
@@ -15846,11 +15982,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const bulkAddTimetableSlots = (newSlots: TimetableSlot[]) => {
+    setTimetable((prev) => {
+      const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+      const affectedKeys = new Set(newSlots.map(s => `${norm(s.className)}-${norm(s.section)}`));
+      const filtered = prev.filter(s => !affectedKeys.has(`${norm(s.className)}-${norm(s.section)}`));
+      const updated = [...filtered, ...newSlots];
+      try {
+        localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
   const addHomework = async (hwData: Omit<Homework, "id">) => {
     const id = "HW-" + Math.floor(100 + Math.random() * 900);
+    const cleanSec = ((hwData as any).section || "").replace(/^section\s*/i, "").replace(/^sec\s*/i, "").trim() || "A";
     const newHw: Homework = {
       ...hwData,
       id,
+      section: cleanSec,
       branch: (hwData as any).branch || selectedBranch || "Main Campus",
     } as any;
     setHomework((prev) => [newHw, ...prev]);
@@ -15887,7 +16038,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateHomework = async (id: string, updates: Partial<Homework>) => {
     setHomework((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, ...updates } : h)),
+      prev.map((h) => {
+        if (h.id !== id) return h;
+        const cleanSec = (updates.section || h.section || "").replace(/^section\s*/i, "").replace(/^sec\s*/i, "").trim() || "A";
+        return { ...h, ...updates, section: cleanSec };
+      }),
     );
 
     try {
@@ -18094,7 +18249,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           : app
       );
-      localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
+      const dataStr = JSON.stringify(updated);
+      localStorage.setItem("edu_db_leave_applications", dataStr);
+      localStorage.setItem("leave_applications", dataStr);
+      localStorage.setItem("sms_leave_applications", dataStr);
       return updated;
     });
 
@@ -18340,8 +18498,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         sectionName,
         academicYear,
       );
-      if (res?.success && Array.isArray(res.data)) {
-        setTimetable(res.data);
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        setTimetable((prev) => {
+          const cls = academicClasses.find(
+            (c) =>
+              c.id === classId ||
+              c.id === `CL-${classId}` ||
+              c.name.toLowerCase().trim() === classId.toLowerCase().trim(),
+          );
+          const targetClassName = cls?.name || classId;
+
+          const mappedSlots: TimetableSlot[] = res.data.map((item: any) => {
+            const timeSlotStr =
+              item.timeSlot ||
+              (item.startTime && item.endTime
+                ? `${item.startTime} - ${item.endTime}`
+                : "");
+            return {
+              id:
+                item.slotId?.toString() ||
+                item.id?.toString() ||
+                `SLOT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              className: item.className || targetClassName,
+              section: item.section || item.sectionName || sectionName,
+              day: item.day || item.dayOfWeek || "Monday",
+              timeSlot: timeSlotStr,
+              startTime: item.startTime,
+              endTime: item.endTime,
+              periodNumber: item.periodNumber || item.periodId || 1,
+              subject: item.subject || item.subjectName || "",
+              subjectId: item.subjectId?.toString(),
+              teacherName: item.teacherName || "",
+              teacherId: item.teacherId?.toString(),
+              roomNo: item.roomNo || "",
+              academicYear: item.academicYear || academicYear,
+              status: item.status || "Draft",
+            };
+          });
+
+          const filtered = prev.filter(
+            (t) =>
+              !(
+                t.className.toLowerCase().trim() === targetClassName.toLowerCase().trim() &&
+                t.section.toLowerCase().trim() === sectionName.toLowerCase().trim()
+              ),
+          );
+          const updated = [...filtered, ...mappedSlots];
+          try {
+            localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
       }
     } catch (err) {
       console.warn("Failed to load timetable for class section", err);
@@ -18986,12 +19193,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         saveCoScholasticAssessment,
         timetable: filteredTimetable,
         addTimetableSlot,
+        bulkAddTimetableSlots,
         updateTimetableSlot,
         deleteTimetableSlot,
         clearClassTimetable,
         publishClassTimetable,
         periodSettings,
         addPeriodSetting,
+        bulkAddPeriodSettings,
         updatePeriodSetting,
         deletePeriodSetting,
         bulkAssignPeriods,
