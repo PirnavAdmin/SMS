@@ -2344,7 +2344,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             return false;
                           });
                           if (matchedT) {
-                            assignedClassTeacherInfo.set(matchedT.id.toLowerCase(), { className: cls.name, section: sec });
+                            if (matchedT.id != null) assignedClassTeacherInfo.set(String(matchedT.id).toLowerCase(), { className: cls.name, section: sec });
                             assignedClassTeacherInfo.set((matchedT.name || `${matchedT.firstName} ${matchedT.lastName}`).trim().toLowerCase(), { className: cls.name, section: sec });
                           }
                         }
@@ -2355,7 +2355,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   // Available teachers for Class Teacher selection in the active section
                   const availableClassTeachers = teachersList.filter(t => {
                     const tName = (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase();
-                    return !assignedClassTeacherInfo.has(t.id.toLowerCase()) && !assignedClassTeacherInfo.has(tName);
+                    const tIdStr = t.id != null ? String(t.id).toLowerCase() : '';
+                    return (!tIdStr || !assignedClassTeacherInfo.has(tIdStr)) && !assignedClassTeacherInfo.has(tName);
                   });
 
                   const currentSectionClassTeacherName = ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection];

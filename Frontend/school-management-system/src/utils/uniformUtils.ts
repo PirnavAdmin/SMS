@@ -322,8 +322,8 @@ export const getUniformFeeForClass = (
 
     if (matchedStructure && matchedStructure.items && Array.isArray(matchedStructure.items)) {
       const uniItem = matchedStructure.items.find((i: any) => {
-        const headName = (i.feeHeadName || i.name || i.feeHeadId || '').toLowerCase();
-        const headId = (i.feeHeadId || i.id || '').toLowerCase();
+        const headName = String(i.feeHeadName || i.name || i.feeHeadId || '').toLowerCase();
+        const headId = String(i.feeHeadId || i.id || '').toLowerCase();
         return headId === 'fh-04' || headId === 'fh-004' || headName.includes('uniform');
       });
 

@@ -110,6 +110,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 }) => {
   const {
     academicClasses,
+    updateAcademicClass,
     rawClasses,
     teacherAssignments,
     subjects,
@@ -226,21 +227,46 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     }
   }, [classGroups, classGroupFilter]);
 
+  const hasInitializedRef = React.useRef(false);
+
   useEffect(() => {
-    if (academicClasses.length > 0 && selectedClassSections.length === 0) {
-      const initial: string[] = [];
-      academicClasses.forEach(c => {
-        const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-        const firstGroup = classGroups[0];
-        if (firstGroup && firstGroup.match(c.name)) {
-          sections.forEach(sec => initial.push(`${c.name}-${sec}`));
-        } else if (!firstGroup) {
-          sections.forEach(sec => initial.push(`${c.name}-${sec}`));
-        }
-      });
-      setSelectedClassSections(initial);
+    if (isOpen) {
+      if (!hasInitializedRef.current) {
+        hasInitializedRef.current = true;
+        setSelectedClassSections([]);
+      }
+    } else {
+      hasInitializedRef.current = false;
+      setSelectedClassSections([]);
     }
-  }, [academicClasses, selectedClassSections, classGroups]);
+  }, [isOpen]);
+
+
+
+  // Selected Class Section for Live Preview
+  const [previewClassSec, setPreviewClassSec] = useState<string>('');
+
+  useEffect(() => {
+    if (selectedClassSections.length > 0 && (!previewClassSec || !selectedClassSections.includes(previewClassSec))) {
+      setPreviewClassSec(selectedClassSections[0]);
+    }
+  }, [selectedClassSections, previewClassSec]);
+
+  // Formatted Selected Classes Summary for UI & Alert
+  const formattedSelectedClasses = useMemo(() => {
+    const map = new Map<string, string[]>();
+    selectedClassSections.forEach(cs => {
+      const idx = cs.lastIndexOf('-');
+      const cName = idx !== -1 ? cs.substring(0, idx) : cs;
+      const sec = idx !== -1 ? cs.substring(idx + 1) : 'A';
+      if (!map.has(cName)) map.set(cName, []);
+      map.get(cName)!.push(sec);
+    });
+    return Array.from(map.entries()).map(([className, sections]) => ({
+      className,
+      sections: sections.sort()
+    }));
+  }, [selectedClassSections]);
 
   // Auto-populate timetable with mapped subjects/teachers
   const [autoAssignMappedSubjects, setAutoAssignMappedSubjects] = useState(true);
@@ -415,6 +441,146 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     };
   }, [schoolStartTime, schoolEndTime, periodDurationMinutes, breaks]);
 
+  // Dynamic Live Timetable Grid Preview for selected class/section
+  const previewTimetableGrid = useMemo(() => {
+    if (!previewClassSec || selectedClassSections.length === 0) return null;
+
+    const lastDash = previewClassSec.lastIndexOf('-');
+    const className = lastDash !== -1 ? previewClassSec.substring(0, lastDash).trim() : previewClassSec.trim();
+    const section = lastDash !== -1 ? previewClassSec.substring(lastDash + 1).trim() : 'A';
+
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const cls = academicClasses.find(c => norm(c.name) === norm(className));
+    const mappedSubs = (cls?.subjects && cls.subjects.length > 0)
+      ? cls.subjects
+      : ['Mathematics', 'English', 'Science', 'Social Studies', 'Second Language', 'Computer Science', 'Physical Education'];
+    const weeklyPeriodsMap = cls?.weeklyPeriods || {};
+
+    const subjectRequests = mappedSubs.map(subName => {
+      const classCount = weeklyPeriodsMap[subName];
+      const count = (typeof classCount === 'number' && classCount >= 0)
+        ? classCount
+        : 5;
+
+      const mapping = teacherAssignments.find(ta =>
+        norm(ta.className) === norm(className) &&
+        norm(ta.section) === norm(section) &&
+        norm(ta.subject) === norm(subName)
+      );
+      const teacherName = mapping?.teacherName || 'Assigned Teacher';
+
+      return {
+        subject: subName,
+        count,
+        teacherName
+      };
+    }).filter(req => req.count > 0);
+
+    const teachingPeriods = calculationResult.periods.filter(p => p.type === 'Teaching');
+    const numDays = workingDays.length;
+    const numPeriods = teachingPeriods.length;
+
+    if (numDays === 0 || numPeriods === 0) return null;
+
+    const dayBuckets: { subject: string; teacherName: string }[][] = Array.from(
+      { length: numDays },
+      () => []
+    );
+
+    const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
+
+    sortedRequests.forEach((req, sIdx) => {
+      const dayOffset = sIdx % numDays;
+      for (let i = 0; i < req.count; i++) {
+        let bestDay = -1;
+        let minLoad = 9999;
+        for (let d = 0; d < numDays; d++) {
+          const targetDay = (dayOffset + d) % numDays;
+          const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
+          if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
+            if (dayBuckets[targetDay].length < minLoad) {
+              minLoad = dayBuckets[targetDay].length;
+              bestDay = targetDay;
+            }
+          }
+        }
+        if (bestDay === -1) {
+          for (let d = 0; d < numDays; d++) {
+            const targetDay = (dayOffset + d) % numDays;
+            if (dayBuckets[targetDay].length < numPeriods) {
+              if (dayBuckets[targetDay].length < minLoad) {
+                minLoad = dayBuckets[targetDay].length;
+                bestDay = targetDay;
+              }
+            }
+          }
+        }
+        if (bestDay !== -1) {
+          dayBuckets[bestDay].push({
+            subject: req.subject,
+            teacherName: req.teacherName
+          });
+        }
+      }
+    });
+
+    const grid: Record<string, Record<string, { subject: string; teacherName: string; isBreak?: boolean; breakType?: string }>> = {};
+
+    workingDays.forEach((dayName, dIdx) => {
+      grid[dayName] = {};
+      const subjectsForToday = dayBuckets[dIdx];
+      const assignedSlots: (typeof subjectsForToday[0] | null)[] = Array(numPeriods).fill(null);
+
+      subjectsForToday.forEach((item, itemIdx) => {
+        const preferredStartPeriod = (dIdx + itemIdx) % numPeriods;
+        let chosenPeriodIdx = -1;
+        for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
+          const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
+          if (assignedSlots[pIdx] === null) {
+            chosenPeriodIdx = pIdx;
+            break;
+          }
+        }
+        if (chosenPeriodIdx !== -1) {
+          assignedSlots[chosenPeriodIdx] = item;
+        }
+      });
+
+      calculationResult.periods.forEach(p => {
+        if (p.type === 'Teaching') {
+          const teachingIdx = teachingPeriods.findIndex(tp => tp.id === p.id);
+          const assigned = assignedSlots[teachingIdx];
+          if (assigned) {
+            grid[dayName][p.name] = {
+              subject: assigned.subject,
+              teacherName: assigned.teacherName
+            };
+          } else {
+            grid[dayName][p.name] = {
+              subject: 'Free Period',
+              teacherName: '-'
+            };
+          }
+        } else {
+          grid[dayName][p.name] = {
+            subject: p.name,
+            teacherName: p.type,
+            isBreak: true,
+            breakType: p.type
+          };
+        }
+      });
+    });
+
+    return {
+      className,
+      section,
+      periods: calculationResult.periods,
+      workingDays,
+      grid
+    };
+  }, [previewClassSec, selectedClassSections, academicClasses, teacherAssignments, calculationResult, workingDays, maxPeriodsPerDayPerSubject]);
+
   // Quick Class & Section Group Selector
   const handleSelectClassGroup = (group: string) => {
     const allSections: string[] = [];
@@ -423,40 +589,52 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       sections.forEach(sec => allSections.push(`${c.name}-${sec}`));
     });
 
-    if (group === 'all' || group === 'none' || group === 'sec-A' || group === 'sec-B') {
-      // Keep action filters
-    } else if (classGroups.some(g => g.key === group)) {
-      setClassGroupFilter(group);
-    }
-
     if (group === 'none') {
       setSelectedClassSections([]);
       return;
     }
     if (group === 'all') {
+      setClassGroupFilter('all');
       setSelectedClassSections(allSections);
       return;
     }
     if (group === 'sec-A' || group === 'sec-B') {
       const letter = group === 'sec-A' ? 'A' : 'B';
       const targetClassNames = displayedClasses.map(c => c.name);
-      setSelectedClassSections(allSections.filter(k => {
-        const [clsName, sec] = k.split('-');
-        return targetClassNames.includes(clsName) && sec === letter;
-      }));
+      
+      const keysToSelect: string[] = [];
+      academicClasses.forEach(c => {
+        if (targetClassNames.includes(c.name)) {
+          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+          if (sections.includes(letter)) {
+            keysToSelect.push(`${c.name}-${letter}`);
+          }
+        }
+      });
+
+      setSelectedClassSections(prev => {
+        const otherSelected = prev.filter(k => {
+          const idx = k.lastIndexOf('-');
+          const cName = idx !== -1 ? k.substring(0, idx) : k;
+          return !targetClassNames.includes(cName);
+        });
+        return [...new Set([...otherSelected, ...keysToSelect])];
+      });
       return;
     }
 
-    const activeGroup = classGroups.find(g => g.key === group);
-    if (activeGroup) {
-      const classNamesToSelect = academicClasses
-        .map(c => c.name)
-        .filter(n => activeGroup.match(n));
-
-      setSelectedClassSections(allSections.filter(k => {
-        const clsName = k.split('-')[0];
-        return classNamesToSelect.includes(clsName);
-      }));
+    if (classGroups.some(g => g.key === group)) {
+      setClassGroupFilter(group);
+      const activeGroup = classGroups.find(g => g.key === group);
+      if (activeGroup) {
+        const targetClasses = academicClasses.filter(c => activeGroup.match(c.name));
+        const groupKeys: string[] = [];
+        targetClasses.forEach(c => {
+          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+          sections.forEach(sec => groupKeys.push(`${c.name}-${sec}`));
+        });
+        setSelectedClassSections(groupKeys);
+      }
     }
   };
 
@@ -470,8 +648,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   const toggleClass = (cls: AcademicClass) => {
     const sections = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
     const keys = sections.map((sec: string) => `${cls.name}-${sec}`);
-    const someSelected = keys.some((key: string) => selectedClassSections.includes(key));
-    if (someSelected) {
+    const allSelected = keys.every((key: string) => selectedClassSections.includes(key));
+    if (allSelected) {
       setSelectedClassSections(prev => prev.filter((k: string) => !keys.includes(k)));
     } else {
       setSelectedClassSections(prev => [...new Set([...prev, ...keys])]);
@@ -548,12 +726,14 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       const newTimetableSlots: TimetableSlot[] = [];
 
       for (const classSec of selectedClassSections) {
-        const parts = classSec.split('-');
-        const className = parts[0]?.trim();
-        const section = parts[1]?.trim() || 'A';
+        const lastDash = classSec.lastIndexOf('-');
+        const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
+        const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
 
         const cls = academicClasses.find(c => norm(c.name) === norm(className));
-        const mappedSubs = cls?.subjects || [];
+        const mappedSubs = (cls?.subjects && cls.subjects.length > 0)
+          ? cls.subjects
+          : ['Mathematics', 'English', 'Science', 'Social Studies', 'Second Language', 'Computer Science', 'Physical Education'];
         const weeklyPeriodsMap = cls?.weeklyPeriods || {};
 
         if (!autoAssignMappedSubjects || mappedSubs.length === 0) {
@@ -684,6 +864,13 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
               const period = teachingPeriods[pIdx];
               const slotTime = `${period.startTime} - ${period.endTime}`;
 
+              const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
+              const secDetails = clsObj?.sectionDetails?.[section] || clsObj?.sectionDetails?.[section.toUpperCase()] || clsObj?.sectionDetails?.[section.toLowerCase()];
+              const secRoom = secDetails?.roomNo?.trim() || (secDetails as any)?.roomNumber?.trim();
+              const dynamicRoomNo = secRoom && secRoom.toLowerCase() !== 'unassigned' && secRoom.toLowerCase() !== 'classroom'
+                ? secRoom
+                : `${className.replace(/class/gi, '').trim()}-${section}`;
+
               newTimetableSlots.push({
                 id: `SLOT-AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 className,
@@ -694,7 +881,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 subject: assigned.subject,
                 teacherName: assigned.teacherName,
                 teacherId: assigned.teacherId,
-                roomNo: `Room ${section}`,
+                roomNo: dynamicRoomNo,
                 academicYear,
                 status: 'Draft',
                 branch: selectedBranch || 'Main Campus'
@@ -707,10 +894,10 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       // Clear previous timetable slots for selected class sections
       if (clearClassTimetable) {
         for (const classSec of selectedClassSections) {
-          const parts = classSec.split('-');
-          const className = parts[0]?.trim();
-          const section = parts[1]?.trim() || 'A';
-          clearClassTimetable(className, section);
+          const lastDash = classSec.lastIndexOf('-');
+          const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
+          const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
+          await clearClassTimetable(className, section);
         }
       }
 
@@ -745,10 +932,14 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         fetchPeriods(true).catch(() => {});
       }
 
+      const classListSummary = formattedSelectedClasses
+        .map(c => `${c.className} (Sec ${c.sections.join(', ')})`)
+        .join(', ');
+
       addToast(
         'success',
         'Auto-Generation Complete! 🎉',
-        `Timetable schedule successfully generated for ${selectedClassSections.length} class section(s).`
+        `Timetable schedule successfully generated for ${selectedClassSections.length} class section(s): ${classListSummary}`
       );
 
       if (onSuccess) onSuccess();
@@ -1396,6 +1587,38 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 </div>
               </div>
 
+              {/* Selected Classes & Sections Summary Card */}
+              <div className="bg-sky-50/80 dark:bg-sky-950/30 p-3.5 rounded-xl sm:rounded-2xl border border-sky-200 dark:border-sky-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-sky-900 dark:text-sky-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                    Selected Classes & Sections ({selectedClassSections.length})
+                  </span>
+                  <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300 font-mono">
+                    {formattedSelectedClasses.length} Classes Selected
+                  </span>
+                </div>
+                {formattedSelectedClasses.length === 0 ? (
+                  <p className="text-xs text-sky-600/70 dark:text-sky-400/70 italic">No classes or sections selected yet. Use the checkboxes above to select classes.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {formattedSelectedClasses.map(c => (
+                      <span
+                        key={c.className}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-white dark:bg-slate-800 text-sky-800 dark:text-sky-200 border border-sky-300 dark:border-sky-700 shadow-2xs"
+                      >
+                        <span>{c.className}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-[10px] font-mono">
+                          Sec {c.sections.join(', ')}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+
+
             </div>
           )}
 
@@ -1403,13 +1626,13 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           {activeStep === 'generate' && (
             <div className="space-y-4 animate-in fade-in">
               
-              {/* Summary Overview Card */}
+              {/* Target Classes & Sections Card */}
               <div className="bg-white dark:bg-slate-850 p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
                     <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      Generation Configuration Summary
+                      Target Classes & Sections ({selectedClassSections.length} sections)
                     </h4>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
@@ -1417,96 +1640,108 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Timing Window</span>
-                    <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">
-                      {schoolStartTime} - {schoolEndTime}
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Period Duration</span>
-                    <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">
-                      {periodDurationMinutes} mins / period
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Teaching Periods</span>
-                    <p className="font-bold text-brand-600 dark:text-brand-400 mt-0.5 font-mono">
-                      {calculationResult.teachingCount} Periods / day
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Target Sections</span>
-                    <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">
-                      {selectedClassSections.length} Sections
-                    </p>
-                  </div>
-                </div>
-
-                {/* Auto-populate Option Switch */}
-                <div className="p-3.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-800 flex items-start gap-2.5">
-                  <input
-                    type="checkbox"
-                    id="autoAssignMappedSubjects"
-                    checked={autoAssignMappedSubjects}
-                    onChange={e => setAutoAssignMappedSubjects(e.target.checked)}
-                    className="w-4 h-4 text-brand-600 rounded cursor-pointer mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="autoAssignMappedSubjects" className="text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer block">
-                      Auto-Populate Timetable Slots with Mapped Subjects & Teachers
-                    </label>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Automatically reads assigned subjects & teachers from Class Management tabs and intelligently distributes them across the working days for each section.
-                    </p>
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  {formattedSelectedClasses.map(c => (
+                    <div
+                      key={c.className}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-xs font-black text-emerald-900 dark:text-emerald-200"
+                    >
+                      <School className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{c.className}</span>
+                      <span className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-mono border border-emerald-300 dark:border-emerald-700">
+                        Sec {c.sections.join(', ')}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Calculated Period Schedule Table */}
-              <div className="bg-white dark:bg-slate-850 p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-brand-500" />
-                  Calculated Daily Period Structure ({calculationResult.periods.length} slots)
-                </h4>
+              {/* Live Dynamic Timetable Grid Preview Card */}
+              <div className="bg-white dark:bg-slate-850 p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-sky-500" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      Live Timetable Grid Preview
+                    </h4>
+                  </div>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200 dark:border-slate-700">
-                      <tr>
-                        <th className="px-3.5 py-2">Sequence</th>
-                        <th className="px-3.5 py-2">Slot Name</th>
-                        <th className="px-3.5 py-2">Timing</th>
-                        <th className="px-3.5 py-2">Duration</th>
-                        <th className="px-3.5 py-2">Type</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
-                      {calculationResult.periods.map(p => (
-                        <tr key={p.id} className={p.type !== 'Teaching' ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''}>
-                          <td className="px-3.5 py-2 font-bold font-mono text-slate-400">#{p.sequence}</td>
-                          <td className="px-3.5 py-2 font-bold text-slate-900 dark:text-white">{p.name}</td>
-                          <td className="px-3.5 py-2 font-mono text-slate-600 dark:text-slate-400">{p.startTime} - {p.endTime}</td>
-                          <td className="px-3.5 py-2 font-bold font-mono">{p.durationMinutes} mins</td>
-                          <td className="px-3.5 py-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              p.type === 'Teaching'
-                                ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
-                                : p.type === 'Lunch'
-                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
-                                : p.type === 'Assembly'
-                                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                            }`}>
-                              {p.type}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {/* Section Dropdown Selector for Preview */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">Preview Section:</span>
+                    <select
+                      value={previewClassSec}
+                      onChange={e => setPreviewClassSec(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-brand-600 dark:text-brand-400 outline-none cursor-pointer"
+                    >
+                      {selectedClassSections.map(cs => {
+                        const idx = cs.lastIndexOf('-');
+                        const cls = idx !== -1 ? cs.substring(0, idx) : cs;
+                        const sec = idx !== -1 ? cs.substring(idx + 1) : 'A';
+                        return (
+                          <option key={cs} value={cs}>
+                            {cls} - Section {sec}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Timetable Matrix Grid */}
+                {previewTimetableGrid && (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold uppercase text-[10px] border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                          <th className="p-2.5 border-r border-slate-200 dark:border-slate-700 w-28 bg-slate-150 dark:bg-slate-850">Day / Time</th>
+                          {previewTimetableGrid.periods.map(p => (
+                            <th key={p.id} className="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center min-w-32">
+                              <div className="font-extrabold text-slate-900 dark:text-white">{p.name}</div>
+                              <div className="text-[9.5px] font-mono text-slate-500 dark:text-slate-400 font-normal">{p.startTime} - {p.endTime}</div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700 font-medium">
+                        {previewTimetableGrid.workingDays.map(dayName => (
+                          <tr key={dayName} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                            <td className="p-2.5 font-black text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
+                              {dayName}
+                            </td>
+                            {previewTimetableGrid.periods.map(p => {
+                              const cell = previewTimetableGrid.grid[dayName]?.[p.name];
+                              if (cell?.isBreak) {
+                                return (
+                                  <td key={p.id} className="p-2 border-r border-slate-200 dark:border-slate-700 bg-amber-50/60 dark:bg-amber-950/30 text-center align-middle">
+                                    <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 block">
+                                      {cell.subject}
+                                    </span>
+                                    <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase">
+                                      {cell.breakType}
+                                    </span>
+                                  </td>
+                                );
+                              }
+                              return (
+                                <td key={p.id} className="p-2 border-r border-slate-200 dark:border-slate-700 align-middle">
+                                  {cell ? (
+                                    <div className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-left space-y-0.5">
+                                      <p className="text-xs font-black text-sky-900 dark:text-sky-100 truncate">{cell.subject}</p>
+                                      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">{cell.teacherName}</p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 italic block text-center">Free Period</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -1593,6 +1828,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         </div>
 
       </div>
+
     </div>
   );
 };

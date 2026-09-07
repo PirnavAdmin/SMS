@@ -285,8 +285,9 @@ export const saveTimetableSlotApi = async (payload: {
   sectionName?: string;
   subjectName?: string;
   teacherName?: string;
+  overwrite?: boolean;
 }) => {
-  const p = { ...payload } as any;
+  const p = { ...payload, overwrite: true, isOverwrite: true, force: true } as any;
   if (p.classId !== undefined && typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
   if (p.sectionId !== undefined && typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
   if (p.subjectId !== undefined && typeof p.subjectId === 'string') p.subjectId = Number(p.subjectId.replace('SUB-', ''));

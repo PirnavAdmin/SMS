@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { useData } from "../../../context/DataContext";
-import { resolveMediaUrl } from "../../../utils/mediaUtils";
 import { useHostel } from "../../../context/HostelContext";
 import { useToast } from "../../../context/ToastContext";
 
@@ -325,13 +324,6 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              {schoolProfile?.logoUrl && (
-                <img
-                  src={resolveMediaUrl(schoolProfile.logoUrl)}
-                  alt="School Logo"
-                  className="h-6 w-auto max-w-[120px] object-contain rounded-md bg-white/20 p-0.5"
-                />
-              )}
               <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-extrabold text-[10px] border border-white/30 uppercase tracking-wider backdrop-blur-xs flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> {schoolProfile?.name || "PIRNAV SCHOOLS"} • Hostel Warden Portal
               </span>
@@ -469,7 +461,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    Hostel Bed Occupancy
+                    Hostel Bed Occupancy Breakdown
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
                     Live distribution of occupied, vacant, and out-pass beds
@@ -497,39 +489,36 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
                     Hostel Buildings & Room Occupancy
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    Live Bed Occupancy by Hostel Building
-                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3.5">
-              {blockSummary.map((block) => (
+            <div className="space-y-2.5">
+              {blockSummary.slice(0, 3).map((block) => (
                 <div
                   key={block.id}
-                  className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-2.5"
+                  className="p-3 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1.5"
                 >
                   <div className="flex items-center justify-between text-xs">
                     <div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
                         {block.name}
                       </h4>
-                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                        Assigned Warden: <span className="text-slate-700 dark:text-slate-300 font-bold">{block.warden}</span>
+                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                        Warden: <span className="text-slate-700 dark:text-slate-300 font-bold">{block.warden}</span>
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-base block">
+                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-xs block">
                         {block.occupiedBeds} / {block.totalBeds} Beds
                       </span>
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
                         {block.pct}% Capacity
                       </span>
                     </div>
                   </div>
 
-                  <div className="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                  <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                     <div
                       className="h-full bg-indigo-600 rounded-full transition-all duration-500"
                       style={{ width: `${block.pct}%` }}
@@ -537,6 +526,18 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                   </div>
                 </div>
               ))}
+
+              {blockSummary.length > 3 && (
+                <div className="pt-0.5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate && onNavigate("hostel")}
+                    className="w-full py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer border border-slate-200/70 dark:border-slate-700 active:scale-95"
+                  >
+                    View All ({blockSummary.length}) Blocks in Hostel Setup <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
