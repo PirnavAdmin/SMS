@@ -342,68 +342,21 @@ export const SettingsView: React.FC = () => {
     confirmPassword: "",
   });
 
-  const handleAddCustomIdSequence = async () => {
-    const newSeq: CustomIdSequence = {
-      id: `custom_${Date.now()}`,
-      name: `Custom Format ${(idForm.customSequences || []).length + 1}`,
-      prefix: "CUST",
-      startNo: 101,
-      padding: 4,
-      includeYear: true,
-      separator: "-",
-      position: "start",
-    };
-
-    const nextForm = {
-      ...idForm,
-      customSequences: [...(idForm.customSequences || []), newSeq],
-    };
-
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      addToast("error", "Password Mismatch", "New passwords do not match.");
+      return;
+    }
     try {
-      await addOrUpdateCustomIdFormatApi(newSeq);
-    } catch {}
-
-    addToast(
-      "success",
-      "Custom ID Format Added",
-      "A new custom ID sequence card has been added to database.",
-    );
-  };
-
-  const handleDeleteCustomIdSequence = async (seqId: string) => {
-    const nextForm = {
-      ...idForm,
-      customSequences: (idForm.customSequences || []).filter(
-        (s) => s.id !== seqId,
-      ),
-    };
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-
-    try {
-      await deleteCustomIdFormatApi(seqId);
-    } catch {}
-
-    addToast(
-      "info",
-      "Custom ID Format Removed",
-      "Removed custom ID sequence format from database.",
-    );
-  };
-
-  const handleUpdateCustomSequence = (
-    seqId: string,
-    updates: Partial<CustomIdSequence>,
-  ) => {
-    setIdForm((prev) => ({
-      ...prev,
-      customSequences: (prev.customSequences || []).map((s) =>
-        s.id === seqId ? { ...s, ...updates } : s,
-      ),
-    }));
+      if (changePassword) {
+        await changePassword(passForm.currentPassword, passForm.newPassword);
+      }
+      setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      addToast("success", "Password Changed", "Your password has been updated.");
+    } catch (err: any) {
+      addToast("error", "Password Change Failed", err?.message || "Failed to update password.");
+    }
   };
 
   // Academic Year Configuration States

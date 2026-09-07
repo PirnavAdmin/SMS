@@ -76,7 +76,7 @@ export const WardenAttendanceView: React.FC = () => {
     return {
       id: matchedStaff?.id || userEmpId,
       name: userName,
-      empId: matchedStaff?.employeeId || 'WRD-102',
+      empId: matchedStaff?.empId || (matchedStaff as any)?.employeeId || 'WRD-102',
       email: userEmail,
       designation: 'Hostel Warden',
       branch: user?.branch || 'Main Campus',

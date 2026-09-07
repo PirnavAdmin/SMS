@@ -372,8 +372,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     return cleaned.length > 0 ? Array.from(new Set(cleaned)) : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
   }, [teacher, teacherAssignments, timetable]);
 
-  const [teacherSelectedClass, setTeacherSelectedClass] = useState('Class 10');
-  const [teacherSelectedSection, setTeacherSelectedSection] = useState('A');
+  const [teacherSelectedClass, setTeacherSelectedClass] = useState('All Assigned Classes');
+  const [teacherSelectedSection, setTeacherSelectedSection] = useState('All');
   const [teacherHasSearched, setTeacherHasSearched] = useState(false);
   const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
   const [teacherPageSize, setTeacherPageSize] = useState(10);
@@ -397,7 +397,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   }, [teacherAssignedClasses]);
 
   // Dynamic Section options for Teacher Filter - STRICTLY assigned sections for selected class
-  const teacherSectionOptions = useMemo(() => {
+  const rawAssignedSections = useMemo(() => {
     const sections = new Set<string>();
     (teacherAssignedClasses || []).forEach(ac => {
       const parts = ac.split('-');
@@ -413,16 +413,26 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       }
     });
 
-    const list = Array.from(sections).sort();
-    return list.length > 0 ? list : ['A'];
+    return Array.from(sections).sort();
   }, [teacherAssignedClasses, teacherSelectedClass]);
 
-  // Auto-sync section selection when class changes to default directly to assigned section
-  useEffect(() => {
-    if (teacherSectionOptions.length > 0) {
-      setTeacherSelectedSection(teacherSectionOptions[0]);
+  const teacherSectionOptions = useMemo(() => {
+    if (rawAssignedSections.length >= 2) {
+      return ['All', ...rawAssignedSections];
     }
-  }, [teacherSelectedClass, teacherSectionOptions]);
+    return rawAssignedSections.length > 0 ? rawAssignedSections : ['A'];
+  }, [rawAssignedSections]);
+
+  // Auto-sync section selection: if 2 or more sections show 'All', if only 1 section set to that default teaching section
+  useEffect(() => {
+    if (rawAssignedSections.length >= 2) {
+      setTeacherSelectedSection('All');
+    } else if (rawAssignedSections.length === 1) {
+      setTeacherSelectedSection(rawAssignedSections[0]);
+    } else {
+      setTeacherSelectedSection('A');
+    }
+  }, [teacherSelectedClass, rawAssignedSections]);
 
   // Roster View Filters
   const [searchName, setSearchName] = useState('');
@@ -670,7 +680,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
               >
                 {teacherSectionOptions.map((sec) => (
-                  <option key={sec} value={sec}>Section {sec}</option>
+                  <option key={sec} value={sec}>{sec === 'All' ? 'All Sections' : `Section ${sec}`}</option>
                 ))}
               </select>
             </div>

@@ -5261,8 +5261,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
             const mapped: AcademicClass[] = classList.map((c: any) => {
               const classIdStr = c.classId?.toString() || c.id?.toString();
-              const localCls = localClasses.find((lc) => lc.id === classIdStr);
               const classNameStr = c.className || c.name || "";
+              const localCls = localClasses.find((lc) => {
+                if (!lc) return false;
+                const lcIdStr = String(lc.id || "").trim();
+                const normLcId = lcIdStr.replace(/^CL-/i, "").trim();
+                const normClassId = String(classIdStr || "").replace(/^CL-/i, "").trim();
+                const normLcName = String(lc.name || (lc as any).className || "").toLowerCase().replace(/class/gi, "").trim();
+                const normClassName = String(classNameStr).toLowerCase().replace(/class/gi, "").trim();
+                return lcIdStr === classIdStr || (normLcId && normLcId === normClassId) || (normLcName && normLcName === normClassName);
+              });
 
               const secDetails: Record<string, any> = {
                 ...(localCls?.sectionDetails || c.sectionDetails || {}),
