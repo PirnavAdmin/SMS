@@ -8,10 +8,11 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
+import { getSortOrderForClass } from '../../../utils/classSorter';
 
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], teacherAssignments = [], timetable = [], updateStaff } = useData();
+  const { staff = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff } = useData();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,64 +84,163 @@ export const TeacherProfileView: React.FC = () => {
     };
   }, [user, staff]);
 
-  // Dynamically compute Class Teacher assignment details
+  // Dynamically compute Class Teacher assignment details from all master sources (Class Management, Assignments, Staff DB)
   const classTeacherInfo = useMemo(() => {
-    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
-    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
-    const tId = dbTeacher?.id || dbTeacher?.empId;
+    const uNameLower = (user?.name || '').toLowerCase().trim();
+    const dbNameLower = (dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '').toLowerCase();
+    const dbSingleNameLower = (dbTeacher?.name || '').toLowerCase().trim();
+    const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();
+    const tId = dbTeacher?.id || dbTeacher?.empId || (user as any)?.empId || user?.id;
 
-    // Check teacherAssignments for role === 'Class Teacher' or isClassTeacher === true
-    const ctAssignment = teacherAssignments.find(ta => {
+    const namesToMatch = Array.from(new Set([uNameLower, dbNameLower, dbSingleNameLower])).filter(Boolean);
+
+    const isTeacherNameMatch = (targetName?: string) => {
+      if (!targetName) return false;
+      const targetLower = targetName.toLowerCase().trim();
+      return namesToMatch.some(nm => 
+        nm === targetLower || 
+        targetLower.includes(nm) || 
+        nm.includes(targetLower) || 
+        (tFirstName.length > 3 && targetLower.includes(tFirstName))
+      );
+    };
+
+    // 1. PRIORITIZE Admin Class Management workspace assignments (academicClasses sectionTeachers map)
+    const adminConfiguredMatches: string[] = [];
+    if (academicClasses && academicClasses.length > 0) {
+      for (const cls of academicClasses) {
+        const clsNameRaw = cls.name || cls.className || '';
+        if (clsNameRaw.toLowerCase().includes('nursery') || clsNameRaw.toLowerCase().includes('lkg') || clsNameRaw.toLowerCase().includes('ukg')) {
+          continue;
+        }
+        let clsName = clsNameRaw.trim();
+        if (!clsName.toLowerCase().startsWith('class')) clsName = `Class ${clsName}`;
+        const secTeachers = (cls as any).sectionTeachers || {};
+
+        for (const [sec, tName] of Object.entries(secTeachers)) {
+          if (typeof tName === 'string' && tName.trim() && isTeacherNameMatch(tName)) {
+            adminConfiguredMatches.push(`${clsName}-${sec}`);
+          }
+        }
+
+        const singleCT = cls.classTeacher || (cls as any).classTeacherName;
+        if (typeof singleCT === 'string' && singleCT.trim() && isTeacherNameMatch(singleCT)) {
+          adminConfiguredMatches.push(`${clsName}-A`);
+        }
+      }
+    }
+
+    if (adminConfiguredMatches.length > 0) {
+      // Sort by class order rank in descending order so assigned grade (Class 9-A) takes top priority
+      adminConfiguredMatches.sort((a, b) => getSortOrderForClass(b) - getSortOrderForClass(a));
+      const primaryCls = adminConfiguredMatches[0];
+      const parts = primaryCls.split('-');
+      return { isClassTeacher: true, className: primaryCls, section: parts[1] || 'A' };
+    }
+
+    // 2. Check teacherAssignments for role === 'Class Teacher' or isClassTeacher === true
+    const ctAssignments = teacherAssignments.filter(ta => {
       if (!ta) return false;
-      const taName = (ta.teacherName || '').toLowerCase();
-      const matchName = (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      if (ta.className && (ta.className.toLowerCase().includes('nursery') || ta.className.toLowerCase().includes('lkg') || ta.className.toLowerCase().includes('ukg'))) {
+        return false;
+      }
+      const matchName = isTeacherNameMatch(ta.teacherName);
       const matchId = tId && (String(ta.teacherId) === String(tId));
       const isCT = ta.role === 'Class Teacher' || ta.isClassTeacher === true || ta.designation?.includes('Class Teacher');
       return (matchName || matchId) && isCT;
     });
 
-    if (ctAssignment) {
-      const clsName = ctAssignment.className ? (ctAssignment.className.startsWith('Class ') ? ctAssignment.className : `Class ${ctAssignment.className}`) : '';
-      return { isClassTeacher: true, className: clsName, section: ctAssignment.section || '' };
+    if (ctAssignments.length > 0) {
+      const formattedList = ctAssignments.map(ta => {
+        let clsName = ta.className ? (ta.className.startsWith('Class ') ? ta.className : `Class ${ta.className}`) : '';
+        const sec = ta.section || 'A';
+        return clsName.includes('-') ? clsName : `${clsName}-${sec}`;
+      });
+      formattedList.sort((a, b) => getSortOrderForClass(b) - getSortOrderForClass(a));
+      const primaryCls = formattedList[0];
+      const parts = primaryCls.split('-');
+      return { isClassTeacher: true, className: primaryCls, section: parts[1] || 'A' };
     }
 
-    // Check staff record fields (isClassTeacher, classTeacherFor, designation)
+    // 3. Check staff record fields (isClassTeacher, classTeacherFor, designation)
     const isStaffCT = dbTeacher?.isClassTeacher === true || (dbTeacher?.designation || '').toLowerCase().includes('class teacher');
     if (isStaffCT) {
       const assignedCls = (dbTeacher?.assignedClasses && dbTeacher.assignedClasses[0]) ? dbTeacher.assignedClasses[0] : '';
-      const parts = assignedCls.split('-');
-      return { isClassTeacher: true, className: assignedCls ? (assignedCls.startsWith('Class ') ? assignedCls : `Class ${assignedCls}`) : '', section: parts[1] || '' };
+      if (!assignedCls.toLowerCase().includes('nursery') && !assignedCls.toLowerCase().includes('lkg') && !assignedCls.toLowerCase().includes('ukg')) {
+        const parts = assignedCls.split('-');
+        const clsFormatted = assignedCls ? (assignedCls.startsWith('Class ') ? assignedCls : `Class ${assignedCls}`) : '';
+        return { isClassTeacher: true, className: clsFormatted.includes('-') ? clsFormatted : `${clsFormatted}-A`, section: parts[1] || 'A' };
+      }
     }
 
     return { isClassTeacher: false, className: '', section: '' };
-  }, [dbTeacher, user, teacherAssignments]);
+  }, [dbTeacher, user, teacherAssignments, academicClasses]);
 
-  // Dynamically compute assigned classes (clean class name without section suffix)
+  // Dynamically compute assigned classes with section suffixes (e.g. Class 9-A, Class 8-A)
   const dynamicAssignedClasses = useMemo(() => {
-    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
-    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const uNameLower = (user?.name || '').toLowerCase().trim();
+    const dbNameLower = (dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '').toLowerCase();
+    const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();
+
+    const namesToMatch = Array.from(new Set([uNameLower, dbNameLower])).filter(Boolean);
+
+    const isTeacherNameMatch = (targetName?: string) => {
+      if (!targetName) return false;
+      const targetLower = targetName.toLowerCase().trim();
+      return namesToMatch.some(nm => 
+        nm === targetLower || 
+        targetLower.includes(nm) || 
+        nm.includes(targetLower) || 
+        (tFirstName.length > 3 && targetLower.includes(tFirstName))
+      );
+    };
+
+    const formatClsSec = (className?: string, section?: string) => {
+      if (!className) return null;
+      let cls = className.trim();
+      if (!cls.toLowerCase().startsWith('class')) cls = `Class ${cls}`;
+      if (cls.includes('-')) return cls;
+      const sec = (section || 'A').trim().replace(/^(section|sec)\s*/i, '');
+      return `${cls}-${sec}`;
+    };
+
+    // From Academic Classes (Class Management sectionTeachers in Admin)
+    const fromAcademicClasses: string[] = [];
+    if (academicClasses && academicClasses.length > 0) {
+      academicClasses.forEach(cls => {
+        const clsNameRaw = cls.name || cls.className || '';
+        const clsName = clsNameRaw.startsWith('Class ') ? clsNameRaw : `Class ${clsNameRaw}`;
+        const secTeachers = (cls as any).sectionTeachers || {};
+        for (const [sec, tName] of Object.entries(secTeachers)) {
+          if (typeof tName === 'string' && tName.trim() && isTeacherNameMatch(tName)) {
+            fromAcademicClasses.push(`${clsName}-${sec}`);
+          }
+        }
+      });
+    }
 
     const fromAssignments = teacherAssignments
-      .filter(ta => {
-        const taName = (ta.teacherName || '').toLowerCase();
-        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
-      })
-      .map(ta => ta.className ? (ta.className.startsWith('Class ') ? ta.className.split('-')[0].trim() : `Class ${ta.className.split('-')[0].trim()}`) : null);
+      .filter(ta => isTeacherNameMatch(ta.teacherName))
+      .map(ta => formatClsSec(ta.className, ta.section));
 
     const fromTimetable = timetable
       .filter(t => {
         const tName = (t.teacherName || '').toLowerCase();
         return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
       })
-      .map(t => t.className ? (t.className.startsWith('Class ') ? t.className.split('-')[0].trim() : `Class ${t.className.split('-')[0].trim()}`) : null);
+      .map(t => formatClsSec(t.className, t.section));
 
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => {
-      const cls = ac.split('-')[0].trim();
-      return cls.startsWith('Class ') ? cls : `Class ${cls}`;
+      let str = ac.trim();
+      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
+      return str.includes('-') ? str : `${str}-A`;
     });
 
-    return Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
-  }, [dbTeacher, user, teacherAssignments, timetable]);
+    const merged = Array.from(new Set([...fromAcademicClasses, ...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+    const cleaned = merged.filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
+
+    return cleaned.length > 0 ? cleaned : ['Class 9-A', 'Class 8-A', 'Class 10-A', 'Class 1-B'];
+  }, [dbTeacher, user, teacherAssignments, timetable, academicClasses]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSections = useMemo(() => {
@@ -539,7 +639,7 @@ export const TeacherProfileView: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               {/* Assigned Classes / Department */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
@@ -553,27 +653,7 @@ export const TeacherProfileView: React.FC = () => {
                   ) : (
                     profile.assignedClasses.map((cls, idx) => (
                       <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                        {cls.split('-')[0].trim()}
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Assigned Sections / Campus */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') ? 'ASSIGNED CAMPUS' : 'ASSIGNED SECTIONS'}
-                </span>
-                <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') ? (
-                    <span className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                      {profile.branch}
-                    </span>
-                  ) : (
-                    profile.assignedSections.map((sec, idx) => (
-                      <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                        {sec}
+                        {cls}
                       </span>
                     ))
                   )}

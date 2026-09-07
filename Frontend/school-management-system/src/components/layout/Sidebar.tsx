@@ -439,7 +439,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Core Operations",
       items: [
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
         ...(role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' ? [
           { id: "warden-attendance", label: "Warden Attendance", icon: Clock }
         ] : []),
@@ -458,6 +457,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: "admissions", label: "Admissions", icon: GraduationCap },
         { id: "students", label: role.toLowerCase().includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
+        { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
         { id: "academic-history", label: "Academic History", icon: History },
         {
           id: "student-promotion",

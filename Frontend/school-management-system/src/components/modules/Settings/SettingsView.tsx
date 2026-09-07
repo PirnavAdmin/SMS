@@ -65,6 +65,7 @@ import {
   IdSequenceSettings,
   getIdSequenceSettings,
   saveIdSequenceSettings,
+  buildPreviewId,
 } from "../../../utils/idGenerator";
 
 export interface CampusItem {
@@ -241,6 +242,7 @@ export const SettingsView: React.FC = () => {
     | "campus"
     | "academic-year"
     | "certificates"
+    | "automated-ids"
     | "backup"
     | "audit"
   >("my-profile");
@@ -395,47 +397,14 @@ export const SettingsView: React.FC = () => {
     saveIdSequenceSettings(nextForm);
 
     try {
-      await addOrUpdateCustomIdFormatApi(newSeq);
-    } catch {}
-
-    addToast(
-      "success",
-      "Custom ID Format Added",
-      "A new custom ID sequence card has been added to database.",
-    );
-  };
-
-  const handleDeleteCustomIdSequence = async (seqId: string) => {
-    const nextForm = {
-      ...idForm,
-      customSequences: (idForm.customSequences || []).filter(
-        (s) => s.id !== seqId,
-      ),
-    };
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-
-    try {
-      await deleteCustomIdFormatApi(seqId);
-    } catch {}
-
-    addToast(
-      "info",
-      "Custom ID Format Removed",
-      "Removed custom ID sequence format from database.",
-    );
-  };
-
-  const handleUpdateCustomSequence = (
-    seqId: string,
-    updates: Partial<CustomIdSequence>,
-  ) => {
-    setIdForm((prev) => ({
-      ...prev,
-      customSequences: (prev.customSequences || []).map((s) =>
-        s.id === seqId ? { ...s, ...updates } : s,
-      ),
-    }));
+      if (changePassword) {
+        await changePassword(passForm.currentPassword, passForm.newPassword);
+      }
+      setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      addToast("success", "Password Changed", "Your password has been updated.");
+    } catch (err: any) {
+      addToast("error", "Password Change Failed", err?.message || "Failed to update password.");
+    }
   };
 
   // Academic Year Configuration States
@@ -809,89 +778,158 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-brand-600" /> School Settings
+      {/* Settings Header */}
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50">
+          <SettingsIcon className="w-6 h-6 text-[#0088cc] dark:text-sky-400" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+          School Settings
         </h2>
       </div>
 
       {/* Settings Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
+      <div className="flex items-stretch gap-2 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth">
+        {/* Tab 1: My Profile */}
         <button
+          type="button"
           onClick={() => setActiveTab("my-profile")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+          className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
             activeTab === "my-profile"
-              ? "bg-brand-600 text-white shadow-md"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+              ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+              : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
           }`}
         >
-          <UserIcon className="w-3.5 h-3.5" /> My Profile (Basic Details)
+          <UserIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />
+          <span>
+            My Profile
+            <br />
+            (Basic Details)
+          </span>
         </button>
 
         {isAdminOrSuperAdmin && (
           <>
+            {/* Tab 2: School Branding Profile */}
             <button
+              type="button"
               onClick={() => setActiveTab("profile")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
                 activeTab === "profile"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <Building2 className="w-3.5 h-3.5" /> School Branding Profile
+              <Building2 className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span>
+                School
+                <br />
+                Branding Profile
+              </span>
             </button>
+
+            {/* Tab 3: Campus Configuration */}
             <button
+              type="button"
               onClick={() => setActiveTab("campus")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
                 activeTab === "campus"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <MapPin className="w-3.5 h-3.5" /> Campus Configuration (
-              {campuses.length})
+              <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span>
+                Campus
+                <br />
+                Configuration ({campuses.length})
+              </span>
             </button>
+
+            {/* Tab 4: Academic Year Configuration */}
             <button
+              type="button"
               onClick={() => setActiveTab("academic-year")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
                 activeTab === "academic-year"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <Calendar className="w-3.5 h-3.5" /> Academic Year Configuration (
-              {(academicYears || []).length})
+              <Calendar className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span>
+                Academic Year
+                <br />
+                Configuration ({(academicYears || []).length})
+              </span>
             </button>
+
+            {/* Tab 5: Certificate Templates */}
             <button
+              type="button"
               onClick={() => setActiveTab("certificates")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
                 activeTab === "certificates"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <Award className="w-3.5 h-3.5" /> Certificate Templates (
-              {certificateTemplates.length})
+              <Award className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span>
+                Certificate
+                <br />
+                Templates ({certificateTemplates.length})
+              </span>
             </button>
+
+            {/* Tab 6: Automated ID Settings */}
             <button
+              type="button"
+              onClick={() => setActiveTab("automated-ids")}
+              className={`flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
+                activeTab === "automated-ids"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
+              }`}
+            >
+              <span>
+                Automated
+                <br />
+                ID Settings
+              </span>
+            </button>
+
+            {/* Tab 7: Backup & Restore */}
+            <button
+              type="button"
               onClick={() => setActiveTab("backup")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
                 activeTab === "backup"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              Backup & Restore
+              <span>
+                Backup &<br />
+                Restore
+              </span>
             </button>
+
+            {/* Tab 8: System Audit Logs */}
             <button
+              type="button"
               onClick={() => setActiveTab("audit")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
                 activeTab === "audit"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800"
+                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
+                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              System Audit Logs ({auditLogs.length})
+              <span>
+                System
+                <br />
+                Audit Logs ({auditLogs.length})
+              </span>
             </button>
           </>
         )}
@@ -1507,6 +1545,586 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 4: CERTIFICATES SETTINGS (NEW CERTIFICATE MODULE CONFIGURATION) */}
       {activeTab === "certificates" && <CertificateSettingsTab />}
+
+      {/* TAB 4.5: AUTOMATED ID & SERIAL NUMBER SEQUENCE SETTINGS (EXACT DESIGN MATCH) */}
+      {activeTab === "automated-ids" && (
+        <div className="space-y-5 animate-in fade-in">
+          {/* Top Banner Header Card */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900/50 shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  Automated ID & Serial Number Sequence Settings
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleAddCustomIdSequence}
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-sky-600" /> Add Custom ID Format
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  saveIdSequenceSettings(idForm);
+                  updateIdSequenceSettingsApi(idForm).catch(() => {});
+                  addToast("success", "Automated Settings Saved", "All ID sequence formatting rules updated successfully.");
+                }}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Save className="w-4 h-4" /> Save All ID Formats
+              </button>
+            </div>
+          </div>
+
+          {/* 4 Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Student ID */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 text-xs">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4.5 h-4.5 text-sky-600" />
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Student ID</h4>
+              </div>
+
+              {/* Black Live Preview Box */}
+              <div className="py-4 px-3 rounded-xl bg-slate-950 text-center shadow-inner space-y-1">
+                <p className="text-[9px] uppercase tracking-widest font-extrabold text-slate-500">LIVE PREVIEW</p>
+                <p className="font-mono text-base font-black text-sky-400 tracking-wider">
+                  {buildPreviewId(idForm.studentIdPrefix, idForm.studentIdStartNo, idForm.studentIdPadding, idForm.studentIdIncludeYear, idForm.studentIdSeparator, idForm.studentIdPosition)}
+                </p>
+              </div>
+
+              {/* Form Controls */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">ID Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.studentIdPrefix}
+                      onChange={e => {
+                        const next = { ...idForm, studentIdPrefix: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Tag Placement</label>
+                    <select
+                      value={idForm.studentIdPosition}
+                      onChange={e => {
+                        const next = { ...idForm, studentIdPosition: e.target.value as any };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition text-[11px]"
+                    >
+                      <option value="start">Start (P...</option>
+                      <option value="middle">Middle (Y...</option>
+                      <option value="end">End (Y...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.studentIdStartNo}
+                      onChange={e => {
+                        const next = { ...idForm, studentIdStartNo: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Padding</label>
+                    <select
+                      value={idForm.studentIdPadding}
+                      onChange={e => {
+                        const next = { ...idForm, studentIdPadding: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition text-[11px]"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                      <option value={6}>6 (000001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 items-end">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Separator</label>
+                    <select
+                      value={idForm.studentIdSeparator}
+                      onChange={e => {
+                        const next = { ...idForm, studentIdSeparator: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition text-[11px]"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="_">Underscore (_)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Year Tag</label>
+                    <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer font-bold text-[11px] text-slate-800 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={idForm.studentIdIncludeYear}
+                        onChange={e => {
+                          const next = { ...idForm, studentIdIncludeYear: e.target.checked };
+                          setIdForm(next);
+                          saveIdSequenceSettings(next);
+                        }}
+                        className="w-3.5 h-3.5 rounded text-sky-600 cursor-pointer"
+                      />
+                      <span>Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Teaching Staff ID */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 text-xs">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4.5 h-4.5 text-indigo-600" />
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Teaching Staff ID</h4>
+              </div>
+
+              {/* Black Live Preview Box */}
+              <div className="py-4 px-3 rounded-xl bg-slate-950 text-center shadow-inner space-y-1">
+                <p className="text-[9px] uppercase tracking-widest font-extrabold text-slate-500">LIVE PREVIEW</p>
+                <p className="font-mono text-base font-black text-indigo-400 tracking-wider">
+                  {buildPreviewId(idForm.teachingIdPrefix, idForm.teachingIdStartNo, idForm.teachingIdPadding, idForm.teachingIdIncludeYear, idForm.teachingIdSeparator, idForm.teachingIdPosition)}
+                </p>
+              </div>
+
+              {/* Form Controls */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">ID Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.teachingIdPrefix}
+                      onChange={e => {
+                        const next = { ...idForm, teachingIdPrefix: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Tag Placement</label>
+                    <select
+                      value={idForm.teachingIdPosition}
+                      onChange={e => {
+                        const next = { ...idForm, teachingIdPosition: e.target.value as any };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition text-[11px]"
+                    >
+                      <option value="start">Start (P...</option>
+                      <option value="middle">Middle (Y...</option>
+                      <option value="end">End (Y...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.teachingIdStartNo}
+                      onChange={e => {
+                        const next = { ...idForm, teachingIdStartNo: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Padding</label>
+                    <select
+                      value={idForm.teachingIdPadding}
+                      onChange={e => {
+                        const next = { ...idForm, teachingIdPadding: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition text-[11px]"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                      <option value={6}>6 (000001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 items-end">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Separator</label>
+                    <select
+                      value={idForm.teachingIdSeparator}
+                      onChange={e => {
+                        const next = { ...idForm, teachingIdSeparator: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition text-[11px]"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="_">Underscore (_)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Year Tag</label>
+                    <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer font-bold text-[11px] text-slate-800 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={idForm.teachingIdIncludeYear}
+                        onChange={e => {
+                          const next = { ...idForm, teachingIdIncludeYear: e.target.checked };
+                          setIdForm(next);
+                          saveIdSequenceSettings(next);
+                        }}
+                        className="w-3.5 h-3.5 rounded text-indigo-600 cursor-pointer"
+                      />
+                      <span>Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Non-Teaching Staff ID */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 text-xs">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4.5 h-4.5 text-fuchsia-600" />
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Non-Teaching Staff ID</h4>
+              </div>
+
+              {/* Black Live Preview Box */}
+              <div className="py-4 px-3 rounded-xl bg-slate-950 text-center shadow-inner space-y-1">
+                <p className="text-[9px] uppercase tracking-widest font-extrabold text-slate-500">LIVE PREVIEW</p>
+                <p className="font-mono text-base font-black text-fuchsia-400 tracking-wider">
+                  {buildPreviewId(idForm.nonTeachingIdPrefix, idForm.nonTeachingIdStartNo, idForm.nonTeachingIdPadding, idForm.nonTeachingIdIncludeYear, idForm.nonTeachingIdSeparator, idForm.nonTeachingIdPosition)}
+                </p>
+              </div>
+
+              {/* Form Controls */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">ID Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.nonTeachingIdPrefix}
+                      onChange={e => {
+                        const next = { ...idForm, nonTeachingIdPrefix: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Tag Placement</label>
+                    <select
+                      value={idForm.nonTeachingIdPosition}
+                      onChange={e => {
+                        const next = { ...idForm, nonTeachingIdPosition: e.target.value as any };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 transition text-[11px]"
+                    >
+                      <option value="start">Start (P...</option>
+                      <option value="middle">Middle (Y...</option>
+                      <option value="end">End (Y...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.nonTeachingIdStartNo}
+                      onChange={e => {
+                        const next = { ...idForm, nonTeachingIdStartNo: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Padding</label>
+                    <select
+                      value={idForm.nonTeachingIdPadding}
+                      onChange={e => {
+                        const next = { ...idForm, nonTeachingIdPadding: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 transition text-[11px]"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                      <option value={6}>6 (000001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 items-end">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Separator</label>
+                    <select
+                      value={idForm.nonTeachingIdSeparator}
+                      onChange={e => {
+                        const next = { ...idForm, nonTeachingIdSeparator: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 transition text-[11px]"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="_">Underscore (_)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Year Tag</label>
+                    <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer font-bold text-[11px] text-slate-800 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={idForm.nonTeachingIdIncludeYear}
+                        onChange={e => {
+                          const next = { ...idForm, nonTeachingIdIncludeYear: e.target.checked };
+                          setIdForm(next);
+                          saveIdSequenceSettings(next);
+                        }}
+                        className="w-3.5 h-3.5 rounded text-fuchsia-600 cursor-pointer"
+                      />
+                      <span>Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Admission No */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 text-xs">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4.5 h-4.5 text-emerald-600" />
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Admission No</h4>
+              </div>
+
+              {/* Black Live Preview Box */}
+              <div className="py-4 px-3 rounded-xl bg-slate-950 text-center shadow-inner space-y-1">
+                <p className="text-[9px] uppercase tracking-widest font-extrabold text-slate-500">LIVE PREVIEW</p>
+                <p className="font-mono text-base font-black text-emerald-400 tracking-wider">
+                  {buildPreviewId(idForm.admissionNoPrefix, idForm.admissionNoStartNo, idForm.admissionNoPadding, idForm.admissionNoIncludeYear, idForm.admissionNoSeparator, idForm.admissionNoPosition)}
+                </p>
+              </div>
+
+              {/* Form Controls */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Admission Prefix</label>
+                    <input
+                      type="text"
+                      value={idForm.admissionNoPrefix}
+                      onChange={e => {
+                        const next = { ...idForm, admissionNoPrefix: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Tag Placement</label>
+                    <select
+                      value={idForm.admissionNoPosition}
+                      onChange={e => {
+                        const next = { ...idForm, admissionNoPosition: e.target.value as any };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 transition text-[11px]"
+                    >
+                      <option value="start">Start (P...</option>
+                      <option value="middle">Middle (Y...</option>
+                      <option value="end">End (Y...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Start No.</label>
+                    <input
+                      type="number"
+                      value={idForm.admissionNoStartNo}
+                      onChange={e => {
+                        const next = { ...idForm, admissionNoStartNo: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Padding</label>
+                    <select
+                      value={idForm.admissionNoPadding}
+                      onChange={e => {
+                        const next = { ...idForm, admissionNoPadding: Number(e.target.value) };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 transition text-[11px]"
+                    >
+                      <option value={3}>3 (001)</option>
+                      <option value={4}>4 (0001)</option>
+                      <option value={5}>5 (00001)</option>
+                      <option value={6}>6 (000001)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 items-end">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Separator</label>
+                    <select
+                      value={idForm.admissionNoSeparator}
+                      onChange={e => {
+                        const next = { ...idForm, admissionNoSeparator: e.target.value };
+                        setIdForm(next);
+                        saveIdSequenceSettings(next);
+                      }}
+                      className="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 transition text-[11px]"
+                    >
+                      <option value="-">Hyphen (-)</option>
+                      <option value="/">Slash (/)</option>
+                      <option value=".">Dot (.)</option>
+                      <option value="_">Underscore (_)</option>
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Year Tag</label>
+                    <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer font-bold text-[11px] text-slate-800 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={idForm.admissionNoIncludeYear}
+                        onChange={e => {
+                          const next = { ...idForm, admissionNoIncludeYear: e.target.checked };
+                          setIdForm(next);
+                          saveIdSequenceSettings(next);
+                        }}
+                        className="w-3.5 h-3.5 rounded text-emerald-600 cursor-pointer"
+                      />
+                      <span>Include</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom ID Formats List if any exist */}
+          {(idForm.customSequences || []).length > 0 && (
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-sky-600" /> Custom Module Sequence Formats
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {(idForm.customSequences || []).map(seq => (
+                  <div key={seq.id} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                      <input
+                        type="text"
+                        value={seq.name}
+                        onChange={e => handleUpdateCustomSequence(seq.id, { name: e.target.value })}
+                        className="font-bold text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 outline-none focus:border-sky-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomIdSequence(seq.id)}
+                        className="p-1 text-slate-400 hover:text-rose-600 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-950 text-center font-mono font-bold text-sky-400 text-xs">
+                      {buildPreviewId(seq.prefix, seq.startNo, seq.padding, seq.includeYear, seq.separator, seq.position)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400">Prefix</label>
+                        <input
+                          type="text"
+                          value={seq.prefix}
+                          onChange={e => handleUpdateCustomSequence(seq.id, { prefix: e.target.value })}
+                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400">Start No</label>
+                        <input
+                          type="number"
+                          value={seq.startNo}
+                          onChange={e => handleUpdateCustomSequence(seq.id, { startNo: Number(e.target.value) })}
+                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border font-mono font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TAB 5: BACKUP & RESTORE */}
       {activeTab === "backup" && (
