@@ -177,13 +177,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   }, [academicClasses]);
 
   const allSubjectOptions = React.useMemo(() => {
-    let filtered = subjects;
-    if (value.department) {
-      filtered = subjects.filter(s => 
-        s.department?.trim().toLowerCase() === value.department.trim().toLowerCase()
-      );
+    let list = subjects;
+    if (value.department && subjects.some(s => s.department?.trim().toLowerCase() === value.department.trim().toLowerCase())) {
+      const deptMatches = subjects.filter(s => s.department?.trim().toLowerCase() === value.department.trim().toLowerCase());
+      const others = subjects.filter(s => s.department?.trim().toLowerCase() !== value.department.trim().toLowerCase());
+      list = [...deptMatches, ...others];
     }
-    const names = filtered.map(s => s.name).filter(Boolean);
+    const names = list.map(s => s.name).filter(Boolean);
     return Array.from(new Set(names));
   }, [subjects, value.department]);
 
