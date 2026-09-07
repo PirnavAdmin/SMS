@@ -323,6 +323,7 @@ import {
   assignTeacherApi,
   saveTimetableSlotApi,
   deleteTimetableSlotApi,
+  fetchTimetableGridApi,
   fetchClassTeacherAssignmentsApi,
 } from "../api/academic";
 import {
@@ -2021,20 +2022,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
     () => {
       const stored = getStored("academic_classes", initialClasses);
-      const ids = stored.map((c: any) => c.id);
+      const list = Array.isArray(stored) ? stored : initialClasses;
+      const ids = list.map((c: any) => c?.id).filter(Boolean);
       const hasDuplicates = ids.some(
         (id: any, index: number) => ids.indexOf(id) !== index,
       );
       if (hasDuplicates) {
         const seenIds = new Set<string>();
-        const migrated = stored.map((c: any) => {
-          let newId = c.id;
+        const migrated = list.map((c: any) => {
+          let newId = c?.id;
           if (!newId || seenIds.has(newId)) {
             let counter = 1;
             do {
               newId = `CL-${Math.floor(100 + Math.random() * 900)}`;
             } while (
-              stored.some((x: any) => x.id === newId) ||
+              list.some((x: any) => x?.id === newId) ||
               seenIds.has(newId)
             );
           }
@@ -2047,7 +2049,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         return migrated;
       }
-      return stored;
+      return list;
     },
   );
   const [subjects, setSubjects] = useState<SubjectItem[]>(() =>
@@ -8770,22 +8772,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const bulkAddPeriodSettings = (newPeriods: PeriodSetting[]) => {
+    if (!newPeriods || newPeriods.length === 0) return;
     setPeriodSettings((prev) => {
-      const existingKeys = new Set(
-        prev.map(
-          (p) =>
-            `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`,
-        ),
+      const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+      const hasMaster = newPeriods.some(
+        (p) => !p.className || p.className === "Master" || p.className === "All",
       );
-      const toAdd = newPeriods.filter(
-        (p) =>
-          !existingKeys.has(
-            `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`,
-          ),
+
+      const targetClassSections = new Set(
+        newPeriods
+          .filter((p) => p.className && p.className !== "Master" && p.className !== "All")
+          .map((p) => `${norm(p.className)}-${norm(p.section)}`)
       );
-      const updated = [...prev, ...toAdd];
+
+      const filtered = prev.filter((p) => {
+        if (hasMaster && (!p.className || p.className === "Master" || p.className === "All")) {
+          return false;
+        }
+        if (p.className) {
+          const key = `${norm(p.className)}-${norm(p.section)}`;
+          if (targetClassSections.has(key)) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      const updated = [...filtered, ...newPeriods];
       try {
-        localStorage.setItem("edu_db_period_settings", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_period_settings",
+          JSON.stringify(updated),
+        );
       } catch (e) {}
       return updated;
     });
@@ -16285,6 +16303,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         norm(t.section) === norm(section),
     );
 
+    // 1. Remove from local state and localStorage
     setTimetable((prev) => {
       const updated = prev.filter(
         (t) =>
@@ -16299,6 +16318,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
 
+    // 2. Delete local state slots from backend
     try {
       await Promise.all(
         existing.map(async (t) => {
@@ -16311,6 +16331,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     } catch (err) {
       console.warn("Failed to clear timetable slots from backend", err);
+    }
+
+    // 3. Query backend DB for any remaining active slots for this class & section and delete them
+    try {
+      const cls = academicClasses.find((c) => norm(c.name) === norm(className));
+      if (cls?.id) {
+        const gridRes: any = await fetchTimetableGridApi(
+          cls.id,
+          section,
+          selectedAcademicYear || "2026-2027",
+        ).catch(() => null);
+
+        const rawList = Array.isArray(gridRes?.data)
+          ? gridRes.data
+          : Array.isArray(gridRes)
+          ? gridRes
+          : [];
+
+        if (rawList.length > 0) {
+          await Promise.all(
+            rawList.map(async (oldItem: any) => {
+              const sId = oldItem?.slotId || oldItem?.id;
+              if (sId) {
+                const numericId = String(sId).replace(/^TT-/i, "");
+                await deleteTimetableSlotApi(numericId).catch(() => {});
+              }
+            }),
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Backend timetable pre-clear notice:", e);
     }
   };
 
@@ -20016,14 +20068,31 @@ import { useHR } from "./HRContext";
 
 export const useData = () => {
   const context = useContext(DataContext);
-  const hostel = useHostel();
-  const exam = useExamination();
-  const hr = useHR();
-  if (!context) {
-    throw new Error("useData must be used within a DataProvider");
+  let hostel: any = {};
+  let exam: any = {};
+  let hr: any = {};
+  try {
+    hostel = useHostel();
+  } catch {
+    /* Ignored when outside HostelProvider */
   }
+  try {
+    exam = useExamination();
+  } catch {
+    /* Ignored when outside ExaminationProvider */
+  }
+  try {
+    hr = useHR();
+  } catch {
+    /* Ignored when outside HRProvider */
+  }
+
+  if (!context) {
+    console.warn("useData was called outside a DataProvider or before DataProvider mounted.");
+  }
+
   return {
-    ...context,
+    ...(context || {}),
     ...hostel,
     ...exam,
     ...hr,
