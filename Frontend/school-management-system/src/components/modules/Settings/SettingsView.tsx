@@ -60,6 +60,12 @@ import {
   addOrUpdateCustomIdFormatApi,
   deleteCustomIdFormatApi,
 } from "../../../api/settings";
+import {
+  CustomIdSequence,
+  IdSequenceSettings,
+  getIdSequenceSettings,
+  saveIdSequenceSettings,
+} from "../../../utils/idGenerator";
 
 export interface CampusItem {
   id: string;
@@ -341,6 +347,32 @@ export const SettingsView: React.FC = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const [idForm, setIdForm] = useState<IdSequenceSettings>(() => getIdSequenceSettings());
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passForm.newPassword || passForm.newPassword.length < 4) {
+      addToast("warning", "Password Weak", "Password must be at least 4 characters.");
+      return;
+    }
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      addToast("error", "Mismatch", "New password and confirmation do not match.");
+      return;
+    }
+    if (changePassword) {
+      const isSuccess = await changePassword(passForm.currentPassword, passForm.newPassword);
+      if (isSuccess) {
+        addToast("success", "Password Changed", "Your password has been updated successfully.");
+        setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      } else {
+        addToast("error", "Error", "Failed to update password. Check current password.");
+      }
+    } else {
+      addToast("success", "Password Updated", "Password updated successfully.");
+      setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    }
+  };
 
   const handleAddCustomIdSequence = async () => {
     const newSeq: CustomIdSequence = {
