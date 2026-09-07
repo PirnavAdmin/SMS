@@ -11554,24 +11554,7 @@ export const initialHostelBeds: HostelBed[] = [
   { id: "BED-101-B", roomId: "RM-101", bedNo: "Bed 2", status: "Available" }
 ];
 
-export const initialUniforms: UniformItem[] = [
-  { id: "UNI-01", category: "Boys Uniform Package (Admission Kit)", name: "Boys Uniform Package (Admission Kit)", gender: "Male", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 600 },
-  { id: "UNI-02", category: "Girls Uniform Package (Admission Kit)", name: "Girls Uniform Package (Admission Kit)", gender: "Female", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 450 },
-  { id: "UNI-CLOTH-1", category: "Cloth", name: "Cloth [0.5M - 1.0M]", gender: "Unisex", className: "All Wings", size: "0.5M - 1.0M", meterRange: "0.5M - 1.0M", color: "Navy / White", price: 300, availableStock: 100 },
-  { id: "UNI-CLOTH-2", category: "Cloth", name: "Cloth [1.0M - 1.5M]", gender: "Unisex", className: "All Wings", size: "1.0M - 1.5M", meterRange: "1.0M - 1.5M", color: "Navy / White", price: 350, availableStock: 100 },
-  { id: "UNI-CLOTH-3", category: "Cloth", name: "Cloth [1.5M - 2.0M]", gender: "Unisex", className: "All Wings", size: "1.5M - 2.0M", meterRange: "1.5M - 2.0M", color: "Navy / White", price: 400, availableStock: 100 },
-  { id: "UNI-CLOTH-4", category: "Cloth", name: "Cloth [2.0M - 2.5M]", gender: "Unisex", className: "All Wings", size: "2.0M - 2.5M", meterRange: "2.0M - 2.5M", color: "Navy / White", price: 500, availableStock: 100 },
-  { id: "UNI-03", category: "Extra Shirt", name: "Extra Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "White", price: 350, availableStock: 300 },
-  { id: "UNI-04", category: "Extra Pair of Trousers", name: "Extra Pair of Trousers", gender: "Male", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 300 },
-  { id: "UNI-05", category: "Extra Skirt", name: "Extra Skirt", gender: "Female", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 300 },
-  { id: "UNI-06", category: "Formal Blazer (Winter)", name: "Formal Blazer (Winter)", gender: "Unisex", className: "Class 10", size: "L", color: "Dark Navy", price: 1500, availableStock: 300 },
-  { id: "UNI-07", category: "Tie & Crest", name: "Tie & Crest", gender: "Unisex", className: "Class 10", size: "Free Size", color: "Navy Stripe", price: 150, availableStock: 300 },
-  { id: "UNI-08", category: "Belt", name: "Belt", gender: "Unisex", className: "Class 10", size: "M", color: "Black / Logo", price: 200, availableStock: 300 },
-  { id: "UNI-09", category: "Black Shoes (Pair)", name: "Black Shoes (Pair)", gender: "Unisex", className: "Class 10", size: "8", color: "Black", price: 600, availableStock: 300 },
-  { id: "UNI-10", category: "Socks (Pair)", name: "Socks (Pair)", gender: "Unisex", className: "Class 10", size: "Free Size", color: "White / Striped", price: 150, availableStock: 300 },
-  { id: "UNI-11", category: "Sports Tracksuit Kit", name: "Sports Tracksuit Kit", gender: "Unisex", className: "Class 10", size: "M", color: "Navy / House Color", price: 1200, availableStock: 300 },
-  { id: "UNI-12", category: "Cap", name: "Cap", gender: "Unisex", className: "Class 10", size: "Free Size", color: "Navy Blue", price: 200, availableStock: 307 }
-];
+export const initialUniforms: UniformItem[] = [];
 
 export const initialBooks: BookItem[] = [];
 
@@ -12021,22 +12004,7 @@ export const initialHostelAttendanceLogs: HostelAttendanceLog[] = [
 
 export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [];
 
-export const initialUniformCategories: UniformCategory[] = [
-  { id: 'UC-01', name: 'Boys Uniform Package (Admission Kit)', description: 'Full Admission Uniform Kit for Boys (2 Shirts, 2 Trousers, Blazer, Tie & Belt, Pair of Socks)' },
-  { id: 'UC-02', name: 'Girls Uniform Package (Admission Kit)', description: 'Full Admission Uniform Kit for Girls (2 Shirts, 2 Skirts/Pants, Blazer, Ribbon & Belt, Pair of Socks)' },
-  { id: 'UC-03', name: 'Shirt', description: 'Regular school uniform shirts' },
-  { id: 'UC-04', name: 'Pant', description: 'Regular school uniform trousers' },
-  { id: 'UC-05', name: 'Skirt', description: 'Regular school uniform skirts' },
-  { id: 'UC-06', name: 'Blazer', description: 'Formal blazers with embroidered school crest' },
-  { id: 'UC-07', name: 'Extra Shirt', description: 'Extra school uniform formal shirts' },
-  { id: 'UC-08', name: 'Extra Pair of Trousers', description: 'School uniform formal trousers' },
-  { id: 'UC-09', name: 'Extra Skirt', description: 'School uniform pleated skirts' },
-  { id: 'UC-10', name: 'Jubba', description: 'Jubba for girls' },
-  { id: 'UC-12', name: 'Tie', description: 'School woven tie and metallic crest badge' },
-  { id: 'UC-13', name: 'Belt', description: 'School branded leather uniform belt' },
-  { id: 'UC-17', name: 'Unstitched Uniform Cloth / Fabric', description: 'Raw unstitched uniform fabric material rolls for shirts, trousers & skirts (per meter / suit length)' },
-  { id: 'UC-18', name: 'Unstitched Uniform Cloth Package', description: 'Full unstitched uniform fabric set (shirt & trouser/skirt cloth material roll)' }
-];
+export const initialUniformCategories: UniformCategory[] = [];
 
 export const initialUniformSizes: UniformSize[] = [
   { id: 'US-01', sizeName: 'Size 22 (XS Junior)', chest: '22"', waist: '20"', shoulder: '11"', length: '18"', ageGroup: '3-5 yrs', gender: 'Unisex' },
@@ -12054,10 +12022,7 @@ export const initialUniformSizes: UniformSize[] = [
   { id: 'US-CLOTH-04', sizeName: '2.5m - 3.0m', chest: 'N/A (Fabric)', waist: 'N/A (Fabric)', shoulder: 'N/A (Fabric)', length: '2.5m - 3.0m', ageGroup: 'Adult / Custom', gender: 'Unisex' }
 ];
 
-export const initialUniformSuppliers: UniformSupplier[] = [
-  { id: 'SUP-01', supplierName: 'Apex Apparel Group', contactPerson: 'John Miller', mobile: '9876543210', email: 'apex@apparel.com', gstNumber: '29AAAAA1111A1Z1', address: '12 Industrial Area, Phase 1, New Delhi', status: 'Active' },
-  { id: 'SUP-02', supplierName: 'Elite Uniforms Ltd', contactPerson: 'Sarah Davis', mobile: '8765432109', email: 'sales@eliteuniforms.com', gstNumber: '29BBBBB2222B2Z2', address: '45 Textile Hub, Surat, Gujarat', status: 'Active' }
-];
+export const initialUniformSuppliers: UniformSupplier[] = [];
 
 export const initialUniformInventory: UniformInventoryItem[] = [];
 export const initialStudentUniformIssues: StudentUniformIssue[] = [];

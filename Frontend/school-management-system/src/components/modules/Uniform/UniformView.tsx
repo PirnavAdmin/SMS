@@ -27,23 +27,23 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     gender: 'Unisex' as any,
     size: 'M',
     className: 'All Wings',
-    availableStock: 50,
+    availableStock: undefined,
     isPackage: true
   });
 
   const [categorySelections, setCategorySelections] = useState<{ [catName: string]: { selected: boolean; quantity: string; size?: string; meterRange?: string } }>({});
   const [packageSizeStock, setPackageSizeStock] = useState<{ [sz: string]: number }>({
-    'XS': 30,
-    'S': 50,
-    'M': 100,
-    'L': 80,
-    'XL': 40
+    'XS': 0,
+    'S': 0,
+    'M': 0,
+    'L': 0,
+    'XL': 0
   });
   const [fabricStock, setFabricStock] = useState<{ [range: string]: number }>({
-    '1.0m - 1.5m': 50,
-    '1.5m - 2.0m': 100,
-    '2.0m - 2.5m': 75,
-    '2.5m - 3.0m': 30
+    '1.0m - 1.5m': 0,
+    '1.5m - 2.0m': 0,
+    '2.0m - 2.5m': 0,
+    '2.5m - 3.0m': 0
   });
 
   const filtered = (uniforms || []).filter(u => {
@@ -66,7 +66,9 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     return matchesQuery && matchesGender && matchesCategory;
   });
 
-  const paginatedItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedItems = filtered.slice((safeCurrentPage - 1) * itemsPerPage, safeCurrentPage * itemsPerPage);
 
   const [customMeasurement, setCustomMeasurement] = useState({
     chest: '',
@@ -194,15 +196,6 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       return;
     }
 
-    const invalidSelectedItem = Object.entries(categorySelections).find(([catName, data]) => {
-      return data.selected && (!data.size && !data.meterRange || (data.size || data.meterRange || '').trim() === '');
-    });
-
-    if (invalidSelectedItem) {
-      addToast('error', 'Validation Error', `Please select a Size for ${invalidSelectedItem[0]} before submitting`);
-      return;
-    }
-
     if (formData.availableStock === undefined || formData.availableStock === null || isNaN(Number(formData.availableStock))) {
       addToast('error', 'Validation Error', 'Please enter valid Warehouse Stock (Available Units)');
       return;
@@ -211,20 +204,16 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     const selectedCompList = Object.entries(categorySelections).filter(([_, data]) => data.selected);
     const isPkg = selectedCompList.length > 1 || finalName.toLowerCase().includes('package') || finalName.toLowerCase().includes('kit');
 
-    const packageComponents: PackageComponentItem[] = isPkg ? selectedCompList.map(([catName, data]) => ({
+    const packageComponents: PackageComponentItem[] = isPkg ? selectedCompList.map(([catName]) => ({
       categoryName: catName,
-      quantity: data.quantity.trim() || '1',
-      ...(data.size || data.meterRange ? { size: data.size || data.meterRange } : {})
+      quantity: '1'
     })) : [];
-
-    const clothSelectedData = Object.entries(categorySelections).find(([catName, data]) => data.selected && (catName.toLowerCase().includes('cloth') || catName.toLowerCase().includes('fabric')));
-    const selectedMeterRange = clothSelectedData ? (clothSelectedData[1].size || clothSelectedData[1].meterRange) : undefined;
 
     const isBasePkg = finalName.toLowerCase().includes('boys') || finalName.toLowerCase().includes('girls') || (finalName.toLowerCase().includes('package') && finalName.toLowerCase().includes('admission'));
     const isFabric = finalName.toLowerCase().includes('cloth') || finalName.toLowerCase().includes('fabric') || finalName.toLowerCase().includes('unstitched');
-    const finalSize = isFabric ? (selectedMeterRange || formData.size || '1.0m - 1.5m') : (formData.size || 'All Sizes');
+    const finalSize = isFabric ? (formData.size && formData.size !== 'All Sizes' ? formData.size : '1.0m - 1.5m') : (formData.size || 'All Sizes');
 
-    const computedStock = formData.availableStock !== undefined ? Number(formData.availableStock) : 150;
+    const computedStock = Number(formData.availableStock || 0);
 
     const payload: Partial<UniformItem> = {
       ...formData,
@@ -279,13 +268,13 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
             type="text"
             placeholder="Search uniform package or item..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setCurrentPage(1); }}
             className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
           />
           {query && (
             <button
               type="button"
-              onClick={() => setQuery('')}
+              onClick={() => { setQuery(''); setCurrentPage(1); }}
               className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             >
               <X className="w-3.5 h-3.5" />
@@ -297,7 +286,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
           <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span>
           <select
             value={filterCategory}
-            onChange={e => setFilterCategory(e.target.value)}
+            onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1); }}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none font-semibold cursor-pointer focus:ring-2 focus:ring-sky-500/20"
           >
             <option value="">Select Package / Category</option>
@@ -305,12 +294,25 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
             {(() => {
               const seen = new Set<string>();
               const catList: string[] = [];
+              (uniformCategories || []).forEach(cat => {
+                const raw = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
+                if (!raw) return;
+                const norm = normalizeUniformCategoryName(raw);
+                const normLower = norm.toLowerCase();
+                if (normLower === 'uniform package' || normLower === 'package') return;
+                if (!seen.has(normLower)) {
+                  seen.add(normLower);
+                  catList.push(norm);
+                }
+              });
               (uniforms || []).forEach(u => {
                 const raw = u.category || (u as any).name;
                 if (!raw) return;
                 const norm = normalizeUniformCategoryName(raw);
-                if (!seen.has(norm.toLowerCase())) {
-                  seen.add(norm.toLowerCase());
+                const normLower = norm.toLowerCase();
+                if (normLower === 'uniform package' || normLower === 'package') return;
+                if (!seen.has(normLower)) {
+                  seen.add(normLower);
                   catList.push(norm);
                 }
               });
@@ -322,7 +324,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
           <select
             value={filterGender}
-            onChange={e => setFilterGender(e.target.value)}
+            onChange={e => { setFilterGender(e.target.value); setCurrentPage(1); }}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none font-semibold cursor-pointer focus:ring-2 focus:ring-sky-500/20"
           >
             <option value="">Select Gender</option>
@@ -364,9 +366,11 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                             </span>
                           );
                         })()}
-                        <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                          Size: {u.size || (u as any).meterRange || 'All Sizes'}
-                        </span>
+                        {!((u.category || u.name || '').toLowerCase().includes('cloth') || (u.category || u.name || '').toLowerCase().includes('fabric') || (u.category || u.name || '').toLowerCase().includes('unstitched')) && (
+                          <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                            Size: {u.size || (u as any).meterRange || 'All Sizes'}
+                          </span>
+                        )}
                       </div>
                       <h3 className="font-extrabold text-sm text-slate-900 dark:text-white mt-1.5 leading-snug">
                         {u.category}
@@ -384,7 +388,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                       <div className="flex justify-between">
                         <span className="text-slate-400 font-medium">Meterage Size:</span>
                         <span className="font-bold text-sky-700 dark:text-sky-300">
-                          {u.size && u.size !== 'All Sizes' ? u.size : ((u as any).meterRange || '1.0m – 1.5m')}
+                          {u.size && u.size.includes('m') && u.size !== 'M' ? u.size : ((u as any).meterRange || '1.0m – 1.5m')}
                         </span>
                       </div>
                     )}
@@ -454,20 +458,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                     const existingItem = (uniforms || []).find(u => u.category?.toLowerCase() === val.toLowerCase() || u.name?.toLowerCase() === val.toLowerCase());
                     const lower = val.toLowerCase();
                     
-                    let defaultPrice = formData.price || 350;
-                    if (!editingUniform) {
-                      if (existingItem?.price) {
-                        defaultPrice = existingItem.price;
-                      } else if (lower.includes('package') || lower.includes('kit')) {
-                        defaultPrice = 3000;
-                      } else if (lower.includes('blazer')) {
-                        defaultPrice = 1500;
-                      } else if (lower.includes('sweater')) {
-                        defaultPrice = 800;
-                      } else if (lower.includes('pant') || lower.includes('trouser') || lower.includes('skirt') || lower.includes('shoes') || lower.includes('tracksuit')) {
-                        defaultPrice = 500;
-                      }
-                    }
+                    const defaultPrice = formData.price || existingItem?.price || 0;
 
                     let defaultGender: 'Male' | 'Female' | 'Unisex' = formData.gender || 'Unisex';
                     if (existingItem?.gender) {
@@ -548,94 +539,21 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                       return (
                         <div
                           key={catName}
-                          className={`p-2.5 rounded-xl border transition-all space-y-2 ${
+                          onClick={() => handleToggleCategory(catName)}
+                          className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 ${
                             isSel
                               ? 'bg-sky-50/70 dark:bg-sky-950/40 border-sky-300 dark:border-sky-700'
                               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-80 hover:opacity-100'
                           }`}
                         >
-                          <div
-                            onClick={() => handleToggleCategory(catName)}
-                            className="flex items-center gap-2.5 cursor-pointer select-none"
-                          >
-                            {isSel ? (
-                              <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
-                            ) : (
-                              <Square className="w-4 h-4 text-slate-400 shrink-0" />
-                            )}
-                            <span className={`font-extrabold text-xs ${isSel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
-                              {catName}
-                            </span>
-                          </div>
-
-                          {isSel && !isCloth && (
-                            <div className="pt-2 flex items-center justify-between border-t border-sky-200/80 dark:border-sky-800/60 animate-in fade-in">
-                              <span className="text-[11px] font-extrabold text-sky-900 dark:text-sky-300">
-                                Included Quantity *
-                              </span>
-                              <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl px-1.5 py-0.5 shadow-2xs">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const currentQty = Math.max(1, parseInt(selData.quantity || '1', 10) - 1);
-                                    handleQuantityChange(catName, String(currentQty));
-                                  }}
-                                  className="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-900 font-extrabold flex items-center justify-center text-xs transition-colors cursor-pointer"
-                                >
-                                  –
-                                </button>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={50}
-                                  value={selData.quantity || '1'}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    const val = Math.max(1, parseInt(e.target.value, 10) || 1);
-                                    handleQuantityChange(catName, String(val));
-                                  }}
-                                  className="w-8 text-center text-xs font-black text-slate-900 dark:text-white bg-transparent outline-none"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const currentQty = parseInt(selData.quantity || '1', 10) + 1;
-                                    handleQuantityChange(catName, String(currentQty));
-                                  }}
-                                  className="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-900 font-extrabold flex items-center justify-center text-xs transition-colors cursor-pointer"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
+                          {isSel ? (
+                            <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400 shrink-0" />
                           )}
-
-                          {isSel && isCloth && (
-                            <div className="pt-2 border-t border-sky-200/80 dark:border-sky-800/60 animate-in fade-in">
-                              <label className="block text-[10px] font-extrabold text-sky-900 dark:text-sky-300 mb-1">
-                                Meter Range *
-                              </label>
-                              <select
-                                value={selData.meterRange || selData.size || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setCategorySelections(prev => ({
-                                    ...prev,
-                                    [catName]: { ...prev[catName], meterRange: val, size: val }
-                                  }));
-                                }}
-                                className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 font-bold text-slate-900 dark:text-white cursor-pointer"
-                              >
-                                <option value="">-- Select Size --</option>
-                                <option value="1.0m - 1.5m">1.0m – 1.5m</option>
-                                <option value="1.5m - 2.0m">1.5m – 2.0m</option>
-                                <option value="2.0m - 2.5m">2.0m – 2.5m</option>
-                                <option value="2.5m - 3.0m">2.5m – 3.0m</option>
-                              </select>
-                            </div>
-                          )}
+                          <span className={`font-extrabold text-xs ${isSel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                            {catName}
+                          </span>
                         </div>
                       );
                     })}
