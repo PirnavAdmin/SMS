@@ -535,6 +535,8 @@ export const SettingsView: React.FC = () => {
 
     setIdForm(nextForm);
     saveIdSequenceSettings(nextForm);
+    addToast("success", "Custom Sequence Added", "New custom sequence format added.");
+  };
 
     try {
       await addOrUpdateCustomIdFormatApi(newSeq);
