@@ -444,10 +444,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
   }, [sectionOptions, selectedSection, selectedClass]);
 
+  const lastFetchedTimetableRef = useRef<string>('');
+
   useEffect(() => {
     if (selectedClass && selectedSection) {
       const clsObj = academicClasses.find(c => c.name === selectedClass);
       if (clsObj) {
+        const fetchKey = `${clsObj.id}_${selectedSection}_${academicYear}`;
+        if (lastFetchedTimetableRef.current === fetchKey) return;
+        lastFetchedTimetableRef.current = fetchKey;
         loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
       }
     }
@@ -2968,6 +2973,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         onSuccess={() => {
           const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === selectedClass.toLowerCase().trim());
           if (clsObj && selectedSection) {
+            lastFetchedTimetableRef.current = '';
             loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
           }
         }}

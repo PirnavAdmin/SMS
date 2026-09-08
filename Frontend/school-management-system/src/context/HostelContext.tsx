@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 import {
   getHostelBlocks,
   createHostelBlock,
@@ -35,12 +36,16 @@ const HostelContext = createContext<HostelContextType | undefined>(undefined);
 
 export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
+  const { token } = useAuth();
   const [blocks, setBlocks] = useState<APIHostelBlock[]>([]);
   const [rooms, setRooms] = useState<APIHostelRoom[]>([]);
   const [allocations, setAllocations] = useState<APIBedAllocation[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refreshHostelData = useCallback(async () => {
+    if (!token) {
+      return;
+    }
     try {
       setLoading(true);
       const [blocksData, roomsData, allocationsData] = await Promise.all([
@@ -56,7 +61,7 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     refreshHostelData();

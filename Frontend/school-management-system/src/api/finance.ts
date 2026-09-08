@@ -37,9 +37,14 @@ export const createDynamicFeeStructureApi = async (data: Omit<DynamicFeeStructur
     className: data.className || "",
     section: data.section || "",
     studentCategory: data.studentCategory || "General",
-    totalAmount: data.totalAmount || 0,
+    totalAmount: Number(data.totalAmount) || 0,
     status: data.status || "Active",
-    items: data.items || []
+    items: (data.items || []).map((x: any) => ({
+      feeHeadId: (x.feeHeadId || "").toString(),
+      feeHeadName: x.feeHeadName || "",
+      category: x.category || "",
+      amount: Number(x.amount) || 0
+    }))
   };
   return apiClient('/api/finance/fee-structures', {
     method: 'POST',
@@ -48,9 +53,21 @@ export const createDynamicFeeStructureApi = async (data: Omit<DynamicFeeStructur
 };
 
 export const updateDynamicFeeStructureApi = async (id: string, data: Partial<DynamicFeeStructure>) => {
-  return apiClient(`/api/finance/fee-structures/${id}`, {
+  const cleanId = id.toString().replace(/\D/g, '') || id;
+  const payload = {
+    ...data,
+    id: parseInt(cleanId, 10) || 0,
+    totalAmount: Number(data.totalAmount) || 0,
+    items: (data.items || []).map((x: any) => ({
+      feeHeadId: (x.feeHeadId || "").toString(),
+      feeHeadName: x.feeHeadName || "",
+      category: x.category || "",
+      amount: Number(x.amount) || 0
+    }))
+  };
+  return apiClient(`/api/finance/fee-structures/${cleanId}`, {
     method: 'PUT',
-    body: JSON.stringify(data)
+    body: JSON.stringify(payload)
   });
 };
 
