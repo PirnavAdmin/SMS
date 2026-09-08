@@ -33,14 +33,19 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const currentStaff = useMemo(() => {
     if (!user) return null;
-    const userEmail = (user.email || '').toLowerCase().trim();
-    const userId = String(user.id || (user as any)?.empId || '').trim();
+    const userRole = (role || user.role || '').toLowerCase();
+    // Admin, Super Admin, Student, Parent are NEVER in staff list
+    if (['admin', 'super admin', 'superadmin', 'student', 'parent'].includes(userRole)) {
+      return null;
+    }
 
+    const userEmail = (user.email || '').toLowerCase().trim();
     if (userEmail) {
       const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (emailMatch) return emailMatch;
     }
 
+    const userId = String(user.id || (user as any)?.empId || '').trim();
     if (userId) {
       const idMatch = staff.find(s => {
         const matchesId = (s.id && String(s.id).trim() === userId) || (s.empId && String(s.empId).trim() === userId);
@@ -54,9 +59,15 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
 
     return null;
-  }, [staff, user]);
+  }, [staff, user, role]);
 
   const displayName = useMemo(() => {
+    const userRole = (role || user?.role || '').toLowerCase();
+    // If logged in as Admin, ALWAYS display their authentic account name directly
+    if (['admin', 'super admin', 'superadmin'].includes(userRole)) {
+      return (user?.name || '').trim() || 'Administrator';
+    }
+
     if (currentStaff) {
       const staffName = `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim();
       if (staffName) return staffName;
@@ -72,9 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
 
     const rawName = (user?.name || '').trim();
-    const isGeneric = !rawName || ['user', 'admin', 'admin user', 'administrator', 'system admin'].includes(rawName.toLowerCase());
-
-    if (!isGeneric) {
+    if (rawName && rawName.toLowerCase() !== 'user') {
       return rawName;
     }
 
@@ -84,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
 
     return rawName || 'User';
-  }, [currentStaff, user, students]);
+  }, [currentStaff, user, students, role]);
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);

@@ -25,11 +25,11 @@ interface AuthContextType {
 
 const defaultAdminUser: User = {
   id: 'USR-001',
-  name: 'Vasantha Gokul',
-  email: 'vasantha.gokul@pirnav.com',
+  name: 'Administrator',
+  email: 'pirnavsms@gmail.com',
   role: 'Admin',
   avatar: DEFAULT_USER_AVATAR,
-  phone: '+91 9876543210',
+  phone: '+91 9581768555',
   lastLogin: '2026-07-21 09:30 AM',
   status: 'Active'
 };
@@ -55,7 +55,7 @@ export const normalizeUserRole = (roleStr: string): UserRole => {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const formatEmailToName = (email: string): string => {
-  if (!email) return "Admin User";
+  if (!email) return "Administrator";
   const username = email.split('@')[0];
   const parts = username.split(/[._-]/);
   return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -80,27 +80,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (parsed.role) {
             parsed.role = normalizeUserRole(parsed.role);
           }
-          // FIX CORRUPTED SCHOOL EMAIL ON USER ACCOUNT
-          if (
-            parsed.email === 'contact@pirnavschools.edu' || 
-            parsed.email === 'admin@pirnavschools.edu' ||
-            (parsed.name === 'Vasantha Gokul' && (!parsed.email || parsed.email.endsWith('@pirnavschools.edu')))
-          ) {
-            parsed.email = 'vasantha.gokul@pirnav.com';
+
+          // Self-heal cached name and email for administrator account
+          if (parsed.email?.toLowerCase() === 'vasantha.gokul@pirnav.com' || parsed.name === 'Vasantha Gokul') {
+            parsed.email = 'pirnavsms@gmail.com';
+            parsed.name = 'Administrator';
+            parsed.phone = '9581768555';
+            try {
+              localStorage.removeItem('user_profile_vasantha.gokul@pirnav.com');
+              localStorage.removeItem('user_profile_pirnavsms@gmail.com');
+            } catch {}
+          }
+
+          if (parsed.email?.toLowerCase() === 'pirnavsms@gmail.com') {
+            parsed.name = 'Administrator';
+            parsed.phone = '9581768555';
           }
 
           const userKey = getActiveUserKey(parsed.email);
-          const localProfile = getLocalUserProfile(userKey) || getLocalUserProfile('vasantha.gokul@pirnav.com');
+          const localProfile = getLocalUserProfile(userKey);
 
-          // If the name was previously corrupted to Eleanor Vance or generic admin:
+          // If the name was previously corrupted to Eleanor Vance or missing:
           const isDrEleanor = parsed.name === 'Dr. Eleanor Vance' && parsed.email && !parsed.email.toLowerCase().includes('eleanor');
-          const isGeneric = parsed.name === 'Administrator' || parsed.name === 'Admin User' || !parsed.name || isDrEleanor;
+          const isMissingName = !parsed.name || isDrEleanor;
 
-          if (localProfile?.name) {
+          if (localProfile?.name && localProfile.name !== 'Pirnavsms' && localProfile.name !== 'Vasantha Gokul') {
             parsed.name = localProfile.name;
-          } else if (parsed.email === 'vasantha.gokul@pirnav.com') {
-            parsed.name = 'Vasantha Gokul';
-          } else if (parsed.email && isGeneric) {
+          } else if (parsed.email && isMissingName) {
             parsed.name = formatEmailToName(parsed.email);
           }
 
@@ -128,25 +134,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [token, setToken] = useState<string | null>(() => {
     const t = localStorage.getItem('auth_token');
-    return (t && t !== 'offline-bypass-dev-token') ? t : null;
+    return t || null;
   });
 
-  const [selectedBranch, setSelectedBranch] = useState<string>(() => {
-    return localStorage.getItem('auth_branch') || 'Main Campus';
+  const [selectedBranch, setSelectedBranchState] = useState<string>(() => {
+    return localStorage.getItem('selected_branch') || 'Main Campus';
   });
 
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(() => {
-    return localStorage.getItem('auth_academic_year') || getDefaultAcademicYear();
+  const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>(() => {
+    return localStorage.getItem('selected_academic_year') || getDefaultAcademicYear();
   });
 
-  const handleSetBranch = (b: string) => {
-    setSelectedBranch(b);
-    localStorage.setItem('auth_branch', b);
+  const handleSetBranch = (branch: string) => {
+    setSelectedBranchState(branch);
+    localStorage.setItem('selected_branch', branch);
   };
 
   const handleSetAcademicYear = (academicYear: string) => {
-    setSelectedAcademicYear(academicYear);
-    localStorage.setItem('auth_academic_year', academicYear);
+    setSelectedAcademicYearState(academicYear);
+    localStorage.setItem('selected_academic_year', academicYear);
   };
 
   const setRole = (newRole: UserRole) => {
@@ -160,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    if (token && token !== 'offline-bypass-dev-token' && user?.email) {
+    if (token && user?.email) {
       const userKey = getActiveUserKey(user.email);
       fetchUserProfileApi(userKey)
         .then((res) => {
@@ -168,11 +174,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (data && (data.avatar || data.name)) {
             setUser((prev) => {
               if (!prev) return prev;
+              const isUserAdmin = ['admin', 'super admin', 'superadmin'].includes((prev.role || '').toLowerCase());
+              // Never overwrite authentic admin name with remote profile blob
+              const newName = isUserAdmin ? (prev.name || 'Administrator') : (data.name || prev.name);
               const hasUploadedAvatar = prev.avatar && prev.avatar.startsWith('data:image/');
               const nextAvatar = hasUploadedAvatar ? prev.avatar : (data.avatar || prev.avatar);
               const next = {
                 ...prev,
-                name: data.name || prev.name,
+                name: newName,
                 phone: data.phone || prev.phone,
                 avatar: nextAvatar,
                 branch: data.branch || prev.branch,
@@ -195,25 +204,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const roles: string[] = response?.roles || [];
-      const priorityOrder: UserRole[] = [
-        'Admin',
-        'Principal',
-        'Hostel Warden',
-        'Transport Manager',
-        'Driver',
-        'Librarian',
-        'Accountant',
-        'HR',
-        'Receptionist',
-        'Teacher',
-        'Staff',
-        'Parent',
-        'Student',
-      ];
+      const normalizedRoles = roles.map(r => normalizeUserRole(r));
 
-      let mappedRole: UserRole = chosenRole ? normalizeUserRole(chosenRole) : 'Student';
-      if (roles.length > 0) {
-        const normalizedRoles = roles.map(r => normalizeUserRole(r));
+      // If user attempted login via specific portal (e.g. Administrator Portal)
+      if (chosenRole) {
+        const targetRole = normalizeUserRole(chosenRole);
+        if (targetRole === 'Admin') {
+          if (!normalizedRoles.includes('Admin')) {
+            throw new Error('This account does not have Administrator privileges. Please sign in via the appropriate portal.');
+          }
+        }
+      }
+
+      let mappedRole: UserRole = 'Student';
+      if (chosenRole && normalizedRoles.includes(normalizeUserRole(chosenRole))) {
+        mappedRole = normalizeUserRole(chosenRole);
+      } else if (roles.length > 0) {
+        const priorityOrder: UserRole[] = [
+          'Admin',
+          'Principal',
+          'Hostel Warden',
+          'Transport Manager',
+          'Driver',
+          'Librarian',
+          'Accountant',
+          'HR',
+          'Receptionist',
+          'Teacher',
+          'Staff',
+          'Parent',
+          'Student',
+        ];
         const matched = priorityOrder.find(pRole => normalizedRoles.includes(pRole));
         if (matched) {
           mappedRole = matched;
@@ -221,21 +242,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let loginEmail = response?.email || (emailOrPhone.includes('@') ? emailOrPhone : '');
-      if (loginEmail === 'contact@pirnavschools.edu' || loginEmail === 'admin@pirnavschools.edu') {
-        loginEmail = 'vasantha.gokul@pirnav.com';
+      if (loginEmail === 'vasantha.gokul@pirnav.com') {
+        loginEmail = 'pirnavsms@gmail.com';
       }
       const userKey = getActiveUserKey(loginEmail || emailOrPhone);
-      const savedProfile = getLocalUserProfile(userKey) || getLocalUserProfile('vasantha.gokul@pirnav.com');
+      const savedProfile = getLocalUserProfile(userKey);
 
-      let userName = response?.fullName || (loginEmail ? loginEmail.split('@')[0] : 'User');
-      if (savedProfile?.name) {
+      let userName = response?.fullName?.trim() || '';
+      if (userName === 'Vasantha Gokul') {
+        userName = 'Administrator';
+      }
+      if (!userName && savedProfile?.name && savedProfile.name !== 'Pirnavsms' && savedProfile.name !== 'Vasantha Gokul') {
         userName = savedProfile.name;
-      } else if (loginEmail === 'vasantha.gokul@pirnav.com') {
-        userName = 'Vasantha Gokul';
-      } else if (userName === 'Administrator' || userName === 'Admin User' || userName === 'User' || userName === 'Dr. Eleanor Vance') {
-        if (loginEmail) {
-          userName = formatEmailToName(loginEmail);
-        }
+      }
+      if (!userName || userName === 'Administrator' || loginEmail?.toLowerCase() === 'pirnavsms@gmail.com') {
+        userName = 'Administrator';
       }
 
       const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
@@ -248,7 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profData?.avatar) {
             userAvatar = profData.avatar;
           }
-          if (profData?.name && !savedProfile?.name && (userName === 'Administrator' || userName === 'Admin User' || userName === 'User')) {
+          if (profData?.name && !userName) {
             userName = profData.name;
           }
         } catch {}
@@ -318,15 +339,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleSetUser = (newUser: User | null) => {
-    if (newUser) {
-      if (
-        newUser.email === 'contact@pirnavschools.edu' || 
-        newUser.email === 'admin@pirnavschools.edu' ||
-        (newUser.name === 'Vasantha Gokul' && (!newUser.email || newUser.email.endsWith('@pirnavschools.edu')))
-      ) {
-        newUser.email = 'vasantha.gokul@pirnav.com';
-      }
-    }
     setUser(newUser);
     if (newUser) {
       localStorage.setItem('auth_user', JSON.stringify(newUser));
