@@ -7,6 +7,7 @@ import {
   getItemFeeFromFinanceConfig,
   calculateClothOrItemPrice,
 } from "../../../utils/uniformUtils";
+import { matchesClassName } from "../../../utils/classSorter";
 import {
   IndianRupee,
   Search,
@@ -58,6 +59,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     financeSettings,
     financeUniformConfigs,
     feeStructures = [],
+    feeHeads = [],
+    dynamicFeeStructures = [],
     getStudentFeeLedger,
     getStudentFeeOutstandingSummary,
     getStudentInstallmentSummary,
@@ -413,14 +416,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         allEnrolledStudents.find(
           (s) => s?.id === studentId || s?.admissionNo === studentId,
         ) || selectedStudent;
+      const dfs = (dynamicFeeStructures || []).find((d) =>
+        matchesClassName(d.className, stObj?.className),
+      );
+      const feeVal = stObj?.totalFee ?? dfs?.totalAmount ?? 0;
       calc = {
-        baseFee: stObj?.totalFee || 35000,
+        baseFee: feeVal,
         transportFee: 0,
         hostelFee: 0,
         fineAmount: 0,
         scholarshipDeduction: 0,
         discountDeduction: 0,
-        totalPayable: stObj?.totalFee || 35000,
+        totalPayable: feeVal,
         assignedFeeHeads: [],
       } as any;
     }
@@ -1046,43 +1053,37 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     // 3. Fallback: If still empty, build default fee structure installments for the student's class
     if (combined.length === 0 && selectedStudent) {
-      const clsLower = (selectedStudent.className || "").toLowerCase().trim();
-      const uniFee = getUniformFeeForClass(
-        selectedStudent.className,
-        selectedStudent.gender,
-        financeUniformConfigs,
-        feeStructures,
-      ) || 10000;
-      let defaultHeads = [
-        { id: "FH-01", name: "Tuition Fee", amount: 77000 },
-        { id: "FH-02", name: "Admission Fee", amount: 3000 },
-        { id: "FH-03", name: "Textbook & Material Fee", amount: 3000 },
-      ];
+      const clsName = selectedStudent.className || "";
+      const dfs =
+        (dynamicFeeStructures || []).find(
+          (d) => matchesClassName(d.className, clsName) && (d.status === "Active" || !d.status),
+        ) ||
+        (dynamicFeeStructures || []).find(
+          (d) => matchesClassName(d.className, clsName),
+        );
 
-      if (
-        clsLower.includes("lkg") ||
-        clsLower.includes("ukg") ||
-        clsLower.includes("nursery") ||
-        clsLower.includes("pkg")
-      ) {
-        defaultHeads = [
-          { id: "FH-01", name: "Tuition Fee", amount: 4000 },
-          { id: "FH-02", name: "Admission Fee", amount: 2000 },
-          { id: "FH-03", name: "Textbook & Material Fee", amount: 1500 },
-          { id: "FH-04", name: "Uniform & Accessories", amount: uniFee },
-          { id: "FH-05", name: "Sports & Athletic Fee", amount: 1000 },
-        ];
-      } else if (
-        clsLower.includes("class 9") ||
-        clsLower === "9" ||
-        clsLower === "class 9th"
-      ) {
-        defaultHeads = [
-          { id: "FH-01", name: "Tuition Fee", amount: 20000 },
-          { id: "FH-02", name: "Admission Fee", amount: 1111 },
-          { id: "FH-03", name: "Textbook & Material Fee", amount: 2000 },
-        ];
+      let defaultHeads: { id: string; name: string; amount: number }[] = [];
+      if (dfs && dfs.items && dfs.items.length > 0) {
+        defaultHeads = dfs.items.map((i) => ({
+          id: i.feeHeadId || `FH-${i.feeHeadName}`,
+          name: i.feeHeadName,
+          amount: i.amount || 0,
+        }));
+      } else {
+        const applicableHeads = (feeHeads || []).filter((h) =>
+          h.status === "Active" &&
+          (!h.applicableClasses ||
+            h.applicableClasses.length === 0 ||
+            h.applicableClasses.some((c) => matchesClassName(c, clsName)) ||
+            h.applicableClasses.includes("All")),
+        );
+        defaultHeads = applicableHeads.map((h) => ({
+          id: h.id,
+          name: h.name,
+          amount: h.amount || 0,
+        }));
       }
+
       defaultHeads.forEach((h) => {
         combined.push({
           id: `INST-AUTO-${selectedStudent.id}-${h.id}`,
@@ -1610,9 +1611,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   const dueSummary = getStudentFeeOutstandingSummary
                     ? getStudentFeeOutstandingSummary(st.id)
                     : null;
+                  const dfs = (dynamicFeeStructures || []).find((d) =>
+                    matchesClassName(d.className, st.className),
+                  );
                   const dueAmt = dueSummary
                     ? dueSummary.totalOutstanding
-                    : st.totalFee || 35000;
+                    : (st.totalFee ?? dfs?.totalAmount ?? 0);
 
                   const displayClassStr = st.className
                     ? st.className.toLowerCase().startsWith("class")

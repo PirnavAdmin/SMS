@@ -9,6 +9,7 @@ import { useData } from '../../../context/DataContext';
 import { exportToExcel } from '../../../utils/excelExport';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
+import { matchesClassName, compareClassesAscending } from '../../../utils/classSorter';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -50,7 +51,7 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], saveStudentAttendance, teacherAssignments = [], timetable = [] } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], saveStudentAttendance, teacherAssignments = [], timetable = [], fetchStudents } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -166,21 +167,14 @@ export const AttendanceView = () => {
   // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      return Array.from(new Set(teacherClasses.map(c => c.className)));
+      const teacherCls = Array.from(new Set(teacherClasses.map(c => c.className)));
+      return teacherCls.sort(compareClassesAscending);
     }
     const fromAcademic = (academicClasses || []).map(ac => ac.name ? (ac.name.startsWith('Class ') ? ac.name : `Class ${ac.name}`) : null).filter(Boolean) as string[];
     const fromStudents = (allStudents || []).map(s => s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : null).filter(Boolean) as string[];
     const merged = Array.from(new Set([...fromAcademic, ...fromStudents])).filter(Boolean);
 
-    const getGradeWeight = (name: string) => {
-      const normalized = name.toLowerCase().trim();
-      if (normalized.includes('nursery')) return 0.1;
-      if (normalized.includes('lkg')) return 0.2;
-      if (normalized.includes('ukg')) return 0.3;
-      const match = normalized.match(/\d+/);
-      return match ? parseInt(match[0], 10) : 99;
-    };
-    merged.sort((a, b) => getGradeWeight(a) - getGradeWeight(b));
+    merged.sort(compareClassesAscending);
 
     return ['All Classes', ...merged];
   }, [isTeacher, teacherClasses, academicClasses, allStudents]);
@@ -198,7 +192,7 @@ export const AttendanceView = () => {
   // Context Selection State
   const [selectedClass, setSelectedClass] = useState<string>(() => {
     if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].className;
-    return 'All Classes';
+    return 'Class 10';
   });
 
   const [selectedSection, setSelectedSection] = useState<string>(() => {
@@ -209,29 +203,62 @@ export const AttendanceView = () => {
   // Dynamic list of section options for selected class
   const sectionOptions = useMemo(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      const matched = teacherClasses.filter(c => c.className === selectedClass);
-      return matched.length > 0 ? matched.map(c => c.section) : ['A'];
+      const matched = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
+      return matched.length > 0 ? Array.from(new Set(matched.map(c => c.section))) : ['A'];
     }
     if (selectedClass === 'All Classes') {
       const sections = Array.from(new Set((allStudents || []).map(s => s.section).filter(Boolean)));
-      return ['All Sections', ...(sections.length > 0 ? sections : ['A', 'B'])];
+      return ['All Sections', ...(sections.length > 0 ? sections.sort() : ['A', 'B'])];
     }
     const fromAcademic = (academicClasses || [])
-      .find(ac => (ac.name ? (ac.name.startsWith('Class ') ? ac.name : `Class ${ac.name}`) : '') === selectedClass || ac.name === selectedClass);
+      .find(ac => matchesClassName(ac.name, selectedClass));
     const academicSections = (fromAcademic?.sections || []).map((s: any) => typeof s === 'string' ? s : s.name || s.sectionName || 'A');
     const fromStudents = (allStudents || [])
-      .filter(s => (s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : '') === selectedClass || s.className === selectedClass)
+      .filter(s => matchesClassName(s.className, selectedClass))
       .map(s => s.section)
       .filter(Boolean);
     const merged = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
-    return ['All Sections', ...(merged.length > 0 ? merged : ['A'])];
+    const validSections = merged.length > 0 ? merged.sort() : ['A'];
+    return ['All Sections', ...validSections];
   }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
-  // Auto-sync section for Teacher when class changes
+  // Dynamic list of subject options
+  const subjectOptions = useMemo(() => {
+    const teacherSubjs = (dbTeacher as any)?.assignedSubjects || [];
+    const fromTimetable = (timetable || []).map((t: any) => t.subject || t.subjectName).filter(Boolean);
+    const standardSubjs = ['Mathematics', 'Science', 'English', 'Social Studies', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Hindi', 'Physical Education'];
+    const merged = Array.from(new Set([...teacherSubjs, ...fromTimetable, ...standardSubjs])).filter(Boolean);
+    return merged;
+  }, [dbTeacher, timetable]);
+
+  // Dynamic list of period options
+  const periodOptions = useMemo(() => {
+    const fromTimetable = (timetable || []).map((t: any) => t.timeSlot ? `${t.period || `Period ${t.periodNumber || 1}`} (${t.timeSlot})` : (t.period || t.periodName)).filter(Boolean);
+    const standardPeriods = [
+      'Period 1 (09:00 AM - 09:45 AM)',
+      'Period 2 (09:45 AM - 10:30 AM)',
+      'Period 3 (10:45 AM - 11:30 AM)',
+      'Period 4 (11:30 AM - 12:15 PM)',
+      'Period 5 (01:00 PM - 01:45 PM)',
+      'Period 6 (01:45 PM - 02:30 PM)',
+      'Period 7 (02:45 PM - 03:30 PM)',
+      'Period 8 (03:30 PM - 04:15 PM)'
+    ];
+    const merged = Array.from(new Set([...fromTimetable, ...standardPeriods])).filter(Boolean);
+    return merged;
+  }, [timetable]);
+
+  // Auto-sync section when class changes
+  useEffect(() => {
+    if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
+      setSelectedSection(sectionOptions[0]);
+    }
+  }, [sectionOptions, selectedSection]);
+
   useEffect(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      const match = teacherClasses.find(c => c.className === selectedClass);
-      if (match) {
+      const match = teacherClasses.find(c => matchesClassName(c.className, selectedClass));
+      if (match && selectedSection === 'All Sections') {
         setSelectedSection(match.section);
       }
     }
@@ -243,6 +270,7 @@ export const AttendanceView = () => {
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [isSearching, setIsSearching] = useState(false);
 
   const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections';
   
@@ -251,6 +279,12 @@ export const AttendanceView = () => {
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [isDownloading, setIsDownloading] = useState(false);
  
+  useEffect(() => {
+    if (fetchStudents && (!allStudents || allStudents.length === 0)) {
+      fetchStudents();
+    }
+  }, [fetchStudents, allStudents]);
+
   useEffect(() => {
     if (isAggregatedView && isEditable) {
       setIsEditable(false);
@@ -298,9 +332,10 @@ export const AttendanceView = () => {
 
   const classStudents = React.useMemo(() => {
     return realStudents.filter(s => {
-      const selectedClassNormalized = selectedClass.startsWith('Class ') ? selectedClass : `Class ${selectedClass}`;
-      const classMatch = selectedClass === 'All Classes' || s.className.toLowerCase() === selectedClassNormalized.toLowerCase() || s.className.toLowerCase() === selectedClass.toLowerCase();
-      const sectionMatch = selectedSection === 'All Sections' || s.section.toUpperCase() === selectedSection.toUpperCase();
+      const classMatch = selectedClass === 'All Classes' || matchesClassName(s.className, selectedClass);
+      const sectionMatch = selectedSection === 'All Sections' || 
+        (s.section && s.section.toUpperCase() === selectedSection.toUpperCase()) ||
+        (!s.section && selectedSection.toUpperCase() === 'A');
       return classMatch && sectionMatch;
     });
   }, [realStudents, selectedClass, selectedSection]);
@@ -313,6 +348,10 @@ export const AttendanceView = () => {
 
   // Status computation for UI rendering (Daily View)
   const getAttendanceStatus = (student: Student): AttendanceStatus => {
+    const periodKey = `${student.className}_${student.section}_${selectedSubject}_${selectedPeriod}_${date}`;
+    if (attendanceRegistry[periodKey]?.[student.id]) {
+      return attendanceRegistry[periodKey][student.id];
+    }
     const normKey = getRegisterKey(student.className, student.section, date);
     if (attendanceRegistry[normKey]?.[student.id]) {
       return attendanceRegistry[normKey][student.id];
@@ -376,6 +415,10 @@ export const AttendanceView = () => {
   }, [dateMode, month, startDate, endDate]);
 
   const getMatrixStatus = (student: Student, dateStr: string): AttendanceStatus => {
+    const periodKey = `${student.className}_${student.section}_${selectedSubject}_${selectedPeriod}_${dateStr}`;
+    if (attendanceRegistry[periodKey]?.[student.id]) {
+      return attendanceRegistry[periodKey][student.id];
+    }
     const normKey = getRegisterKey(student.className, student.section, dateStr);
     if (attendanceRegistry[normKey]?.[student.id]) {
       return attendanceRegistry[normKey][student.id];
@@ -425,26 +468,30 @@ export const AttendanceView = () => {
     const targetStudent = classStudents.find(s => String(s.id) === String(studentId));
     const targetClass = targetStudent ? targetStudent.className : selectedClass;
     const targetSec = targetStudent ? targetStudent.section : selectedSection;
+    const periodKey = `${targetClass}_${targetSec}_${selectedSubject}_${selectedPeriod}_${date}`;
     const normKey = getRegisterKey(targetClass, targetSec, date);
     const specKey = `${targetClass}_${targetSec}_${selectedSubject}_${date}`;
     const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
 
     let newStatus: AttendanceStatus = status;
     setAttendanceRegistry(prev => {
+      const periodReg = { ...(prev[periodKey] || {}) };
       const normReg = { ...(prev[normKey] || {}) };
       const specReg = { ...(prev[specKey] || {}) };
       const legacyReg = { ...(prev[legacyKey] || {}) };
-      if (normReg[studentId] === status || specReg[studentId] === status) {
+      if (periodReg[studentId] === status || normReg[studentId] === status || specReg[studentId] === status) {
         newStatus = null;
+        delete periodReg[studentId];
         delete normReg[studentId];
         delete specReg[studentId];
         delete legacyReg[studentId];
       } else {
+        periodReg[studentId] = status;
         normReg[studentId] = status;
         specReg[studentId] = status;
         legacyReg[studentId] = status;
       }
-      const updated = { ...prev, [normKey]: normReg, [specKey]: specReg, [legacyKey]: legacyReg };
+      const updated = { ...prev, [periodKey]: periodReg, [normKey]: normReg, [specKey]: specReg, [legacyKey]: legacyReg };
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
       return updated;
     });
@@ -476,19 +523,23 @@ export const AttendanceView = () => {
     else if (currentStatus === 'Late') nextStatus = 'Absent';
     else if (currentStatus === 'Absent') nextStatus = null;
    
+    const periodKey = `${student.className}_${student.section}_${selectedSubject}_${selectedPeriod}_${dateStr}`;
     const normKey = getRegisterKey(student.className, student.section, dateStr);
     const specKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
     setAttendanceRegistry(prev => {
+      const periodReg = { ...(prev[periodKey] || {}) };
       const normReg = { ...(prev[normKey] || {}) };
       const specReg = { ...(prev[specKey] || {}) };
       if (nextStatus === null) {
+        delete periodReg[student.id];
         delete normReg[student.id];
         delete specReg[student.id];
       } else {
+        periodReg[student.id] = nextStatus;
         normReg[student.id] = nextStatus;
         specReg[student.id] = nextStatus;
       }
-      const updated = { ...prev, [normKey]: normReg, [specKey]: specReg };
+      const updated = { ...prev, [periodKey]: periodReg, [normKey]: normReg, [specKey]: specReg };
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
       return updated;
     });
@@ -513,9 +564,11 @@ export const AttendanceView = () => {
     setAttendanceRegistry(prev => {
       const updated = { ...prev };
       classStudents.forEach(st => {
+        const periodKey = `${st.className}_${st.section}_${selectedSubject}_${selectedPeriod}_${date}`;
         const normKey = getRegisterKey(st.className, st.section, date);
         const specKey = `${st.className}_${st.section}_${selectedSubject}_${date}`;
         const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
+        updated[periodKey] = { ...(updated[periodKey] || {}), [st.id]: status };
         updated[normKey] = { ...(updated[normKey] || {}), [st.id]: status };
         updated[specKey] = { ...(updated[specKey] || {}), [st.id]: status };
         updated[legacyKey] = { ...(updated[legacyKey] || {}), [st.id]: status };
@@ -584,6 +637,25 @@ export const AttendanceView = () => {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
+  };
+
+  const handleSearchData = async () => {
+    setIsSearching(true);
+    try {
+      if (fetchStudents && (!allStudents || allStudents.length === 0)) {
+        await fetchStudents();
+      }
+      const periodLabel = selectedPeriod.includes('(') ? selectedPeriod.split('(')[0].trim() : selectedPeriod;
+      addToast(
+        'success',
+        'Attendance Records Loaded',
+        `Displaying ${classStudents.length} student${classStudents.length === 1 ? '' : 's'} for ${selectedClass} ${selectedSection !== 'All Sections' ? `(Section ${selectedSection})` : ''} • ${selectedSubject} • ${periodLabel}`
+      );
+    } catch (err) {
+      console.warn("Search refresh failed", err);
+    } finally {
+      setTimeout(() => setIsSearching(false), 300);
+    }
   };
  
   const handleSaveAttendance = () => {
@@ -712,7 +784,7 @@ export const AttendanceView = () => {
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 ${dateMode === 'Custom Range' ? 'xl:grid-cols-9' : 'xl:grid-cols-8'} gap-3 items-end`}>
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
             <select
@@ -726,7 +798,7 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'lg:col-span-2' : ''}`}>
+          <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'sm:col-span-2 xl:col-span-2' : ''}`}>
             <label className="text-[10px] font-black uppercase text-slate-400">Date Selection</label>
             {dateMode === 'Daily' && (
               <input type="date" value={date} onChange={e => setDate(e.target.value)} onClick={e => e.currentTarget.showPicker?.()} className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors" />
@@ -771,6 +843,32 @@ export const AttendanceView = () => {
           </div>
 
           <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
+            <select
+              value={selectedSubject}
+              onChange={e => setSelectedSubject(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+            >
+              {subjectOptions.map(sbj => (
+                <option key={sbj} value={sbj}>{sbj}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400">Period</label>
+            <select
+              value={selectedPeriod}
+              onChange={e => setSelectedPeriod(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+            >
+              {periodOptions.map(prd => (
+                <option key={prd} value={prd}>{prd}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
             <select
               value={filterStatus || 'All'}
@@ -783,6 +881,23 @@ export const AttendanceView = () => {
               <option value="HalfDay">Half Day</option>
               <option value="Late">Late</option>
             </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-transparent select-none hidden sm:block">Action</label>
+            <button
+              type="button"
+              onClick={handleSearchData}
+              disabled={isSearching}
+              className="w-full py-1.5 px-3 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+            >
+              {isSearching ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Search className="w-3.5 h-3.5" />
+              )}
+              <span>Search Data</span>
+            </button>
           </div>
         </div>
       </div>
