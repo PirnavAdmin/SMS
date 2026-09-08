@@ -153,7 +153,8 @@ export const updateSectionApi = async (
   payload: { capacity?: number; status?: string; remarks?: string; }
 ) => {
   const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
-  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}`, {
+  const cleanSec = (sectionLetter || 'A').replace(/^Section\s*/i, '').trim();
+  return apiClient(`/api/classes/${numericId}/sections/${cleanSec}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   });
@@ -161,7 +162,8 @@ export const updateSectionApi = async (
 
 export const deleteSectionApi = async (classId: number | string, sectionLetter: string) => {
   const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
-  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}`, { method: 'DELETE' });
+  const cleanSec = (sectionLetter || 'A').replace(/^Section\s*/i, '').trim();
+  return apiClient(`/api/classes/${numericId}/sections/${cleanSec}`, { method: 'DELETE' });
 };
 
 export const mapSubjectApi = async (classId: number | string, payload: {
@@ -186,7 +188,8 @@ export const assignTeacherApi = async (
   payload: { teacher_id: string; role: string; subject_name?: string; }
 ) => {
   const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
-  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}/assign-teacher`, {
+  const cleanSec = (sectionLetter || 'A').replace(/^Section\s*/i, '').trim();
+  return apiClient(`/api/classes/${numericId}/sections/${cleanSec}/assign-teacher`, {
     method: 'POST',
     body: JSON.stringify(payload)
   });
@@ -202,7 +205,8 @@ export const unassignTeacherApi = async (
   subjectId: number | string
 ) => {
   const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
-  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}/subjects/${subjectId}/unassign-teacher`, {
+  const cleanSec = (sectionLetter || 'A').replace(/^Section\s*/i, '').trim();
+  return apiClient(`/api/classes/${numericId}/sections/${cleanSec}/subjects/${subjectId}/unassign-teacher`, {
     method: 'DELETE'
   });
 };
@@ -262,9 +266,24 @@ export const deletePeriodApi = async (id: number | string) => {
 };
 
 export const fetchTimetableGridApi = async (classId: number | string, sectionId: number | string, academicYear: string) => {
-  const numericClassId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
-  const numericSectionId = typeof sectionId === 'string' && sectionId.startsWith('SEC-') ? sectionId.replace('SEC-', '') : sectionId;
-  return apiClient(`/api/timetable/class-grid?classId=${numericClassId}&sectionId=${numericSectionId}&academicYear=${encodeURIComponent(academicYear)}`, {
+  let numClassId = typeof classId === 'string' ? classId.replace(/^CL-/i, '') : String(classId);
+  if (isNaN(Number(numClassId))) numClassId = '1';
+
+  let secStr = typeof sectionId === 'string' ? sectionId.replace(/^SEC-/i, '').trim() : String(sectionId);
+  const secName = secStr.replace(/^Section\s*/i, '').trim();
+
+  let numSecId = secStr;
+  if (isNaN(Number(numSecId))) {
+    const letter = secName.toUpperCase();
+    if (letter.length === 1 && letter >= 'A' && letter <= 'Z') {
+      numSecId = String(letter.charCodeAt(0) - 64);
+    } else {
+      numSecId = '1';
+    }
+  }
+
+  const query = `classId=${encodeURIComponent(numClassId)}&sectionId=${encodeURIComponent(numSecId)}&sectionName=${encodeURIComponent(secName)}&section=${encodeURIComponent(secName)}&academicYear=${encodeURIComponent(academicYear)}`;
+  return apiClient(`/api/timetable/class-grid?${query}`, {
     method: 'GET'
   });
 };
@@ -288,12 +307,35 @@ export const saveTimetableSlotApi = async (payload: {
   overwrite?: boolean;
 }) => {
   const p = { ...payload, overwrite: true, isOverwrite: true, force: true } as any;
-  if (p.classId !== undefined && typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
-  if (p.sectionId !== undefined && typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
-  if (p.subjectId !== undefined && typeof p.subjectId === 'string') p.subjectId = Number(p.subjectId.replace('SUB-', ''));
-  if (p.teacherId !== undefined && typeof p.teacherId === 'string') p.teacherId = Number(p.teacherId.replace('EMP-', ''));
-  if (p.periodId !== undefined && typeof p.periodId === 'string') p.periodId = Number(p.periodId.replace('PS-', ''));
-  
+
+  if (p.classId !== undefined) {
+    let c = typeof p.classId === 'string' ? p.classId.replace(/^CL-/i, '') : String(p.classId);
+    p.classId = isNaN(Number(c)) ? 1 : Number(c);
+  }
+
+  if (p.sectionId !== undefined) {
+    let s = typeof p.sectionId === 'string' ? p.sectionId.replace(/^SEC-/i, '').trim() : String(p.sectionId);
+    if (isNaN(Number(s))) {
+      const letter = s.replace(/^Section\s*/i, '').toUpperCase();
+      p.sectionId = (letter.length === 1 && letter >= 'A' && letter <= 'Z') ? (letter.charCodeAt(0) - 64) : 1;
+    } else {
+      p.sectionId = Number(s);
+    }
+  }
+
+  if (p.subjectId !== undefined && typeof p.subjectId === 'string') {
+    const cleanSub = p.subjectId.replace(/^SUB-/i, '');
+    p.subjectId = !isNaN(Number(cleanSub)) ? Number(cleanSub) : undefined;
+  }
+  if (p.teacherId !== undefined && typeof p.teacherId === 'string') {
+    const cleanEmp = p.teacherId.replace(/^EMP-/i, '');
+    p.teacherId = !isNaN(Number(cleanEmp)) ? Number(cleanEmp) : undefined;
+  }
+  if (p.periodId !== undefined && typeof p.periodId === 'string') {
+    const cleanPs = p.periodId.replace(/^PS-/i, '');
+    p.periodId = !isNaN(Number(cleanPs)) ? Number(cleanPs) : undefined;
+  }
+
   return apiClient('/api/timetable/slot', {
     method: 'POST',
     body: JSON.stringify(p)
@@ -302,7 +344,12 @@ export const saveTimetableSlotApi = async (payload: {
 
 export const deleteTimetableSlotApi = async (id: number | string) => {
   const numericId = typeof id === 'string' && id.startsWith('TT-') ? id.replace('TT-', '') : id;
-  return apiClient(`/api/timetable/slot/${numericId}`, { method: 'DELETE' });
+  return apiClient(`/api/timetable/slot/${numericId}`, { method: 'DELETE' }).catch((err) => {
+    if (err?.status === 404 || String(err?.message || '').includes('404')) {
+      return null;
+    }
+    throw err;
+  });
 };
 
 export const publishTimetableApi = async (payload: {

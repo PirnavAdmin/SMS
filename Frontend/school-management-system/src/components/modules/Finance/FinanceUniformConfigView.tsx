@@ -37,33 +37,33 @@ export const FinanceUniformConfigView: React.FC = () => {
   const [form, setForm] = useState<Partial<FinanceUniformConfig>>({
     academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
     branch: selectedBranch || 'Main Campus',
-    className: 'Class 10',
-    gender: 'Unisex',
-    uniformPackage: 'Boys Uniform Package (Admission Kit)',
+    className: '',
+    gender: '',
+    uniformPackage: '',
     feePlan: 'Annual',
-    feeAmount: 3500,
+    feeAmount: undefined,
     effectiveFrom: new Date().toISOString().split('T')[0],
     status: 'Active'
   });
 
   const fabricSizeOptions = React.useMemo(() => {
-    const defaultSizes = ['1.0M - 1.5M', '1.5M - 2.0M', '2.0M - 2.5M', '2.5M - 3.0M'];
-    const configuredFabricSizes = (uniformSizes || [])
-      .map(s => (s.sizeName || (s as any).sizeCodeName || (s as any).name || '').trim())
-      .filter(Boolean);
-
-    const merged = Array.from(new Set([...configuredFabricSizes, ...defaultSizes]));
-    return merged;
-  }, [uniformSizes]);
+    return [
+      '1.0m - 1.5m',
+      '1.5m - 2.0m',
+      '2.0m - 2.5m',
+      '2.5m - 3.0m'
+    ];
+  }, []);
 
   const filteredConfigs = financeUniformConfigs.filter(c => {
     if (!c) return false;
 
     // Filter by navbar selected Academic Year
     if (selectedAcademicYear) {
-      const normSelYear = (selectedAcademicYear || '').replace(/\s+/g, '').toLowerCase();
-      const normCfgYear = (c.academicYear || '').replace(/\s+/g, '').toLowerCase();
-      if (normCfgYear && normSelYear && normCfgYear !== normSelYear && !normCfgYear.includes(normSelYear) && !normSelYear.includes(normCfgYear)) {
+      const getYearDigits = (y: string) => (y || '').replace(/\D/g, '').slice(0, 4);
+      const selYearPrefix = getYearDigits(selectedAcademicYear);
+      const cfgYearPrefix = getYearDigits(c.academicYear);
+      if (selYearPrefix && cfgYearPrefix && selYearPrefix !== cfgYearPrefix) {
         return false;
       }
     }
@@ -103,49 +103,60 @@ export const FinanceUniformConfigView: React.FC = () => {
     const basePackagesMap = new Map<string, { name: string; defaultGender?: string }>();
     const additionalItemsMap = new Map<string, { name: string; defaultGender?: string }>();
 
-    // 1. Base Packages (strictly Boys Base Package, Girls Base Package, and Cloth)
-    const baseList = [
-      { name: 'Boys Base Package (Admission Kit)', defaultGender: 'Male' },
-      { name: 'Girls Base Package (Admission Kit)', defaultGender: 'Female' },
-      { name: 'Cloth', defaultGender: 'Unisex' }
-    ];
-    baseList.forEach(b => basePackagesMap.set(b.name.toLowerCase().trim(), b));
-
-    const isExcludedFromAdditional = (name: string) => {
-      const lower = name.toLowerCase().trim();
-      if (lower.includes('boys') || lower.includes('girls')) return true;
-      if (lower.includes('base package') || lower.includes('admission kit')) return true;
-      if (lower === 'uniform package' || lower === 'package' || lower.includes('package(')) return true;
-      if (lower === 'cloth' || lower.includes('cloth package') || lower.includes('fabric package')) return true;
-      return false;
-    };
-
-    // 2. Items from uniformCategories
+    // 1. Process all categories explicitly defined by user in Categories tab (uniformCategories)
     (uniformCategories || []).forEach(cat => {
       const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
       if (!rawName) return;
       const lower = rawName.toLowerCase().trim();
+      if (lower === 'uniform package' || lower === 'package') return;
+
       let gen: 'Male' | 'Female' | 'Unisex' = 'Unisex';
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      if (!isExcludedFromAdditional(rawName) && !additionalItemsMap.has(lower)) {
+      // Only Cloth/fabric category from uniformCategories goes to Base Package
+      if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
+        basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
+      } else {
+        // The remaining 14 categories go to Additional Purchase
         additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
       }
     });
 
-    // 3. Items from uniforms catalog
+    // 2. Process custom items and packages created in Add Uniform Type (uniforms state)
     (uniforms || []).forEach(u => {
       if (!u) return;
       const rawName = (u.category || (u as any).name || (u as any).itemName || '').trim();
       if (!rawName) return;
       const lower = rawName.toLowerCase().trim();
+
+      // STRICTLY EXCLUDE generic standalone "Uniform Package" or "Package"
+      if (lower === 'uniform package' || lower === 'package') return;
+
       let gen: 'Male' | 'Female' | 'Unisex' = (u.gender as any) || 'Unisex';
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      if (!isExcludedFromAdditional(rawName) && !additionalItemsMap.has(lower)) {
-        additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
+      // Check if it's a valid configured package (Boys/Girls Admission Kit package or u.isPackage created by admin)
+      const isConfiguredPackage = u.isPackage ||
+        lower.includes('boys uniform package') ||
+        lower.includes('girls uniform package') ||
+        (lower.includes('package') && (lower.includes('boys') || lower.includes('girls')));
+
+      if (isConfiguredPackage) {
+        basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
+        additionalItemsMap.delete(lower);
+      } else {
+        // For additional items, ONLY include if its name matches one of the user's configured categories in uniformCategories
+        const matchesUserCategory = (uniformCategories || []).some(cat => {
+          const cName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
+          const cLower = (cName || '').toLowerCase().trim();
+          return cLower === lower || (cLower && lower && cLower.replace(/[^a-z0-9]/g, '') === lower.replace(/[^a-z0-9]/g, ''));
+        });
+
+        if (matchesUserCategory && !basePackagesMap.has(lower)) {
+          additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
+        }
       }
     });
 

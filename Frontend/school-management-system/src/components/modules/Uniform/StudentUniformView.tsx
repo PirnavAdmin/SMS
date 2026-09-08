@@ -567,7 +567,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     .filter(g => {
       const lower = (g.studentName || '').toLowerCase();
       const adm = (g.admissionNo || g.studentId || '').toUpperCase();
-      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || adm === 'ADM-2026-001' || adm === 'REG-1022';
+      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || lower.includes('sarath') || lower.includes('nagaraj') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
       return !isDummy;
     })
     .sort((a, b) => {
@@ -899,7 +899,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         id: form.itemId,
         category: (uniformCategories || []).find(c => c.id === form.itemId.replace('cat_', ''))?.name || 'Boys Uniform Package (Admission Kit)',
         price: feeAmount,
-        availableStock: 50
+        availableStock: (uniformInventory || []).find(i => i.itemId === form.itemId)?.currentStock || 0
       } : null);
 
     if (!itemObj) {
@@ -1519,21 +1519,21 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       if (catMatch) {
         itemObj = {
           id: form.itemId,
-          category: catMatch.name || (catMatch as any).categoryName || 'Boys Uniform Package (Admission Kit)',
-          name: catMatch.name || (catMatch as any).categoryName || 'Boys Uniform Package (Admission Kit)',
-          price: (catMatch as any).price || 5000,
+          category: catMatch.name || (catMatch as any).categoryName || 'Uniform Package',
+          name: catMatch.name || (catMatch as any).categoryName || 'Uniform Package',
+          price: (catMatch as any).price || 0,
           availableStock: 9999
         };
       }
     }
 
     if (!itemObj) {
-      const packageFallbackName = form.itemId.includes('Girls') ? 'Girls Uniform Package (Admission Kit)' : 'Boys Uniform Package (Admission Kit)';
+      const packageFallbackName = form.itemId.includes('Girls') ? 'Girls Base Package' : 'Boys Base Package';
       itemObj = {
         id: form.itemId,
         category: packageFallbackName,
         name: packageFallbackName,
-        price: 5000,
+        price: 0,
         availableStock: 9999
       };
     }
@@ -2703,21 +2703,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                           name: comp.categoryName,
                           qty: `${comp.quantity}x ${comp.categoryName}`
                         }))
-                      : isGirls ? [
-                          { name: 'Cap', qty: '1x Cap' },
-                          { name: 'T-Shirt', qty: '1x T-Shirt' },
-                          { name: 'Socks (Pair)', qty: '1x Socks (Pair)' },
-                          { name: 'Black Shoes (Pair)', qty: '1x Black Shoes (Pair)' },
-                          { name: 'Tie & Crest', qty: '1x Tie & Crest' },
-                          { name: 'Blazer', qty: '2x Blazer' }
-                        ] : [
-                          { name: 'Cap', qty: '1x Cap' },
-                          { name: 'T-Shirt', qty: '1x T-Shirt' },
-                          { name: 'Socks (Pair)', qty: '1x Socks (Pair)' },
-                          { name: 'Black Shoes (Pair)', qty: '1x Black Shoes (Pair)' },
-                          { name: 'Pant', qty: '2x Pant' },
-                          { name: 'Shirt', qty: '2x Shirt' }
-                        ];
+                      : [];
 
                     return (
                       <>
@@ -2735,7 +2721,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                               <optgroup label="Standard Admission Kit Base Packages (Girls, Boys & Cloth)">
                                 {(() => {
                                   const isBasePkgName = (name: string) => {
-                                    const lower = (name || '').toLowerCase();
+                                    const lower = (name || '').toLowerCase().trim();
+                                    if (lower === 'uniform package' || lower === 'package') return false;
                                     if (lower.includes('tracksuit') || lower.includes('sports')) return false;
                                     return lower.includes('boys') || lower.includes('girls') || lower.includes('admission') || lower.includes('cloth') || lower.includes('fabric');
                                   };
@@ -2758,25 +2745,11 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                         size: 'M',
                                         className: 'All Wings',
                                         color: 'Standard',
-                                        price: 3500,
-                                        availableStock: 50
+                                        price: (c as any).price || 0,
+                                        availableStock: (uniformInventory || []).find(inv => inv.itemId === `cat_${c.id}` || inv.category?.toLowerCase() === cName.toLowerCase())?.currentStock || 0
                                       });
                                     }
                                   });
-
-                                  if (!combined.some(u => (u.category || u.name || '').toLowerCase().includes('cloth'))) {
-                                    combined.push({
-                                      id: 'cat_cloth_base',
-                                      category: 'Cloth',
-                                      name: 'Cloth',
-                                      gender: 'Unisex',
-                                      size: '1.5m - 2.0m',
-                                      className: 'All Wings',
-                                      color: 'Standard',
-                                      price: 600,
-                                      availableStock: 100
-                                    });
-                                  }
 
                                   const seenPkgNames = new Set<string>();
                                   const deduplicatedPkgs: typeof combined = [];
@@ -2842,9 +2815,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                 );
                               }
 
-                              const displayBannerAmount = (selStudentFeeStatus.amount && selStudentFeeStatus.amount >= 2000)
+                              const displayBannerAmount = selStudentFeeStatus.amount
                                 ? selStudentFeeStatus.amount
-                                : (getPackageFeeForStudent(selStudentForFee?.className || 'Class 8', undefined, selStudentForFee?.gender) || 5000);
+                                : (getPackageFeeForStudent(selStudentForFee?.className || 'Class 8', undefined, selStudentForFee?.gender) || 0);
 
                               if (selStudentFeeStatus.isPaid) {
                                 return (

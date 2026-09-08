@@ -1442,9 +1442,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       addToast('warning', 'Already Assigned', `${teacherFullName} is already assigned as Class Teacher for ${(assignedConflict as any).className} Section ${(assignedConflict as any).section}.`);
       return;
     }
+    const cleanSec = activeWorkspaceSection.replace(/^Section\s*/i, '').trim();
     const updatedTeachers = {
       ...details,
-      [activeWorkspaceSection]: teacherFullName
+      [activeWorkspaceSection]: teacherFullName,
+      [cleanSec]: teacherFullName,
+      [`Section ${cleanSec}`]: teacherFullName
     };
 
     try {
@@ -2322,13 +2325,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                 {/* COCKPIT TAB: TEACHERS ASSIGNMENT */}
                 {classWorkspaceTab === 'teachers' && (() => {
+                  const normSec = (s: string) => (s || '').replace(/^Section\s*/i, '').trim().toLowerCase();
+
                   // Real-time map of all teachers already assigned as Class Teacher elsewhere
                   const assignedClassTeacherInfo = new Map<string, { className: string; section: string }>();
                   academicClasses.forEach(cls => {
                     const secTeachers = (cls as any).sectionTeachers || {};
                     Object.entries(secTeachers).forEach(([sec, tVal]) => {
                       if (tVal && typeof tVal === 'string' && tVal.trim() !== '' && tVal !== 'Unassigned') {
-                        const isCurrent = (cls.id === activeClass.id && sec === activeWorkspaceSection);
+                        const isCurrent = (cls.id === activeClass.id && normSec(sec) === normSec(activeWorkspaceSection));
                         if (!isCurrent) {
                           const tValClean = tVal.trim().toLowerCase();
                           assignedClassTeacherInfo.set(tValClean, { className: cls.name, section: sec });
@@ -2352,14 +2357,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     });
                   });
 
-                  // Available teachers for Class Teacher selection in the active section
-                  const availableClassTeachers = teachersList.filter(t => {
-                    const tName = (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase();
-                    const tIdStr = t.id != null ? String(t.id).toLowerCase() : '';
-                    return (!tIdStr || !assignedClassTeacherInfo.has(tIdStr)) && !assignedClassTeacherInfo.has(tName);
-                  });
+                  const secTeachersMap = (activeClass as any).sectionTeachers || {};
+                  const cleanActiveSec = activeWorkspaceSection.replace(/^Section\s*/i, '').trim();
+                  const currentSectionClassTeacherName = secTeachersMap[activeWorkspaceSection] || secTeachersMap[cleanActiveSec] || secTeachersMap[`Section ${cleanActiveSec}`];
 
-                  const currentSectionClassTeacherName = ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection];
                   const selectedClassTeacher = teachersList.find(t => {
                     const fullName = (t.name || `${t.firstName} ${t.lastName}`).trim();
                     const empCode = t.empId || t.id;
@@ -2371,14 +2372,26 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     if (isNameEquivalent(fullName, currentSectionClassTeacherName)) return true;
                     if (empCode && (cleanName.includes(String(empCode).toLowerCase()) || String(empCode).toLowerCase() === cleanName)) return true;
                     if (cleanName.startsWith(fullName.toLowerCase())) return true;
+                    if (fullName.toLowerCase().startsWith(cleanName)) return true;
+                    if (fullName.toLowerCase().includes(cleanName) || cleanName.includes(fullName.toLowerCase())) return true;
                     return false;
                   }) || teachersList.find(t => {
                     return teacherAssignments.some(ta => 
                       (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) &&
-                      ta.section?.toLowerCase() === activeWorkspaceSection?.toLowerCase() &&
+                      normSec(ta.section) === normSec(activeWorkspaceSection) &&
                       ta.role === 'Class Teacher' &&
                       (String(ta.teacherId) === String(t.id) || (ta.teacherName && (t.name || `${t.firstName} ${t.lastName}`).toLowerCase() === ta.teacherName.toLowerCase()))
                     );
+                  });
+
+                  // Available teachers for Class Teacher selection in the active section
+                  const availableClassTeachers = teachersList.filter(t => {
+                    if (selectedClassTeacher && (t.id === selectedClassTeacher.id || (t.empId && t.empId === selectedClassTeacher.empId))) {
+                      return true;
+                    }
+                    const tName = (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase();
+                    const tIdStr = t.id != null ? String(t.id).toLowerCase() : '';
+                    return (!tIdStr || !assignedClassTeacherInfo.has(tIdStr)) && !assignedClassTeacherInfo.has(tName);
                   });
                   const mappedSubjectsForClass = (activeClass.subjects || []).map((subName: string, index: number) => {
                     const master = subjects.find(s => s.name.toLowerCase() === subName.toLowerCase());

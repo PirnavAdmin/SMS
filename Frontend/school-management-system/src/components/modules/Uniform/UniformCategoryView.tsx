@@ -25,7 +25,9 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
   const filtered = (uniformCategories || []).filter(c => {
     if (!c) return false;
-    const catName = (c.name || (c as any).categoryName || '').toLowerCase();
+    const catName = (c.name || (c as any).categoryName || '').toLowerCase().trim();
+    const isPkg = catName.includes('package') || catName.includes('kit') || (catName.includes('base') && (catName.includes('boys') || catName.includes('girls')));
+    if (isPkg) return false;
     const catDesc = (c.description || '').toLowerCase();
     const q = (query || '').toLowerCase().trim();
     const matchQuery = !q || catName.includes(q) || catDesc.includes(q);
@@ -116,7 +118,14 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
           >
             <option value="">Select Category</option>
             <option value="All">All Categories</option>
-            {Array.from(new Set((uniformCategories || []).map(c => c.name || (c as any).categoryName).filter(Boolean))).map(cat => (
+            {Array.from(new Set((uniformCategories || [])
+              .map(c => c.name || (c as any).categoryName)
+              .filter(cat => {
+                if (!cat) return false;
+                const lower = cat.toLowerCase().trim();
+                return !(lower.includes('package') || lower.includes('kit') || (lower.includes('base') && (lower.includes('boys') || lower.includes('girls'))));
+              })
+            )).map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>

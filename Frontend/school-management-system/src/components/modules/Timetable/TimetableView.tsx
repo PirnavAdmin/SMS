@@ -365,9 +365,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     setSelectedClassInfo({
       className: classSec.startsWith('Class ') ? classSec : `Class ${classSec}`,
-      subject: subject || 'Social Studies',
-      room: room || 'Room 202',
-      studentStrength: count > 0 ? count : 38,
+      subject: subject || '',
+      room: room || '',
+      studentStrength: count,
       classTeacher: assignedCT ? assignedCT.teacherName : teacherFullName
     });
     setShowClassInfoModal(true);
@@ -578,9 +578,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [classTimetable]);
 
   const timeSlots = useMemo(() => {
+    if (activeBranchPeriods && activeBranchPeriods.length > 0) {
+      return activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
+    }
     const fromData = classTimetable.map(t => t.timeSlot);
-    const fromSettings = activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
-    return Array.from(new Set([...fromSettings, ...fromData])).sort((a, b) => parseSortable(a) - parseSortable(b));
+    return Array.from(new Set(fromData)).sort((a, b) => parseSortable(a) - parseSortable(b));
   }, [classTimetable, activeBranchPeriods]);
 
   const [formData, setFormData] = useState<Partial<TimetableSlot>>({
@@ -1314,9 +1316,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               {match ? (
                                 <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border space-y-0.5 text-left mx-auto w-28 shadow-xs border-slate-100 dark:border-slate-700/50">
                                    {(() => {
-                                      const subName = match.subject || 'Social Studies';
+                                      const subName = match.subject || '';
                                       const globalSub = subjects.find(s => s.name.toLowerCase().trim() === subName.toLowerCase().trim());
-                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : ' (soc)';
+                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : '';
                                       return (
                                         <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
                                           {subName}{codeStr}
@@ -1623,7 +1625,27 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                         </p>
                                       );
                                     })()}
-                                    <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName}</p>
+                                     {(() => {
+                                       const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+                                       const mappedTa = (teacherAssignments || []).find((ta: any) =>
+                                         norm(ta.className) === norm(match.className || selectedClass) &&
+                                         norm(ta.section) === norm(match.section || selectedSection) &&
+                                         norm(ta.subject) === norm(match.subject)
+                                       );
+                                       const clsObj = (academicClasses || []).find((c: any) => norm(c.name) === norm(match.className || selectedClass));
+                                       const secTeachers = (clsObj as any)?.sectionTeachers || {};
+                                       const secKey = match.section || selectedSection || 'A';
+                                       const cleanSecKey = secKey.replace(/^Section\s*/i, '').trim();
+                                       const classTeacherName = secTeachers[secKey] || secTeachers[cleanSecKey] || secTeachers[`Section ${cleanSecKey}`];
+
+                                       const displayTeacher = mappedTa?.teacherName || classTeacherName || match.teacherName || 'Assigned Teacher';
+
+                                       return (
+                                         <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">
+                                           {displayTeacher}
+                                         </p>
+                                       );
+                                     })()}
                                     <div className="flex items-center justify-between pt-1">
                                       {(() => {
                                         const displayRoom = getDisplayRoom(match.roomNo, match.className, match.section);

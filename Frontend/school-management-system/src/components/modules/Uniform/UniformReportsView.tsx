@@ -376,7 +376,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     } else if (isSalesOrIssueReport) {
       return filteredStudentIssues.map(i => {
         const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-        const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 3000 : 350));
+        const unitPrice = i.price || uItem?.price || 0;
         const totalAmount = unitPrice * i.quantity;
         return {
           'Student Name': i.studentName,
@@ -826,7 +826,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     const displayClass = i.className.includes('-') ? i.className.split('-')[0].trim() : i.className;
                     const displaySection = i.section || (i.className.includes('-') ? i.className.split('-')[1].trim() : 'A');
                     const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-                    const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 3000 : 350));
+                    const unitPrice = i.price || uItem?.price || 0;
                     const totalAmount = unitPrice * i.quantity;
 
                     return (
@@ -992,7 +992,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                 const displayClass = i.className.includes('-') ? i.className.split('-')[0].trim() : i.className;
                 const displaySection = i.section || (i.className.includes('-') ? i.className.split('-')[1].trim() : 'A');
                 const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-                const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 3000 : 350));
+                const unitPrice = i.price || uItem?.price || 0;
                 const totalAmount = unitPrice * i.quantity;
 
                 return (

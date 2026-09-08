@@ -26,41 +26,47 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     financeUniformConfigs = []
   } = useData();
 
-  const totalItems = (uniforms || []).length;
+  const totalItems = React.useMemo(() => {
+    const uniqueCategories = new Set<string>();
+    (uniforms || []).forEach(u => {
+      const cat = u.category || u.name;
+      if (!cat) return;
+      const lower = cat.toLowerCase().trim();
+      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+      const norm = normalizeUniformCategoryName(cat);
+      if (norm) uniqueCategories.add(norm);
+    });
+    (uniformInventory || []).forEach(inv => {
+      const cat = inv.itemName || inv.category;
+      if (!cat) return;
+      const lower = cat.toLowerCase().trim();
+      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+      const norm = normalizeUniformCategoryName(cat);
+      if (norm) uniqueCategories.add(norm);
+    });
+    return uniqueCategories.size;
+  }, [uniforms, uniformInventory]);
   const validStudentUniformIssues = React.useMemo(() => {
+    if (!studentUniformIssues || studentUniformIssues.length === 0) return [];
     return (studentUniformIssues || []).filter(i => {
       if (!i) return false;
       const name = (i.studentName || '').toLowerCase();
       const adm = (i.admissionNo || i.studentId || '').toUpperCase();
-      const isDummy = name.includes('fahim') || name.includes('faheem') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || adm === 'ADM-2026-001' || adm === 'REG-1022';
+      const isDummy = name.includes('fahim') || name.includes('faheem') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || name.includes('nagaraj') || adm === 'ADM-2026-001' || adm === 'REG-1022';
       return !isDummy;
     });
   }, [studentUniformIssues]);
 
   const totalStock = React.useMemo(() => {
-    // Sum baseline opening stock across all 40 uniform catalog items (30 items @ 100 + 4 cloth @ 100 + 6 packages @ 150 = 4,300)
-    const totalBaselineOpening = (uniforms || []).reduce((acc, u) => {
-      if (!u) return acc;
-      const catLower = (u.category || u.name || '').toLowerCase();
-      const szLower = (u.size || '').toLowerCase();
-      if ((catLower.includes('cloth') || catLower.includes('fabric')) && (szLower === 'medium' || szLower === 'm')) {
-        return acc;
-      }
-      const isPkg = u.isPackage || catLower.includes('package');
-      const baseStock = isPkg ? 150 : 100;
-      return acc + baseStock;
-    }, 0);
-
-    // Active issued units from validStudentUniformIssues
-    const activeIssuedUnits = (validStudentUniformIssues || []).reduce((sum, issue) => {
-      if (!issue || issue.status === 'Returned' || issue.status === 'Cancelled') return sum;
-      const notesLower = (issue.notes || '').toLowerCase();
-      if (notesLower.includes('returned') || notesLower.includes('cancelled')) return sum;
-      return sum + (Number(issue.quantity) || 1);
-    }, 0);
-
-    return Math.max(0, totalBaselineOpening - activeIssuedUnits);
-  }, [uniforms, validStudentUniformIssues]);
+    if (!uniforms || uniforms.length === 0) return 0;
+    if (uniformInventory && uniformInventory.length > 0) {
+      return uniformInventory.reduce((acc, item) => {
+        const itemCap = Math.min(item.openingStock || 100, Number(item.currentStock) || 0);
+        return acc + itemCap;
+      }, 0);
+    }
+    return 0;
+  }, [uniforms, uniformInventory]);
   const lowStockItems = (uniformInventory || []).filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
 
   // Combine students master roster with admissions array to guarantee 100% student availability (matching StudentUniformView 1:1)
@@ -90,6 +96,9 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
   }, [students, admissions]);
 
   const { uniformsIssuedCount, uniformsReturnedCount } = React.useMemo(() => {
+    if (!studentUniformIssues || studentUniformIssues.length === 0) {
+      return { uniformsIssuedCount: 0, uniformsReturnedCount: 0 };
+    }
     const groupedMap = new Map<string, {
       studentId: string;
       studentName: string;
@@ -157,7 +166,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     const validGroups = Array.from(groupedMap.values()).filter(g => {
       const lower = (g.studentName || '').toLowerCase();
       const adm = (g.admissionNo || g.studentId || '').toUpperCase();
-      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || adm === 'ADM-2026-001' || adm === 'REG-1022';
+      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || lower.includes('sarath') || lower.includes('nagaraj') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
       return !isDummy;
     });
 
@@ -241,6 +250,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
   }, [validStudentUniformIssues, financeUniformConfigs]);
 
   const groupedRecentActivity = React.useMemo(() => {
+    if (!studentUniformIssues || studentUniformIssues.length === 0 || validStudentUniformIssues.length === 0) return [];
     const map = new Map<string, {
       id: string;
       studentName: string;
@@ -437,6 +447,8 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
             {(() => {
               const catMap = new Map<string, number>();
 
+              const seenInvItemIds = new Set<string>();
+
               (uniformInventory || []).forEach(inv => {
                 if (!inv) return;
                 const catName = inv.itemName || inv.category || '';
@@ -444,22 +456,24 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
                 const lower = catName.toLowerCase();
                 if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
 
+                if (inv.itemId) seenInvItemIds.add(inv.itemId);
                 const normCat = normalizeUniformCategoryName(catName);
-                const currentVal = catMap.get(normCat) ?? inv.currentStock;
-                catMap.set(normCat, Math.min(currentVal, inv.currentStock));
+                const currentVal = catMap.get(normCat) || 0;
+                const cappedItemStock = Math.min(inv.openingStock || 100, inv.currentStock || 0);
+                catMap.set(normCat, currentVal + cappedItemStock);
               });
 
-              if (catMap.size === 0) {
-                (uniforms || []).forEach(u => {
-                  const cat = u.category || u.name;
-                  if (!cat) return;
-                  const lower = cat.toLowerCase();
-                  if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-                  const normCat = normalizeUniformCategoryName(cat);
-                  const existing = catMap.get(normCat) || 0;
-                  catMap.set(normCat, existing + (u.availableStock || 0));
-                });
-              }
+              (uniforms || []).forEach(u => {
+                if (!u || (u.id && seenInvItemIds.has(u.id))) return;
+                const cat = u.category || u.name;
+                if (!cat) return;
+                const lower = cat.toLowerCase();
+                if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+                const normCat = normalizeUniformCategoryName(cat);
+                const existing = catMap.get(normCat) || 0;
+                const cappedCatalogStock = Math.min(u.openingStock || 100, u.availableStock ?? u.openingStock ?? 100);
+                catMap.set(normCat, existing + cappedCatalogStock);
+              });
 
               const cleanNorm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -486,14 +500,10 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
                   return acc;
                 }, 0);
 
-                let baseStock = stock;
-                if (category.toLowerCase().includes('package') || category.toLowerCase().includes('kit')) {
-                  baseStock = 100;
-                }
+                const currentAvailStock = stock;
+                const baseTotalStock = stock + activeIssuedUnits;
 
-                const currentAvailStock = Math.max(0, baseStock - activeIssuedUnits);
-
-                return { category, stock: currentAvailStock, total: baseStock };
+                return { category, stock: currentAvailStock, total: baseTotalStock };
               });
 
               const colors = ['bg-sky-500', 'bg-blue-500', 'bg-emerald-500', 'bg-indigo-500', 'bg-purple-500'];

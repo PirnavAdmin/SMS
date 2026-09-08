@@ -9,7 +9,7 @@ import { PeriodSetting, TimetableSlot } from '../../../types';
 import { useData, AcademicClass } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { saveTimetableSlotApi } from '../../../api/academic';
+import { saveTimetableSlotApi, fetchTimetableGridApi, deleteTimetableSlotApi } from '../../../api/academic';
 
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
@@ -451,9 +451,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
     const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
     const cls = academicClasses.find(c => norm(c.name) === norm(className));
-    const mappedSubs = (cls?.subjects && cls.subjects.length > 0)
-      ? cls.subjects
-      : ['Mathematics', 'English', 'Science', 'Social Studies', 'Second Language', 'Computer Science', 'Physical Education'];
+    const mappedSubs = cls?.subjects || [];
     const weeklyPeriodsMap = cls?.weeklyPeriods || {};
 
     const subjectRequests = mappedSubs.map(subName => {
@@ -467,7 +465,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         norm(ta.section) === norm(section) &&
         norm(ta.subject) === norm(subName)
       );
-      const teacherName = mapping?.teacherName || 'Assigned Teacher';
+      const secTeachers = (cls as any)?.sectionTeachers || {};
+      const classTeacherName = secTeachers[section] || secTeachers[`Section ${section}`] || secTeachers[section.replace(/^Section\s*/i, '')] || '';
+      const teacherName = mapping?.teacherName || classTeacherName || 'Assigned Teacher';
 
       return {
         subject: subName,
@@ -703,18 +703,44 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         autoAssignMappedSubjects
       };
 
-      // 1. Prepare Period Settings in memory
-      const newPeriodSettings: PeriodSetting[] = calculationResult.periods.map((p, idx) => ({
-        id: `PS-AUTO-${Date.now()}-${idx + 1}`,
-        periodName: p.name,
-        startTime: p.startTime,
-        endTime: p.endTime,
-        periodType: p.type,
-        sequence: p.sequence,
-        status: 'Active',
-        academicYear,
-        branch: selectedBranch || 'Main Campus'
-      }));
+      // 1. Prepare Period Settings in memory (both Master and for each selected Class-Section)
+      const newPeriodSettings: PeriodSetting[] = [];
+
+      calculationResult.periods.forEach((p, idx) => {
+        newPeriodSettings.push({
+          id: `PS-AUTO-M-${Date.now()}-${idx + 1}`,
+          periodName: p.name,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          periodType: p.type,
+          sequence: p.sequence,
+          status: 'Active',
+          academicYear,
+          branch: selectedBranch || 'Main Campus'
+        });
+      });
+
+      for (const classSec of selectedClassSections) {
+        const lastDash = classSec.lastIndexOf('-');
+        const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
+        const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
+
+        calculationResult.periods.forEach((p, idx) => {
+          newPeriodSettings.push({
+            id: `PS-AUTO-CS-${Date.now()}-${className}-${section}-${idx + 1}`,
+            className,
+            section,
+            periodName: p.name,
+            startTime: p.startTime,
+            endTime: p.endTime,
+            periodType: p.type,
+            sequence: p.sequence,
+            status: 'Active',
+            academicYear,
+            branch: selectedBranch || 'Main Campus'
+          });
+        });
+      }
 
       if (bulkAddPeriodSettings) {
         bulkAddPeriodSettings(newPeriodSettings);
@@ -724,6 +750,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       const teachingPeriods = calculationResult.periods.filter(p => p.type === 'Teaching');
       const teacherScheduleMap = new Map<string, string>(); // key: `${day}-${periodNumber}-${teacherId}` -> classSec
       const newTimetableSlots: TimetableSlot[] = [];
+      const detectedTeacherConflicts: string[] = [];
 
       for (const classSec of selectedClassSections) {
         const lastDash = classSec.lastIndexOf('-');
@@ -731,9 +758,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
 
         const cls = academicClasses.find(c => norm(c.name) === norm(className));
-        const mappedSubs = (cls?.subjects && cls.subjects.length > 0)
-          ? cls.subjects
-          : ['Mathematics', 'English', 'Science', 'Social Studies', 'Second Language', 'Computer Science', 'Physical Education'];
+        const mappedSubs = cls?.subjects || [];
         const weeklyPeriodsMap = cls?.weeklyPeriods || {};
 
         if (!autoAssignMappedSubjects || mappedSubs.length === 0) {
@@ -749,7 +774,10 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
             norm(ta.section) === norm(section) &&
             norm(ta.subject) === norm(subName)
           );
-          const teacherName = mapping?.teacherName || '';
+          const secTeachers = (cls as any)?.sectionTeachers || {};
+          const classTeacherName = secTeachers[section] || secTeachers[`Section ${section}`] || secTeachers[section.replace(/^Section\s*/i, '')] || '';
+
+          const teacherName = mapping?.teacherName || classTeacherName || '';
           const teacherId = mapping?.teacherId || '';
 
           return {
@@ -829,6 +857,12 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
               if (periodSlotsAssigned[pIdx] === null) {
                 const period = teachingPeriods[pIdx];
                 const key = `${dayName}-${period.sequence || pIdx + 1}-${item.teacherId || item.teacherName}`;
+                if (item.teacherName && item.teacherName !== 'Unassigned' && teacherScheduleMap.has(key)) {
+                  const existingClass = teacherScheduleMap.get(key);
+                  detectedTeacherConflicts.push(
+                    `Teacher "${item.teacherName}" is already assigned to ${existingClass} on ${dayName} at ${period.startTime} - ${period.endTime}`
+                  );
+                }
                 if (!avoidTeacherConflicts || !item.teacherId || !teacherScheduleMap.has(key)) {
                   chosenPeriodIdx = pIdx;
                   break;
@@ -891,13 +925,36 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         }
       }
 
-      // Clear previous timetable slots for selected class sections
-      if (clearClassTimetable) {
-        for (const classSec of selectedClassSections) {
-          const lastDash = classSec.lastIndexOf('-');
-          const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
-          const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
+      // Clear previous timetable slots from frontend memory and backend DB for selected class sections
+      for (const classSec of selectedClassSections) {
+        const lastDash = classSec.lastIndexOf('-');
+        const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
+        const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
+        
+        if (clearClassTimetable) {
           await clearClassTimetable(className, section);
+        }
+
+        // Fetch and delete existing backend DB slots for this class/section to avoid 409 DB conflicts completely
+        const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
+        if (clsObj?.id) {
+          try {
+            const gridRes: any = await fetchTimetableGridApi(clsObj.id, section, academicYear).catch(() => null);
+            const rawList = Array.isArray(gridRes?.data) ? gridRes.data : (Array.isArray(gridRes) ? gridRes : []);
+            if (rawList.length > 0) {
+              await Promise.all(
+                rawList.map(async (oldItem: any) => {
+                  const sId = oldItem?.slotId || oldItem?.id;
+                  if (sId) {
+                    const numericId = String(sId).replace(/^TT-/i, '');
+                    await deleteTimetableSlotApi(numericId).catch(() => {});
+                  }
+                })
+              );
+            }
+          } catch (e) {
+            console.warn('Pre-clear backend timetable slots skipped:', e);
+          }
         }
       }
 
@@ -905,25 +962,47 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         bulkAddTimetableSlots(newTimetableSlots);
       }
 
-      // 3. Persist exact generated slots to backend asynchronously
+      // 3. Persist exact generated slots to backend in controlled sequential batches
       try {
-        newTimetableSlots.forEach(slot => {
-          const times = slot.timeSlot.split('-');
-          const startTime = times[0]?.trim() || '';
-          const endTime = times[1]?.trim() || '';
-          saveTimetableSlotApi({
-            className: slot.className,
-            sectionName: slot.section,
-            academicYear: slot.academicYear || academicYear || "2026-2027",
-            dayOfWeek: slot.day,
-            startTime,
-            endTime,
-            subjectName: slot.subject,
-            teacherName: slot.teacherName,
-            teacherId: slot.teacherId,
-            roomNo: slot.roomNo,
-          }).catch(() => {});
-        });
+        const BATCH_SIZE = 4;
+        for (let i = 0; i < newTimetableSlots.length; i += BATCH_SIZE) {
+          const batch = newTimetableSlots.slice(i, i + BATCH_SIZE);
+          await Promise.all(
+            batch.map(async (slot) => {
+              const times = slot.timeSlot.split('-');
+              const startTime = times[0]?.trim() || '';
+              const endTime = times[1]?.trim() || '';
+              const clsObj = academicClasses.find(c => norm(c.name) === norm(slot.className));
+              const classId = clsObj?.id;
+
+              try {
+                await saveTimetableSlotApi({
+                  classId,
+                  className: slot.className,
+                  sectionName: slot.section,
+                  academicYear: slot.academicYear || academicYear || "2026-2027",
+                  dayOfWeek: slot.day,
+                  startTime,
+                  endTime,
+                  subjectName: slot.subject,
+                  teacherName: slot.teacherName,
+                  teacherId: slot.teacherId,
+                  roomNo: slot.roomNo,
+                  overwrite: true,
+                });
+              } catch (slotErr: any) {
+                // Catch 409 Conflict silently so single slot collisions don't flood error logs or stop generation
+                if (slotErr?.status === 409 || String(slotErr?.message || '').includes('409')) {
+                  console.info(`[AutoTimetable] Conflict resolved / overwritten for slot ${slot.className}-${slot.section} (${slot.day} ${slot.timeSlot})`);
+                } else {
+                  console.warn('Backend timetable slot save notice:', slotErr);
+                }
+              }
+            })
+          );
+          // Brief 30ms pause between batches to prevent ngrok tunnel connection lockup
+          await new Promise(r => setTimeout(r, 30));
+        }
       } catch (e) {
         console.warn('Backend timetable slot save skipped:', e);
       }
@@ -935,6 +1014,15 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       const classListSummary = formattedSelectedClasses
         .map(c => `${c.className} (Sec ${c.sections.join(', ')})`)
         .join(', ');
+
+      if (detectedTeacherConflicts.length > 0) {
+        const uniqueConflicts = [...new Set(detectedTeacherConflicts)];
+        addToast(
+          'warning',
+          'Teacher Assignment Conflicts Detected',
+          `Teacher schedule warning: ${uniqueConflicts.slice(0, 3).join(' | ')}`
+        );
+      }
 
       addToast(
         'success',

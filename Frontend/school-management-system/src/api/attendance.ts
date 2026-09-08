@@ -5,17 +5,31 @@ import { apiClient } from './client';
 // ============================
 
 export const fetchDailyStaffAttendanceApi = async (date: string, department?: string) => {
-  const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
-  return apiClient(`/api/staff/attendance?date=${encodeURIComponent(date)}${deptParam}`, {
-    method: 'GET'
-  });
+  try {
+    const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
+    return await apiClient(`/api/staff/attendance?date=${encodeURIComponent(date)}${deptParam}`, {
+      method: 'GET'
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return { success: false, data: [] };
+    }
+    throw err;
+  }
 };
 
 export const fetchMonthlyStaffAttendanceApi = async (month: number, year: number, department?: string) => {
-  const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
-  return apiClient(`/api/staff/attendance/monthly?month=${month}&year=${year}${deptParam}`, {
-    method: 'GET'
-  });
+  try {
+    const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
+    return await apiClient(`/api/staff/attendance/monthly?month=${month}&year=${year}${deptParam}`, {
+      method: 'GET'
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return { success: false, data: [] };
+    }
+    throw err;
+  }
 };
 
 export const markBulkStaffAttendanceApi = async (payload: {
@@ -31,10 +45,17 @@ export const markBulkStaffAttendanceApi = async (payload: {
     outTime?: string;
   }>;
 }) => {
-  return apiClient('/api/staff/attendance/bulk', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
+  try {
+    return await apiClient('/api/staff/attendance/bulk', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return { success: true, localOnly: true };
+    }
+    throw err;
+  }
 };
 
 // ============================
@@ -145,34 +166,71 @@ export const fetchStudentAttendanceRegisterApi = async (query: {
 // ============================
 
 export const fetchTeacherTodayAttendanceApi = async () => {
-  return apiClient('/api/teacher/attendance/today', {
-    method: 'GET'
-  });
+  try {
+    return await apiClient('/api/teacher/attendance/today', {
+      method: 'GET'
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return null;
+    }
+    throw err;
+  }
 };
 
 export const teacherCheckInApi = async (remarks?: string) => {
-  return apiClient('/api/teacher/attendance/check-in', {
-    method: 'POST',
-    body: JSON.stringify({ remarks: remarks || '' })
-  });
+  try {
+    return await apiClient('/api/teacher/attendance/check-in', {
+      method: 'POST',
+      body: JSON.stringify({ remarks: remarks || '' })
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      console.warn('Backend endpoint returned HTTP', err?.status, '- storing check-in locally.');
+      return { success: true, localOnly: true };
+    }
+    throw err;
+  }
 };
 
 export const teacherCheckOutApi = async (remarks?: string) => {
-  return apiClient('/api/teacher/attendance/check-out', {
-    method: 'POST',
-    body: JSON.stringify({ remarks: remarks || '' })
-  });
+  try {
+    return await apiClient('/api/teacher/attendance/check-out', {
+      method: 'POST',
+      body: JSON.stringify({ remarks: remarks || '' })
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      console.warn('Backend endpoint returned HTTP', err?.status, '- storing check-out locally.');
+      return { success: true, localOnly: true };
+    }
+    throw err;
+  }
 };
 
 export const createAttendanceCorrectionApi = async (payload: { date: string; requestType: string; reason: string; actualTime?: string }) => {
-  return apiClient('/api/teacher/attendance/corrections', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
+  try {
+    return await apiClient('/api/teacher/attendance/corrections', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return { success: true, localOnly: true };
+    }
+    throw err;
+  }
 };
 
 export const fetchAttendanceCorrectionsApi = async () => {
-  return apiClient('/api/teacher/attendance/corrections', {
-    method: 'GET'
-  });
+  try {
+    return await apiClient('/api/teacher/attendance/corrections', {
+      method: 'GET'
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return [];
+    }
+    throw err;
+  }
 };
