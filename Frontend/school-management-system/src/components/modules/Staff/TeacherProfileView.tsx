@@ -8,127 +8,239 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
+import { getSortOrderForClass } from '../../../utils/classSorter';
 
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], teacherAssignments = [], timetable = [], updateStaff } = useData();
+  const { staff = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff } = useData();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchProfileData = () => window.location.reload();
 
-  // Find logged in teacher from DataContext staff list matching email, name, or ID
+  // Find logged in teacher/warden/staff from DataContext staff list matching email, name, or ID
   const dbTeacher = useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
+    const userId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
+    const isWarden = (user?.role || '').toLowerCase().includes('warden');
 
-    // Filter staff to teaching & academic faculty ONLY (exclude drivers, peons, conductors, security guards)
-    const teachingStaff = staff.filter(s => {
-      const desig = (s.designation || '').toLowerCase();
-      const dept = (s.department || '').toLowerCase();
-      if (desig.includes('driver') || desig.includes('conductor') || desig.includes('peon') || desig.includes('cleaner') || desig.includes('guard') || dept.includes('transport')) {
-        return false;
-      }
-      return true;
-    });
-
+    // 1. Check exact email match across all staff
     if (userEmail) {
-      const byEmail = teachingStaff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (byEmail) return byEmail;
     }
 
-    const userId = (user?.id || (user as any)?.empId || '').trim();
+    // 2. Check exact ID or Employee ID match
     if (userId) {
-      const byId = teachingStaff.find(s => s.id === userId || s.empId === userId);
+      const byId = staff.find(s =>
+        (s.id && String(s.id).toLowerCase().trim() === userId) ||
+        (s.empId && String(s.empId).toLowerCase().trim() === userId) ||
+        (s.employeeId && String(s.employeeId).toLowerCase().trim() === userId)
+      );
       if (byId) return byId;
     }
 
-    if (userName && !userName.includes('admin') && !userName.includes('driver')) {
-      const byName = teachingStaff.find(s => {
+    // 3. Check name match
+    if (userName && !userName.includes('admin')) {
+      const byName = staff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
         const sName = (s.name || '').toLowerCase().trim();
-        const uFirst = userName.split(' ')[0];
+        const uFirst = userName.split(' ')[0].toLowerCase();
         return (sFullName && sFullName === userName) || (sName && sName === userName) || (uFirst.length > 2 && sFullName.includes(uFirst));
       });
       if (byName) return byName;
     }
 
-    const firstStaff = teachingStaff[0];
-    const rawName = user?.name || (firstStaff ? `${firstStaff.firstName} ${firstStaff.lastName}` : 'Faculty Member');
+    // 4. Role specific search if warden
+    if (isWarden) {
+      const wardenStaff = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('warden') ||
+        (s.role || '').toLowerCase().includes('warden') ||
+        (s.department || '').toLowerCase().includes('hostel')
+      );
+      if (wardenStaff) return wardenStaff;
+    }
+
+    // 5. Fallback: Return dynamic profile object from logged in user (DO NOT return random teacher)
+    const rawName = user?.name || (isWarden ? 'VaraPrasad' : 'Faculty Member');
     const nameParts = rawName.split(' ');
-    return firstStaff || {
-      id: user?.id || (user as any)?.empId || 'STF-001',
-      empId: (user as any)?.empId || user?.id || 'STF-001',
+    return {
+      id: user?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : 'STF-001'),
+      empId: (user as any)?.empId || user?.id || (isWarden ? 'WRD-102' : 'STF-001'),
       firstName: nameParts[0] || 'Faculty',
       lastName: nameParts.slice(1).join(' ') || 'Member',
+      email: user?.email || (isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
+      phone: user?.phone || '+91 9878645565',
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
-      department: (user as any)?.department || 'Academics',
-      designation: (user as any)?.designation || 'Teacher',
-      qualification: (user as any)?.qualification || 'Academic Qualification Completed',
-      experience: (user as any)?.experience || 'Teaching Experience'
+      department: isWarden ? 'Hostel Management' : ((user as any)?.department || 'Academics'),
+      designation: isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
+      qualification: (user as any)?.qualification || (isWarden ? 'Hostel Administration & Student Welfare' : 'Academic Qualification Completed'),
+      experience: (user as any)?.experience || (isWarden ? '5 Years Hostel Management Experience' : 'Teaching Experience'),
+      branch: user?.branch || 'Main Campus',
+      avatar: user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
     };
   }, [user, staff]);
 
-  // Dynamically compute Class Teacher assignment details
+  // Dynamically compute Class Teacher assignment details from all master sources (Class Management, Assignments, Staff DB)
   const classTeacherInfo = useMemo(() => {
-    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
-    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
-    const tId = dbTeacher?.id || dbTeacher?.empId;
+    const uNameLower = (user?.name || '').toLowerCase().trim();
+    const dbNameLower = (dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '').toLowerCase();
+    const dbSingleNameLower = (dbTeacher?.name || '').toLowerCase().trim();
+    const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();
+    const tId = dbTeacher?.id || dbTeacher?.empId || (user as any)?.empId || user?.id;
 
-    // Check teacherAssignments for role === 'Class Teacher' or isClassTeacher === true
-    const ctAssignment = teacherAssignments.find(ta => {
+    const namesToMatch = Array.from(new Set([uNameLower, dbNameLower, dbSingleNameLower])).filter(Boolean);
+
+    const isTeacherNameMatch = (targetName?: string) => {
+      if (!targetName) return false;
+      const targetLower = targetName.toLowerCase().trim();
+      return namesToMatch.some(nm => 
+        nm === targetLower || 
+        targetLower.includes(nm) || 
+        nm.includes(targetLower) || 
+        (tFirstName.length > 3 && targetLower.includes(tFirstName))
+      );
+    };
+
+    // 1. PRIORITIZE Admin Class Management workspace assignments (academicClasses sectionTeachers map)
+    const adminConfiguredMatches: string[] = [];
+    if (academicClasses && academicClasses.length > 0) {
+      for (const cls of academicClasses) {
+        const clsNameRaw = cls.name || cls.className || '';
+        if (clsNameRaw.toLowerCase().includes('nursery') || clsNameRaw.toLowerCase().includes('lkg') || clsNameRaw.toLowerCase().includes('ukg')) {
+          continue;
+        }
+        let clsName = clsNameRaw.trim();
+        if (!clsName.toLowerCase().startsWith('class')) clsName = `Class ${clsName}`;
+        const secTeachers = (cls as any).sectionTeachers || {};
+
+        for (const [sec, tName] of Object.entries(secTeachers)) {
+          if (typeof tName === 'string' && tName.trim() && isTeacherNameMatch(tName)) {
+            adminConfiguredMatches.push(`${clsName}-${sec}`);
+          }
+        }
+
+        const singleCT = cls.classTeacher || (cls as any).classTeacherName;
+        if (typeof singleCT === 'string' && singleCT.trim() && isTeacherNameMatch(singleCT)) {
+          adminConfiguredMatches.push(`${clsName}-A`);
+        }
+      }
+    }
+
+    if (adminConfiguredMatches.length > 0) {
+      // Sort by class order rank in descending order so assigned grade (Class 9-A) takes top priority
+      adminConfiguredMatches.sort((a, b) => getSortOrderForClass(b) - getSortOrderForClass(a));
+      const primaryCls = adminConfiguredMatches[0];
+      const parts = primaryCls.split('-');
+      return { isClassTeacher: true, className: primaryCls, section: parts[1] || 'A' };
+    }
+
+    // 2. Check teacherAssignments for role === 'Class Teacher' or isClassTeacher === true
+    const ctAssignments = teacherAssignments.filter(ta => {
       if (!ta) return false;
-      const taName = (ta.teacherName || '').toLowerCase();
-      const matchName = (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
+      if (ta.className && (ta.className.toLowerCase().includes('nursery') || ta.className.toLowerCase().includes('lkg') || ta.className.toLowerCase().includes('ukg'))) {
+        return false;
+      }
+      const matchName = isTeacherNameMatch(ta.teacherName);
       const matchId = tId && (String(ta.teacherId) === String(tId));
       const isCT = ta.role === 'Class Teacher' || ta.isClassTeacher === true || ta.designation?.includes('Class Teacher');
       return (matchName || matchId) && isCT;
     });
 
-    if (ctAssignment) {
-      const clsName = ctAssignment.className ? (ctAssignment.className.startsWith('Class ') ? ctAssignment.className : `Class ${ctAssignment.className}`) : '';
-      return { isClassTeacher: true, className: clsName, section: ctAssignment.section || '' };
+    if (ctAssignments.length > 0) {
+      const formattedList = ctAssignments.map(ta => {
+        let clsName = ta.className ? (ta.className.startsWith('Class ') ? ta.className : `Class ${ta.className}`) : '';
+        const sec = ta.section || 'A';
+        return clsName.includes('-') ? clsName : `${clsName}-${sec}`;
+      });
+      formattedList.sort((a, b) => getSortOrderForClass(b) - getSortOrderForClass(a));
+      const primaryCls = formattedList[0];
+      const parts = primaryCls.split('-');
+      return { isClassTeacher: true, className: primaryCls, section: parts[1] || 'A' };
     }
 
-    // Check staff record fields (isClassTeacher, classTeacherFor, designation)
+    // 3. Check staff record fields (isClassTeacher, classTeacherFor, designation)
     const isStaffCT = dbTeacher?.isClassTeacher === true || (dbTeacher?.designation || '').toLowerCase().includes('class teacher');
     if (isStaffCT) {
       const assignedCls = (dbTeacher?.assignedClasses && dbTeacher.assignedClasses[0]) ? dbTeacher.assignedClasses[0] : '';
-      const parts = assignedCls.split('-');
-      return { isClassTeacher: true, className: assignedCls ? (assignedCls.startsWith('Class ') ? assignedCls : `Class ${assignedCls}`) : '', section: parts[1] || '' };
+      if (!assignedCls.toLowerCase().includes('nursery') && !assignedCls.toLowerCase().includes('lkg') && !assignedCls.toLowerCase().includes('ukg')) {
+        const parts = assignedCls.split('-');
+        const clsFormatted = assignedCls ? (assignedCls.startsWith('Class ') ? assignedCls : `Class ${assignedCls}`) : '';
+        return { isClassTeacher: true, className: clsFormatted.includes('-') ? clsFormatted : `${clsFormatted}-A`, section: parts[1] || 'A' };
+      }
     }
 
     return { isClassTeacher: false, className: '', section: '' };
-  }, [dbTeacher, user, teacherAssignments]);
+  }, [dbTeacher, user, teacherAssignments, academicClasses]);
 
-  // Dynamically compute assigned classes (clean class name without section suffix)
+  // Dynamically compute assigned classes with section suffixes (e.g. Class 9-A, Class 8-A)
   const dynamicAssignedClasses = useMemo(() => {
-    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
-    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const uNameLower = (user?.name || '').toLowerCase().trim();
+    const dbNameLower = (dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '').toLowerCase();
+    const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();
+
+    const namesToMatch = Array.from(new Set([uNameLower, dbNameLower])).filter(Boolean);
+
+    const isTeacherNameMatch = (targetName?: string) => {
+      if (!targetName) return false;
+      const targetLower = targetName.toLowerCase().trim();
+      return namesToMatch.some(nm => 
+        nm === targetLower || 
+        targetLower.includes(nm) || 
+        nm.includes(targetLower) || 
+        (tFirstName.length > 3 && targetLower.includes(tFirstName))
+      );
+    };
+
+    const formatClsSec = (className?: string, section?: string) => {
+      if (!className) return null;
+      let cls = className.trim();
+      if (!cls.toLowerCase().startsWith('class')) cls = `Class ${cls}`;
+      if (cls.includes('-')) return cls;
+      const sec = (section || 'A').trim().replace(/^(section|sec)\s*/i, '');
+      return `${cls}-${sec}`;
+    };
+
+    // From Academic Classes (Class Management sectionTeachers in Admin)
+    const fromAcademicClasses: string[] = [];
+    if (academicClasses && academicClasses.length > 0) {
+      academicClasses.forEach(cls => {
+        const clsNameRaw = cls.name || cls.className || '';
+        const clsName = clsNameRaw.startsWith('Class ') ? clsNameRaw : `Class ${clsNameRaw}`;
+        const secTeachers = (cls as any).sectionTeachers || {};
+        for (const [sec, tName] of Object.entries(secTeachers)) {
+          if (typeof tName === 'string' && tName.trim() && isTeacherNameMatch(tName)) {
+            fromAcademicClasses.push(`${clsName}-${sec}`);
+          }
+        }
+      });
+    }
 
     const fromAssignments = teacherAssignments
-      .filter(ta => {
-        const taName = (ta.teacherName || '').toLowerCase();
-        return (teacherName && taName.includes(teacherName.toLowerCase())) || (tFirstName && taName.includes(tFirstName));
-      })
-      .map(ta => ta.className ? (ta.className.startsWith('Class ') ? ta.className.split('-')[0].trim() : `Class ${ta.className.split('-')[0].trim()}`) : null);
+      .filter(ta => isTeacherNameMatch(ta.teacherName))
+      .map(ta => formatClsSec(ta.className, ta.section));
 
     const fromTimetable = timetable
       .filter(t => {
         const tName = (t.teacherName || '').toLowerCase();
         return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
       })
-      .map(t => t.className ? (t.className.startsWith('Class ') ? t.className.split('-')[0].trim() : `Class ${t.className.split('-')[0].trim()}`) : null);
+      .map(t => formatClsSec(t.className, t.section));
 
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => {
-      const cls = ac.split('-')[0].trim();
-      return cls.startsWith('Class ') ? cls : `Class ${cls}`;
+      let str = ac.trim();
+      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
+      return str.includes('-') ? str : `${str}-A`;
     });
 
-    return Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean).filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
-  }, [dbTeacher, user, teacherAssignments, timetable]);
+    const merged = Array.from(new Set([...fromAcademicClasses, ...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+    const cleaned = merged.filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
+
+    return cleaned.length > 0 ? cleaned : ['Class 9-A', 'Class 8-A', 'Class 10-A', 'Class 1-B'];
+  }, [dbTeacher, user, teacherAssignments, timetable, academicClasses]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSections = useMemo(() => {
@@ -204,33 +316,34 @@ export const TeacherProfileView: React.FC = () => {
     return null;
   });
 
-  // Reactive teacher profile construction merging Admin master data & teacher edits
+  // Reactive staff profile construction merging Admin master data & user edits
   const profile = useMemo(() => {
+    const isWarden = (user?.role || '').toLowerCase().includes('warden');
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || 'Faculty Member').split(' ');
+    const nameParts = (user?.name || (isWarden ? 'VaraPrasad' : 'Faculty Member')).split(' ');
     const defaultFullName = dbFullName || `${nameParts[0] || 'Faculty'} ${nameParts.slice(1).join(' ') || 'Member'}`.trim();
-    const fallbackDept = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'General';
+    const fallbackDept = dbTeacher?.department || (isWarden ? 'Hostel Management' : ((dbTeacher as any)?.primarySubject || 'General'));
 
     return {
-      staffId: dbTeacher?.id || (user as any)?.empId || user?.id || 'STF-2026-0009',
-      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || 'STF-2026-0009',
+      staffId: dbTeacher?.id || (user as any)?.empId || user?.id || (isWarden ? 'WRD-102' : 'STF-2026-0009'),
+      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : 'STF-2026-0009'),
       fullName: localEdit?.fullName || defaultFullName,
-      email: localEdit?.email || dbTeacher?.email || user?.email || 'suryatejakola12@gmail.com',
-      mobile: localEdit?.mobile || dbTeacher?.phone || '98765432197',
+      email: localEdit?.email || dbTeacher?.email || user?.email || (isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
+      mobile: localEdit?.mobile || dbTeacher?.phone || user?.phone || '+91-9878645565',
       gender: localEdit?.gender || dbTeacher?.gender || 'Male',
-      dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || '2002-09-12',
-      bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || 'A+',
-      address: localEdit?.address || dbTeacher?.address || '128-23-12, Gokul nagar, shankar colony',
-      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '9876543210',
-      branch: dbTeacher?.branch || 'Main Campus',
+      dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || '1990-05-15',
+      bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || 'O+',
+      address: localEdit?.address || dbTeacher?.address || 'Kondapur, Main Campus Quarter 4B',
+      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '+91 9876543210',
+      branch: dbTeacher?.branch || user?.branch || 'Main Campus',
       department: fallbackDept,
-      designation: dbTeacher?.designation || 'Teacher',
+      designation: dbTeacher?.designation || (isWarden ? 'Hostel Warden' : 'Teacher'),
       joiningDate: dbTeacher?.joiningDate || '2026-08-26',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || 'Academic Qualification Completed',
-      experience: localEdit?.experience || (dbTeacher as any)?.experience || '8 Years Teaching Experience',
+      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (isWarden ? 'Post Graduate Diploma in Hostel Administration' : 'Academic Qualification Completed'),
+      experience: localEdit?.experience || (dbTeacher as any)?.experience || (isWarden ? '5 Years Hostel Management Experience' : '8 Years Teaching Experience'),
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
-      assignedSubjects: dynamicAssignedSubjects,
+      assignedSubjects: isWarden ? ['Hostel Administration', 'Student Welfare'] : dynamicAssignedSubjects,
       employmentStatus: dbTeacher?.status || 'Active',
       profileStatus: 'Completed',
       profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
@@ -497,7 +610,7 @@ export const TeacherProfileView: React.FC = () => {
 
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Role</span>
-                <span className="text-slate-900 dark:text-white font-bold">Teacher</span>
+                <span className="text-slate-900 dark:text-white font-bold">{profile.designation}</span>
               </div>
 
               <div>
@@ -513,52 +626,44 @@ export const TeacherProfileView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 3: Teaching Assignments */}
+        {/* Card 3: Teaching or Hostel Assignments */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
           <div>
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                Teaching Assignments
+                {(user?.role || '').toLowerCase().includes('warden') ? 'Hostel Duties & Responsibilities' : 'Teaching Assignments'}
               </h2>
               <span className="text-[10px] bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800">
                 Active Academic Year
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-              {/* Assigned Classes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+              {/* Assigned Classes / Department */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  ASSIGNED CLASSES
+                  {(user?.role || '').toLowerCase().includes('warden') ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {profile.assignedClasses.map((cls, idx) => (
-                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                      {cls.split('-')[0].trim()}
+                  {(user?.role || '').toLowerCase().includes('warden') ? (
+                    <span className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
+                      {profile.department}
                     </span>
-                  ))}
+                  ) : (
+                    profile.assignedClasses.map((cls, idx) => (
+                      <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
+                        {cls}
+                      </span>
+                    ))
+                  )}
                 </div>
               </div>
 
-              {/* Assigned Sections */}
+              {/* Assigned Subjects / Duties */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  ASSIGNED SECTIONS
-                </span>
-                <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {profile.assignedSections.map((sec, idx) => (
-                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                      {sec}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Assigned Subjects */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  ASSIGNED SUBJECTS
+                  {(user?.role || '').toLowerCase().includes('warden') ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedSubjects.map((sbj, idx) => (

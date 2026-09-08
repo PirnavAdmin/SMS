@@ -7,7 +7,19 @@ export interface UniformSizeOption {
 
 export const normalizeUniformCategoryName = (rawName: string = ''): string => {
   if (!rawName) return '';
-  return rawName.trim();
+  const trimmed = rawName.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
+    return 'Cloth';
+  }
+  if (lower.includes('boys') && (lower.includes('base') || lower.includes('package') || lower.includes('admission'))) {
+    return 'Boys Base Package(Admission kit)';
+  }
+  if (lower.includes('girls') && (lower.includes('base') || lower.includes('package') || lower.includes('admission'))) {
+    return 'Girls Base Package(Admission kit)';
+  }
+  return trimmed;
 };
 
 export const getCategorySizes = (
@@ -15,6 +27,23 @@ export const getCategorySizes = (
   customSizes?: UniformSize[]
 ): UniformSizeOption[] => {
   const itemLower = (itemNameOrCategory || '').toLowerCase();
+
+  // 0. Cloth / Fabric / Unstitched Material (ALWAYS return these 4 meterage sizes)
+  if (
+    itemLower.includes('cloth') ||
+    itemLower.includes('fabric') ||
+    itemLower.includes('unstitched') ||
+    itemLower.includes('meter') ||
+    itemLower.includes('shirting') ||
+    itemLower.includes('suiting')
+  ) {
+    return [
+      { value: '1.0m - 1.5m', label: '1.0m – 1.5m' },
+      { value: '1.5m - 2.0m', label: '1.5m – 2.0m' },
+      { value: '2.0m - 2.5m', label: '2.0m – 2.5m' },
+      { value: '2.5m - 3.0m', label: '2.5m – 3.0m' }
+    ];
+  }
 
   // Helper to format configured custom sizes from Size Configurations
   const formatConfiguredSizes = (sizes: UniformSize[], categoryName: string = ''): UniformSizeOption[] => {
@@ -37,24 +66,6 @@ export const getCategorySizes = (
 
   if (Array.isArray(customSizes) && customSizes.length > 0) {
     return formatConfiguredSizes(customSizes, itemNameOrCategory);
-  }
-
-  // 0. Cloth / Fabric / Unstitched Material
-  if (
-    itemLower.includes('cloth') ||
-    itemLower.includes('fabric') ||
-    itemLower.includes('unstitched') ||
-    itemLower.includes('meter') ||
-    itemLower.includes('shirting') ||
-    itemLower.includes('suiting')
-  ) {
-    return [
-      { value: '1.0m - 1.5m', label: '1.0m - 1.5m' },
-      { value: '1.5m - 2.0m', label: '1.5m - 2.0m' },
-      { value: '2.0m - 2.5m', label: '2.0m - 2.5m' },
-      { value: '2.5m - 3.0m', label: '2.5m - 3.0m' },
-      { value: 'Others', label: 'Others' }
-    ];
   }
 
   // 1. Cap / Hat / Headwear
@@ -199,15 +210,7 @@ export const getCategorySizes = (
 };
 
 export const getUniformPackageFeeByClass = (className: string = ''): number => {
-  const clsLower = (className || '').toLowerCase().trim();
-
-  if (clsLower.includes('11') || clsLower.includes('12')) return 4000;
-  if (clsLower.includes('9') || clsLower.includes('10')) return 3500;
-  if (clsLower.includes('6') || clsLower.includes('7') || clsLower.includes('8')) return 3200;
-  if (clsLower.includes('1') || clsLower.includes('2') || clsLower.includes('3') || clsLower.includes('4') || clsLower.includes('5')) return 3000;
-  if (clsLower.includes('nursery') || clsLower.includes('lkg') || clsLower.includes('ukg') || clsLower.includes('pp')) return 2500;
-
-  return 3500;
+  return 0;
 };
 
 const checkExactClassMatch = (targetClass: string, configClass: string): boolean => {
@@ -322,8 +325,8 @@ export const getUniformFeeForClass = (
 
     if (matchedStructure && matchedStructure.items && Array.isArray(matchedStructure.items)) {
       const uniItem = matchedStructure.items.find((i: any) => {
-        const headName = (i.feeHeadName || i.name || i.feeHeadId || '').toLowerCase();
-        const headId = (i.feeHeadId || i.id || '').toLowerCase();
+        const headName = String(i.feeHeadName || i.name || i.feeHeadId || '').toLowerCase();
+        const headId = String(i.feeHeadId || i.id || '').toLowerCase();
         return headId === 'fh-04' || headId === 'fh-004' || headName.includes('uniform');
       });
 
@@ -401,7 +404,7 @@ export const getItemFeeFromFinanceConfig = (
     return fallbackPrice;
   }
 
-  return 600;
+  return 0;
 };
 
 export const getItemPriceFromConfig = (
@@ -456,11 +459,6 @@ export const calculateClothOrItemPrice = (
         return Number(cfgMatch.feeAmount);
       }
     }
-
-    if (finalSize.includes('1.0') || (finalSize.includes('1.5') && !finalSize.includes('2.0'))) return 400;
-    if (finalSize.includes('2.0') && !finalSize.includes('2.5')) return 600;
-    if (finalSize.includes('2.5') && !finalSize.includes('3.0')) return 800;
-    if (finalSize.includes('3.0')) return 1000;
   }
 
   // 1. If explicit unit price was saved on transaction/item, prioritize it!
@@ -476,7 +474,7 @@ export const calculateClothOrItemPrice = (
     }
   }
 
-  return 600;
+  return 0;
 };
 
 export const getStudentUniformFeeStatus = (

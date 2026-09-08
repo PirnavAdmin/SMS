@@ -60,6 +60,7 @@ import { TransportContainerView } from "./components/modules/Transport/Transport
 import { DriverTransportPortalView } from "./components/modules/Transport/DriverTransportPortalView";
 import { HostelView } from "./components/modules/Hostel/HostelView";
 import { HostelContainerView } from "./components/modules/Hostel/HostelContainerView";
+import { WardenAttendanceView } from "./components/modules/Hostel/WardenAttendanceView";
 import { InventoryView } from "./components/modules/Inventory/InventoryView";
 import { CommunicationView } from "./components/modules/School Administration/Communication Hub/CommunicationView";
 import { EventsView } from "./components/modules/School Administration/Events & Holidays/EventsView";
@@ -296,6 +297,7 @@ const MainLayout: React.FC = () => {
         return <LeaveManagementView />;
       case "driver-payslips":
         return <TeacherPayslipsView />;
+      case "warden-profile":
       case "teacher-profile":
       case "teacher-my-profile":
         return userRole === "driver" ? <DriverProfileView /> : <TeacherProfileView />;
@@ -304,7 +306,7 @@ const MainLayout: React.FC = () => {
       case "staff-directory":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher") return <TeacherProfileView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden") return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return <StaffList onNavigate={setActiveModule} />;
       case "staff-non-teaching":
@@ -399,6 +401,9 @@ const MainLayout: React.FC = () => {
         ) : (
           <SubjectsView />
         );
+      case "warden-attendance":
+      case "hostel-warden-attendance":
+        return <WardenAttendanceView />;
       case "attendance":
         return userRole === "parent" || userRole === "student" ? (
           <ParentAttendanceView />

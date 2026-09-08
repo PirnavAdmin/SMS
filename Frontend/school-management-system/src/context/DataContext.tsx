@@ -10,7 +10,12 @@ import React, {
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
-import { generateNextStudentId, generateNextAdmissionNo, generateNextEmployeeId, saveIdSequenceSettings } from "../utils/idGenerator";
+import {
+  generateNextStudentId,
+  generateNextAdmissionNo,
+  generateNextEmployeeId,
+  saveIdSequenceSettings,
+} from "../utils/idGenerator";
 import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
@@ -319,6 +324,7 @@ import {
   assignTeacherApi,
   saveTimetableSlotApi,
   deleteTimetableSlotApi,
+  fetchTimetableGridApi,
   fetchClassTeacherAssignmentsApi,
 } from "../api/academic";
 import {
@@ -358,7 +364,7 @@ import {
   updatePayrollRunApi,
   deletePayrollRunApi,
   fetchPayslipsApi,
-  createPayslipApi
+  createPayslipApi,
 } from "../api/payroll";
 import {
   fetchDailyStaffAttendanceApi,
@@ -466,7 +472,7 @@ const initialClasses: AcademicClass[] = [
     sections: ["A", "B"],
     sectionTeachers: { A: "Sarah Jenkins", B: "Jonathan Miller" },
     teacher: "Sarah Jenkins",
-    subjects: ["Mathematics", "Physics", "Chemistry", "English", "History"],
+    subjects: ["Social Studies", "Physics", "Chemistry", "English", "History"],
   },
   {
     id: "CL-10",
@@ -1227,7 +1233,10 @@ interface DataContextType {
   timetable: TimetableSlot[];
   addTimetableSlot: (slot: Omit<TimetableSlot, "id">) => Promise<void>;
   bulkAddTimetableSlots?: (slots: TimetableSlot[]) => void;
-  updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => Promise<void>;
+  updateTimetableSlot: (
+    id: string,
+    updates: Partial<TimetableSlot>,
+  ) => Promise<void>;
   deleteTimetableSlot: (id: string) => Promise<void>;
   clearClassTimetable: (className: string, section: string) => Promise<void>;
   publishClassTimetable: (
@@ -1245,7 +1254,10 @@ interface DataContextType {
   periodSettings: PeriodSetting[];
   addPeriodSetting: (data: Omit<PeriodSetting, "id">) => Promise<void>;
   bulkAddPeriodSettings?: (periods: PeriodSetting[]) => void;
-  updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => Promise<void>;
+  updatePeriodSetting: (
+    id: string,
+    updates: Partial<PeriodSetting>,
+  ) => Promise<void>;
   deletePeriodSetting: (id: string) => Promise<void>;
   bulkAssignPeriods: (classKeys: string[]) => void;
   resetClassPeriods: (className: string, section: string) => void;
@@ -1322,7 +1334,9 @@ interface DataContextType {
   deleteUniformInventory: (id: string) => void;
 
   studentUniformIssues: StudentUniformIssue[];
-  setStudentUniformIssues: React.Dispatch<React.SetStateAction<StudentUniformIssue[]>>;
+  setStudentUniformIssues: React.Dispatch<
+    React.SetStateAction<StudentUniformIssue[]>
+  >;
   addStudentUniformIssue: (issue: Omit<StudentUniformIssue, "id">) => void;
   updateStudentUniformIssue: (
     id: string,
@@ -2010,20 +2024,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
     () => {
       const stored = getStored("academic_classes", initialClasses);
-      const ids = stored.map((c: any) => c.id);
+      const list = Array.isArray(stored) ? stored : initialClasses;
+      const ids = list.map((c: any) => c?.id).filter(Boolean);
       const hasDuplicates = ids.some(
         (id: any, index: number) => ids.indexOf(id) !== index,
       );
       if (hasDuplicates) {
         const seenIds = new Set<string>();
-        const migrated = stored.map((c: any) => {
-          let newId = c.id;
+        const migrated = list.map((c: any) => {
+          let newId = c?.id;
           if (!newId || seenIds.has(newId)) {
             let counter = 1;
             do {
               newId = `CL-${Math.floor(100 + Math.random() * 900)}`;
             } while (
-              stored.some((x: any) => x.id === newId) ||
+              list.some((x: any) => x?.id === newId) ||
               seenIds.has(newId)
             );
           }
@@ -2036,7 +2051,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         return migrated;
       }
-      return stored;
+      return list;
     },
   );
   const [subjects, setSubjects] = useState<SubjectItem[]>(() =>
@@ -2052,248 +2067,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("hostel_beds", initialHostelBeds),
   );
   const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
-    const stored = getStored<UniformItem[]>("uniforms", []);
-    if (stored && stored.length > 0) {
-      return stored;
-    }
-    const defaultSeedItems: UniformItem[] = [
-      // Shirt
-      { id: 'UNI-SHIRT-S', category: 'Shirt', name: 'Shirt', size: 'S', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
-      { id: 'UNI-SHIRT-M', category: 'Shirt', name: 'Shirt', size: 'M', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
-      { id: 'UNI-SHIRT-L', category: 'Shirt', name: 'Shirt', size: 'L', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
-
-      // Pant
-      { id: 'UNI-PANT-S', category: 'Pant', name: 'Pant', size: 'S', gender: 'Male', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-PANT-M', category: 'Pant', name: 'Pant', size: 'M', gender: 'Male', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-PANT-L', category: 'Pant', name: 'Pant', size: 'L', gender: 'Male', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-
-      // Skirt
-      { id: 'UNI-SKIRT-S', category: 'Skirt', name: 'Skirt', size: 'S', gender: 'Female', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-SKIRT-M', category: 'Skirt', name: 'Skirt', size: 'M', gender: 'Female', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-SKIRT-L', category: 'Skirt', name: 'Skirt', size: 'L', gender: 'Female', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-
-      // Sports Dress
-      { id: 'UNI-SPORTS-S', category: 'Sports Dress', name: 'Sports Dress', size: 'S', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-SPORTS-M', category: 'Sports Dress', name: 'Sports Dress', size: 'M', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-SPORTS-L', category: 'Sports Dress', name: 'Sports Dress', size: 'L', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-
-      // Cap
-      { id: 'UNI-CAP-S', category: 'Cap', name: 'Cap', size: 'S', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
-      { id: 'UNI-CAP-M', category: 'Cap', name: 'Cap', size: 'M', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
-      { id: 'UNI-CAP-L', category: 'Cap', name: 'Cap', size: 'L', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
-
-      // Sports Tracksuit Kit
-      { id: 'UNI-TRACK-S', category: 'Sports Tracksuit Kit', name: 'Sports Tracksuit Kit', size: 'S', gender: 'Unisex', className: 'All Wings', price: 1200, availableStock: 100, isPackage: false },
-      { id: 'UNI-TRACK-M', category: 'Sports Tracksuit Kit', name: 'Sports Tracksuit Kit', size: 'M', gender: 'Unisex', className: 'All Wings', price: 1200, availableStock: 100, isPackage: false },
-      { id: 'UNI-TRACK-L', category: 'Sports Tracksuit Kit', name: 'Sports Tracksuit Kit', size: 'L', gender: 'Unisex', className: 'All Wings', price: 1200, availableStock: 100, isPackage: false },
-
-      // Socks (Pair)
-      { id: 'UNI-SOCKS-S', category: 'Socks (Pair)', name: 'Socks (Pair)', size: 'S', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
-      { id: 'UNI-SOCKS-M', category: 'Socks (Pair)', name: 'Socks (Pair)', size: 'M', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
-      { id: 'UNI-SOCKS-L', category: 'Socks (Pair)', name: 'Socks (Pair)', size: 'L', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
-
-      // Black Shoes (Pair)
-      { id: 'UNI-SHOES-S', category: 'Black Shoes (Pair)', name: 'Black Shoes (Pair)', size: 'S', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
-      { id: 'UNI-SHOES-M', category: 'Black Shoes (Pair)', name: 'Black Shoes (Pair)', size: 'M', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
-      { id: 'UNI-SHOES-L', category: 'Black Shoes (Pair)', name: 'Black Shoes (Pair)', size: 'L', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
-
-      // Tie & Crest
-      { id: 'UNI-TIE-S', category: 'Tie & Crest', name: 'Tie & Crest', size: 'S', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
-      { id: 'UNI-TIE-M', category: 'Tie & Crest', name: 'Tie & Crest', size: 'M', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
-      { id: 'UNI-TIE-L', category: 'Tie & Crest', name: 'Tie & Crest', size: 'L', gender: 'Unisex', className: 'All Wings', price: 150, availableStock: 100, isPackage: false },
-
-      // Belt
-      { id: 'UNI-BELT-S', category: 'Belt', name: 'Belt', size: 'S', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
-      { id: 'UNI-BELT-M', category: 'Belt', name: 'Belt', size: 'M', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
-      { id: 'UNI-BELT-L', category: 'Belt', name: 'Belt', size: 'L', gender: 'Unisex', className: 'All Wings', price: 200, availableStock: 100, isPackage: false },
-
-      // Cloth (meterage)
-      { id: 'UNI-CLOTH-10', category: 'Cloth', name: 'Cloth', size: '1.0m - 1.5m', meterRange: '1.0m - 1.5m', gender: 'Unisex', className: 'All Wings', price: 350, availableStock: 100, isPackage: false },
-      { id: 'UNI-CLOTH-15', category: 'Cloth', name: 'Cloth', size: '1.5m - 2.0m', meterRange: '1.5m - 2.0m', gender: 'Unisex', className: 'All Wings', price: 400, availableStock: 100, isPackage: false },
-      { id: 'UNI-CLOTH-20', category: 'Cloth', name: 'Cloth', size: '2.0m - 2.5m', meterRange: '2.0m - 2.5m', gender: 'Unisex', className: 'All Wings', price: 500, availableStock: 100, isPackage: false },
-      { id: 'UNI-CLOTH-25', category: 'Cloth', name: 'Cloth', size: '2.5m - 3.0m', meterRange: '2.5m - 3.0m', gender: 'Unisex', className: 'All Wings', price: 600, availableStock: 100, isPackage: false },
-
-      // Boys Uniform Package(Base Admission kit)
-      {
-        id: 'UNI-PKG-BOYS-S',
-        category: 'Boys Uniform Package(Base Admission kit)',
-        name: 'Boys Uniform Package(Base Admission kit)',
-        size: 'S',
-        gender: 'Male',
-        className: 'All Wings',
-        price: 3000,
-        availableStock: 150,
-        isPackage: true,
-        packageComponents: [
-          { categoryName: 'Shirt', quantity: '2', size: 'S' },
-          { categoryName: 'Pant', quantity: '2', size: 'S' },
-          { categoryName: 'Cap', quantity: '1', size: 'S' },
-          { categoryName: 'Socks (Pair)', quantity: '1', size: 'S' },
-          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'S' },
-          { categoryName: 'Tie & Crest', quantity: '1', size: 'S' },
-          { categoryName: 'Belt', quantity: '1', size: 'S' }
-        ]
-      },
-      {
-        id: 'UNI-PKG-BOYS-M',
-        category: 'Boys Uniform Package(Base Admission kit)',
-        name: 'Boys Uniform Package(Base Admission kit)',
-        size: 'M',
-        gender: 'Male',
-        className: 'All Wings',
-        price: 3000,
-        availableStock: 150,
-        isPackage: true,
-        packageComponents: [
-          { categoryName: 'Shirt', quantity: '2', size: 'M' },
-          { categoryName: 'Pant', quantity: '2', size: 'M' },
-          { categoryName: 'Cap', quantity: '1', size: 'M' },
-          { categoryName: 'Socks (Pair)', quantity: '1', size: 'M' },
-          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'M' },
-          { categoryName: 'Tie & Crest', quantity: '1', size: 'M' },
-          { categoryName: 'Belt', quantity: '1', size: 'M' }
-        ]
-      },
-      {
-        id: 'UNI-PKG-BOYS-L',
-        category: 'Boys Uniform Package(Base Admission kit)',
-        name: 'Boys Uniform Package(Base Admission kit)',
-        size: 'L',
-        gender: 'Male',
-        className: 'All Wings',
-        price: 3000,
-        availableStock: 150,
-        isPackage: true,
-        packageComponents: [
-          { categoryName: 'Shirt', quantity: '2', size: 'L' },
-          { categoryName: 'Pant', quantity: '2', size: 'L' },
-          { categoryName: 'Cap', quantity: '1', size: 'L' },
-          { categoryName: 'Socks (Pair)', quantity: '1', size: 'L' },
-          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'L' },
-          { categoryName: 'Tie & Crest', quantity: '1', size: 'L' },
-          { categoryName: 'Belt', quantity: '1', size: 'L' }
-        ]
-      },
-
-      // Girls Uniform Package(Base Admission kit)
-      {
-        id: 'UNI-PKG-GIRLS-S',
-        category: 'Girls Uniform Package(Base Admission kit)',
-        name: 'Girls Uniform Package(Base Admission kit)',
-        size: 'S',
-        gender: 'Female',
-        className: 'All Wings',
-        price: 3000,
-        availableStock: 150,
-        isPackage: true,
-        packageComponents: [
-          { categoryName: 'Shirt', quantity: '2', size: 'S' },
-          { categoryName: 'Skirt', quantity: '2', size: 'S' },
-          { categoryName: 'Cap', quantity: '1', size: 'S' },
-          { categoryName: 'Socks (Pair)', quantity: '1', size: 'S' },
-          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'S' },
-          { categoryName: 'Tie & Crest', quantity: '1', size: 'S' },
-          { categoryName: 'Belt', quantity: '1', size: 'S' }
-        ]
-      },
-      {
-        id: 'UNI-PKG-GIRLS-M',
-        category: 'Girls Uniform Package(Base Admission kit)',
-        name: 'Girls Uniform Package(Base Admission kit)',
-        size: 'M',
-        gender: 'Female',
-        className: 'All Wings',
-        price: 3000,
-        availableStock: 150,
-        isPackage: true,
-        packageComponents: [
-          { categoryName: 'Shirt', quantity: '2', size: 'M' },
-          { categoryName: 'Skirt', quantity: '2', size: 'M' },
-          { categoryName: 'Cap', quantity: '1', size: 'M' },
-          { categoryName: 'Socks (Pair)', quantity: '1', size: 'M' },
-          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'M' },
-          { categoryName: 'Tie & Crest', quantity: '1', size: 'M' },
-          { categoryName: 'Belt', quantity: '1', size: 'M' }
-        ]
-      },
-      {
-        id: 'UNI-PKG-GIRLS-L',
-        category: 'Girls Uniform Package(Base Admission kit)',
-        name: 'Girls Uniform Package(Base Admission kit)',
-        size: 'L',
-        gender: 'Female',
-        className: 'All Wings',
-        price: 3000,
-        availableStock: 150,
-        isPackage: true,
-        packageComponents: [
-          { categoryName: 'Shirt', quantity: '2', size: 'L' },
-          { categoryName: 'Skirt', quantity: '2', size: 'L' },
-          { categoryName: 'Cap', quantity: '1', size: 'L' },
-          { categoryName: 'Socks (Pair)', quantity: '1', size: 'L' },
-          { categoryName: 'Black Shoes (Pair)', quantity: '1', size: 'L' },
-          { categoryName: 'Tie & Crest', quantity: '1', size: 'L' },
-          { categoryName: 'Belt', quantity: '1', size: 'L' }
-        ]
-      }
-    ];
-
-    const initFlagKey = "edu_db_uniforms_initialized_v9900_boys_girls_pkg_kept";
-    if (!localStorage.getItem(initFlagKey)) {
-      localStorage.setItem(initFlagKey, "true");
-      localStorage.setItem("edu_db_uniforms", JSON.stringify(defaultSeedItems));
-      localStorage.setItem("uniforms", JSON.stringify(defaultSeedItems));
-      return defaultSeedItems;
+    const versionKey = "edu_db_uniforms_reset_clean_user_added_only_v999999_wipe_all_clean";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.setItem("edu_db_uniforms", JSON.stringify([]));
+      localStorage.setItem("uniforms", JSON.stringify([]));
+      return [];
     }
 
-    const saved = localStorage.getItem("edu_db_uniforms") || localStorage.getItem("uniforms");
+    const saved =
+      localStorage.getItem("edu_db_uniforms") ||
+      localStorage.getItem("uniforms");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const sanitized = parsed
-            .filter((u: any) => {
-              if (!u) return false;
-              const catLower = (u.category || u.name || '').toLowerCase().trim();
-              const szLower = (u.size || '').toLowerCase();
-              // Remove ONLY generic standalone "Uniform Package" items (without Boys or Girls)
-              if ((catLower === 'uniform package' || catLower === 'package') && !catLower.includes('boys') && !catLower.includes('girls')) {
-                return false;
-              }
-              // Remove rogue Cloth Medium / M items
-              if ((catLower.includes('cloth') || catLower.includes('fabric')) && (szLower === 'medium' || szLower === 'm' || !u.size || (!u.size.includes('m') && !u.meterRange))) {
-                return false;
-              }
-              return true;
-            })
-            .map((u: any) => {
-              if (!u) return u;
-              const catLower = (u.category || u.name || '').toLowerCase();
-              if (catLower.includes('cloth') || catLower.includes('fabric')) {
-                return {
-                  ...u,
-                  openingStock: 100,
-                  availableStock: Math.min(100, Number(u.availableStock ?? 100))
-                };
-              }
-              return u;
-            });
-
-          try {
-            localStorage.setItem("edu_db_uniforms", JSON.stringify(sanitized));
-            localStorage.setItem("uniforms", JSON.stringify(sanitized));
-          } catch (e) {}
-          return sanitized;
+        if (Array.isArray(parsed)) {
+          return parsed;
         }
       } catch (e) {}
     }
 
-    try {
-      localStorage.setItem("edu_db_uniforms", JSON.stringify(defaultSeedItems));
-      localStorage.setItem("uniforms", JSON.stringify(defaultSeedItems));
-    } catch (e) {}
-
-    return defaultSeedItems;
+    return [];
   });
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() =>
     getStored("custom_roles", initialCustomRoles),
@@ -2304,12 +2098,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
     const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
-    const cleaned = (stored || []).filter(p => {
+    const cleaned = (stored || []).filter((p) => {
       if (!p) return false;
-      const notesLower = (p.notes || '').toLowerCase();
-      const recLower = (p.receiptNo || '').toLowerCase();
-      const hasAlloc = p.paymentAllocation && p.paymentAllocation.some(a => (a.feeHeadName || a.termName || '').toLowerCase().includes('uniform'));
-      const isUniformPayment = notesLower.includes('uniform') || recLower.includes('uni') || hasAlloc;
+      const notesLower = (p.notes || "").toLowerCase();
+      const recLower = (p.receiptNo || "").toLowerCase();
+      const hasAlloc =
+        p.paymentAllocation &&
+        p.paymentAllocation.some((a) =>
+          (a.feeHeadName || a.termName || "").toLowerCase().includes("uniform"),
+        );
+      const isUniformPayment =
+        notesLower.includes("uniform") || recLower.includes("uni") || hasAlloc;
       return !isUniformPayment;
     });
 
@@ -2418,11 +2217,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const stored = getStored("holidays", initialHolidays);
-    const rawList = (!stored || stored.length <= 1) ? initialHolidays : stored;
+    const rawList = !stored || stored.length <= 1 ? initialHolidays : stored;
     const seen = new Set<string>();
     const unique: Holiday[] = [];
     rawList.forEach((h: any) => {
-      const cleanName = (h.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanName = (h.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
       const key = `${cleanName}_${h.startDate}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -2433,11 +2232,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => {
     const stored = getStored("school_events", initialSchoolEvents);
-    const rawList = (!stored || stored.length === 0) ? initialSchoolEvents : stored;
+    const rawList =
+      !stored || stored.length === 0 ? initialSchoolEvents : stored;
     const seen = new Set<string>();
     const unique: SchoolEvent[] = [];
     rawList.forEach((e: any) => {
-      const cleanTitle = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanTitle = (e.title || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
       const key = `${cleanTitle}_${e.startDate}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -2561,25 +2363,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
     () => {
-      const stored = getStored<UniformCategory[]>("uniform_categories", []);
-      if (stored && stored.length > 0) {
-        return stored;
+      const versionKey = "edu_db_uniform_categories_reset_clean_empty_v999999_wipe_all_clean";
+      if (!localStorage.getItem(versionKey)) {
+        localStorage.setItem(versionKey, "true");
+        localStorage.setItem("edu_db_uniform_categories", JSON.stringify([]));
+        localStorage.setItem("uniform_categories", JSON.stringify([]));
+        return [];
       }
-      localStorage.setItem(
-        "edu_db_uniform_categories",
-        JSON.stringify(initialUniformCategories),
-      );
-      localStorage.setItem(
-        "uniform_categories",
-        JSON.stringify(initialUniformCategories),
-      );
-      return initialUniformCategories;
+
+      try {
+        const saved =
+          localStorage.getItem("edu_db_uniform_categories") ||
+          localStorage.getItem("uniform_categories");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((c: any) => {
+              const catName = (c.name || c.categoryName || "").toLowerCase().trim();
+              return !(
+                catName.includes("package") ||
+                catName.includes("kit") ||
+                (catName.includes("base") && (catName.includes("boys") || catName.includes("girls")))
+              );
+            });
+          }
+        }
+      } catch (e) {}
+
+      return [];
     },
   );
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => {
-    const vKey = "edu_db_uniform_sizes_v21";
-    const hasV21 = localStorage.getItem(vKey);
-    if (!hasV21) {
+    const vKey = "edu_db_uniform_sizes_restored_v999999_keep_sizes";
+    if (!localStorage.getItem(vKey)) {
       localStorage.setItem(vKey, "true");
       localStorage.setItem(
         "edu_db_uniform_sizes",
@@ -2598,7 +2414,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ? JSON.parse(savedStr)
       : initialUniformSizes;
 
-    // Strict deduplication by sizeName so duplicate sizes never exist
     const seenNames = new Set<string>();
     const deduplicated: UniformSize[] = [];
 
@@ -2616,97 +2431,55 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(
     () => {
-      const stored = getStored("uniform_suppliers", initialUniformSuppliers);
-      const defaultMockIds = new Set(
-        (initialUniformSuppliers || []).map((s) => s.id),
-      );
-      const isUserItem = (s: any) => {
-        if (!s || !s.id) return false;
-        if (s.createdAt) return true;
-        if (!defaultMockIds.has(s.id)) return true;
-        const num = parseInt(String(s.id || "").replace(/\D/g, ""), 10) || 0;
-        return num > 20;
-      };
-      const userCreated = (stored || [])
-        .filter(isUserItem)
-        .sort((a: any, b: any) => {
-          if (a.createdAt && b.createdAt)
-            return (
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-          const numA = parseInt(String(a.id || "").replace(/\D/g, ""), 10) || 0;
-          const numB = parseInt(String(b.id || "").replace(/\D/g, ""), 10) || 0;
-          return numB - numA;
-        });
-      const defaultMock = (stored || []).filter((s: any) => !isUserItem(s));
-      const storedIds = new Set((stored || []).map((s: any) => s.id));
-      const missing = initialUniformSuppliers.filter(
-        (s: any) => !storedIds.has(s.id),
-      );
-      const merged = [...userCreated, ...defaultMock, ...missing];
-      localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify(merged));
-      return merged;
+      const vKey = "edu_db_uniform_suppliers_reset_clean_empty_v999999_wipe_all_clean";
+      if (!localStorage.getItem(vKey)) {
+        localStorage.setItem(vKey, "true");
+        localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify([]));
+        localStorage.setItem("uniform_suppliers", JSON.stringify([]));
+        return [];
+      }
+      try {
+        const saved =
+          localStorage.getItem("edu_db_uniform_suppliers") ||
+          localStorage.getItem("uniform_suppliers");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {}
+      return [];
     },
   );
   const [uniformInventory, setUniformInventory] = useState<
     UniformInventoryItem[]
   >(() => {
-    const versionKey = "edu_db_uniform_inventory_reset_cloth_v101";
+    const versionKey = "edu_db_uniform_inventory_reset_clean_empty_v999999_wipe_all_clean";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
-      localStorage.removeItem("edu_db_uniform_inventory");
-      localStorage.removeItem("uniform_inventory");
+      localStorage.setItem("edu_db_uniform_inventory", JSON.stringify([]));
+      localStorage.setItem("uniform_inventory", JSON.stringify([]));
+      return [];
     }
+
     try {
       const saved =
         localStorage.getItem("edu_db_uniform_inventory") ||
         localStorage.getItem("uniform_inventory");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed
-            .filter(inv => {
-              if (!inv) return false;
-              const catLower = (inv.category || inv.itemName || '').toLowerCase().trim();
-              const szLower = (inv.size || '').toLowerCase();
-              if ((catLower === 'uniform package' || catLower === 'package') && !catLower.includes('boys') && !catLower.includes('girls')) {
-                return false;
-              }
-              if ((catLower.includes('cloth') || catLower.includes('fabric')) && (szLower === 'medium' || szLower === 'm')) {
-                return false;
-              }
-              return true;
-            })
-            .map(inv => {
-              if (!inv) return inv;
-              const catLower = (inv.category || inv.itemName || '').toLowerCase();
-              if (catLower.includes('cloth') || catLower.includes('fabric')) {
-                return {
-                  ...inv,
-                  openingStock: 100,
-                  currentStock: Math.min(100, Number(inv.currentStock ?? 100)),
-                  status: 'In Stock'
-                };
-              }
-              return inv;
-            });
+        if (Array.isArray(parsed)) {
+          return parsed;
         }
       }
-    } catch (e) {
-      console.warn("Failed to load uniform_inventory from localStorage", e);
-    }
-    const cleanInventory = (initialUniformInventory || []).map((item) => ({
-      ...item,
-      currentStock: item.openingStock || 100,
-      status: "In Stock" as const,
-    }));
-    return cleanInventory;
+    } catch (e) {}
+
+    return [];
   });
 
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
-    const versionKey = "edu_db_student_uniform_issues_wipe_v9999_fresh_pending";
+    const versionKey = "edu_db_student_uniform_issues_wipe_v100002_no_nagaraj_zero_strict";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
@@ -2720,23 +2493,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter((i) => {
-            const name = (i?.studentName || "").toLowerCase();
-            const adm = (i?.admissionNo || i?.studentId || "").toUpperCase();
-            const isDummy =
-              name.includes("fahim") ||
-              name.includes("mahesh") ||
-              name.includes("alexander") ||
-              name.includes("wright") ||
-              name.includes("rahul") ||
-              name.includes("kiriti") ||
-              name.includes("kiran") ||
-              (name.includes("vishnu") && name.includes("n")) ||
-              adm === "ADM-2026-001" ||
-              adm === "REG-1022" ||
-              adm === "REG-1021";
-            return !isDummy;
-          }).map(i => ({ ...i, status: (i.status === 'Paid' ? 'Pending' : i.status) as any }));
+          return parsed;
         }
       }
     } catch (e) {
@@ -2750,14 +2507,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
     FinanceUniformConfig[]
   >(() => {
+    const versionKey = "edu_db_finance_uniform_configs_reset_clean_empty_v999999_wipe_all_clean";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify([]));
+      localStorage.setItem("finance_uniform_configs", JSON.stringify([]));
+      return [];
+    }
+
     try {
       const saved =
         localStorage.getItem("edu_db_finance_uniform_configs") ||
         localStorage.getItem("finance_uniform_configs");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+
+    return [];
   });
 
   // ERP Finance System Clean Slate Wipe Migration
@@ -2766,33 +2536,77 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!localStorage.getItem(wipeKey)) {
       localStorage.setItem(wipeKey, "true");
       [
-        "fee_heads", "edu_db_fee_heads",
-        "dynamic_fee_structures", "edu_db_dynamic_fee_structures",
-        "fee_structures", "edu_db_fee_structures",
-        "fee_payments", "edu_db_fee_payments",
-        "student_fee_assignments", "edu_db_student_fee_assignments",
-        "scholarships", "edu_db_scholarships",
-        "student_scholarships", "edu_db_student_scholarships",
-        "discounts", "edu_db_discounts",
-        "student_discounts", "edu_db_student_discounts",
-        "fine_rules", "edu_db_fine_rules",
-        "refunds", "edu_db_refunds",
-        "finance_transactions", "edu_db_finance_transactions",
-        "financial_accounts", "edu_db_financial_accounts",
-        "financial_categories", "edu_db_financial_categories",
-        "financial_budgets", "edu_db_financial_budgets",
-        "finance_hostel_configs", "edu_db_finance_hostel_configs",
-        "finance_transport_configs", "edu_db_finance_transport_configs",
-        "finance_uniform_configs", "edu_db_finance_uniform_configs",
-        "student_fee_ledgers", "edu_db_student_fee_ledgers",
-        "student_fee_installments", "edu_db_student_fee_installments"
+        "fee_heads",
+        "edu_db_fee_heads",
+        "dynamic_fee_structures",
+        "edu_db_dynamic_fee_structures",
+        "fee_structures",
+        "edu_db_fee_structures",
+        "fee_payments",
+        "edu_db_fee_payments",
+        "student_fee_assignments",
+        "edu_db_student_fee_assignments",
+        "scholarships",
+        "edu_db_scholarships",
+        "student_scholarships",
+        "edu_db_student_scholarships",
+        "discounts",
+        "edu_db_discounts",
+        "student_discounts",
+        "edu_db_student_discounts",
+        "fine_rules",
+        "edu_db_fine_rules",
+        "refunds",
+        "edu_db_refunds",
+        "finance_transactions",
+        "edu_db_finance_transactions",
+        "financial_accounts",
+        "edu_db_financial_accounts",
+        "financial_categories",
+        "edu_db_financial_categories",
+        "financial_budgets",
+        "edu_db_financial_budgets",
+        "finance_hostel_configs",
+        "edu_db_finance_hostel_configs",
+        "finance_transport_configs",
+        "edu_db_finance_transport_configs",
+        "finance_uniform_configs",
+        "edu_db_finance_uniform_configs",
+        "student_fee_ledgers",
+        "edu_db_student_fee_ledgers",
+        "student_fee_installments",
+        "edu_db_student_fee_installments",
       ].forEach((k) => localStorage.removeItem(k));
+    }
+  }, []);
+
+  // Force Master Wipe for ALL Uniform Data
+  useEffect(() => {
+    const forceResetKey = "edu_db_uniform_master_absolute_clean_wipe_v100003_keep_standard_sizes";
+    if (!localStorage.getItem(forceResetKey)) {
+      localStorage.setItem(forceResetKey, "true");
+      [
+        "uniform_categories", "edu_db_uniform_categories",
+        "uniforms", "edu_db_uniforms",
+        "uniform_inventory", "edu_db_uniform_inventory",
+        "finance_uniform_configs", "edu_db_finance_uniform_configs",
+        "student_uniform_issues", "edu_db_student_uniform_issues",
+        "uniform_suppliers", "edu_db_uniform_suppliers"
+      ].forEach((k) => {
+        localStorage.setItem(k, JSON.stringify([]));
+      });
+      setUniformCategories([]);
+      setUniforms([]);
+      setUniformInventory([]);
+      setFinanceUniformConfigs([]);
+      setUniformSuppliers([]);
+      setStudentUniformIssues([]);
     }
   }, []);
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() =>
-    getStored("fee_heads", initialFeeHeads)
+    getStored("fee_heads", initialFeeHeads),
   );
   const [dynamicFeeStructures, setDynamicFeeStructures] = useState<
     DynamicFeeStructure[]
@@ -3300,8 +3114,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
   }, [attendance]);
   useEffect(() => {
-    localStorage.setItem("edu_db_leave_applications", JSON.stringify(leaveApplications));
-    localStorage.setItem("leave_applications", JSON.stringify(leaveApplications));
+    localStorage.setItem(
+      "edu_db_leave_applications",
+      JSON.stringify(leaveApplications),
+    );
+    localStorage.setItem(
+      "leave_applications",
+      JSON.stringify(leaveApplications),
+    );
   }, [leaveApplications]);
   useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
@@ -3326,22 +3146,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setUniforms((prevU) => {
       let changed = false;
       const reconciled = prevU.map((u) => {
-        const isPkg = u.isPackage || (u.category || "").toLowerCase().includes("package");
+        const isPkg =
+          u.isPackage || (u.category || "").toLowerCase().includes("package");
         if (!isPkg) return u;
 
-        const opening = u.openingStock !== undefined ? u.openingStock : (u.initialStock !== undefined ? u.initialStock : 150);
+        const opening =
+          u.openingStock !== undefined
+            ? u.openingStock
+            : u.initialStock !== undefined
+              ? u.initialStock
+              : 150;
         const uCatClean = (u.category || u.name || "").toLowerCase().trim();
         const uSizeClean = (u.size || "").toLowerCase().trim();
 
         const activeCount = studentUniformIssues.reduce((sum, issue) => {
-          if (!issue || issue.status === "Returned" || (issue.notes || "").toLowerCase().includes("returned")) {
+          if (
+            !issue ||
+            issue.status === "Returned" ||
+            (issue.notes || "").toLowerCase().includes("returned")
+          ) {
             return sum;
           }
-          const iCatClean = (issue.itemName || "").replace(/\s*\(extra\)/gi, "").toLowerCase().trim();
+          const iCatClean = (issue.itemName || "")
+            .replace(/\s*\(extra\)/gi, "")
+            .toLowerCase()
+            .trim();
           const iSizeClean = (issue.size || "").toLowerCase().trim();
 
-          const isCatMatch = iCatClean === uCatClean || uCatClean.includes(iCatClean) || iCatClean.includes(uCatClean);
-          const isSizeMatch = !uSizeClean || !iSizeClean || uSizeClean === iSizeClean;
+          const isCatMatch =
+            iCatClean === uCatClean ||
+            uCatClean.includes(iCatClean) ||
+            iCatClean.includes(uCatClean);
+          const isSizeMatch =
+            !uSizeClean || !iSizeClean || uSizeClean === iSizeClean;
 
           if (isCatMatch && isSizeMatch) {
             return sum + (issue.quantity || 1);
@@ -3766,7 +3603,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const norm = (u.category || u.name || "").toLowerCase().trim();
         if (!norm) continue;
         seenCatNorms.add(norm);
-        const itemKey = `${u.id || ''}_${norm}_${u.size || ''}`;
+        const itemKey = `${u.id || ""}_${norm}_${u.size || ""}`;
         if (!seenItemKeys.has(itemKey)) {
           seenItemKeys.add(itemKey);
           const dynamicPrice = getItemFeeFromFinanceConfig(
@@ -3779,62 +3616,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           deduplicated.push({ ...u, price: dynamicPrice });
         }
       }
-
-      // Ensure every category in uniformCategories has 1 catalog item
-      validCatList.forEach((cat) => {
-        if (!seenCatNorms.has(cat.norm)) {
-          seenCatNorms.add(cat.norm);
-          let defPrice = 350;
-          if (cat.norm.includes("blazer")) defPrice = 1500;
-          else if (cat.norm.includes("sweater")) defPrice = 800;
-          else if (
-            cat.norm.includes("pant") ||
-            cat.norm.includes("trouser") ||
-            cat.norm.includes("skirt") ||
-            cat.norm.includes("shoes") ||
-            cat.norm.includes("tracksuit")
-          )
-            defPrice = 500;
-          else if (
-            cat.norm.includes("tie") ||
-            cat.norm.includes("belt") ||
-            cat.norm.includes("cap")
-          )
-            defPrice = 150;
-
-          const dynamicPrice = getItemFeeFromFinanceConfig(
-            "",
-            cat.name,
-            "Unisex",
-            financeUniformConfigs,
-            defPrice,
-          );
-
-          deduplicated.push({
-            id: `UNI-${cat.id || Date.now()}`,
-            category: cat.name,
-            name: cat.name,
-            gender: cat.norm.includes("boys")
-              ? "Male"
-              : cat.norm.includes("girls")
-                ? "Female"
-                : "Unisex",
-            size:
-              cat.norm.includes("tie") ||
-              cat.norm.includes("belt") ||
-              cat.norm.includes("ribbon") ||
-              cat.norm.includes("cap")
-                ? "Free Size"
-                : "M",
-            className: "All Wings",
-            color: "Standard",
-            price: dynamicPrice,
-            availableStock: 100,
-            branch: selectedBranch || "Main Campus",
-          });
-        }
-      });
-
       if (JSON.stringify(deduplicated) !== JSON.stringify(prevU)) {
         try {
           localStorage.setItem("edu_db_uniforms", JSON.stringify(deduplicated));
@@ -3847,29 +3628,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Auto-sync uniformInventory with uniforms list (Strict deduplication - preserves saved stock)
   useEffect(() => {
-    if (!uniforms || uniforms.length === 0) return;
+    if (!uniforms || uniforms.length === 0) {
+      setUniformInventory((prev) => {
+        if (prev && prev.length > 0) {
+          try {
+            localStorage.setItem("edu_db_uniform_inventory", JSON.stringify([]));
+            localStorage.setItem("uniform_inventory", JSON.stringify([]));
+          } catch (e) {}
+          return [];
+        }
+        return prev;
+      });
+      return;
+    }
 
     setUniformInventory((prevInv) => {
-      // If uniformInventory already exists and has stock data, keep it stable (don't fluctuate on refresh)
-      if (prevInv && prevInv.length > 0) return prevInv;
+      const validItems = uniforms
+        .map((u) => ({
+          id: u.id,
+          name: u.category || u.name || "",
+          size: u.size || (u as any).meterRange || "M",
+          norm: `${(u.category || u.name || "").toLowerCase().trim()}_${(u.size || (u as any).meterRange || "").toLowerCase().trim()}_${u.id}`,
+          stock:
+            u.availableStock !== undefined ? Number(u.availableStock) : 100,
+        }))
+        .filter((x) => x.name !== "");
 
-      const validItems = uniforms.map(u => ({
-        id: u.id,
-        name: u.category || u.name || '',
-        norm: (u.category || u.name || '').toLowerCase().trim(),
-        stock: u.availableStock !== undefined ? Number(u.availableStock) : 100
-      })).filter(x => x.name !== '');
-
-      const validNorms = new Set(validItems.map(x => x.norm));
       const seenNorms = new Set<string>();
       const deduplicated: UniformInventoryItem[] = [];
 
       for (const inv of prevInv || []) {
         if (!inv) continue;
-        const norm = (inv.itemName || inv.category || "").toLowerCase().trim();
-        if (validNorms.has(norm) && !seenNorms.has(norm)) {
-          seenNorms.add(norm);
-          deduplicated.push(inv);
+        const normKey = `${(inv.itemName || inv.category || "").toLowerCase().trim()}_${(inv.size || (inv as any).meterRange || "").toLowerCase().trim()}_${inv.itemId || inv.id}`;
+        if (!seenNorms.has(normKey)) {
+          seenNorms.add(normKey);
+          const openingCap = Math.min(100, inv.openingStock || 100);
+          const cappedStock = Math.min(openingCap, inv.currentStock !== undefined ? inv.currentStock : openingCap);
+          deduplicated.push({ ...inv, openingStock: openingCap, currentStock: cappedStock });
         }
       }
 
@@ -3881,12 +3676,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             itemId: item.id,
             itemName: item.name,
             category: item.name,
-            size:
-              item.norm.includes("tie") ||
-              item.norm.includes("belt") ||
-              item.norm.includes("cap")
-                ? "Free Size"
-                : "M",
+            size: item.size,
             openingStock: item.stock,
             currentStock: item.stock,
             minimumStock: 10,
@@ -4042,13 +3832,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           JSON.parse(localStorage.getItem("edu_db_deleted_pickup_ids") || "[]"),
         );
         const deletedVehicleIds = new Set<string>(
-          JSON.parse(localStorage.getItem("edu_db_deleted_vehicle_ids") || "[]"),
+          JSON.parse(
+            localStorage.getItem("edu_db_deleted_vehicle_ids") || "[]",
+          ),
         );
         const deletedDriverIds = new Set<string>(
           JSON.parse(localStorage.getItem("edu_db_deleted_driver_ids") || "[]"),
         );
         const deletedAssignmentIds = new Set<string>(
-          JSON.parse(localStorage.getItem("edu_db_deleted_assignment_ids") || "[]"),
+          JSON.parse(
+            localStorage.getItem("edu_db_deleted_assignment_ids") || "[]",
+          ),
         );
 
         const mergeApiAndLocal = <T extends { id: string | number }>(
@@ -4187,7 +3981,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               !deletedRouteIds.has(String(r.routeCode)),
           );
           setRouteMasters(validRoutes);
-          localStorage.setItem("edu_db_route_masters", JSON.stringify(validRoutes));
+          localStorage.setItem(
+            "edu_db_route_masters",
+            JSON.stringify(validRoutes),
+          );
         }
         if (points) {
           const mappedPoints = points.map((p: any) => ({
@@ -4226,7 +4023,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }));
 
           const deletedPickupTrack = new Set<string>(
-            JSON.parse(localStorage.getItem("edu_db_deleted_pickup_ids") || "[]"),
+            JSON.parse(
+              localStorage.getItem("edu_db_deleted_pickup_ids") || "[]",
+            ),
           );
           const localStoredPoints: PickupPoint[] = JSON.parse(
             localStorage.getItem("edu_db_pickup_points") || "[]",
@@ -4235,22 +4034,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const mergedMap = new Map<string, PickupPoint>();
 
           localStoredPoints.forEach((pt) => {
-            const key = (pt.id ? String(pt.id) : (pt.pickupName + "_" + pt.routeId)).toLowerCase();
-            if (!deletedPickupTrack.has(key) && !deletedPickupTrack.has(String(pt.id))) {
+            const key = (
+              pt.id ? String(pt.id) : pt.pickupName + "_" + pt.routeId
+            ).toLowerCase();
+            if (
+              !deletedPickupTrack.has(key) &&
+              !deletedPickupTrack.has(String(pt.id))
+            ) {
               mergedMap.set(key, pt);
             }
           });
 
           mappedPoints.forEach((pt: PickupPoint) => {
-            const key = (pt.id ? String(pt.id) : (pt.pickupName + "_" + pt.routeId)).toLowerCase();
-            if (!deletedPickupTrack.has(key) && !deletedPickupTrack.has(String(pt.id))) {
+            const key = (
+              pt.id ? String(pt.id) : pt.pickupName + "_" + pt.routeId
+            ).toLowerCase();
+            if (
+              !deletedPickupTrack.has(key) &&
+              !deletedPickupTrack.has(String(pt.id))
+            ) {
               mergedMap.set(key, { ...mergedMap.get(key), ...pt });
             }
           });
 
           const finalPickupPoints = Array.from(mergedMap.values());
           setPickupPoints(finalPickupPoints);
-          localStorage.setItem("edu_db_pickup_points", JSON.stringify(finalPickupPoints));
+          localStorage.setItem(
+            "edu_db_pickup_points",
+            JSON.stringify(finalPickupPoints),
+          );
         }
         if (vehicles) {
           const mappedVehicles = vehicles.map((v: any) => ({
@@ -4275,20 +4087,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.getItem("edu_db_vehicle_masters") || "[]",
           );
           const mergedVehiclesMap = new Map<string, VehicleMaster>();
-          localStoredVehicles.forEach(v => {
+          localStoredVehicles.forEach((v) => {
             if (v && v.vehicleNumber) {
-              mergedVehiclesMap.set(String(v.id || v.vehicleNumber).toLowerCase(), v);
+              mergedVehiclesMap.set(
+                String(v.id || v.vehicleNumber).toLowerCase(),
+                v,
+              );
             }
           });
           mappedVehicles.forEach((v: VehicleMaster) => {
             if (v && v.vehicleNumber) {
               const key = String(v.id || v.vehicleNumber).toLowerCase();
-              mergedVehiclesMap.set(key, { ...mergedVehiclesMap.get(key), ...v });
+              mergedVehiclesMap.set(key, {
+                ...mergedVehiclesMap.get(key),
+                ...v,
+              });
             }
           });
           const finalVehicles = Array.from(mergedVehiclesMap.values());
           setVehicleMasters(finalVehicles);
-          localStorage.setItem("edu_db_vehicle_masters", JSON.stringify(finalVehicles));
+          localStorage.setItem(
+            "edu_db_vehicle_masters",
+            JSON.stringify(finalVehicles),
+          );
         }
         if (drivers) {
           const mappedDrivers = drivers.map((d: any) => ({
@@ -4312,9 +4133,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.getItem("edu_db_driver_masters") || "[]",
           );
           const mergedDriversMap = new Map<string, DriverMaster>();
-          localStoredDrivers.forEach(d => {
+          localStoredDrivers.forEach((d) => {
             if (d && d.driverName) {
-              mergedDriversMap.set(String(d.id || d.driverName).toLowerCase(), d);
+              mergedDriversMap.set(
+                String(d.id || d.driverName).toLowerCase(),
+                d,
+              );
             }
           });
           mappedDrivers.forEach((d: DriverMaster) => {
@@ -4325,7 +4149,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
           const finalDrivers = Array.from(mergedDriversMap.values());
           setDriverMasters(finalDrivers);
-          localStorage.setItem("edu_db_driver_masters", JSON.stringify(finalDrivers));
+          localStorage.setItem(
+            "edu_db_driver_masters",
+            JSON.stringify(finalDrivers),
+          );
         }
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
@@ -4341,12 +4168,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 routeId = matchedRoute.id.toString();
               }
             }
-            if ((!routeName || routeName.trim().toUpperCase() === "N/A") && routeId && routeMasters) {
+            if (
+              (!routeName || routeName.trim().toUpperCase() === "N/A") &&
+              routeId &&
+              routeMasters
+            ) {
               const matchedRoute = routeMasters.find(
                 (r: any) => r.id?.toString() === routeId.toString(),
               );
               if (matchedRoute) {
-                routeName = matchedRoute.routeName || matchedRoute.routeCode || "";
+                routeName =
+                  matchedRoute.routeName || matchedRoute.routeCode || "";
               }
             }
 
@@ -4367,7 +4199,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (v: any) => v.id?.toString() === vehicleId.toString(),
               );
               if (matchedVehicle) {
-                vehicleNumber = matchedVehicle.vehicleNumber || (matchedVehicle as any).vehicleName || "";
+                vehicleNumber =
+                  matchedVehicle.vehicleNumber ||
+                  (matchedVehicle as any).vehicleName ||
+                  "";
               }
             }
 
@@ -4422,26 +4257,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const uniqueAssignmentsMap = new Map<string, any>();
           localStoredAssignments.forEach((a: any) => {
             if (a && (a.vehicleNumber || a.routeName)) {
-              const key = a.id ? a.id.toString() : `${a.vehicleNumber}-${a.routeName}`;
+              const key = a.id
+                ? a.id.toString()
+                : `${a.vehicleNumber}-${a.routeName}`;
               uniqueAssignmentsMap.set(key, a);
             }
           });
           mappedAssignments.forEach((item: any) => {
             if (item && (item.vehicleNumber || item.routeName)) {
-              const key = item.id ? item.id.toString() : `${item.vehicleNumber}-${item.routeName}`;
+              const key = item.id
+                ? item.id.toString()
+                : `${item.vehicleNumber}-${item.routeName}`;
               const existing = uniqueAssignmentsMap.get(key) || {};
               uniqueAssignmentsMap.set(key, {
                 ...existing,
                 ...item,
                 attendantId: item.attendantId || existing.attendantId || "",
-                attendantName: item.attendantName || existing.attendantName || "",
-                attendantMobile: item.attendantMobile || existing.attendantMobile || ""
+                attendantName:
+                  item.attendantName || existing.attendantName || "",
+                attendantMobile:
+                  item.attendantMobile || existing.attendantMobile || "",
               });
             }
           });
           const finalAssignments = Array.from(uniqueAssignmentsMap.values());
           setVehicleAssignments(finalAssignments);
-          localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(finalAssignments));
+          localStorage.setItem(
+            "edu_db_vehicle_assignments",
+            JSON.stringify(finalAssignments),
+          );
         }
         if (maintenance) {
           const mappedMaintenance = maintenance.map((m: any) => {
@@ -4504,16 +4348,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             }
             return {
-              id: (t.id || t.studentTransportAssignmentId || t.studentTransportId || "").toString(),
+              id: (
+                t.id ||
+                t.studentTransportAssignmentId ||
+                t.studentTransportId ||
+                ""
+              ).toString(),
               studentId: (t.studentId || "").toString(),
               studentName: t.studentName || t.fullName || "",
               admissionNo: admNo,
               routeName: t.routeName || "",
               routeId: (t.routeId || "").toString(),
-              pickupPoint: t.pickupPoint || t.pickupPointName || t.pickupName || "",
+              pickupPoint:
+                t.pickupPoint || t.pickupPointName || t.pickupName || "",
               pickupPointId: (t.pickupPointId || "").toString(),
               vehicleNumber: t.vehicleNumber || "",
-              vehicleId: (t.vehicleId || t.vehicleAssignmentId || "").toString(),
+              vehicleId: (
+                t.vehicleId ||
+                t.vehicleAssignmentId ||
+                ""
+              ).toString(),
               feePlan: t.feePlan || "Monthly",
               feeAmount: Number(t.feeAmount || 0),
               effectiveFrom: t.effectiveFrom
@@ -4644,13 +4498,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [uniforms]);
 
   useEffect(() => {
-    localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(studentUniformIssues));
-    localStorage.setItem("student_uniform_issues", JSON.stringify(studentUniformIssues));
+    localStorage.setItem(
+      "edu_db_student_uniform_issues",
+      JSON.stringify(studentUniformIssues),
+    );
+    localStorage.setItem(
+      "student_uniform_issues",
+      JSON.stringify(studentUniformIssues),
+    );
   }, [studentUniformIssues]);
 
   useEffect(() => {
-    localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(financeUniformConfigs));
-    localStorage.setItem("finance_uniform_configs", JSON.stringify(financeUniformConfigs));
+    localStorage.setItem(
+      "edu_db_finance_uniform_configs",
+      JSON.stringify(financeUniformConfigs),
+    );
+    localStorage.setItem(
+      "finance_uniform_configs",
+      JSON.stringify(financeUniformConfigs),
+    );
   }, [financeUniformConfigs]);
   useEffect(() => {
     localStorage.setItem(
@@ -4665,7 +4531,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const list = Array.isArray(res) ? res : res?.data || [];
       if (Array.isArray(list)) {
         const mapped: TeacherAssignment[] = list.map((ta: any) => ({
-          id: ta.id ? String(ta.id) : `TA-${Math.floor(100 + Math.random() * 900)}`,
+          id: ta.id
+            ? String(ta.id)
+            : `TA-${Math.floor(100 + Math.random() * 900)}`,
           academicYear: ta.academicYear || "2026-2027",
           branch: ta.branch || "Main Campus",
           className: ta.className || "",
@@ -4677,7 +4545,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           role: ta.role || "Subject Teacher",
         }));
         setTeacherAssignments(mapped);
-        localStorage.setItem("edu_db_teacher_assignments", JSON.stringify(mapped));
+        localStorage.setItem(
+          "edu_db_teacher_assignments",
+          JSON.stringify(mapped),
+        );
         return mapped;
       }
     } catch (err) {
@@ -4701,7 +4572,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const rawTaList = Array.isArray(taData) ? taData : taData?.data || [];
         if (Array.isArray(rawTaList) && rawTaList.length > 0) {
           liveAssignments = rawTaList.map((ta: any) => ({
-            id: ta.id ? String(ta.id) : `TA-${Math.floor(100 + Math.random() * 900)}`,
+            id: ta.id
+              ? String(ta.id)
+              : `TA-${Math.floor(100 + Math.random() * 900)}`,
             academicYear: ta.academicYear || "2026-2027",
             branch: ta.branch || "Main Campus",
             className: ta.className || "",
@@ -4713,7 +4586,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             role: ta.role || "Subject Teacher",
           }));
           setTeacherAssignments(liveAssignments);
-          localStorage.setItem("edu_db_teacher_assignments", JSON.stringify(liveAssignments));
+          localStorage.setItem(
+            "edu_db_teacher_assignments",
+            JSON.stringify(liveAssignments),
+          );
         }
 
         if (data) {
@@ -4731,8 +4607,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
             const mapped: AcademicClass[] = classList.map((c: any) => {
               const classIdStr = c.classId?.toString() || c.id?.toString();
-              const localCls = localClasses.find((lc) => lc.id === classIdStr);
               const classNameStr = c.className || c.name || "";
+              const localCls = localClasses.find((lc) => {
+                if (!lc) return false;
+                const lcIdStr = String(lc.id || "").trim();
+                const normLcId = lcIdStr.replace(/^CL-/i, "").trim();
+                const normClassId = String(classIdStr || "").replace(/^CL-/i, "").trim();
+                const normLcName = String(lc.name || (lc as any).className || "").toLowerCase().replace(/class/gi, "").trim();
+                const normClassName = String(classNameStr).toLowerCase().replace(/class/gi, "").trim();
+                return lcIdStr === classIdStr || (normLcId && normLcId === normClassId) || (normLcName && normLcName === normClassName);
+              });
 
               const secDetails: Record<string, any> = {
                 ...(localCls?.sectionDetails || c.sectionDetails || {}),
@@ -4773,7 +4657,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
               // Also populate sectionTeachers from liveAssignments where role is Class Teacher
               liveAssignments
-                .filter((ta) => (ta.className === classNameStr || ta.className?.toLowerCase().replace(/class/gi, "").trim() === classNameStr.toLowerCase().replace(/class/gi, "").trim()) && ta.role === "Class Teacher" && ta.teacherName)
+                .filter(
+                  (ta) =>
+                    (ta.className === classNameStr ||
+                      ta.className
+                        ?.toLowerCase()
+                        .replace(/class/gi, "")
+                        .trim() ===
+                        classNameStr
+                          .toLowerCase()
+                          .replace(/class/gi, "")
+                          .trim()) &&
+                    ta.role === "Class Teacher" &&
+                    ta.teacherName,
+                )
                 .forEach((ta) => {
                   if (ta.section) {
                     sectionTeachersMap[ta.section] = ta.teacherName;
@@ -4784,7 +4681,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               if (Array.isArray(c.curriculumSubjects)) {
                 c.curriculumSubjects.forEach((cs: any) => {
                   const sName = cs.subjectName || cs.name;
-                  const wPeriods = cs.weeklyPeriods ?? cs.weekly_periods ?? cs.periodsPerWeek;
+                  const wPeriods =
+                    cs.weeklyPeriods ?? cs.weekly_periods ?? cs.periodsPerWeek;
                   if (sName && typeof wPeriods === "number") {
                     backendWeeklyPeriods[sName] = wPeriods;
                   }
@@ -4792,7 +4690,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
 
               const subs =
-                Array.isArray(c.curriculumSubjects) && c.curriculumSubjects.length > 0
+                Array.isArray(c.curriculumSubjects) &&
+                c.curriculumSubjects.length > 0
                   ? c.curriculumSubjects
                       .map((cs: any) => cs.subjectName || cs.name || "")
                       .filter(Boolean)
@@ -4805,7 +4704,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 name: classNameStr,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
                 sectionTeachers: sectionTeachersMap,
-                teacher: c.teacher || Object.values(sectionTeachersMap)[0] || "Unassigned",
+                teacher:
+                  c.teacher ||
+                  Object.values(sectionTeachersMap)[0] ||
+                  "Unassigned",
                 subjects: subs,
                 weeklyPeriods: {
                   ...(localCls?.weeklyPeriods || {}),
@@ -4904,9 +4806,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         setPeriodSettings((prev) => {
           const classSpecific = prev.filter(
             (p) =>
-              p.className &&
-              p.className !== "Master" &&
-              p.className !== "All",
+              p.className && p.className !== "Master" && p.className !== "All",
           );
           return [...uniquePeriods, ...classSpecific];
         });
@@ -4920,14 +4820,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     appId?: string,
     regNo?: string,
     name?: string,
-    phone?: string
+    phone?: string,
   ): string[] => {
     try {
       const raw = localStorage.getItem("edu_db_admission_optional_fees");
       if (raw) {
         const store = JSON.parse(raw);
-        if (appId && store[appId] && Array.isArray(store[appId])) return store[appId];
-        if (regNo && store[regNo] && Array.isArray(store[regNo])) return store[regNo];
+        if (appId && store[appId] && Array.isArray(store[appId]))
+          return store[appId];
+        if (regNo && store[regNo] && Array.isArray(store[regNo]))
+          return store[regNo];
         if (name && phone) {
           const key = `${name.toLowerCase().trim()}_${phone.trim()}`;
           if (store[key] && Array.isArray(store[key])) return store[key];
@@ -4942,7 +4844,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     regNo?: string,
     name?: string,
     phone?: string,
-    fees?: string[]
+    fees?: string[],
   ) => {
     if (!fees || !Array.isArray(fees) || fees.length === 0) return;
     try {
@@ -4955,7 +4857,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const key = `${name.toLowerCase().trim()}_${phone.trim()}`;
         store[key] = fees;
       }
-      localStorage.setItem("edu_db_admission_optional_fees", JSON.stringify(store));
+      localStorage.setItem(
+        "edu_db_admission_optional_fees",
+        JSON.stringify(store),
+      );
     } catch (e) {}
   };
 
@@ -4986,13 +4891,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               );
 
               const parseFees = (val: any): string[] => {
-                if (Array.isArray(val)) return val.map((x) => String(x)).filter(Boolean);
+                if (Array.isArray(val))
+                  return val.map((x) => String(x)).filter(Boolean);
                 if (typeof val === "string" && val.trim().length > 0) {
                   try {
                     const p = JSON.parse(val);
-                    if (Array.isArray(p)) return p.map((x) => String(x)).filter(Boolean);
+                    if (Array.isArray(p))
+                      return p.map((x) => String(x)).filter(Boolean);
                   } catch (e) {}
-                  return val.split(",").map((s) => s.trim()).filter(Boolean);
+                  return val
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
                 }
                 return [];
               };
@@ -5002,14 +4912,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.optionalFees ??
                   item.selectedOptionalFee ??
                   item.optionalFee ??
-                  item.selectedOptional
+                  item.selectedOptional,
               );
               const existingFees = parseFees(existing?.selectedOptionalFees);
               const persistedFees = getPersistedOptionalFees(
                 item.applicationId?.toString() || existing?.id,
                 item.registrationNo || existing?.applicationNo,
                 item.applicantFullName || existing?.applicantName,
-                item.fatherMobileNo || existing?.phone
+                item.fatherMobileNo || existing?.phone,
               );
 
               let finalOptFees: string[] = [];
@@ -5042,8 +4952,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 parentName: item.fatherFullName || existing?.parentName || "",
                 motherName: item.motherFullName || existing?.motherName || "",
                 phone: item.fatherMobileNo || existing?.phone || "",
-                motherPhone: item.motherPhone || item.motherMobileNumber || existing?.motherPhone || "",
-                alternatePhone: item.alternatePhone || item.alternateMobileNumber || existing?.alternatePhone || "",
+                motherPhone:
+                  item.motherPhone ||
+                  item.motherMobileNumber ||
+                  existing?.motherPhone ||
+                  "",
+                alternatePhone:
+                  item.alternatePhone ||
+                  item.alternateMobileNumber ||
+                  existing?.alternatePhone ||
+                  "",
                 email: item.parentEmail || item.email || existing?.email || "",
                 addressHouseNo: item.houseNo || existing?.addressHouseNo || "",
                 addressStreet: item.street || existing?.addressStreet || "",
@@ -5172,7 +5090,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           departmentName: item.departmentName || "",
           departmentCode: item.departmentCode || "",
           description: item.description || "",
-          category: item.category || (item.departmentType || "Teaching"),
+          category: item.category || item.departmentType || "Teaching",
           status: item.status || "Active",
         }));
         setDepartments(mapped);
@@ -5194,7 +5112,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           designationName: item.designationName || "",
           designationCode: item.designationCode || "",
           description: item.description || "",
-          employeeCategory: (item.employeeCategory === "Both" || !item.employeeCategory) ? "Non-Teaching" : item.employeeCategory,
+          employeeCategory:
+            item.employeeCategory === "Both" || !item.employeeCategory
+              ? "Non-Teaching"
+              : item.employeeCategory,
           status: item.status || "Active",
         }));
         setDesignations(mapped);
@@ -5267,17 +5188,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
               profileStatus: "Completed",
               status: item.isActive ? "Active" : "Inactive",
-              employmentType: item.employmentType || existing?.employmentType || "",
-              address: item.presentAddress || item.residentialAddress || item.address || "",
-              presentAddress: item.presentAddress || item.residentialAddress || "",
+              employmentType:
+                item.employmentType || existing?.employmentType || "",
+              address:
+                item.presentAddress ||
+                item.residentialAddress ||
+                item.address ||
+                "",
+              presentAddress:
+                item.presentAddress || item.residentialAddress || "",
               permanentAddress: item.permanentAddress || "",
               city: item.city || "",
               state: item.state || "",
               pinCode: item.pinCode || "",
               country: item.country || "India",
-              assignedClasses: item.assignedClasses || existing?.assignedClasses || [],
-              assignedSubjects: item.assignedSubjects || existing?.assignedSubjects || [],
-              isClassTeacherEligible: item.isClassTeacherEligible !== undefined ? item.isClassTeacherEligible : (existing?.isClassTeacherEligible || false),
+              assignedClasses:
+                item.assignedClasses || existing?.assignedClasses || [],
+              assignedSubjects:
+                item.assignedSubjects || existing?.assignedSubjects || [],
+              isClassTeacherEligible:
+                item.isClassTeacherEligible !== undefined
+                  ? item.isClassTeacherEligible
+                  : existing?.isClassTeacherEligible || false,
               bankDetails: {
                 accountHolderName: item.accountHolderName || "",
                 accountNumber: item.accountNumber || "",
@@ -5286,8 +5218,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ifscCode: item.ifscCode || "",
                 upiId: item.upiId || "",
               },
-              qualifications: item.qualifications || existing?.qualifications || [],
-              experienceRecords: item.experienceRecords || existing?.experienceRecords || [],
+              qualifications:
+                item.qualifications || existing?.qualifications || [],
+              experienceRecords:
+                item.experienceRecords || existing?.experienceRecords || [],
               documents: item.documents || existing?.documents || [],
               branch: item.branchName || existing?.branch || "Main Campus",
             };
@@ -5332,8 +5266,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               .split(/\s+/);
             const firstName = s.firstName || nameParts[0] || "";
             const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
-            const parentName = s.fatherName || s.parentName || s.motherName || "";
-            const parentPhone = s.fatherMobile || s.parentPhone || s.fatherContact || s.fatherPhone || s.motherMobile || s.motherPhone || s.mobileNumber || s.phone || "";
+            const parentName =
+              s.fatherName || s.parentName || s.motherName || "";
+            const parentPhone =
+              s.fatherMobile ||
+              s.parentPhone ||
+              s.fatherContact ||
+              s.fatherPhone ||
+              s.motherMobile ||
+              s.motherPhone ||
+              s.mobileNumber ||
+              s.phone ||
+              "";
             return {
               id: s.studentId?.toString() || s.id?.toString() || "",
               admissionNo: s.admissionNumber || s.admissionNo || "",
@@ -5346,9 +5290,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               middleName: s.middleName || "",
               lastName,
               email: s.email || "",
-              phone: s.mobileNumber || s.phone || s.contactNumber || parentPhone,
+              phone:
+                s.mobileNumber || s.phone || s.contactNumber || parentPhone,
               gender: s.gender || "Male",
-              dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : (s.dob ? s.dob.split("T")[0] : ""),
+              dob: s.dateOfBirth
+                ? s.dateOfBirth.split("T")[0]
+                : s.dob
+                  ? s.dob.split("T")[0]
+                  : "",
               className: s.className || s.class || "",
               section: s.sectionName || s.section || "",
               academicYear: s.academicYearName || s.academicYear || "",
@@ -5497,142 +5446,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const types = extract(typeRes);
         const dists = extract(distRes);
         if (cats.length) {
-          const mappedCats = cats.map((c: any) => ({
-            id: String(
-              c.id ||
-                c.categoryId ||
-                `UC-${Math.random().toString(36).substr(2, 5)}`,
-            ),
-            name: c.name || c.categoryName || "",
-            categoryName: c.categoryName || c.name || "",
-            description: c.description || "",
-            status: c.status || "Active",
-            branch: c.branch || selectedBranch || "Main Campus",
-          }));
-          setUniformCategories((prev) => {
-            if (prev && prev.length > 0) return prev;
-            return mappedCats;
-          });
+          setUniformCategories((prev) => prev);
         }
         if (sizes.length) {
-          const mappedSizes = sizes.map((s: any) => ({
-            id: String(
-              s.id || s.sizeId || `US-${Math.random().toString(36).substr(2, 5)}`,
-            ),
-            sizeName: s.sizeName || s.sizeCodeName || "",
-            sizeCodeName: s.sizeCodeName || s.sizeName || "",
-            chest: s.chest || s.chestSpec || s.chestWidth || "",
-            waist: s.waist || s.waistSpec || s.waistSpecs || "",
-            height: s.height || s.heightTarget || s.heightBounds || "",
-            ageGroup: s.ageGroup || s.ageBracket || "",
-            gender: s.gender || "Unisex",
-            branch: s.branch || selectedBranch || "Main Campus",
-          }));
-          setUniformSizes((prev) => {
-            if (prev && prev.length > 0) return prev;
-            return mappedSizes;
-          });
+          setUniformSizes((prev) => prev);
         }
         if (suppliers.length) {
-          const mappedSuppliers = suppliers.map((s: any) => ({
-            id: String(
-              s.id ||
-                s.supplierId ||
-                `SUP-${Math.random().toString(36).substr(2, 5)}`,
-            ),
-            supplierName: s.supplierName || s.companyName || "",
-            companyName: s.companyName || s.supplierName || "",
-            contactPerson: s.contactPerson || s.contactRepresentative || "",
-            mobile: s.mobile || s.phone || s.mobileNumber || "",
-            phone: s.phone || s.mobile || s.mobileNumber || "",
-            email: s.email || s.emailAddress || "",
-            gstNumber: s.gstNumber || s.gstRegistrationNo || "",
-            address: s.address || s.warehouseAddress || "",
-            status: s.status || "Active",
-            branch: s.branch || selectedBranch || "Main Campus",
-          }));
-          setUniformSuppliers((prev) => {
-            if (prev && prev.length > 0) return prev;
-            return mappedSuppliers;
-          });
+          setUniformSuppliers((prev) => prev);
         }
         if (types.length) {
-          const mappedInv = types.map((t: any) => ({
-            id: String(
-              t.id ||
-                t.uniformTypeId ||
-                `UINV-${Math.random().toString(36).substr(2, 5)}`,
-            ),
-            itemId: String(t.id || t.uniformTypeId || ""),
-            itemName: t.itemName || t.uniformCategory || t.category || "",
-            category: t.categoryName || t.category || t.itemName || "Uniform",
-            size: t.size || "M",
-            openingStock: Number(t.openingStock || 0),
-            currentStock: Number(
-              t.availableStock !== undefined
-                ? t.availableStock
-                : t.currentStock !== undefined
-                  ? t.currentStock
-                  : 0,
-            ),
-            minimumStock: Number(
-              t.minThreshold !== undefined
-                ? t.minThreshold
-                : t.minimumStock !== undefined
-                  ? t.minimumStock
-                  : 30,
-            ),
-            reorderLevel: Number(
-              t.reorderPoint !== undefined
-                ? t.reorderPoint
-                : t.reorderLevel !== undefined
-                  ? t.reorderLevel
-                  : 50,
-            ),
-            status:
-              t.stockStatus ||
-              (Number(t.availableStock ?? t.currentStock ?? 0) === 0
-                ? "Out of Stock"
-                : Number(t.availableStock ?? t.currentStock ?? 0) <=
-                    Number(t.minThreshold ?? 30)
-                  ? "Low Stock"
-                  : "In Stock"),
-            lastUpdated: t.createdAt || new Date().toISOString(),
-            branch: t.branch || selectedBranch || "Main Campus",
-          }));
-          setUniformInventory((prev) => {
-            const apiIds = new Set(mappedInv.map((i: any) => i.id));
-            const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-            return [...localOnly, ...mappedInv];
-          });
-
-          const mappedUniforms = types.map((t: any) => ({
-            id: String(
-              t.id ||
-                t.uniformTypeId ||
-                `UNI-${Math.random().toString(36).substr(2, 5)}`,
-            ),
-            category: t.categoryName || t.category || t.itemName || "Uniform",
-            name: t.itemName || "",
-            gender: t.gender || "Unisex",
-            size: t.size || "M",
-            className: t.schoolWing || t.level || "All Wings",
-            color: t.color || t.colorSpec || "Standard",
-            price: Number(t.unitPrice || 0),
-            availableStock: Number(
-              t.availableStock !== undefined
-                ? t.availableStock
-                : t.currentStock !== undefined
-                  ? t.currentStock
-                  : 0,
-            ),
-            branch: t.branch || selectedBranch || "Main Campus",
-          }));
-          setUniforms((prev) => {
-            const apiIds = new Set(mappedUniforms.map((u: any) => u.id));
-            const localOnly = (prev || []).filter((u: any) => !apiIds.has(u.id));
-            return [...localOnly, ...mappedUniforms];
-          });
+          setUniformInventory((prev) => prev);
+          setUniforms((prev) => prev);
         }
         if (dists.length) {
           const mappedDists = dists.map((d: any) => ({
@@ -5657,22 +5481,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             academicYear: d.academicYear || "2026-2027",
             branch: d.branch || selectedBranch || "Main Campus",
             notes: d.notes || d.actionRemarks || "",
-            type: (
-              d.type === "Base Package" ||
-              d.transactionType === "Base Package" ||
-              (d.transactionType && (d.transactionType.toLowerCase().includes("baseline") || d.transactionType.toLowerCase().includes("base"))) ||
-              (d.itemName && (d.itemName.toLowerCase().includes("package") || d.itemName.toLowerCase().includes("base") || d.itemName.toLowerCase().includes("kit"))) ||
-              (d.notes && (d.notes.toLowerCase().includes("base package") || d.notes.toLowerCase().includes("admission kit")))
-            ) && d.type !== "Additional Purchase" && d.transactionType !== "Additional Purchase" && !d.notes?.toLowerCase().includes("additional purchase")
-              ? "Base Package"
-              : "Additional Purchase",
+            type:
+              (d.type === "Base Package" ||
+                d.transactionType === "Base Package" ||
+                (d.transactionType &&
+                  (d.transactionType.toLowerCase().includes("baseline") ||
+                    d.transactionType.toLowerCase().includes("base"))) ||
+                (d.itemName &&
+                  (d.itemName.toLowerCase().includes("package") ||
+                    d.itemName.toLowerCase().includes("base") ||
+                    d.itemName.toLowerCase().includes("kit"))) ||
+                (d.notes &&
+                  (d.notes.toLowerCase().includes("base package") ||
+                    d.notes.toLowerCase().includes("admission kit")))) &&
+              d.type !== "Additional Purchase" &&
+              d.transactionType !== "Additional Purchase" &&
+              !d.notes?.toLowerCase().includes("additional purchase")
+                ? "Base Package"
+                : "Additional Purchase",
             price: Number(d.totalAmount || 0),
           }));
-          const deletedTrack = new Set(JSON.parse(localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]"));
-          const validMappedDists = mappedDists.filter((d: any) => !deletedTrack.has(d.id));
+          const deletedTrack = new Set(
+            JSON.parse(
+              localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]",
+            ),
+          );
+          const validMappedDists = mappedDists.filter(
+            (d: any) => !deletedTrack.has(d.id),
+          );
           setStudentUniformIssues((prev) => {
             const apiIds = new Set(validMappedDists.map((d: any) => d.id));
-            const localOnly = (prev || []).filter((d: any) => !apiIds.has(d.id) && !deletedTrack.has(d.id));
+            const localOnly = (prev || []).filter(
+              (d: any) => !apiIds.has(d.id) && !deletedTrack.has(d.id),
+            );
             return [...validMappedDists, ...localOnly];
           });
         }
@@ -5808,21 +5649,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const apiCats = extract(catsRes);
         const apiBudgets = extract(budgetsRes);
 
-        const apiSettings = settingsRes.status === "fulfilled" ? (settingsRes.value?.data || settingsRes.value) : null;
+        const apiSettings =
+          settingsRes.status === "fulfilled"
+            ? settingsRes.value?.data || settingsRes.value
+            : null;
         if (apiSettings && typeof apiSettings === "object") {
           setFinanceSettings((prev) => ({
             ...prev,
             academicYear: apiSettings.academicYear || prev.academicYear,
             financialYear: apiSettings.financialYear || prev.financialYear,
-            defaultCurrency: apiSettings.defaultCurrency || apiSettings.currency || prev.defaultCurrency,
-            lateFeeRuleId: String(apiSettings.lateFeeRuleId || prev.lateFeeRuleId),
+            defaultCurrency:
+              apiSettings.defaultCurrency ||
+              apiSettings.currency ||
+              prev.defaultCurrency,
+            lateFeeRuleId: String(
+              apiSettings.lateFeeRuleId || prev.lateFeeRuleId,
+            ),
             receiptPrefix: apiSettings.receiptPrefix || prev.receiptPrefix,
             invoicePrefix: apiSettings.invoicePrefix || prev.invoicePrefix,
-            autoReceiptNo: typeof apiSettings.autoReceiptNo === "boolean" ? apiSettings.autoReceiptNo : prev.autoReceiptNo,
+            autoReceiptNo:
+              typeof apiSettings.autoReceiptNo === "boolean"
+                ? apiSettings.autoReceiptNo
+                : prev.autoReceiptNo,
             taxSettings: {
-              enabled: typeof apiSettings.taxSettings?.enabled === "boolean" ? apiSettings.taxSettings.enabled : prev.taxSettings?.enabled ?? true,
-              taxName: apiSettings.taxSettings?.taxName || prev.taxSettings?.taxName || "GST",
-              percentage: typeof apiSettings.taxSettings?.percentage === "number" ? apiSettings.taxSettings.percentage : prev.taxSettings?.percentage ?? 0,
+              enabled:
+                typeof apiSettings.taxSettings?.enabled === "boolean"
+                  ? apiSettings.taxSettings.enabled
+                  : (prev.taxSettings?.enabled ?? true),
+              taxName:
+                apiSettings.taxSettings?.taxName ||
+                prev.taxSettings?.taxName ||
+                "GST",
+              percentage:
+                typeof apiSettings.taxSettings?.percentage === "number"
+                  ? apiSettings.taxSettings.percentage
+                  : (prev.taxSettings?.percentage ?? 0),
             },
           }));
         }
@@ -5831,118 +5692,187 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         setDbAssignments(assignments);
         setFeePayments(payments);
 
-        setFinanceHostelConfigs(hostelFees.map((apiItem: any) => ({
-          id: String(apiItem.id || `FHC-${Date.now()}`),
-          hostelId: String(apiItem.hostelId || ""),
-          hostelName: apiItem.hostelName || "",
-          roomTypeId: String(apiItem.roomTypeId || ""),
-          roomTypeName: apiItem.roomTypeName || "",
-          roomId: apiItem.roomId || "",
-          roomNo: apiItem.roomNo || "All Rooms",
-          feePlan: apiItem.feePlan || "Annual",
-          hostelFee: Number(apiItem.hostelFee || 0),
-          securityDeposit: Number(apiItem.securityDeposit || 0),
-          effectiveFrom: apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
-          status: apiItem.status || "Active"
-        })));
+        setFinanceHostelConfigs(
+          hostelFees.map((apiItem: any) => ({
+            id: String(apiItem.id || `FHC-${Date.now()}`),
+            hostelId: String(apiItem.hostelId || ""),
+            hostelName: apiItem.hostelName || "",
+            roomTypeId: String(apiItem.roomTypeId || ""),
+            roomTypeName: apiItem.roomTypeName || "",
+            roomId: apiItem.roomId || "",
+            roomNo: apiItem.roomNo || "All Rooms",
+            feePlan: apiItem.feePlan || "Annual",
+            hostelFee: Number(apiItem.hostelFee || 0),
+            securityDeposit: Number(apiItem.securityDeposit || 0),
+            effectiveFrom:
+              apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
+            status: apiItem.status || "Active",
+          })),
+        );
 
-        setFinanceUniformConfigs(uniformFees.map((apiItem: any) => ({
-          id: String(apiItem.id || `FUC-${Date.now()}`),
-          academicYear: apiItem.academicYear || "2026-2027",
-          branch: apiItem.branch || "Main Campus",
-          className: apiItem.className || "",
-          gender: apiItem.gender || "Unisex",
-          uniformPackage: apiItem.uniformPackage || "",
-          uniformItemId: String(apiItem.uniformItemId || ""),
-          feePlan: apiItem.feePlan || "Annual",
-          feeAmount: Number(apiItem.feeAmount || 0),
-          effectiveFrom: apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
-          status: apiItem.status || "Active"
-        })));
+        if (Array.isArray(uniformFees) && uniformFees.length > 0) {
+          setFinanceUniformConfigs((prev) => {
+            const apiMapped = uniformFees.map((apiItem: any) => ({
+              id: String(apiItem.id || `FUC-${Date.now()}`),
+              academicYear: apiItem.academicYear || "2026-2027",
+              branch: apiItem.branch || "Main Campus",
+              className: apiItem.className || "",
+              gender: apiItem.gender || "Unisex",
+              uniformPackage: apiItem.uniformPackage || "",
+              uniformItemId: String(apiItem.uniformItemId || ""),
+              feePlan: apiItem.feePlan || "Annual",
+              feeAmount: Number(apiItem.feeAmount || 0),
+              effectiveFrom:
+                apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
+              status: apiItem.status || "Active",
+            }));
 
-        setRefunds(refundItems.map((apiItem: any) => {
-          const rId = String(apiItem.id || apiItem.refundRequestId || Date.now());
-          const rNo = apiItem.refundNo || apiItem.refundRequestId || `RF-2026-${rId}`;
-          return {
-            id: rId,
-            refundNo: rNo,
-            receiptNo: apiItem.receiptNo || "REC-2026-0001",
-            studentId: String(apiItem.studentId || ""),
-            studentName: apiItem.studentName || "",
-            admissionNo: apiItem.admissionNo || "",
-            className: apiItem.className || "",
-            section: apiItem.section || "",
-            amount: Number(apiItem.refundAmount || apiItem.amount || 0),
-            reason: apiItem.reason || "Fee Refund",
-            approvedBy: apiItem.approvedBy || (apiItem.status === "Approved" ? "Dr. Eleanor Vance (Principal)" : "Pending Admin Review"),
-            refundMode: apiItem.paymentMode || apiItem.refundMode || "Bank Transfer",
-            refundDate: (apiItem.requestedDate || apiItem.refundDate || new Date().toISOString()).split("T")[0],
-            remarks: apiItem.remarks || "",
-            status: apiItem.status || "Pending",
-          };
-        }));
+            const combined = [...prev];
+            apiMapped.forEach((apiCfg) => {
+              const exists = combined.some(
+                (c) =>
+                  c.id === apiCfg.id ||
+                  (c.className?.toLowerCase().trim() === apiCfg.className?.toLowerCase().trim() &&
+                    c.uniformPackage?.toLowerCase().trim() === apiCfg.uniformPackage?.toLowerCase().trim() &&
+                    c.gender === apiCfg.gender &&
+                    ((c as any).fabricMeterage || "").toLowerCase().trim() === ((apiCfg as any).fabricMeterage || "").toLowerCase().trim()),
+              );
+              if (!exists) {
+                combined.push(apiCfg);
+              }
+            });
 
-        setFinanceTransactions(apiTxns.map((item: any) => {
-          const tId = item.transactionId || `TXN-${item.id}`;
-          return {
-            id: String(item.id || tId),
-            transactionId: tId,
-            date: item.date || (item.transactionDate ? String(item.transactionDate).split("T")[0] : new Date().toISOString().split("T")[0]),
-            time: item.time || "10:00 AM",
+            try {
+              localStorage.setItem(
+                "edu_db_finance_uniform_configs",
+                JSON.stringify(combined),
+              );
+              localStorage.setItem(
+                "finance_uniform_configs",
+                JSON.stringify(combined),
+              );
+            } catch (e) {}
+
+            return combined;
+          });
+        }
+
+        setRefunds(
+          refundItems.map((apiItem: any) => {
+            const rId = String(
+              apiItem.id || apiItem.refundRequestId || Date.now(),
+            );
+            const rNo =
+              apiItem.refundNo || apiItem.refundRequestId || `RF-2026-${rId}`;
+            return {
+              id: rId,
+              refundNo: rNo,
+              receiptNo: apiItem.receiptNo || "REC-2026-0001",
+              studentId: String(apiItem.studentId || ""),
+              studentName: apiItem.studentName || "",
+              admissionNo: apiItem.admissionNo || "",
+              className: apiItem.className || "",
+              section: apiItem.section || "",
+              amount: Number(apiItem.refundAmount || apiItem.amount || 0),
+              reason: apiItem.reason || "Fee Refund",
+              approvedBy:
+                apiItem.approvedBy ||
+                (apiItem.status === "Approved"
+                  ? "Dr. Eleanor Vance (Principal)"
+                  : "Pending Admin Review"),
+              refundMode:
+                apiItem.paymentMode || apiItem.refundMode || "Bank Transfer",
+              refundDate: (
+                apiItem.requestedDate ||
+                apiItem.refundDate ||
+                new Date().toISOString()
+              ).split("T")[0],
+              remarks: apiItem.remarks || "",
+              status: apiItem.status || "Pending",
+            };
+          }),
+        );
+
+        setFinanceTransactions(
+          apiTxns.map((item: any) => {
+            const tId = item.transactionId || `TXN-${item.id}`;
+            return {
+              id: String(item.id || tId),
+              transactionId: tId,
+              date:
+                item.date ||
+                (item.transactionDate
+                  ? String(item.transactionDate).split("T")[0]
+                  : new Date().toISOString().split("T")[0]),
+              time: item.time || "10:00 AM",
+              type: item.type === "Expense" ? "Expense" : "Income",
+              category: item.category || "General",
+              sourceModule: item.sourceModule || "Manual",
+              referenceNumber: item.referenceNumber || "",
+              description: item.description || "",
+              amount: Number(item.amount || 0),
+              paymentMode: item.paymentMode || "Bank Transfer",
+              account: item.account || "Main Bank Account",
+              branch: item.branch || "Main Campus",
+              academicYear: item.academicYear || "2025-2026",
+              status: item.status || "Completed",
+              createdBy: item.createdBy || "Finance Admin",
+              approvedBy: item.approvedBy || "Chief Accountant",
+              notes: item.notes || "",
+              attachments: item.attachmentName
+                ? [item.attachmentName]
+                : item.attachments || [],
+            };
+          }),
+        );
+
+        setFinancialAccounts(
+          apiAccounts.map((item: any) => ({
+            id: String(item.id || "ACC-" + Date.now()),
+            accountName: item.accountName,
+            accountType: item.accountType || "Main Bank Account",
+            accountNumber: item.accountNumber || "",
+            bankName: item.bankName || "",
+            branchName: item.branchName || "",
+            currentBalance: Number(item.currentBalance || 0),
+            currency: item.currency || "INR",
+            status: item.status === "Inactive" ? "Inactive" : "Active",
+          })),
+        );
+
+        setFinancialCategories(
+          apiCats.map((item: any) => ({
+            id: String(item.id || "CAT-" + Date.now()),
+            name: item.name,
             type: item.type === "Expense" ? "Expense" : "Income",
-            category: item.category || "General",
             sourceModule: item.sourceModule || "Manual",
-            referenceNumber: item.referenceNumber || "",
-            description: item.description || "",
-            amount: Number(item.amount || 0),
-            paymentMode: item.paymentMode || "Bank Transfer",
-            account: item.account || "Main Bank Account",
-            branch: item.branch || "Main Campus",
-            academicYear: item.academicYear || "2025-2026",
-            status: item.status || "Completed",
-            createdBy: item.createdBy || "Finance Admin",
-            approvedBy: item.approvedBy || "Chief Accountant",
-            notes: item.notes || "",
-            attachments: item.attachmentName ? [item.attachmentName] : (item.attachments || [])
-          };
-        }));
+            status: item.status === "Inactive" ? "Inactive" : "Active",
+            isSystem:
+              typeof item.isSystem === "boolean" ? item.isSystem : false,
+          })),
+        );
 
-        setFinancialAccounts(apiAccounts.map((item: any) => ({
-          id: String(item.id || "ACC-" + Date.now()),
-          accountName: item.accountName,
-          accountType: item.accountType || "Main Bank Account",
-          accountNumber: item.accountNumber || "",
-          bankName: item.bankName || "",
-          branchName: item.branchName || "",
-          currentBalance: Number(item.currentBalance || 0),
-          currency: item.currency || "INR",
-          status: item.status === "Inactive" ? "Inactive" : "Active"
-        })));
-
-        setFinancialCategories(apiCats.map((item: any) => ({
-          id: String(item.id || "CAT-" + Date.now()),
-          name: item.name,
-          type: item.type === "Expense" ? "Expense" : "Income",
-          sourceModule: item.sourceModule || "Manual",
-          status: item.status === "Inactive" ? "Inactive" : "Active",
-          isSystem: typeof item.isSystem === "boolean" ? item.isSystem : false
-        })));
-
-        setFinancialBudgets(apiBudgets.map((item: any) => {
-          const bName = item.categoryName || item.department || "";
-          const alloc = Number(item.allocatedAmount || item.allocatedBudget || 0);
-          const cons = Number(item.consumedAmount || item.utilizedBudget || 0);
-          return {
-            id: String(item.id || "BDG-" + Date.now()),
-            categoryName: bName,
-            academicYear: item.academicYear || "2025-2026",
-            branch: item.branch || "Main Campus",
-            allocatedAmount: alloc,
-            consumedAmount: cons,
-            remainingAmount: Math.max(0, alloc - cons),
-            status: cons > alloc ? "Exceeded" : "Active"
-          };
-        }));
+        setFinancialBudgets(
+          apiBudgets.map((item: any) => {
+            const bName = item.categoryName || item.department || "";
+            const alloc = Number(
+              item.allocatedAmount || item.allocatedBudget || 0,
+            );
+            const cons = Number(
+              item.consumedAmount || item.utilizedBudget || 0,
+            );
+            return {
+              id: String(item.id || "BDG-" + Date.now()),
+              categoryName: bName,
+              academicYear: item.academicYear || "2025-2026",
+              branch: item.branch || "Main Campus",
+              allocatedAmount: alloc,
+              consumedAmount: cons,
+              remainingAmount: Math.max(0, alloc - cons),
+              status: cons > alloc ? "Exceeded" : "Active",
+            };
+          }),
+        );
       } catch (err) {
         console.warn("Failed to fetch finance data from API", err);
       } finally {
@@ -6168,17 +6098,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const res: any = await fetchSchoolSettingsApi();
         const data = res?.data || res;
-        if (data && (data.schoolName !== undefined || data.logoUrl !== undefined || data.address !== undefined)) {
+        if (
+          data &&
+          (data.schoolName !== undefined ||
+            data.logoUrl !== undefined ||
+            data.address !== undefined)
+        ) {
           setSchoolProfile((prev) => {
             const next = {
               ...prev,
               name: data.schoolName || data.name || prev.name,
-              tagline: data.tagline !== undefined ? data.tagline : (data.motto || prev.tagline),
+              tagline:
+                data.tagline !== undefined
+                  ? data.tagline
+                  : data.motto || prev.tagline,
               address: data.address !== undefined ? data.address : prev.address,
               phone: data.phone !== undefined ? data.phone : prev.phone,
               email: data.email !== undefined ? data.email : prev.email,
-              website: data.website !== undefined ? data.website : (data.websiteUrl || prev.website),
-              principalName: data.principalName !== undefined ? data.principalName : prev.principalName,
+              website:
+                data.website !== undefined
+                  ? data.website
+                  : data.websiteUrl || prev.website,
+              principalName:
+                data.principalName !== undefined
+                  ? data.principalName
+                  : prev.principalName,
               logoUrl: data.logoUrl !== undefined ? data.logoUrl : prev.logoUrl,
             };
             try {
@@ -6198,18 +6142,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         }
       } catch (err) {
-        console.warn("Failed to fetch school branding from backend database:", err);
+        console.warn(
+          "Failed to fetch school branding from backend database:",
+          err,
+        );
       }
     };
     loadSchoolSettingsFromDb();
 
     const handleProfileUpdate = () => {
       try {
-        const stored = localStorage.getItem("edu_db_profile") || localStorage.getItem("profile");
+        const stored =
+          localStorage.getItem("edu_db_profile") ||
+          localStorage.getItem("profile");
         if (stored) {
           const parsed = JSON.parse(stored);
-          const schoolLogo = localStorage.getItem("school_logo") ?? parsed.logoUrl ?? "";
-          setSchoolProfile(prev => ({ ...prev, ...parsed, logoUrl: schoolLogo }));
+          const schoolLogo =
+            localStorage.getItem("school_logo") ?? parsed.logoUrl ?? "";
+          setSchoolProfile((prev) => ({
+            ...prev,
+            ...parsed,
+            logoUrl: schoolLogo,
+          }));
         }
       } catch (e) {}
     };
@@ -6247,14 +6201,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (!skipApiCall) {
       const targetClass = academicClasses.find(
-        (c) => c.name === newStudent.className || c.name === `Class ${newStudent.className}` || c.name.replace("Class ", "") === (newStudent.className || "").replace("Class ", "")
+        (c) =>
+          c.name === newStudent.className ||
+          c.name === `Class ${newStudent.className}` ||
+          c.name.replace("Class ", "") ===
+            (newStudent.className || "").replace("Class ", ""),
       );
       const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
 
       let targetSectionId: number | undefined = undefined;
-      if (newStudent.section && newStudent.section !== "Unassigned" && targetClass) {
+      if (
+        newStudent.section &&
+        newStudent.section !== "Unassigned" &&
+        targetClass
+      ) {
         const cleanSecName = newStudent.section.replace("Section ", "").trim();
-        const secDetail = (targetClass as any).sectionDetails?.[cleanSecName] || (targetClass as any).sectionDetails?.[newStudent.section];
+        const secDetail =
+          (targetClass as any).sectionDetails?.[cleanSecName] ||
+          (targetClass as any).sectionDetails?.[newStudent.section];
         if (secDetail?.id) {
           targetSectionId = parseInt(secDetail.id);
         }
@@ -6329,14 +6293,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isNaN(numericId) && oldStudent) {
       const fullStudent = { ...oldStudent, ...updates };
       const targetClass = academicClasses.find(
-        (c) => c.name === fullStudent.className || c.name === `Class ${fullStudent.className}` || c.name.replace("Class ", "") === (fullStudent.className || "").replace("Class ", "")
+        (c) =>
+          c.name === fullStudent.className ||
+          c.name === `Class ${fullStudent.className}` ||
+          c.name.replace("Class ", "") ===
+            (fullStudent.className || "").replace("Class ", ""),
       );
       const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
 
       let targetSectionId: number | undefined = undefined;
-      if (fullStudent.section && fullStudent.section !== "Unassigned" && targetClass) {
+      if (
+        fullStudent.section &&
+        fullStudent.section !== "Unassigned" &&
+        targetClass
+      ) {
         const cleanSecName = fullStudent.section.replace("Section ", "").trim();
-        const secDetail = (targetClass as any).sectionDetails?.[cleanSecName] || (targetClass as any).sectionDetails?.[fullStudent.section];
+        const secDetail =
+          (targetClass as any).sectionDetails?.[cleanSecName] ||
+          (targetClass as any).sectionDetails?.[fullStudent.section];
         if (secDetail?.id) {
           targetSectionId = parseInt(secDetail.id);
         }
@@ -6369,7 +6343,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updates, className: targetClassName } : s)),
+      prev.map((s) =>
+        s.id === id ? { ...s, ...updates, className: targetClassName } : s,
+      ),
     );
 
     if ((updates as any).feeCalculationMethod || (updates as any).feePolicy) {
@@ -6436,10 +6412,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         gender: targetStudent.gender || "Male",
         fatherName: targetStudent.parentName || "",
         fatherMobile:
-          (targetStudent as any).parentPhone || (targetStudent as any).mobile || "",
+          (targetStudent as any).parentPhone ||
+          (targetStudent as any).mobile ||
+          "",
         email: targetStudent.email || undefined,
         mobileNumber:
-          (targetStudent as any).parentPhone || (targetStudent as any).mobile || "",
+          (targetStudent as any).parentPhone ||
+          (targetStudent as any).mobile ||
+          "",
         address: targetStudent.address || "",
         branchId: 1,
         academicYearId: 1,
@@ -6450,7 +6430,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         .then(() => {
           fetchStudents();
         })
-        .catch((err) => console.error("Failed to persist promoted student", err));
+        .catch((err) =>
+          console.error("Failed to persist promoted student", err),
+        );
     }
 
     setStudents((prev) =>
@@ -6654,7 +6636,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (String(ta.teacherId) !== String(teacher.id)) return true;
         const classSecKey = `${ta.className}-${ta.section}`;
         const hasClass = classes.some((c) => norm(c) === norm(classSecKey));
-        const hasSubject = subjects.length === 0 || subjects.some((s) => s.toLowerCase() === ta.subject?.toLowerCase());
+        const hasSubject =
+          subjects.length === 0 ||
+          subjects.some((s) => s.toLowerCase() === ta.subject?.toLowerCase());
         return hasClass && hasSubject;
       });
 
@@ -6665,7 +6649,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const section = parts[1]?.trim() || "A";
 
         // If teacher is eligible as class teacher, upsert Class Teacher role
-        if (teacher.isClassTeacherEligible || (teacher.designation && teacher.designation.toLowerCase().includes("class teacher"))) {
+        if (
+          teacher.isClassTeacherEligible ||
+          (teacher.designation &&
+            teacher.designation.toLowerCase().includes("class teacher"))
+        ) {
           const existingCtIdx = next.findIndex(
             (ta) =>
               norm(ta.className) === norm(className) &&
@@ -6744,7 +6732,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           matchingClassSecs.forEach((cs) => {
             const parts = cs.split("-");
             const secLetter = parts[1]?.trim() || "A";
-            if (teacher.isClassTeacherEligible || !currentSecTeachers[secLetter]) {
+            if (
+              teacher.isClassTeacherEligible ||
+              !currentSecTeachers[secLetter]
+            ) {
               currentSecTeachers[secLetter] = teacherFullName;
             }
           });
@@ -6755,7 +6746,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           let subjectsChanged = false;
 
           subjects.forEach((subject) => {
-            if (!existingSubjects.some((s) => s.toLowerCase() === subject.toLowerCase())) {
+            if (
+              !existingSubjects.some(
+                (s) => s.toLowerCase() === subject.toLowerCase(),
+              )
+            ) {
               existingSubjects.push(subject);
               subjectsChanged = true;
             }
@@ -6774,7 +6769,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return cls;
       });
 
-      localStorage.setItem("edu_db_academic_classes", JSON.stringify(nextClasses));
+      localStorage.setItem(
+        "edu_db_academic_classes",
+        JSON.stringify(nextClasses),
+      );
       return nextClasses;
     });
 
@@ -6809,7 +6807,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         });
 
-        if (teacher.isClassTeacherEligible || (teacher.designation && teacher.designation.toLowerCase().includes("class teacher"))) {
+        if (
+          teacher.isClassTeacherEligible ||
+          (teacher.designation &&
+            teacher.designation.toLowerCase().includes("class teacher"))
+        ) {
           assignTeacherApi(classObj.id, secLetter, {
             teacher_id: String(teacher.id),
             role: "Class Teacher",
@@ -6822,7 +6824,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addStaff = (staffData: Omit<Staff, "id">): Staff => {
-    const assignedEmpId = staffData.empId || generateNextEmployeeId(staff, staffData.employeeCategory);
+    const assignedEmpId =
+      staffData.empId ||
+      generateNextEmployeeId(staff, staffData.employeeCategory);
     const id = assignedEmpId;
     const newStaff: Staff = {
       ...staffData,
@@ -6874,14 +6878,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       assignedSubjects: staffData.assignedSubjects || [],
       qualifications: (staffData.qualifications || []).map((q: any) => ({
         qualificationDegree: q.qualification || q.qualificationDegree || "",
-        specializationSubject: q.specialization || q.specializationSubject || "",
+        specializationSubject:
+          q.specialization || q.specializationSubject || "",
         institutionCollege: q.institution || q.institutionCollege || "",
         boardUniversity: q.boardUniversity || q.university || "",
         passingYear: (q.passingYear || q.year || "").toString(),
         percentageCgpa: (q.percentageCgpa || q.percentage || "").toString(),
       })),
       experienceRecords: (staffData.experienceRecords || []).map((e: any) => ({
-        previousOrganization: e.previousOrganization || e.school || e.organization || "",
+        previousOrganization:
+          e.previousOrganization || e.school || e.organization || "",
         designationHeld: e.designationHeld || e.designation || e.role || "",
         fromDate: e.fromDate || null,
         toDate: e.toDate || null,
@@ -6890,16 +6896,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       })),
       documents: (staffData.documents || []).map((d: any) => ({
         documentTitle: d.title || d.fileName || d.name || "",
-        documentType: d.documentType || d.docType || d.type || d.title || "Document",
+        documentType:
+          d.documentType || d.docType || d.type || d.title || "Document",
         fileUrl: d.fileUrl || "",
         isRequired: d.isRequired ?? true,
         status: d.status || "Attached",
-        uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
+        uploadedAt:
+          d.uploadedAt ||
+          d.uploadDate ||
+          d.uploadedDate ||
+          new Date().toISOString(),
       })),
     })
       .then((response) => {
         if (response && response.success && response.data) {
-          const actualId = response.data.staffId?.toString() || response.data.id?.toString() || newStaff.id;
+          const actualId =
+            response.data.staffId?.toString() ||
+            response.data.id?.toString() ||
+            newStaff.id;
           setStaff((prev) =>
             prev.map((s) =>
               s.empId === newStaff.empId
@@ -6981,33 +6995,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           assignedSubjects: fullStaff.assignedSubjects || [],
           qualifications: (fullStaff.qualifications || []).map((q: any) => ({
             qualificationDegree: q.qualification || q.qualificationDegree || "",
-            specializationSubject: q.specialization || q.specializationSubject || "",
+            specializationSubject:
+              q.specialization || q.specializationSubject || "",
             institutionCollege: q.institution || q.institutionCollege || "",
             boardUniversity: q.boardUniversity || q.university || "",
             passingYear: (q.passingYear || q.year || "").toString(),
             percentageCgpa: (q.percentageCgpa || q.percentage || "").toString(),
           })),
-          experienceRecords: (fullStaff.experienceRecords || []).map((e: any) => ({
-            previousOrganization: e.previousOrganization || e.school || e.organization || "",
-            designationHeld: e.designationHeld || e.designation || e.role || "",
-            fromDate: e.fromDate || null,
-            toDate: e.toDate || null,
-            totalExperience: e.totalExperience || "",
-            reasonForLeaving: e.reasonForLeaving || "",
-          })),
+          experienceRecords: (fullStaff.experienceRecords || []).map(
+            (e: any) => ({
+              previousOrganization:
+                e.previousOrganization || e.school || e.organization || "",
+              designationHeld:
+                e.designationHeld || e.designation || e.role || "",
+              fromDate: e.fromDate || null,
+              toDate: e.toDate || null,
+              totalExperience: e.totalExperience || "",
+              reasonForLeaving: e.reasonForLeaving || "",
+            }),
+          ),
           documents: (fullStaff.documents || []).map((d: any) => ({
             documentTitle: d.title || d.fileName || d.name || "",
-            documentType: d.documentType || d.docType || d.type || d.title || "Document",
+            documentType:
+              d.documentType || d.docType || d.type || d.title || "Document",
             fileUrl: d.fileUrl || "",
             isRequired: d.isRequired ?? true,
             status: d.status || "Attached",
-            uploadedAt: d.uploadedAt || d.uploadDate || d.uploadedDate || new Date().toISOString(),
+            uploadedAt:
+              d.uploadedAt ||
+              d.uploadDate ||
+              d.uploadedDate ||
+              new Date().toISOString(),
           })),
-        }).then(() => {
-          fetchAcademicClasses();
-        }).catch((err) => {
-          console.error("Failed to update staff in backend", err);
-        });
+        })
+          .then(() => {
+            fetchAcademicClasses();
+          })
+          .catch((err) => {
+            console.error("Failed to update staff in backend", err);
+          });
       }
     }
 
@@ -7438,7 +7464,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     const signature = `${(appData.applicantName || "").toLowerCase().trim()}_${(appData.phone || "").trim()}_${(appData.appliedClass || "").toLowerCase().trim()}`;
     if (signature.length > 5 && inFlightAdmissionSubmissions.has(signature)) {
-      console.warn(`[addAdmission] Duplicate submission blocked for signature: ${signature}`);
+      console.warn(
+        `[addAdmission] Duplicate submission blocked for signature: ${signature}`,
+      );
       return null;
     }
     if (signature.length > 5) inFlightAdmissionSubmissions.add(signature);
@@ -7447,7 +7475,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       let isoDob = new Date().toISOString();
       if (appData.dob) {
         if ((appData.dob as any) instanceof Date) {
-          if (!isNaN((appData.dob as any).getTime())) isoDob = (appData.dob as any).toISOString();
+          if (!isNaN((appData.dob as any).getTime()))
+            isoDob = (appData.dob as any).toISOString();
         } else if (typeof appData.dob === "number") {
           const utcDays = Math.floor(appData.dob - 25569);
           const parsed = new Date(utcDays * 86400 * 1000);
@@ -7496,7 +7525,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           c.name?.toLowerCase().trim() ===
           appData.appliedClass?.toLowerCase().trim(),
       );
-      const appliedClassId = matchedClass ? Number(String(matchedClass.id).replace(/\D/g, "")) : 1;
+      const appliedClassId = matchedClass
+        ? Number(String(matchedClass.id).replace(/\D/g, ""))
+        : 1;
 
       const payload = {
         applicantFullName: appData.applicantName || "",
@@ -7511,8 +7542,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fatherFullName: appData.parentName || "",
         motherFullName: appData.motherName || "",
         fatherMobileNo: appData.phone || "",
-        motherMobileNumber: (appData as any).motherPhone || (appData as any).motherMobileNumber || "",
-        alternateMobileNumber: (appData as any).alternatePhone || (appData as any).alternateMobileNumber || "",
+        motherMobileNumber:
+          (appData as any).motherPhone ||
+          (appData as any).motherMobileNumber ||
+          "",
+        alternateMobileNumber:
+          (appData as any).alternatePhone ||
+          (appData as any).alternateMobileNumber ||
+          "",
         email: appData.email || (appData as any).parentEmail || "",
         parentEmail: appData.email || (appData as any).parentEmail || "",
         houseNo: appData.addressHouseNo || "",
@@ -7543,6 +7580,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const json = await createAdmissionApi(payload);
 
+      const createdApp: AdmissionApplication = {
+        id:
+          json?.data?.applicationId?.toString() ||
+          json?.data?.id?.toString() ||
+          "ADM-" + Date.now(),
+        applicationNo:
+          json?.data?.registrationNo ||
+          "REG-" + Math.floor(1000 + Math.random() * 9000),
+        registrationNo:
+          json?.data?.registrationNo ||
+          "REG-" + Math.floor(1000 + Math.random() * 9000),
+        applicantName: appData.applicantName,
+        appliedClass: appData.appliedClass,
+        gender: appData.gender || "Male",
+        dob: appData.dob || "",
+        bloodGroup: appData.bloodGroup || "O+",
+        religion: appData.religion || "General",
+        casteCategory: appData.casteCategory || "General",
+        parentName: appData.parentName,
+        motherName: appData.motherName || "N/A",
+        phone: appData.phone,
+        email: appData.email || "",
+        addressHouseNo: appData.addressHouseNo,
+        addressStreet: appData.addressStreet,
+        addressArea: appData.addressArea,
+        addressCity: appData.addressCity,
+        addressDistrict: appData.addressDistrict,
+        addressState: appData.addressState,
+        addressPinCode: appData.addressPinCode,
+        hasSiblings: appData.hasSiblings,
+        siblingsCount: appData.siblingsCount || 0,
+        siblingDetails: appData.siblingDetails || [],
+        siblingStudentId: appData.siblingStudentId || "",
+        siblingStudentIds: appData.siblingStudentIds || [],
+        studentType: appData.studentType || "Day Scholar",
+        transportRequired: appData.transportRequired,
+        transportType: appData.transportType,
+        busRoute: appData.busRoute,
+        pickupPoint: appData.pickupPoint,
+        dropPoint: appData.dropPoint,
+        hostelBlock: appData.hostelBlock,
+        floor: appData.floor,
+        hostelRoom: appData.hostelRoom,
+        hostelBed: appData.hostelBed,
+        branch: appData.branch || selectedBranch || "Main Campus",
+        scholarshipId: appData.scholarshipId,
+        discountId: appData.discountId,
+        selectedOptionalFees: appData.selectedOptionalFees || [],
+        submissionDate: new Date().toISOString().split("T")[0],
+        status: "Pending",
+        documentsSubmitted: appData.documentsSubmitted || [],
+      };
+
+      savePersistedOptionalFees(
+        createdApp.id,
+        createdApp.registrationNo,
+        appData.applicantName,
+        appData.phone,
+        appData.selectedOptionalFees || [],
+      );
+
+      setAdmissions((prev) => [
+        createdApp,
+        ...prev.filter((a) => a.id !== createdApp.id),
+      ]);
+
       if (json && json.success !== false) {
         const createdApp: AdmissionApplication = {
           id:
@@ -7564,7 +7667,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           createdApp.registrationNo,
           appData.applicantName,
           appData.phone,
-          appData.selectedOptionalFees || []
+          appData.selectedOptionalFees || [],
         );
 
         setAdmissions((prev) => [
@@ -7608,7 +7711,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return null;
     } finally {
       setTimeout(() => {
-        if (signature.length > 5) inFlightAdmissionSubmissions.delete(signature);
+        if (signature.length > 5)
+          inFlightAdmissionSubmissions.delete(signature);
       }, 3000);
     }
   };
@@ -7643,7 +7747,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           c.name?.toLowerCase().trim() ===
           appData.appliedClass?.toLowerCase().trim(),
       );
-      const appliedClassId = matchedClass ? Number(String(matchedClass.id).replace(/\D/g, "")) : 1;
+      const appliedClassId = matchedClass
+        ? Number(String(matchedClass.id).replace(/\D/g, ""))
+        : 1;
 
       const payload = {
         applicantFullName: appData.applicantName || "",
@@ -7658,8 +7764,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fatherFullName: appData.parentName || "",
         motherFullName: appData.motherName || "",
         fatherMobileNo: appData.phone || "",
-        motherMobileNumber: (appData as any).motherPhone || (appData as any).motherMobileNumber || "",
-        alternateMobileNumber: (appData as any).alternatePhone || (appData as any).alternateMobileNumber || "",
+        motherMobileNumber:
+          (appData as any).motherPhone ||
+          (appData as any).motherMobileNumber ||
+          "",
+        alternateMobileNumber:
+          (appData as any).alternatePhone ||
+          (appData as any).alternateMobileNumber ||
+          "",
         email: appData.email || (appData as any).parentEmail || "",
         parentEmail: appData.email || (appData as any).parentEmail || "",
         houseNo: appData.addressHouseNo || "",
@@ -7696,7 +7808,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         appData.registrationNo,
         appData.applicantName,
         appData.phone,
-        appData.selectedOptionalFees || []
+        appData.selectedOptionalFees || [],
       );
 
       setAdmissions((prev) =>
@@ -7707,10 +7819,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setStudents((prev) =>
         prev.map((s) => {
           const isMatch =
-            (appData.applicationNo && (s.admissionNo === appData.applicationNo || (s as any).registrationNumber === appData.applicationNo)) ||
-            (appData.id && (s.id === appData.id || s.admissionNo === `ADM-${appData.id}`)) ||
-            (s.firstName?.toLowerCase() === appData.applicantName?.toLowerCase().split(" ")[0] && 
-             s.parentName?.toLowerCase() === appData.parentName?.toLowerCase());
+            (appData.applicationNo &&
+              (s.admissionNo === appData.applicationNo ||
+                (s as any).registrationNumber === appData.applicationNo)) ||
+            (appData.id &&
+              (s.id === appData.id || s.admissionNo === `ADM-${appData.id}`)) ||
+            (s.firstName?.toLowerCase() ===
+              appData.applicantName?.toLowerCase().split(" ")[0] &&
+              s.parentName?.toLowerCase() ===
+                appData.parentName?.toLowerCase());
 
           if (isMatch) {
             return {
@@ -7761,12 +7878,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!app) return null;
 
     if (status === "Enrolled" && app.status === "Enrolled") {
-      console.warn(`[updateAdmissionStatus] Application ${id} is already enrolled.`);
+      console.warn(
+        `[updateAdmissionStatus] Application ${id} is already enrolled.`,
+      );
       return null;
     }
 
     if (inFlightStatusUpdates.has(id)) {
-      console.warn(`[updateAdmissionStatus] Status update already in progress for application ${id}`);
+      console.warn(
+        `[updateAdmissionStatus] Status update already in progress for application ${id}`,
+      );
       return null;
     }
     inFlightStatusUpdates.add(id);
@@ -8510,7 +8631,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const updatePeriodSetting = async (id: string, updates: Partial<PeriodSetting>) => {
+  const updatePeriodSetting = async (
+    id: string,
+    updates: Partial<PeriodSetting>,
+  ) => {
     // Check duplicate if updates contains fields that can duplicate
     if (
       updates.periodName ||
@@ -8649,21 +8773,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const bulkAddPeriodSettings = (newPeriods: PeriodSetting[]) => {
+    if (!newPeriods || newPeriods.length === 0) return;
     setPeriodSettings((prev) => {
-      const existingKeys = new Set(
-        prev.map(
-          (p) => `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`
-        )
+      const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+      const hasMaster = newPeriods.some(
+        (p) => !p.className || p.className === "Master" || p.className === "All",
       );
-      const toAdd = newPeriods.filter(
-        (p) =>
-          !existingKeys.has(
-            `${p.className || ""}-${p.section || ""}-${p.periodName.trim().toLowerCase()}-${p.sequence}-${p.startTime}-${p.endTime}`
-          )
+
+      const targetClassSections = new Set(
+        newPeriods
+          .filter((p) => p.className && p.className !== "Master" && p.className !== "All")
+          .map((p) => `${norm(p.className)}-${norm(p.section)}`)
       );
-      const updated = [...prev, ...toAdd];
+
+      const filtered = prev.filter((p) => {
+        if (hasMaster && (!p.className || p.className === "Master" || p.className === "All")) {
+          return false;
+        }
+        if (p.className) {
+          const key = `${norm(p.className)}-${norm(p.section)}`;
+          if (targetClassSections.has(key)) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      const updated = [...filtered, ...newPeriods];
       try {
-        localStorage.setItem("edu_db_period_settings", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_period_settings",
+          JSON.stringify(updated),
+        );
       } catch (e) {}
       return updated;
     });
@@ -8725,7 +8866,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const id = "UNI-" + Date.now();
     const createdAt = new Date().toISOString();
     const catName = itemData.category || itemData.name || "Uniform Item";
-    const stockVal = itemData.availableStock !== undefined ? Number(itemData.availableStock) : (itemData.openingStock !== undefined ? Number((itemData as any).openingStock) : 150);
+    const stockVal =
+      itemData.availableStock !== undefined
+        ? Number(itemData.availableStock)
+        : itemData.openingStock !== undefined
+          ? Number((itemData as any).openingStock)
+          : 150;
     const newItem: UniformItem = {
       ...itemData,
       id,
@@ -8742,24 +8888,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     if (catName) {
-      setUniformCategories((prevCats) => {
-        const catNorm = catName.toLowerCase().trim();
-        if (!prevCats.some(c => (c.name || (c as any).categoryName || '').toLowerCase().trim() === catNorm)) {
-          const newCat: UniformCategory = {
-            id: `UC-${Date.now()}`,
-            name: catName,
-            categoryName: catName,
-            description: `${catName} uniform item / package category`
-          };
-          const updatedCats = [...prevCats, newCat];
-          try {
-            localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
-            localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
-          } catch (e) {}
-          return updatedCats;
-        }
-        return prevCats;
-      });
+      const lower = catName.toLowerCase().trim();
+      const isPkg =
+        itemData.isPackage ||
+        lower.includes("package") ||
+        lower.includes("kit") ||
+        (lower.includes("base") && (lower.includes("boys") || lower.includes("girls")));
+
+      if (!isPkg) {
+        setUniformCategories((prevCats) => {
+          const catNorm = catName.toLowerCase().trim();
+          if (
+            !prevCats.some(
+              (c) =>
+                (c.name || (c as any).categoryName || "").toLowerCase().trim() ===
+                catNorm,
+            )
+          ) {
+            const newCat: UniformCategory = {
+              id: `UC-${Date.now()}`,
+              name: catName,
+              categoryName: catName,
+              description: `${catName} uniform category`,
+            };
+            const updatedCats = [...prevCats, newCat];
+            try {
+              localStorage.setItem(
+                "edu_db_uniform_categories",
+                JSON.stringify(updatedCats),
+              );
+              localStorage.setItem(
+                "uniform_categories",
+                JSON.stringify(updatedCats),
+              );
+            } catch (e) {}
+            return updatedCats;
+          }
+          return prevCats;
+        });
+      }
     }
 
     // Automatically sync with uniformInventory so Dashboard Available Stock updates immediately
@@ -8865,45 +9032,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteUniform = async (id: string) => {
     setUniforms((prev) => {
       const targetItem = prev.find((u) => u.id === id);
-      const targetName = (targetItem?.category || targetItem?.name || "")
-        .toLowerCase()
-        .trim();
+      const targetName = (targetItem?.category || targetItem?.name || "").toLowerCase().trim();
+      const targetSize = (targetItem?.size || (targetItem as any)?.meterRange || "").toLowerCase().trim();
       const updatedU = prev.filter((u) => u.id !== id);
+
       try {
         localStorage.setItem("edu_db_uniforms", JSON.stringify(updatedU));
+        localStorage.setItem("uniforms", JSON.stringify(updatedU));
       } catch (e) {}
 
-      if (targetName) {
-        setUniformCategories((prevCats) => {
-          const updatedCats = prevCats.filter(
-            (c) =>
-              (c.name || (c as any).categoryName || "").toLowerCase().trim() !==
-              targetName,
-          );
-          try {
-            localStorage.setItem(
-              "edu_db_uniform_categories",
-              JSON.stringify(updatedCats),
-            );
-          } catch (e) {}
-          return updatedCats;
+      setUniformInventory((prevInv) => {
+        const updatedInv = prevInv.filter((inv) => {
+          if (inv.itemId === id || inv.id === id) return false;
+          const invName = (inv.itemName || inv.category || "").toLowerCase().trim();
+          const invSize = (inv.size || (inv as any).meterRange || "").toLowerCase().trim();
+          if (targetName && targetSize && invName === targetName && invSize === targetSize) return false;
+          return true;
         });
 
-        setUniformInventory((prevInv) => {
-          const updatedInv = prevInv.filter(
-            (inv) =>
-              (inv.itemName || inv.category || "").toLowerCase().trim() !==
-              targetName,
+        try {
+          localStorage.setItem(
+            "edu_db_uniform_inventory",
+            JSON.stringify(updatedInv),
           );
-          try {
-            localStorage.setItem(
-              "edu_db_uniform_inventory",
-              JSON.stringify(updatedInv),
-            );
-          } catch (e) {}
-          return updatedInv;
-        });
-      }
+          localStorage.setItem(
+            "uniform_inventory",
+            JSON.stringify(updatedInv),
+          );
+        } catch (e) {}
+        return updatedInv;
+      });
 
       return updatedU;
     });
@@ -9343,20 +9501,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: newTxn.branch,
       academicYear: newTxn.academicYear,
       notes: newTxn.notes || "",
-      attachmentName: (newTxn.attachments && newTxn.attachments[0]) || ""
-    }).then((apiRes) => {
-      if (apiRes?.data?.id) {
-        setFinanceTransactions((prev) =>
-          prev.map((t) =>
-            t.transactionId === transactionId
-              ? { ...t, id: String(apiRes.data.id), transactionId: apiRes.data.transactionId || t.transactionId }
-              : t
-          )
-        );
-      }
-    }).catch((err) => {
-      console.warn("Backend add finance transaction fallback", err);
-    });
+      attachmentName: (newTxn.attachments && newTxn.attachments[0]) || "",
+    })
+      .then((apiRes) => {
+        if (apiRes?.data?.id) {
+          setFinanceTransactions((prev) =>
+            prev.map((t) =>
+              t.transactionId === transactionId
+                ? {
+                    ...t,
+                    id: String(apiRes.data.id),
+                    transactionId: apiRes.data.transactionId || t.transactionId,
+                  }
+                : t,
+            ),
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend add finance transaction fallback", err);
+      });
 
     // Update Account Balance
     setFinancialAccounts((prev) =>
@@ -9415,9 +9579,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           // Backend API sync
           const numId = parseInt(t.id, 10);
           if (!isNaN(numId)) {
-            FinanceAPI.reverseFinanceTransactionApi(numId, reason).catch((err) => {
-              console.warn("Backend reverse transaction fallback", err);
-            });
+            FinanceAPI.reverseFinanceTransactionApi(numId, reason).catch(
+              (err) => {
+                console.warn("Backend reverse transaction fallback", err);
+              },
+            );
           }
 
           // Offset Account Balance
@@ -9472,16 +9638,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branchName: newAcc.branchName || "",
       currentBalance: newAcc.currentBalance,
       currency: newAcc.currency || "INR",
-      status: newAcc.status || "Active"
-    }).then((apiRes) => {
-      if (apiRes?.data?.id) {
-        setFinancialAccounts((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, id: String(apiRes.data.id) } : a))
-        );
-      }
-    }).catch((err) => {
-      console.warn("Backend add financial account fallback", err);
-    });
+      status: newAcc.status || "Active",
+    })
+      .then((apiRes) => {
+        if (apiRes?.data?.id) {
+          setFinancialAccounts((prev) =>
+            prev.map((a) =>
+              a.id === id ? { ...a, id: String(apiRes.data.id) } : a,
+            ),
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend add financial account fallback", err);
+      });
 
     logActivity(
       "Created Financial Account",
@@ -9499,9 +9669,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const updated = { ...a, ...updates };
           const numId = parseInt(id, 10);
           if (!isNaN(numId)) {
-            FinanceAPI.updateFinancialAccountApi(numId, updated).catch((err) => {
-              console.warn("Backend update financial account fallback", err);
-            });
+            FinanceAPI.updateFinancialAccountApi(numId, updated).catch(
+              (err) => {
+                console.warn("Backend update financial account fallback", err);
+              },
+            );
           }
           return updated;
         }
@@ -9523,16 +9695,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       type: newCat.type,
       sourceModule: newCat.sourceModule || "Manual",
       status: newCat.status || "Active",
-      isSystem: newCat.isSystem || false
-    }).then((apiRes) => {
-      if (apiRes?.data?.id) {
-        setFinancialCategories((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, id: String(apiRes.data.id) } : c))
-        );
-      }
-    }).catch((err) => {
-      console.warn("Backend add financial category fallback", err);
-    });
+      isSystem: newCat.isSystem || false,
+    })
+      .then((apiRes) => {
+        if (apiRes?.data?.id) {
+          setFinancialCategories((prev) =>
+            prev.map((c) =>
+              c.id === id ? { ...c, id: String(apiRes.data.id) } : c,
+            ),
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend add financial category fallback", err);
+      });
 
     logActivity(
       "Created Financial Category",
@@ -9550,9 +9726,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const updated = { ...c, ...updates };
           const numId = parseInt(id, 10);
           if (!isNaN(numId)) {
-            FinanceAPI.updateFinancialCategoryApi(numId, updated).catch((err) => {
-              console.warn("Backend update category fallback", err);
-            });
+            FinanceAPI.updateFinancialCategoryApi(numId, updated).catch(
+              (err) => {
+                console.warn("Backend update category fallback", err);
+              },
+            );
           }
           return updated;
         }
@@ -9582,7 +9760,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               branch: b.branch,
               allocatedAmount,
               consumedAmount: b.consumedAmount,
-              status: updated.status
+              status: updated.status,
             }).catch((err) => {
               console.warn("Backend update budget fallback", err);
             });
@@ -9864,7 +10042,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Pro-rata / Monthly pro-rated multiplier calculation
     let proRataFactor = 1.0;
-    if ((feePolicy === "Pro-rata" || feePolicy === "Monthly Pro-rated Fee" || feePolicy === "Monthly Pro-rated" || (feePolicy as string) === "Monthly") && admissionDate) {
+    if (
+      (feePolicy === "Pro-rata" ||
+        feePolicy === "Monthly Pro-rated Fee" ||
+        feePolicy === "Monthly Pro-rated" ||
+        (feePolicy as string) === "Monthly") &&
+      admissionDate
+    ) {
       const admMonth = new Date(admissionDate).getMonth() + 1; // 1-12
       // Standard academic year June (6) to May (5) = 12 months
       const remainingMonths = Math.max(
@@ -9872,7 +10056,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         12 - (admMonth >= 6 ? admMonth - 6 : admMonth + 6),
       );
       proRataFactor = remainingMonths / 12;
-    } else if ((feePolicy === "Term-wise" || feePolicy === "Term-wise Fee") && admissionDate) {
+    } else if (
+      (feePolicy === "Term-wise" || feePolicy === "Term-wise Fee") &&
+      admissionDate
+    ) {
       const admMonth = new Date(admissionDate).getMonth() + 1;
       proRataFactor = admMonth <= 9 ? 0.67 : 0.33;
     }
@@ -9898,7 +10085,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         isProRataEligible = true;
       }
 
-      if ((feePolicy === "Custom" || feePolicy === "Custom Amount") && customBreakdown) {
+      if (
+        (feePolicy === "Custom" || feePolicy === "Custom Amount") &&
+        customBreakdown
+      ) {
         const found = customBreakdown.find(
           (c) =>
             c.feeHeadId === item.feeHeadId ||
@@ -9976,7 +10166,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         admissionDate,
         adjustmentReason,
         totalAmount: assignedTotal,
-        breakdown: finalBreakdown
+        breakdown: finalBreakdown,
       });
     } catch (err) {
       console.warn("API failed, using local", err);
@@ -10007,7 +10197,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await FinanceAPI.bulkAssignStudentFeesApi({
         studentIds,
-        dynamicFeeStructureId: feeStructureId
+        dynamicFeeStructureId: feeStructureId,
       });
     } catch (err) {
       console.warn("Bulk assignment API failed, using local", err);
@@ -10455,16 +10645,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       securityDeposit: newC.securityDeposit,
       effectiveFrom: newC.effectiveFrom,
       status: newC.status,
-    }).then((res: any) => {
-      const apiItem = res?.data || res;
-      if (apiItem && apiItem.id) {
-        setFinanceHostelConfigs((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, id: String(apiItem.id) } : c)),
-        );
-      }
-    }).catch((err) => {
-      console.warn("Failed to persist hostel fee config to API:", err);
-    });
+    })
+      .then((res: any) => {
+        const apiItem = res?.data || res;
+        if (apiItem && apiItem.id) {
+          setFinanceHostelConfigs((prev) =>
+            prev.map((c) =>
+              c.id === id ? { ...c, id: String(apiItem.id) } : c,
+            ),
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to persist hostel fee config to API:", err);
+      });
   };
 
   const updateFinanceHostelConfig = (
@@ -10554,15 +10748,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ? {
                     ...item,
                     id: String(apiData.id || item.id),
-                    refundNo: apiData.refundNo || apiData.refundRequestId || item.refundNo,
+                    refundNo:
+                      apiData.refundNo ||
+                      apiData.refundRequestId ||
+                      item.refundNo,
                   }
-                : item
-            )
+                : item,
+            ),
           );
         }
       })
       .catch((err) => {
-        console.warn("Backend create refund request fallback to local state", err);
+        console.warn(
+          "Backend create refund request fallback to local state",
+          err,
+        );
       });
   };
 
@@ -10570,7 +10770,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     status: Refund["status"],
     approvedBy = "Admin User",
-    remarks = ""
+    remarks = "",
   ) => {
     setRefunds((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status, approvedBy } : r)),
@@ -10582,7 +10782,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         status,
         remarks: remarks || `Refund ${status} by ${approvedBy}`,
       }).catch((err) => {
-        console.warn("Backend process refund request fallback to local state", err);
+        console.warn(
+          "Backend process refund request fallback to local state",
+          err,
+        );
       });
     }
   };
@@ -10608,7 +10811,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           percentage: updated.taxSettings?.percentage ?? 0,
         },
       }).catch((err) => {
-        console.warn("Backend update finance settings fallback to local state", err);
+        console.warn(
+          "Backend update finance settings fallback to local state",
+          err,
+        );
       });
       return updated;
     });
@@ -10829,32 +11035,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Match FeeHead from master registry as SOURCE OF TRUTH for frequency
       const feeHead = feeHeads.find((fh) => {
         if (!fh) return false;
+        const fhIdStr = fh.id != null ? String(fh.id).toLowerCase() : "";
+        const itemIdStr =
+          item.headId != null ? String(item.headId).toLowerCase() : "";
+        if (itemIdStr && fhIdStr && fhIdStr === itemIdStr) return true;
+
+        const fhNameStr = fh.name != null ? String(fh.name).toLowerCase() : "";
+        const itemNameStr =
+          item.headName != null ? String(item.headName).toLowerCase() : "";
+        if (itemNameStr && fhNameStr && fhNameStr === itemNameStr) return true;
+
+        const fhCatStr =
+          fh.category != null ? String(fh.category).toLowerCase() : "";
+        const itemCatStr =
+          item.category != null ? String(item.category).toLowerCase() : "";
         if (
-          item.headId &&
-          fh.id &&
-          fh.id.toLowerCase() === item.headId.toLowerCase()
+          itemCatStr &&
+          fhCatStr &&
+          (itemCatStr === fhCatStr || itemCatStr.includes(fhCatStr))
         )
           return true;
+
         if (
-          item.headName &&
-          fh.name &&
-          fh.name.toLowerCase() === item.headName.toLowerCase()
+          itemNameStr &&
+          fhNameStr &&
+          (itemNameStr.includes(fhNameStr) || fhNameStr.includes(itemNameStr))
         )
           return true;
-        if (
-          item.category &&
-          fh.category &&
-          (item.category.toLowerCase() === fh.category.toLowerCase() ||
-            item.category.toLowerCase().includes(fh.category.toLowerCase()))
-        )
-          return true;
-        if (
-          item.headName &&
-          fh.name &&
-          (item.headName.toLowerCase().includes(fh.name.toLowerCase()) ||
-            fh.name.toLowerCase().includes(item.headName.toLowerCase()))
-        )
-          return true;
+
         return false;
       });
 
@@ -11611,15 +11819,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           p.pickupName === activeTa.pickupPoint),
     );
     if (rObj && pObj) {
-      const assignment = vehicleAssignments?.find(va => va.routeId === rObj.id);
-      const vehicle = vehicleMasters?.find(v => v.id === assignment?.vehicleId);
+      const assignment = vehicleAssignments?.find(
+        (va) => va.routeId === rObj.id,
+      );
+      const vehicle = vehicleMasters?.find(
+        (v) => v.id === assignment?.vehicleId,
+      );
       const isAC = vehicle ? vehicle.isAC : activeTa.transportType === "AC";
 
       const plan = activeTa.feePlan || "Monthly";
       let assignedFee = 0;
       if (plan === "Monthly" && pObj.monthlyFee && pObj.monthlyFee > 0) {
         assignedFee = pObj.monthlyFee;
-      } else if (plan === "Quarterly" && pObj.quarterlyFee && pObj.quarterlyFee > 0) {
+      } else if (
+        plan === "Quarterly" &&
+        pObj.quarterlyFee &&
+        pObj.quarterlyFee > 0
+      ) {
         assignedFee = pObj.quarterlyFee;
       } else if (
         (plan === "Half Yearly" || plan === "Half-Yearly") &&
@@ -11634,12 +11850,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (assignedFee > 0) return assignedFee;
 
       const baseFare = isAC
-        ? (rObj.acMinBaseFare || (rObj as any).acBaseFare || 0)
-        : (rObj.minBaseFare || (rObj as any).nonAcBaseFare || 0);
+        ? rObj.acMinBaseFare || (rObj as any).acBaseFare || 0
+        : rObj.minBaseFare || (rObj as any).nonAcBaseFare || 0;
       const ratePerKm = isAC
-        ? (rObj.acRatePerKm || 0)
-        : (rObj.ratePerKm || (rObj as any).nonAcRatePerKm || 0);
-      const distance = pObj.distanceFromSchoolKm || (pObj as any).distanceFromStart || 0;
+        ? rObj.acRatePerKm || 0
+        : rObj.ratePerKm || (rObj as any).nonAcRatePerKm || 0;
+      const distance =
+        pObj.distanceFromSchoolKm || (pObj as any).distanceFromStart || 0;
       if (baseFare > 0 || ratePerKm > 0) {
         const monthlyRate = baseFare + distance * ratePerKm;
         const multiplier =
@@ -11781,12 +11998,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     )?.amount;
 
     // Uniform Fee configuration lookup using dynamic class matcher
-    const uniformAmount = getUniformFeeForClass(
-      clsName,
-      student?.gender || "Male",
-      financeUniformConfigs,
-      dynamicFeeStructures,
-    ) || 10000;
+    const uniformAmount =
+      getUniformFeeForClass(
+        clsName,
+        student?.gender || "Male",
+        financeUniformConfigs,
+        dynamicFeeStructures,
+      ) || 10000;
 
     // Helper to identify uniform fee heads
     const isUniformHead = (headName: string) => {
@@ -12546,39 +12764,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     // Method 2: Check pending financeTransactions under 'Uniform' category
-    const extraTxns = (financeTransactions || []).filter(
-      (t) =>
-        t.status === "Pending" &&
-        t.category === "Uniform" &&
-        t.sourceModule === "Uniform" &&
-        (t.description?.toLowerCase().includes(targetId.toLowerCase()) ||
-          (admNo &&
-            t.description?.toLowerCase().includes(admNo.toLowerCase())) ||
-          (student &&
-            t.description
-              ?.toLowerCase()
-              .includes(
-                `${student.firstName.toLowerCase()} ${student.lastName.toLowerCase()}`,
-              )))
-    ).filter((t) => {
-      const descLow = (t.description || "").toLowerCase();
-      const isReturnedIssue = (studentUniformIssues || []).some((i) => {
-        const isStudent =
-          i.studentId === targetId || (admNo && i.admissionNo === admNo);
-        if (!isStudent) return false;
-        const isRet =
-          (i.status as string) === "Returned" ||
-          (i.status as string) === "Cancelled" ||
-          (i.notes || "").toLowerCase().includes("returned");
-        if (!isRet) return false;
-        const itemClean = (i.itemName || i.itemCategory || "")
-          .replace(/\s*\(extra\)/gi, "")
-          .trim()
-          .toLowerCase();
-        return itemClean && itemClean.length > 2 && descLow.includes(itemClean);
+    const extraTxns = (financeTransactions || [])
+      .filter(
+        (t) =>
+          t.status === "Pending" &&
+          t.category === "Uniform" &&
+          t.sourceModule === "Uniform" &&
+          (t.description?.toLowerCase().includes(targetId.toLowerCase()) ||
+            (admNo &&
+              t.description?.toLowerCase().includes(admNo.toLowerCase())) ||
+            (student &&
+              t.description
+                ?.toLowerCase()
+                .includes(
+                  `${student.firstName.toLowerCase()} ${student.lastName.toLowerCase()}`,
+                ))),
+      )
+      .filter((t) => {
+        const descLow = (t.description || "").toLowerCase();
+        const isReturnedIssue = (studentUniformIssues || []).some((i) => {
+          const isStudent =
+            i.studentId === targetId || (admNo && i.admissionNo === admNo);
+          if (!isStudent) return false;
+          const isRet =
+            (i.status as string) === "Returned" ||
+            (i.status as string) === "Cancelled" ||
+            (i.notes || "").toLowerCase().includes("returned");
+          if (!isRet) return false;
+          const itemClean = (i.itemName || i.itemCategory || "")
+            .replace(/\s*\(extra\)/gi, "")
+            .trim()
+            .toLowerCase();
+          return (
+            itemClean && itemClean.length > 2 && descLow.includes(itemClean)
+          );
+        });
+        return !isReturnedIssue;
       });
-      return !isReturnedIssue;
-    });
 
     const totalFromTxns = extraTxns.reduce(
       (sum, t) => sum + (t.amount || 0),
@@ -13340,7 +13562,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           await TransportAPI.deletePickupPointApi(p.id);
         } catch (e) {
-          console.warn("Failed to delete pickup point during route deletion", e);
+          console.warn(
+            "Failed to delete pickup point during route deletion",
+            e,
+          );
         }
       }
 
@@ -13356,7 +13581,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           await TransportAPI.deleteVehicleAssignmentApi(a.id);
         } catch (e) {
-          console.warn("Failed to delete vehicle assignment during route deletion", e);
+          console.warn(
+            "Failed to delete vehicle assignment during route deletion",
+            e,
+          );
         }
       }
 
@@ -13409,12 +13637,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (routeCode ? a.routeName !== routeCode : true) &&
             (routeName ? a.routeName !== routeName : true),
         );
-        localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(next));
+        localStorage.setItem(
+          "edu_db_vehicle_assignments",
+          JSON.stringify(next),
+        );
         return next;
       });
       setStudentTransports((prev) =>
         prev.map((st) =>
-          st.routeId === cleanId || String(st.routeId) === cleanId || (routeCode && st.routeName === routeCode)
+          st.routeId === cleanId ||
+          String(st.routeId) === cleanId ||
+          (routeCode && st.routeName === routeCode)
             ? {
                 ...st,
                 routeId: "",
@@ -13506,7 +13739,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     } catch (err: any) {
       console.warn("API Sync fallback for create pickup point:", err);
-      addToast("warning", "API Warning", "Saved locally as backend API is unreachable or returned an error.");
+      addToast(
+        "warning",
+        "API Warning",
+        "Saved locally as backend API is unreachable or returned an error.",
+      );
       const id = "PP-" + Math.floor(100 + Math.random() * 900);
       const newPt: PickupPoint = {
         ...p,
@@ -13579,13 +13816,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       await TransportAPI.updatePickupPointApi(id, payload as any);
     } catch (err: any) {
       console.warn("API Sync fallback for update pickup point:", err);
-      addToast("warning", "API Warning", "Updated locally as backend API is unreachable or returned an error.");
+      addToast(
+        "warning",
+        "API Warning",
+        "Updated locally as backend API is unreachable or returned an error.",
+      );
     }
   };
 
   const deletePickupPoint = async (id: string) => {
     const cleanId = String(id || "").trim();
-    const targetPt = pickupPoints.find((x) => String(x.id) === cleanId || x.id === id);
+    const targetPt = pickupPoints.find(
+      (x) => String(x.id) === cleanId || x.id === id,
+    );
     const pName = targetPt?.pickupName;
     const rId = targetPt?.routeId;
 
@@ -13600,7 +13843,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     setPickupPoints((prev) => {
-      const next = prev.filter((pt) => String(pt.id) !== cleanId && pt.id !== id);
+      const next = prev.filter(
+        (pt) => String(pt.id) !== cleanId && pt.id !== id,
+      );
       localStorage.setItem("edu_db_pickup_points", JSON.stringify(next));
       return next;
     });
@@ -13608,7 +13853,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (targetPt) {
       setStudentTransports((prev) =>
         prev.map((st) =>
-          st.routeId === targetPt.routeId && st.pickupPoint === targetPt.pickupName
+          st.routeId === targetPt.routeId &&
+          st.pickupPoint === targetPt.pickupName
             ? { ...st, pickupPoint: "Unassigned" }
             : st,
         ),
@@ -13619,7 +13865,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       await TransportAPI.deletePickupPointApi(id);
     } catch (err: any) {
       console.warn("API Sync fallback for delete pickup point:", err);
-      addToast("warning", "API Warning", "Deleted locally as backend API is unreachable or returned an error.");
+      addToast(
+        "warning",
+        "API Warning",
+        "Deleted locally as backend API is unreachable or returned an error.",
+      );
     }
   };
 
@@ -13953,7 +14203,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       addToast(
         "error",
         "Delete Failed",
-        err.message || "Failed to delete driver from backend API. Please make sure the driver is unassigned first."
+        err.message ||
+          "Failed to delete driver from backend API. Please make sure the driver is unassigned first.",
       );
     }
   };
@@ -14083,7 +14334,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       addToast(
         "error",
         "Delete Failed",
-        err.message || "Failed to delete attendant from backend API. Please make sure the attendant is unassigned first."
+        err.message ||
+          "Failed to delete attendant from backend API. Please make sure the attendant is unassigned first.",
       );
     }
   };
@@ -14108,15 +14360,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (normalizedAssignment.status !== "Active") return existing;
 
         const isActiveConflict =
-          (existing.status === "Active" || (existing.status as any) === true || String(existing.status).toLowerCase() === "true") &&
-          (String(existing.vehicleId) === String(normalizedAssignment.vehicleId) ||
+          (existing.status === "Active" ||
+            (existing.status as any) === true ||
+            String(existing.status).toLowerCase() === "true") &&
+          (String(existing.vehicleId) ===
+            String(normalizedAssignment.vehicleId) ||
             existing.vehicleNumber === normalizedAssignment.vehicleNumber ||
             String(existing.routeId) === String(normalizedAssignment.routeId) ||
             existing.routeName === normalizedAssignment.routeName ||
-            String(existing.driverId) === String(normalizedAssignment.driverId) ||
+            String(existing.driverId) ===
+              String(normalizedAssignment.driverId) ||
             existing.driverName === normalizedAssignment.driverName ||
             (normalizedAssignment.attendantId &&
-              String(existing.attendantId) === String(normalizedAssignment.attendantId)) ||
+              String(existing.attendantId) ===
+                String(normalizedAssignment.attendantId)) ||
             (normalizedAssignment.attendantName &&
               existing.attendantName === normalizedAssignment.attendantName));
 
@@ -14193,7 +14450,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         `Assigned ${normalizedAssignment.vehicleNumber} to ${normalizedAssignment.routeName} with ${normalizedAssignment.driverName}${normalizedAssignment.attendantName ? ` and ${normalizedAssignment.attendantName}` : ""}`,
       );
     } catch (err: any) {
-      console.warn("Backend API assignment error (falling back to local state):", err);
+      console.warn(
+        "Backend API assignment error (falling back to local state):",
+        err,
+      );
     }
   };
 
@@ -14284,8 +14544,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         items.map((existing) => {
           const isActiveConflict =
             existing.id !== id &&
-            (existing.status === "Active" || (existing.status as any) === true || String(existing.status).toLowerCase() === "true") &&
-            (merged.status === "Active" || (merged.status as any) === true || String(merged.status).toLowerCase() === "true") &&
+            (existing.status === "Active" ||
+              (existing.status as any) === true ||
+              String(existing.status).toLowerCase() === "true") &&
+            (merged.status === "Active" ||
+              (merged.status as any) === true ||
+              String(merged.status).toLowerCase() === "true") &&
             (String(existing.vehicleId) === String(merged.vehicleId) ||
               existing.vehicleNumber === merged.vehicleNumber ||
               String(existing.routeId) === String(merged.routeId) ||
@@ -14313,7 +14577,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const nextState = deactivateConflicts(prev).map((a) =>
         a.id === id ? sanitized : a,
       );
-      localStorage.setItem("edu_db_vehicle_assignments", JSON.stringify(nextState));
+      localStorage.setItem(
+        "edu_db_vehicle_assignments",
+        JSON.stringify(nextState),
+      );
       return nextState;
     });
 
@@ -14328,13 +14595,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await TransportAPI.deleteVehicleAssignmentApi(id);
       setVehicleAssignments((prev) => prev.filter((a) => a.id !== id));
-      addToast("success", "Assignment Deleted", "Successfully removed vehicle assignment.");
+      addToast(
+        "success",
+        "Assignment Deleted",
+        "Successfully removed vehicle assignment.",
+      );
     } catch (err: any) {
       console.error(err);
       addToast(
         "error",
         "Delete Failed",
-        err.message || "Failed to delete vehicle assignment. Please make sure no students are active on this route first."
+        err.message ||
+          "Failed to delete vehicle assignment. Please make sure no students are active on this route first.",
       );
       throw err;
     }
@@ -15105,7 +15377,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
-              status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
+              status:
+                item.status === "Half Day"
+                  ? "HalfDay"
+                  : item.status === "On Leave"
+                    ? "Leave"
+                    : item.status,
               remarks: item.remarks || "",
               inTime: item.inTime || "",
               outTime: item.outTime || "",
@@ -15120,7 +15397,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               (r) =>
                 !(
                   (!r.entityType || r.entityType.toLowerCase() === "staff") &&
-                  String(r.date || "").split("T")[0].split(" ")[0] === targetDate
+                  String(r.date || "")
+                    .split("T")[0]
+                    .split(" ")[0] === targetDate
                 ),
             );
             const updated = [...filtered, ...mappedRecords];
@@ -15157,7 +15436,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
-              status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
+              status:
+                item.status === "Half Day"
+                  ? "HalfDay"
+                  : item.status === "On Leave"
+                    ? "Leave"
+                    : item.status,
               remarks: item.remarks || "",
               inTime: item.inTime || "",
               outTime: item.outTime || "",
@@ -15169,8 +15453,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
           setAttendance((prev) => {
             const filtered = prev.filter((r) => {
-              const rDate = String(r.date || "").split("T")[0].split(" ")[0];
-              const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+              const rDate = String(r.date || "")
+                .split("T")[0]
+                .split(" ")[0];
+              const isStaff =
+                !r.entityType || r.entityType.toLowerCase() === "staff";
               return !(isStaff && rDate.startsWith(monthPrefix));
             });
             const updated = [...filtered, ...mappedRecords];
@@ -15258,11 +15545,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const payload = {
               date: date,
               academicYear: selectedAcademicYear || "2026-2027",
-              branch: (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches") ? "Main Campus" : selectedBranch,
+              branch:
+                !selectedBranch ||
+                selectedBranch === "All" ||
+                selectedBranch === "All Branches"
+                  ? "Main Campus"
+                  : selectedBranch,
               department: dept,
               records: deptRecords.map((r) => ({
                 staffId: parseInt(r.entityId),
-                status: r.status === "HalfDay" ? "Half Day" : (r.status === "Leave" ? "On Leave" : r.status),
+                status:
+                  r.status === "HalfDay"
+                    ? "Half Day"
+                    : r.status === "Leave"
+                      ? "On Leave"
+                      : r.status,
                 remarks: r.remarks || "",
                 inTime: r.inTime || "",
                 outTime: r.outTime || "",
@@ -15719,7 +16016,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setStudentAttendance((prev) => {
       const recordDate = String(record.date || "").split("T")[0];
       const filtered = prev.filter(
-        (r) => !(String(r.studentId) === String(record.studentId) && String(r.date || "").split("T")[0] === recordDate)
+        (r) =>
+          !(
+            String(r.studentId) === String(record.studentId) &&
+            String(r.date || "").split("T")[0] === recordDate
+          ),
       );
       const updated = [...filtered, { ...record, date: recordDate }];
       try {
@@ -15768,15 +16069,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     status: ProcessedResult["status"],
   ) => {
     const stamp = new Date().toISOString().split("T")[0];
-    const cleanSec = (section || "").replace("Section ", "").trim().toUpperCase();
+    const cleanSec = (section || "")
+      .replace("Section ", "")
+      .trim()
+      .toUpperCase();
 
     setProcessedResults((prev) =>
       prev.map((r) => {
-        const rSec = (r.section || "").replace("Section ", "").trim().toUpperCase();
+        const rSec = (r.section || "")
+          .replace("Section ", "")
+          .trim()
+          .toUpperCase();
         if (
           r.examId === examId &&
           r.className === className &&
-          (!section || section === "All" || rSec === cleanSec || r.section === section)
+          (!section ||
+            section === "All" ||
+            rSec === cleanSec ||
+            r.section === section)
         ) {
           const isPublishing = status === "Published";
           const isApproving = status === "Approved";
@@ -15788,11 +16098,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ...r,
             status,
             processedAt: r.processedAt || stamp,
-            verifiedBy: isVerifying || isApproving || isPublishing ? (r.verifiedBy || "Administrator") : r.verifiedBy,
-            verifiedAt: isVerifying || isApproving || isPublishing ? (r.verifiedAt || stamp) : r.verifiedAt,
-            approvedBy: isApproving || isPublishing ? (r.approvedBy || "Administrator") : r.approvedBy,
-            approvedAt: isApproving || isPublishing ? (r.approvedAt || stamp) : r.approvedAt,
-            publishedAt: isPublishing ? (r.publishedAt || stamp) : (isResetting ? undefined : r.publishedAt),
+            verifiedBy:
+              isVerifying || isApproving || isPublishing
+                ? r.verifiedBy || "Administrator"
+                : r.verifiedBy,
+            verifiedAt:
+              isVerifying || isApproving || isPublishing
+                ? r.verifiedAt || stamp
+                : r.verifiedAt,
+            approvedBy:
+              isApproving || isPublishing
+                ? r.approvedBy || "Administrator"
+                : r.approvedBy,
+            approvedAt:
+              isApproving || isPublishing
+                ? r.approvedAt || stamp
+                : r.approvedAt,
+            publishedAt: isPublishing
+              ? r.publishedAt || stamp
+              : isResetting
+                ? undefined
+                : r.publishedAt,
             lockedAt: isLocking ? stamp : undefined,
           };
         }
@@ -15803,7 +16129,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setExamMarks((prev) =>
         prev.map((m) => {
           const student = students.find((s) => s.id === m.studentId);
-          const sSec = (student?.section || m.section || "").replace("Section ", "").trim().toUpperCase();
+          const sSec = (student?.section || m.section || "")
+            .replace("Section ", "")
+            .trim()
+            .toUpperCase();
           return m.examId === examId &&
             (student?.className === className || m.className === className) &&
             (!section || section === "All" || sSec === cleanSec)
@@ -15816,7 +16145,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setExamMarks((prev) =>
         prev.map((m) => {
           const student = students.find((s) => s.id === m.studentId);
-          const sSec = (student?.section || m.section || "").replace("Section ", "").trim().toUpperCase();
+          const sSec = (student?.section || m.section || "")
+            .replace("Section ", "")
+            .trim()
+            .toUpperCase();
           return m.examId === examId &&
             (student?.className === className || m.className === className) &&
             (!section || section === "All" || sSec === cleanSec)
@@ -15901,14 +16233,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTimetable((prev) => [...prev, newSlot]);
 
     try {
-      const times = slotData.timeSlot.split('-');
-      const startTime = times[0]?.trim() || '';
-      const endTime = times[1]?.trim() || '';
+      const times = slotData.timeSlot.split("-");
+      const startTime = times[0]?.trim() || "";
+      const endTime = times[1]?.trim() || "";
 
       const res: any = await saveTimetableSlotApi({
         className: slotData.className,
         sectionName: slotData.section,
-        academicYear: slotData.academicYear || selectedAcademicYear || "2026-2027",
+        academicYear:
+          slotData.academicYear || selectedAcademicYear || "2026-2027",
         dayOfWeek: slotData.day,
         startTime,
         endTime,
@@ -15937,7 +16270,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const updateTimetableSlot = async (id: string, updates: Partial<TimetableSlot>) => {
+  const updateTimetableSlot = async (
+    id: string,
+    updates: Partial<TimetableSlot>,
+  ) => {
     setTimetable((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     );
@@ -15947,14 +16283,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!existingSlot) return;
 
       const merged = { ...existingSlot, ...updates };
-      const times = merged.timeSlot.split('-');
-      const startTime = times[0]?.trim() || '';
-      const endTime = times[1]?.trim() || '';
+      const times = merged.timeSlot.split("-");
+      const startTime = times[0]?.trim() || "";
+      const endTime = times[1]?.trim() || "";
 
       await saveTimetableSlotApi({
         className: merged.className,
         sectionName: merged.section,
-        academicYear: merged.academicYear || selectedAcademicYear || "2026-2027",
+        academicYear:
+          merged.academicYear || selectedAcademicYear || "2026-2027",
         dayOfWeek: merged.day,
         startTime,
         endTime,
@@ -15979,35 +16316,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const clearClassTimetable = async (className: string, section: string) => {
+    const norm = (str?: string) =>
+      (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "");
     const existing = timetable.filter(
-      (t) => t.className === className && t.section === section,
+      (t) =>
+        norm(t.className) === norm(className) &&
+        norm(t.section) === norm(section),
     );
 
+    // 1. Remove from local state and localStorage
     setTimetable((prev) => {
-      const updated = prev.filter((t) => !(t.className === className && t.section === section));
+      const updated = prev.filter(
+        (t) =>
+          !(
+            norm(t.className) === norm(className) &&
+            norm(t.section) === norm(section)
+          ),
+      );
       try {
         localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
 
+    // 2. Delete local state slots from backend
     try {
       await Promise.all(
         existing.map(async (t) => {
-          const numericId = t.id.startsWith("TT-") || t.id.startsWith("SLOT-") ? t.id.replace("TT-", "").replace("SLOT-", "") : t.id;
-          await deleteTimetableSlotApi(numericId);
+          const rawId = String(t.id || "").trim();
+          if (/^\d+$/.test(rawId) || /^TT-\d+$/i.test(rawId)) {
+            const numericId = rawId.replace(/^TT-/i, "");
+            await deleteTimetableSlotApi(numericId).catch(() => {});
+          }
         }),
       );
     } catch (err) {
       console.warn("Failed to clear timetable slots from backend", err);
     }
+
+    // 3. Query backend DB for any remaining active slots for this class & section and delete them
+    try {
+      const cls = academicClasses.find((c) => norm(c.name) === norm(className));
+      if (cls?.id) {
+        const gridRes: any = await fetchTimetableGridApi(
+          cls.id,
+          section,
+          selectedAcademicYear || "2026-2027",
+        ).catch(() => null);
+
+        const rawList = Array.isArray(gridRes?.data)
+          ? gridRes.data
+          : Array.isArray(gridRes)
+          ? gridRes
+          : [];
+
+        if (rawList.length > 0) {
+          await Promise.all(
+            rawList.map(async (oldItem: any) => {
+              const sId = oldItem?.slotId || oldItem?.id;
+              if (sId) {
+                const numericId = String(sId).replace(/^TT-/i, "");
+                await deleteTimetableSlotApi(numericId).catch(() => {});
+              }
+            }),
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Backend timetable pre-clear notice:", e);
+    }
   };
 
   const bulkAddTimetableSlots = (newSlots: TimetableSlot[]) => {
     setTimetable((prev) => {
-      const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
-      const affectedKeys = new Set(newSlots.map(s => `${norm(s.className)}-${norm(s.section)}`));
-      const filtered = prev.filter(s => !affectedKeys.has(`${norm(s.className)}-${norm(s.section)}`));
+      const norm = (str?: string) =>
+        (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "");
+      const affectedKeys = new Set(
+        newSlots.map((s) => `${norm(s.className)}-${norm(s.section)}`),
+      );
+      const filtered = prev.filter(
+        (s) => !affectedKeys.has(`${norm(s.className)}-${norm(s.section)}`),
+      );
       const updated = [...filtered, ...newSlots];
       try {
         localStorage.setItem("edu_db_timetable", JSON.stringify(updated));
@@ -16018,7 +16407,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addHomework = async (hwData: Omit<Homework, "id">) => {
     const id = "HW-" + Math.floor(100 + Math.random() * 900);
-    const cleanSec = ((hwData as any).section || "").replace(/^section\s*/i, "").replace(/^sec\s*/i, "").trim() || "A";
+    const cleanSec =
+      ((hwData as any).section || "")
+        .replace(/^section\s*/i, "")
+        .replace(/^sec\s*/i, "")
+        .trim() || "A";
     const newHw: Homework = {
       ...hwData,
       id,
@@ -16039,11 +16432,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         topic: newHw.title,
         description: newHw.description,
         dueDate: newHw.dueDate,
-        publishedTo: newHw.publishToType === 'Students' ? 'Selected Students' : 'Entire Class',
-        status: newHw.status ? newHw.status.toUpperCase() : 'PUBLISHED',
-        teacherName: newHw.teacherName || 'Suteja K',
+        publishedTo:
+          newHw.publishToType === "Students"
+            ? "Selected Students"
+            : "Entire Class",
+        status: newHw.status ? newHw.status.toUpperCase() : "PUBLISHED",
+        teacherName: newHw.teacherName || "Suteja K",
         attachmentFileName: newHw.attachments?.[0]?.name,
-        attachmentUrl: newHw.attachments?.[0]?.url
+        attachmentUrl: newHw.attachments?.[0]?.url,
       };
       const res: any = await createHomeworkApi(payload);
       if (res?.data?.homeworkId) {
@@ -16061,13 +16457,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setHomework((prev) =>
       prev.map((h) => {
         if (h.id !== id) return h;
-        const cleanSec = (updates.section || h.section || "").replace(/^section\s*/i, "").replace(/^sec\s*/i, "").trim() || "A";
+        const cleanSec =
+          (updates.section || h.section || "")
+            .replace(/^section\s*/i, "")
+            .replace(/^sec\s*/i, "")
+            .trim() || "A";
         return { ...h, ...updates, section: cleanSec };
       }),
     );
 
     try {
-      const numericId = id.replace(/^HW-/i, '');
+      const numericId = id.replace(/^HW-/i, "");
       const payload = {
         title: updates.title,
         className: updates.className,
@@ -16075,11 +16475,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         topic: updates.title,
         description: updates.description,
         dueDate: updates.dueDate,
-        publishedTo: updates.publishToType === 'Students' ? 'Selected Students' : 'Entire Class',
-        status: updates.status ? updates.status.toUpperCase() : 'PUBLISHED',
-        teacherName: updates.teacherName || 'Suteja K',
+        publishedTo:
+          updates.publishToType === "Students"
+            ? "Selected Students"
+            : "Entire Class",
+        status: updates.status ? updates.status.toUpperCase() : "PUBLISHED",
+        teacherName: updates.teacherName || "Suteja K",
         attachmentFileName: updates.attachments?.[0]?.name,
-        attachmentUrl: updates.attachments?.[0]?.url
+        attachmentUrl: updates.attachments?.[0]?.url,
       };
       await updateHomeworkApi(numericId, payload);
     } catch (err) {
@@ -16089,12 +16492,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteHomework = async (id: string) => {
     const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^hw-/i, '');
+    const numericIdStr = targetIdStr.replace(/^hw-/i, "");
 
     setHomework((prev) => {
       const updated = prev.filter((h) => {
         const hIdStr = String(h.id).toLowerCase().trim();
-        const hNumStr = hIdStr.replace(/^hw-/i, '');
+        const hNumStr = hIdStr.replace(/^hw-/i, "");
         return hIdStr !== targetIdStr && hNumStr !== numericIdStr;
       });
       try {
@@ -16104,7 +16507,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     try {
-      const numericId = id.replace(/^HW-/i, '');
+      const numericId = id.replace(/^HW-/i, "");
       await deleteHomeworkApi(numericId);
     } catch (err) {
       console.warn("Failed to delete homework assignment on backend", err);
@@ -16309,6 +16712,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch (e) {}
           return updatedInv;
         });
+
+        setFinanceUniformConfigs((prevConfigs) => {
+          const updated = prevConfigs.filter(
+            (c) => (c.uniformPackage || "").toLowerCase().trim() !== targetName
+          );
+          try {
+            localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+            localStorage.setItem("finance_uniform_configs", JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
       }
 
       return updatedCats;
@@ -16406,7 +16820,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addUniformSupplier = async (sData: Omit<UniformSupplier, "id">) => {
     const id = "SUP-" + Date.now();
     const createdAt = new Date().toISOString();
-    const sName = sData.supplierName || (sData as any).companyName || "Supplier Partner";
+    const sName =
+      sData.supplierName || (sData as any).companyName || "Supplier Partner";
     const newSupplier = {
       ...sData,
       id,
@@ -16453,9 +16868,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         await updateUniformSupplierApi(id, {
           supplierName: sName,
           contactPerson: updates.contactPerson || "",
-          phone: updates.mobile || updates.phone || (updates as any).mobileNumber || "",
+          phone:
+            updates.mobile ||
+            updates.phone ||
+            (updates as any).mobileNumber ||
+            "",
           email: updates.email || (updates as any).emailAddress || "",
-          gstNumber: updates.gstNumber || (updates as any).gstRegistrationNo || "",
+          gstNumber:
+            updates.gstNumber || (updates as any).gstRegistrationNo || "",
           address: updates.address || (updates as any).warehouseAddress || "",
           status: updates.status || "Active",
         });
@@ -16525,12 +16945,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     const targetIdStr = String(targetItemId || "");
-    if (targetIdStr && !targetIdStr.startsWith("inv-cfg-") && !targetIdStr.startsWith("UNI-") && !targetIdStr.startsWith("UINV-")) {
+    if (
+      targetIdStr &&
+      !targetIdStr.startsWith("inv-cfg-") &&
+      !targetIdStr.startsWith("UNI-") &&
+      !targetIdStr.startsWith("UINV-")
+    ) {
       try {
         await adjustUniformStockApi(targetItemId, {
           newStockLevel: updates.currentStock,
           quantity: updates.currentStock,
-          notes: updates.lastUpdated ? `Stock updated on ${updates.lastUpdated}` : "Manual inventory adjustment"
+          notes: updates.lastUpdated
+            ? `Stock updated on ${updates.lastUpdated}`
+            : "Manual inventory adjustment",
         });
       } catch (err) {
         console.warn("Failed to adjust uniform stock on backend:", err);
@@ -16550,32 +16977,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       itemCategory?: string;
       quantity?: number;
       size?: string;
-    }
+    },
   ) => {
     const qty = Number(itemInfo.quantity) || 1;
-    const rawName = (itemInfo.itemName || itemInfo.itemCategory || '').trim();
+    const rawName = (itemInfo.itemName || itemInfo.itemCategory || "").trim();
     if (!rawName && !itemInfo.itemId) return;
 
     const cleanName = rawName
-      .replace(/\s*\(extra\)/gi, '')
-      .replace(/\s*\(extra purchase\)/gi, '')
-      .replace(/\s*\(admission kit\)/gi, '')
-      .replace(/\s*\(base admission kit\)/gi, '')
+      .replace(/\s*\(extra\)/gi, "")
+      .replace(/\s*\(extra purchase\)/gi, "")
+      .replace(/\s*\(admission kit\)/gi, "")
+      .replace(/\s*\(base admission kit\)/gi, "")
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+      .replace(/[^a-z0-9]/g, "");
 
-    const normSize = (itemInfo.size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normSize = (itemInfo.size || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
 
     // 1. Update uniformInventory
     setUniformInventory((prevInv) => {
       let idx = prevInv.findIndex((i) =>
-        Boolean(itemInfo.itemId && (i.itemId === itemInfo.itemId || i.id === itemInfo.itemId))
+        Boolean(
+          itemInfo.itemId &&
+          (i.itemId === itemInfo.itemId || i.id === itemInfo.itemId),
+        ),
       );
 
       if (idx === -1 && cleanName) {
         idx = prevInv.findIndex((i) => {
-          const invCat = (i.category || i.itemName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const invName = (i.itemName || i.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const invCat = (i.category || i.itemName || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+          const invName = (i.itemName || i.category || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
 
           const nameMatch =
             invCat === cleanName ||
@@ -16587,16 +17023,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (nameMatch) {
             if (normSize && (i.size || (i as any).meterRange)) {
-              const invSize = (i.size || (i as any).meterRange || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-              return invSize === normSize || invSize.includes(normSize) || normSize.includes(invSize);
+              const invSize = (i.size || (i as any).meterRange || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+              return (
+                invSize === normSize ||
+                invSize.includes(normSize) ||
+                normSize.includes(invSize)
+              );
             }
             return true;
           }
 
           // Keyword fallback matches for Girls Package, Boys Package, Cloth, Sports
-          if (cleanName.includes('girl') && (invCat.includes('girl') || invName.includes('girl'))) return true;
-          if (cleanName.includes('boy') && (invCat.includes('boy') || invName.includes('boy'))) return true;
-          if ((cleanName.includes('cloth') || cleanName.includes('fabric')) && (invCat.includes('cloth') || invCat.includes('fabric') || invName.includes('cloth') || invName.includes('fabric'))) return true;
+          if (
+            cleanName.includes("girl") &&
+            (invCat.includes("girl") || invName.includes("girl"))
+          )
+            return true;
+          if (
+            cleanName.includes("boy") &&
+            (invCat.includes("boy") || invName.includes("boy"))
+          )
+            return true;
+          if (
+            (cleanName.includes("cloth") || cleanName.includes("fabric")) &&
+            (invCat.includes("cloth") ||
+              invCat.includes("fabric") ||
+              invName.includes("cloth") ||
+              invName.includes("fabric"))
+          )
+            return true;
 
           return false;
         });
@@ -16607,9 +17064,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (idx !== -1) {
         updatedInv = prevInv.map((item, index) => {
           if (index === idx) {
-            const newStock = action === "issue"
-              ? Math.max(0, item.currentStock - qty)
-              : item.currentStock + qty;
+            const maxCap = Math.min(100, item.openingStock || 100);
+            const newStock =
+              action === "issue"
+                ? Math.max(0, item.currentStock - qty)
+                : Math.min(maxCap, item.currentStock + qty);
 
             const newStatus =
               newStock === 0
@@ -16622,7 +17081,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ...item,
               currentStock: newStock,
               status: newStatus,
-              lastUpdated: new Date().toISOString().split('T')[0]
+              lastUpdated: new Date().toISOString().split("T")[0],
             };
           }
           return item;
@@ -16633,21 +17092,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           itemId: itemInfo.itemId || `ITEM-${Date.now()}`,
           itemName: rawName,
           category: rawName,
-          size: itemInfo.size || 'M',
-          color: 'Standard',
+          size: itemInfo.size || "M",
+          color: "Standard",
           openingStock: 100,
           currentStock: Math.max(0, 100 - qty),
           minimumStock: 10,
           unitPrice: 500,
-          supplier: 'Main Warehouse',
-          lastUpdated: new Date().toISOString().split('T')[0],
-          status: (100 - qty) <= 10 ? 'Low Stock' : 'In Stock'
+          supplier: "Main Warehouse",
+          lastUpdated: new Date().toISOString().split("T")[0],
+          status: 100 - qty <= 10 ? "Low Stock" : "In Stock",
         };
         updatedInv = [newInvItem, ...prevInv];
       }
 
       try {
-        localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(updatedInv));
+        localStorage.setItem(
+          "edu_db_uniform_inventory",
+          JSON.stringify(updatedInv),
+        );
         localStorage.setItem("uniform_inventory", JSON.stringify(updatedInv));
       } catch (e) {}
 
@@ -16656,16 +17118,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 2. Update uniforms catalog availableStock
     setUniforms((prevU) => {
-      let idx = prevU.findIndex((u) => Boolean(itemInfo.itemId && u.id === itemInfo.itemId));
+      let idx = prevU.findIndex((u) =>
+        Boolean(itemInfo.itemId && u.id === itemInfo.itemId),
+      );
 
       if (idx === -1 && cleanName) {
         idx = prevU.findIndex((u) => {
-          const uCat = (u.category || u.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const isMatch = uCat === cleanName || uCat.includes(cleanName) || cleanName.includes(uCat);
+          const uCat = (u.category || u.name || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+          const isMatch =
+            uCat === cleanName ||
+            uCat.includes(cleanName) ||
+            cleanName.includes(uCat);
           if (isMatch) return true;
-          if (cleanName.includes('girl') && uCat.includes('girl')) return true;
-          if (cleanName.includes('boy') && uCat.includes('boy')) return true;
-          if ((cleanName.includes('cloth') || cleanName.includes('fabric')) && (uCat.includes('cloth') || uCat.includes('fabric'))) return true;
+          if (cleanName.includes("girl") && uCat.includes("girl")) return true;
+          if (cleanName.includes("boy") && uCat.includes("boy")) return true;
+          if (
+            (cleanName.includes("cloth") || cleanName.includes("fabric")) &&
+            (uCat.includes("cloth") || uCat.includes("fabric"))
+          )
+            return true;
           return false;
         });
       }
@@ -16674,8 +17147,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const updatedU = prevU.map((u, index) => {
         if (index === idx) {
-          const curAvail = u.availableStock !== undefined ? u.availableStock : (u.openingStock || 100);
-          const nextAvail = action === "issue" ? Math.max(0, curAvail - qty) : curAvail + qty;
+          const maxCap = Math.min(100, u.openingStock || 100);
+          const curAvail =
+            u.availableStock !== undefined
+              ? u.availableStock
+              : maxCap;
+          const nextAvail =
+            action === "issue" ? Math.max(0, curAvail - qty) : Math.min(maxCap, curAvail + qty);
           return { ...u, availableStock: nextAvail };
         }
         return u;
@@ -16695,13 +17173,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     issueData: Omit<StudentUniformIssue, "id">,
   ) => {
     // Reduce warehouse inventory & catalog stock if issued
-    if (issueData.status === "Issued" || issueData.status === "Replaced" || !issueData.status) {
+    if (
+      issueData.status === "Issued" ||
+      issueData.status === "Replaced" ||
+      !issueData.status
+    ) {
       syncUniformStockOnIssueOrReturn("issue", {
         itemId: issueData.itemId,
         itemName: issueData.itemName,
         itemCategory: (issueData as any).itemCategory,
         quantity: issueData.quantity,
-        size: issueData.size
+        size: issueData.size,
       });
     }
 
@@ -16724,22 +17206,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const res: any = await issueUniformApi({
-        studentId: issueData.studentId ? (parseInt(issueData.studentId.replace(/\D/g, ''), 10) || undefined) : undefined,
-        admissionNo: issueData.admissionNo || issueData.studentId || '',
-        studentName: issueData.studentName || '',
-        className: issueData.className || '',
-        transactionType: issueData.type || 'Baseline Distribution (Admission Kit)',
-        itemName: issueData.itemName || 'Boys Package',
-        sizeSpec: issueData.size || 'M',
+        studentId: issueData.studentId
+          ? parseInt(issueData.studentId.replace(/\D/g, ""), 10) || undefined
+          : undefined,
+        admissionNo: issueData.admissionNo || issueData.studentId || "",
+        studentName: issueData.studentName || "",
+        className: issueData.className || "",
+        transactionType:
+          issueData.type || "Baseline Distribution (Admission Kit)",
+        itemName: issueData.itemName || "Boys Package",
+        sizeSpec: issueData.size || "M",
         quantity: issueData.quantity || 1,
         totalAmount: issueData.totalAmount || 0,
-        notes: issueData.notes || '',
-        status: issueData.status || 'Issued'
+        notes: issueData.notes || "",
+        status: issueData.status || "Issued",
       });
       if (res?.success && res?.data) {
         const serverId = String(res.data.distributionId || res.data.id);
         setStudentUniformIssues((prev) =>
-          prev.map((i) => (i.id === newIssue.id ? { ...i, id: serverId } : i))
+          prev.map((i) => (i.id === newIssue.id ? { ...i, id: serverId } : i)),
         );
       }
     } catch (err) {
@@ -16758,7 +17243,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (i) =>
           (i.studentId && i.studentId.toLowerCase().trim() === idLower) ||
           (i.admissionNo && i.admissionNo.toLowerCase().trim() === idLower) ||
-          (i.studentName && i.studentName.toLowerCase().trim().includes(idLower)),
+          (i.studentName &&
+            i.studentName.toLowerCase().trim().includes(idLower)),
       );
     }
     if (!issueToUpdate) {
@@ -16767,8 +17253,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           issue.id === id ? { ...issue, ...updates } : issue,
         );
         try {
-          localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
-          localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
+          localStorage.setItem(
+            "edu_db_student_uniform_issues",
+            JSON.stringify(updated),
+          );
+          localStorage.setItem(
+            "student_uniform_issues",
+            JSON.stringify(updated),
+          );
         } catch (e) {}
         return updated;
       });
@@ -16787,14 +17279,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         itemId: issueToUpdate.itemId,
         itemName: issueToUpdate.itemName,
         quantity: issueToUpdate.quantity,
-        size: issueToUpdate.size
+        size: issueToUpdate.size,
       });
-    } else if ((newStatus === "Issued" || newStatus === "Replaced") && oldStatus === "Returned") {
+    } else if (
+      (newStatus === "Issued" || newStatus === "Replaced") &&
+      oldStatus === "Returned"
+    ) {
       syncUniformStockOnIssueOrReturn("issue", {
         itemId: issueToUpdate.itemId,
         itemName: issueToUpdate.itemName,
         quantity: issueToUpdate.quantity,
-        size: issueToUpdate.size
+        size: issueToUpdate.size,
       });
     }
     // Handling Size Exchange (e.g. exchanging from Size L to Size M)
@@ -16808,17 +17303,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (oldIdx === -1 && issueItemName) {
           oldIdx = prevU.findIndex((u) => {
             const uCat = (u.category || u.name || "").toLowerCase().trim();
-            const isCatMatch = uCat === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
+            const isCatMatch =
+              uCat === issueItemName ||
+              uCat.includes(issueItemName) ||
+              issueItemName.includes(uCat);
             if (!isCatMatch) return false;
-            return oldSize ? (u.size || u.meterRange || "").toLowerCase().trim() === oldSize.toLowerCase().trim() : true;
+            return oldSize
+              ? (u.size || u.meterRange || "").toLowerCase().trim() ===
+                  oldSize.toLowerCase().trim()
+              : true;
           });
         }
 
         let newIdx = prevU.findIndex((u) => {
           const uCat = (u.category || u.name || "").toLowerCase().trim();
-          const isCatMatch = uCat === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
+          const isCatMatch =
+            uCat === issueItemName ||
+            uCat.includes(issueItemName) ||
+            issueItemName.includes(uCat);
           if (!isCatMatch) return false;
-          return (u.size || u.meterRange || "").toLowerCase().trim() === newSize.toLowerCase().trim();
+          return (
+            (u.size || u.meterRange || "").toLowerCase().trim() ===
+            newSize.toLowerCase().trim()
+          );
         });
 
         if (newIdx !== -1) {
@@ -16827,7 +17334,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         return prevU.map((u, index) => {
           if (index === oldIdx) {
-            const maxCap = u.openingStock !== undefined ? u.openingStock : (u.initialStock !== undefined ? u.initialStock : 150);
+            const maxCap =
+              u.openingStock !== undefined
+                ? u.openingStock
+                : u.initialStock !== undefined
+                  ? u.initialStock
+                  : 150;
             const restored = Math.min(maxCap, (u.availableStock || 0) + qty);
             return { ...u, availableStock: restored };
           }
@@ -16845,9 +17357,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     setStudentUniformIssues((prev) => {
-      const updated = prev.map((issue) => (issue.id === id ? { ...issue, ...updates } : issue));
+      const updated = prev.map((issue) =>
+        issue.id === id ? { ...issue, ...updates } : issue,
+      );
       try {
-        localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_student_uniform_issues",
+          JSON.stringify(updated),
+        );
         localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
       } catch (e) {}
       return updated;
@@ -16855,16 +17372,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (id && !id.startsWith("UIS-")) {
       try {
-        if (updates.status === 'Returned') {
+        if (updates.status === "Returned") {
           await returnUniformApi(id, {
-            returnReason: updates.notes || 'Returned by student',
-            remarks: updates.actionRemarks || 'Item returned'
+            returnReason: updates.notes || "Returned by student",
+            remarks: updates.actionRemarks || "Item returned",
           });
-        } else if (updates.status === 'Exchanged' || updates.newSize || updates.size) {
+        } else if (
+          updates.status === "Exchanged" ||
+          updates.newSize ||
+          updates.size
+        ) {
           await exchangeUniformApi(id, {
-            newSize: updates.newSize || updates.size || 'L',
-            exchangeReason: updates.notes || 'Size exchange',
-            remarks: updates.actionRemarks || 'Size exchanged'
+            newSize: updates.newSize || updates.size || "L",
+            exchangeReason: updates.notes || "Size exchange",
+            remarks: updates.actionRemarks || "Size exchanged",
           });
         }
       } catch (err) {
@@ -16895,42 +17416,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     });
 
-    const idsToRemove = new Set(issuesToDelete.map(i => i.id));
+    const idsToRemove = new Set(issuesToDelete.map((i) => i.id));
     if (idsToRemove.size === 0) {
       idsToRemove.add(idOrQuery);
     }
 
     // Track deleted IDs in localStorage so API refetches don't re-add them
     try {
-      const deletedTrack = JSON.parse(localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]");
-      idsToRemove.forEach(id => deletedTrack.push(id));
-      localStorage.setItem("edu_db_deleted_uniform_issue_ids", JSON.stringify(deletedTrack));
+      const deletedTrack = JSON.parse(
+        localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]",
+      );
+      idsToRemove.forEach((id) => deletedTrack.push(id));
+      localStorage.setItem(
+        "edu_db_deleted_uniform_issue_ids",
+        JSON.stringify(deletedTrack),
+      );
     } catch (e) {}
 
     // Restore inventory stock for each matching issue
-    issuesToDelete.forEach(issueToDelete => {
+    issuesToDelete.forEach((issueToDelete) => {
       const issueItemName = (issueToDelete.itemName || "").toLowerCase();
-      const cleanIssueItemName = issueItemName.replace(/\s*\(extra\)/gi, "").trim();
+      const cleanIssueItemName = issueItemName
+        .replace(/\s*\(extra\)/gi, "")
+        .trim();
 
       setUniformInventory((prevInv) => {
         let idx = prevInv.findIndex((i) =>
           Boolean(
             issueToDelete.itemId &&
-            (i.itemId === issueToDelete.itemId || i.id === issueToDelete.itemId)
-          )
+            (i.itemId === issueToDelete.itemId ||
+              i.id === issueToDelete.itemId),
+          ),
         );
         if (idx === -1 && cleanIssueItemName) {
           idx = prevInv.findIndex((i) => {
             const itemCat = (i.category || "").toLowerCase();
             const itemName = (i.itemName || "").toLowerCase();
-            return itemName === cleanIssueItemName || itemCat === cleanIssueItemName || itemName.includes(cleanIssueItemName) || cleanIssueItemName.includes(itemName);
+            return (
+              itemName === cleanIssueItemName ||
+              itemCat === cleanIssueItemName ||
+              itemName.includes(cleanIssueItemName) ||
+              cleanIssueItemName.includes(itemName)
+            );
           });
         }
         if (idx === -1) return prevInv;
         return prevInv.map((item, index) => {
           if (index === idx) {
-            const calculatedNewStock = item.currentStock + (issueToDelete.quantity || 1);
-            const st = calculatedNewStock === 0 ? "Out of Stock" : calculatedNewStock <= (item.minimumStock || 10) ? "Low Stock" : "In Stock";
+            const calculatedNewStock =
+              item.currentStock + (issueToDelete.quantity || 1);
+            const st =
+              calculatedNewStock === 0
+                ? "Out of Stock"
+                : calculatedNewStock <= (item.minimumStock || 10)
+                  ? "Low Stock"
+                  : "In Stock";
             return { ...item, currentStock: calculatedNewStock, status: st };
           }
           return item;
@@ -16939,15 +17479,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setUniforms((prevU) => {
         let idx = prevU.findIndex((u) =>
-          Boolean(issueToDelete.itemId && u.id === issueToDelete.itemId)
+          Boolean(issueToDelete.itemId && u.id === issueToDelete.itemId),
         );
         if (idx === -1 && cleanIssueItemName) {
           idx = prevU.findIndex((u) => {
             const uCat = (u.category || u.name || "").toLowerCase().trim();
-            const isCatMatch = uCat === cleanIssueItemName || uCat.includes(cleanIssueItemName) || cleanIssueItemName.includes(uCat);
+            const isCatMatch =
+              uCat === cleanIssueItemName ||
+              uCat.includes(cleanIssueItemName) ||
+              cleanIssueItemName.includes(uCat);
             if (!isCatMatch) return false;
             if (issueToDelete.size) {
-              return (u.size || u.meterRange || "").toLowerCase().trim() === issueToDelete.size.toLowerCase().trim();
+              return (
+                (u.size || u.meterRange || "").toLowerCase().trim() ===
+                issueToDelete.size.toLowerCase().trim()
+              );
             }
             return true;
           });
@@ -16955,7 +17501,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (idx === -1) return prevU;
         return prevU.map((u, index) => {
           if (index === idx) {
-            const nextAvail = (u.availableStock || 0) + (issueToDelete.quantity || 1);
+            const nextAvail =
+              (u.availableStock || 0) + (issueToDelete.quantity || 1);
             return { ...u, availableStock: nextAvail };
           }
           return u;
@@ -16972,15 +17519,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const iAdmNo = (issue.admissionNo || "").toLowerCase().trim();
         const iName = (issue.studentName || "").toLowerCase().trim();
 
-        if (iStdId === targetLower || iAdmNo === targetLower || iName === targetLower) return false;
-        if (targetLower.length >= 3 && iName.includes(targetLower)) return false;
-        if (targetLower.length >= 3 && targetLower.includes(iName)) return false;
+        if (
+          iStdId === targetLower ||
+          iAdmNo === targetLower ||
+          iName === targetLower
+        )
+          return false;
+        if (targetLower.length >= 3 && iName.includes(targetLower))
+          return false;
+        if (targetLower.length >= 3 && targetLower.includes(iName))
+          return false;
 
         return true;
       });
 
       try {
-        localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
+        localStorage.setItem(
+          "edu_db_student_uniform_issues",
+          JSON.stringify(updated),
+        );
         localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
       } catch (e) {}
 
@@ -17090,7 +17647,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const cDigitsMatch = (t: string, c: string) => t && c && t === c;
 
-  const addFinanceUniformConfig = async (cData: Omit<FinanceUniformConfig, "id">) => {
+  const addFinanceUniformConfig = async (
+    cData: Omit<FinanceUniformConfig, "id">,
+  ) => {
     let assignedId = "FUC-" + Date.now();
     try {
       const apiRes: any = await FinanceAPI.createUniformFeeConfigApi({
@@ -17121,16 +17680,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
-      const filtered = current.filter(c => 
-        !(c.className?.toLowerCase() === (newConfig.className || '').toLowerCase() &&
-          c.gender === newConfig.gender &&
-          c.uniformPackage === newConfig.uniformPackage &&
-          ((c as any).fabricMeterage || '') === ((newConfig as any).fabricMeterage || ''))
+      const filtered = current.filter(
+        (c) =>
+          !(
+            c.id === newConfig.id ||
+            (c.className?.toLowerCase().trim() === (newConfig.className || "").toLowerCase().trim() &&
+              c.gender === newConfig.gender &&
+              c.uniformPackage?.toLowerCase().trim() === (newConfig.uniformPackage || "").toLowerCase().trim() &&
+              ((c as any).fabricMeterage || "").toLowerCase().trim() === ((newConfig as any).fabricMeterage || "").toLowerCase().trim())
+          ),
       );
       const updated = [newConfig, ...filtered];
       try {
         localStorage.setItem(
           "edu_db_finance_uniform_configs",
+          JSON.stringify(updated),
+        );
+        localStorage.setItem(
+          "finance_uniform_configs",
           JSON.stringify(updated),
         );
       } catch (e) {}
@@ -17148,15 +17715,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isNaN(numId)) {
       try {
         await FinanceAPI.updateUniformFeeConfigApi(numId, {
-          className: updates.className || '',
-          gender: updates.gender || 'Unisex',
-          uniformPackage: updates.uniformPackage || '',
-          feePlan: updates.feePlan || 'Annual',
+          className: updates.className || "",
+          gender: updates.gender || "Unisex",
+          uniformPackage: updates.uniformPackage || "",
+          feePlan: updates.feePlan || "Annual",
           feeAmount: updates.feeAmount || 0,
           academicYear: updates.academicYear,
           branch: updates.branch,
           effectiveFrom: updates.effectiveFrom,
-          status: updates.status || 'Active',
+          status: updates.status || "Active",
         });
       } catch (e) {
         console.warn("API updateUniformFeeConfig failed:", e);
@@ -17176,6 +17743,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         localStorage.setItem(
           "edu_db_finance_uniform_configs",
+          JSON.stringify(updated),
+        );
+        localStorage.setItem(
+          "finance_uniform_configs",
           JSON.stringify(updated),
         );
       } catch (e) {}
@@ -17199,6 +17770,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         localStorage.setItem(
           "edu_db_finance_uniform_configs",
+          JSON.stringify(updated),
+        );
+        localStorage.setItem(
+          "finance_uniform_configs",
           JSON.stringify(updated),
         );
       } catch (e) {}
@@ -17235,17 +17810,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     const promise = (async () => {
       try {
-        const normalizeLeaveStatus = (st: string | undefined): LeaveApplication["status"] => {
+        const normalizeLeaveStatus = (
+          st: string | undefined,
+        ): LeaveApplication["status"] => {
           if (!st) return "Pending";
           const lower = st.trim().toLowerCase();
           if (lower === "approved") return "Approved";
           if (lower === "rejected") return "Rejected";
-          if (lower === "cancelled" || lower === "canceled") return "Cancelled" as any;
+          if (lower === "cancelled" || lower === "canceled")
+            return "Cancelled" as any;
           return "Pending";
         };
 
         const response = await fetchLeaveApplicationsApi();
-        if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
+        if (
+          response &&
+          response.success &&
+          Array.isArray(response.data) &&
+          response.data.length > 0
+        ) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
             id:
               item.leaveApplicationId?.toString() || item.id?.toString() || "",
@@ -17254,7 +17837,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             empId: item.empId || item.employeeId,
             department: item.department || "Transport Dept",
             designation: item.designation || "Staff",
-            branchId: (selectedBranch as any)?.id || (typeof selectedBranch === "string" ? selectedBranch : "") || "BR-001",
+            branchId:
+              (selectedBranch as any)?.id ||
+              (typeof selectedBranch === "string" ? selectedBranch : "") ||
+              "BR-001",
             branch: item.branch || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
@@ -17263,11 +17849,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             fromDate: item.fromDate,
             toDate: item.toDate,
             isHalfDay: item.isHalfDay,
-            numberOfDays: Number(item.requestedDays || item.numberOfDays || item.daysCount || 1),
+            numberOfDays: Number(
+              item.requestedDays || item.numberOfDays || item.daysCount || 1,
+            ),
             reason: item.reason || "",
             attachments: [],
             status: normalizeLeaveStatus(item.status),
-            appliedDate: item.appliedDate || new Date().toISOString().split("T")[0],
+            appliedDate:
+              item.appliedDate || new Date().toISOString().split("T")[0],
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
@@ -17275,7 +17864,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const apiIds = new Set(mapped.map((m) => m.id));
             const localOnly = prev.filter((p) => !apiIds.has(p.id));
             const merged = [...mapped, ...localOnly];
-            localStorage.setItem("edu_db_leave_applications", JSON.stringify(merged));
+            localStorage.setItem(
+              "edu_db_leave_applications",
+              JSON.stringify(merged),
+            );
             localStorage.setItem("leave_applications", JSON.stringify(merged));
             return merged;
           });
@@ -17416,23 +18008,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newApp: LeaveApplication = {
       id: newId,
       ...appData,
-      branchId: (selectedBranch as any)?.id || (typeof selectedBranch === "string" ? selectedBranch : "") || "BR-001",
+      branchId:
+        (selectedBranch as any)?.id ||
+        (typeof selectedBranch === "string" ? selectedBranch : "") ||
+        "BR-001",
       branch: (appData as any).branch || "Main Campus",
       status: appData.status || "Pending",
-      appliedDate: appData.appliedDate || new Date().toISOString().split("T")[0],
+      appliedDate:
+        appData.appliedDate || new Date().toISOString().split("T")[0],
     };
 
     setLeaveApplications((prev) => {
       const updated = [newApp, ...prev];
-      localStorage.setItem("edu_db_leave_applications", JSON.stringify(updated));
+      localStorage.setItem(
+        "edu_db_leave_applications",
+        JSON.stringify(updated),
+      );
       localStorage.setItem("leave_applications", JSON.stringify(updated));
       localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
       return updated;
     });
 
     try {
-      const parsedStaffId = parseInt(appData.employeeId.replace(/\D/g, '')) || 1;
-      const parsedLeaveTypeId = parseInt(appData.leaveTypeId.replace(/\D/g, '')) || 1;
+      const parsedStaffId =
+        parseInt(appData.employeeId.replace(/\D/g, "")) || 1;
+      const parsedLeaveTypeId =
+        parseInt(appData.leaveTypeId.replace(/\D/g, "")) || 1;
 
       const payload = {
         staffId: parsedStaffId,
@@ -17445,7 +18046,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       await createLeaveApplicationApi(payload);
     } catch (err: any) {
-      console.warn("API error during leave submission (saved to local state):", err);
+      console.warn(
+        "API error during leave submission (saved to local state):",
+        err,
+      );
     }
   };
   const updateLeaveApplication = (
@@ -17477,7 +18081,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         startDate: newHoliday.startDate,
         endDate: newHoliday.endDate,
         description: newHoliday.description,
-        applicableTo: newHoliday.applicableTo || 'All Students & Staff'
+        applicableTo: newHoliday.applicableTo || "All Students & Staff",
       };
       await createHolidayApi(payload);
     } catch (err) {
@@ -17487,12 +18091,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateHoliday = async (id: string, updates: Partial<Holiday>) => {
     const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^hol-/i, '');
+    const numericIdStr = targetIdStr.replace(/^hol-/i, "");
 
     setHolidays((prev) => {
       const updated = prev.map((h) => {
         const hIdStr = String(h.id).toLowerCase().trim();
-        const hNumStr = hIdStr.replace(/^hol-/i, '');
+        const hNumStr = hIdStr.replace(/^hol-/i, "");
         if (hIdStr === targetIdStr || hNumStr === numericIdStr) {
           return { ...h, ...updates };
         }
@@ -17511,7 +18115,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         startDate: updates.startDate,
         endDate: updates.endDate,
         description: updates.description,
-        applicableTo: updates.applicableTo || 'All Students & Staff'
+        applicableTo: updates.applicableTo || "All Students & Staff",
       };
       await updateHolidayApi(id, payload);
     } catch (err) {
@@ -17521,12 +18125,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteHoliday = async (id: string) => {
     const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^hol-/i, '');
+    const numericIdStr = targetIdStr.replace(/^hol-/i, "");
 
     setHolidays((prev) => {
       const updated = prev.filter((h) => {
         const hIdStr = String(h.id).toLowerCase().trim();
-        const hNumStr = hIdStr.replace(/^hol-/i, '');
+        const hNumStr = hIdStr.replace(/^hol-/i, "");
         return hIdStr !== targetIdStr && hNumStr !== numericIdStr;
       });
       try {
@@ -17536,7 +18140,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     try {
-      const numericId = id.replace(/^HOL-/i, '');
+      const numericId = id.replace(/^HOL-/i, "");
       await deleteHolidayApi(numericId);
     } catch (err) {
       console.warn("Failed to delete holiday on backend", err);
@@ -17569,9 +18173,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         endTime: newEvent.endTime,
         location: newEvent.location,
         description: newEvent.description,
-        status: newEvent.status ? newEvent.status.toUpperCase() : 'PUBLISHED'
+        status: newEvent.status ? newEvent.status.toUpperCase() : "PUBLISHED",
       };
-      createSchoolEventApi(payload).catch((err) => console.warn("Failed to create school event on backend", err));
+      createSchoolEventApi(payload).catch((err) =>
+        console.warn("Failed to create school event on backend", err),
+      );
     } catch (err) {
       console.warn("Failed to create school event on backend", err);
     }
@@ -17579,14 +18185,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return newEvent;
   };
 
-  const updateSchoolEvent = async (id: string, updates: Partial<SchoolEvent>) => {
+  const updateSchoolEvent = async (
+    id: string,
+    updates: Partial<SchoolEvent>,
+  ) => {
     const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+    const numericIdStr = targetIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
 
     setSchoolEvents((prev) => {
       const updated = prev.map((e) => {
         const eIdStr = String(e.id).toLowerCase().trim();
-        const eNumStr = eIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+        const eNumStr = eIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
         if (eIdStr === targetIdStr || eNumStr === numericIdStr) {
           return {
             ...e,
@@ -17616,7 +18225,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         venue: updates.venue,
         organizer: updates.organizer,
         description: updates.description,
-        status: updates.status ? updates.status.toUpperCase() : 'PUBLISHED'
+        status: updates.status ? updates.status.toUpperCase() : "PUBLISHED",
       };
       await updateSchoolEventApi(id, payload);
     } catch (err) {
@@ -17626,12 +18235,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteSchoolEvent = async (id: string) => {
     const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+    const numericIdStr = targetIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
 
     setSchoolEvents((prev) => {
       const updated = prev.filter((e) => {
         const eIdStr = String(e.id).toLowerCase().trim();
-        const eNumStr = eIdStr.replace(/^evt-/i, '').replace(/^se-/i, '');
+        const eNumStr = eIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
         return eIdStr !== targetIdStr && eNumStr !== numericIdStr;
       });
       try {
@@ -17874,7 +18483,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await createPayslipApi(pData);
       if (response && response.success) {
-        addToast("success", "Success", "Payslip generated and disbursal completed.");
+        addToast(
+          "success",
+          "Success",
+          "Payslip generated and disbursal completed.",
+        );
         await fetchPayslips();
       }
     } catch (err) {
@@ -17889,7 +18502,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await createPayrollConfigurationApi(configData);
       if (response && response.success) {
-        addToast("success", "Success", "Payroll configuration saved successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Payroll configuration saved successfully.",
+        );
         await fetchPayrollConfigurations();
       }
     } catch (err) {
@@ -17905,7 +18522,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await updatePayrollConfigurationApi(id, updates);
       if (response && response.success) {
-        addToast("success", "Success", "Payroll configuration updated successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Payroll configuration updated successfully.",
+        );
         await fetchPayrollConfigurations();
       }
     } catch (err) {
@@ -17918,7 +18539,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await deletePayrollConfigurationApi(id);
       if (response && response.success) {
-        addToast("success", "Success", "Payroll configuration deleted successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Payroll configuration deleted successfully.",
+        );
         await fetchPayrollConfigurations();
       }
     } catch (err) {
@@ -17931,7 +18556,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await activatePayrollConfigurationApi(id);
       if (response && response.success) {
-        addToast("success", "Success", "Payroll configuration activated successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Payroll configuration activated successfully.",
+        );
         await fetchPayrollConfigurations();
       }
     } catch (err) {
@@ -17944,7 +18573,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await deactivatePayrollConfigurationApi(id);
       if (response && response.success) {
-        addToast("success", "Success", "Payroll configuration deactivated successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Payroll configuration deactivated successfully.",
+        );
         await fetchPayrollConfigurations();
       }
     } catch (err) {
@@ -17953,11 +18586,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const addPayrollComponent = async (componentData: Omit<PayrollComponent, "id">) => {
+  const addPayrollComponent = async (
+    componentData: Omit<PayrollComponent, "id">,
+  ) => {
     try {
       const response = await createPayrollComponentApi(componentData);
       if (response && response.success) {
-        addToast("success", "Success", "Salary component created successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Salary component created successfully.",
+        );
         await fetchPayrollComponents();
       }
     } catch (err) {
@@ -17973,7 +18612,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await updatePayrollComponentApi(id, updates);
       if (response && response.success) {
-        addToast("success", "Success", "Salary component updated successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Salary component updated successfully.",
+        );
         await fetchPayrollComponents();
       }
     } catch (err) {
@@ -17986,7 +18629,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await deletePayrollComponentApi(id);
       if (response && response.success) {
-        addToast("success", "Success", "Salary component deleted successfully.");
+        addToast(
+          "success",
+          "Success",
+          "Salary component deleted successfully.",
+        );
         await fetchPayrollComponents();
       }
     } catch (err) {
@@ -17995,17 +18642,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const loadMonthlyStaffAttendance = async (monthNum: number, yearNum: number) => {
+  const loadMonthlyStaffAttendance = async (
+    monthNum: number,
+    yearNum: number,
+  ) => {
     try {
       const response = await fetchMonthlyStaffAttendanceApi(monthNum, yearNum);
       if (response && response.success && Array.isArray(response.data)) {
         const mappedRecords: DailyAttendance[] = response.data.map(
           (item: any) => ({
-            id: item.staffAttendanceId?.toString() || item.id?.toString() || Math.random().toString(),
+            id:
+              item.staffAttendanceId?.toString() ||
+              item.id?.toString() ||
+              Math.random().toString(),
             date: String(item.date).split("T")[0].split(" ")[0],
             entityType: "Staff",
             entityId: item.staffId?.toString() || item.id?.toString() || "",
-            status: item.status === "Half Day" ? "HalfDay" : (item.status === "On Leave" ? "Leave" : item.status),
+            status:
+              item.status === "Half Day"
+                ? "HalfDay"
+                : item.status === "On Leave"
+                  ? "Leave"
+                  : item.status,
             remarks: item.remarks || "",
             inTime: item.inTime || "",
             outTime: item.outTime || "",
@@ -18014,7 +18672,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }),
         );
         setAttendance((prev) => {
-          const rest = prev.filter(r => r.entityType !== "Staff");
+          const rest = prev.filter((r) => r.entityType !== "Staff");
           return [...rest, ...mappedRecords];
         });
       }
@@ -18224,21 +18882,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     upsertPayrollRunApi(savedRun)
-      .then(res => {
+      .then((res) => {
         if (res && res.success && res.data) {
-          setPayrollRuns(prev => prev.map(r => r.employeeId === res.data.employeeId && r.payrollMonth === res.data.payrollMonth ? { ...r, id: res.data.id } : r));
+          setPayrollRuns((prev) =>
+            prev.map((r) =>
+              r.employeeId === res.data.employeeId &&
+              r.payrollMonth === res.data.payrollMonth
+                ? { ...r, id: res.data.id }
+                : r,
+            ),
+          );
         }
       })
-      .catch(err => console.error("Error upserting payroll run", err));
+      .catch((err) => console.error("Error upserting payroll run", err));
 
     return savedRun;
   };
   const updatePayrollRun = (id: string, updates: Partial<PayrollRun>) => {
     setPayrollRuns((prev) => {
       const updated = prev.map((r) => (r.id === id ? { ...r, ...updates } : r));
-      const target = updated.find(r => r.id === id);
+      const target = updated.find((r) => r.id === id);
       if (target) {
-        updatePayrollRunApi(id, target).catch(err => console.error("Error updating payroll run", err));
+        updatePayrollRunApi(id, target).catch((err) =>
+          console.error("Error updating payroll run", err),
+        );
       }
       return updated;
     });
@@ -18247,7 +18914,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const deletePayrollRun = (id: string) => {
     setPayrollRuns((prev) => {
       const filtered = prev.filter((r) => r.id !== id);
-      deletePayrollRunApi(id).catch(err => console.error("Error deleting payroll run", err));
+      deletePayrollRunApi(id).catch((err) =>
+        console.error("Error deleting payroll run", err),
+      );
       return filtered;
     });
   };
@@ -18268,7 +18937,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               approverRemarks: remarks || app.approverRemarks,
               approvedBy: approvedBy || app.approvedBy || "Admin",
             }
-          : app
+          : app,
       );
       const dataStr = JSON.stringify(updated);
       localStorage.setItem("edu_db_leave_applications", dataStr);
@@ -18282,7 +18951,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         status: status,
       };
 
-      const parsedId = parseInt(id.replace(/\D/g, '')) || 1;
+      const parsedId = parseInt(id.replace(/\D/g, "")) || 1;
       const response = await updateLeaveApplicationStatusApi(parsedId, payload);
 
       if (response && response.success) {
@@ -18356,6 +19025,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);
   }, [filteredStudents]);
+  const filteredStaff = filterByBranch(staff);
+  const filteredAdmissions = filterByBranch(admissions);
+  const filteredClasses = filterByBranch(academicClasses);
+  const filteredSubjects = filterByBranch(subjects);
+  const filteredExams = filterByBranch(exams);
+  const filteredTimetable = filterByBranch(timetable);
+  const filteredHomework = filterByBranch(homework);
+  const filteredFeeStructures = filterByBranch(feeStructures);
+  const filteredFeePayments = filterByBranch(feePayments);
+  const filteredFeeHeads = filterByBranch(feeHeads);
+  const filteredDynamicFeeStructures = filterByBranch(dynamicFeeStructures);
+  const filteredStudentFeeAssignments = filterByBranch(studentFeeAssignments);
+  const filteredERPTransportRoutes = filterByBranch(erpTransportRoutes);
+  const filteredStudentTransports = filterByBranch(studentTransports);
+  const filteredHostelMasters = filterByBranch(hostelMasters);
+  const filteredStudentHostels = filterByBranch(studentHostels);
+  const filteredRefunds = filterByBranch(refunds);
+  const filteredRouteMasters = filterByBranch(routeMasters);
+  const filteredPickupPoints = filterByBranch(pickupPoints);
+  const filteredVehicleMasters = filterByBranch(vehicleMasters);
+  const filteredDriverMasters = filterByBranch(driverMasters);
+  const filteredBusAttendants = filterByBranch(busAttendants);
+  const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
+  const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
+  const filteredUniformCategories = filterByBranch(uniformCategories).filter(
+    (c) => {
+      const name = (c?.name || (c as any)?.categoryName || "")
+        .toLowerCase()
+        .trim();
+      return (
+        (name !== "uniform package" && name !== "package") ||
+        name.includes("boys") ||
+        name.includes("girls")
+      );
+    },
+  );
+  const filteredUniforms = filterByBranch(uniforms).filter((u) => {
   const filteredStaff = useMemo(() => filterByBranch(staff), [staff, selectedBranch, selectedAcademicYear]);
   const filteredAdmissions = useMemo(() => filterByBranch(admissions), [admissions, selectedBranch, selectedAcademicYear]);
   const filteredClasses = useMemo(() => filterByBranch(academicClasses), [academicClasses, selectedBranch, selectedAcademicYear]);
@@ -18386,16 +19092,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const filteredUniforms = filterByBranch(uniforms).filter(u => {
     if (!u) return false;
-    const name = (u.name || u.category || '').toLowerCase().trim();
-    return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
+    const name = (u.name || u.category || "").toLowerCase().trim();
+    return (
+      (name !== "uniform package" && name !== "package") ||
+      name.includes("boys") ||
+      name.includes("girls")
+    );
   });
   const filteredUniformSizes = filterByBranch(uniformSizes);
   const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
-  const filteredUniformInventory = filterByBranch(uniformInventory).filter(inv => {
-    if (!inv) return false;
-    const name = (inv.itemName || inv.category || '').toLowerCase().trim();
-    return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
-  });
+  const filteredUniformInventory = filterByBranch(uniformInventory).filter(
+    (inv) => {
+      if (!inv) return false;
+      const name = (inv.itemName || inv.category || "").toLowerCase().trim();
+      return (
+        (name !== "uniform package" && name !== "package") ||
+        name.includes("boys") ||
+        name.includes("girls")
+      );
+    },
+  );
   const filteredStudentUniformIssues = filterByBranch(
     studentUniformIssues,
   ).filter((i) => {
@@ -18555,11 +19271,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
 
+          const norm = (str?: string) =>
+            (str || "")
+              .toLowerCase()
+              .replace(/\s+/g, "")
+              .replace(/class/gi, "");
+          const existingLocal = prev.filter(
+            (t) =>
+              norm(t.className) === norm(targetClassName) &&
+              norm(t.section) === norm(sectionName),
+          );
+
+          // If local memory has freshly generated slots and backend returned fewer slots due to conflict, preserve local slots
+          if (
+            existingLocal.length > mappedSlots.length &&
+            mappedSlots.length === 0
+          ) {
+            return prev;
+          }
+
           const filtered = prev.filter(
             (t) =>
               !(
-                t.className.toLowerCase().trim() === targetClassName.toLowerCase().trim() &&
-                t.section.toLowerCase().trim() === sectionName.toLowerCase().trim()
+                norm(t.className) === norm(targetClassName) &&
+                norm(t.section) === norm(sectionName)
               ),
           );
           const updated = [...filtered, ...mappedSlots];
@@ -18714,8 +19449,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const targetStudent = students.find(
         (s) =>
-          s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-          s.id.toLowerCase() === admNo.toLowerCase(),
+          (s.admissionNo != null &&
+            String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+          (s.id != null && String(s.id).toLowerCase() === admNo.toLowerCase()),
       );
 
       if (!targetStudent) {
@@ -18789,8 +19525,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const targetStudent = students.find(
           (s) =>
-            s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-            s.id.toLowerCase() === admNo.toLowerCase(),
+            (s.admissionNo != null &&
+              String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+            (s.id != null &&
+              String(s.id).toLowerCase() === admNo.toLowerCase()),
         );
         if (!targetStudent) {
           errorCount++;
@@ -18848,8 +19586,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const targetStudent = students.find(
           (s) =>
-            s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-            s.id.toLowerCase() === admNo.toLowerCase(),
+            (s.admissionNo != null &&
+              String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+            (s.id != null &&
+              String(s.id).toLowerCase() === admNo.toLowerCase()),
         );
         if (!targetStudent) {
           errorCount++;
@@ -18903,8 +19643,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const targetStudent = students.find(
           (s) =>
-            s.admissionNo.toLowerCase() === admNo.toLowerCase() ||
-            s.id.toLowerCase() === admNo.toLowerCase(),
+            (s.admissionNo != null &&
+              String(s.admissionNo).toLowerCase() === admNo.toLowerCase()) ||
+            (s.id != null &&
+              String(s.id).toLowerCase() === admNo.toLowerCase()),
         );
         if (!targetStudent) {
           errorCount++;
@@ -19374,14 +20116,31 @@ import { useHR } from "./HRContext";
 
 export const useData = () => {
   const context = useContext(DataContext);
-  const hostel = useHostel();
-  const exam = useExamination();
-  const hr = useHR();
-  if (!context) {
-    throw new Error("useData must be used within a DataProvider");
+  let hostel: any = {};
+  let exam: any = {};
+  let hr: any = {};
+  try {
+    hostel = useHostel();
+  } catch {
+    /* Ignored when outside HostelProvider */
   }
+  try {
+    exam = useExamination();
+  } catch {
+    /* Ignored when outside ExaminationProvider */
+  }
+  try {
+    hr = useHR();
+  } catch {
+    /* Ignored when outside HRProvider */
+  }
+
+  if (!context) {
+    console.warn("useData was called outside a DataProvider or before DataProvider mounted.");
+  }
+
   return {
-    ...context,
+    ...(context || {}),
     ...hostel,
     ...exam,
     ...hr,

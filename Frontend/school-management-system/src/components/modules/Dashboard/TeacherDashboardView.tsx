@@ -23,7 +23,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     students = [], 
     timetable = [], 
     homework = [], 
-    attendance = [], 
+    attendance = [],
+    studentAttendance = [], 
     meetings = [], 
     announcements = [],
     academicClasses = [],
@@ -193,14 +194,18 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   // Primary Main Class for Class Teacher summary
   const mainClass = assignedClasses[0] || 'Class 10-A';
 
-  // Helper to match student class & section against assigned class string (e.g. 'Class 6-A')
   const isStudentInAssignedClass = (s: any, classKey: string) => {
     if (!s || !s.className) return false;
     const cleanStudentClass = s.className.replace(/^Class\s*/i, '').trim().toLowerCase();
     const cleanStudentSec = (s.section || '').trim().toLowerCase();
-    const cleanKey = classKey.replace(/^Class\s*/i, '').trim().toLowerCase();
-    const studentKey = cleanStudentSec ? `${cleanStudentClass}-${cleanStudentSec}` : cleanStudentClass;
-    return cleanKey === studentKey || cleanKey === cleanStudentClass || cleanKey.startsWith(cleanStudentClass);
+    
+    const rawKey = classKey.replace(/^Class\s*/i, '').trim().toLowerCase();
+    const [keyClass, keySec] = rawKey.includes('-') ? rawKey.split('-') : [rawKey, ''];
+
+    const classMatches = cleanStudentClass === keyClass.trim();
+    const sectionMatches = !keySec.trim() || cleanStudentSec === keySec.trim();
+
+    return classMatches && sectionMatches;
   };
 
   // Retrieve all students in this teacher's assigned classes
@@ -424,7 +429,14 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
     const totalClassStudents = targetStudents.length;
 
-    const classAttendanceRecords = attendance.filter(a => a.date === todayStr && targetStudents.some(s => s.id === a.entityId));
+    const allAttendanceRecords = [...(studentAttendance || []), ...(attendance || [])];
+    const classAttendanceRecords = allAttendanceRecords.filter(a => {
+      const aDate = String(a.date || '').split('T')[0];
+      if (aDate !== todayStr) return false;
+      const targetId = String(a.studentId || a.entityId || '');
+      return targetStudents.some(s => String(s.id) === targetId);
+    });
+
     const markedCount = classAttendanceRecords.length;
     const presentClassCount = classAttendanceRecords.filter(a => ['Present', 'Late', 'HalfDay', 'Leave'].includes(a.status)).length;
     const absentClassCount = markedCount > 0 ? (totalClassStudents - presentClassCount) : 0;
@@ -433,38 +445,44 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       : 0;
 
     return { totalClassStudents, markedCount, presentClassCount, absentClassCount, mainClassAttendancePct };
-  }, [students, attendance, selectedSummaryClass, assignedClasses, todayStr]);
+  }, [students, studentAttendance, attendance, selectedSummaryClass, assignedClasses, todayStr]);
 
   // 6. Academic Tasks Panel Calculations
   const pendingAttendanceCount = useMemo(() => {
+    const allAttendanceRecords = [...(studentAttendance || []), ...(attendance || [])];
     const pending = assignedClasses.filter(clsKey => {
       const clsStudents = students.filter(s => isStudentInAssignedClass(s, clsKey));
       if (clsStudents.length === 0) return false;
-      const hasMarked = attendance.some(a => a.date === todayStr && clsStudents.some(s => s.id === a.entityId));
+      const hasMarked = allAttendanceRecords.some(a => {
+        const aDate = String(a.date || '').split('T')[0];
+        if (aDate !== todayStr) return false;
+        const targetId = String(a.studentId || a.entityId || '');
+        return clsStudents.some(s => String(s.id) === targetId);
+      });
       return !hasMarked;
     }).length;
     return pending;
-  }, [assignedClasses, students, attendance, todayStr]);
+  }, [assignedClasses, students, studentAttendance, attendance, todayStr]);
 
   const pendingGradingCount = useMemo(() => {
-    const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase();
-    const teacherHomework = homework.filter(h => (h.teacherName || '').toLowerCase().includes(tName));
-    if (teacherHomework.length > 0) {
-      return teacherHomework.reduce((acc, h) => acc + (h.totalSubmissions ? Math.floor(h.totalSubmissions * 0.45) : 3), 0);
-    }
-    return 0;
+    const tName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+    const teacherHomework = homework.filter(h => {
+      const hwTeacher = (h.teacherName || '').toLowerCase().trim();
+      return tName && (hwTeacher.includes(tName) || tName.includes(hwTeacher));
+    });
+    return teacherHomework.reduce((acc, h) => acc + (h.totalSubmissions || 0), 0);
   }, [homework, teacher]);
 
   const pendingMarksEntryCount = useMemo(() => {
-    const unsubmittedExams = exams.filter(e => e.status === 'Active' || e.status === 'Ongoing').length;
-    return unsubmittedExams > 0 ? unsubmittedExams : (teacher.assignedSubjects?.length || 1);
-  }, [exams, teacher]);
+    const activeExams = exams.filter(e => e.status === 'Active' || e.status === 'Ongoing' || e.status === 'Scheduled');
+    return activeExams.length;
+  }, [exams]);
 
   // 7. Notifications Panel Calculations
   const notificationsData = useMemo(() => {
     const schoolNotices = announcements.filter(a => !a.targetAudience || a.targetAudience === 'ALL' || a.targetAudience === 'STAFF ONLY').length;
-    const principalNotices = announcements.filter(a => a.category === 'URGENT' || (a.author && a.author.toLowerCase().includes('principal'))).length || 1;
-    const parentMessages = meetings.filter(m => m.audience === 'Individual' || m.participantType === 'Parent').length || 3;
+    const principalNotices = announcements.filter(a => a.category === 'URGENT' || (a.author && a.author.toLowerCase().includes('principal'))).length;
+    const parentMessages = meetings.filter(m => m.audience === 'Individual' || m.participantType === 'Parent').length;
     return { schoolNotices, principalNotices, parentMessages };
   }, [announcements, meetings]);
 

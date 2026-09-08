@@ -365,9 +365,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     setSelectedClassInfo({
       className: classSec.startsWith('Class ') ? classSec : `Class ${classSec}`,
-      subject: subject || 'Social Studies',
-      room: room || 'Room 202',
-      studentStrength: count > 0 ? count : 38,
+      subject: subject || '',
+      room: room || '',
+      studentStrength: count,
       classTeacher: assignedCT ? assignedCT.teacherName : teacherFullName
     });
     setShowClassInfoModal(true);
@@ -431,10 +431,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [academicClasses, selectedClass]
   );
 
-  const classTimetable = useMemo(() => 
-    timetable.filter(t => t.className === selectedClass && t.section === selectedSection),
-    [timetable, selectedClass, selectedSection]
-  );
+  const classTimetable = useMemo(() => {
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    return timetable.filter(
+      t => norm(t.className) === norm(selectedClass) && norm(t.section) === norm(selectedSection)
+    );
+  }, [timetable, selectedClass, selectedSection]);
 
   useEffect(() => {
     if (selectedClass && selectedSection && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
@@ -489,15 +491,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
   }, [isBulkAssignModalOpen, periodSettings, academicClasses]);
 
-  const activeBranchPeriods = useMemo(() => {
-    const specific = periodSettings.filter(p => 
-      p.className === selectedClass && 
-      p.section === selectedSection && 
-      p.status === 'Active'
-    );
-    return specific.sort((a, b) => a.sequence - b.sequence);
-  }, [periodSettings, selectedClass, selectedSection]);
-
   // Master periods with strict deduplication
   const masterPeriods = useMemo(() => {
     const masterRaw = periodSettings.filter(p => 
@@ -536,6 +529,19 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     return uniqueMaster;
   }, [periodSettings]);
+
+  const activeBranchPeriods = useMemo(() => {
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const specific = periodSettings.filter(p => 
+      norm(p.className) === norm(selectedClass) && 
+      norm(p.section) === norm(selectedSection) && 
+      p.status === 'Active'
+    );
+    if (specific.length > 0) {
+      return specific.sort((a, b) => a.sequence - b.sequence);
+    }
+    return masterPeriods;
+  }, [periodSettings, selectedClass, selectedSection, masterPeriods]);
 
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
@@ -577,9 +583,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [classTimetable]);
 
   const timeSlots = useMemo(() => {
+    if (activeBranchPeriods && activeBranchPeriods.length > 0) {
+      return activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
+    }
     const fromData = classTimetable.map(t => t.timeSlot);
-    const fromSettings = activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
-    return Array.from(new Set([...fromSettings, ...fromData])).sort((a, b) => parseSortable(a) - parseSortable(b));
+    return Array.from(new Set(fromData)).sort((a, b) => parseSortable(a) - parseSortable(b));
   }, [classTimetable, activeBranchPeriods]);
 
   const [formData, setFormData] = useState<Partial<TimetableSlot>>({
@@ -633,27 +641,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [autoAssignedTeacher, formData.subject]);
 
   const getDisplayRoom = (slotRoom?: string, className?: string, section?: string): string => {
-    const trimmedSlot = (slotRoom || '').trim();
-    if (
-      trimmedSlot &&
-      trimmedSlot.toLowerCase() !== 'classroom' &&
-      trimmedSlot.toLowerCase() !== 'unassigned' &&
-      trimmedSlot.toLowerCase() !== 'undefined' &&
-      trimmedSlot.toLowerCase() !== 'null'
-    ) {
-      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
-        return `Room ${trimmedSlot}`;
-      }
-      return trimmedSlot;
-    }
-
-    // Lookup from section details in academicClasses
     const targetClass = className || selectedClass;
     const targetSection = section || selectedSection;
-    const cls = academicClasses.find(
-      c => c.name?.toLowerCase().trim() === targetClass?.toLowerCase().trim()
-    );
-    const secRoom = cls?.sectionDetails?.[targetSection]?.roomNo?.trim();
+
+    // 1. Check Class Management sectionDetails first for pre-configured room number
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const cls = academicClasses.find(c => norm(c.name) === norm(targetClass));
+    const secDetails = cls?.sectionDetails?.[targetSection] ||
+                       cls?.sectionDetails?.[targetSection?.toUpperCase()] ||
+                       cls?.sectionDetails?.[targetSection?.toLowerCase()];
+    const secRoom = secDetails?.roomNo?.trim() || (secDetails as any)?.roomNumber?.trim();
 
     if (
       secRoom &&
@@ -666,6 +663,28 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         return `Room ${secRoom}`;
       }
       return secRoom;
+    }
+
+    // 2. Check slotRoom from the timetable slot if present and non-generic
+    const trimmedSlot = (slotRoom || '').trim();
+    if (
+      trimmedSlot &&
+      trimmedSlot.toLowerCase() !== 'classroom' &&
+      trimmedSlot.toLowerCase() !== 'unassigned' &&
+      trimmedSlot.toLowerCase() !== 'undefined' &&
+      trimmedSlot.toLowerCase() !== 'null' &&
+      !/^Room\s+[A-Z]$/i.test(trimmedSlot)
+    ) {
+      if (/^\d+[A-Za-z]?$/.test(trimmedSlot)) {
+        return `Room ${trimmedSlot}`;
+      }
+      return trimmedSlot;
+    }
+
+    // 3. Dynamic room formatting from class name & section (e.g. Class 5 Sec A -> Room 5-A)
+    if (targetClass && targetSection) {
+      const cleanClass = targetClass.replace(/class/gi, '').trim();
+      return `Room ${cleanClass}-${targetSection}`;
     }
 
     return 'No Classroom Assigned';
@@ -1302,9 +1321,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               {match ? (
                                 <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border space-y-0.5 text-left mx-auto w-28 shadow-xs border-slate-100 dark:border-slate-700/50">
                                    {(() => {
-                                      const subName = match.subject || 'Social Studies';
+                                      const subName = match.subject || '';
                                       const globalSub = subjects.find(s => s.name.toLowerCase().trim() === subName.toLowerCase().trim());
-                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : ' (soc)';
+                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : '';
                                       return (
                                         <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
                                           {subName}{codeStr}
@@ -1611,7 +1630,27 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                         </p>
                                       );
                                     })()}
-                                    <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName}</p>
+                                     {(() => {
+                                       const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+                                       const mappedTa = (teacherAssignments || []).find((ta: any) =>
+                                         norm(ta.className) === norm(match.className || selectedClass) &&
+                                         norm(ta.section) === norm(match.section || selectedSection) &&
+                                         norm(ta.subject) === norm(match.subject)
+                                       );
+                                       const clsObj = (academicClasses || []).find((c: any) => norm(c.name) === norm(match.className || selectedClass));
+                                       const secTeachers = (clsObj as any)?.sectionTeachers || {};
+                                       const secKey = match.section || selectedSection || 'A';
+                                       const cleanSecKey = secKey.replace(/^Section\s*/i, '').trim();
+                                       const classTeacherName = secTeachers[secKey] || secTeachers[cleanSecKey] || secTeachers[`Section ${cleanSecKey}`];
+
+                                       const displayTeacher = mappedTa?.teacherName || classTeacherName || match.teacherName || 'Assigned Teacher';
+
+                                       return (
+                                         <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">
+                                           {displayTeacher}
+                                         </p>
+                                       );
+                                     })()}
                                     <div className="flex items-center justify-between pt-1">
                                       {(() => {
                                         const displayRoom = getDisplayRoom(match.roomNo, match.className, match.section);

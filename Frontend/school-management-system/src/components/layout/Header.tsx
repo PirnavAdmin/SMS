@@ -23,20 +23,67 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, academicYears } = useData();
 
+  const formatEmailToName = (email?: string): string => {
+    if (!email || !email.includes('@')) return '';
+    const username = email.split('@')[0];
+    const parts = username.split(/[._-]/);
+    return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  };
+
   const currentStaff = useMemo(() => {
     if (!user) return null;
     const userEmail = (user.email || '').toLowerCase().trim();
-    const userId = (user.id || (user as any)?.empId || '').trim();
-    return staff.find(s =>
-      (s.email && s.email.toLowerCase().trim() === userEmail) ||
-      (s.id && s.id === userId) ||
-      (s.empId && s.empId === userId)
-    );
+    const userId = String(user.id || (user as any)?.empId || '').trim();
+
+    if (userEmail) {
+      const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (emailMatch) return emailMatch;
+    }
+
+    if (userId) {
+      const idMatch = staff.find(s => {
+        const matchesId = (s.id && String(s.id).trim() === userId) || (s.empId && String(s.empId).trim() === userId);
+        if (!matchesId) return false;
+        if (s.email && userEmail && s.email.toLowerCase().trim() !== userEmail) {
+          return false;
+        }
+        return true;
+      });
+      if (idMatch) return idMatch;
+    }
+
+    return null;
   }, [staff, user]);
 
-  const displayName = currentStaff
-    ? `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim()
-    : (user?.name || 'User');
+  const displayName = useMemo(() => {
+    if (currentStaff) {
+      const staffName = `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim();
+      if (staffName) return staffName;
+    }
+
+    if (user?.email) {
+      const userEmail = user.email.toLowerCase().trim();
+      const matchedStudent = (students || []).find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (matchedStudent) {
+        const studentName = `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim();
+        if (studentName) return studentName;
+      }
+    }
+
+    const rawName = (user?.name || '').trim();
+    const isGeneric = !rawName || ['user', 'admin', 'admin user', 'administrator', 'system admin'].includes(rawName.toLowerCase());
+
+    if (!isGeneric) {
+      return rawName;
+    }
+
+    if (user?.email) {
+      const derived = formatEmailToName(user.email);
+      if (derived) return derived;
+    }
+
+    return rawName || 'User';
+  }, [currentStaff, user, students]);
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -478,7 +525,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <img
-              src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+              src={currentStaff?.avatar || user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
               alt=""
               className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"
             />

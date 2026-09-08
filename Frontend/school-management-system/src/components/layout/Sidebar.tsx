@@ -281,6 +281,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? []
       : [
           { id: "hostel-dashboard", label: "Dashboard", icon: LayoutDashboard },
+          ...(!role.toLowerCase().includes("warden") ? [
+            { id: "warden-attendance", label: "Warden Attendance", icon: CalendarCheck }
+          ] : []),
           {
             id: "hostel-masters",
             label: "Hostel Master Setup",
@@ -356,9 +359,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: "driver-leave", label: "Leave Management", icon: FileText },
           { id: "driver-payslips", label: "My Payslips", icon: IndianRupee },
         ]
-      : role.toLowerCase() === "teacher"
+      : role.toLowerCase() === "teacher" || role.toLowerCase().includes("warden")
       ? [
-          { id: "teacher-profile", label: "My Profile", icon: User },
+          { id: "warden-profile", label: "My Profile", icon: User },
           {
             id: "staff-attendance",
             label: "My Attendance",
@@ -436,6 +439,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Core Operations",
       items: [
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+        ...(role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' ? [
+          { id: "warden-attendance", label: "Warden Attendance", icon: Clock }
+        ] : []),
         {
           id: "staff",
           label:
@@ -451,8 +457,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: "admissions", label: "Admissions", icon: GraduationCap },
         { id: "students", label: role.toLowerCase().includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
-        { id: "academic-history", label: "Academic History", icon: History },
         { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
+        { id: "academic-history", label: "Academic History", icon: History },
         {
           id: "student-promotion",
           label: "Student Promotion",
@@ -1249,9 +1255,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 ["driver-leave", "staff-leave"].includes(activeModule)) ||
                               (sub.id === "driver-payslips" &&
                                 ["driver-payslips", "staff-my-payslips", "teacher-payslips"].includes(activeModule)) ||
-                              (sub.id === "teacher-profile" &&
+                              ((sub.id === "teacher-profile" || sub.id === "warden-profile") &&
                                 [
                                   "teacher-profile",
+                                  "warden-profile",
                                   "staff-teachers",
                                   "staff",
                                 ].includes(activeModule)) ||
