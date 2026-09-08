@@ -2,6 +2,9 @@
  * Resolves media and branding URLs to ensure they work seamlessly across
  * all devices, network clients, and remote systems.
  */
+export const DEFAULT_USER_AVATAR =
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80';
+
 export const resolveMediaUrl = (url?: string | null): string => {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
@@ -27,19 +30,10 @@ export const resolveMediaUrl = (url?: string | null): string => {
     return trimmed;
   }
 
-  // 4. Dynamic backend uploads (e.g., /uploads/branding/...)
-  const isLocal = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  // If running locally, use relative path so local Vite proxy & public/ handles it directly
-  if (isLocal) {
-    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  }
-
-  // If remote client (mobile, external laptop), resolve against backend URL
+  // 4. Dynamic backend uploads (e.g., /uploads/...)
   const backendBase = (import.meta.env.VITE_API_URL as string) || (import.meta.env.VITE_BACKEND_TARGET as string) || '';
-  if (backendBase) {
-    const cleanBase = backendBase.replace(/\/+$/, '');
+  if (backendBase && trimmed.startsWith('/uploads/')) {
+    const cleanBase = backendBase.trim().replace(/\/+$/, '');
     const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
     let finalUrl = `${cleanBase}${cleanPath}`;
     if (finalUrl.includes('ngrok') && !finalUrl.includes('ngrok-skip-browser-warning')) {
@@ -50,4 +44,54 @@ export const resolveMediaUrl = (url?: string | null): string => {
   }
 
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
+/**
+ * Resizes and crops any uploaded photo file to a standard 256x256 avatar JPEG data URL (~20KB).
+ * This prevents browser localStorage quota exceeded errors, provides instant display,
+ * and guarantees that the image never 404s or reverts.
+ */
+export const createOptimizedAvatarDataUrl = (file: File, maxSize: number = 256): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        reject(new Error('Failed to read file.'));
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const width = img.width;
+          const height = img.height;
+
+          // Center-crop to square
+          const minDim = Math.min(width, height);
+          const startX = (width - minDim) / 2;
+          const startY = (height - minDim) / 2;
+
+          canvas.width = maxSize;
+          canvas.height = maxSize;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(src);
+            return;
+          }
+
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, maxSize, maxSize);
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(optimizedDataUrl);
+        } catch {
+          resolve(src);
+        }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
 };

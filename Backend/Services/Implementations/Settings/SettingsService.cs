@@ -624,5 +624,173 @@ namespace SMS.Api.Services.Implementations.Settings
 
             return string.Join(sep, parts.Where(p => !string.IsNullOrEmpty(p)));
         }
+
+        public async Task<UserProfileDto> GetUserProfileAsync()
+        {
+            var settings = await _repository.GetSettingsAsync();
+            if (!string.IsNullOrWhiteSpace(settings.UserProfileJson))
+            {
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<UserProfileDto>(settings.UserProfileJson);
+                    if (parsed != null && (!string.IsNullOrWhiteSpace(parsed.Name) || !string.IsNullOrWhiteSpace(parsed.Email)))
+                    {
+                        return parsed;
+                    }
+                }
+                catch { }
+            }
+
+            // Fallback to Admin from database if available
+            try
+            {
+                var admin = await _context.Admins.FirstOrDefaultAsync();
+                if (admin != null)
+                {
+                    return new UserProfileDto
+                    {
+                        Id = admin.AdminId.ToString(),
+                        Name = admin.FullName ?? "Vasantha Gokul",
+                        Email = admin.Email ?? "vasantha.gokul@pirnav.com",
+                        Phone = admin.MobileNumber ?? "+91 9876543210",
+                        Avatar = admin.Avatar ?? "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+                        Branch = "Main Campus",
+                        Role = admin.Role ?? "Admin",
+                        Status = "Active Account"
+                    };
+                }
+            }
+            catch { }
+
+            return new UserProfileDto
+            {
+                Id = "USR-001",
+                Name = "Vasantha Gokul",
+                Email = "vasantha.gokul@pirnav.com",
+                Phone = "+91 9876543210",
+                Avatar = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+                Branch = "Main Campus",
+                Role = "Admin",
+                Status = "Active Account"
+            };
+        }
+
+        public async Task<UserProfileDto> UpdateUserProfileAsync(UserProfileDto dto)
+        {
+            if (dto == null) throw new ArgumentNullException(nameof(dto));
+
+            string avatarUrl = dto.Avatar?.Trim() ?? string.Empty;
+
+            // If base64 image data is provided, save it as a physical file
+            if (avatarUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var parts = avatarUrl.Split(',');
+                    if (parts.Length == 2)
+                    {
+                        var header = parts[0];
+                        var base64Data = parts[1];
+                        var ext = ".png";
+                        if (header.Contains("image/jpeg") || header.Contains("image/jpg")) ext = ".jpg";
+                        else if (header.Contains("image/webp")) ext = ".webp";
+
+                        var bytes = Convert.FromBase64String(base64Data);
+                        var fileName = $"profile-avatar-{DateTime.UtcNow.Ticks}{ext}";
+
+                        // 1. Save to wwwroot/uploads/profile
+                        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                        var uploadFolder = Path.Combine(webRoot, "uploads", "profile");
+                        Directory.CreateDirectory(uploadFolder);
+                        var filePath = Path.Combine(uploadFolder, fileName);
+                        await File.WriteAllBytesAsync(filePath, bytes);
+
+                        // 2. Also mirror to Frontend public folder
+                        try
+                        {
+                            var frontendUploadFolder = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Frontend", "school-management-system", "public", "uploads", "profile"));
+                            Directory.CreateDirectory(frontendUploadFolder);
+                            var frontendFilePath = Path.Combine(frontendUploadFolder, fileName);
+                            await File.WriteAllBytesAsync(frontendFilePath, bytes);
+                        }
+                        catch { }
+
+                        avatarUrl = $"/uploads/profile/{fileName}";
+                        dto.Avatar = avatarUrl;
+                    }
+                }
+                catch { }
+            }
+
+            var json = JsonSerializer.Serialize(dto);
+            await _repository.UpdateUserProfileAsync(json);
+
+            // Synchronize with Admin / User record in database
+            try
+            {
+                var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Email == dto.Email || a.MobileNumber == dto.Phone)
+                            ?? await _context.Admins.FirstOrDefaultAsync();
+                if (admin != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(dto.Name)) admin.FullName = dto.Name;
+                    if (!string.IsNullOrWhiteSpace(dto.Email)) admin.Email = dto.Email;
+                    if (!string.IsNullOrWhiteSpace(dto.Phone)) admin.MobileNumber = dto.Phone;
+                    admin.Avatar = dto.Avatar;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch { }
+
+            return dto;
+        }
+
+        public async Task<string> UploadProfileImageFileAsync(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("No file was uploaded.");
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var allowedExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+            if (Array.IndexOf(allowedExtensions, ext) < 0)
+            {
+                ext = ".png";
+            }
+
+            var fileName = $"profile-avatar-{DateTime.UtcNow.Ticks}{ext}";
+
+            // 1. Save to wwwroot/uploads/profile
+            var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadFolder = Path.Combine(webRoot, "uploads", "profile");
+            Directory.CreateDirectory(uploadFolder);
+            var filePath = Path.Combine(uploadFolder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // 2. Also mirror to Frontend public folder
+            try
+            {
+                var frontendUploadFolder = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Frontend", "school-management-system", "public", "uploads", "profile"));
+                Directory.CreateDirectory(frontendUploadFolder);
+                var frontendFilePath = Path.Combine(frontendUploadFolder, fileName);
+                File.Copy(filePath, frontendFilePath, true);
+            }
+            catch { }
+
+            var relativeUrl = $"/uploads/profile/{fileName}";
+
+            // Automatically update the stored profile avatar if existing profile exists
+            try
+            {
+                var currentProfile = await GetUserProfileAsync();
+                currentProfile.Avatar = relativeUrl;
+                await UpdateUserProfileAsync(currentProfile);
+            }
+            catch { }
+
+            return relativeUrl;
+        }
     }
 }

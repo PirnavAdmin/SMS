@@ -218,5 +218,14 @@ namespace SMS.Api.Repositories.Implementations.Settings
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<SchoolSettings> UpdateUserProfileAsync(string userProfileJson)
+        {
+            var existing = await GetOrCreateSettingsInternalAsync();
+            existing.UserProfileJson = userProfileJson;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return existing;
+        }
     }
 }
