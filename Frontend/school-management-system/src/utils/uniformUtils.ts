@@ -75,10 +75,10 @@ export const getCategorySizes = (
     itemLower.includes('headwear')
   ) {
     return [
-      { value: 'Free Size', label: 'Free Size (Adjustable Cap)' },
       { value: 'Small', label: 'Small (Kids Cap)' },
       { value: 'Medium', label: 'Medium (Junior Cap)' },
-      { value: 'Large', label: 'Large (Senior Cap)' }
+      { value: 'Large', label: 'Large (Senior Cap)' },
+      { value: 'Free Size', label: 'Free Size (Adjustable Cap)' }
     ];
   }
 
@@ -422,10 +422,12 @@ export const calculateClothOrItemPrice = (
   currentUnitPrice?: number,
   financeConfigs: any[] = [],
   className: string = '',
-  gender: string = ''
+  gender: string = '',
+  uniformCategoriesOrCatalog?: any[]
 ): number => {
   const rawName = (itemName || '').toLowerCase();
-  const isCloth = rawName.includes('cloth') || rawName.includes('fabric') || rawName.includes('unstitched');
+  const cleanItemName = rawName.replace(/\(extra\)/gi, '').replace(/\(extra purchase\)/gi, '').trim();
+  const isCloth = cleanItemName.includes('cloth') || cleanItemName.includes('fabric') || cleanItemName.includes('unstitched');
 
   const cleanSize = (sizeStr || '').toLowerCase().trim();
   const finalSize = cleanSize.includes('->') ? cleanSize.split('->')[1].trim() : cleanSize;
@@ -438,25 +440,32 @@ export const calculateClothOrItemPrice = (
         return pkg.includes('cloth') || pkg.includes('fabric') || pkg.includes('unstitched');
       });
 
-      const cfgMatch = activeClothConfigs.find(c => {
-        const pkgStr = (c.uniformPackage || c.packageName || c.name || c.fabricMeterage || '').toLowerCase();
-        if (finalSize.includes('1.0') || (finalSize.includes('1.5') && !finalSize.includes('2.0'))) {
-          return pkgStr.includes('1.0') || pkgStr.includes('1.5');
-        }
-        if (finalSize.includes('2.0') && !finalSize.includes('2.5')) {
-          return pkgStr.includes('2.0') || pkgStr.includes('1.5m - 2.0m');
-        }
-        if (finalSize.includes('2.5') && !finalSize.includes('3.0')) {
-          return pkgStr.includes('2.5') || pkgStr.includes('2.0m - 2.5m');
-        }
-        if (finalSize.includes('3.0')) {
-          return pkgStr.includes('3.0') || pkgStr.includes('2.5m - 3.0m');
-        }
-        return pkgStr.includes(finalSize);
-      });
+      // Strip everything except digits for reliable range comparison.
+      // "1.0m - 1.5m" → "1015"  |  "Cloth [1.0m - 1.5m]" → "1015"
+      const normRange = (s: string) => s.replace(/[^0-9]/g, '');
 
-      if (cfgMatch && cfgMatch.feeAmount && Number(cfgMatch.feeAmount) > 0) {
-        return Number(cfgMatch.feeAmount);
+      const normalizedSize = normRange(finalSize);
+
+      if (normalizedSize) {
+        // 1. Match via fabricMeterage field first — that's where the range is stored
+        //    e.g. c.uniformPackage = "Cloth", c.fabricMeterage = "1.0m - 1.5m"
+        let cfgMatch = activeClothConfigs.find(c => {
+          const meter = ((c as any).fabricMeterage || '');
+          return meter && normRange(meter) === normalizedSize;
+        });
+
+        // 2. Fallback: range embedded in uniformPackage/packageName (e.g. "Cloth [1.0m-1.5m]")
+        if (!cfgMatch) {
+          cfgMatch = activeClothConfigs.find(c => {
+            const pkgStr = (c.uniformPackage || c.packageName || c.name || '');
+            const normPkg = normRange(pkgStr);
+            return normPkg === normalizedSize || normPkg.includes(normalizedSize) || normalizedSize.includes(normPkg);
+          });
+        }
+
+        if (cfgMatch && cfgMatch.feeAmount && Number(cfgMatch.feeAmount) > 0) {
+          return Number(cfgMatch.feeAmount);
+        }
       }
     }
   }
@@ -467,14 +476,36 @@ export const calculateClothOrItemPrice = (
   }
 
   // 2. Fall back to exact price configured in Finance & Fees Setup for non-cloth items
-  if (Array.isArray(financeConfigs) && financeConfigs.length > 0 && itemName) {
-    const configuredFee = getItemFeeFromFinanceConfig(className, itemName, gender, financeConfigs, currentUnitPrice);
+  if (Array.isArray(financeConfigs) && financeConfigs.length > 0 && cleanItemName) {
+    const configuredFee = getItemFeeFromFinanceConfig(className, cleanItemName, gender, financeConfigs, currentUnitPrice);
     if (configuredFee > 0 && configuredFee !== 35 && configuredFee !== 85) {
       return configuredFee;
     }
   }
 
-  return 0;
+  // 3. Fall back to uniform categories/catalog configuration
+  if (Array.isArray(uniformCategoriesOrCatalog) && uniformCategoriesOrCatalog.length > 0 && cleanItemName) {
+    const match = uniformCategoriesOrCatalog.find(c => {
+      const cName = (c.name || c.category || c.categoryName || '').toLowerCase().trim();
+      return cName === cleanItemName || (cleanItemName && cName.includes(cleanItemName)) || (cName && cleanItemName.includes(cName));
+    });
+    if (match && (match.price || match.unitPrice || match.feeAmount)) {
+      const p = Number(match.price || match.unitPrice || match.feeAmount);
+      if (p > 0 && p !== 35 && p !== 85) return p;
+    }
+  }
+
+  // 4. Default fallbacks matching setup if no finance config exists
+  if (cleanItemName.includes('cap') || cleanItemName.includes('hat')) return 1000;
+  if (cleanItemName.includes('sock')) return 100;
+  if (cleanItemName.includes('tie') || cleanItemName.includes('crest') || cleanItemName.includes('belt')) return 150;
+  if (cleanItemName.includes('shoe') || cleanItemName.includes('footwear')) return 1000;
+  if (cleanItemName.includes('track') || cleanItemName.includes('sport')) return 600;
+  if (cleanItemName.includes('shirt') || cleanItemName.includes('blazer') || cleanItemName.includes('coat')) return 350;
+  if (cleanItemName.includes('pant') || cleanItemName.includes('trouser') || cleanItemName.includes('skirt')) return 350;
+  if (cleanItemName.includes('base') || cleanItemName.includes('kit') || cleanItemName.includes('package')) return 2000;
+
+  return 350;
 };
 
 export const getStudentUniformFeeStatus = (

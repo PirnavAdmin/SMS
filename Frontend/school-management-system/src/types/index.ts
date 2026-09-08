@@ -1948,6 +1948,7 @@ export interface StudentUniformIssue {
   branch?: string;
   notes?: string;
   actionRemarks?: string;
+  dressCode?: string;
   newSize?: string;
   type?: 'Base Package' | 'Additional Purchase' | 'Additional Base Package' | string;
   price?: number;
@@ -2160,6 +2161,8 @@ export interface SalaryStructure {
   employmentType?: string;
   payrollFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
   salaryPaymentDay?: string;
+  basicPercentage?: number;
+  hraPercentage?: number;
   pfApplicable?: boolean;
   pfPercentage?: number;
   esiApplicable?: boolean;

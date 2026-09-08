@@ -53,6 +53,7 @@ import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import {
   validate10DigitPhone,
+  validateEmail,
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   BRANCHES,
@@ -1137,6 +1138,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const [phoneError, setPhoneError] = useState("");
   const [altPhoneError, setAltPhoneError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [dobError, setDobError] = useState("");
   const [photoError, setPhotoError] = useState("");
 
@@ -1149,6 +1151,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const classOptions = (academicClasses || []).map(
     (cls) => cls.name || (cls as any).className || "",
   );
+
+  const handleEmailChange = (val: string) => {
+    setFormData((prev) => ({ ...prev, email: val }));
+    const res = validateEmail(val, true);
+    setEmailError(res.isValid ? "" : res.error || "Email address is required.");
+  };
 
   const handleAltPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -1281,6 +1289,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       documentsSubmitted: [],
     });
     setPhoneError("");
+    setAltPhoneError("");
+    setEmailError("");
     setDobError("");
     setPhotoError("");
     setIsFormView(true);
@@ -1456,6 +1466,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         (app.siblingStudentId ? [app.siblingStudentId] : []),
     );
     setPhoneError("");
+    setAltPhoneError("");
+    setEmailError("");
     setDobError("");
     setPhotoError("");
     setIsFormView(true);
@@ -1593,6 +1605,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || "Invalid 10-digit phone");
       addToast("error", "Phone Validation Error", phoneValidation.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!formData.email || !formData.email.trim()) {
+      setEmailError("Please enter parent email address.");
+      addToast("error", "Missing Required Field", "Please enter Email Address.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const emailValidation = validateEmail(formData.email.trim(), true);
+    if (!emailValidation.isValid) {
+      setEmailError(emailValidation.error || "Please enter a valid email address.");
+      addToast("error", "Email Validation Error", emailValidation.error || "Please enter a valid email address.");
       setIsSubmitting(false);
       return;
     }
@@ -3033,16 +3060,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Email Address
+                      Email Address <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
-                      type="text"
+                      type="email"
+                      required
+                      placeholder="e.g. parent@example.com"
                       value={formData.email || ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                      onChange={(e) => handleEmailChange(e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none ${
+                        emailError
+                          ? "border-rose-500 focus:border-rose-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      }`}
                     />
+                    {emailError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4419,29 +4455,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => setSelectedAppForView(app)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                          title="View Application Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        {app.status !== "Rejected" && (
+                          <>
+                            <button
+                              onClick={() => setSelectedAppForView(app)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                              title="View Application Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
 
-                        <button
-                          onClick={() => handleOpenEdit(app)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400"
-                          title="Edit Application"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                            <button
+                              onClick={() => handleOpenEdit(app)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400"
+                              title="Edit Application"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
 
-                        <button
-                          onClick={() => setDeletingApp(app)}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400"
-                          title="Delete Application"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                            <button
+                              onClick={() => setDeletingApp(app)}
+                              className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400"
+                              title="Delete Application"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
 
                         {/* Strict Status Options */}
                         {app.status === "Enrolled" ? (
@@ -4827,18 +4867,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const appToEdit = selectedAppForView;
-                    setSelectedAppForView(null);
-                    handleOpenEdit(appToEdit);
-                  }}
-                  className="px-4 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 hover:bg-brand-100 dark:hover:bg-brand-900/40 border border-brand-200 dark:border-brand-800 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                  Edit Application
-                </button>
+                {selectedAppForView.status !== "Rejected" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const appToEdit = selectedAppForView;
+                      setSelectedAppForView(null);
+                      handleOpenEdit(appToEdit);
+                    }}
+                    className="px-4 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 hover:bg-brand-100 dark:hover:bg-brand-900/40 border border-brand-200 dark:border-brand-800 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit Application
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setSelectedAppForView(null)}

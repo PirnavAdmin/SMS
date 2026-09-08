@@ -698,7 +698,7 @@ function TableShell<T extends { id: string }>({
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900 font-medium">
             {pageRows.length === 0 ? (
-              <tr>
+              <tr key="empty-state-row">
                 <td colSpan={(selectable ? 1 : 0) + visibleColumnDefs.length + (rowActions ? 1 : 0)} className="px-4 py-10 text-center">
                   <div className="mx-auto max-w-sm space-y-2">
                     <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">

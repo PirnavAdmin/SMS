@@ -11554,7 +11554,18 @@ export const initialHostelBeds: HostelBed[] = [
   { id: "BED-101-B", roomId: "RM-101", bedNo: "Bed 2", status: "Available" }
 ];
 
-export const initialUniforms: UniformItem[] = [];
+export const initialUniforms: UniformItem[] = [
+  { id: 'UNI-001', category: 'Boys Base Package(Admission kit)', name: 'Boys Base Package(Admission kit)', size: 'M', gender: 'Male', price: 3000, openingStock: 300, availableStock: 299, status: 'In Stock' },
+  { id: 'UNI-002', category: 'Girls Base Package(Admission kit)', name: 'Girls Base Package(Admission kit)', size: 'M', gender: 'Female', price: 3000, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-003', category: 'Shirt', name: 'Shirt', size: 'M', gender: 'Unisex', price: 350, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-004', category: 'Pant', name: 'Pant', size: 'M', gender: 'Male', price: 500, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-005', category: 'Skirt', name: 'Skirt', size: 'M', gender: 'Female', price: 500, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-006', category: 'Blazer', name: 'Blazer', size: 'M', gender: 'Unisex', price: 1500, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-007', category: 'Tie & Belt Set', name: 'Tie & Belt Set', size: 'Free Size', gender: 'Unisex', price: 150, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-008', category: 'Shoes & Socks Kit', name: 'Shoes & Socks Kit', size: '6', gender: 'Unisex', price: 500, openingStock: 300, availableStock: 300, status: 'In Stock' },
+  { id: 'UNI-009', category: 'Sports Dress', name: 'Sports Dress', size: 'M', gender: 'Unisex', price: 2222, openingStock: 300, availableStock: 299, status: 'In Stock' },
+  { id: 'UNI-010', category: 'Cloth', name: 'Cloth', meterRange: '1.5m - 2.0m', size: '1.5m - 2.0m', gender: 'Unisex', price: 600, openingStock: 400, availableStock: 400, status: 'In Stock' }
+];
 
 export const initialBooks: BookItem[] = [];
 
@@ -12004,7 +12015,18 @@ export const initialHostelAttendanceLogs: HostelAttendanceLog[] = [
 
 export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [];
 
-export const initialUniformCategories: UniformCategory[] = [];
+export const initialUniformCategories: UniformCategory[] = [
+  { id: 'cat_01', name: 'Boys Base Package(Admission kit)', categoryName: 'Boys Base Package(Admission kit)', type: 'Package', gender: 'Male', description: 'Baseline admission uniform kit for boys', status: 'Active' },
+  { id: 'cat_02', name: 'Girls Base Package(Admission kit)', categoryName: 'Girls Base Package(Admission kit)', type: 'Package', gender: 'Female', description: 'Baseline admission uniform kit for girls', status: 'Active' },
+  { id: 'cat_03', name: 'Shirt', categoryName: 'Shirt', type: 'Single Item', gender: 'Unisex', description: 'Regular school uniform shirt', status: 'Active' },
+  { id: 'cat_04', name: 'Pant', categoryName: 'Pant', type: 'Single Item', gender: 'Male', description: 'Regular school uniform pant', status: 'Active' },
+  { id: 'cat_05', name: 'Skirt', categoryName: 'Skirt', type: 'Single Item', gender: 'Female', description: 'Regular school uniform skirt', status: 'Active' },
+  { id: 'cat_06', name: 'Blazer', categoryName: 'Blazer', type: 'Single Item', gender: 'Unisex', description: 'Winter blazer jacket', status: 'Active' },
+  { id: 'cat_07', name: 'Tie & Belt Set', categoryName: 'Tie & Belt Set', type: 'Single Item', gender: 'Unisex', description: 'School tie and belt accessory set', status: 'Active' },
+  { id: 'cat_08', name: 'Shoes & Socks Kit', categoryName: 'Shoes & Socks Kit', type: 'Single Item', gender: 'Unisex', description: 'Black leather shoes & white socks set', status: 'Active' },
+  { id: 'cat_09', name: 'Sports Dress', categoryName: 'Sports Dress', type: 'Single Item', gender: 'Unisex', description: 'Weekly sports activity t-shirt & tracksuit', status: 'Active' },
+  { id: 'cat_10', name: 'Cloth', categoryName: 'Cloth', type: 'Single Item', gender: 'Unisex', description: 'Unstitched uniform suiting/shirting fabric material', status: 'Active' }
+];
 
 export const initialUniformSizes: UniformSize[] = [
   { id: 'US-01', sizeName: 'Size 22 (XS Junior)', chest: '22"', waist: '20"', shoulder: '11"', length: '18"', ageGroup: '3-5 yrs', gender: 'Unisex' },
@@ -12024,8 +12046,59 @@ export const initialUniformSizes: UniformSize[] = [
 
 export const initialUniformSuppliers: UniformSupplier[] = [];
 
-export const initialUniformInventory: UniformInventoryItem[] = [];
-export const initialStudentUniformIssues: StudentUniformIssue[] = [];
+export const initialUniformInventory: UniformInventoryItem[] = [
+  { id: 'INV-UNI-001', itemId: 'UNI-001', itemName: 'Boys Base Package(Admission kit)', category: 'Boys Base Package(Admission kit)', openingStock: 300, currentStock: 299, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-002', itemId: 'UNI-002', itemName: 'Girls Base Package(Admission kit)', category: 'Girls Base Package(Admission kit)', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-003', itemId: 'UNI-003', itemName: 'Shirt', category: 'Shirt', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-004', itemId: 'UNI-004', itemName: 'Pant', category: 'Pant', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-005', itemId: 'UNI-005', itemName: 'Skirt', category: 'Skirt', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-006', itemId: 'UNI-006', itemName: 'Blazer', category: 'Blazer', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-007', itemId: 'UNI-007', itemName: 'Tie & Belt Set', category: 'Tie & Belt Set', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-008', itemId: 'UNI-008', itemName: 'Shoes & Socks Kit', category: 'Shoes & Socks Kit', openingStock: 300, currentStock: 300, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-009', itemId: 'UNI-009', itemName: 'Sports Dress', category: 'Sports Dress', openingStock: 300, currentStock: 299, minimumStock: 20, status: 'In Stock' },
+  { id: 'INV-UNI-010', itemId: 'UNI-010', itemName: 'Cloth', category: 'Cloth', openingStock: 400, currentStock: 400, minimumStock: 20, status: 'In Stock' }
+];
+
+export const initialStudentUniformIssues: StudentUniformIssue[] = [
+  {
+    id: 'ISS-RAHUL-BASE-01',
+    studentId: 'STU-RAHUL-2005',
+    studentName: 'Rahul Reddy',
+    admissionNo: 'ADM-2026-2005',
+    className: 'Class 3',
+    section: 'A',
+    gender: 'Male',
+    itemId: 'UNI-001',
+    itemName: 'Boys Base Package(Admission kit)',
+    size: 'M',
+    quantity: 1,
+    issueDate: '2026-09-08',
+    status: 'Issued',
+    academicYear: '2026-2027',
+    type: 'Base Package',
+    price: 3000,
+    notes: 'Covered in admission fee / Pending at Finance'
+  },
+  {
+    id: 'ISS-RAHUL-EXTRA-01',
+    studentId: 'STU-RAHUL-2005',
+    studentName: 'Rahul Reddy',
+    admissionNo: 'ADM-2026-2005',
+    className: 'Class 3',
+    section: 'A',
+    gender: 'Male',
+    itemId: 'UNI-009',
+    itemName: 'Sports Dress',
+    size: 'M',
+    quantity: 1,
+    issueDate: '2026-09-08',
+    status: 'Paid',
+    academicYear: '2026-2027',
+    type: 'Additional Purchase',
+    price: 2222,
+    notes: 'Fees Paid at counter'
+  }
+];
 export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [];
 export const initialLeaveTypes: LeaveType[] = [];
 export const initialLeaveApplications: LeaveApplication[] = [
