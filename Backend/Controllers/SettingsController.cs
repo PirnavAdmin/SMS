@@ -261,5 +261,75 @@ namespace SMS.Api.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        // GET: api/Settings/profile
+        [HttpGet("profile")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUserProfile()
+        {
+            try
+            {
+                var profile = await _settingsService.GetUserProfileAsync();
+                return Ok(new
+                {
+                    success = true,
+                    data = profile
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST/PUT: api/Settings/profile
+        [HttpPost("profile")]
+        [HttpPut("profile")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateUserProfile([FromBody] UserProfileDto dto)
+        {
+            if (dto == null) return BadRequest("Profile payload is required.");
+
+            try
+            {
+                var updated = await _settingsService.UpdateUserProfileAsync(dto);
+                return Ok(new
+                {
+                    success = true,
+                    message = "User profile saved successfully to database.",
+                    data = updated
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: api/Settings/profile/upload
+        [HttpPost("profile/upload")]
+        [AllowAnonymous]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadProfileImage([FromForm] UploadProfileImageFileRequest request)
+        {
+            var file = request?.File ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+            if (file == null || file.Length == 0)
+                return BadRequest("No image file provided.");
+
+            try
+            {
+                var avatarUrl = await _settingsService.UploadProfileImageFileAsync(file);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Profile image uploaded and saved successfully.",
+                    avatarUrl = avatarUrl
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

@@ -41,6 +41,8 @@ namespace SMS.Api.Models
 
         public string? IdSequenceSettingsJson { get; set; } = null;
 
+        public string? UserProfileJson { get; set; } = null;
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

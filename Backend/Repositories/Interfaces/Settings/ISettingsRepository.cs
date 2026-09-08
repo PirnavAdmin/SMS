@@ -16,5 +16,6 @@ namespace SMS.Api.Repositories.Interfaces.Settings
         Task<AutomatedIdFormat> SaveOrUpdateIdFormatAsync(AutomatedIdFormat format);
         Task<bool> DeleteCustomIdFormatAsync(string formatKey);
         Task<bool> BulkSaveIdFormatsAsync(System.Collections.Generic.List<AutomatedIdFormat> formats);
+        Task<SchoolSettings> UpdateUserProfileAsync(string userProfileJson);
     }
 }

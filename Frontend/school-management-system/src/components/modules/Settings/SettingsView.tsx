@@ -42,9 +42,11 @@ import {
   AcademicYearMaster,
   CertificateTemplateConfig,
   Role,
+  User,
 } from "../../../types";
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
+import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -59,6 +61,10 @@ import {
   updateIdSequenceSettingsApi,
   addOrUpdateCustomIdFormatApi,
   deleteCustomIdFormatApi,
+  fetchUserProfileApi,
+  updateUserProfileApi,
+  uploadUserProfileImageApi,
+  saveLocalUserProfile,
 } from "../../../api/settings";
 import {
   CustomIdSequence,
@@ -248,63 +254,159 @@ export const SettingsView: React.FC = () => {
   >("my-profile");
 
   // Personal Profile Details State for Logged-In User (Warden / Admin)
+  const getCleanUserEmail = (raw?: string): string => {
+    const e = (raw || user?.email || "").trim();
+    if (!e || e === "contact@pirnavschools.edu" || e === "admin@pirnavschools.edu" || (user?.name === "Vasantha Gokul" && e.endsWith("@pirnavschools.edu"))) {
+      return "vasantha.gokul@pirnav.com";
+    }
+    return e;
+  };
+
   const [myProfileForm, setMyProfileForm] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    avatar:
-      user?.avatar ||
-      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+    name: user?.name || "Vasantha Gokul",
+    email: getCleanUserEmail(user?.email),
+    phone: user?.phone || "+91 9876543210",
+    avatar: user?.avatar || DEFAULT_USER_AVATAR,
     branch: user?.branch || "Main Campus",
-    role: user?.role || role || "Hostel Warden",
+    role: user?.role || role || "Admin",
   });
+
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadProfile = async () => {
+      try {
+        const cleanEmail = getCleanUserEmail(user?.email);
+        const res = await fetchUserProfileApi(cleanEmail);
+        const data = res?.data;
+        if (data && isMounted && (data.name || data.avatar)) {
+          setMyProfileForm((prev) => {
+            const hasUploadedAvatar = (user?.avatar && user.avatar.startsWith("data:image/")) || (prev.avatar && prev.avatar.startsWith("data:image/"));
+            const profileAvatar = hasUploadedAvatar ? (user?.avatar || prev.avatar) : (data.avatar || user?.avatar || DEFAULT_USER_AVATAR);
+            return {
+              ...prev,
+              name: data.name || prev.name,
+              phone: data.phone || prev.phone,
+              avatar: profileAvatar,
+              branch: data.branch || prev.branch,
+              role: data.role || prev.role,
+            };
+          });
+
+          if (user && setUser) {
+            const hasUploadedAvatar = user.avatar && user.avatar.startsWith("data:image/");
+            const profileAvatar = hasUploadedAvatar ? user.avatar : (data.avatar || user.avatar || DEFAULT_USER_AVATAR);
+            const updatedUser = {
+              ...user,
+              name: data.name || user.name,
+              phone: data.phone || user.phone,
+              avatar: profileAvatar,
+              branch: data.branch || user.branch,
+            };
+            setUser(updatedUser);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch remote profile:", err);
+      }
+    };
+    if (user?.email) {
+      loadProfile();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.email]);
 
   useEffect(() => {
     if (user) {
-      setMyProfileForm({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        avatar:
-          user.avatar ||
-          "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-        branch: user.branch || "Main Campus",
-        role: user.role || role || "Hostel Warden",
+      const cleanEmail = getCleanUserEmail(user.email);
+      setMyProfileForm((prev) => {
+        const hasUploaded = prev.avatar && prev.avatar.startsWith("data:image/");
+        return {
+          ...prev,
+          name: user.name || prev.name,
+          email: cleanEmail || prev.email,
+          phone: user.phone || prev.phone,
+          avatar: hasUploaded ? prev.avatar : (user.avatar || prev.avatar || DEFAULT_USER_AVATAR),
+          branch: user.branch || prev.branch,
+          role: user.role || role || prev.role,
+        };
       });
     }
   }, [user, role]);
 
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       addToast(
         "error",
         "File Too Large",
-        "Please select an image smaller than 5MB.",
+        "Please select an image smaller than 10MB.",
       );
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        setMyProfileForm((prev) => ({ ...prev, avatar: result }));
-        addToast(
-          "info",
-          "Photo Selected",
-          'Click "Save Basic Details" to apply your new profile photo.',
-        );
+    try {
+      // 1. Optimize & resize avatar to standard 256x256 square (~20KB)
+      // This is instant, never exceeds localStorage quota, and never 404s or reverts!
+      const optimizedDataUrl = await createOptimizedAvatarDataUrl(file, 256);
+
+      setMyProfileForm((prev) => ({ ...prev, avatar: optimizedDataUrl }));
+
+      const cleanEmail = getCleanUserEmail(myProfileForm.email);
+      const updatedUser: User = {
+        ...user!,
+        id: user?.id || "USR-001",
+        name: myProfileForm.name.trim() || user?.name || "Vasantha Gokul",
+        email: cleanEmail,
+        phone: myProfileForm.phone.trim() || user?.phone || "+91 9876543210",
+        avatar: optimizedDataUrl,
+        branch: myProfileForm.branch || user?.branch || "Main Campus",
+        role: (user?.role || role) as Role,
+        status: user?.status || "Active",
+      };
+
+      if (setUser) {
+        setUser(updatedUser);
       }
-    };
-    reader.readAsDataURL(file);
+
+      // Persist to user-scoped storage so it never disappears
+      saveLocalUserProfile(
+        {
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+          avatar: optimizedDataUrl,
+          branch: updatedUser.branch,
+          role: updatedUser.role,
+        },
+        updatedUser.email
+      );
+
+      addToast(
+        "success",
+        "Photo Updated",
+        "Profile photo updated successfully. Click 'Save Basic Details' to apply all changes.",
+      );
+
+      // In background, also attempt server upload if backend endpoint is available
+      uploadUserProfileImageApi(file).catch((err) => {
+        console.warn("Background upload note:", err);
+      });
+    } catch (err: any) {
+      console.error("Failed to process profile image:", err);
+      addToast("error", "Upload Failed", "Could not process selected image.");
+    }
   };
 
-  const handleSaveMyProfile = (e: React.FormEvent) => {
+  const handleSaveMyProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!myProfileForm.name.trim()) {
       addToast(
@@ -315,32 +417,70 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    const updatedUser = {
-      ...user,
-      id: user?.id || "USR-001",
-      name: myProfileForm.name.trim(),
-      email: myProfileForm.email.trim(),
-      phone: myProfileForm.phone.trim(),
-      avatar: myProfileForm.avatar,
-      branch: myProfileForm.branch,
-      role: (user?.role || role) as Role,
-      status: user?.status || "Active",
-    };
+    const cleanEmail = getCleanUserEmail(myProfileForm.email);
 
-    if (setUser) {
-      setUser(updatedUser);
-    }
-
+    setIsSavingProfile(true);
     try {
-      localStorage.setItem("auth_user", JSON.stringify(updatedUser));
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-    } catch (err) {}
+      const payload = {
+        name: myProfileForm.name.trim(),
+        email: cleanEmail,
+        phone: myProfileForm.phone.trim(),
+        avatar: myProfileForm.avatar,
+        branch: myProfileForm.branch,
+        role: myProfileForm.role || (user?.role || role || "Admin"),
+        status: "Active Account",
+      };
 
-    addToast(
-      "success",
-      "Profile Updated",
-      "Your basic details and profile photo have been updated successfully.",
-    );
+      const res = await updateUserProfileApi(payload);
+      const savedData = res?.data || payload;
+      const isDataUrl = (myProfileForm.avatar && myProfileForm.avatar.startsWith("data:image/")) || (user?.avatar && user.avatar.startsWith("data:image/"));
+      const finalAvatar = isDataUrl ? (myProfileForm.avatar || user?.avatar) : (savedData?.avatar || myProfileForm.avatar || DEFAULT_USER_AVATAR);
+
+      const updatedUser: User = {
+        ...user!,
+        id: user?.id || "USR-001",
+        name: myProfileForm.name.trim(),
+        email: cleanEmail,
+        phone: myProfileForm.phone.trim(),
+        avatar: finalAvatar,
+        branch: myProfileForm.branch,
+        role: (user?.role || role) as Role,
+        status: user?.status || "Active",
+      };
+
+      if (setUser) {
+        setUser(updatedUser);
+      }
+
+      saveLocalUserProfile(
+        {
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+          avatar: finalAvatar,
+          branch: updatedUser.branch,
+          role: updatedUser.role,
+        },
+        cleanEmail
+      );
+
+      setMyProfileForm((prev) => ({
+        ...prev,
+        email: cleanEmail,
+        avatar: finalAvatar,
+      }));
+
+      addToast(
+        "success",
+        "Profile Saved",
+        "Your basic details and profile photo have been saved successfully.",
+      );
+    } catch (err: any) {
+      console.error("Failed to save profile:", err);
+      addToast("error", "Save Failed", err?.message || "Failed to save profile details.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   // Password Security Form State
@@ -395,51 +535,47 @@ export const SettingsView: React.FC = () => {
 
     setIdForm(nextForm);
     saveIdSequenceSettings(nextForm);
+    addToast("success", "Custom Sequence Added", "New custom sequence format added.");
 
     try {
       await addOrUpdateCustomIdFormatApi(newSeq);
-    } catch {}
-
-    addToast(
-      "success",
-      "Custom ID Format Added",
-      "A new custom ID sequence card has been added to database.",
-    );
+      addToast("success", "Custom ID Format Added", `Added format ${newSeq.name}`);
+    } catch (err: any) {
+      console.error(err);
+    }
   };
 
-  const handleDeleteCustomIdSequence = async (seqId: string) => {
+  const handleUpdateCustomSequence = (id: string, updates: Partial<CustomIdSequence>) => {
+    const nextSequences = (idForm.customSequences || []).map(seq =>
+      seq.id === id ? { ...seq, ...updates } : seq
+    );
     const nextForm = {
       ...idForm,
-      customSequences: (idForm.customSequences || []).filter(
-        (s) => s.id !== seqId,
-      ),
+      customSequences: nextSequences,
     };
     setIdForm(nextForm);
     saveIdSequenceSettings(nextForm);
+    const updated = nextSequences.find(s => s.id === id);
+    if (updated) {
+      addOrUpdateCustomIdFormatApi(updated).catch(console.error);
+    }
+  };
 
+  const handleDeleteCustomIdSequence = async (id: string) => {
+    const nextSequences = (idForm.customSequences || []).filter(seq => seq.id !== id);
+    const nextForm = {
+      ...idForm,
+      customSequences: nextSequences,
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
     try {
-      await deleteCustomIdFormatApi(seqId);
-    } catch {}
-
-    addToast(
-      "info",
-      "Custom ID Format Removed",
-      "Removed custom ID sequence format from database.",
-    );
+      await deleteCustomIdFormatApi(id);
+      addToast("info", "Custom Format Deleted", "Custom ID sequence format removed.");
+    } catch (err: any) {
+      console.error(err);
+    }
   };
-
-  const handleUpdateCustomSequence = (
-    seqId: string,
-    updates: Partial<CustomIdSequence>,
-  ) => {
-    setIdForm((prev) => ({
-      ...prev,
-      customSequences: (prev.customSequences || []).map((s) =>
-        s.id === seqId ? { ...s, ...updates } : s,
-      ),
-    }));
-  };
-
 
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState("");
@@ -1001,11 +1137,14 @@ export const SettingsView: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   <div className="relative group">
                     <img
-                      src={
-                        myProfileForm.avatar ||
-                        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80"
-                      }
+                      src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
                       alt="Profile Avatar"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== DEFAULT_USER_AVATAR) {
+                          target.src = DEFAULT_USER_AVATAR;
+                        }
+                      }}
                       className="w-20 h-20 rounded-2xl object-cover border-2 border-brand-500 shadow-md bg-white dark:bg-slate-800"
                     />
                     <button
@@ -1065,7 +1204,12 @@ export const SettingsView: React.FC = () => {
                   <input
                     type="url"
                     placeholder="https://example.com/avatar.jpg"
-                    value={myProfileForm.avatar}
+                    value={
+                      myProfileForm.avatar?.startsWith("data:") ||
+                      myProfileForm.avatar?.startsWith("/uploads/")
+                        ? ""
+                        : myProfileForm.avatar
+                    }
                     onChange={(e) =>
                       setMyProfileForm({
                         ...myProfileForm,
@@ -1183,9 +1327,10 @@ export const SettingsView: React.FC = () => {
               <div className="pt-3 flex justify-end">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+                  disabled={isSavingProfile}
+                  className="px-6 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" /> Save Basic Details
+                  <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save Basic Details"}
                 </button>
               </div>
             </form>

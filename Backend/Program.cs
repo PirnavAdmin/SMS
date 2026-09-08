@@ -508,6 +508,44 @@ using (var scope = app.Services.CreateScope())
                         cmd.ExecuteNonQuery();
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `IdSequenceSettingsJson` to `SchoolSettings`.");
                     }
+
+                    // Upgrade SchoolSettings table to add UserProfileJson column if not exists
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'UserProfileJson';";
+                    var userProfExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (userProfExists == 0)
+                    {
+                        cmd.CommandText = "ALTER TABLE `SchoolSettings` ADD COLUMN `UserProfileJson` longtext NULL;";
+                        cmd.ExecuteNonQuery();
+                        System.Console.WriteLine("[Database Schema Upgrade] Added column `UserProfileJson` to `SchoolSettings`.");
+                    }
+
+                    // Upgrade admins table to add Avatar column if not exists
+                    try
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'admins' AND COLUMN_NAME = 'Avatar';";
+                        var adminAvatarExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (adminAvatarExists == 0)
+                        {
+                            cmd.CommandText = "ALTER TABLE `admins` ADD COLUMN `Avatar` text NULL;";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine("[Database Schema Upgrade] Added column `Avatar` to `admins`.");
+                        }
+                    }
+                    catch { }
+
+                    // Upgrade users table to add Avatar column if not exists
+                    try
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'users' AND COLUMN_NAME = 'Avatar';";
+                        var userAvatarExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (userAvatarExists == 0)
+                        {
+                            cmd.CommandText = "ALTER TABLE `users` ADD COLUMN `Avatar` text NULL;";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine("[Database Schema Upgrade] Added column `Avatar` to `users`.");
+                        }
+                    }
+                    catch { }
                 }
                 catch (System.Exception ex)
                 {

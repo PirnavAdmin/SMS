@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using SMS.Api.Data;
+using Microsoft.EntityFrameworkCore;
 using SMS.Api.Dtos.Auth;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
@@ -21,15 +23,18 @@ namespace SMS.Api.Services.Implementations
         private readonly IUserRepository _userRepository;
         private readonly IAdminRepository _adminRepository;
         private readonly IConfiguration _config;
+        private readonly AppDbContext _dbContext;
 
         public AuthService(
             IUserRepository userRepository,
             IAdminRepository adminRepository,
-            IConfiguration config)
+            IConfiguration config,
+            AppDbContext dbContext)
         {
             _userRepository = userRepository;
             _adminRepository = adminRepository;
             _config = config;
+            _dbContext = dbContext;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto dto)
@@ -62,7 +67,7 @@ namespace SMS.Api.Services.Implementations
                 var rolesList = new List<string> { "Admin" };
                 var token = GenerateJwtTokenForAdmin(admin, rolesList);
 
-                return new AuthResponseDto(admin.AdminId, admin.FullName, token, rolesList);
+                return new AuthResponseDto(admin.AdminId, admin.FullName, token, rolesList, admin.Email, admin.MobileNumber, admin.Avatar, "Main Campus");
             }
             else
             {
@@ -82,7 +87,7 @@ namespace SMS.Api.Services.Implementations
                 var rolesList = GetUserRolesList(user);
                 var token = GenerateJwtToken(user, rolesList);
 
-                return new AuthResponseDto(user.UserId, user.FullName, token, rolesList);
+                return new AuthResponseDto(user.UserId, user.FullName, token, rolesList, user.Email, user.MobileNumber, user.Avatar, "Main Campus");
             }
         }
 
@@ -127,11 +132,39 @@ namespace SMS.Api.Services.Implementations
 
                 var token = GenerateJwtTokenForAdmin(admin, rolesList);
 
+                string? avatar = admin.Avatar;
+                string fullName = admin.FullName;
+                string? email = admin.Email;
+                string? phone = admin.MobileNumber;
+                string branch = "Main Campus";
+
+                try
+                {
+                    var schoolSettings = await _dbContext.SchoolSettings.FirstOrDefaultAsync();
+                    if (schoolSettings != null && !string.IsNullOrWhiteSpace(schoolSettings.UserProfileJson))
+                    {
+                        var prof = System.Text.Json.JsonSerializer.Deserialize<Dtos.UserProfileDto>(schoolSettings.UserProfileJson);
+                        if (prof != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(prof.Avatar)) avatar = prof.Avatar;
+                            if (!string.IsNullOrWhiteSpace(prof.Name)) fullName = prof.Name;
+                            if (!string.IsNullOrWhiteSpace(prof.Email)) email = prof.Email;
+                            if (!string.IsNullOrWhiteSpace(prof.Phone)) phone = prof.Phone;
+                            if (!string.IsNullOrWhiteSpace(prof.Branch)) branch = prof.Branch;
+                        }
+                    }
+                }
+                catch { }
+
                 return new AuthResponseDto(
                     admin.AdminId,
-                    admin.FullName,
+                    fullName,
                     token,
-                    rolesList);
+                    rolesList,
+                    email,
+                    phone,
+                    avatar,
+                    branch);
             }
 
             // 2. Try User login
@@ -166,11 +199,39 @@ namespace SMS.Api.Services.Implementations
 
                 var userToken = GenerateJwtToken(user, userRolesList);
 
+                string? avatar = user.Avatar;
+                string fullName = user.FullName;
+                string? email = user.Email;
+                string? phone = user.MobileNumber;
+                string branch = "Main Campus";
+
+                try
+                {
+                    var schoolSettings = await _dbContext.SchoolSettings.FirstOrDefaultAsync();
+                    if (schoolSettings != null && !string.IsNullOrWhiteSpace(schoolSettings.UserProfileJson))
+                    {
+                        var prof = System.Text.Json.JsonSerializer.Deserialize<Dtos.UserProfileDto>(schoolSettings.UserProfileJson);
+                        if (prof != null && (prof.Email == user.Email || prof.Phone == user.MobileNumber))
+                        {
+                            if (!string.IsNullOrWhiteSpace(prof.Avatar)) avatar = prof.Avatar;
+                            if (!string.IsNullOrWhiteSpace(prof.Name)) fullName = prof.Name;
+                            if (!string.IsNullOrWhiteSpace(prof.Email)) email = prof.Email;
+                            if (!string.IsNullOrWhiteSpace(prof.Phone)) phone = prof.Phone;
+                            if (!string.IsNullOrWhiteSpace(prof.Branch)) branch = prof.Branch;
+                        }
+                    }
+                }
+                catch { }
+
                 return new AuthResponseDto(
                     user.UserId,
-                    user.FullName,
+                    fullName,
                     userToken,
-                    userRolesList);
+                    userRolesList,
+                    email,
+                    phone,
+                    avatar,
+                    branch);
             }
 
             // 3. User does not exist
