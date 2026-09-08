@@ -19,3 +19,23 @@ export function validate10DigitPhone(phone: string): { isValid: boolean; error?:
 
   return { isValid: true };
 }
+
+/**
+ * Validates an email address format.
+ */
+export function validateEmail(email: string, required: boolean = false): { isValid: boolean; error?: string } {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    if (required) {
+      return { isValid: false, error: 'Email address is required.' };
+    }
+    return { isValid: true };
+  }
+
+  const trimmed = email.trim();
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(trimmed)) {
+    return { isValid: false, error: 'Please enter a valid email address (e.g., name@example.com).' };
+  }
+
+  return { isValid: true };
+}

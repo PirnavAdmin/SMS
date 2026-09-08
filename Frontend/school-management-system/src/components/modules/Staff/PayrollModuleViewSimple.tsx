@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
+import { Pagination } from '../../common/Pagination';
 import { formatCurrency } from '../../../utils/currency';
 import { exportToExcel } from '../../../utils/excelExport';
 import { useData } from '../../../context/DataContext';
@@ -62,6 +63,8 @@ type StructureDraft = {
   department?: string;
   designation: string;
   annualCtc?: string;
+  basicPercentage: string;
+  hraPercentage: string;
   status: 'Active' | 'Inactive';
   effectiveDate: string;
   payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
@@ -233,17 +236,45 @@ const structureMatches = (structure: SalaryStructure, category: CategoryValue | 
   return keywords.some(keyword => haystack.includes(normalize(keyword)));
 };
 
-const getStructureBreakdown = (structure?: SalaryStructure, override?: Partial<EmployeeSalaryAssignment>) => {
-  const basicLine = structure?.earnings.find(line => /basic/i.test(line.name)) || structure?.earnings[0];
+const getStructureBreakdown = (
+  structure?: SalaryStructure, 
+  override?: Partial<EmployeeSalaryAssignment>,
+  member?: Staff
+) => {
+  const memberSalary = Number(member?.salary || (member as any)?.monthlySalary || (member as any)?.basicSalary || 0);
+  const basicLine = structure?.earnings.find(line => /basic/i.test(line.name)) || structure?.earnings?.[0];
   const structureEarnings = structure?.earnings || [];
   const structureDeductions = structure?.deductions || [];
-  const basicSalary = Number(override?.overrideBasicSalary ?? basicLine?.amount ?? 0);
-  const allowancesBase = Math.max(0, structureEarnings.reduce((sum, line) => sum + line.amount, 0) - (basicLine?.amount ?? 0));
-  const deductionsBase = structureDeductions.reduce((sum, line) => sum + (/employer\s*pf/i.test(line.name) ? 0 : line.amount), 0);
+  
+  const structGross = Number(structure?.grossSalary || structureEarnings.reduce((sum, line) => sum + line.amount, 0));
+  const fallbackGross = structGross > 0 ? structGross : memberSalary;
+
+  const basicSalary = Number(
+    override?.overrideBasicSalary ?? 
+    (basicLine?.amount && basicLine.amount > 0 ? basicLine.amount : (fallbackGross > 0 ? Math.round(fallbackGross * 0.5) : 0))
+  );
+
+  const structAllowances = Math.max(0, structureEarnings.reduce((sum, line) => sum + line.amount, 0) - (basicLine?.amount ?? 0));
+  const allowancesBase = structAllowances > 0 
+    ? structAllowances 
+    : (fallbackGross > 0 ? Math.max(0, fallbackGross - basicSalary) : 0);
+
+  const structDeductionsVal = structureDeductions.reduce((sum, line) => sum + (/employer\s*pf/i.test(line.name) ? 0 : line.amount), 0);
+  const deductionsBase = structDeductionsVal > 0 
+    ? structDeductionsVal 
+    : (fallbackGross > 0 ? Math.round(basicSalary * 0.12) : 0);
+
   const allowances = Number(override?.overrideAllowances ?? allowancesBase);
   const deductions = Number(override?.overrideDeductions ?? deductionsBase);
-  const grossSalary = Number(structure?.grossSalary || basicSalary + allowances);
-  const netSalary = Math.max(0, Number(override?.overrideNetSalary ?? (grossSalary - deductions)));
+  const grossSalary = Number(
+    override?.monthlyGross ?? 
+    (fallbackGross > 0 ? fallbackGross : basicSalary + allowances)
+  );
+  const netSalary = Math.max(0, Number(
+    override?.overrideNetSalary ?? 
+    (grossSalary > 0 ? grossSalary - deductions : 0)
+  ));
+
   return { basicSalary, allowances, deductions, grossSalary, netSalary };
 };
 
@@ -417,7 +448,8 @@ const SearchableStaffSelect: React.FC<{
   onChange: (staffId: string) => void;
   staffList: Staff[];
   placeholder?: string;
-}> = ({ value, onChange, staffList, placeholder = '-- Select Staff Member --' }) => {
+  disabled?: boolean;
+}> = ({ value, onChange, staffList, placeholder = '-- Select Staff Member --', disabled = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = React.useRef<HTMLDivElement>(null);
@@ -434,7 +466,7 @@ const SearchableStaffSelect: React.FC<{
 
   const selectedStaff = staffList.find(s => String(s.id) === String(value));
   const selectedLabel = selectedStaff
-    ? `${selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim()} (${selectedStaff.empId || selectedStaff.id}${selectedStaff.designation || selectedStaff.role ? ` - ${selectedStaff.designation || selectedStaff.role}` : ''})`
+    ? `${selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim()}${selectedStaff.empId ? ` - ${selectedStaff.empId}` : ''}${selectedStaff.designation || selectedStaff.role ? ` (${selectedStaff.designation || selectedStaff.role})` : ''}`
     : '';
 
   const filteredStaff = useMemo(() => {
@@ -452,14 +484,14 @@ const SearchableStaffSelect: React.FC<{
   return (
     <div ref={wrapperRef} className="relative w-full">
       <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex min-h-[44px] w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer transition-all"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`flex min-h-[44px] w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white transition-all ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
       >
         <span className="truncate">{selectedLabel || placeholder}</span>
         <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 ml-2" />
       </div>
       
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className="absolute top-full left-0 z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150">
           <div className="border-b border-slate-100 p-2.5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
             <div className="relative">
@@ -499,8 +531,8 @@ const SearchableStaffSelect: React.FC<{
                     }`}
                   >
                     <div>
-                      <p className="font-bold text-slate-900 dark:text-white text-xs">{sName}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{sCode}{sDesig ? ` • ${sDesig}` : ''}</p>
+                      <p className="font-bold text-slate-900 dark:text-white text-xs">{sName}{sCode ? ` - ${sCode}` : ''}</p>
+                      {sDesig && <p className="text-[10px] text-slate-400 mt-0.5">{sDesig}{(s as any).department ? ` • ${(s as any).department}` : ''}</p>}
                     </div>
                     {isSelected && <span className="h-2 w-2 rounded-full bg-sky-600 shrink-0"></span>}
                   </div>
@@ -551,6 +583,8 @@ const structureDraftDefaults: StructureDraft = {
   staffId: '',
   department: '',
   designation: '',
+  basicPercentage: '50',
+  hraPercentage: '40',
   status: 'Active',
   effectiveDate: defaultEffectiveDate,
   payrollFrequency: 'Monthly',
@@ -581,6 +615,14 @@ const structureDraftDefaults: StructureDraft = {
 
 const parseMoney = (value: string) => Number(value) || 0;
 
+const getPayslipUniqueId = (item: any, fallbackIndex?: number): string => {
+  return String(item?.id || item?._id || item?.payslipNumber || item?.slipNo || (item?.employeeId && item?.month ? `${item.employeeId}-${item.month}` : '') || (item?.empId && item?.month ? `${item.empId}-${item.month}` : '') || `payslip-${fallbackIndex ?? 0}`);
+};
+
+const getEmployeeUniqueId = (member: any, fallbackIndex?: number): string => {
+  return String(member?.id || member?._id || member?.empId || `emp-${fallbackIndex ?? 0}`);
+};
+
 const findLineAmount = (lines: { name: string; amount: number }[] = [], keywords: string[]) => {
   const match = lines.find(line => keywords.some(keyword => normalize(line.name).includes(normalize(keyword))));
   return match?.amount ?? 0;
@@ -588,9 +630,13 @@ const findLineAmount = (lines: { name: string; amount: number }[] = [], keywords
 
 const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' | 'edit' | 'duplicate'): StructureDraft => ({
   id: structure.id,
+  staffId: (structure as any).staffId || (structure as any).employeeId || '',
+  department: (structure as any).department || '',
   structureName: mode === 'duplicate' ? `${structure.structureName} Copy` : structure.structureName,
   employeeCategory: structure.employeeCategory,
   designation: structure.designation || '',
+  basicPercentage: String(structure.basicPercentage ?? 50),
+  hraPercentage: String(structure.hraPercentage ?? 40),
   status: mode === 'duplicate' ? 'Inactive' : structure.status,
   effectiveDate: structure.effectiveDate || defaultEffectiveDate,
   payrollFrequency: 'Monthly',
@@ -618,6 +664,46 @@ const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' 
   loanDeduction: String(findLineAmount(structure.deductions, ['loan deduction', 'loan'])),
   otherDeduction: String(findLineAmount(structure.deductions, ['other deduction', 'deductions']))
 });
+
+const computeStatutoryValues = (draft: Partial<StructureDraft>) => {
+  const basic = parseMoney(draft.basicSalary || '0');
+  const totalEarnings =
+    parseMoney(draft.basicSalary || '0') +
+    parseMoney(draft.hra || '0') +
+    parseMoney(draft.da || '0') +
+    parseMoney(draft.medicalAllowance || '0') +
+    parseMoney(draft.travelAllowance || '0') +
+    parseMoney(draft.specialAllowance || '0') +
+    parseMoney(draft.performanceAllowance || '0') +
+    parseMoney(draft.otherAllowance || '0');
+
+  // PF calculation
+  let employeePf = '0';
+  let employerPf = '0';
+  if (draft.pfApplicable) {
+    const pfPercentage = Number(draft.pfPercentage) || 12;
+    const rawPf = Math.round(basic * (pfPercentage / 100));
+    const pfAmount = Math.min(1800, rawPf);
+    employeePf = String(pfAmount);
+    employerPf = String(pfAmount);
+  }
+
+  // ESI calculation
+  let esi = '0';
+  if (draft.esiApplicable) {
+    const esiPercentage = Number(draft.esiPercentage) || 1.75;
+    const esiAmount = Math.round(totalEarnings * (esiPercentage / 100));
+    esi = String(esiAmount);
+  }
+
+  // PT calculation
+  let professionalTax = '0';
+  if (draft.professionalTaxApplicable) {
+    professionalTax = String(Number(draft.professionalTaxAmount) || 200);
+  }
+
+  return { employeePf, employerPf, esi, professionalTax };
+};
 
 const getStructureDraftTotals = (draft: StructureDraft) => {
   const totalEarnings =
@@ -652,6 +738,8 @@ const getStructureDraftTotals = (draft: StructureDraft) => {
 const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id'> => {
   const totals = getStructureDraftTotals(draft);
   return {
+    staffId: draft.staffId || undefined,
+    employeeId: draft.staffId || undefined,
     structureName: draft.structureName.trim(),
     employeeCategory: draft.employeeCategory,
     branch: 'Main Campus',
@@ -680,6 +768,8 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     designation: draft.designation.trim(),
     payrollFrequency: draft.payrollFrequency,
     salaryPaymentDay: draft.salaryPaymentDay.trim() || '5',
+    basicPercentage: Number(draft.basicPercentage) || 50,
+    hraPercentage: Number(draft.hraPercentage) || 40,
     pfApplicable: draft.pfApplicable,
     pfPercentage: Number(draft.pfPercentage) || 0,
     esiApplicable: draft.esiApplicable,
@@ -731,24 +821,106 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const { addToast } = useToast();
 
   const getDesignationOptions = (category: CategoryValue | '') => {
-    if (!category) return [];
-    return designations
+    const fromMaster = designations
       .filter(d => 
         d.status === 'Active' && 
-        (d.employeeCategory === 'Both' || 
+        (!category || d.employeeCategory === 'Both' || 
         (category === 'Teacher' && d.employeeCategory === 'Teaching') || 
         (category === 'Staff' && d.employeeCategory === 'Non-Teaching'))
       )
       .map(d => d.designationName);
+
+    const fromStaff = staff
+      .filter(s => !category || resolveCategory(s) === category)
+      .map(s => s.designation)
+      .filter(Boolean) as string[];
+
+    const fromStructures = salaryStructures
+      .filter(s => !category || s.employeeCategory === category)
+      .map(s => s.designation)
+      .filter(Boolean) as string[];
+
+    return Array.from(new Set([...fromMaster, ...fromStaff, ...fromStructures]));
   };
 
   const handlePrintPayslip = (p: any, autoPrint = false) => {
+    const linkedStaff = staff.find(member => member.id === p.employeeId || member.empId === p.empId) || null;
+    const activeAssignment = employeeSalaryAssignments.find(a => (a.employeeId === p.employeeId || a.empId === p.empId) && a.status === 'Active') || null;
+    const category = resolveCategory(linkedStaff || undefined);
+    let structure = salaryStructures.find(s => s.id === activeAssignment?.salaryStructureId) || null;
+    if (!structure && linkedStaff) {
+      const matches = salaryStructures.filter(s => structureMatches(s, category, linkedStaff.designation || ''));
+      structure = matches[0] || salaryStructures.find(s => s.employeeCategory === category) || salaryStructures[0] || null;
+    }
+    const fallbackBreakdown = getStructureBreakdown(structure || undefined, activeAssignment || undefined, linkedStaff || undefined);
+
+    const rawGross = Number(p.grossSalary) || 0;
+    const rawDed = (Number(p.leaveDeduction) || 0) + (Number(p.otherDeductions) || 0) + (Number(p.pfDeduction) || 0);
+    const rawNet = Number(p.netSalary) || 0;
+
+    const fallbackGross = (fallbackBreakdown.grossSalary > 0) ? fallbackBreakdown.grossSalary : Number(linkedStaff?.salary || 0);
+    const safeGross = rawGross > 0 ? rawGross : fallbackGross;
+    const safeDeductions = rawDed > 0 ? rawDed : (fallbackBreakdown.deductions || 0);
+    const safeNet = rawNet > 0 ? rawNet : (safeGross > 0 ? Math.max(0, safeGross - safeDeductions) : (fallbackBreakdown.netSalary || 0));
+
+    // Dynamic detailed earnings list
+    let earningsList: { name: string; amount: number }[] = [];
+    if (Array.isArray(p.earnings) && p.earnings.length > 0 && p.earnings.some((e: any) => Number(e.amount) > 0)) {
+      earningsList = p.earnings.filter((e: any) => Number(e.amount) > 0).map((e: any) => ({ name: e.name, amount: Number(e.amount) || 0 }));
+    } else if (structure?.earnings && structure.earnings.length > 0 && structure.earnings.some(e => e.amount > 0)) {
+      earningsList = structure.earnings.filter(e => e.amount > 0).map(e => ({ name: e.name, amount: e.amount }));
+    }
+    if (earningsList.length === 0) {
+      const basic = fallbackBreakdown.basicSalary > 0 ? fallbackBreakdown.basicSalary : Math.round(safeGross * 0.5);
+      const hra = Math.round(basic * 0.4);
+      const special = Math.max(0, safeGross - basic - hra);
+      earningsList = [
+        { name: 'Basic Salary', amount: basic },
+        ...(hra > 0 ? [{ name: 'HRA', amount: hra }] : []),
+        ...(special > 0 ? [{ name: 'Special Allowance', amount: special }] : [])
+      ];
+    }
+
+    // Dynamic detailed deductions list
+    let deductionsList: { name: string; amount: number }[] = [];
+    if (Array.isArray(p.deductions) && p.deductions.length > 0 && p.deductions.some((d: any) => Number(d.amount) > 0)) {
+      deductionsList = p.deductions.filter((d: any) => Number(d.amount) > 0).map((d: any) => ({ name: d.name, amount: Number(d.amount) || 0 }));
+    } else if (structure?.deductions && structure.deductions.length > 0 && structure.deductions.some(d => d.amount > 0)) {
+      deductionsList = structure.deductions.filter(d => d.amount > 0 && !/employer\s*pf/i.test(d.name)).map(d => ({ name: d.name, amount: d.amount }));
+    }
+    if (deductionsList.length === 0 && safeDeductions > 0) {
+      const pf = Number(p.pfDeduction) || Math.min(1800, Math.round((earningsList[0]?.amount || safeGross * 0.5) * 0.12));
+      const leave = Number(p.leaveDeduction) || 0;
+      const other = Number(p.otherDeductions) || 0;
+      if (pf > 0) deductionsList.push({ name: 'Provident Fund (PF)', amount: pf });
+      if (leave > 0) deductionsList.push({ name: 'Leave / Attendance Deduction', amount: leave });
+      if (other > 0) deductionsList.push({ name: 'Other Deductions', amount: other });
+      if (deductionsList.length === 0) {
+        deductionsList.push({ name: 'Total Deductions', amount: safeDeductions });
+      }
+    }
+
+    const maxRows = Math.max(earningsList.length, deductionsList.length, 1);
+    const tableRowsHtml = Array.from({ length: maxRows }).map((_, i) => {
+      const earn = earningsList[i];
+      const ded = deductionsList[i];
+      return `
+        <tr>
+          <td>${earn ? earn.name : ''}</td>
+          <td style="text-align: right; font-weight: 600;">${earn ? formatCurrency(earn.amount) : ''}</td>
+          <td>${ded ? ded.name : ''}</td>
+          <td style="text-align: right; font-weight: 600;">${ded ? formatCurrency(ded.amount) : ''}</td>
+        </tr>
+      `;
+    }).join('');
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
+      const schoolName = localStorage.getItem('school_name') || 'Educational Institution';
       printWindow.document.write(`
         <html>
           <head>
-            <title>Salary Payslip - ${p.employeeName}</title>
+            <title>Salary Payslip - ${p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff')}</title>
             <style>
               @page { size: A4 portrait; margin: 8mm; }
               @media print {
@@ -763,51 +935,47 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               .table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
               .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
               .table th { background-color: #f1f5f9; font-weight: 700; }
-              .net { font-size: 1.1em; font-weight: bold; margin-top: 14px; text-align: right; color: #16a34a; background: #f0fdf4; padding: 8px; border-radius: 6px; border: 1px solid #bbf7d0; }
+              .net { font-size: 1.1em; font-weight: bold; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; color: #16a34a; background: #f0fdf4; padding: 10px 14px; border-radius: 6px; border: 1px solid #bbf7d0; }
               .sign { margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; }
             </style>
           </head>
           <body>
             <div class="header">
               <h2>MONTHLY SALARY PAYSLIP</h2>
-              <p>Pirnav Educational Institutions - HR Department</p>
+              <p>${schoolName} - HR Department</p>
             </div>
             <div class="details">
-              <div><strong>Employee Name:</strong> ${p.employeeName}</div>
-              <div><strong>Employee ID:</strong> ${p.empId}</div>
+              <div><strong>Employee Name:</strong> ${p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff')}</div>
+              <div><strong>Employee ID:</strong> ${p.empId || linkedStaff?.empId || 'N/A'}</div>
               <div><strong>Salary Month:</strong> ${p.month}</div>
-              <div><strong>Generated Date:</strong> ${p.disbursedDate || new Date().toISOString().split('T')[0]}</div>
-              <div><strong>Bank Account:</strong> ${p.bankAccount || 'N/A'}</div>
-              <div><strong>Status:</strong> ${p.status}</div>
+              <div><strong>Generated Date:</strong> ${p.disbursedDate || p.paymentDate || new Date().toISOString().split('T')[0]}</div>
+              <div><strong>Bank Account:</strong> ${p.bankAccount || linkedStaff?.bankDetails?.accountNumber || 'N/A'}</div>
+              <div><strong>Status:</strong> ${p.status || 'Generated'}</div>
             </div>
             
             <table class="table">
               <thead>
                 <tr>
                   <th>Earning Details</th>
-                  <th>Amount</th>
+                  <th style="text-align: right;">Amount</th>
                   <th>Deduction Details</th>
-                  <th>Amount</th>
+                  <th style="text-align: right;">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>Basic Salary</td>
-                  <td>${formatCurrency(p.basicSalary || p.grossSalary || 0)}</td>
-                  <td>Total Deductions</td>
-                  <td>${formatCurrency((p.pfDeduction || 0) + (p.lopDeduction || 0) + (p.otherDeductions || 0))}</td>
-                </tr>
-                <tr>
+                ${tableRowsHtml}
+                <tr style="background: #f8fafc; font-weight: bold; border-top: 2px solid #cbd5e1;">
                   <td><strong>Gross Earning</strong></td>
-                  <td><strong>${formatCurrency(p.grossSalary || p.basicSalary || 0)}</strong></td>
+                  <td style="text-align: right; color: #0284c7;"><strong>${formatCurrency(safeGross)}</strong></td>
                   <td><strong>Total Deductions</strong></td>
-                  <td><strong>${formatCurrency((p.pfDeduction || 0) + (p.lopDeduction || 0) + (p.otherDeductions || 0))}</strong></td>
+                  <td style="text-align: right; color: #ef4444;"><strong>${formatCurrency(safeDeductions)}</strong></td>
                 </tr>
               </tbody>
             </table>
             
             <div class="net">
-              Net Payable Salary: ${formatCurrency(p.netSalary)}
+              <span>Net Payable Salary:</span>
+              <span style="font-size: 1.25em; font-weight: 900;">${formatCurrency(safeNet)}</span>
             </div>
             
             <div class="sign">
@@ -839,7 +1007,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeeCategoryFilter, setEmployeeCategoryFilter] = useState<'All' | CategoryValue>('All');
   const [employeeStructureFilter, setEmployeeStructureFilter] = useState('All Structures');
-  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'All' | 'Active' | 'Not Assigned'>('All');
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [structureSearch, setStructureSearch] = useState('');
   const [structureCategoryFilter, setStructureCategoryFilter] = useState<'All' | CategoryValue>('All');
   const [structureDesignationFilter, setStructureDesignationFilter] = useState('All');
@@ -859,6 +1027,28 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [selectedGenerationIds, setSelectedGenerationIds] = useState<string[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [drawerStaff, setDrawerStaff] = useState<Staff | null>(null);
+
+  // Pagination states
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeePerPage, setEmployeePerPage] = useState(10);
+  const [structurePage, setStructurePage] = useState(1);
+  const [structurePerPage, setStructurePerPage] = useState(10);
+  const [generatedHistoryPage, setGeneratedHistoryPage] = useState(1);
+  const [generatedHistoryPerPage, setGeneratedHistoryPerPage] = useState(10);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPerPage, setHistoryPerPage] = useState(10);
+
+  useEffect(() => {
+    setEmployeePage(1);
+  }, [employeeSearch, employeeCategoryFilter, employeeStructureFilter, employeeStatusFilter]);
+
+  useEffect(() => {
+    setStructurePage(1);
+  }, [structureSearch, structureCategoryFilter, structureDesignationFilter, structureStatusFilter]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyEmployee, historyMonth, historyYear, historyDepartment]);
 
   const [payslipMode, setPayslipMode] = useState<'Auto Payslip'>('Auto Payslip');
   const [globalDeduction, setGlobalDeduction] = useState<string>('');
@@ -880,28 +1070,56 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     onTabChange?.(activeTab);
   }, [activeTab, onTabChange]);
 
-  const branches = useMemo(() => ['All Branches', ...Array.from(new Set(staff.map(item => item.branch || 'Main Campus')))], [staff]);
-  const departments = useMemo(() => ['All Departments', ...Array.from(new Set(staff.map(item => item.department).filter(Boolean)))], [staff]);
+  const branches = useMemo(() => {
+    const list = Array.from(new Set(staff.map(item => item.branch).filter(Boolean)));
+    return ['All Branches', ...(list.length > 0 ? list : ['Main Campus'])];
+  }, [staff]);
+
+  const departments = useMemo(() => {
+    const list = Array.from(new Set([
+      ...staff.map(item => item.department).filter(Boolean),
+      ...designations.map((d: any) => d.department).filter(Boolean)
+    ]));
+    return ['All Departments', ...list];
+  }, [designations, staff]);
+
   const employeeOptions = useMemo(() => ['All Employees', ...staff.map(item => `${item.firstName} ${item.lastName} (${item.empId})`.trim())], [staff]);
   const structureOptions = useMemo(() => ['All Structures', ...Array.from(new Set(salaryStructures.map(item => item.structureName).filter(Boolean)))], [salaryStructures]);
   const designationSet = useMemo(() => {
-    const values = salaryStructures.map(item => item.designation).filter(Boolean) as string[];
-    return ['All', ...Array.from(new Set(values))];
-  }, [salaryStructures]);
+    const values = Array.from(new Set([
+      ...salaryStructures.map(item => item.designation).filter(Boolean),
+      ...staff.map(item => item.designation).filter(Boolean),
+      ...designations.map(d => d.designationName).filter(Boolean)
+    ])) as string[];
+    return ['All', ...values];
+  }, [designations, salaryStructures, staff]);
 
   const employeeRows = useMemo(() => {
     return staff.map(member => {
-      const activeAssignment = employeeSalaryAssignments.find(item => item.employeeId === member.id && item.status === 'Active') || null;
-      const structure = salaryStructures.find(item => item.id === activeAssignment?.salaryStructureId) || null;
-      const breakdown = getStructureBreakdown(structure || undefined, activeAssignment || undefined);
+      const activeAssignment = employeeSalaryAssignments.find(item => (item.employeeId === member.id || item.empId === member.empId) && item.status === 'Active') || null;
       const category = resolveCategory(member);
+
+      const staffSpecificStructure = salaryStructures.find(item =>
+        (item as any).staffId === member.id ||
+        (item as any).employeeId === member.id ||
+        normalize(item.structureName).includes(normalize(`${member.firstName} ${member.lastName}`))
+      ) || null;
+
+      const isConfigured = !!(activeAssignment || staffSpecificStructure);
+      const structure = activeAssignment
+        ? (salaryStructures.find(item => item.id === activeAssignment.salaryStructureId) || staffSpecificStructure || null)
+        : (staffSpecificStructure || null);
+
+      const breakdown = structure ? getStructureBreakdown(structure, activeAssignment || undefined, member) : { basicSalary: 0, allowances: 0, deductions: 0, grossSalary: 0, netSalary: 0 };
+      const payrollStatus = isConfigured ? 'Active' : 'Inactive';
+
       return {
         member,
         category,
         assignment: activeAssignment,
         structure,
         breakdown,
-        payrollStatus: activeAssignment ? 'Active' : 'Not Assigned'
+        payrollStatus
       };
     });
   }, [employeeSalaryAssignments, salaryStructures, staff]);
@@ -921,21 +1139,45 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const structureRows = useMemo(() => {
     return salaryStructures.map(structure => {
-      const assignedCount = employeeSalaryAssignments.filter(item => item.salaryStructureId === structure.id && item.status === 'Active').length;
+      const activeAssignments = employeeSalaryAssignments.filter(item => String(item.salaryStructureId) === String(structure.id) && item.status === 'Active');
+      const assignedCount = activeAssignments.length;
+      
+      const directStaff = staff.find(s => String(s.id) === String((structure as any).staffId || (structure as any).employeeId));
+      const assignedStaff = activeAssignments.length > 0 ? staff.find(s => String(s.id) === String(activeAssignments[0].employeeId) || s.empId === activeAssignments[0].empId) : null;
+      const namedStaff = staff.find(s => {
+        const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+        const singleName = s.name || '';
+        return (fullName && normalize(structure.structureName).includes(normalize(fullName))) ||
+               (singleName && normalize(structure.structureName).includes(normalize(singleName)));
+      });
+
+      const matchingDesignationStaff = staff.filter(s => {
+        const staffDesig = s.designation || s.role || '';
+        const structDesig = structure.designation || '';
+        return structDesig && staffDesig && normalize(staffDesig) === normalize(structDesig);
+      });
+
+      const linkedEmployee = directStaff || assignedStaff || namedStaff || (matchingDesignationStaff.length === 1 ? matchingDesignationStaff[0] : null);
+
+      const assignedEmployees = activeAssignments.map(a => staff.find(s => String(s.id) === String(a.employeeId) || s.empId === a.empId)).filter(Boolean) as Staff[];
+
       return {
         structure,
         assignedCount,
+        linkedEmployee,
+        assignedEmployees,
         breakdown: getStructureBreakdown(structure)
       };
     });
-  }, [employeeSalaryAssignments, salaryStructures]);
+  }, [employeeSalaryAssignments, salaryStructures, staff]);
 
   const filteredStructureRows = useMemo(() => {
     const query = normalize(structureSearch);
     return structureRows.filter(row => {
+      const empText = row.linkedEmployee ? `${row.linkedEmployee.firstName} ${row.linkedEmployee.lastName} ${row.linkedEmployee.empId}` : '';
       const matchesSearch =
         query.length === 0 ||
-        normalize(`${row.structure.structureName} ${row.structure.designation || ''} ${row.structure.structureCode || ''}`).includes(query);
+        normalize(`${row.structure.structureName} ${row.structure.designation || ''} ${row.structure.structureCode || ''} ${empText}`).includes(query);
       const matchesCategory = structureCategoryFilter === 'All' || row.structure.employeeCategory === structureCategoryFilter;
       const matchesDesignation = structureDesignationFilter === 'All' || row.structure.designation === structureDesignationFilter;
       const matchesStatus = structureStatusFilter === 'All' || row.structure.status === structureStatusFilter;
@@ -956,46 +1198,49 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     return staff.filter(s => resolveCategory(s) === cat);
   }, [staff, structureDraft.employeeCategory]);
 
-  const autoCalculateCorporateSalary = (inputCtc?: string) => {
+  const autoCalculateCorporateSalary = (inputCtc?: string, customBasicPct?: string, customHraPct?: string) => {
     const annual = parseMoney(inputCtc !== undefined ? inputCtc : structureDraft.annualCtc || '0');
     if (annual <= 0) return;
 
     const monthlyGross = Math.round(annual / 12);
-    // Realtime Corporate Salary Breakdown Rules (50% Basic, 40% HRA, Conveyance 1600, Medical 1250, Special = balancing figure)
-    const basic = Math.round(monthlyGross * 0.50);
-    const hra = Math.round(basic * 0.40);
+    const basicPct = Number(customBasicPct !== undefined ? customBasicPct : structureDraft.basicPercentage) || 50;
+    const hraPct = Number(customHraPct !== undefined ? customHraPct : structureDraft.hraPercentage) || 40;
+
+    // Realtime Corporate Salary Breakdown Rules (Dynamic % Basic, Dynamic % HRA of Basic, Conveyance 1600, Medical 1250, Special = balancing figure)
+    const basic = Math.round(monthlyGross * (basicPct / 100));
+    const hra = Math.round(basic * (hraPct / 100));
     const conveyance = 1600;
     const medical = 1250;
     const special = Math.max(0, monthlyGross - (basic + hra + conveyance + medical));
 
-    // Provident Fund (12% of Basic up to statutory ceiling of 1800/mo)
-    const pfPercentage = Number(structureDraft.pfPercentage) || 12;
-    const rawPf = Math.round(basic * (pfPercentage / 100));
-    const pfAmount = structureDraft.pfApplicable ? Math.min(1800, rawPf) : 0;
-
-    // Professional Tax (Standard 200/mo if monthly gross > 15,000)
-    const ptAmount = monthlyGross > 15000 ? 200 : 0;
-
-    setStructureDraft(prev => ({
-      ...prev,
-      annualCtc: String(annual),
-      basicSalary: String(basic),
-      hra: String(hra),
-      travelAllowance: String(conveyance),
-      medicalAllowance: String(medical),
-      specialAllowance: String(special),
-      employeePf: String(pfAmount),
-      employerPf: String(pfAmount),
-      professionalTax: String(ptAmount),
-      professionalTaxAmount: String(ptAmount)
-    }));
+    setStructureDraft(prev => {
+      const updated: StructureDraft = {
+        ...prev,
+        annualCtc: String(annual),
+        basicPercentage: customBasicPct !== undefined ? customBasicPct : prev.basicPercentage,
+        hraPercentage: customHraPct !== undefined ? customHraPct : prev.hraPercentage,
+        basicSalary: String(basic),
+        hra: String(hra),
+        travelAllowance: String(conveyance),
+        medicalAllowance: String(medical),
+        specialAllowance: String(special)
+      };
+      const statutory = computeStatutoryValues(updated);
+      return {
+        ...updated,
+        employeePf: statutory.employeePf,
+        employerPf: statutory.employerPf,
+        esi: statutory.esi,
+        professionalTax: statutory.professionalTax
+      };
+    });
   };
 
   const handleStaffSelect = (staffId: string) => {
     const selectedStaff = staff.find(s => String(s.id) === String(staffId));
     if (selectedStaff) {
       const autoDesignation = selectedStaff.designation || selectedStaff.role || '';
-      const autoDept = (selectedStaff as any).department || (selectedStaff.role === 'Teacher' ? 'Academics' : 'Administration');
+      const autoDept = (selectedStaff as any).department || selectedStaff.designation || selectedStaff.role || 'Staff';
       const staffName = selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim() || 'Staff Scale';
       const staffSalary = Number((selectedStaff as any).basicSalary || (selectedStaff as any).salary || 0);
 
@@ -1011,26 +1256,31 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         if (staffSalary > 0) {
           const annual = staffSalary > 50000 ? staffSalary : staffSalary * 12;
           const monthlyGross = Math.round(annual / 12);
-          const basic = Math.round(monthlyGross * 0.50);
-          const hra = Math.round(basic * 0.40);
+          const basicPct = Number(prev.basicPercentage) || 50;
+          const hraPct = Number(prev.hraPercentage) || 40;
+          const basic = Math.round(monthlyGross * (basicPct / 100));
+          const hra = Math.round(basic * (hraPct / 100));
           const conveyance = 1600;
           const medical = 1250;
           const special = Math.max(0, monthlyGross - (basic + hra + conveyance + medical));
-          const pfAmount = prev.pfApplicable ? Math.min(1800, Math.round(basic * 0.12)) : 0;
-          const ptAmount = monthlyGross > 15000 ? 200 : 0;
 
-          return {
+          const baseDraft: StructureDraft = {
             ...next,
             annualCtc: String(annual),
             basicSalary: String(basic),
             hra: String(hra),
             travelAllowance: String(conveyance),
             medicalAllowance: String(medical),
-            specialAllowance: String(special),
-            employeePf: String(pfAmount),
-            employerPf: String(pfAmount),
-            professionalTax: String(ptAmount),
-            professionalTaxAmount: String(ptAmount)
+            specialAllowance: String(special)
+          };
+          const statutory = computeStatutoryValues(baseDraft);
+
+          return {
+            ...baseDraft,
+            employeePf: statutory.employeePf,
+            employerPf: statutory.employerPf,
+            esi: statutory.esi,
+            professionalTax: statutory.professionalTax
           };
         }
         return next;
@@ -1042,7 +1292,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const generationCandidates = useMemo(() => {
     return employeeRows.filter(row => {
-      if (!row.assignment || row.assignment.status !== 'Active') return false;
+      const isSelected = selectedGenerationIds.includes(row.member.id);
+      if (!isSelected && row.payrollStatus !== 'Active' && (!row.assignment || row.assignment.status !== 'Active')) return false;
       const staffBranch = row.member.branch || 'Main Campus';
       const matchesBranch = generationBranch === 'All Branches' || staffBranch === generationBranch;
       const matchesDepartment = generationDepartment === 'All Departments' || row.member.department === generationDepartment;
@@ -1051,7 +1302,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const matchesEmployee = generationEmployee === 'All Employees' || employeeLabel === generationEmployee;
       return matchesBranch && matchesDepartment && matchesCategory && matchesEmployee;
     });
-  }, [employeeRows, generationBranch, generationCategory, generationDepartment, generationEmployee]);
+  }, [employeeRows, generationBranch, generationCategory, generationDepartment, generationEmployee, selectedGenerationIds]);
 
   const generationRows = useMemo(() => {
     return generationCandidates.map(row => {
@@ -1130,21 +1381,32 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const openAssignmentModal = (staffMember?: Staff) => {
     const member = staffMember || null;
     const category = member ? resolveCategory(member) : '';
-    const activeAssignment = member ? employeeSalaryAssignments.find(item => item.employeeId === member.id && item.status === 'Active') || null : null;
-    const candidateStructures = salaryStructures.filter(item => structureMatches(item, category, member?.designation || ''));
-    const structure = activeAssignment
-      ? salaryStructures.find(item => item.id === activeAssignment.salaryStructureId)
-      : candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === category) || salaryStructures[0] || null;
-    const breakdown = getStructureBreakdown(structure || undefined, activeAssignment || undefined);
+    const activeAssignment = member ? employeeSalaryAssignments.find(item => (item.employeeId === member.id || item.empId === member.empId) && item.status === 'Active') || null : null;
+    
+    const staffSpecificStructure = member ? salaryStructures.find(item => 
+      (item as any).staffId === member.id || 
+      (item as any).employeeId === member.id || 
+      normalize(item.structureName).includes(normalize(`${member.firstName} ${member.lastName}`))
+    ) : null;
+
+    const candidateStructures = member ? salaryStructures.filter(item => structureMatches(item, category, member.designation || '')) : [];
+    const structure = member ? (
+      activeAssignment
+        ? salaryStructures.find(item => item.id === activeAssignment.salaryStructureId)
+        : (staffSpecificStructure || candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === category) || null)
+    ) : null;
+
+    const breakdown = structure ? getStructureBreakdown(structure, activeAssignment || undefined, member || undefined) : { basicSalary: 0, allowances: 0, deductions: 0, grossSalary: 0, netSalary: 0 };
+
     setAssignmentDraft({
       employeeId: member?.id || '',
       employeeCategory: category,
       designation: member?.designation || '',
       salaryStructureId: structure?.id || '',
       salaryOverride: !!activeAssignment?.salaryOverride,
-      basicSalary: String(activeAssignment?.overrideBasicSalary ?? breakdown.basicSalary),
-      allowances: String(activeAssignment?.overrideAllowances ?? breakdown.allowances),
-      deductions: String(activeAssignment?.overrideDeductions ?? breakdown.deductions),
+      basicSalary: structure ? String(activeAssignment?.overrideBasicSalary ?? breakdown.basicSalary) : '',
+      allowances: structure ? String(activeAssignment?.overrideAllowances ?? breakdown.allowances) : '',
+      deductions: structure ? String(activeAssignment?.overrideDeductions ?? breakdown.deductions) : '',
       effectiveDate: activeAssignment?.effectiveDate || todayString()
     });
     setAssignmentModalOpen(true);
@@ -1169,11 +1431,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const structureOptionsForAssignment = useMemo(() => {
     const category = assignmentDraft.employeeCategory;
     const designation = assignmentDraft.designation;
+    const empId = assignmentDraft.employeeId;
+    const member = staff.find(s => s.id === empId);
+
+    const employeeStructures = salaryStructures.filter(item => 
+      empId && (
+        (item as any).staffId === empId || 
+        (item as any).employeeId === empId || 
+        (member && normalize(item.structureName).includes(normalize(`${member.firstName} ${member.lastName}`)))
+      )
+    );
+
     const matches = salaryStructures.filter(item => structureMatches(item, category, designation));
-    if (matches.length > 0) return matches;
-    if (category) return salaryStructures.filter(item => item.employeeCategory === category);
-    return salaryStructures;
-  }, [assignmentDraft.designation, assignmentDraft.employeeCategory, salaryStructures]);
+    const otherCategory = category ? salaryStructures.filter(item => item.employeeCategory === category) : salaryStructures;
+    
+    return Array.from(new Set([...employeeStructures, ...matches, ...otherCategory, ...salaryStructures]));
+  }, [assignmentDraft.designation, assignmentDraft.employeeCategory, assignmentDraft.employeeId, salaryStructures, staff]);
 
   useEffect(() => {
     if (!assignmentModalOpen) return;
@@ -1182,17 +1455,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     if (!member) return;
     const category = resolveCategory(member);
     const designation = member.designation || assignmentDraft.designation;
+    const staffSpecificStructure = salaryStructures.find(item => 
+      (item as any).staffId === member.id || 
+      (item as any).employeeId === member.id || 
+      normalize(item.structureName).includes(normalize(`${member.firstName} ${member.lastName}`))
+    ) || null;
     const options = salaryStructures.filter(item => structureMatches(item, category, designation));
-    const nextStructure = options[0] || salaryStructures.find(item => item.employeeCategory === category) || salaryStructures[0];
-    if (!assignmentDraft.designation) {
+    const nextStructure = staffSpecificStructure || options[0] || salaryStructures.find(item => item.employeeCategory === category);
+    if (!assignmentDraft.salaryStructureId && nextStructure) {
       setAssignmentDraft(prev => ({
         ...prev,
         employeeCategory: category,
         designation,
-        salaryStructureId: nextStructure?.id || prev.salaryStructureId
+        salaryStructureId: nextStructure.id
       }));
     }
-  }, [assignmentDraft.designation, assignmentDraft.employeeId, assignmentModalOpen, salaryStructures, staff]);
+  }, [assignmentDraft.employeeId, assignmentModalOpen, salaryStructures, staff]);
 
   useEffect(() => {
     if (!structureModalOpen) return;
@@ -1205,7 +1483,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     }
   }, [structureDraft.designation, structureDraft.employeeCategory, structureDraft.id, structureDraft.structureName, structureModalOpen]);
 
-  const saveStructure = () => {
+  const saveStructure = async () => {
     if (!structureDraft.structureName.trim() || !structureDraft.designation.trim()) {
       addToast('warning', 'Missing details', 'Please enter a structure name and designation before saving.');
       return;
@@ -1214,11 +1492,64 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const payload = buildStructurePayload(structureDraft);
 
     if (structureMode === 'edit' && structureEditingId) {
-      updateSalaryStructure(structureEditingId, payload);
-      addToast('success', 'Salary structure updated', `${payload.structureName} was updated successfully.`);
+      await updateSalaryStructure(structureEditingId, payload);
+      if (structureDraft.staffId) {
+        const linkedStaffMember = staff.find(s => String(s.id) === String(structureDraft.staffId));
+        if (linkedStaffMember) {
+          const breakdown = getStructureBreakdown(payload as any, undefined, linkedStaffMember);
+          const empFullName = `${linkedStaffMember.firstName || ''} ${linkedStaffMember.lastName || ''}`.trim() || linkedStaffMember.name || 'Staff Member';
+          await assignEmployeeSalaryStructure({
+            employeeId: linkedStaffMember.id,
+            employeeName: empFullName,
+            empId: linkedStaffMember.empId,
+            employeeCategory: resolveCategory(linkedStaffMember),
+            branch: linkedStaffMember.branch || 'Main Campus',
+            department: linkedStaffMember.department,
+            salaryStructureId: structureEditingId,
+            salaryStructureName: payload.structureName,
+            effectiveDate: structureDraft.effectiveDate || todayString(),
+            status: 'Active',
+            salaryOverride: false,
+            overrideBasicSalary: breakdown.basicSalary,
+            overrideAllowances: breakdown.allowances,
+            overrideDeductions: breakdown.deductions,
+            overrideNetSalary: breakdown.netSalary,
+            monthlyGross: breakdown.grossSalary
+          });
+        }
+      }
+      addToast('success', 'Salary structure updated', `${payload.structureName} was updated and assigned to employee.`);
     } else {
-      addSalaryStructure(payload);
-      addToast('success', 'Salary structure created', `${payload.structureName} was added to the payroll library.`);
+      const tempStructureId = `struct-${Date.now()}`;
+      const result = await addSalaryStructure({ ...payload, id: tempStructureId } as any);
+      const newStructureId = result?.id ? String(result.id) : (result?.data?.id ? String(result.data.id) : tempStructureId);
+
+      if (structureDraft.staffId) {
+        const linkedStaffMember = staff.find(s => String(s.id) === String(structureDraft.staffId));
+        if (linkedStaffMember) {
+          const breakdown = getStructureBreakdown(payload as any, undefined, linkedStaffMember);
+          const empFullName = `${linkedStaffMember.firstName || ''} ${linkedStaffMember.lastName || ''}`.trim() || linkedStaffMember.name || 'Staff Member';
+          await assignEmployeeSalaryStructure({
+            employeeId: linkedStaffMember.id,
+            employeeName: empFullName,
+            empId: linkedStaffMember.empId,
+            employeeCategory: resolveCategory(linkedStaffMember),
+            branch: linkedStaffMember.branch || 'Main Campus',
+            department: linkedStaffMember.department,
+            salaryStructureId: newStructureId,
+            salaryStructureName: payload.structureName,
+            effectiveDate: structureDraft.effectiveDate || todayString(),
+            status: 'Active',
+            salaryOverride: false,
+            overrideBasicSalary: breakdown.basicSalary,
+            overrideAllowances: breakdown.allowances,
+            overrideDeductions: breakdown.deductions,
+            overrideNetSalary: breakdown.netSalary,
+            monthlyGross: breakdown.grossSalary
+          });
+        }
+      }
+      addToast('success', 'Salary structure created', `${payload.structureName} was created and directly assigned to employee.`);
     }
     closeStructureModal();
   };
@@ -1262,17 +1593,19 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const createPayslipForRow = (row: (typeof generationRows)[number]) => {
     const existing = row.existing;
-    if (existing) {
+    if (existing && Number(existing.grossSalary) > 0 && Number(existing.netSalary) > 0) {
       return existing;
     }
 
     const member = row.member;
     const structure = row.structure;
     const breakdown = row.breakdown;
-    const grossSalary = breakdown.grossSalary;
+    const grossSalary = breakdown.grossSalary > 0 ? breakdown.grossSalary : Number(member.salary || 0);
     const attendanceDeduction = Math.max(0, row.deductions - breakdown.deductions);
-    const totalDeductions = row.deductions;
-    const netSalary = row.netSalary;
+    const totalDeductions = row.deductions > 0 ? row.deductions : breakdown.deductions;
+    const netSalary = row.netSalary > 0 ? row.netSalary : Math.max(0, grossSalary - totalDeductions);
+    const basicSalary = breakdown.basicSalary > 0 ? breakdown.basicSalary : Math.round(grossSalary * 0.5);
+    const allowances = breakdown.allowances > 0 ? breakdown.allowances : Math.max(0, grossSalary - basicSalary);
 
     const payload: Omit<Payslip, 'id'> = {
       employeeId: member.id,
@@ -1283,24 +1616,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       designation: member.designation,
       employeeCategory: resolveCategory(member),
       month: payrollMonthLabel,
-      basicSalary: breakdown.basicSalary,
-      hra: Math.round(breakdown.allowances * 0.45),
-      da: Math.round(breakdown.allowances * 0.25),
-      earnings: structure
-        ? [
-            { name: 'Basic Salary', amount: breakdown.basicSalary, type: 'Fixed', value: breakdown.basicSalary },
-            { name: 'Allowances', amount: breakdown.allowances, type: 'Fixed', value: breakdown.allowances }
-          ]
-        : [],
-      deductions: structure
-        ? [
-            { name: 'Structure Deductions', amount: breakdown.deductions, type: 'Fixed', value: breakdown.deductions },
-            { name: 'Attendance Deduction', amount: attendanceDeduction, type: 'Fixed', value: attendanceDeduction }
-          ]
-        : [],
+      basicSalary,
+      hra: Math.round(allowances * 0.45),
+      da: Math.round(allowances * 0.25),
+      earnings: [
+        { name: 'Basic Salary', amount: basicSalary, type: 'Fixed', value: basicSalary },
+        { name: 'Allowances', amount: allowances, type: 'Fixed', value: allowances }
+      ],
+      deductions: [
+        { name: 'Structure Deductions', amount: breakdown.deductions, type: 'Fixed', value: breakdown.deductions },
+        ...(attendanceDeduction > 0 ? [{ name: 'Attendance Deduction', amount: attendanceDeduction, type: 'Fixed', value: attendanceDeduction }] : [])
+      ],
       grossSalary,
       otherDeductions: totalDeductions,
-      pfDeduction: 0,
+      pfDeduction: breakdown.deductions > 0 ? Math.round(basicSalary * 0.12) : 0,
       leaveDeduction: attendanceDeduction,
       lopDeduction: row.lopDays,
       netSalary,
@@ -1324,7 +1653,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   
   const confirmBulkGenerate = () => {
     setIsGenerateModalOpen(false);
-    const created = generationRows.filter(row => !row.existing).map(createPayslipForRow).length;
+    const targetRows = selectedGenerationIds.length > 0
+      ? generationRows.filter(row => selectedGenerationIds.includes(row.member.id))
+      : generationRows;
+    const created = targetRows.filter(row => !row.existing).map(createPayslipForRow).length;
     addToast('success', 'Payslips generated', created > 0 ? `${created} payslip${created === 1 ? '' : 's'} generated for ${payrollMonthLabel}.` : 'Nothing new to generate for this payroll period.');
   };
 
@@ -1341,12 +1673,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const activeEmployees = employeeRows.filter(row => row.assignment && row.assignment.status === 'Active').length;
     const unassignedEmployees = totalEmployees - activeEmployees;
 
+    const paginatedEmployeeRows = filteredEmployeeRows.slice(
+      (employeePage - 1) * employeePerPage,
+      employeePage * employeePerPage
+    );
+
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <StatCard label="Employees" value={String(totalEmployees)} icon={Users} tone="sky" />
-          <StatCard label="Assigned" value={String(activeEmployees)} icon={CheckCircle2} tone="emerald" />
-          <StatCard label="Unassigned" value={String(unassignedEmployees)} icon={AlertTriangle} tone="amber" />
+          <StatCard label="Active" value={String(activeEmployees)} icon={CheckCircle2} tone="emerald" />
+          <StatCard label="Inactive" value={String(unassignedEmployees)} icon={AlertTriangle} tone="amber" />
           <StatCard label="Overrides" value={String(overrideEmployeeCount)} icon={ShieldCheck} tone="brand" />
         </div>
 
@@ -1413,10 +1750,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
             <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
-              <SelectField value={employeeStatusFilter} onChange={e => setEmployeeStatusFilter(e.target.value as 'All' | 'Active' | 'Not Assigned')}>
+              <SelectField value={employeeStatusFilter} onChange={e => setEmployeeStatusFilter(e.target.value as 'All' | 'Active' | 'Inactive')}>
                 <option value="All">All Status</option>
                 <option value="Active">Active</option>
-                <option value="Not Assigned">Not Assigned</option>
+                <option value="Inactive">Inactive</option>
               </SelectField>
             </div>
           </div>
@@ -1425,7 +1762,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <table className="min-w-[1100px] w-full text-center border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="px-3 py-2 text-center w-10"></th>
+                  <th className="px-3 py-2 text-center w-10">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={filteredEmployeeRows.length > 0 && filteredEmployeeRows.every((r, idx) => selectedEmployeeIds.includes(getEmployeeUniqueId(r.member, idx)))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedEmployeeIds(filteredEmployeeRows.map((r, idx) => getEmployeeUniqueId(r.member, idx)));
+                        } else {
+                          setSelectedEmployeeIds([]);
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="px-3 py-2 text-center">Employee ID</th>
                   <th className="px-3 py-2 text-center">Employee Name</th>
                   <th className="px-3 py-2 text-center">Category</th>
@@ -1437,91 +1787,104 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployeeRows.map(row => {
-                  const statusBadge = row.assignment ? 'success' : 'warning';
-                  return (
-                    <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                      <td className="px-3 py-2 text-center align-middle">
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                          checked={selectedEmployeeIds.includes(row.member.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedEmployeeIds(prev => [...prev, row.member.id]);
-                            } else {
-                              setSelectedEmployeeIds(prev => prev.filter(id => id !== row.member.id));
-                            }
-                          }}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{row.member.empId}</td>
-                      <td className="px-3 py-2 text-center align-middle">
-                        <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-center">
-                          <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
-                          <p className="text-[10px] text-slate-500">{row.member.branch || 'Main Campus'}</p>
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.category)}</td>
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.member.department}</td>
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.member.designation}</td>
-                      <td className="px-3 py-2 text-center align-middle">
-                        <div className="space-y-0.5">
-                          <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure?.structureName || 'Not Assigned'}</div>
-                          {row.assignment?.salaryOverride && <Badge variant="warning" size="sm">Override</Badge>}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-center align-middle">
-                        <Badge variant={statusBadge} size="sm">{row.payrollStatus}</Badge>
-                      </td>
-                      <td className="px-3 py-2 text-center align-middle">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setDrawerStaff(row.member)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
-                            title="View Profile"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openAssignmentModal(row.member)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors"
-                            title={row.assignment ? 'Edit Salary' : 'Assign Salary'}
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (row.assignment) {
-                                deleteSalaryStructure(row.assignment.id);
-                                addToast('info', 'Assignment Removed', `Salary record for ${row.member.firstName} ${row.member.lastName} deleted.`);
-                              } else {
-                                addToast('warning', 'No Assignment', `No salary structure is currently assigned to ${row.member.firstName} ${row.member.lastName}.`);
-                              }
-                            }}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
-                            title="Delete Assignment"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filteredEmployeeRows.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
+                {filteredEmployeeRows.length === 0 ? (
+                  <tr key="no-employees">
+                    <td colSpan={9} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
                       No employees matched the current filters.
                     </td>
                   </tr>
+                ) : (
+                  paginatedEmployeeRows.map((row, idx) => {
+                    const statusBadge = row.payrollStatus === 'Active' ? 'success' : 'neutral';
+                    const empRowId = getEmployeeUniqueId(row.member, (employeePage - 1) * employeePerPage + idx);
+                    const isEmpSelected = selectedEmployeeIds.includes(empRowId);
+                    return (
+                      <tr key={empRowId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                        <td className="px-3 py-2 text-center align-middle">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                            checked={isEmpSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedEmployeeIds(prev => [...prev.filter(id => id !== empRowId), empRowId]);
+                              } else {
+                                setSelectedEmployeeIds(prev => prev.filter(id => id !== empRowId));
+                              }
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{row.member.empId}</td>
+                        <td className="px-3 py-2 text-center align-middle">
+                          <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-center">
+                            <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
+                            <p className="text-[10px] text-slate-500">{row.member.branch || 'Main Campus'}</p>
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.category)}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.member.department}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.member.designation}</td>
+                        <td className="px-3 py-2 text-center align-middle">
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure?.structureName || 'Not Assigned'}</div>
+                            {row.assignment?.salaryOverride && <Badge variant="warning" size="sm">Override</Badge>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-center align-middle">
+                          <Badge variant={statusBadge} size="sm">{row.payrollStatus}</Badge>
+                        </td>
+                        <td className="px-3 py-2 text-center align-middle">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setDrawerStaff(row.member)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
+                              title="View Profile"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openAssignmentModal(row.member)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors"
+                              title={row.assignment ? 'Edit Salary' : 'Assign Salary'}
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (row.assignment) {
+                                  deleteSalaryStructure(row.assignment.id);
+                                  addToast('info', 'Assignment Removed', `Salary record for ${row.member.firstName} ${row.member.lastName} deleted.`);
+                                } else {
+                                  addToast('warning', 'No Assignment', `No salary structure is currently assigned to ${row.member.firstName} ${row.member.lastName}.`);
+                                }
+                              }}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
+                              title="Delete Assignment"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={employeePage}
+            totalItems={filteredEmployeeRows.length}
+            itemsPerPage={employeePerPage}
+            onPageChange={setEmployeePage}
+            onItemsPerPageChange={setEmployeePerPage}
+            itemsPerPageOptions={[5, 10, 20, 50, 100]}
+            label="employees"
+          />
         </Panel>
       </div>
     );
@@ -1609,98 +1972,145 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <table className="min-w-[1200px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                <th className="px-3 py-2 w-10"></th>
+                <th className="px-3 py-2 w-10">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                    checked={filteredStructureRows.length > 0 && filteredStructureRows.every((r, idx) => selectedStructureIds.includes(r.structure?.id || `struct-${idx}`))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedStructureIds(filteredStructureRows.map((r, idx) => r.structure?.id || `struct-${idx}`));
+                      } else {
+                        setSelectedStructureIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="px-3 py-2 text-center">Structure Name</th>
-                <th className="px-3 py-2 text-center">Category</th>
-                <th className="px-3 py-2 text-center">Designation</th>
+                <th className="px-3 py-2 text-center">Employee</th>
                 <th className="px-3 py-2 text-center">Effective From</th>
                 <th className="px-3 py-2 text-center">Frequency</th>
                 <th className="px-3 py-2 text-center">Gross Salary</th>
                 <th className="px-3 py-2 text-center">Total Deductions</th>
                 <th className="px-3 py-2 text-center">Net Salary</th>
                 <th className="px-3 py-2 text-center">Status</th>
-                <th className="px-3 py-2 text-center">Employees</th>
                 <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredStructureRows.map(row => (
-                <tr key={row.structure.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-2 text-center align-middle">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={selectedStructureIds.includes(row.structure.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedStructureIds(prev => [...prev, row.structure.id]);
-                        } else {
-                          setSelectedStructureIds(prev => prev.filter(id => id !== row.structure.id));
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-center align-middle">
-                    <div className="space-y-0.5">
-                      <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure.structureName}</div>
-                      {row.structure.structureCode && <p className="text-[10px] text-slate-500">{row.structure.structureCode}</p>}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.structure.employeeCategory)}</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.designation || 'Not set'}</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.effectiveDate || 'Not set'}</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.payrollFrequency || 'Monthly'}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(row.breakdown.grossSalary)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(row.breakdown.deductions)}</td>
-                  <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300 text-center align-middle">{formatCurrency(row.breakdown.netSalary)}</td>
-                  <td className="px-3 py-2 text-center align-middle">
-                    <Badge variant={row.structure.status === 'Active' ? 'success' : 'neutral'} size="sm">{row.structure.status}</Badge>
-                  </td>
-                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{row.assignedCount}</td>
-                  <td className="px-3 py-2 text-center align-middle">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => openStructureModal('edit', row.structure)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
-                        title="Edit Structure"
-                      >
-                        <Edit3 className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openStructureModal('duplicate', row.structure)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors"
-                        title="Duplicate Structure"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!window.confirm(`Delete ${row.structure.structureName}?`)) return;
-                          deleteSalaryStructure(row.structure.id);
-                          addToast('info', 'Structure deleted', `${row.structure.structureName} was removed from the library.`);
-                        }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
-                        title="Delete Structure"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredStructureRows.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
+              {filteredStructureRows.length === 0 ? (
+                <tr key="no-structures">
+                  <td colSpan={10} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
                     No salary structures matched the current filters.
                   </td>
                 </tr>
+              ) : (
+                filteredStructureRows.slice((structurePage - 1) * structurePerPage, structurePage * structurePerPage).map((row, idx) => {
+                  const structId = row.structure?.id || `struct-${(structurePage - 1) * structurePerPage + idx}`;
+                  return (
+                    <tr key={structId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                      <td className="px-3 py-2 text-center align-middle">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                          checked={selectedStructureIds.includes(structId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStructureIds(prev => [...prev.filter(id => id !== structId), structId]);
+                            } else {
+                              setSelectedStructureIds(prev => prev.filter(id => id !== structId));
+                            }
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center align-middle">
+                        <div className="space-y-0.5">
+                          <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure.structureName}</div>
+                          {row.structure.structureCode && <p className="text-[10px] text-slate-500 font-semibold">{row.structure.structureCode}</p>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center align-middle">
+                        {row.linkedEmployee ? (
+                          <button type="button" onClick={() => setDrawerStaff(row.linkedEmployee)} className="text-center">
+                            <div className="text-xs font-black text-slate-900 dark:text-white">
+                              {row.linkedEmployee.firstName} {row.linkedEmployee.lastName}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-semibold">{row.linkedEmployee.empId}</p>
+                          </button>
+                        ) : row.assignedEmployees && row.assignedEmployees.length > 0 ? (
+                          <div className="text-center">
+                            <div className="text-xs font-black text-slate-900 dark:text-white">
+                              {row.assignedEmployees[0].firstName} {row.assignedEmployees[0].lastName}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-semibold">{row.assignedEmployees[0].empId}</p>
+                            {row.assignedEmployees.length > 1 && (
+                              <p className="text-[9px] text-brand-600 font-bold">+{row.assignedEmployees.length - 1} more</p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <div className="text-xs font-bold text-slate-700 dark:text-slate-300">All Matching Staff</div>
+                            <p className="text-[10px] text-slate-400 font-semibold">{row.structure.designation || 'All Staff'}</p>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.effectiveDate || 'Not set'}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{row.structure.payrollFrequency || 'Monthly'}</td>
+                      <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(row.breakdown.grossSalary)}</td>
+                      <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(row.breakdown.deductions)}</td>
+                      <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300 text-center align-middle">{formatCurrency(row.breakdown.netSalary)}</td>
+                      <td className="px-3 py-2 text-center align-middle">
+                        <Badge variant={row.structure.status === 'Active' ? 'success' : 'neutral'} size="sm">{row.structure.status}</Badge>
+                      </td>
+                      <td className="px-3 py-2 text-center align-middle">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openStructureModal('edit', row.structure)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            title="Edit Structure"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openStructureModal('duplicate', row.structure)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors"
+                            title="Duplicate Structure"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!window.confirm(`Delete ${row.structure.structureName}?`)) return;
+                              deleteSalaryStructure(row.structure.id);
+                              addToast('info', 'Structure deleted', `${row.structure.structureName} was removed from the library.`);
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
+                            title="Delete Structure"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={structurePage}
+          totalItems={filteredStructureRows.length}
+          itemsPerPage={structurePerPage}
+          onPageChange={setStructurePage}
+          onItemsPerPageChange={setStructurePerPage}
+          itemsPerPageOptions={[5, 10, 20, 50, 100]}
+          label="structures"
+        />
       </Panel>
     </div>
   );
@@ -1813,10 +2223,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <input
                   type="checkbox"
                   className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4"
-                  checked={filteredLeftStaff.length > 0 && selectedGenerationIds.length === filteredLeftStaff.length}
+                  checked={filteredLeftStaff.length > 0 && filteredLeftStaff.every((s, idx) => selectedGenerationIds.includes(getEmployeeUniqueId(s, idx)))}
                   onChange={e => {
                     if (e.target.checked) {
-                      setSelectedGenerationIds(filteredLeftStaff.map(s => s.id));
+                      setSelectedGenerationIds(filteredLeftStaff.map((s, idx) => getEmployeeUniqueId(s, idx)));
                     } else {
                       setSelectedGenerationIds([]);
                     }
@@ -1836,17 +2246,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
 
             <div className="max-h-[380px] overflow-y-auto space-y-1 pr-1">
-              {filteredLeftStaff.map(member => {
-                const isChecked = selectedGenerationIds.includes(member.id);
-                const dept = member.department || (member.role === 'Teacher' ? 'IT' : 'Admin');
+              {filteredLeftStaff.map((member, idx) => {
+                const memberId = getEmployeeUniqueId(member, idx);
+                const isChecked = selectedGenerationIds.includes(memberId);
+                const dept = member.department || member.designation || member.role || 'Staff';
                 return (
                   <div
-                    key={member.id}
+                    key={memberId}
                     onClick={() => {
                       if (isChecked) {
-                        setSelectedGenerationIds(prev => prev.filter(id => id !== member.id));
+                        setSelectedGenerationIds(prev => prev.filter(id => id !== memberId));
                       } else {
-                        setSelectedGenerationIds(prev => [...prev, member.id]);
+                        setSelectedGenerationIds(prev => [...prev.filter(id => id !== memberId), memberId]);
                       }
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
@@ -1990,60 +2401,78 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     </tr>
                   </thead>
                   <tbody>
-                    {generationRows.filter(r => r.existing).map(row => {
-                      const existing = row.existing!;
-                      const safeNet = Number.isNaN(Number(existing.netSalary))
-                        ? Math.max(0, (existing.grossSalary || 0) - ((existing.otherDeductions || 0) + (existing.leaveDeduction || 0)))
-                        : Number(existing.netSalary) || 0;
-                      return (
-                        <tr key={existing.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                          <td className="px-3 py-2 text-center align-middle">
-                            <div className="text-center">
-                              <p className="font-extrabold text-slate-900 dark:text-white">{existing.employeeName}</p>
-                              <p className="text-[10px] text-slate-400">{existing.empId}</p>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 font-semibold text-center align-middle">{existing.department || 'IT'}</td>
-                          <td className="px-3 py-2 font-semibold text-center align-middle">{existing.month}</td>
-                          <td className="px-3 py-2 text-center align-middle font-black text-brand-700 dark:text-brand-300">{formatCurrency(safeNet)}</td>
-                          <td className="px-3 py-2 text-center align-middle font-bold">{formatCurrency((existing.otherDeductions || 0) + (existing.leaveDeduction || 0))}</td>
-                          <td className="px-3 py-2 text-center align-middle font-bold">{formatCurrency((existing.grossSalary || 0) * 12)}</td>
-                          <td className="px-3 py-2 text-center align-middle">
-                            <Badge variant="success" size="sm">{existing.paymentDate || 'Generated'}</Badge>
-                          </td>
-                          <td className="px-3 py-2 text-center align-middle">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handlePrintPayslip(existing, false)}
-                                className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                                title="View"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handlePrintPayslip(existing, true)}
-                                className="p-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300"
-                                title="Download PDF"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {generationRows.filter(r => r.existing).length === 0 && (
-                      <tr>
+                    {generationRows.filter(r => r.existing).length === 0 ? (
+                      <tr key="no-generated-payslips">
                         <td colSpan={8} className="px-6 py-10 text-center text-sm font-semibold text-slate-400 italic">
                           No Payslips Generated
                         </td>
                       </tr>
+                    ) : (
+                      generationRows.filter(r => r.existing).slice((generatedHistoryPage - 1) * generatedHistoryPerPage, generatedHistoryPage * generatedHistoryPerPage).map((row, idx) => {
+                        const existing = row.existing!;
+                        const rawGross = Number(existing.grossSalary) || 0;
+                        const rawDeductions = (existing.otherDeductions || 0) + (existing.leaveDeduction || 0) + (existing.pfDeduction || 0);
+                        const rawNet = Number(existing.netSalary) || 0;
+
+                        const fallbackGross = (row.breakdown?.grossSalary && row.breakdown.grossSalary > 0) ? row.breakdown.grossSalary : Number(row.member?.salary || 0);
+                        const safeGross = rawGross > 0 ? rawGross : fallbackGross;
+                        const safeDeductions = rawDeductions > 0 ? rawDeductions : (row.breakdown?.deductions || 0);
+                        const safeNet = rawNet > 0 ? rawNet : (safeGross > 0 ? Math.max(0, safeGross - safeDeductions) : (row.breakdown?.netSalary || 0));
+                        const safeCtc = safeGross * 12;
+
+                        return (
+                          <tr key={existing.id || existing.payslipNumber || `gen-row-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                            <td className="px-3 py-2 text-center align-middle">
+                              <div className="text-center">
+                                <p className="font-extrabold text-slate-900 dark:text-white">{existing.employeeName}</p>
+                                <p className="text-[10px] text-slate-400">{existing.empId}</p>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 font-semibold text-center align-middle">{existing.department || row.member?.department || 'Staff'}</td>
+                            <td className="px-3 py-2 font-semibold text-center align-middle">{existing.month}</td>
+                            <td className="px-3 py-2 text-center align-middle font-black text-brand-700 dark:text-brand-300">{formatCurrency(safeNet)}</td>
+                            <td className="px-3 py-2 text-center align-middle font-bold">{formatCurrency(safeDeductions)}</td>
+                            <td className="px-3 py-2 text-center align-middle font-bold">{formatCurrency(safeCtc)}</td>
+                            <td className="px-3 py-2 text-center align-middle">
+                              <Badge variant="success" size="sm">{existing.paymentDate || 'Generated'}</Badge>
+                            </td>
+                            <td className="px-3 py-2 text-center align-middle">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrintPayslip(existing, false)}
+                                  className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                                  title="View"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrintPayslip(existing, true)}
+                                  className="p-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300"
+                                  title="Download PDF"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
+
+              <Pagination
+                currentPage={generatedHistoryPage}
+                totalItems={generationRows.filter(r => r.existing).length}
+                itemsPerPage={generatedHistoryPerPage}
+                onPageChange={setGeneratedHistoryPage}
+                onItemsPerPageChange={setGeneratedHistoryPerPage}
+                itemsPerPageOptions={[5, 10, 20, 50, 100]}
+                label="payslips"
+              />
             </Panel>
           </div>
         </div>
@@ -2070,19 +2499,38 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   if (count === 0) return;
                   
                   const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
-                  const rowsToDownload = historyRows.filter(r => selectedHistoryIds.includes(r.id));
+                  const rowsToDownload = historyRows.filter((r, idx) => selectedHistoryIds.includes(getPayslipUniqueId(r, idx)));
                   const excelRows = [
                     headers,
-                    ...rowsToDownload.map(row => [
-                      row.month,
-                      row.employeeName,
-                      row.empId,
-                      row.grossSalary,
-                      row.deductions,
-                      row.netSalary,
-                      row.paymentDate || 'Pending',
-                      row.status
-                    ])
+                    ...rowsToDownload.map(row => {
+                      const linkedStaff = staff.find(member => member.id === row.employeeId) || null;
+                      const activeAssignment = employeeSalaryAssignments.find(item => (item.employeeId === row.employeeId || item.empId === row.empId) && item.status === 'Active') || null;
+                      let structure = salaryStructures.find(item => item.id === activeAssignment?.salaryStructureId) || null;
+                      if (!structure && linkedStaff) {
+                        const category = resolveCategory(linkedStaff);
+                        const matches = salaryStructures.filter(item => structureMatches(item, category, linkedStaff.designation || ''));
+                        structure = matches[0] || salaryStructures.find(item => item.employeeCategory === category) || salaryStructures[0] || null;
+                      }
+                      const breakdown = getStructureBreakdown(structure || undefined, activeAssignment || undefined, linkedStaff || undefined);
+                      const rawGross = Number(row.grossSalary) || 0;
+                      const rawDed = (row.leaveDeduction || 0) + (row.otherDeductions || 0) + (row.pfDeduction || 0);
+                      const rawNet = Number(row.netSalary) || 0;
+                      const fallbackGross = (breakdown?.grossSalary && breakdown.grossSalary > 0) ? breakdown.grossSalary : Number(linkedStaff?.salary || 0);
+                      const safeGross = rawGross > 0 ? rawGross : fallbackGross;
+                      const safeDed = rawDed > 0 ? rawDed : (breakdown?.deductions || 0);
+                      const safeNet = rawNet > 0 ? rawNet : (safeGross > 0 ? Math.max(0, safeGross - safeDed) : (breakdown?.netSalary || 0));
+
+                      return [
+                        row.month,
+                        row.employeeName,
+                        row.empId,
+                        safeGross,
+                        safeDed,
+                        safeNet,
+                        row.paymentDate || 'Pending',
+                        row.status
+                      ];
+                    })
                   ];
                   
                   try {
@@ -2135,10 +2583,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   <input 
                     type="checkbox" 
                     className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                    checked={historyRows.length > 0 && selectedHistoryIds.length === historyRows.length}
+                    checked={historyRows.length > 0 && historyRows.every((r, idx) => selectedHistoryIds.includes(getPayslipUniqueId(r, idx)))}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedHistoryIds(historyRows.map(r => r.id));
+                        setSelectedHistoryIds(historyRows.map((r, idx) => getPayslipUniqueId(r, idx)));
                       } else {
                         setSelectedHistoryIds([]);
                       }
@@ -2156,78 +2604,103 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </tr>
             </thead>
             <tbody>
-              {historyRows.map(item => {
-                const { month, year } = splitMonthYear(item.month);
-                const linkedStaff = staff.find(member => member.id === item.employeeId) || null;
-                const totalDed = (item.leaveDeduction || 0) + (item.otherDeductions || 0) + (item.pfDeduction || 0);
-                const safeNet = Number.isNaN(Number(item.netSalary))
-                  ? Math.max(0, (item.grossSalary || 0) - totalDed)
-                  : Number(item.netSalary) || 0;
-
-                return (
-                  <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-1.5 text-center align-middle">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={selectedHistoryIds.includes(item.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedHistoryIds(prev => [...prev, item.id]);
-                        } else {
-                          setSelectedHistoryIds(prev => prev.filter(id => id !== item.id));
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{month}</td>
-                  <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{year}</td>
-                  <td className="px-3 py-1.5 text-center align-middle">
-                    <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-center">
-                      <div className="text-xs font-black text-slate-900 dark:text-white">{item.employeeName}</div>
-                      <p className="text-[10px] text-slate-500">{item.empId}</p>
-                    </button>
-                  </td>
-                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(item.grossSalary || 0)}</td>
-                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(totalDed)}</td>
-                  <td className="px-3 py-1.5 text-xs font-black text-brand-700 dark:text-brand-300 text-center align-middle">{formatCurrency(safeNet)}</td>
-                  <td className="px-3 py-1.5 text-center align-middle">
-                    <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status || 'Generated'}</Badge>
-                  </td>
-                  <td className="px-3 py-1.5 text-center align-middle">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="View Payslip">
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          handlePrintPayslip(item, true);
-                          addToast('success', 'Download Started', `${item.employeeName} payslip PDF prepared.`);
-                        }} 
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-colors" 
-                        title="Download Payslip PDF"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </button>
-                      <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Email Payslip">
-                        <Mail className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                  </tr>
-                );
-              })}
-              {historyRows.length === 0 && (
-                <tr>
+              {historyRows.length === 0 ? (
+                <tr key="no-history-records">
                   <td colSpan={9} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
                     No payslip records found for the selected filters.
                   </td>
                 </tr>
+              ) : (
+                historyRows.slice((historyPage - 1) * historyPerPage, historyPage * historyPerPage).map((item, idx) => {
+                  const globalIdx = (historyPage - 1) * historyPerPage + idx;
+                  const rowId = getPayslipUniqueId(item, globalIdx);
+                  const isChecked = selectedHistoryIds.includes(rowId);
+                  const { month, year } = splitMonthYear(item.month);
+                  const linkedStaff = staff.find(member => member.id === item.employeeId) || null;
+                  const activeAssignment = employeeSalaryAssignments.find(a => (a.employeeId === item.employeeId || a.empId === item.empId) && a.status === 'Active') || null;
+                  let structure = salaryStructures.find(s => s.id === activeAssignment?.salaryStructureId) || null;
+                  if (!structure && linkedStaff) {
+                    const category = resolveCategory(linkedStaff);
+                    const matches = salaryStructures.filter(s => structureMatches(s, category, linkedStaff.designation || ''));
+                    structure = matches[0] || salaryStructures.find(s => s.employeeCategory === category) || salaryStructures[0] || null;
+                  }
+                  const breakdown = getStructureBreakdown(structure || undefined, activeAssignment || undefined, linkedStaff || undefined);
+                  const rawGross = Number(item.grossSalary) || 0;
+                  const rawDed = (item.leaveDeduction || 0) + (item.otherDeductions || 0) + (item.pfDeduction || 0);
+                  const rawNet = Number(item.netSalary) || 0;
+                  const fallbackGross = (breakdown?.grossSalary && breakdown.grossSalary > 0) ? breakdown.grossSalary : Number(linkedStaff?.salary || 0);
+                  const safeGross = rawGross > 0 ? rawGross : fallbackGross;
+                  const safeDed = rawDed > 0 ? rawDed : (breakdown?.deductions || 0);
+                  const safeNet = rawNet > 0 ? rawNet : (safeGross > 0 ? Math.max(0, safeGross - safeDed) : (breakdown?.netSalary || 0));
+
+                  return (
+                    <tr key={rowId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                      <td className="px-3 py-1.5 text-center align-middle">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedHistoryIds(prev => [...prev.filter(id => id !== rowId), rowId]);
+                            } else {
+                              setSelectedHistoryIds(prev => prev.filter(id => id !== rowId));
+                            }
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{month}</td>
+                      <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{year}</td>
+                      <td className="px-3 py-1.5 text-center align-middle">
+                        <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-center">
+                          <div className="text-xs font-black text-slate-900 dark:text-white">{item.employeeName}</div>
+                          <p className="text-[10px] text-slate-500">{item.empId}</p>
+                        </button>
+                      </td>
+                      <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(safeGross)}</td>
+                      <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center align-middle">{formatCurrency(safeDed)}</td>
+                      <td className="px-3 py-1.5 text-xs font-black text-brand-700 dark:text-brand-300 text-center align-middle">{formatCurrency(safeNet)}</td>
+                      <td className="px-3 py-1.5 text-center align-middle">
+                        <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status || 'Generated'}</Badge>
+                      </td>
+                      <td className="px-3 py-1.5 text-center align-middle">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="View Payslip">
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              handlePrintPayslip(item, true);
+                              addToast('success', 'Download Started', `${item.employeeName} payslip PDF prepared.`);
+                            }} 
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-colors" 
+                            title="Download Payslip PDF"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Email Payslip">
+                            <Mail className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={historyPage}
+          totalItems={historyRows.length}
+          itemsPerPage={historyPerPage}
+          onPageChange={setHistoryPage}
+          onItemsPerPageChange={setHistoryPerPage}
+          itemsPerPageOptions={[5, 10, 20, 50, 100]}
+          label="payslips"
+        />
       </Panel>
     </div>
   );
@@ -2434,25 +2907,102 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
             {/* Card 2: Earnings Components (Monthly) */}
             <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="text-xs font-black uppercase tracking-[0.28em] text-slate-500">2. Earnings Components (Monthly)</h3>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 px-2.5 py-1 rounded-full border border-sky-200/60 dark:border-sky-800/40">50% Basic</span>
-                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 px-2.5 py-1 rounded-full border border-sky-200/60 dark:border-sky-800/40">40% HRA</span>
-                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">Balancing Special Allowance</span>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-[0.28em] text-slate-500">2. Earnings Components (Monthly)</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Customize percentage formulas or specify custom amounts</p>
+                </div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {/* Basic % config */}
+                  <div className="flex items-center gap-1.5 bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/50 rounded-xl px-2.5 py-1 text-xs">
+                    <span className="font-bold text-sky-700 dark:text-sky-300 text-[11px]">Basic:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={structureDraft.basicPercentage}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setStructureDraft(prev => ({ ...prev, basicPercentage: val }));
+                        if (Number(structureDraft.annualCtc) > 0) {
+                          autoCalculateCorporateSalary(structureDraft.annualCtc, val, structureDraft.hraPercentage);
+                        }
+                      }}
+                      className="w-12 h-6 text-center text-xs font-black text-sky-900 dark:text-sky-100 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      placeholder="50"
+                      title="Basic Salary Percentage (% of Monthly Gross)"
+                    />
+                    <span className="font-bold text-sky-700 dark:text-sky-300 text-[11px]">% of Gross</span>
+                  </div>
+
+                  {/* HRA % config */}
+                  <div className="flex items-center gap-1.5 bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/50 rounded-xl px-2.5 py-1 text-xs">
+                    <span className="font-bold text-sky-700 dark:text-sky-300 text-[11px]">HRA:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={structureDraft.hraPercentage}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setStructureDraft(prev => ({ ...prev, hraPercentage: val }));
+                        if (Number(structureDraft.annualCtc) > 0) {
+                          autoCalculateCorporateSalary(structureDraft.annualCtc, structureDraft.basicPercentage, val);
+                        } else if (Number(structureDraft.basicSalary) > 0) {
+                          const newHra = Math.round(Number(structureDraft.basicSalary) * (Number(val) / 100));
+                          setStructureDraft(prev => ({ ...prev, hraPercentage: val, hra: String(newHra) }));
+                        }
+                      }}
+                      className="w-12 h-6 text-center text-xs font-black text-sky-900 dark:text-sky-100 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      placeholder="40"
+                      title="HRA Percentage (% of Basic Salary)"
+                    />
+                    <span className="font-bold text-sky-700 dark:text-sky-300 text-[11px]">% of Basic</span>
+                  </div>
+
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                    Balancing Special Allowance
+                  </span>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {structureEarningFields.map(field => (
                   <div key={field.key}>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">{field.label}</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">{field.label}</label>
+                      {field.key === 'basicSalary' && (
+                        <span className="text-[10px] font-extrabold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 rounded-md border border-sky-200/50 dark:border-sky-800/40">
+                          {structureDraft.basicPercentage || '50'}% of Gross
+                        </span>
+                      )}
+                      {field.key === 'hra' && (
+                        <span className="text-[10px] font-extrabold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 rounded-md border border-sky-200/50 dark:border-sky-800/40">
+                          {structureDraft.hraPercentage || '40'}% of Basic
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       placeholder={field.placeholder}
                       value={structureDraft[field.key]}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setStructureDraft(prev => {
+                          const updated = { ...prev, [field.key]: val };
+                          const statutory = computeStatutoryValues(updated);
+                          return {
+                            ...updated,
+                            employeePf: statutory.employeePf,
+                            employerPf: statutory.employerPf,
+                            esi: statutory.esi,
+                            professionalTax: statutory.professionalTax
+                          };
+                        });
+                      }}
                       className={inputClass}
                     />
                   </div>
@@ -2490,70 +3040,154 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             {/* Card 4: Payroll Rules */}
             <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 shadow-sm">
               <h3 className="mb-4 text-xs font-black uppercase tracking-[0.28em] text-slate-400">4. Statutory & Payroll Rules</h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Applicable</label>
                   <SelectField
                     value={structureDraft.pfApplicable ? 'Yes' : 'No'}
-                    onChange={e => setStructureDraft(prev => ({ ...prev, pfApplicable: e.target.value === 'Yes' }))}
+                    onChange={e => {
+                      const isYes = e.target.value === 'Yes';
+                      setStructureDraft(prev => {
+                        const nextPfPct = isYes ? (prev.pfPercentage && prev.pfPercentage !== '0' ? prev.pfPercentage : '12') : '0';
+                        const updated = {
+                          ...prev,
+                          pfApplicable: isYes,
+                          pfPercentage: nextPfPct
+                        };
+                        const statutory = computeStatutoryValues(updated);
+                        return {
+                          ...updated,
+                          employeePf: statutory.employeePf,
+                          employerPf: statutory.employerPf
+                        };
+                      });
+                    }}
                   >
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </SelectField>
+                  {structureDraft.pfApplicable && (
+                    <div className="mt-3">
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Percentage (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={structureDraft.pfPercentage}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setStructureDraft(prev => {
+                            const updated = { ...prev, pfPercentage: val };
+                            const statutory = computeStatutoryValues(updated);
+                            return {
+                              ...updated,
+                              employeePf: statutory.employeePf,
+                              employerPf: statutory.employerPf
+                            };
+                          });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Percentage (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={structureDraft.pfPercentage}
-                    onChange={e => setStructureDraft(prev => ({ ...prev, pfPercentage: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
+
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Applicable</label>
                   <SelectField
                     value={structureDraft.esiApplicable ? 'Yes' : 'No'}
-                    onChange={e => setStructureDraft(prev => ({ ...prev, esiApplicable: e.target.value === 'Yes' }))}
+                    onChange={e => {
+                      const isYes = e.target.value === 'Yes';
+                      setStructureDraft(prev => {
+                        const nextEsiPct = isYes ? (prev.esiPercentage && prev.esiPercentage !== '0' ? prev.esiPercentage : '1.75') : '0';
+                        const updated = {
+                          ...prev,
+                          esiApplicable: isYes,
+                          esiPercentage: nextEsiPct
+                        };
+                        const statutory = computeStatutoryValues(updated);
+                        return {
+                          ...updated,
+                          esi: statutory.esi
+                        };
+                      });
+                    }}
                   >
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </SelectField>
+                  {structureDraft.esiApplicable && (
+                    <div className="mt-3">
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Percentage (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={structureDraft.esiPercentage}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setStructureDraft(prev => {
+                            const updated = { ...prev, esiPercentage: val };
+                            const statutory = computeStatutoryValues(updated);
+                            return {
+                              ...updated,
+                              esi: statutory.esi
+                            };
+                          });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Percentage (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={structureDraft.esiPercentage}
-                    onChange={e => setStructureDraft(prev => ({ ...prev, esiPercentage: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
+
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Applicable</label>
                   <SelectField
                     value={structureDraft.professionalTaxApplicable ? 'Yes' : 'No'}
-                    onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxApplicable: e.target.value === 'Yes' }))}
+                    onChange={e => {
+                      const isYes = e.target.value === 'Yes';
+                      setStructureDraft(prev => {
+                        const nextPtAmt = isYes ? (prev.professionalTaxAmount && prev.professionalTaxAmount !== '0' ? prev.professionalTaxAmount : '200') : '0';
+                        const updated = {
+                          ...prev,
+                          professionalTaxApplicable: isYes,
+                          professionalTaxAmount: nextPtAmt
+                        };
+                        const statutory = computeStatutoryValues(updated);
+                        return {
+                          ...updated,
+                          professionalTax: statutory.professionalTax
+                        };
+                      });
+                    }}
                   >
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </SelectField>
-                </div>
-                <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Amount (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={structureDraft.professionalTaxAmount}
-                    onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxAmount: e.target.value }))}
-                    className={inputClass}
-                  />
+                  {structureDraft.professionalTaxApplicable && (
+                    <div className="mt-3">
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={structureDraft.professionalTaxAmount}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setStructureDraft(prev => {
+                            const updated = { ...prev, professionalTaxAmount: val };
+                            const statutory = computeStatutoryValues(updated);
+                            return {
+                              ...updated,
+                              professionalTax: statutory.professionalTax
+                            };
+                          });
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2606,41 +3240,50 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         <ModalShell
           title="Assign Salary"
           onClose={closeAssignmentModal}
-          maxWidth="max-w-2xl"
+          maxWidth="max-w-3xl"
         >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.1fr_0.9fr]">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
-                <SelectField
+                <SearchableStaffSelect
                   value={assignmentDraft.employeeId}
-                  onChange={e => {
-                    const employeeId = e.target.value;
-                    const member = staff.find(item => item.id === employeeId);
-                    const category = member ? resolveCategory(member) : '';
-                    const designation = member?.designation || '';
+                  staffList={staff}
+                  placeholder="Select Employee"
+                  onChange={employeeId => {
+                    const member = staff.find(item => String(item.id) === String(employeeId));
+                    if (!member) {
+                      setAssignmentDraft(prev => ({ ...prev, employeeId: '' }));
+                      return;
+                    }
+                    const category = resolveCategory(member);
+                    const designation = member.designation || '';
+                    const activeAssignment = employeeSalaryAssignments.find(item => (item.employeeId === member.id || item.empId === member.empId) && item.status === 'Active') || null;
+
+                    const staffSpecificStructure = salaryStructures.find(item => 
+                      (item as any).staffId === member.id || 
+                      (item as any).employeeId === member.id || 
+                      normalize(item.structureName).includes(normalize(`${member.firstName} ${member.lastName}`))
+                    ) || null;
+
                     const candidateStructures = salaryStructures.filter(item => structureMatches(item, category, designation));
-                    const selectedStructure = candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === category) || salaryStructures[0];
-                    const breakdown = getStructureBreakdown(selectedStructure || undefined);
+                    const selectedStructure = activeAssignment 
+                      ? salaryStructures.find(item => item.id === activeAssignment.salaryStructureId)
+                      : (staffSpecificStructure || candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === category) || salaryStructures[0]);
+                    
+                    const breakdown = getStructureBreakdown(selectedStructure || undefined, activeAssignment || undefined, member);
                     setAssignmentDraft(prev => ({
                       ...prev,
                       employeeId,
                       employeeCategory: category,
                       designation,
                       salaryStructureId: selectedStructure?.id || '',
-                      basicSalary: String(breakdown.basicSalary),
-                      allowances: String(breakdown.allowances),
-                      deductions: String(breakdown.deductions)
+                      basicSalary: String(activeAssignment?.overrideBasicSalary ?? breakdown.basicSalary),
+                      allowances: String(activeAssignment?.overrideAllowances ?? breakdown.allowances),
+                      deductions: String(activeAssignment?.overrideDeductions ?? breakdown.deductions)
                     }));
                   }}
-                >
-                  <option value="">Select Employee</option>
-                  {staff.map(member => (
-                    <option key={member.id} value={member.id}>
-                      {member.firstName} {member.lastName} - {member.empId}
-                    </option>
-                  ))}
-                </SelectField>
+                />
               </div>
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
@@ -2649,16 +3292,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   onChange={e => {
                     const category = e.target.value as CategoryValue | '';
                     const designation = assignmentDraft.designation;
-                    const candidateStructures = salaryStructures.filter(item => structureMatches(item, category, designation));
-                    const selectedStructure = candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === category) || salaryStructures[0];
-                    const breakdown = getStructureBreakdown(selectedStructure || undefined);
+                    const candidateStructures = category ? salaryStructures.filter(item => structureMatches(item, category, designation)) : [];
+                    const selectedStructure = candidateStructures[0] || (category ? salaryStructures.find(item => item.employeeCategory === category) : null);
+                    const breakdown = selectedStructure ? getStructureBreakdown(selectedStructure) : { basicSalary: 0, allowances: 0, deductions: 0, grossSalary: 0, netSalary: 0 };
                     setAssignmentDraft(prev => ({
                       ...prev,
                       employeeCategory: category,
                       salaryStructureId: selectedStructure?.id || '',
-                      basicSalary: String(breakdown.basicSalary),
-                      allowances: String(breakdown.allowances),
-                      deductions: String(breakdown.deductions)
+                      basicSalary: selectedStructure ? String(breakdown.basicSalary) : '',
+                      allowances: selectedStructure ? String(breakdown.allowances) : '',
+                      deductions: selectedStructure ? String(breakdown.deductions) : ''
                     }));
                   }}
                 >
@@ -2674,15 +3317,15 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     onChange={(val: string) => {
                       const designation = val;
                       const candidateStructures = salaryStructures.filter(item => structureMatches(item, assignmentDraft.employeeCategory || '', designation));
-                      const selectedStructure = candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === assignmentDraft.employeeCategory) || salaryStructures[0];
-                      const breakdown = getStructureBreakdown(selectedStructure || undefined);
+                      const selectedStructure = candidateStructures[0] || (assignmentDraft.employeeCategory ? salaryStructures.find(item => item.employeeCategory === assignmentDraft.employeeCategory) : null);
+                      const breakdown = selectedStructure ? getStructureBreakdown(selectedStructure) : { basicSalary: 0, allowances: 0, deductions: 0, grossSalary: 0, netSalary: 0 };
                       setAssignmentDraft(prev => ({
                         ...prev,
                         designation,
                         salaryStructureId: selectedStructure?.id || '',
-                        basicSalary: String(breakdown.basicSalary),
-                        allowances: String(breakdown.allowances),
-                        deductions: String(breakdown.deductions)
+                        basicSalary: selectedStructure ? String(breakdown.basicSalary) : '',
+                        allowances: selectedStructure ? String(breakdown.allowances) : '',
+                        deductions: selectedStructure ? String(breakdown.deductions) : ''
                       }));
                     }}
                     options={filteredDesignationOptions}
@@ -2756,28 +3399,29 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <div className="space-y-4">
               {(() => {
                 const structure = salaryStructures.find(item => item.id === assignmentDraft.salaryStructureId);
-                const preview = getStructureBreakdown(structure, assignmentDraft.salaryOverride ? {
+                const hasSelection = !!structure || assignmentDraft.salaryOverride;
+                const preview = hasSelection ? getStructureBreakdown(structure, assignmentDraft.salaryOverride ? {
                   overrideBasicSalary: Number(assignmentDraft.basicSalary) || 0,
                   overrideAllowances: Number(assignmentDraft.allowances) || 0,
                   overrideDeductions: Number(assignmentDraft.deductions) || 0
-                } : undefined);
+                } : undefined) : { basicSalary: 0, allowances: 0, deductions: 0, grossSalary: 0, netSalary: 0 };
                 return (
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Assignment Preview</p>
                     <div className="mt-4 space-y-3">
-                      <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
-                        <span className="text-sm font-semibold text-slate-500">Structure</span>
-                        <span className="font-black text-slate-900 dark:text-white">{structure?.structureName || 'Not selected'}</span>
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
+                        <span className="text-xs font-semibold text-slate-500 shrink-0">Structure</span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white text-right break-words">{structure?.structureName || 'Not selected'}</span>
                       </div>
-                      <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
-                        <span className="text-sm font-semibold text-slate-500">Gross Salary</span>
-                        <span className="font-black text-slate-900 dark:text-white">{formatCurrency(preview.grossSalary)}</span>
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
+                        <span className="text-xs font-semibold text-slate-500 shrink-0">Gross Salary</span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white text-right">{hasSelection ? formatCurrency(preview.grossSalary) : '₹0'}</span>
                       </div>
-                      <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
-                        <span className="text-sm font-semibold text-slate-500">Net Salary</span>
-                        <span className="font-black text-brand-700 dark:text-brand-300">{formatCurrency(preview.netSalary)}</span>
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-slate-950">
+                        <span className="text-xs font-semibold text-slate-500 shrink-0">Net Salary</span>
+                        <span className="text-xs sm:text-sm font-bold text-brand-700 dark:text-brand-300 text-right">{hasSelection ? formatCurrency(preview.netSalary) : '₹0'}</span>
                       </div>
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-950">
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-[11px] leading-relaxed text-slate-500 dark:border-slate-700 dark:bg-slate-950">
                         A new assignment sets the payroll status to Active and automatically updates the employee profile.
                       </div>
                     </div>
