@@ -42,7 +42,7 @@ import {
   Edit,
   RotateCcw,
 } from "lucide-react";
-import { formatToDDMMYYYY, formatToISO } from "../../../utils/dateValidation";
+import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";

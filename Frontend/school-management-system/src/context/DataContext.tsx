@@ -18217,7 +18217,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       branch: hData.branch || selectedBranch || "Main Campus",
     };
-    setHolidays((prev) => [newHoliday, ...prev]);
+    setHolidays((prev) => {
+      const updated = [newHoliday, ...prev];
+      try {
+        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
+        window.dispatchEvent(new Event("storage"));
+      } catch {}
+      return updated;
+    });
 
     try {
       const payload = {

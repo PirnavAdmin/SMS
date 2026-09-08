@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { exportToExcel } from '../../../utils/excelExport';
+import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday } from '../../../utils/dateValidation';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { matchesClassName, compareClassesAscending, formatDisplayClassName } from '../../../utils/classSorter';
@@ -51,7 +52,7 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], saveStudentAttendance, teacherAssignments = [], timetable = [], fetchStudents } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, teacherAssignments = [], timetable = [], fetchStudents } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -356,11 +357,16 @@ export const AttendanceView = () => {
   }, []);
 
   const classStudents = React.useMemo(() => {
+    const targetSec = normalizeSec(selectedSection);
     return realStudents.filter(s => {
       const classMatch = selectedClass === 'All Classes' || matchesClassName(s.className, selectedClass);
-      const sectionMatch = selectedSection === 'All Sections' || 
-        (s.section && s.section.toUpperCase() === selectedSection.toUpperCase()) ||
-        (!s.section && selectedSection.toUpperCase() === 'A');
+      const studentSec = normalizeSec(s.section);
+      const sectionMatch = 
+        selectedSection === 'All Sections' || 
+        selectedSection === 'Select Section' || 
+        !targetSec ||
+        studentSec === targetSec ||
+        (!s.section && targetSec === 'A');
       return classMatch && sectionMatch;
     });
   }, [realStudents, selectedClass, selectedSection]);
@@ -485,6 +491,12 @@ export const AttendanceView = () => {
         }
       }
     } catch {}
+
+    // 7. Sunday / Declared Holiday fallback
+    const holCheck = checkSundayOrHoliday(targetDate, holidays);
+    if (holCheck.isHoliday) {
+      return 'Holiday' as AttendanceStatus;
+    }
 
     return null;
   };
@@ -865,26 +877,36 @@ export const AttendanceView = () => {
           filename = `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${date}`;
           sheetName = `Daily_${date}`;
         } else {
-          const dateHeaders = matrixDates.map(d => d.split('-').slice(1).join('/'));
-          rows.push(["Roll No", "Student Name", "Class", "Section", ...dateHeaders, "Present (P)", "Half Day (HD)", "Late (L)", "Absent (A)", "Attendance %"]);
+          const dateHeaders = matrixDates.map(d => {
+            const dayNum = d.split('-')[2];
+            const holCheck = checkSundayOrHoliday(d, holidays);
+            return holCheck.isHoliday ? `${dayNum} (H)` : dayNum;
+          });
+          rows.push(["Roll No", "Student Name", "Class", "Section", ...dateHeaders, "Present (P)", "Half Day (HD)", "Late (L)", "Absent (A)", "Holiday (H)", "Attendance %"]);
          
           filteredStudents.forEach(s => {
             let pCount = 0;
             let aCount = 0;
             let hdCount = 0;
             let lCount = 0;
+            let hCount = 0;
            
             const dateCells = matrixDates.map(d => {
               const status = getMatrixStatus(s, d);
+              const holCheck = checkSundayOrHoliday(d, holidays);
               if (status === 'Present') { pCount++; return 'P'; }
               if (status === 'Absent') { aCount++; return 'A'; }
               if (status === 'HalfDay') { hdCount++; return 'HD'; }
               if (status === 'Late') { lCount++; return 'L'; }
+              if (status === 'Holiday' || (holCheck.isHoliday && status !== 'Present' && status !== 'Absent' && status !== 'HalfDay' && status !== 'Late')) {
+                hCount++; return 'H';
+              }
               return '-';
             });
            
-            const pct = matrixDates.length > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / matrixDates.length) * 100) : 0;
-            rows.push([s.rollNo, `${s.firstName} ${s.lastName}`, s.className, s.section, ...dateCells, pCount, hdCount, lCount, aCount, `${pct}%`]);
+            const netWorkingDays = matrixDates.length - hCount;
+            const pct = netWorkingDays > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / netWorkingDays) * 100) : 100;
+            rows.push([s.rollNo, `${s.firstName} ${s.lastName}`, s.className, s.section, ...dateCells, pCount, hdCount, lCount, aCount, hCount, `${pct}%`]);
           });
           filename = `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${dateMode === 'Monthly' ? month : `${startDate}_to_${endDate}`}`;
           sheetName = "Matrix Register";
@@ -1392,19 +1414,33 @@ export const AttendanceView = () => {
                         <th className="py-3 px-3 min-w-[150px] sticky left-0 bg-slate-50 dark:bg-slate-800/90 z-10 shadow-sm border-r border-slate-200 dark:border-slate-700">Student Name</th>
                         {matrixDates.map(d => {
                           const dayNum = parseInt(d.split('-')[2], 10);
-                          return <th key={d} className="py-3 px-1 text-center min-w-[28px] font-mono" title={d}>{dayNum}</th>;
+                          const holCheck = checkSundayOrHoliday(d, holidays);
+                          return (
+                            <th
+                              key={d}
+                              className={`py-3 px-1 text-center min-w-[28px] font-mono ${
+                                holCheck.isHoliday
+                                  ? 'bg-purple-100/90 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-black border-b-2 border-purple-400'
+                                  : ''
+                              }`}
+                              title={holCheck.isHoliday ? `${d} - ${holCheck.name}` : d}
+                            >
+                              {dayNum}
+                            </th>
+                          );
                         })}
                         <th className="py-3 px-2 text-center text-emerald-600">P</th>
                         <th className="py-3 px-2 text-center text-blue-600">HD</th>
                         <th className="py-3 px-2 text-center text-amber-600">L</th>
                         <th className="py-3 px-2 text-center text-rose-600">A</th>
+                        <th className="py-3 px-2 text-center text-purple-600">H</th>
                         <th className="py-3 px-2 text-center text-sky-600">%</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                       {paginatedStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={matrixDates.length + 4} className="py-12 text-center text-slate-400 italic">No students found matching your filters.</td>
+                          <td colSpan={matrixDates.length + 6} className="py-12 text-center text-slate-400 italic">No students found matching your filters.</td>
                         </tr>
                       ) : (
                         paginatedStudents.map((st, idx) => {
@@ -1412,6 +1448,7 @@ export const AttendanceView = () => {
                           let aCount = 0;
                           let hdCount = 0;
                           let lCount = 0;
+                          let hCount = 0;
                          
                           return (
                             <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-855 dark:text-slate-200 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10'}`}>
@@ -1421,14 +1458,22 @@ export const AttendanceView = () => {
                               </td>
                               {matrixDates.map(d => {
                                 const status = getMatrixStatus(st, d);
+                                const holCheck = checkSundayOrHoliday(d, holidays);
                                 let code = '-';
                                 let badgeStyle = 'text-slate-400';
-                               
+                                
                                 if (status === 'Present') { code = 'P'; pCount++; badgeStyle = 'text-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold'; }
                                 else if (status === 'Absent') { code = 'A'; aCount++; badgeStyle = 'text-rose-700 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 font-black'; }
                                 else if (status === 'HalfDay') { code = 'HD'; hdCount++; badgeStyle = 'text-blue-700 bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400 font-bold'; }
                                 else if (status === 'Late') { code = 'L'; lCount++; badgeStyle = 'text-amber-700 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 font-bold'; }
-                               
+                                else if (status === 'Holiday' || holCheck.isHoliday) {
+                                  code = 'H';
+                                  hCount++;
+                                  badgeStyle = 'text-purple-700 bg-purple-100 dark:bg-purple-950/60 dark:text-purple-300 font-extrabold border border-purple-200/80 dark:border-purple-800/80';
+                                }
+                                
+                                const cellTooltip = holCheck.isHoliday ? `${d} - ${holCheck.name}` : d;
+
                                 return (
                                   <td key={d} className="py-2 px-0.5 text-center font-mono font-bold text-[10px]">
                                     {isEditable ? (
@@ -1439,15 +1484,15 @@ export const AttendanceView = () => {
                                             ? `${badgeStyle} border-transparent`
                                             : 'text-slate-400 bg-slate-50 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 hover:border-slate-450 dark:hover:border-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
                                         }`}
-                                        title="Click to cycle status"
+                                        title={cellTooltip}
                                       >
                                         {code}
                                       </button>
                                     ) : (
                                       code !== '-' ? (
-                                        <span className={`inline-block w-6 py-0.5 rounded ${badgeStyle}`}>{code}</span>
+                                        <span className={`inline-block w-6 py-0.5 rounded ${badgeStyle}`} title={cellTooltip}>{code}</span>
                                       ) : (
-                                        <span className={badgeStyle}>{code}</span>
+                                        <span className={badgeStyle} title={cellTooltip}>{code}</span>
                                       )
                                     )}
                                   </td>
@@ -1457,8 +1502,12 @@ export const AttendanceView = () => {
                               <td className="py-2 px-2 text-center font-bold text-blue-600">{hdCount}</td>
                               <td className="py-2 px-2 text-center font-bold text-amber-600">{lCount}</td>
                               <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
+                              <td className="py-2 px-2 text-center font-bold text-purple-600">{hCount}</td>
                               <td className="py-2 px-2 text-center font-extrabold text-sky-600 bg-sky-50/30 dark:bg-sky-900/10">
-                                {matrixDates.length > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / matrixDates.length) * 100) : 0}%
+                                {(() => {
+                                  const netDays = matrixDates.length - hCount;
+                                  return netDays > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / netDays) * 100) : 100;
+                                })()}%
                               </td>
                             </tr>
                           );
