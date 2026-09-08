@@ -378,7 +378,7 @@ public class TimetableRepository : ITimetableRepository
         if (string.IsNullOrWhiteSpace(subjectName)) return null;
         var clean = subjectName.Trim().ToLower();
         return await _context.Subjects
-            .FirstOrDefaultAsync(s => s.SubjectName != null && s.SubjectName.ToLower() == clean);
+            .FirstOrDefaultAsync(s => s.SubjectName != null && (s.SubjectName.ToLower() == clean || s.SubjectName.Trim().ToLower() == clean));
     }
 
     public async Task<Subject> SaveSubjectAsync(Subject subject)

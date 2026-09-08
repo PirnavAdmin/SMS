@@ -204,6 +204,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                     query = query.Where(s => s.Header != null && s.Header.AcademicYear == resolvedAcademicYear);
                 }
 
+                var allPeriods = await _context.PeriodSettings.AsNoTracking().ToListAsync();
                 var rawSlots = await query.ToListAsync();
 
                 var slots = rawSlots.Select(s => {
@@ -211,6 +212,9 @@ namespace SMS.Api.Controllers.AcademicManagement
                     var dtEnd = DateTime.Today.Add(s.EndTime);
                     var startFormatted = dtStart.ToString("hh:mm tt");
                     var endFormatted = dtEnd.ToString("hh:mm tt");
+
+                    var matchedPeriod = s.Period ?? allPeriods.FirstOrDefault(p => (s.PeriodId.HasValue && p.PeriodId == s.PeriodId.Value) || (p.StartTime == s.StartTime && p.EndTime == s.EndTime));
+                    var pNum = matchedPeriod?.DisplayOrder ?? matchedPeriod?.PeriodId ?? s.PeriodId ?? 1;
 
                     return new
                     {
@@ -221,7 +225,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                         timeSlot = $"{startFormatted} - {endFormatted}",
                         startTime = startFormatted,
                         endTime = endFormatted,
-                        periodNumber = s.Period?.DisplayOrder ?? s.PeriodId ?? 1,
+                        periodNumber = pNum,
                         subject = s.Subject?.SubjectName ?? "",
                         subjectId = s.SubjectId.ToString(),
                         teacherName = s.Teacher != null
@@ -503,6 +507,52 @@ namespace SMS.Api.Controllers.AcademicManagement
                     return Ok(new { success = true, message = "Timetable slot deleted successfully." });
                 }
                 return NotFound(new { success = false, message = "Timetable slot not found." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Clear all timetable slots for a class and section
+        /// </summary>
+        [HttpDelete("class")]
+        [HttpDelete("/api/academics/timetable/class")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> ClearClassTimetable(
+            [FromQuery] string className,
+            [FromQuery] string section,
+            [FromQuery] string? academicYear = null)
+        {
+            try
+            {
+                var cleanClass = (className ?? "").ToLower().Trim().Replace("class", "").Trim();
+                var cleanSec = (section ?? "").ToLower().Trim().Replace("section", "").Trim();
+
+                var headers = await _context.TimetableHeaders
+                    .Include(h => h.ClassGrade)
+                    .Include(h => h.ClassSection)
+                    .Include(h => h.Slots)
+                    .Where(h => (h.ClassGrade != null && (h.ClassGrade.ClassName.ToLower().Trim().Replace("class", "").Trim() == cleanClass || h.ClassGrade.ClassId.ToString() == cleanClass)) &&
+                                (h.ClassSection != null && (h.ClassSection.SectionName.ToLower().Trim().Replace("section", "").Trim() == cleanSec || h.ClassSection.SectionId.ToString() == cleanSec)))
+                    .ToListAsync();
+
+                if (!string.IsNullOrWhiteSpace(academicYear) && academicYear != "All")
+                {
+                    headers = headers.Where(h => h.AcademicYear == academicYear).ToList();
+                }
+
+                foreach (var h in headers)
+                {
+                    if (h.Slots != null && h.Slots.Any())
+                    {
+                        _context.TimetableSlots.RemoveRange(h.Slots);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok(new { success = true, message = "Timetable cleared for class section successfully." });
             }
             catch (Exception ex)
             {

@@ -42,6 +42,8 @@ public class SaveTimetableSlotDto
     public string? SectionName { get; set; }
     public string? SubjectName { get; set; }
     public string? TeacherName { get; set; }
+    public bool? Overwrite { get; set; }
+    public bool? IgnoreConflicts { get; set; }
 }
 
 public class TimetableSlotDto
