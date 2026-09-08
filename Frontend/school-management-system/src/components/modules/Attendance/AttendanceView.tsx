@@ -180,7 +180,10 @@ export const AttendanceView = () => {
   }, [isTeacher, teacherClasses, academicClasses, allStudents]);
 
   // Global View State
-  const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
+  const todayStr = React.useMemo(() => getLocalDateString(new Date()), []);
+  const currentMonthStr = React.useMemo(() => todayStr.slice(0, 7), [todayStr]);
+
+  const [dateMode, setDateMode] = useState<'Select' | 'Daily' | 'Monthly' | 'Custom Range'>('Select');
   const [date, setDate] = useState<string>(getLocalDateString(new Date()));
   const [month, setMonth] = useState<string>(getLocalDateString(new Date()).slice(0, 7));
   const [startDate, setStartDate] = useState<string>(() => {
@@ -264,8 +267,8 @@ export const AttendanceView = () => {
     }
   }, [isTeacher, teacherClasses, selectedClass]);
 
-  const [selectedSubject, setSelectedSubject] = useState((dbTeacher as any).assignedSubjects?.[0] || 'Mathematics');
-  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
+  const [selectedSubject, setSelectedSubject] = useState<string>('Select');
+  const [selectedPeriod, setSelectedPeriod] = useState('Select Period');
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -645,7 +648,7 @@ export const AttendanceView = () => {
       if (fetchStudents && (!allStudents || allStudents.length === 0)) {
         await fetchStudents();
       }
-      const periodLabel = selectedPeriod.includes('(') ? selectedPeriod.split('(')[0].trim() : selectedPeriod;
+      const periodLabel = selectedPeriod && selectedPeriod !== 'Select Period' ? (selectedPeriod.includes('(') ? selectedPeriod.split('(')[0].trim() : selectedPeriod) : 'All Periods';
       addToast(
         'success',
         'Attendance Records Loaded',
@@ -792,6 +795,7 @@ export const AttendanceView = () => {
               onChange={e => setDateMode(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
+              <option value="Select">Select</option>
               <option value="Daily">Daily</option>
               <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
@@ -800,17 +804,77 @@ export const AttendanceView = () => {
 
           <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'sm:col-span-2 xl:col-span-2' : ''}`}>
             <label className="text-[10px] font-black uppercase text-slate-400">Date Selection</label>
-            {dateMode === 'Daily' && (
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} onClick={e => e.currentTarget.showPicker?.()} className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors" />
+            {(dateMode === 'Daily' || dateMode === 'Select') && (
+              <input
+                type="date"
+                value={date}
+                max={todayStr}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val > todayStr) {
+                    addToast('error', 'Future Date Not Allowed', 'Attendance cannot be marked or viewed for future dates.');
+                    setDate(todayStr);
+                    return;
+                  }
+                  setDate(val);
+                }}
+                onClick={e => e.currentTarget.showPicker?.()}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              />
             )}
             {dateMode === 'Monthly' && (
-              <input type="month" value={month} onChange={e => setMonth(e.target.value)} onClick={e => e.currentTarget.showPicker?.()} className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors" />
+              <input
+                type="month"
+                value={month}
+                max={currentMonthStr}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val > currentMonthStr) {
+                    addToast('error', 'Future Month Not Allowed', 'Attendance cannot be viewed for future months.');
+                    setMonth(currentMonthStr);
+                    return;
+                  }
+                  setMonth(val);
+                }}
+                onClick={e => e.currentTarget.showPicker?.()}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              />
             )}
             {dateMode === 'Custom Range' && (
               <div className="flex items-center gap-2">
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} onClick={e => e.currentTarget.showPicker?.()} className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors" />
+                <input
+                  type="date"
+                  value={startDate}
+                  max={todayStr}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val > todayStr) {
+                      addToast('error', 'Future Date Not Allowed', 'Start date cannot be in the future.');
+                      setStartDate(todayStr);
+                      return;
+                    }
+                    setStartDate(val);
+                  }}
+                  onClick={e => e.currentTarget.showPicker?.()}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+                />
                 <span className="text-slate-400 font-bold">-</span>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} onClick={e => e.currentTarget.showPicker?.()} className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors" />
+                <input
+                  type="date"
+                  value={endDate}
+                  max={todayStr}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val > todayStr) {
+                      addToast('error', 'Future Date Not Allowed', 'End date cannot be in the future.');
+                      setEndDate(todayStr);
+                      return;
+                    }
+                    setEndDate(val);
+                  }}
+                  onClick={e => e.currentTarget.showPicker?.()}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+                />
               </div>
             )}
           </div>
@@ -849,6 +913,7 @@ export const AttendanceView = () => {
               onChange={e => setSelectedSubject(e.target.value)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
+              <option value="Select">Select</option>
               {subjectOptions.map(sbj => (
                 <option key={sbj} value={sbj}>{sbj}</option>
               ))}
@@ -862,6 +927,7 @@ export const AttendanceView = () => {
               onChange={e => setSelectedPeriod(e.target.value)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
+              <option value="Select Period">Select Period</option>
               {periodOptions.map(prd => (
                 <option key={prd} value={prd}>{prd}</option>
               ))}
