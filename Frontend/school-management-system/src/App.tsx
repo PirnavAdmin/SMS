@@ -74,15 +74,25 @@ const MainLayout: React.FC = () => {
   const { staff } = useData();
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [showLogin, setShowLogin] = useState(false);
+  const [selectedPortalRole, setSelectedPortalRole] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (user && staff && staff.length > 0) {
+    // Only match staff if the user is a staff/teacher role, NEVER overwrite an Admin, Super Admin, Student, or Parent!
+    if (
+      user &&
+      user.role !== "Admin" &&
+      user.role !== "Super Admin" &&
+      user.role !== "Student" &&
+      user.role !== "Parent" &&
+      staff &&
+      staff.length > 0
+    ) {
       const matched = staff.find(
-        (s) => s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()
+        (s) => s.email && s.email.toLowerCase().trim() === user.email?.toLowerCase().trim()
       );
       if (matched) {
-        const fullName = `${matched.firstName} ${matched.lastName}`;
-        if (user.name !== fullName) {
+        const fullName = `${matched.firstName} ${matched.lastName}`.trim();
+        if (fullName && user.name !== fullName) {
           const updated = { ...user, name: fullName };
           setUser(updated);
           localStorage.setItem("auth_user", JSON.stringify(updated));
@@ -165,9 +175,21 @@ const MainLayout: React.FC = () => {
 
   if (!isAuthenticated) {
     if (showLogin) {
-      return <LoginView onBack={() => setShowLogin(false)} />;
+      return (
+        <LoginView
+          onBack={() => setShowLogin(false)}
+          initialRole={selectedPortalRole}
+        />
+      );
     }
-    return <LandingView onLoginClick={() => setShowLogin(true)} />;
+    return (
+      <LandingView
+        onLoginClick={(role) => {
+          setSelectedPortalRole(role);
+          setShowLogin(true);
+        }}
+      />
+    );
   }
 
   // Straight to Dashboard on login (Profile completion accessible anytime via Edit Profile option)

@@ -839,7 +839,7 @@ export interface UniformItem {
   name?: string;
   category: string;
   gender: 'Male' | 'Female' | 'Unisex';
-  className: string;
+  className?: string;
   size: string;
   meterRange?: string;
   color?: string;
@@ -849,6 +849,7 @@ export interface UniformItem {
   initialStock?: number;
   branch?: string;
   createdAt?: string;
+  status?: string;
   isPackage?: boolean;
   packageComponents?: PackageComponentItem[];
 }
@@ -1878,6 +1879,8 @@ export interface UniformCategory {
   name: string;
   categoryName?: string;
   description?: string;
+  type?: string;
+  gender?: string;
   status?: string;
   branch?: string;
 }

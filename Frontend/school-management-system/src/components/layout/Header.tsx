@@ -9,7 +9,7 @@ import { useData } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { BRANCHES } from '../../utils/validation';
-import { resolveMediaUrl, DEFAULT_USER_AVATAR } from '../../utils/mediaUtils';
+import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -22,7 +22,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass, onNavigate }) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, academicYears } = useData();
+  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, driverMasters = [], academicYears } = useData();
 
   const formatEmailToName = (email?: string): string => {
     if (!email || !email.includes('@')) return '';
@@ -33,14 +33,19 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const currentStaff = useMemo(() => {
     if (!user) return null;
-    const userEmail = (user.email || '').toLowerCase().trim();
-    const userId = String(user.id || (user as any)?.empId || '').trim();
+    const userRole = (role || user.role || '').toLowerCase();
+    // Admin, Super Admin, Student, Parent are NEVER in staff list
+    if (['admin', 'super admin', 'superadmin', 'student', 'parent'].includes(userRole)) {
+      return null;
+    }
 
+    const userEmail = (user.email || '').toLowerCase().trim();
     if (userEmail) {
       const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (emailMatch) return emailMatch;
     }
 
+    const userId = String(user.id || (user as any)?.empId || '').trim();
     if (userId) {
       const idMatch = staff.find(s => {
         const matchesId = (s.id && String(s.id).trim() === userId) || (s.empId && String(s.empId).trim() === userId);
@@ -53,15 +58,33 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (idMatch) return idMatch;
     }
 
+    // Match in driverMasters if Driver
+    if (userRole === 'driver') {
+      const driverMatch = (driverMasters || []).find(d =>
+        (userEmail && d.email?.toLowerCase().trim() === userEmail) ||
+        (user.phone && d.mobileNumber?.replace(/\D/g, '') === user.phone.replace(/\D/g, '')) ||
+        (userId && (d.employeeId?.toLowerCase() === userId.toLowerCase() || String(d.id) === userId))
+      );
+      if (driverMatch && driverMatch.driverName) {
+        return {
+          firstName: driverMatch.driverName,
+          lastName: '',
+          email: driverMatch.email || user.email,
+        } as any;
+      }
+    }
+
     return null;
-  }, [staff, user]);
+  }, [staff, driverMasters, user, role]);
 
   const displayName = useMemo(() => {
+    // 1. If matching staff or driver found, use their full name
     if (currentStaff) {
       const staffName = `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim();
       if (staffName) return staffName;
     }
 
+    // 2. If matching student found, use student's name
     if (user?.email) {
       const userEmail = user.email.toLowerCase().trim();
       const matchedStudent = (students || []).find(s => s.email && s.email.toLowerCase().trim() === userEmail);
@@ -71,20 +94,25 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       }
     }
 
+    // 3. Authentic user account name if available (and not generic)
     const rawName = (user?.name || '').trim();
-    const isGeneric = !rawName || ['user', 'admin', 'admin user', 'administrator', 'system admin'].includes(rawName.toLowerCase());
-
-    if (!isGeneric) {
+    if (rawName && rawName.toLowerCase() !== 'user' && rawName.toLowerCase() !== 'administrator') {
       return rawName;
     }
 
+    // 4. Derive from email (e.g. driver@pirnav.com -> Driver)
     if (user?.email) {
       const derived = formatEmailToName(user.email);
       if (derived) return derived;
     }
 
-    return rawName || 'User';
-  }, [currentStaff, user, students]);
+    const userRole = (role || user?.role || '').toLowerCase();
+    if (['admin', 'super admin', 'superadmin'].includes(userRole)) {
+      return rawName || 'Administrator';
+    }
+
+    return rawName || role || 'User';
+  }, [currentStaff, user, students, role]);
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -526,12 +554,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <img
-              src={resolveMediaUrl(user?.avatar) || DEFAULT_USER_AVATAR}
+              src={resolveMediaUrl(user?.avatar) || getInitialsAvatar(displayName, user?.email)}
               alt=""
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                if (target.src !== DEFAULT_USER_AVATAR) {
-                  target.src = DEFAULT_USER_AVATAR;
+                const fallback = getInitialsAvatar(displayName, user?.email);
+                if (target.src !== fallback) {
+                  target.src = fallback;
                 }
               }}
               className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"

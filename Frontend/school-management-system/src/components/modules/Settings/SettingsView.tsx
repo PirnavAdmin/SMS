@@ -255,17 +255,13 @@ export const SettingsView: React.FC = () => {
 
   // Personal Profile Details State for Logged-In User (Warden / Admin)
   const getCleanUserEmail = (raw?: string): string => {
-    const e = (raw || user?.email || "").trim();
-    if (!e || e === "contact@pirnavschools.edu" || e === "admin@pirnavschools.edu" || (user?.name === "Vasantha Gokul" && e.endsWith("@pirnavschools.edu"))) {
-      return "vasantha.gokul@pirnav.com";
-    }
-    return e;
+    return (raw || user?.email || "").trim();
   };
 
   const [myProfileForm, setMyProfileForm] = useState({
-    name: user?.name || "Vasantha Gokul",
+    name: user?.name || "Administrator",
     email: getCleanUserEmail(user?.email),
-    phone: user?.phone || "+91 9876543210",
+    phone: user?.phone || "+91 9581768555",
     avatar: user?.avatar || DEFAULT_USER_AVATAR,
     branch: user?.branch || "Main Campus",
     role: user?.role || role || "Admin",
@@ -364,9 +360,9 @@ export const SettingsView: React.FC = () => {
       const updatedUser: User = {
         ...user!,
         id: user?.id || "USR-001",
-        name: myProfileForm.name.trim() || user?.name || "Vasantha Gokul",
+        name: myProfileForm.name.trim() || user?.name || "Administrator",
         email: cleanEmail,
-        phone: myProfileForm.phone.trim() || user?.phone || "+91 9876543210",
+        phone: myProfileForm.phone.trim() || user?.phone || "+91 9581768555",
         avatar: optimizedDataUrl,
         branch: myProfileForm.branch || user?.branch || "Main Campus",
         role: (user?.role || role) as Role,

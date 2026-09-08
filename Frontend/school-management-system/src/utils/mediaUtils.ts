@@ -1,9 +1,30 @@
 /**
- * Resolves media and branding URLs to ensure they work seamlessly across
- * all devices, network clients, and remote systems.
+ * Generates a dynamic SVG avatar with user initials.
  */
+export const getInitialsAvatar = (name?: string, email?: string): string => {
+  let initials = '';
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      initials = (parts[0][0] + parts[1][0]).toUpperCase();
+    } else if (parts.length === 1 && parts[0].length > 0) {
+      initials = parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
+    }
+  } else if (email && email.trim()) {
+    const local = email.split('@')[0];
+    initials = local.substring(0, Math.min(2, local.length)).toUpperCase();
+  }
+  if (!initials) initials = 'U';
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="100%" height="100%" fill="#0284c7" rx="64"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="50" font-weight="700" fill="#ffffff">${initials}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
 export const DEFAULT_USER_AVATAR =
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80';
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="100%" height="100%" fill="#e2e8f0" rx="64"/><path d="M64 62a22 22 0 1 0 0-44 22 22 0 0 0 0 44zm0 14c-24 0-42 15-42 32v6h84v-6c0-17-18-32-42-32z" fill="#94a3b8"/></svg>`
+  );
 
 export const resolveMediaUrl = (url?: string | null): string => {
   if (!url || typeof url !== 'string') return '';

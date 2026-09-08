@@ -49,6 +49,7 @@ public interface ITimetableRepository
     // Subject Lookups
     Task<Subject?> GetSubjectByIdAsync(int subjectId);
     Task<Subject?> GetSubjectByNameAsync(string subjectName);
+    Task<Subject> SaveSubjectAsync(Subject subject);
     Task<List<Subject>> GetAllSubjectsAsync();
 
     // Staff Lookups
