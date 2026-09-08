@@ -397,13 +397,42 @@ export const SettingsView: React.FC = () => {
     saveIdSequenceSettings(nextForm);
 
     try {
-      if (changePassword) {
-        await changePassword(passForm.currentPassword, passForm.newPassword);
-      }
-      setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      addToast("success", "Password Changed", "Your password has been updated.");
+      await addOrUpdateCustomIdFormatApi(newSeq);
+      addToast("success", "Custom ID Format Added", `Added format ${newSeq.name}`);
     } catch (err: any) {
-      addToast("error", "Password Change Failed", err?.message || "Failed to update password.");
+      console.error(err);
+    }
+  };
+
+  const handleUpdateCustomSequence = (id: string, updates: Partial<CustomIdSequence>) => {
+    const nextSequences = (idForm.customSequences || []).map(seq =>
+      seq.id === id ? { ...seq, ...updates } : seq
+    );
+    const nextForm = {
+      ...idForm,
+      customSequences: nextSequences,
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+    const updated = nextSequences.find(s => s.id === id);
+    if (updated) {
+      addOrUpdateCustomIdFormatApi(updated).catch(console.error);
+    }
+  };
+
+  const handleDeleteCustomIdSequence = async (id: string) => {
+    const nextSequences = (idForm.customSequences || []).filter(seq => seq.id !== id);
+    const nextForm = {
+      ...idForm,
+      customSequences: nextSequences,
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+    try {
+      await deleteCustomIdFormatApi(id);
+      addToast("info", "Custom Format Deleted", "Custom ID sequence format removed.");
+    } catch (err: any) {
+      console.error(err);
     }
   };
 
