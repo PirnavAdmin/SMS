@@ -81,32 +81,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             parsed.role = normalizeUserRole(parsed.role);
           }
 
-          // Self-heal cached name and email for administrator account
-          if (parsed.email?.toLowerCase() === 'vasantha.gokul@pirnav.com' || parsed.name === 'Vasantha Gokul') {
-            parsed.email = 'pirnavsms@gmail.com';
-            parsed.name = 'Administrator';
-            parsed.phone = '9581768555';
-            try {
-              localStorage.removeItem('user_profile_vasantha.gokul@pirnav.com');
-              localStorage.removeItem('user_profile_pirnavsms@gmail.com');
-            } catch {}
-          }
-
-          if (parsed.email?.toLowerCase() === 'pirnavsms@gmail.com') {
-            parsed.name = 'Administrator';
-            parsed.phone = '9581768555';
-          }
-
-          const userKey = getActiveUserKey(parsed.email);
+          const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          // If the name was previously corrupted to Eleanor Vance or missing:
-          const isDrEleanor = parsed.name === 'Dr. Eleanor Vance' && parsed.email && !parsed.email.toLowerCase().includes('eleanor');
-          const isMissingName = !parsed.name || isDrEleanor;
-
-          if (localProfile?.name && localProfile.name !== 'Pirnavsms' && localProfile.name !== 'Vasantha Gokul') {
+          if (localProfile?.name) {
             parsed.name = localProfile.name;
-          } else if (parsed.email && isMissingName) {
+          } else if (!parsed.name && parsed.email) {
             parsed.name = formatEmailToName(parsed.email);
           }
 
@@ -115,6 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           if (localProfile?.phone) {
             parsed.phone = localProfile.phone;
+          }
+          if (localProfile?.branch) {
+            parsed.branch = localProfile.branch;
           }
 
           localStorage.setItem('auth_user', JSON.stringify(parsed));
@@ -172,16 +155,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .then((res) => {
           const data = res?.data;
           if (data && (data.avatar || data.name)) {
+            if (data.email && user.email && data.email.trim().toLowerCase() !== user.email.trim().toLowerCase()) return;
             setUser((prev) => {
               if (!prev) return prev;
-              const isUserAdmin = ['admin', 'super admin', 'superadmin'].includes((prev.role || '').toLowerCase());
-              // Never overwrite authentic admin name with remote profile blob
-              const newName = isUserAdmin ? (prev.name || 'Administrator') : (data.name || prev.name);
               const hasUploadedAvatar = prev.avatar && prev.avatar.startsWith('data:image/');
               const nextAvatar = hasUploadedAvatar ? prev.avatar : (data.avatar || prev.avatar);
               const next = {
                 ...prev,
-                name: newName,
+                name: data.name || prev.name,
                 phone: data.phone || prev.phone,
                 avatar: nextAvatar,
                 branch: data.branch || prev.branch,
@@ -241,49 +222,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      let loginEmail = response?.email || (emailOrPhone.includes('@') ? emailOrPhone : '');
-      if (loginEmail === 'vasantha.gokul@pirnav.com') {
-        loginEmail = 'pirnavsms@gmail.com';
-      }
-      const userKey = getActiveUserKey(loginEmail || emailOrPhone);
+      const loginEmail = (response?.email || (emailOrPhone.includes('@') ? emailOrPhone : '')).trim();
+      const userKey = getActiveUserKey(loginEmail || response?.userId || emailOrPhone);
       const savedProfile = getLocalUserProfile(userKey);
 
-      let userName = response?.fullName?.trim() || '';
-      if (userName === 'Vasantha Gokul') {
-        userName = 'Administrator';
+      let userName = (response?.fullName || response?.name || '').trim();
+      if (!userName && savedProfile?.name) {
+        userName = savedProfile.name.trim();
       }
-      if (!userName && savedProfile?.name && savedProfile.name !== 'Pirnavsms' && savedProfile.name !== 'Vasantha Gokul') {
-        userName = savedProfile.name;
+      if (!userName && loginEmail) {
+        userName = formatEmailToName(loginEmail);
       }
-      if (!userName || userName === 'Administrator' || loginEmail?.toLowerCase() === 'pirnavsms@gmail.com') {
-        userName = 'Administrator';
+      if (!userName) {
+        userName = mappedRole || 'User';
       }
 
-      const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
-
+      const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);
       let userAvatar = response?.avatar || savedProfile?.avatar || '';
-      if (!userAvatar) {
-        try {
-          const profRes = await fetchUserProfileApi(userKey);
-          const profData = profRes?.data;
-          if (profData?.avatar) {
-            userAvatar = profData.avatar;
-          }
-          if (profData?.name && !userName) {
-            userName = profData.name;
-          }
-        } catch {}
-      }
-      if (!userAvatar) {
-        userAvatar = DEFAULT_USER_AVATAR;
-      }
 
       const loggedUser: User = {
         id: userIdStr,
         name: userName,
         email: loginEmail || emailOrPhone,
         phone: savedProfile?.phone || response?.mobileNumber || response?.phone || '',
-        branch: savedProfile?.branch || response?.branch || 'Main Campus',
+        branch: savedProfile?.branch || response?.branch || selectedBranch || 'Main Campus',
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),
@@ -296,7 +258,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(realToken);
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
       localStorage.setItem('auth_token', realToken);
-      // Store roles specifically to mirror backend logic in App
       localStorage.setItem('roles', JSON.stringify(roles));
 
       return true;
