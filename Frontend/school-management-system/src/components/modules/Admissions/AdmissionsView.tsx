@@ -380,6 +380,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [feeSummaryStudentId, setFeeSummaryStudentId] = useState<string | null>(
     null,
   );
+  const [feeSummaryApp, setFeeSummaryApp] = useState<any | null>(null);
 
   // Dynamic Hostel States
   const [dynamicHostelBlocks, setDynamicHostelBlocks] = useState<HostelBlock[]>(
@@ -4901,21 +4902,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               );
               if (confirmingApp.status === "Enrolled") {
                 await fetchStudents();
+                const appObj = confirmingApp.app;
+                const appNo = appObj.applicationNo || (appObj as any).registrationNo;
                 const matchedSt = students.find(
                   (s) =>
-                    s.id === studentId ||
-                    s.admissionNo === confirmingApp.app.applicationNo ||
-                    (confirmingApp.app.applicationNo &&
-                      s.admissionNo?.includes(confirmingApp.app.applicationNo)) ||
-                    s.phone === confirmingApp.app.phone,
+                    (studentId && String(s.id).trim() === String(studentId).trim()) ||
+                    (appNo && String(s.admissionNo).trim() === String(appNo).trim()) ||
+                    (appNo && s.admissionNo?.includes(appNo)) ||
+                    (appObj.phone && s.phone === appObj.phone),
                 );
+                setFeeSummaryApp(matchedSt || appObj);
                 const targetId =
                   matchedSt?.id ||
                   studentId ||
-                  confirmingApp.app.id ||
-                  confirmingApp.app.applicationNo;
+                  appObj.id ||
+                  appNo;
                 if (targetId) {
-                  setFeeSummaryStudentId(targetId);
+                  setFeeSummaryStudentId(String(targetId));
                 }
               }
               addToast(
@@ -4947,26 +4950,73 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         (() => {
           let ledger: any = null;
           try {
-            ledger = getStudentFeeLedger(feeSummaryStudentId);
+            ledger = getStudentFeeLedger(feeSummaryStudentId, feeSummaryApp);
           } catch (err) {
             console.error("Error retrieving student fee ledger:", err);
           }
 
+          const st = students.find(
+            (s) =>
+              String(s.id).trim() === String(feeSummaryStudentId).trim() ||
+              (s.admissionNo && String(s.admissionNo).trim() === String(feeSummaryStudentId).trim()),
+          );
+          const adm =
+            feeSummaryApp ||
+            admissions.find(
+              (a) =>
+                String(a.id).trim() === String(feeSummaryStudentId).trim() ||
+                (a.applicationNo && String(a.applicationNo).trim() === String(feeSummaryStudentId).trim()) ||
+                ((a as any).registrationNo && String((a as any).registrationNo).trim() === String(feeSummaryStudentId).trim()),
+            );
+
+          const rawName = st
+            ? `${st.firstName} ${st.lastName || ""}`.trim()
+            : adm?.applicantName ||
+              (adm?.firstName ? `${adm.firstName} ${adm.lastName || ""}`.trim() : (adm as any)?.name || "");
+          const stName =
+            rawName && rawName.toLowerCase() !== "student" && rawName.toLowerCase() !== "enrolled student"
+              ? rawName
+              : (ledger?.studentName && ledger.studentName !== "Enrolled Student" ? ledger.studentName : (rawName || "Student"));
+
+          const stAdmNo =
+            st?.admissionNo ||
+            adm?.applicationNo ||
+            (adm as any)?.registrationNo ||
+            ledger?.admissionNo ||
+            feeSummaryStudentId;
+          const stClass =
+            adm?.appliedClass ||
+            adm?.targetClass ||
+            (adm as any)?.className ||
+            st?.className ||
+            ledger?.className ||
+            "Nursery";
+          const stSection = st?.section || adm?.section || (ledger?.section || "A");
+          const stType =
+            st?.studentType ||
+            adm?.studentType ||
+            adm?.residentialStatus ||
+            (ledger?.studentType || "Day Scholar");
+
           if (!ledger) {
-            const st = students.find(s => s.id === feeSummaryStudentId || s.admissionNo === feeSummaryStudentId);
-            const adm = admissions.find(a => a.id === feeSummaryStudentId || a.applicationNo === feeSummaryStudentId);
             ledger = {
-              studentName: st ? `${st.firstName} ${st.lastName}`.trim() : (adm?.applicantName || "Student"),
-              admissionNo: st?.admissionNo || adm?.applicationNo || feeSummaryStudentId,
-              className: st?.className || adm?.appliedClass || "Class 1",
-              section: st?.section || adm?.section || "A",
-              studentType: st?.studentType || adm?.studentType || "Day Scholar",
+              studentName: stName,
+              admissionNo: stAdmNo,
+              className: stClass,
+              section: stSection,
+              studentType: stType,
               academicYear: selectedAcademicYear || "2026-2027",
               feeItems: [],
               totalScholarship: 0,
               totalDiscount: 0,
-              totalPayable: st?.totalFee || 40500,
+              totalPayable: 0,
             };
+          } else {
+            ledger.studentName = stName;
+            ledger.admissionNo = stAdmNo;
+            ledger.className = stClass;
+            ledger.section = stSection;
+            ledger.studentType = stType;
           }
 
           const feeItems = Array.isArray(ledger.feeItems) ? ledger.feeItems : [];
@@ -4992,7 +5042,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </p>
                   </div>
                   <button
-                    onClick={() => setFeeSummaryStudentId(null)}
+                    onClick={() => {
+                      setFeeSummaryStudentId(null);
+                      setFeeSummaryApp(null);
+                    }}
                     className="text-slate-400 hover:text-slate-600"
                   >
                     ✕
@@ -5322,6 +5375,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <button
                     onClick={() => {
                       setFeeSummaryStudentId(null);
+                      setFeeSummaryApp(null);
                       addToast(
                         "info",
                         "Navigating to Fee Collection",

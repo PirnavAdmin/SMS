@@ -1207,6 +1207,8 @@ export interface FeeHead {
   mandatory: boolean;
   applicableClasses: string[];
   applicableBranches: string[];
+  amount?: number;
+  defaultAmount?: number;
   taxPercentage?: number;
   displayOrder: number;
   status: 'Active' | 'Inactive';

@@ -16,9 +16,31 @@ public class DynamicFeeStructureDto
     public System.Collections.Generic.List<FeeStructureItemDto> Items { get; set; } = new();
 }
 
+public class StringOrIntConverter : System.Text.Json.Serialization.JsonConverter<string>
+{
+    public override string Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    {
+        if (reader.TokenType == System.Text.Json.JsonTokenType.Number)
+        {
+            return reader.GetInt64().ToString();
+        }
+        if (reader.TokenType == System.Text.Json.JsonTokenType.String)
+        {
+            return reader.GetString() ?? string.Empty;
+        }
+        return string.Empty;
+    }
+
+    public override void Write(System.Text.Json.Utf8JsonWriter writer, string value, System.Text.Json.JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value ?? string.Empty);
+    }
+}
+
 public class FeeStructureItemDto
 {
-    public int FeeHeadId { get; set; }
+    [System.Text.Json.Serialization.JsonConverter(typeof(StringOrIntConverter))]
+    public string FeeHeadId { get; set; } = string.Empty;
     public string FeeHeadName { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }

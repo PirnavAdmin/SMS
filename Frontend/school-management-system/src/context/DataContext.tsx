@@ -16,6 +16,7 @@ import {
   getUniformFeeForClass,
   getItemFeeFromFinanceConfig,
 } from "../utils/uniformUtils";
+import { matchesClassName, normalizeClassName } from "../utils/classSorter";
 import {
   Student,
   AcademicHistoryRecord,
@@ -1065,8 +1066,9 @@ interface DataContextType {
   ) => StudentFeeLedger;
   getStudentFeeLedger: (
     studentId: string,
+    optStudentOrYear?: Student | AdmissionApplication | string,
     targetAcademicYear?: string,
-  ) => StudentFeeLedger | null;
+  ) => StudentFeeLedger;
   getStudentFeeOutstandingSummary: (
     studentId: string,
   ) => StudentFeeOutstandingSummary;
@@ -7800,35 +7802,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               : "Main Campus Area";
 
           // --- DYNAMIC FEE CALCULATION & ASSIGNMENT SETUP ---
-          const clsName = app.appliedClass || "Class 1";
+          const clsName = app.appliedClass || (app as any).className || "Nursery";
           const dfs =
             dynamicFeeStructures.find(
-              (d) => d.className === clsName && d.status === "Active",
-            ) || dynamicFeeStructures[0];
-          const baseItems = dfs
-            ? dfs.items
-            : [
-                {
-                  feeHeadId: "FH-01",
-                  feeHeadName: "Tuition Fee",
-                  amount: 77000,
-                },
-                {
-                  feeHeadId: "FH-02",
-                  feeHeadName: "Admission Fee",
-                  amount: 3000,
-                },
-                {
-                  feeHeadId: "FH-03",
-                  feeHeadName: "Textbook & Material Fee",
-                  amount: 3000,
-                },
-                {
-                  feeHeadId: "FH-04",
-                  feeHeadName: "Uniform & Sports Kit Fee",
-                  amount: 3500,
-                },
-              ];
+              (d) => matchesClassName(d.className, clsName) && (d.status === "Active" || !d.status),
+            ) ||
+            dynamicFeeStructures.find(
+              (d) => matchesClassName(d.className, clsName),
+            );
+
+          let baseItems: any[] = [];
+          if (dfs && dfs.items && dfs.items.length > 0) {
+            baseItems = dfs.items;
+          } else {
+            // Find active fee heads applicable to this class from master fee heads
+            const applicableHeads = (feeHeads || []).filter((h) =>
+              h.status === "Active" &&
+              (!h.applicableClasses ||
+                h.applicableClasses.length === 0 ||
+                h.applicableClasses.some((c) => matchesClassName(c, clsName)) ||
+                h.applicableClasses.includes("All")),
+            );
+            baseItems = applicableHeads.map((h) => ({
+              feeHeadId: h.id,
+              feeHeadName: h.name,
+              category: h.category,
+              amount: h.amount || 0,
+            }));
+          }
 
           const selectedOptional = app.selectedOptionalFees || [];
           const isUniformOpted = (hId?: string, hName?: string) => {
@@ -11667,10 +11668,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const buildStudentFeeLedgerObject = (
     studentId: string,
-    optStudentOrYear?: Student | string,
+    optStudentOrYear?: Student | AdmissionApplication | string,
     targetAcademicYear?: string,
   ): StudentFeeLedger => {
-    let optStudent: Student | undefined = undefined;
+    let optStudent: Student | AdmissionApplication | undefined = undefined;
     let targetYear: string =
       targetAcademicYear ||
       selectedAcademicYear ||
@@ -11683,13 +11684,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       optStudent = optStudentOrYear;
     }
 
+    const sIdStr = String(studentId || "").trim().toLowerCase();
     const student =
       students.find(
         (s) =>
-          s.id === studentId ||
-          s.admissionNo === studentId ||
-          (s as any).applicationNo === studentId ||
-          (s as any).registrationNo === studentId,
+          String(s.id).trim().toLowerCase() === sIdStr ||
+          (s.admissionNo && String(s.admissionNo).trim().toLowerCase() === sIdStr) ||
+          ((s as any).applicationNo && String((s as any).applicationNo).trim().toLowerCase() === sIdStr) ||
+          ((s as any).registrationNo && String((s as any).registrationNo).trim().toLowerCase() === sIdStr),
       ) ||
       (optStudent && (optStudent as any).firstName
         ? (optStudent as Student)
@@ -11698,20 +11700,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const admApp =
       admissions.find(
         (a) =>
-          a.id === studentId ||
-          a.applicationNo === studentId ||
-          (a as any).registrationNo === studentId ||
-          (a as any).studentId === studentId ||
+          String(a.id).trim().toLowerCase() === sIdStr ||
+          (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sIdStr) ||
+          ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sIdStr) ||
+          ((a as any).studentId && String((a as any).studentId).trim().toLowerCase() === sIdStr) ||
           (student &&
             (student.admissionNo === a.applicationNo ||
               student.admissionNo === (a as any).registrationNo ||
-              student.id === a.id)) ||
+              String(student.id).trim() === String(a.id).trim())) ||
           (student &&
             a.applicantName &&
             a.applicantName.trim().toLowerCase() ===
               `${student.firstName} ${student.lastName}`.trim().toLowerCase()),
       ) ||
-      (optStudent && (optStudent as any).applicantName
+      (optStudent && ((optStudent as any).applicantName || (optStudent as any).appliedClass)
         ? (optStudent as unknown as AdmissionApplication)
         : undefined);
 
@@ -11727,17 +11729,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       admApp?.targetClass ||
       admApp?.className ||
       student?.className ||
-      "Class 10";
-    const secName = admApp?.section || student?.section || "A";
+      (optStudent as any)?.appliedClass ||
+      (optStudent as any)?.className ||
+      "Nursery";
+    const secName = admApp?.section || student?.section || (optStudent as any)?.section || "A";
     const admNo =
       student?.admissionNo ||
       admApp?.applicationNo ||
       (admApp as any)?.registrationNo ||
       (optStudent as any)?.admissionNo ||
       (optStudent as any)?.applicationNo ||
-      (typeof studentId === "string" && studentId.length > 3
-        ? studentId
-        : "ADM-2026-001");
+      studentId;
 
     const rawStName =
       (admApp?.applicantName || "").trim() ||
@@ -11747,31 +11749,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (student as any)?.name ||
       (student as any)?.applicantName ||
       (optStudent as any)?.applicantName ||
-      (optStudent as any)?.name ||
+      `${(optStudent as any)?.firstName || ""} ${(optStudent as any)?.lastName || ""}`.trim() ||
       "";
 
     const stName =
-      rawStName && rawStName.toLowerCase() !== "student"
+      rawStName && rawStName.toLowerCase() !== "student" && rawStName.toLowerCase() !== "enrolled student"
         ? rawStName
         : admissions.find(
-              (a) => a.id === studentId || a.applicationNo === studentId,
+              (a) => String(a.id) === sIdStr || String(a.applicationNo).toLowerCase() === sIdStr,
             )?.applicantName ||
             students.find(
-              (s) => s.id === studentId || s.admissionNo === studentId,
+              (s) => String(s.id) === sIdStr || String(s.admissionNo).toLowerCase() === sIdStr,
             )?.firstName
-          ? `${students.find((s) => s.id === studentId || s.admissionNo === studentId)?.firstName} ${students.find((s) => s.id === studentId || s.admissionNo === studentId)?.lastName}`.trim()
-          : "Enrolled Student";
+          ? `${students.find((s) => String(s.id) === sIdStr || String(s.admissionNo).toLowerCase() === sIdStr)?.firstName} ${students.find((s) => String(s.id) === sIdStr || String(s.admissionNo).toLowerCase() === sIdStr)?.lastName || ""}`.trim()
+          : (rawStName || "Student");
 
     const cleanCls = (clsName || "").replace(/[-\s][A-Z]$/i, "").trim();
     const dfs =
       dynamicFeeStructures.find(
-        (d) => d.className.trim() === cleanCls && d.status === "Active",
+        (d) => matchesClassName(d.className, clsName) && (d.status === "Active" || !d.status),
       ) ||
-      dynamicFeeStructures.find((d) => d.className.trim() === cleanCls) ||
       dynamicFeeStructures.find(
-        (d) => d.className === clsName && d.status === "Active",
-      ) ||
-      dynamicFeeStructures.find((d) => d.className === clsName);
+        (d) => matchesClassName(d.className, clsName),
+      );
 
     const dfsUniformFee = dfs?.items?.find(
       (i) =>
@@ -11952,64 +11952,69 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     if (ledgerItems.length === 0) {
-      const isUniSelected = isUniformOpted(
-        selectedOptional,
-        "FH-04",
-        "Uniform & Sports Kit Fee",
-      );
-      ledgerItems = [
-        {
-          headId: "FH-01",
-          headName: "Tuition Fee",
-          category: "Tuition Fee",
-          originalAmount: 77000,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 77000,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-02",
-          headName: "Admission Fee",
-          category: "Admission Fee",
-          originalAmount: 3000,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 3000,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-03",
-          headName: "Textbook & Material Fee",
-          category: "Books Fee",
-          originalAmount: 3000,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 3000,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-04",
-          headName: "Uniform & Sports Kit Fee",
-          category: "Uniform Fee",
-          originalAmount: uniformAmount,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: isUniSelected ? uniformAmount : 0,
-          isApplicable: isUniSelected,
-          status: "Pending",
-          remarks: isUniSelected
-            ? undefined
-            : "Optional Fee - Not Selected at Admission",
-        },
-      ];
+      if (dfs && dfs.items && dfs.items.length > 0) {
+        dfs.items.forEach((di) => {
+          const isUni = isUniformHead(di.feeHeadName);
+          const isSelected = isUni
+            ? selectedOptional !== null
+              ? isUniformOpted(selectedOptional, di.feeHeadId, di.feeHeadName)
+              : false
+            : true;
+          const uniFee = isUni
+            ? getUniformFeeForClass(
+                clsName || student?.className || "",
+                student?.gender || "Male",
+                financeUniformConfigs,
+                dynamicFeeStructures,
+              )
+            : 0;
+          const itemAmount = isUni && uniFee > 0 ? uniFee : di.amount;
+
+          ledgerItems.push({
+            headId: di.feeHeadId,
+            headName: di.feeHeadName,
+            category: di.category || (di.feeHeadName.toLowerCase().includes("tuition") ? "Tuition Fee" : "General Fee"),
+            originalAmount: itemAmount,
+            scholarshipDeduction: 0,
+            discountDeduction: 0,
+            fineAmount: 0,
+            finalAmount: isSelected ? itemAmount : 0,
+            isApplicable: isSelected,
+            status: "Pending",
+            remarks: isSelected ? undefined : "Optional Fee - Not Selected at Admission",
+          });
+        });
+      } else {
+        const applicableHeads = (feeHeads || []).filter((h) =>
+          h.status === "Active" &&
+          (!h.applicableClasses ||
+            h.applicableClasses.length === 0 ||
+            h.applicableClasses.some((c) => matchesClassName(c, clsName)) ||
+            h.applicableClasses.includes("All")),
+        );
+        applicableHeads.forEach((h) => {
+          const isUni = isUniformHead(h.name);
+          const isSelected = isUni
+            ? selectedOptional !== null
+              ? isUniformOpted(selectedOptional, h.id, h.name)
+              : false
+            : true;
+          const itemAmount = h.amount || 0;
+          ledgerItems.push({
+            headId: h.id,
+            headName: h.name,
+            category: h.category || "General Fee",
+            originalAmount: itemAmount,
+            scholarshipDeduction: 0,
+            discountDeduction: 0,
+            fineAmount: 0,
+            finalAmount: isSelected ? itemAmount : 0,
+            isApplicable: isSelected,
+            status: "Pending",
+            remarks: isSelected ? undefined : "Optional Fee - Not Selected at Admission",
+          });
+        });
+      }
     }
 
     // Ensure Uniform Fee category amount matches config lookup
@@ -12585,13 +12590,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getStudentFeeLedger = (
     studentId: string,
+    optStudentOrYear?: Student | AdmissionApplication | string,
     targetAcademicYear?: string,
   ): StudentFeeLedger => {
-    const targetYear =
-      targetAcademicYear ||
+    let optStudent: Student | AdmissionApplication | undefined = undefined;
+    let targetYear: string =
       selectedAcademicYear ||
       financeSettings.academicYear ||
       "2026-2027";
+
+    if (typeof optStudentOrYear === "string") {
+      targetYear = optStudentOrYear;
+    } else if (optStudentOrYear && typeof optStudentOrYear === "object") {
+      optStudent = optStudentOrYear;
+      if (targetAcademicYear && typeof targetAcademicYear === "string") {
+        targetYear = targetAcademicYear;
+      }
+    } else if (targetAcademicYear && typeof targetAcademicYear === "string") {
+      targetYear = targetAcademicYear;
+    }
+
     const existing = studentFeeLedgers.find(
       (l) => l.studentId === studentId && l.academicYear === targetYear,
     );
@@ -12654,13 +12672,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       const clsName = existing.className;
-      const cleanCls = (clsName || "").replace(/[-\s][A-Z]$/i, "").trim();
       const dfs =
         dynamicFeeStructures.find(
-          (d) => d.className.trim() === cleanCls && d.status === "Active",
+          (d) => matchesClassName(d.className, clsName) && (d.status === "Active" || !d.status),
         ) ||
-        dynamicFeeStructures.find((d) => d.className.trim() === cleanCls) ||
-        dynamicFeeStructures.find((d) => d.className === clsName);
+        dynamicFeeStructures.find(
+          (d) => matchesClassName(d.className, clsName),
+        );
 
       if (dfs && dfs.items && dfs.items.length > 0) {
         const hasMissingHead = dfs.items.some((di) => {
@@ -12687,7 +12705,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           hasAmountMismatch ||
           existing.grossAmount !== dfs.totalAmount
         ) {
-          return buildStudentFeeLedgerObject(studentId, targetYear);
+          return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
         }
       }
 
@@ -12779,7 +12797,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return updatedLedger;
     }
 
-    return buildStudentFeeLedgerObject(studentId, targetYear);
+    return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
   };
 
   // SINGLE SOURCE OF TRUTH HELPER FOR CONSOLIDATED STUDENT OUTSTANDING DUES
@@ -14520,15 +14538,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           lastName: adm.lastName || nameParts.slice(1).join(" ") || "",
           admissionNo: adm.applicationNo || adm.id,
           className:
-            adm.appliedClass || adm.targetClass || adm.className || "Class 10",
+            adm.appliedClass || adm.targetClass || adm.className || "Nursery",
           section: adm.section || "A",
           gender: adm.gender || "Male",
           studentType: "Day Scholar",
           joiningDate:
             adm.admissionDate || new Date().toISOString().split("T")[0],
           dueFee: 0,
-          paidFee: 3500,
-          totalFee: 35000,
+          paidFee: 0,
+          totalFee: 0,
           rollNo: "0",
           fatherName: adm.parentName || "",
           motherName: adm.motherName || "",
@@ -14547,11 +14565,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const assignment = studentFeeAssignments.find(
       (a) => a.studentId === studentId && a.status === "Active",
     );
+    const dfs = dynamicFeeStructures.find((d) =>
+      matchesClassName(d.className, student.className),
+    );
     const baseFee = ledger
       ? ledger.totalOriginalAmount
       : assignment
         ? assignment.baseFeeTotal
-        : student.totalFee || 35000;
+        : student.totalFee || (dfs?.totalAmount ?? 0);
     const assignedFeeHeads = assignment ? assignment.assignedFeeHeads : [];
 
     let transportAssign = studentTransports.find(
@@ -18335,30 +18356,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);
   }, [filteredStudents]);
-  const filteredStaff = filterByBranch(staff);
-  const filteredAdmissions = filterByBranch(admissions);
-  const filteredClasses = filterByBranch(academicClasses);
-  const filteredSubjects = filterByBranch(subjects);
-  const filteredExams = filterByBranch(exams);
-  const filteredTimetable = filterByBranch(timetable);
-  const filteredHomework = filterByBranch(homework);
-  const filteredFeeStructures = filterByBranch(feeStructures);
-  const filteredFeePayments = filterByBranch(feePayments);
-  const filteredFeeHeads = filterByBranch(feeHeads);
-  const filteredDynamicFeeStructures = filterByBranch(dynamicFeeStructures);
-  const filteredStudentFeeAssignments = filterByBranch(studentFeeAssignments);
-  const filteredERPTransportRoutes = filterByBranch(erpTransportRoutes);
-  const filteredStudentTransports = filterByBranch(studentTransports);
-  const filteredHostelMasters = filterByBranch(hostelMasters);
-  const filteredStudentHostels = filterByBranch(studentHostels);
-  const filteredRefunds = filterByBranch(refunds);
-  const filteredRouteMasters = filterByBranch(routeMasters);
-  const filteredPickupPoints = filterByBranch(pickupPoints);
-  const filteredVehicleMasters = filterByBranch(vehicleMasters);
-  const filteredDriverMasters = filterByBranch(driverMasters);
-  const filteredBusAttendants = filterByBranch(busAttendants);
-  const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
-  const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
+  const filteredStaff = useMemo(() => filterByBranch(staff), [staff, selectedBranch, selectedAcademicYear]);
+  const filteredAdmissions = useMemo(() => filterByBranch(admissions), [admissions, selectedBranch, selectedAcademicYear]);
+  const filteredClasses = useMemo(() => filterByBranch(academicClasses), [academicClasses, selectedBranch, selectedAcademicYear]);
+  const filteredSubjects = useMemo(() => filterByBranch(subjects), [subjects, selectedBranch, selectedAcademicYear]);
+  const filteredExams = useMemo(() => filterByBranch(exams), [exams, selectedBranch, selectedAcademicYear]);
+  const filteredTimetable = useMemo(() => filterByBranch(timetable), [timetable, selectedBranch, selectedAcademicYear]);
+  const filteredHomework = useMemo(() => filterByBranch(homework), [homework, selectedBranch, selectedAcademicYear]);
+  const filteredFeeStructures = useMemo(() => filterByBranch(feeStructures), [feeStructures, selectedBranch, selectedAcademicYear]);
+  const filteredFeePayments = useMemo(() => filterByBranch(feePayments), [feePayments, selectedBranch, selectedAcademicYear]);
+  const filteredFeeHeads = useMemo(() => filterByBranch(feeHeads), [feeHeads, selectedBranch, selectedAcademicYear]);
+  const filteredDynamicFeeStructures = useMemo(() => filterByBranch(dynamicFeeStructures), [dynamicFeeStructures, selectedBranch, selectedAcademicYear]);
+  const filteredStudentFeeAssignments = useMemo(() => filterByBranch(studentFeeAssignments), [studentFeeAssignments, selectedBranch, selectedAcademicYear]);
+  const filteredERPTransportRoutes = useMemo(() => filterByBranch(erpTransportRoutes), [erpTransportRoutes, selectedBranch, selectedAcademicYear]);
+  const filteredStudentTransports = useMemo(() => filterByBranch(studentTransports), [studentTransports, selectedBranch, selectedAcademicYear]);
+  const filteredHostelMasters = useMemo(() => filterByBranch(hostelMasters), [hostelMasters, selectedBranch, selectedAcademicYear]);
+  const filteredStudentHostels = useMemo(() => filterByBranch(studentHostels), [studentHostels, selectedBranch, selectedAcademicYear]);
+  const filteredRefunds = useMemo(() => filterByBranch(refunds), [refunds, selectedBranch, selectedAcademicYear]);
+  const filteredRouteMasters = useMemo(() => filterByBranch(routeMasters), [routeMasters, selectedBranch, selectedAcademicYear]);
+  const filteredPickupPoints = useMemo(() => filterByBranch(pickupPoints), [pickupPoints, selectedBranch, selectedAcademicYear]);
+  const filteredVehicleMasters = useMemo(() => filterByBranch(vehicleMasters), [vehicleMasters, selectedBranch, selectedAcademicYear]);
+  const filteredDriverMasters = useMemo(() => filterByBranch(driverMasters), [driverMasters, selectedBranch, selectedAcademicYear]);
+  const filteredBusAttendants = useMemo(() => filterByBranch(busAttendants), [busAttendants, selectedBranch, selectedAcademicYear]);
+  const filteredVehicleAssignments = useMemo(() => filterByBranch(vehicleAssignments), [vehicleAssignments, selectedBranch, selectedAcademicYear]);
+  const filteredVehicleMaintenances = useMemo(() => filterByBranch(vehicleMaintenances), [vehicleMaintenances, selectedBranch, selectedAcademicYear]);
   const filteredUniformCategories = filterByBranch(uniformCategories).filter(c => {
     const name = (c?.name || (c as any)?.categoryName || '').toLowerCase().trim();
     return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
@@ -18394,17 +18415,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       adm === "REG-1021";
     return !isDummy;
   });
-  const filteredFinanceUniformConfigs = filterByBranch(financeUniformConfigs);
-  const filteredLeaveApplications = filterByBranch(leaveApplications);
-  const filteredHolidays = filterByBranch(holidays);
-  const filteredPayslips = filterByBranch(payslips);
-  const filteredPayrollConfigurations = filterByBranch(payrollConfigurations);
-  const filteredPayrollComponents = filterByBranch(payrollComponents);
-  const filteredSalaryStructures = filterByBranch(salaryStructures);
-  const filteredEmployeeSalaryAssignments = filterByBranch(
-    employeeSalaryAssignments,
-  );
-  const filteredPayrollRuns = filterByBranch(payrollRuns);
+  const filteredFinanceUniformConfigs = useMemo(() => filterByBranch(financeUniformConfigs), [financeUniformConfigs, selectedBranch, selectedAcademicYear]);
+  const filteredLeaveApplications = useMemo(() => filterByBranch(leaveApplications), [leaveApplications, selectedBranch, selectedAcademicYear]);
+  const filteredHolidays = useMemo(() => filterByBranch(holidays), [holidays, selectedBranch, selectedAcademicYear]);
+  const filteredPayslips = useMemo(() => filterByBranch(payslips), [payslips, selectedBranch, selectedAcademicYear]);
+  const filteredPayrollConfigurations = useMemo(() => filterByBranch(payrollConfigurations), [payrollConfigurations, selectedBranch, selectedAcademicYear]);
+  const filteredPayrollComponents = useMemo(() => filterByBranch(payrollComponents), [payrollComponents, selectedBranch, selectedAcademicYear]);
+  const filteredSalaryStructures = useMemo(() => filterByBranch(salaryStructures), [salaryStructures, selectedBranch, selectedAcademicYear]);
+  const filteredEmployeeSalaryAssignments = useMemo(() => filterByBranch(employeeSalaryAssignments), [employeeSalaryAssignments, selectedBranch, selectedAcademicYear]);
+  const filteredPayrollRuns = useMemo(() => filterByBranch(payrollRuns), [payrollRuns, selectedBranch, selectedAcademicYear]);
 
   const filteredAttendance = attendance.filter((a) => {
     if (!selectedBranch) return true;

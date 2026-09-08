@@ -110,8 +110,8 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
 
   // Upcoming School Events
   const upcomingEvents = useMemo(() => {
-    const eventsList = (schoolEvents || []).map(e => ({ title: e.title, date: e.startDate, ...e }));
-    const hols = (holidays || []).map(h => ({ title: h.name, date: h.startDate, ...h }));
+    const eventsList = (schoolEvents || []).map(e => ({ ...e, date: e.startDate }));
+    const hols = (holidays || []).map(h => ({ ...h, title: h.name, date: h.startDate }));
     const all = [...eventsList, ...hols];
     const seen = new Set<string>();
     return all.filter(item => {

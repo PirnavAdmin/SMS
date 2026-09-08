@@ -32,3 +32,36 @@ export const compareClassesAscending = (classA?: string, classB?: string): numbe
   if (orderA !== orderB) return orderA - orderB;
   return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
 };
+
+/**
+ * Normalizes a class name for reliable matching across forms, admissions, and fee structures.
+ * E.g., "Class Nursery - A", "Nursery", "Class Nursery" all normalize to "nursery".
+ * "Class 1 - A", "1st", "Class 1" all normalize to "1".
+ */
+export const normalizeClassName = (name?: string | null): string => {
+  if (!name) return "";
+  let clean = name.trim().toLowerCase();
+  clean = clean.replace(/^class\s+/i, "");
+  clean = clean.replace(/[-\s][a-z]$/i, ""); // remove trailing section like "- A" or " A"
+  clean = clean.replace(/(st|nd|rd|th)$/i, ""); // remove ordinals like "1st", "10th"
+  return clean.trim();
+};
+
+/**
+ * Checks if two class names refer to the same grade.
+ */
+export const matchesClassName = (classA?: string | null, classB?: string | null): boolean => {
+  const normA = normalizeClassName(classA);
+  const normB = normalizeClassName(classB);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  
+  // Specific pre-school aliases
+  if ((normA.includes('nursery') || normA.includes('nurs')) && (normB.includes('nursery') || normB.includes('nurs'))) return true;
+  if ((normA.includes('lkg') || normA.includes('l.k.g')) && (normB.includes('lkg') || normB.includes('l.k.g'))) return true;
+  if ((normA.includes('ukg') || normA.includes('u.k.g')) && (normB.includes('ukg') || normB.includes('u.k.g'))) return true;
+  if ((normA.includes('playgroup') || normA.includes('pg')) && (normB.includes('playgroup') || normB.includes('pg'))) return true;
+
+  return normA.includes(normB) || normB.includes(normA);
+};
+
