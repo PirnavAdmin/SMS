@@ -267,7 +267,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                   </div>
                 ) : (
                   <p className="text-xs text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider mt-0.5">
-                    Universal Sign In Portal
+                    Sign In Portal
                   </p>
                 )}
               </div>

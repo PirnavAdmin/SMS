@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
+import { publishTimetableApi } from "../api/academic";
 import {
   generateNextStudentId,
   generateNextAdmissionNo,
@@ -326,6 +327,8 @@ import {
   deleteTimetableSlotApi,
   fetchTimetableGridApi,
   fetchClassTeacherAssignmentsApi,
+  fetchAllTimetablesApi,
+  clearClassTimetableApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -792,6 +795,7 @@ interface DataContextType {
   fetchAcademicClasses: (force?: boolean) => Promise<void>;
   fetchSubjects: (force?: boolean) => Promise<void>;
   fetchPeriods: (force?: boolean) => Promise<void>;
+  fetchTimetables: (force?: boolean) => Promise<void>;
   fetchDepartments: (force?: boolean) => Promise<void>;
   fetchDesignations: (force?: boolean) => Promise<void>;
   fetchBooks: () => Promise<void>;
@@ -4816,6 +4820,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchTimetables = async (force: boolean = false) => {
+    try {
+      const data: any = await fetchAllTimetablesApi(selectedAcademicYear);
+      const dataArray = Array.isArray(data) ? data : data?.data || [];
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
+        const mappedData: TimetableSlot[] = dataArray.map((item: any) => {
+          const timeSlotStr =
+            item.timeSlot ||
+            (item.startTime && item.endTime
+              ? `${item.startTime} - ${item.endTime}`
+              : "");
+          return {
+            id:
+              item.id?.toString() ||
+              item.slotId?.toString() ||
+              `TT-${Math.random().toString(36).substr(2, 9)}`,
+            className: item.className || "Class 9",
+            section: item.section || item.sectionName || "A",
+            day: item.day || item.dayOfWeek || "Monday",
+            timeSlot: timeSlotStr,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            periodNumber: item.periodNumber || 1,
+            subject: item.subject || item.subjectName || "",
+            subjectId: item.subjectId?.toString(),
+            teacherName: item.teacherName || "",
+            teacherId: item.teacherId?.toString(),
+            roomNo: item.roomNo || "",
+            academicYear: item.academicYear || selectedAcademicYear || "",
+            status: item.status || "Draft",
+            branch: item.branch || selectedBranch || "Main Campus",
+          };
+        });
+
+        setTimetable((prev) => {
+          const norm = (str?: string) =>
+            (str || "")
+              .toLowerCase()
+              .replace(/\s+/g, "")
+              .replace(/class/gi, "");
+          const map = new Map<string, TimetableSlot>();
+
+          // Add existing local slots first
+          (prev || []).forEach((slot) => {
+            const key = `${norm(slot.className)}_${norm(slot.section)}_${(slot.day || "").toLowerCase()}_${(slot.timeSlot || "").trim().toLowerCase()}`;
+            map.set(key, slot);
+          });
+
+          // Overwrite with backend database slots
+          mappedData.forEach((slot) => {
+            const key = `${norm(slot.className)}_${norm(slot.section)}_${(slot.day || "").toLowerCase()}_${(slot.timeSlot || "").trim().toLowerCase()}`;
+            map.set(key, slot);
+          });
+
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem("edu_db_timetable", JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch all timetables from backend", err);
+    }
+  };
+
   const getPersistedOptionalFees = (
     appId?: string,
     regNo?: string,
@@ -6010,6 +6080,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchAcademicClasses();
         fetchSubjects();
         fetchPeriods();
+        fetchTimetables();
         fetchDepartments();
         fetchDesignations();
         fetchPayrollConfigurations();
@@ -8843,7 +8914,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTeacherAssignments((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const publishClassTimetable = (
+  const publishClassTimetable = async (
     className: string,
     section: string,
     academicYear?: string,
@@ -8861,6 +8932,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Published Timetable",
       `Published timetable for ${className}-${section}`,
     );
+
+    try {
+      const clsObj = (academicClasses || []).find(
+        (c) =>
+          c.name?.toLowerCase().trim() === className?.toLowerCase().trim() ||
+          (c as any).className?.toLowerCase().trim() === className?.toLowerCase().trim()
+      );
+      const classId = clsObj?.id;
+      const secLetter = (section || 'A').replace(/^Section\s*/i, '').trim();
+
+      await publishTimetableApi({
+        classId,
+        className,
+        sectionName: secLetter,
+        academicYear: academicYear || selectedAcademicYear || '',
+        status: 'Published',
+      });
+    } catch (err) {
+      console.warn('Backend publish timetable sync notice:', err);
+    }
   };
   const addUniform = async (itemData: Omit<UniformItem, "id">) => {
     const id = "UNI-" + Date.now();
@@ -16339,7 +16430,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
 
-    // 2. Delete local state slots from backend
+    // 2. Call backend clear API to remove all slots for this class and section
+    try {
+      await clearClassTimetableApi(className, section, selectedAcademicYear);
+    } catch (err) {
+      console.warn("Failed to clear timetable slots from backend", err);
+    }
+
+    // 3. Delete any known local id slots
     try {
       await Promise.all(
         existing.map(async (t) => {
@@ -16350,41 +16448,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }),
       );
-    } catch (err) {
-      console.warn("Failed to clear timetable slots from backend", err);
-    }
-
-    // 3. Query backend DB for any remaining active slots for this class & section and delete them
-    try {
-      const cls = academicClasses.find((c) => norm(c.name) === norm(className));
-      if (cls?.id) {
-        const gridRes: any = await fetchTimetableGridApi(
-          cls.id,
-          section,
-          selectedAcademicYear || "2026-2027",
-        ).catch(() => null);
-
-        const rawList = Array.isArray(gridRes?.data)
-          ? gridRes.data
-          : Array.isArray(gridRes)
-          ? gridRes
-          : [];
-
-        if (rawList.length > 0) {
-          await Promise.all(
-            rawList.map(async (oldItem: any) => {
-              const sId = oldItem?.slotId || oldItem?.id;
-              if (sId) {
-                const numericId = String(sId).replace(/^TT-/i, "");
-                await deleteTimetableSlotApi(numericId).catch(() => {});
-              }
-            }),
-          );
-        }
-      }
-    } catch (e) {
-      console.warn("Backend timetable pre-clear notice:", e);
-    }
+    } catch (e) {}
   };
 
   const bulkAddTimetableSlots = (newSlots: TimetableSlot[]) => {
@@ -19247,21 +19311,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               .toLowerCase()
               .replace(/\s+/g, "")
               .replace(/class/gi, "");
-          const existingLocal = prev.filter(
-            (t) =>
-              norm(t.className) === norm(targetClassName) &&
-              norm(t.section) === norm(sectionName),
-          );
 
-          // If local memory has freshly generated slots and backend returned fewer slots due to conflict, preserve local slots
-          if (
-            existingLocal.length > mappedSlots.length &&
-            mappedSlots.length === 0
-          ) {
-            return prev;
-          }
-
-          const filtered = prev.filter(
+          const filtered = (prev || []).filter(
             (t) =>
               !(
                 norm(t.className) === norm(targetClassName) &&
@@ -19708,6 +19759,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchAcademicClasses,
         fetchSubjects,
         fetchPeriods,
+        fetchTimetables,
         fetchDepartments,
         fetchDesignations,
         fetchBooks,

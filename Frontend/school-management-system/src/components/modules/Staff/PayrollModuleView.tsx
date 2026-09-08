@@ -659,7 +659,7 @@ function TableShell<T extends { id: string }>({
             <tr className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500">
               {selectable && (
                 <th className="w-10 px-3.5 py-2">
-                  {paginatedRows.length > 0 && (
+                  {pageRows.length > 0 && (
                     <input
                       type="checkbox"
                       checked={allSelected}

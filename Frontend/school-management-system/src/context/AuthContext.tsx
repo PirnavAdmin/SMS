@@ -52,10 +52,29 @@ export const normalizeUserRole = (roleStr: string): UserRole => {
   return "Staff";
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const defaultAuthContextValue: AuthContextType = {
+  user: null,
+  role: 'Admin',
+  token: null,
+  isAuthenticated: false,
+  selectedBranch: 'Main Campus',
+  setSelectedBranch: () => {},
+  selectedAcademicYear: '2026-2027',
+  setSelectedAcademicYear: () => {},
+  login: async () => false,
+  logout: () => {},
+  setRole: () => {},
+  changePassword: async () => false,
+  sendOtp: async () => false,
+  verifyOtp: async () => false,
+  resetPasswordWithOtp: async () => false,
+  setUser: () => {}
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContextValue);
 
 const formatEmailToName = (email: string): string => {
-  if (!email) return "Administrator";
+  if (!email) return "User";
   const username = email.split('@')[0];
   const parts = username.split(/[._-]/);
   return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -327,6 +346,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+  return context || defaultAuthContextValue;
 };

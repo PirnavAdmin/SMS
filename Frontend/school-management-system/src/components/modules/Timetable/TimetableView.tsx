@@ -27,7 +27,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     staff, academicClasses, rawClasses, subjects, holidays, students,
-    fetchAcademicClasses, fetchSubjects, fetchPeriods,
+    fetchAcademicClasses, fetchSubjects, fetchPeriods, fetchTimetables,
     academicYears
   } = useData();
   const { user, role, selectedBranch, setSelectedBranch, selectedAcademicYear } = useAuth();
@@ -37,6 +37,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     fetchAcademicClasses();
     fetchSubjects();
     fetchPeriods();
+    if (fetchTimetables) {
+      fetchTimetables();
+    }
   }, []);
 
   const [activeTab, setActiveTab] = useState<TimetableTab>('period-settings');
@@ -56,7 +59,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   // Filter staff to Teaching Staff only
   const teachingStaff = useMemo(() => 
-    staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher'),
+    (staff || []).filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher'),
     [staff]
   );
 
@@ -69,7 +72,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const userName = (user?.name || '').toLowerCase().trim();
 
     // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
-    const academicStaff = staff.filter(s => {
+    const academicStaff = (staff || []).filter(s => {
       const desig = (s.designation || '').toLowerCase();
       const dept = (s.department || '').toLowerCase();
       return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
@@ -153,7 +156,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const mainSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || (teacher as any)?.primarySubject || 'General';
 
     // 1. Direct timetable slots matching logged-in teacher
-    const directSlots = timetable.filter(t => {
+    const directSlots = (timetable || []).filter(t => {
       if (!t || !t.teacherName) return false;
       const entryTeacher = t.teacherName.toLowerCase().trim();
       const matchesTeacher = (tFullName && entryTeacher === tFullName) ||
@@ -239,7 +242,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const teacherSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || (teacher as any)?.primarySubject || 'General';
 
     // Dynamically calculate substitution schedule matching non-clashing active period settings
-    const activeMasterPeriods = periodSettings
+    const activeMasterPeriods = (periodSettings || [])
       .filter(p => p.status === 'Active' && !p.isBreak)
       .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
@@ -275,8 +278,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const allBusySlots = [...busyScheduleSlots, ...busySubSlots];
     
     // Master active periods (fallback to periodSettings if inside initial render)
-    const masterOnly = periodSettings.filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'));
-    const sourcePeriods = masterOnly.length > 0 ? masterOnly : periodSettings.filter(p => p.status === 'Active');
+    const masterOnly = (periodSettings || []).filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'));
+    const sourcePeriods = masterOnly.length > 0 ? masterOnly : (periodSettings || []).filter(p => p.status === 'Active');
 
     const uniqueMap = new Map<string, PeriodSetting>();
     sourcePeriods.forEach(p => {
@@ -289,14 +292,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const activeList = Array.from(uniqueMap.values()).sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
     // Filter to teaching periods ONLY (exclude Break & Lunch)
-    const teachingPeriods = activeList.filter(p => {
+    const teachingPeriods = (activeList || []).filter(p => {
       const pType = (p.periodType || '').toLowerCase();
       const pName = (p.periodName || '').toLowerCase();
       return !p.isBreak && !pType.includes('break') && !pType.includes('lunch') && !pName.includes('break') && !pName.includes('lunch');
     });
 
     // A period is free if teacher has no lecture AND no substitution duty in that timeSlot today
-    const free = teachingPeriods.filter(p => {
+    const free = (teachingPeriods || []).filter(p => {
       const slotStr = `${p.startTime} - ${p.endTime}`.trim().toLowerCase();
       return !allBusySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
     });
@@ -438,14 +441,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const sectionOptions = useMemo(
     () => {
       if (!selectedClass) return [];
-      return academicClasses.find(c => c.name === selectedClass)?.sections || [];
+      return (academicClasses || []).find(c => c.name === selectedClass)?.sections || [];
     },
     [academicClasses, selectedClass]
   );
 
   const classTimetable = useMemo(() => {
     const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
-    return timetable.filter(
+    return (timetable || []).filter(
       t => norm(t.className) === norm(selectedClass) && norm(t.section) === norm(selectedSection)
     );
   }, [timetable, selectedClass, selectedSection]);
@@ -460,7 +463,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   useEffect(() => {
     if (selectedClass && selectedSection) {
-      const clsObj = academicClasses.find(c => c.name === selectedClass);
+      const clsObj = (academicClasses || []).find(c => c.name === selectedClass);
       if (clsObj) {
         const fetchKey = `${clsObj.id}_${selectedSection}_${academicYear}`;
         if (lastFetchedTimetableRef.current === fetchKey) return;
@@ -475,7 +478,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   useEffect(() => {
     if (selectedClass && selectedSection) {
       const key = `${selectedClass}-${selectedSection}`;
-      const hasSaturdaySlots = classTimetable.some(t => t.day === 'Saturday');
+      const hasSaturdaySlots = (classTimetable || []).some(t => t.day === 'Saturday');
       
       // Auto-enable Saturday if slots exist
       if (hasSaturdaySlots) {
@@ -491,9 +494,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   useEffect(() => {
     if (isBulkAssignModalOpen) {
       const remaining: string[] = [];
-      academicClasses.forEach(c => {
+      (academicClasses || []).forEach(c => {
         (c.sections || ['A']).forEach(sec => {
-          const hasCustom = periodSettings.some(p => p.className === c.name && p.section === sec && p.status === 'Active');
+          const hasCustom = (periodSettings || []).some(p => p.className === c.name && p.section === sec && p.status === 'Active');
           if (!hasCustom) {
             remaining.push(`${c.name}-${sec}`);
           }
@@ -505,7 +508,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   // Master periods with strict deduplication
   const masterPeriods = useMemo(() => {
-    const masterRaw = periodSettings.filter(p => 
+    const masterRaw = (periodSettings || []).filter(p => 
       p.status === 'Active' && 
       (!p.className || p.className === 'Master' || p.className === 'All' || p.className === '')
     );
@@ -544,7 +547,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   const activeBranchPeriods = useMemo(() => {
     const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
-    const specific = periodSettings.filter(p => 
+    const specific = (periodSettings || []).filter(p => 
       norm(p.className) === norm(selectedClass) && 
       norm(p.section) === norm(selectedSection) && 
       p.status === 'Active'
@@ -590,15 +593,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
 
   const timetableStatus = useMemo(() => {
-    if (classTimetable.length === 0) return 'Draft';
-    return classTimetable.every(t => t.status === 'Published') ? 'Published' : 'Draft';
+    if ((classTimetable || []).length === 0) return 'Draft';
+    return (classTimetable || []).every(t => t.status === 'Published') ? 'Published' : 'Draft';
   }, [classTimetable]);
 
   const timeSlots = useMemo(() => {
     if (activeBranchPeriods && activeBranchPeriods.length > 0) {
       return activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
     }
-    const fromData = classTimetable.map(t => t.timeSlot);
+    const fromData = (classTimetable || []).map(t => t.timeSlot);
     return Array.from(new Set(fromData)).sort((a, b) => parseSortable(a) - parseSortable(b));
   }, [classTimetable, activeBranchPeriods]);
 
@@ -614,16 +617,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   const availableClassSubjects = useMemo(() => {
     const targetClass = formData.className || '';
-    if (!targetClass) return subjects;
-    const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === targetClass.toLowerCase().trim());
+    if (!targetClass) return subjects || [];
+    const clsObj = (academicClasses || []).find(c => c.name.toLowerCase().trim() === targetClass.toLowerCase().trim());
     const assignedNames = clsObj?.subjects || [];
-    const teacherAssignedNames = teacherAssignments
-      .filter(ta => ta.className.toLowerCase().trim() === targetClass.toLowerCase().trim())
+    const teacherAssignedNames = (teacherAssignments || [])
+      .filter(ta => (ta.className || '').toLowerCase().trim() === targetClass.toLowerCase().trim())
       .map(ta => ta.subject);
     const combinedNames = Array.from(new Set([...assignedNames, ...teacherAssignedNames]));
     if (combinedNames.length > 0) {
       return combinedNames.map((name, idx) => {
-        const globalSub = subjects.find(s => s.name.toLowerCase().trim() === name.toLowerCase().trim());
+        const globalSub = (subjects || []).find(s => (s.name || '').toLowerCase().trim() === (name || '').toLowerCase().trim());
         return {
           id: globalSub?.id || `class-sub-${idx}-${name}`,
           name: name,
@@ -632,16 +635,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         };
       });
     }
-    return subjects;
+    return subjects || [];
   }, [academicClasses, formData.className, teacherAssignments, subjects]);
 
   const autoAssignedTeacher = useMemo(() => {
     if (!formData.subject || !formData.className || !formData.section) return '';
-    const assigned = teacherAssignments.find(
+    const assigned = (teacherAssignments || []).find(
       ta => ta.className === formData.className && ta.section === formData.section && ta.subject === formData.subject
     );
     if (assigned) return assigned.teacherName;
-    const fallbackStaff = teachingStaff.find(s => s.assignedSubjects?.includes(formData.subject || ''));
+    const fallbackStaff = (teachingStaff || []).find(s => (s.assignedSubjects || []).includes(formData.subject || ''));
     if (fallbackStaff) return `${fallbackStaff.firstName} ${fallbackStaff.lastName}`;
     return 'Jonathan Miller';
   }, [formData.subject, formData.className, formData.section, teacherAssignments, teachingStaff]);
@@ -729,15 +732,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       if (teacherConflict) errors.push(`Teacher Conflict: ${testSlot.teacherName} is already assigned to teach ${teacherConflict.className}-${teacherConflict.section} at ${testSlot.timeSlot} on ${testSlot.day}.`);
     }
 
-    const subjObj = subjects.find(s => s.name === testSlot.subject);
+    const subjObj = (subjects || []).find(s => s.name === testSlot.subject);
     const weeklyLimit = subjObj?.weeklyPeriodCount || 5;
-    const existingSubjectCount = timetable.filter(t => t.id !== currentId && t.className === testSlot.className && t.section === testSlot.section && t.subject === testSlot.subject).length;
+    const existingSubjectCount = (timetable || []).filter(t => t.id !== currentId && t.className === testSlot.className && t.section === testSlot.section && t.subject === testSlot.subject).length;
     if (existingSubjectCount >= weeklyLimit) errors.push(`Subject Weekly Limit Exceeded: ${testSlot.subject} has a maximum limit of ${weeklyLimit} periods/week for ${testSlot.className}-${testSlot.section}.`);
 
     if (testSlot.teacherName && testSlot.teacherName !== 'Unassigned' && testSlot.teacherName !== '--') {
-      const teacherObj = teachingStaff.find(s => `${s.firstName} ${s.lastName}`.trim().toLowerCase() === testSlot.teacherName?.trim().toLowerCase());
+      const teacherObj = (teachingStaff || []).find(s => `${s.firstName} ${s.lastName}`.trim().toLowerCase() === testSlot.teacherName?.trim().toLowerCase());
       const dailyLimit = teacherObj?.dailyWorkloadLimit || 5;
-      const teacherDayCount = timetable.filter(t =>
+      const teacherDayCount = (timetable || []).filter(t =>
         t.id !== currentId &&
         t.teacherName &&
         t.teacherName.trim().toLowerCase() === testSlot.teacherName.trim().toLowerCase() &&
@@ -746,7 +749,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       if (teacherDayCount >= dailyLimit) errors.push(`Teacher Daily Workload Limit: ${testSlot.teacherName} exceeds the limit of ${dailyLimit} periods on ${testSlot.day}.`);
 
       const weeklyWLimit = teacherObj?.weeklyWorkloadLimit || 24;
-      const teacherWeekCount = timetable.filter(t =>
+      const teacherWeekCount = (timetable || []).filter(t =>
         t.id !== currentId &&
         t.teacherName &&
         t.teacherName.trim().toLowerCase() === testSlot.teacherName.trim().toLowerCase()
@@ -998,8 +1001,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const weeklyDays = includeSaturday ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     
     // Filter to active periods, prioritizing master periods or sequence-ordered periods
-    const allActive = periodSettings.filter(p => p.status === 'Active');
-    const masterOnly = allActive.filter(p => !p.className || p.className === 'Master' || p.className === 'All');
+    const allActive = (periodSettings || []).filter(p => p.status === 'Active');
+    const masterOnly = (allActive || []).filter(p => !p.className || p.className === 'Master' || p.className === 'All');
     const sourceList = masterOnly.length > 0 ? masterOnly : allActive;
 
     // Sort by sequence, then by start time
@@ -1630,7 +1633,33 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                             {slot}
                           </td>
                           {days.map(day => {
-                            const match = classTimetable.find(t => t.day === day && t.timeSlot === slot);
+                            const [pStartRaw, pEndRaw] = (slot || '').split('-');
+                            const pStartMin = parseSortable(matchingPeriodSetting?.startTime || pStartRaw);
+                            const pEndMin = parseSortable(matchingPeriodSetting?.endTime || pEndRaw);
+
+                            const match = (classTimetable || []).find(t => {
+                              if (!t || (t.day || '').toLowerCase() !== day.toLowerCase()) return false;
+                              
+                              // Direct normalized string match
+                              if (t.timeSlot && slot) {
+                                const normT = t.timeSlot.replace(/\s+/g, '').toLowerCase();
+                                const normS = slot.replace(/\s+/g, '').toLowerCase();
+                                if (normT === normS) return true;
+                              }
+
+                              // Accurate start and end minute match
+                              const tTimes = (t.timeSlot || '').split('-');
+                              const tStartMin = parseSortable(t.startTime || tTimes[0]);
+                              const tEndMin = parseSortable(t.endTime || tTimes[1]);
+
+                              if (tStartMin !== 9999 && pStartMin !== 9999 && tStartMin === pStartMin) {
+                                if (tEndMin === 9999 || pEndMin === 9999 || tEndMin === pEndMin) {
+                                  return true;
+                                }
+                              }
+
+                              return false;
+                            });
                             return (
                               <td key={day} className="py-3 px-2 text-center align-middle">
                                 {match ? (
@@ -1718,7 +1747,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       {/* TAB 2: PERIOD SETTINGS */}
       {activeTab === 'period-settings' && (() => {
         // Class-specific periods
-        const classSpecificPeriods = periodSettings.filter(p => 
+        const classSpecificPeriods = (periodSettings || []).filter(p => 
           p.className === selectedClass && 
           p.section === selectedSection && 
           p.status === 'Active'
@@ -1729,18 +1758,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
         // All classes & sections
         const allClassesAndSections: { className: string; section: string }[] = [];
-        academicClasses.forEach(c => {
+        (academicClasses || []).forEach(c => {
           (c.sections || ['A']).forEach(sec => {
             allClassesAndSections.push({ className: c.name, section: sec });
           });
         });
 
         // Configured / remaining
-        const configuredClassSections = allClassesAndSections.filter(cs =>
-          periodSettings.some(p => p.className === cs.className && p.section === cs.section && p.status === 'Active')
+        const configuredClassSections = (allClassesAndSections || []).filter(cs =>
+          (periodSettings || []).some(p => p.className === cs.className && p.section === cs.section && p.status === 'Active')
         );
-        const remainingClassSections = allClassesAndSections.filter(cs =>
-          !periodSettings.some(p => p.className === cs.className && p.section === cs.section && p.status === 'Active')
+        const remainingClassSections = (allClassesAndSections || []).filter(cs =>
+          !(periodSettings || []).some(p => p.className === cs.className && p.section === cs.section && p.status === 'Active')
         );
 
         return (
@@ -2151,7 +2180,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                         <span>-- Select Teacher --</span>
                       </button>
 
-                      {teachingStaff.filter(st => {
+                      {(teachingStaff || []).filter(st => {
                         const name = `${st.firstName} ${st.lastName}`;
                         const empId = st.empId || st.id;
                         const dept = st.department || 'Faculty';
@@ -2162,7 +2191,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                       }).length === 0 ? (
                         <p className="text-[10px] text-slate-400 text-center py-2">No matching teachers found</p>
                       ) : (
-                        teachingStaff
+                        (teachingStaff || [])
                           .filter(st => {
                             const name = `${st.firstName} ${st.lastName}`;
                             const empId = st.empId || st.id;
@@ -2226,7 +2255,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
                 <button
                   onClick={() => {
-                    const targetStaff = teachingStaff.find(s => `${s.firstName} ${s.lastName}` === selectedTeacherName);
+                    const targetStaff = (teachingStaff || []).find(s => `${s.firstName} ${s.lastName}` === selectedTeacherName);
                     setFormData({
                       day: 'Monday',
                       timeSlot: '08:30 AM - 09:15 AM',
@@ -2245,10 +2274,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               {(() => {
-                const teacherAllSlots = timetable.filter(t => t.teacherName === selectedTeacherName);
+                const teacherAllSlots = (timetable || []).filter(t => t.teacherName === selectedTeacherName);
                 const clashingSlotIds = new Set(
-                  teacherAllSlots
-                    .filter(s1 => teacherAllSlots.some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
+                  (teacherAllSlots || [])
+                    .filter(s1 => (teacherAllSlots || []).some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
                     .map(s => s.id)
                 );
 
@@ -2335,8 +2364,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                   {timelinePeriod.slot}
                                 </td>
                                 {baseDays.map(day => {
-                                  const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
-                                  const matchSlots = teacherSlots.filter(s => s.timeSlot === timelinePeriod.slot);
+                                  const teacherSlots = (timetable || []).filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                                  const matchSlots = (teacherSlots || []).filter(s => s.timeSlot === timelinePeriod.slot);
 
                                   if (matchSlots.length === 0) {
                                     return (
@@ -2838,15 +2867,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                       </div>
                       
                       <div className="space-y-0.5">
-                        {availableClassSubjects.filter(sub => 
-                          sub.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
+                        {(availableClassSubjects || []).filter(sub => 
+                          (sub.name || '').toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
                           (sub.code && sub.code.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
                         ).length === 0 ? (
                           <p className="text-[10px] text-slate-400 text-center py-2">No matching subjects found</p>
                         ) : (
-                          availableClassSubjects
+                          (availableClassSubjects || [])
                             .filter(sub => 
-                              sub.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
+                              (sub.name || '').toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
                               (sub.code && sub.code.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
                             )
                             .map(sub => {
