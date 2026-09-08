@@ -395,16 +395,26 @@ export const SettingsView: React.FC = () => {
 
     setIdForm(nextForm);
     saveIdSequenceSettings(nextForm);
+    addToast("success", "Custom Sequence Added", "New custom sequence format added.");
+  };
 
-    try {
-      if (changePassword) {
-        await changePassword(passForm.currentPassword, passForm.newPassword);
-      }
-      setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      addToast("success", "Password Changed", "Your password has been updated.");
-    } catch (err: any) {
-      addToast("error", "Password Change Failed", err?.message || "Failed to update password.");
-    }
+  const handleUpdateCustomSequence = (id: string, updates: Partial<CustomIdSequence>) => {
+    const nextForm = {
+      ...idForm,
+      customSequences: (idForm.customSequences || []).map(s => (s.id === id ? { ...s, ...updates } : s)),
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+  };
+
+  const handleDeleteCustomIdSequence = (id: string) => {
+    const nextForm = {
+      ...idForm,
+      customSequences: (idForm.customSequences || []).filter(s => s.id !== id),
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+    addToast("info", "Sequence Deleted", "Custom sequence format removed.");
   };
 
   // Academic Year Configuration States
