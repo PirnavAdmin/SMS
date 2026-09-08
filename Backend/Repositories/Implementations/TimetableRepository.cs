@@ -381,6 +381,20 @@ public class TimetableRepository : ITimetableRepository
             .FirstOrDefaultAsync(s => s.SubjectName != null && s.SubjectName.ToLower() == clean);
     }
 
+    public async Task<Subject> SaveSubjectAsync(Subject subject)
+    {
+        if (subject.SubjectId == 0)
+        {
+            await _context.Subjects.AddAsync(subject);
+        }
+        else
+        {
+            _context.Subjects.Update(subject);
+        }
+        await _context.SaveChangesAsync();
+        return subject;
+    }
+
     public async Task<List<Subject>> GetAllSubjectsAsync()
     {
         return await _context.Subjects.AsNoTracking().ToListAsync();

@@ -178,6 +178,71 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
         }
 
+        [HttpGet("all")]
+        [HttpGet("/api/academics/timetable/all")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        public async Task<IActionResult> GetAllTimetableSlots([FromQuery] string? academicYear = null)
+        {
+            try
+            {
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var query = _context.TimetableSlots
+                    .Include(s => s.Header)
+                        .ThenInclude(h => h.ClassGrade)
+                    .Include(s => s.Header)
+                        .ThenInclude(h => h.ClassSection)
+                    .Include(s => s.Subject)
+                    .Include(s => s.Teacher)
+                    .Include(s => s.Period)
+                    .AsNoTracking();
+
+                if (!string.IsNullOrWhiteSpace(resolvedAcademicYear) && resolvedAcademicYear != "All")
+                {
+                    query = query.Where(s => s.Header != null && s.Header.AcademicYear == resolvedAcademicYear);
+                }
+
+                var rawSlots = await query.ToListAsync();
+
+                var slots = rawSlots.Select(s => {
+                    var dtStart = DateTime.Today.Add(s.StartTime);
+                    var dtEnd = DateTime.Today.Add(s.EndTime);
+                    var startFormatted = dtStart.ToString("hh:mm tt");
+                    var endFormatted = dtEnd.ToString("hh:mm tt");
+
+                    return new
+                    {
+                        id = s.SlotId.ToString(),
+                        className = s.Header?.ClassGrade?.ClassName ?? $"Class {s.Header?.ClassId}",
+                        section = s.Header?.ClassSection?.SectionName ?? "A",
+                        day = s.DayOfWeek,
+                        timeSlot = $"{startFormatted} - {endFormatted}",
+                        startTime = startFormatted,
+                        endTime = endFormatted,
+                        periodNumber = s.Period?.DisplayOrder ?? s.PeriodId ?? 1,
+                        subject = s.Subject?.SubjectName ?? "",
+                        subjectId = s.SubjectId.ToString(),
+                        teacherName = s.Teacher != null
+                            ? (s.Teacher.DisplayName ?? $"{s.Teacher.FirstName ?? ""} {s.Teacher.LastName ?? ""}".Trim())
+                            : "",
+                        teacherId = s.TeacherId.ToString(),
+                        roomNo = s.RoomNo ?? s.Header?.ClassSection?.RoomNo ?? "",
+                        academicYear = s.Header?.AcademicYear ?? resolvedAcademicYear,
+                        status = s.Header?.Status ?? "Draft",
+                        branch = s.Header?.BranchName ?? ""
+                    };
+                }).ToList();
+
+                return Ok(new { success = true, data = slots });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet("/api/academics/timetable")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
         public async Task<IActionResult> GetAcademicsTimetable(
@@ -197,27 +262,48 @@ namespace SMS.Api.Controllers.AcademicManagement
                     return BadRequest(new { success = false, message = "classId is required." });
                 }
 
-                if (classId.StartsWith("CL-"))
+                if (classId.StartsWith("CL-", StringComparison.OrdinalIgnoreCase))
                 {
-                    int.TryParse(classId.Replace("CL-", ""), out numericClassId);
+                    int.TryParse(classId.Substring(3), out numericClassId);
                 }
                 else
                 {
                     int.TryParse(classId, out numericClassId);
                 }
 
+                var cleanClassName = classId.ToLower().Trim();
                 var classItem = await _context.Classes
                     .Include(c => c.Sections)
-                    .FirstOrDefaultAsync(c => c.ClassId == numericClassId);
+                    .FirstOrDefaultAsync(c => (numericClassId > 0 && c.ClassId == numericClassId) ||
+                                              (c.ClassName != null && (c.ClassName.ToLower() == cleanClassName ||
+                                                                       c.ClassName.ToLower().Contains(cleanClassName) ||
+                                                                       cleanClassName.Contains(c.ClassName.ToLower()))));
                 
-                int sectionId = 0;
-                if (classItem != null && classItem.Sections != null)
+                if (classItem != null)
                 {
-                    var sec = classItem.Sections.FirstOrDefault(s => s.SectionName.Equals(section, StringComparison.OrdinalIgnoreCase));
+                    numericClassId = (int)classItem.ClassId;
+                }
+
+                int sectionId = 0;
+                var cleanSec = (section ?? "A").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+                if (classItem != null && classItem.Sections != null && classItem.Sections.Any())
+                {
+                    var sec = classItem.Sections.FirstOrDefault(s => 
+                        s.SectionName != null && (s.SectionName.Equals(section, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.SectionName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().Equals(cleanSec, StringComparison.OrdinalIgnoreCase)));
                     if (sec != null)
                     {
                         sectionId = (int)sec.SectionId;
                     }
+                    else
+                    {
+                        sectionId = (int)classItem.Sections.First().SectionId;
+                    }
+                }
+
+                if (numericClassId == 0 || sectionId == 0)
+                {
+                    return Ok(new { success = true, data = new object[0] });
                 }
 
                 var grid = await _timetableService.GetClassTimetableGridAsync(numericClassId, sectionId, resolvedAcademicYear);
