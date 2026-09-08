@@ -52,21 +52,105 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
       if (!i) return false;
       const name = (i.studentName || '').toLowerCase();
       const adm = (i.admissionNo || i.studentId || '').toUpperCase();
-      const isDummy = name.includes('fahim') || name.includes('faheem') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || name.includes('nagaraj') || adm === 'ADM-2026-001' || adm === 'REG-1022';
+      const isDummy = name.includes('dummy') || name.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022';
       return !isDummy;
     });
   }, [studentUniformIssues]);
 
-  const totalStock = React.useMemo(() => {
-    if (!uniforms || uniforms.length === 0) return 0;
-    if (uniformInventory && uniformInventory.length > 0) {
-      return uniformInventory.reduce((acc, item) => {
-        const itemCap = Math.min(item.openingStock || 100, Number(item.currentStock) || 0);
-        return acc + itemCap;
+  const categoryStockSummary = React.useMemo(() => {
+    const categoriesSet = new Set<string>();
+
+    (uniformInventory || []).forEach(inv => {
+      if (!inv) return;
+      const catName = inv.itemName || inv.category || '';
+      if (!catName) return;
+      const lower = catName.toLowerCase();
+      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+      categoriesSet.add(normalizeUniformCategoryName(catName));
+    });
+
+    (uniforms || []).forEach(u => {
+      if (!u) return;
+      const cat = u.category || u.name;
+      if (!cat) return;
+      const lower = cat.toLowerCase();
+      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
+      categoriesSet.add(normalizeUniformCategoryName(cat));
+    });
+
+    const isDummyIssue = (issue: any) => {
+      if (!issue) return true;
+      const name = (issue.studentName || '').toLowerCase();
+      const adm = (issue.admissionNo || issue.studentId || '').toUpperCase();
+      return name.includes('dummy') || name.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
+    };
+
+    const activeIssues = (() => {
+      const rawActive = (studentUniformIssues || []).filter(
+        i => i && !isDummyIssue(i) && i.status !== 'Returned' && !(i.notes || '').toLowerCase().includes('returned')
+      );
+      const seenBaseStudents = new Set<string>();
+      const deduplicated: typeof rawActive = [];
+      for (const issue of rawActive) {
+        const issueCat = (issue.itemName || (issue as any).itemCategory || '').toLowerCase();
+        const isPkg = issue.type === 'Base Package' || (issueCat.includes('package') && !issueCat.includes('additional') && !(issue.notes || '').toLowerCase().includes('additional'));
+        const stdKey = (issue.admissionNo || issue.studentId || '').toLowerCase().trim();
+        if (isPkg) {
+          if (seenBaseStudents.has(stdKey)) continue;
+          seenBaseStudents.add(stdKey);
+        }
+        deduplicated.push(issue);
+      }
+      return deduplicated;
+    })();
+
+    const cleanNorm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const grouped = Array.from(categoriesSet).map(category => {
+      const catNormKey = cleanNorm(category);
+      const isCloth = catNormKey.includes('cloth') || catNormKey.includes('fabric');
+      const opening = isCloth ? 400 : 300;
+
+      const activeIssuedUnits = activeIssues.reduce((acc, issue) => {
+        const issueNameNorm = cleanNorm(issue.itemName || (issue as any).itemCategory || '');
+        const isPkgItem = catNormKey.includes('package') || catNormKey.includes('admission') || catNormKey.includes('kit');
+        const isPkgIssue = issue.type === 'Base Package' || issue.type === 'Additional Base Package' || issueNameNorm.includes('package') || issueNameNorm.includes('admission') || issueNameNorm.includes('kit');
+
+        let isMatch = false;
+        if (isPkgItem) {
+          if (isPkgIssue) {
+            if (catNormKey.includes('girl') || catNormKey.includes('female')) isMatch = issueNameNorm.includes('girl') || issueNameNorm.includes('female');
+            else if (catNormKey.includes('boy') || catNormKey.includes('male')) isMatch = issueNameNorm.includes('boy') || issueNameNorm.includes('male');
+            else isMatch = true;
+          }
+        } else if (!isPkgIssue) {
+          if ((catNormKey.includes('cloth') || catNormKey.includes('fabric')) && (issueNameNorm.includes('cloth') || issueNameNorm.includes('fabric'))) isMatch = true;
+          else if (catNormKey.includes('shoe') && issueNameNorm.includes('shoe')) isMatch = true;
+          else if ((catNormKey.includes('sport') || catNormKey.includes('track')) && (issueNameNorm.includes('sport') || issueNameNorm.includes('track'))) isMatch = true;
+          else if (catNormKey.includes('cap') && issueNameNorm.includes('cap')) isMatch = true;
+          else if (catNormKey.includes('sock') && issueNameNorm.includes('sock')) isMatch = true;
+          else if (catNormKey.includes('tie') && issueNameNorm.includes('tie')) isMatch = true;
+          else if (catNormKey.includes('belt') && issueNameNorm.includes('belt')) isMatch = true;
+          else if (catNormKey === 'shirt' || catNormKey === 'phant' || catNormKey === 'pant' || catNormKey === 'trouser' || catNormKey === 'skirt') {
+            isMatch = issueNameNorm === catNormKey || issueNameNorm.startsWith(catNormKey);
+          } else {
+            isMatch = issueNameNorm === catNormKey;
+          }
+        }
+
+        return isMatch ? acc + (Number(issue.quantity) || 1) : acc;
       }, 0);
-    }
-    return 0;
-  }, [uniforms, uniformInventory]);
+
+      const stock = Math.max(0, opening - activeIssuedUnits);
+      return { category, stock, total: opening };
+    });
+
+    const totalAvailable = grouped.reduce((acc, c) => acc + c.stock, 0);
+
+    return { categories: grouped, totalAvailable };
+  }, [uniformInventory, uniforms, studentUniformIssues]);
+
+  const totalStock = categoryStockSummary.totalAvailable;
   const lowStockItems = (uniformInventory || []).filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
 
   // Combine students master roster with admissions array to guarantee 100% student availability (matching StudentUniformView 1:1)
@@ -166,7 +250,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     const validGroups = Array.from(groupedMap.values()).filter(g => {
       const lower = (g.studentName || '').toLowerCase();
       const adm = (g.admissionNo || g.studentId || '').toUpperCase();
-      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || lower.includes('sarath') || lower.includes('nagaraj') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
+      const isDummy = lower.includes('dummy') || lower.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
       return !isDummy;
     });
 
@@ -175,8 +259,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
 
     validGroups.forEach(g => {
       const feeStat = getStudentUniformFeeStatus(g.studentId, g.admissionNo, g.className, g.gender, admissions, studentUniformIssues, feePayments, financeUniformConfigs);
-      const hasActiveBasePackage = (g.basePackage && g.basePackage.status !== 'Returned' && !(g.basePackage.notes || '').toLowerCase().includes('returned')) ||
-        (feeStat.isOptedAtAdmission && (!g.basePackage || g.basePackage.status !== 'Returned'));
+      const hasActiveBasePackage = Boolean(g.basePackage && g.basePackage.status !== 'Returned' && !(g.basePackage.notes || '').toLowerCase().includes('returned'));
 
       const activeExtras = (g.extraItems || []).filter(i => i.status !== 'Returned' && !(i.notes || '').toLowerCase().includes('returned'));
 
@@ -445,70 +528,9 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
 
           <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
             {(() => {
-              const catMap = new Map<string, number>();
-
-              const seenInvItemIds = new Set<string>();
-
-              (uniformInventory || []).forEach(inv => {
-                if (!inv) return;
-                const catName = inv.itemName || inv.category || '';
-                if (!catName) return;
-                const lower = catName.toLowerCase();
-                if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-
-                if (inv.itemId) seenInvItemIds.add(inv.itemId);
-                const normCat = normalizeUniformCategoryName(catName);
-                const currentVal = catMap.get(normCat) || 0;
-                const cappedItemStock = Math.min(inv.openingStock || 100, inv.currentStock || 0);
-                catMap.set(normCat, currentVal + cappedItemStock);
-              });
-
-              (uniforms || []).forEach(u => {
-                if (!u || (u.id && seenInvItemIds.has(u.id))) return;
-                const cat = u.category || u.name;
-                if (!cat) return;
-                const lower = cat.toLowerCase();
-                if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-                const normCat = normalizeUniformCategoryName(cat);
-                const existing = catMap.get(normCat) || 0;
-                const cappedCatalogStock = Math.min(u.openingStock || 100, u.availableStock ?? u.openingStock ?? 100);
-                catMap.set(normCat, existing + cappedCatalogStock);
-              });
-
-              const cleanNorm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-              const grouped = Array.from(catMap.entries()).map(([category, stock]) => {
-                const normCatKey = cleanNorm(category);
-
-                const activeIssuedUnits = (studentUniformIssues || []).reduce((acc, issue) => {
-                  if (!issue || issue.status === 'Returned' || issue.status === 'Cancelled') return acc;
-                  const notesLower = (issue.notes || '').toLowerCase();
-                  if (notesLower.includes('returned') || notesLower.includes('cancelled')) return acc;
-
-                  const issueNameNorm = cleanNorm(issue.itemName || (issue as any).itemCategory || '');
-
-                  let isMatch = issueNameNorm === normCatKey || issueNameNorm.includes(normCatKey) || normCatKey.includes(issueNameNorm);
-                  if (!isMatch) {
-                    if (normCatKey.includes('girl') && issueNameNorm.includes('girl')) isMatch = true;
-                    if (normCatKey.includes('boy') && issueNameNorm.includes('boy')) isMatch = true;
-                    if ((normCatKey.includes('cloth') || normCatKey.includes('fabric')) && (issueNameNorm.includes('cloth') || issueNameNorm.includes('fabric'))) isMatch = true;
-                  }
-
-                  if (isMatch) {
-                    return acc + (Number(issue.quantity) || 1);
-                  }
-                  return acc;
-                }, 0);
-
-                const currentAvailStock = stock;
-                const baseTotalStock = stock + activeIssuedUnits;
-
-                return { category, stock: currentAvailStock, total: baseTotalStock };
-              });
-
               const colors = ['bg-sky-500', 'bg-blue-500', 'bg-emerald-500', 'bg-indigo-500', 'bg-purple-500'];
 
-              return grouped.map((item, i) => {
+              return categoryStockSummary.categories.map((item, i) => {
                 const percent = item.total > 0 ? Math.min(100, Math.max(10, Math.round((item.stock / item.total) * 100))) : 100;
                 return (
                   <div key={item.category} className="space-y-1">

@@ -217,7 +217,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           (item.itemName.toLowerCase().includes("package") ||
             item.itemName.toLowerCase().includes("base")));
       let unitPrice =
-        item.price && item.price > 0 && item.price !== 85 ? item.price : 0;
+        item.price && item.price > 0 && item.price !== 35 && item.price !== 85 ? item.price : (item.price === 35 ? 350 : 0);
       if (unitPrice <= 0) {
         if (isPkg) {
           unitPrice =
@@ -237,7 +237,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               selectedStudent.gender,
               financeUniformConfigs,
               catItem?.price,
-            ) || 200;
+            ) || 350;
         }
       }
       return sum + unitPrice * (item.quantity || 1);

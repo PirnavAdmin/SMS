@@ -1948,6 +1948,7 @@ export interface StudentUniformIssue {
   branch?: string;
   notes?: string;
   actionRemarks?: string;
+  dressCode?: string;
   newSize?: string;
   type?: 'Base Package' | 'Additional Purchase' | 'Additional Base Package' | string;
   price?: number;
