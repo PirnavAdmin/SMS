@@ -27,9 +27,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     staff, academicClasses, rawClasses, subjects, holidays, students,
-    fetchAcademicClasses, fetchSubjects, fetchPeriods
+    fetchAcademicClasses, fetchSubjects, fetchPeriods,
+    academicYears
   } = useData();
-  const { user, role, selectedBranch, setSelectedBranch } = useAuth();
+  const { user, role, selectedBranch, setSelectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -39,7 +40,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, []);
 
   const [activeTab, setActiveTab] = useState<TimetableTab>('period-settings');
-  const [academicYear, setAcademicYear] = useState('2026-2027');
+  const [academicYear, setAcademicYear] = useState(selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || '');
+
+  useEffect(() => {
+    if (selectedAcademicYear) {
+      setAcademicYear(selectedAcademicYear);
+    } else if (academicYears && academicYears.length > 0) {
+      const current = academicYears.find(y => y.isCurrentAcademicYear || y.status === 'Active') || academicYears[0];
+      if (current?.academicYear) {
+        setAcademicYear(current.academicYear);
+      }
+    }
+  }, [selectedAcademicYear, academicYears]);
   const [includeSaturday, setIncludeSaturday] = useState(true);
 
   // Filter staff to Teaching Staff only
@@ -799,7 +811,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       teacherName: autoAssignedTeacher,
       timeSlot: timeSlotStr,
       academicYear,
-      branch: selectedBranch || 'Main Campus',
+      branch: selectedBranch || clsObj?.campus || clsObj?.branch || '',
       roomNo: formData.roomNo || clsObj?.sectionDetails?.[formData.section]?.roomNo || '',
       status: (formData.status || 'Draft') as 'Draft' | 'Published'
     };
@@ -857,6 +869,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
 
     const finalPeriodType = periodFormData.periodType === 'Other' ? customPeriodType : periodFormData.periodType;
+    const currentClassObj = academicClasses.find(c => c.name.toLowerCase().trim() === selectedClass.toLowerCase().trim());
+    const currentBranch = selectedBranch || currentClassObj?.campus || currentClassObj?.branch || '';
     
     if (periodFormData.id) {
       if (isEditingMaster || periodFormData.className) {
@@ -871,7 +885,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           if (mp.id === periodFormData.id) {
             addPeriodSetting({
               academicYear,
-              branch: selectedBranch || 'Main Campus',
+              branch: currentBranch,
               className: selectedClass,
               section: selectedSection,
               periodName: periodFormData.periodName!,
@@ -884,7 +898,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           } else {
             addPeriodSetting({
               academicYear: mp.academicYear,
-              branch: mp.branch,
+              branch: mp.branch || currentBranch,
               className: selectedClass,
               section: selectedSection,
               periodName: mp.periodName,
@@ -902,7 +916,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       if (isEditingMaster) {
         addPeriodSetting({
           academicYear,
-          branch: selectedBranch || 'Main Campus',
+          branch: currentBranch,
           periodName: periodFormData.periodName,
           startTime: periodFormData.startTime,
           endTime: periodFormData.endTime,
@@ -915,7 +929,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       } else {
         addPeriodSetting({
           academicYear,
-          branch: selectedBranch || 'Main Campus',
+          branch: currentBranch,
           className: selectedClass,
           section: selectedSection,
           periodName: periodFormData.periodName,

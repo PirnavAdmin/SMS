@@ -9,6 +9,7 @@ namespace SMS.Api.Controllers.AcademicManagement
     using SMS.Api.Data;
     using SMS.Api.Dtos;
     using SMS.Api.Exceptions;
+    using SMS.Api.Models;
     using SMS.Api.Services.Interfaces;
 
     [ApiController]
@@ -18,11 +19,13 @@ namespace SMS.Api.Controllers.AcademicManagement
     public class TimetableController : ControllerBase
     {
         private readonly ITimetableService _timetableService;
+        private readonly IAcademicYearService _academicYearService;
         private readonly AppDbContext _context;
 
-        public TimetableController(ITimetableService timetableService, AppDbContext context)
+        public TimetableController(ITimetableService timetableService, IAcademicYearService academicYearService, AppDbContext context)
         {
             _timetableService = timetableService;
+            _academicYearService = academicYearService;
             _context = context;
         }
 
@@ -31,10 +34,42 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpGet("options")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
-        public IActionResult GetTimetableDropdownOptions()
+        public async Task<IActionResult> GetTimetableDropdownOptions()
         {
-            var academicYears = new[] { "2026-2027", "2027-2028", "2025-2026" };
-            var days = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+            var academicYears = await _context.AcademicYears
+                .AsNoTracking()
+                .Where(ay => !ay.IsDeleted && ay.IsActive)
+                .OrderByDescending(ay => ay.StartDate)
+                .Select(ay => ay.AcademicYearName)
+                .ToListAsync();
+
+            if (!academicYears.Any())
+            {
+                var current = await _academicYearService.GetCurrentAcademicYearAsync();
+                academicYears.Add(current);
+            }
+
+            var days = await _context.TimetableSlots
+                .AsNoTracking()
+                .Where(s => !string.IsNullOrWhiteSpace(s.DayOfWeek))
+                .Select(s => s.DayOfWeek)
+                .Distinct()
+                .ToListAsync();
+
+            if (!days.Any())
+            {
+                days = Enum.GetValues<DayOfWeek>()
+                    .Where(d => d != DayOfWeek.Sunday)
+                    .Select(d => d.ToString())
+                    .ToList();
+            }
+
+            var periodTypes = await _context.PeriodSettings
+                .AsNoTracking()
+                .Where(p => !string.IsNullOrWhiteSpace(p.PeriodType) && !p.IsDeleted)
+                .Select(p => p.PeriodType)
+                .Distinct()
+                .ToListAsync();
 
             return Ok(new
             {
@@ -42,7 +77,8 @@ namespace SMS.Api.Controllers.AcademicManagement
                 data = new
                 {
                     academicYears,
-                    days
+                    days,
+                    periodTypes
                 }
             });
         }
@@ -55,12 +91,16 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetStudentTimetable(
             [FromQuery] int classId = 0,
             [FromQuery] int sectionId = 0,
-            [FromQuery] string academicYear = "2026-2027",
+            [FromQuery] string? academicYear = null,
             [FromQuery] string? dayOfWeek = null)
         {
             try
             {
-                var result = await _timetableService.GetStudentTimetableAsync(classId, sectionId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.GetStudentTimetableAsync(classId, sectionId, resolvedAcademicYear);
 
                 if (!string.IsNullOrWhiteSpace(dayOfWeek) && !dayOfWeek.Equals("All", StringComparison.OrdinalIgnoreCase))
                 {
@@ -101,11 +141,15 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetClassTimetableGrid(
             [FromQuery] int classId = 0, 
             [FromQuery] int sectionId = 0, 
-            [FromQuery] string academicYear = "2026-2027")
+            [FromQuery] string? academicYear = null)
         {
             try
             {
-                var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, resolvedAcademicYear);
                 return Ok(new { success = true, data = result });
             }
             catch (NotFoundException ex)
@@ -139,10 +183,14 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetAcademicsTimetable(
             [FromQuery] string classId,
             [FromQuery] string section,
-            [FromQuery] string academicYear = "2026-2027")
+            [FromQuery] string? academicYear = null)
         {
             try
             {
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
                 int numericClassId = 0;
                 if (string.IsNullOrEmpty(classId))
                 {
@@ -172,7 +220,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                     }
                 }
 
-                var grid = await _timetableService.GetClassTimetableGridAsync(numericClassId, sectionId, academicYear);
+                var grid = await _timetableService.GetClassTimetableGridAsync(numericClassId, sectionId, resolvedAcademicYear);
                 
                 var slots = grid.Slots.Select(s => new
                 {
@@ -202,11 +250,15 @@ namespace SMS.Api.Controllers.AcademicManagement
 
         [HttpGet("teacher/{teacherId:int}")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
-        public async Task<IActionResult> GetTeacherTimetable(int teacherId, [FromQuery] string academicYear = "2026-2027")
+        public async Task<IActionResult> GetTeacherTimetable(int teacherId, [FromQuery] string? academicYear = null)
         {
             try
             {
-                var result = await _timetableService.GetTeacherTimetableAsync(teacherId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.GetTeacherTimetableAsync(teacherId, resolvedAcademicYear);
                 return Ok(new { success = true, data = result });
             }
             catch (NotFoundException ex)
@@ -439,11 +491,15 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpPost("/api/academics/timetable/validate")]
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string academicYear = "2026-2027")
+        public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string? academicYear = null)
         {
             try
             {
-                var result = await _timetableService.ValidateTimetableAsync(classId, sectionId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.ValidateTimetableAsync(classId, sectionId, resolvedAcademicYear);
                 return Ok(new { success = true, message = "Timetable validated successfully.", data = result });
             }
             catch (Exception ex)

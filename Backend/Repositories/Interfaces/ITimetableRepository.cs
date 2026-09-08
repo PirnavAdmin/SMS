@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 
 public interface ITimetableRepository
 {
@@ -36,4 +37,32 @@ public interface ITimetableRepository
 
     // Copy Class Timetable
     Task<bool> CopyTimetableSlotsAsync(int sourceHeaderId, int targetHeaderId);
+
+    // Class & Section Lookups
+    Task<ClassGrade?> GetClassByIdAsync(int classId);
+    Task<ClassGrade?> GetClassByNameAsync(string className);
+    Task<ClassGrade?> GetDefaultClassAsync();
+    Task<ClassSection?> GetSectionByIdAsync(int sectionId);
+    Task<ClassSection?> GetSectionByNameAsync(int classId, string sectionName);
+    Task<ClassSection?> GetDefaultSectionForClassAsync(int classId);
+
+    // Subject Lookups
+    Task<Subject?> GetSubjectByIdAsync(int subjectId);
+    Task<Subject?> GetSubjectByNameAsync(string subjectName);
+    Task<List<Subject>> GetAllSubjectsAsync();
+
+    // Staff Lookups
+    Task<Staff?> GetStaffByIdAsync(int staffId);
+    Task<Staff?> GetStaffByNameAsync(string firstName, string lastName);
+    Task<List<Staff>> GetAllStaffAsync();
+
+    // Class Subject Mappings
+    Task<ClassSubjectMapping?> GetClassSubjectMappingAsync(int classId, int subjectId);
+    Task<List<ClassSubjectMapping>> GetClassSubjectMappingsByClassAsync(int classId);
+    Task<List<ClassSubjectMapping>> GetAllClassSubjectMappingsAsync();
+
+    // Batch & Regeneration Operations
+    Task<List<TimetableSlot>> GetSlotsByAcademicYearAsync(string academicYear);
+    Task DeleteSlotsByHeaderIdsAsync(IEnumerable<int> headerIds);
+    Task SaveSlotsBatchAsync(IEnumerable<TimetableSlot> slots);
 }

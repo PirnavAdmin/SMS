@@ -11,9 +11,9 @@ public class ClassGrade
 
 	public string? ClassName { get; set; }
 
-	public string CampusLocation { get; set; } = "Main Campus";
+	public string CampusLocation { get; set; } = string.Empty;
 
-	public string AcademicYear { get; set; } = "2026-2027";
+	public string AcademicYear { get; set; } = string.Empty;
 
 	public int? DisplayOrder { get; set; }
 

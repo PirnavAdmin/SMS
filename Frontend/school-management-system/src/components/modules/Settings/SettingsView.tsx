@@ -397,15 +397,49 @@ export const SettingsView: React.FC = () => {
     saveIdSequenceSettings(nextForm);
 
     try {
-      if (changePassword) {
-        await changePassword(passForm.currentPassword, passForm.newPassword);
-      }
-      setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      addToast("success", "Password Changed", "Your password has been updated.");
-    } catch (err: any) {
-      addToast("error", "Password Change Failed", err?.message || "Failed to update password.");
-    }
+      await addOrUpdateCustomIdFormatApi(newSeq);
+    } catch {}
+
+    addToast(
+      "success",
+      "Custom ID Format Added",
+      "A new custom ID sequence card has been added to database.",
+    );
   };
+
+  const handleDeleteCustomIdSequence = async (seqId: string) => {
+    const nextForm = {
+      ...idForm,
+      customSequences: (idForm.customSequences || []).filter(
+        (s) => s.id !== seqId,
+      ),
+    };
+    setIdForm(nextForm);
+    saveIdSequenceSettings(nextForm);
+
+    try {
+      await deleteCustomIdFormatApi(seqId);
+    } catch {}
+
+    addToast(
+      "info",
+      "Custom ID Format Removed",
+      "Removed custom ID sequence format from database.",
+    );
+  };
+
+  const handleUpdateCustomSequence = (
+    seqId: string,
+    updates: Partial<CustomIdSequence>,
+  ) => {
+    setIdForm((prev) => ({
+      ...prev,
+      customSequences: (prev.customSequences || []).map((s) =>
+        s.id === seqId ? { ...s, ...updates } : s,
+      ),
+    }));
+  };
+
 
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState("");

@@ -29,7 +29,8 @@ namespace Backend.Tests.Services
                 .UseInMemoryDatabase(databaseName: System.Guid.NewGuid().ToString())
                 .Options;
             _context = new SMS.Api.Data.AppDbContext(options);
-            _service = new SchoolService(_repoMock.Object, _context, _emailMock.Object);
+            var settingsMock = new Mock<SMS.Api.Services.Interfaces.Settings.ISettingsService>();
+            _service = new SchoolService(_repoMock.Object, _context, _emailMock.Object, settingsMock.Object);
         }
 
         // --- LEAVE APPLICATION TESTS ---

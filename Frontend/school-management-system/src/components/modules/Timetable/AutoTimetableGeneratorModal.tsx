@@ -106,7 +106,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   isOpen,
   onClose,
   onSuccess,
-  initialAcademicYear = '2026-2027'
+  initialAcademicYear = ''
 }) => {
   const {
     academicClasses,
@@ -122,16 +122,32 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     bulkAddTimetableSlots,
     deleteTimetableSlot,
     clearClassTimetable,
-    fetchPeriods
+    fetchPeriods,
+    academicYears
   } = useData();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   // Wizard active tab
   const [activeStep, setActiveStep] = useState<'timings' | 'classes' | 'generate'>('timings');
 
   // Academic Year & Campus
-  const [academicYear, setAcademicYear] = useState(initialAcademicYear);
+  const [academicYear, setAcademicYear] = useState(
+    initialAcademicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || ''
+  );
+
+  useEffect(() => {
+    if (initialAcademicYear) {
+      setAcademicYear(initialAcademicYear);
+    } else if (selectedAcademicYear) {
+      setAcademicYear(selectedAcademicYear);
+    } else if (academicYears && academicYears.length > 0) {
+      const current = academicYears.find(y => y.isCurrentAcademicYear || y.status === 'Active') || academicYears[0];
+      if (current?.academicYear) {
+        setAcademicYear(current.academicYear);
+      }
+    }
+  }, [initialAcademicYear, selectedAcademicYear, academicYears]);
 
   // Daily School Timing Inputs (dynamic)
   const [schoolStartTime, setSchoolStartTime] = useState('08:30 AM');
@@ -716,7 +732,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           sequence: p.sequence,
           status: 'Active',
           academicYear,
-          branch: selectedBranch || 'Main Campus'
+          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || ((academicClasses[0] as any)?.branch) || ((academicClasses[0] as any)?.campus) || ''
         });
       });
 
@@ -724,6 +740,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         const lastDash = classSec.lastIndexOf('-');
         const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
         const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
+        const rawCls = rawClasses?.find((rc: any) => rc.className === className || rc.name === className);
+        const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
+        const classBranch = selectedBranch || rawCls?.campusLocation || (clsObj as any)?.branch || (clsObj as any)?.campus || '';
 
         calculationResult.periods.forEach((p, idx) => {
           newPeriodSettings.push({
@@ -737,7 +756,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
             sequence: p.sequence,
             status: 'Active',
             academicYear,
-            branch: selectedBranch || 'Main Campus'
+            branch: classBranch
           });
         });
       }
@@ -904,6 +923,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
               const dynamicRoomNo = secRoom && secRoom.toLowerCase() !== 'unassigned' && secRoom.toLowerCase() !== 'classroom'
                 ? secRoom
                 : `${className.replace(/class/gi, '').trim()}-${section}`;
+              const rawCls = rawClasses?.find((rc: any) => rc.className === className || rc.name === className);
+              const slotBranch = selectedBranch || rawCls?.campusLocation || (clsObj as any)?.branch || (clsObj as any)?.campus || '';
 
               newTimetableSlots.push({
                 id: `SLOT-AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -918,7 +939,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 roomNo: dynamicRoomNo,
                 academicYear,
                 status: 'Draft',
-                branch: selectedBranch || 'Main Campus'
+                branch: slotBranch
               });
             }
           }
@@ -980,7 +1001,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                   classId,
                   className: slot.className,
                   sectionName: slot.section,
-                  academicYear: slot.academicYear || academicYear || "2026-2027",
+                  academicYear: slot.academicYear || academicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "",
                   dayOfWeek: slot.day,
                   startTime,
                   endTime,

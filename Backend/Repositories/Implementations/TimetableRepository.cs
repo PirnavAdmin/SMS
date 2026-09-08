@@ -320,4 +320,155 @@ public class TimetableRepository : ITimetableRepository
         await _context.SaveChangesAsync();
         return true;
     }
+
+    // =========================================================
+    // CLASS & SECTION LOOKUPS
+    // =========================================================
+
+    public async Task<ClassGrade?> GetClassByIdAsync(int classId)
+    {
+        return await _context.Classes.FindAsync(classId);
+    }
+
+    public async Task<ClassGrade?> GetClassByNameAsync(string className)
+    {
+        if (string.IsNullOrWhiteSpace(className)) return null;
+        var clean = className.Trim().ToLower();
+        return await _context.Classes
+            .FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == clean);
+    }
+
+    public async Task<ClassGrade?> GetDefaultClassAsync()
+    {
+        return await _context.Classes.OrderBy(c => c.ClassId).FirstOrDefaultAsync();
+    }
+
+    public async Task<ClassSection?> GetSectionByIdAsync(int sectionId)
+    {
+        return await _context.ClassSections.FindAsync(sectionId);
+    }
+
+    public async Task<ClassSection?> GetSectionByNameAsync(int classId, string sectionName)
+    {
+        if (string.IsNullOrWhiteSpace(sectionName)) return null;
+        var clean = sectionName.Trim().ToLower();
+        return await _context.ClassSections
+            .FirstOrDefaultAsync(s => s.ClassId == classId && s.SectionName != null && s.SectionName.ToLower() == clean);
+    }
+
+    public async Task<ClassSection?> GetDefaultSectionForClassAsync(int classId)
+    {
+        return await _context.ClassSections
+            .Where(s => s.ClassId == classId)
+            .OrderBy(s => s.SectionId)
+            .FirstOrDefaultAsync();
+    }
+
+    // =========================================================
+    // SUBJECT LOOKUPS
+    // =========================================================
+
+    public async Task<Subject?> GetSubjectByIdAsync(int subjectId)
+    {
+        return await _context.Subjects.FindAsync(subjectId);
+    }
+
+    public async Task<Subject?> GetSubjectByNameAsync(string subjectName)
+    {
+        if (string.IsNullOrWhiteSpace(subjectName)) return null;
+        var clean = subjectName.Trim().ToLower();
+        return await _context.Subjects
+            .FirstOrDefaultAsync(s => s.SubjectName != null && s.SubjectName.ToLower() == clean);
+    }
+
+    public async Task<List<Subject>> GetAllSubjectsAsync()
+    {
+        return await _context.Subjects.AsNoTracking().ToListAsync();
+    }
+
+    // =========================================================
+    // STAFF LOOKUPS
+    // =========================================================
+
+    public async Task<Staff?> GetStaffByIdAsync(int staffId)
+    {
+        return await _context.Staff.FindAsync(staffId);
+    }
+
+    public async Task<Staff?> GetStaffByNameAsync(string firstName, string lastName)
+    {
+        var fn = firstName.Trim().ToLower();
+        var ln = (lastName ?? "").Trim().ToLower();
+        return await _context.Staff
+            .FirstOrDefaultAsync(s => s.FirstName != null && s.FirstName.ToLower() == fn &&
+                                      (string.IsNullOrEmpty(ln) || (s.LastName != null && s.LastName.ToLower() == ln)));
+    }
+
+    public async Task<List<Staff>> GetAllStaffAsync()
+    {
+        return await _context.Staff.AsNoTracking().ToListAsync();
+    }
+
+    // =========================================================
+    // CLASS SUBJECT MAPPINGS
+    // =========================================================
+
+    public async Task<ClassSubjectMapping?> GetClassSubjectMappingAsync(int classId, int subjectId)
+    {
+        return await _context.ClassSubjectMappings
+            .FirstOrDefaultAsync(m => m.ClassId == classId && m.SubjectId == subjectId);
+    }
+
+    public async Task<List<ClassSubjectMapping>> GetClassSubjectMappingsByClassAsync(int classId)
+    {
+        return await _context.ClassSubjectMappings
+            .AsNoTracking()
+            .Where(m => m.ClassId == classId)
+            .ToListAsync();
+    }
+
+    public async Task<List<ClassSubjectMapping>> GetAllClassSubjectMappingsAsync()
+    {
+        return await _context.ClassSubjectMappings.AsNoTracking().ToListAsync();
+    }
+
+    // =========================================================
+    // BATCH & REGENERATION OPERATIONS
+    // =========================================================
+
+    public async Task<List<TimetableSlot>> GetSlotsByAcademicYearAsync(string academicYear)
+    {
+        return await _context.TimetableSlots
+            .AsNoTracking()
+            .Include(s => s.Header)
+            .Where(s => s.Header!.AcademicYear == academicYear)
+            .ToListAsync();
+    }
+
+    public async Task DeleteSlotsByHeaderIdsAsync(IEnumerable<int> headerIds)
+    {
+        var ids = headerIds.ToList();
+        if (ids.Any())
+        {
+            var slotsToDelete = await _context.TimetableSlots
+                .Where(s => ids.Contains(s.HeaderId))
+                .ToListAsync();
+            if (slotsToDelete.Any())
+            {
+                _context.TimetableSlots.RemoveRange(slotsToDelete);
+                await _context.SaveChangesAsync();
+            }
+        }
+    }
+
+    public async Task SaveSlotsBatchAsync(IEnumerable<TimetableSlot> slots)
+    {
+        var list = slots.ToList();
+        if (list.Any())
+        {
+            await _context.TimetableSlots.AddRangeAsync(list);
+            await _context.SaveChangesAsync();
+        }
+    }
 }
+

@@ -29,9 +29,9 @@ public class SaveTimetableSlotDto
 {
     public int ClassId { get; set; }
     public int SectionId { get; set; }
-    public string AcademicYear { get; set; } = "2026-2027";
-    public string BranchName { get; set; } = "Main Campus";
-    public string DayOfWeek { get; set; } = "Monday";
+    public string? AcademicYear { get; set; }
+    public string? BranchName { get; set; }
+    public string DayOfWeek { get; set; } = string.Empty;
     public string StartTime { get; set; } = string.Empty; // "08:30 AM"
     public string EndTime { get; set; } = string.Empty;   // "09:15 AM"
     public int SubjectId { get; set; }
@@ -51,8 +51,8 @@ public class TimetableSlotDto
     public int? PeriodId { get; set; }
     public string PeriodName { get; set; } = string.Empty;
     public string DayOfWeek { get; set; } = string.Empty;
-    public string StartTime { get; set; } = string.Empty; // "08:30 AM"
-    public string EndTime { get; set; } = string.Empty;   // "09:15 AM"
+    public string StartTime { get; set; } = string.Empty;
+    public string EndTime { get; set; } = string.Empty;
     public int SubjectId { get; set; }
     public string SubjectName { get; set; } = string.Empty;
     public string SubjectCode { get; set; } = string.Empty;
@@ -66,8 +66,8 @@ public class TimetableSlotDto
 public class ClassTimetableGridDto
 {
     public int HeaderId { get; set; }
-    public string AcademicYear { get; set; } = "2026-2027";
-    public string BranchName { get; set; } = "Main Campus";
+    public string AcademicYear { get; set; } = string.Empty;
+    public string BranchName { get; set; } = string.Empty;
     public int ClassId { get; set; }
     public string ClassName { get; set; } = string.Empty;
     public int SectionId { get; set; }
@@ -87,7 +87,7 @@ public class ClassSubjectQuotaDto
     public int AssignedTeacherId { get; set; }
     public string AssignedTeacherName { get; set; } = string.Empty;
     public int AssignedPeriodsPerWeek { get; set; }
-    public int MaxPeriodsPerWeek { get; set; } = 5;
+    public int MaxPeriodsPerWeek { get; set; }
 }
 
 // 4. Auto-Generated Teacher Timetable DTOs
@@ -106,7 +106,7 @@ public class StudentTimetableDto
     public string ClassName { get; set; } = string.Empty;
     public int SectionId { get; set; }
     public string SectionName { get; set; } = string.Empty;
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string AcademicYear { get; set; } = string.Empty;
     public List<DayScheduleDto> Days { get; set; } = new();
 }
 
@@ -123,14 +123,14 @@ public class CopyTimetableDto
     public int SourceSectionId { get; set; }
     public int TargetClassId { get; set; }
     public int TargetSectionId { get; set; }
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string? AcademicYear { get; set; }
 }
 
 public class PublishTimetableDto
 {
     public int ClassId { get; set; }
     public int SectionId { get; set; }
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string? AcademicYear { get; set; }
     public string Status { get; set; } = "Published"; // "Draft", "Published"
     public string? ClassName { get; set; }
     public string? SectionName { get; set; }
@@ -139,10 +139,10 @@ public class PublishTimetableDto
 // 6. Generate Timetable DTOs
 public class GenerateTimetableRequestDto
 {
-    public string AcademicYear { get; set; } = "2026-2027";
-    public string SchoolStartTime { get; set; } = "08:30 AM";
-    public string SchoolEndTime { get; set; } = "03:30 PM";
-    public int PeriodDurationMinutes { get; set; } = 45;
+    public string? AcademicYear { get; set; }
+    public string? SchoolStartTime { get; set; }
+    public string? SchoolEndTime { get; set; }
+    public int PeriodDurationMinutes { get; set; }
     public List<string> WorkingDays { get; set; } = new();
     public List<BreakItemDto> Breaks { get; set; } = new();
     public List<string> SelectedClassSections { get; set; } = new(); // e.g. ["Class 9-A"]

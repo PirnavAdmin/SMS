@@ -5,10 +5,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using SMS.Api.Data;
+using Microsoft.Extensions.Logging;
 using SMS.Api.Dtos;
-using SMS.Api.Dtos.AcademicManagement;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
@@ -18,12 +16,23 @@ using SMS.Api.Services.Interfaces;
 public class TimetableService : ITimetableService
 {
     private readonly ITimetableRepository _timetableRepository;
-    private readonly AppDbContext _context;
+    private readonly IAcademicYearService _academicYearService;
+    private readonly ITimetableValidationService _validationService;
+    private readonly ITimetableGenerationService _generationService;
+    private readonly ILogger<TimetableService> _logger;
 
-    public TimetableService(ITimetableRepository timetableRepository, AppDbContext context)
+    public TimetableService(
+        ITimetableRepository timetableRepository,
+        IAcademicYearService academicYearService,
+        ITimetableValidationService validationService,
+        ITimetableGenerationService generationService,
+        ILogger<TimetableService> logger)
     {
         _timetableRepository = timetableRepository;
-        _context = context;
+        _academicYearService = academicYearService;
+        _validationService = validationService;
+        _generationService = generationService;
+        _logger = logger;
     }
 
     // =========================================================
@@ -36,8 +45,6 @@ public class TimetableService : ITimetableService
             throw new BadRequestException("Time string cannot be empty.");
 
         timeStr = timeStr.Trim();
-
-        // Formats: "08:30 AM", "8:30 AM", "08:30:00", "08:30"
         string[] formats = { "hh:mm tt", "h:mm tt", "hh:mm:ss", "hh:mm", "h:mm", "H:mm", "HH:mm" };
 
         if (DateTime.TryParseExact(timeStr, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDateTime))
@@ -88,7 +95,6 @@ public class TimetableService : ITimetableService
         if (startTime >= endTime)
             throw new PeriodOverlapException($"Start time ({FormatTime(startTime)}) must be earlier than end time ({FormatTime(endTime)}).");
 
-        // Check for timing overlaps with existing period settings
         bool hasOverlap = await _timetableRepository.HasOverlappingPeriodSettingAsync(startTime, endTime, dto.PeriodId);
         if (hasOverlap)
         {
@@ -99,11 +105,12 @@ public class TimetableService : ITimetableService
         if (dto.PeriodId.HasValue && dto.PeriodId.Value > 0)
         {
             period = await _timetableRepository.GetPeriodSettingByIdAsync(dto.PeriodId.Value)
-                ?? throw new NotFoundException($"Period setting with ID {dto.PeriodId} not found.");
+                ?? throw new NotFoundException($"Period setting with ID {dto.PeriodId.Value} not found.");
+
             period.PeriodName = dto.PeriodName.Trim();
             period.StartTime = startTime;
             period.EndTime = endTime;
-            period.PeriodType = dto.PeriodType;
+            period.PeriodType = !string.IsNullOrWhiteSpace(dto.PeriodType) ? dto.PeriodType.Trim() : period.PeriodType;
             period.DisplayOrder = dto.DisplayOrder;
         }
         else
@@ -113,14 +120,14 @@ public class TimetableService : ITimetableService
                 PeriodName = dto.PeriodName.Trim(),
                 StartTime = startTime,
                 EndTime = endTime,
-                PeriodType = dto.PeriodType,
+                PeriodType = !string.IsNullOrWhiteSpace(dto.PeriodType) ? dto.PeriodType.Trim() : (dto.PeriodName.Contains("Break", StringComparison.OrdinalIgnoreCase) ? "Break" : "Teaching Period"),
                 DisplayOrder = dto.DisplayOrder,
                 IsActive = true,
                 IsDeleted = false
             };
         }
 
-        await _timetableRepository.SavePeriodSettingAsync(period);
+        period = await _timetableRepository.SavePeriodSettingAsync(period);
 
         return new PeriodSettingDto
         {
@@ -142,12 +149,17 @@ public class TimetableService : ITimetableService
     // CLASS TIMETABLE MATRIX & SLOTS
     // =========================================================
 
-    public async Task<ClassTimetableGridDto> GetClassTimetableGridAsync(int classId, int sectionId, string academicYear = "2026-2027")
+    public async Task<ClassTimetableGridDto> GetClassTimetableGridAsync(int classId, int sectionId, string academicYear = "")
     {
-        var classGrade = await _context.Classes.FirstOrDefaultAsync(c => c.ClassId == classId)
+        if (string.IsNullOrWhiteSpace(academicYear))
+        {
+            academicYear = await _academicYearService.GetCurrentAcademicYearAsync();
+        }
+
+        var classGrade = await _timetableRepository.GetClassByIdAsync(classId)
             ?? throw new NotFoundException($"Class with ID {classId} not found.");
 
-        var section = await _context.ClassSections.FirstOrDefaultAsync(s => s.SectionId == sectionId)
+        var section = await _timetableRepository.GetSectionByIdAsync(sectionId)
             ?? throw new NotFoundException($"Section with ID {sectionId} not found.");
 
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(classId, sectionId, academicYear);
@@ -158,8 +170,8 @@ public class TimetableService : ITimetableService
                 ClassId = classId,
                 SectionId = sectionId,
                 AcademicYear = academicYear,
-                BranchName = "Main Campus",
-                Status = "Draft",
+                BranchName = !string.IsNullOrWhiteSpace(classGrade.CampusLocation) ? classGrade.CampusLocation : string.Empty,
+                Status = nameof(TimetableStatus.Draft),
                 IncludeSaturday = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -170,7 +182,6 @@ public class TimetableService : ITimetableService
         var slots = await _timetableRepository.GetSlotsByHeaderIdAsync(header.HeaderId);
         var subjectCandidates = await GetClassSubjectsCandidatesAsync(classId, sectionId);
 
-        // Update assigned periods count per subject
         foreach (var sub in subjectCandidates)
         {
             sub.AssignedPeriodsPerWeek = slots.Count(s => s.SubjectId == sub.SubjectId);
@@ -189,7 +200,9 @@ public class TimetableService : ITimetableService
             SubjectName = s.Subject?.SubjectName ?? string.Empty,
             SubjectCode = s.Subject?.SubjectCode ?? string.Empty,
             TeacherId = s.TeacherId,
-            TeacherName = s.Teacher != null ? $"{s.Teacher.FirstName} {s.Teacher.LastName}" : string.Empty,
+            TeacherName = s.Teacher != null
+                ? (s.Teacher.DisplayName ?? $"{s.Teacher.FirstName ?? ""} {s.Teacher.LastName ?? ""}".Trim())
+                : string.Empty,
             EmployeeId = s.Teacher?.EmployeeId ?? string.Empty,
             RoomNo = !string.IsNullOrWhiteSpace(s.RoomNo) ? s.RoomNo : (section.RoomNo ?? string.Empty)
         }).ToList();
@@ -219,81 +232,93 @@ public class TimetableService : ITimetableService
         if (startTime >= endTime)
             throw new PeriodOverlapException($"Start time ({FormatTime(startTime)}) must be earlier than end time ({FormatTime(endTime)}).");
 
-        // Resolve ClassId by name if not supplied
+        if (string.IsNullOrWhiteSpace(dto.AcademicYear))
+        {
+            dto.AcademicYear = await _academicYearService.GetCurrentAcademicYearAsync();
+        }
+
+        // 1. Resolve ClassId by name if not supplied
         if (dto.ClassId == 0 && !string.IsNullOrWhiteSpace(dto.ClassName))
         {
-            var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == dto.ClassName.ToLower().Trim());
+            var matchedClass = await _timetableRepository.GetClassByNameAsync(dto.ClassName);
             if (matchedClass != null)
             {
                 dto.ClassId = matchedClass.ClassId;
             }
         }
 
-        // Resolve SectionId by name if not supplied
+        if (dto.ClassId == 0)
+        {
+            throw new BadRequestException("A valid ClassId or ClassName is required.");
+        }
+
+        // 2. Resolve SectionId by name if not supplied
         if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
         {
-            var matchedSection = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == dto.ClassId && s.SectionName != null && s.SectionName.ToLower() == dto.SectionName.ToLower().Trim());
+            var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
             if (matchedSection != null)
             {
                 dto.SectionId = matchedSection.SectionId;
             }
         }
 
-        // Resolve SubjectId by name if not supplied
-        if (dto.SubjectId == 0 && !string.IsNullOrWhiteSpace(dto.SubjectName))
+        if (dto.SectionId == 0)
         {
-            var matchedSubject = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName != null && s.SubjectName.ToLower() == dto.SubjectName.ToLower().Trim());
-            if (matchedSubject != null)
-            {
-                dto.SubjectId = matchedSubject.SubjectId;
-            }
+            throw new BadRequestException("A valid SectionId or SectionName is required.");
         }
 
-        // Resolve TeacherId by name if not supplied
-        if ((!dto.TeacherId.HasValue || dto.TeacherId.Value == 0) && !string.IsNullOrWhiteSpace(dto.TeacherName) && dto.TeacherName != "Unassigned" && dto.TeacherName != "--")
+        // 3. Resolve TeacherId by name if not supplied
+        if ((!dto.TeacherId.HasValue || dto.TeacherId.Value == 0) &&
+            !string.IsNullOrWhiteSpace(dto.TeacherName) &&
+            dto.TeacherName != "Unassigned" && dto.TeacherName != "--")
         {
             var nameParts = dto.TeacherName.Split(' ');
             var firstName = nameParts[0].Trim();
             var lastName = nameParts.Length > 1 ? nameParts[1].Trim() : "";
 
-            var matchedTeacher = await _context.Staff.FirstOrDefaultAsync(s => s.FirstName != null && s.FirstName.ToLower() == firstName.ToLower() && (string.IsNullOrEmpty(lastName) || (s.LastName != null && s.LastName.ToLower() == lastName.ToLower())));
+            var matchedTeacher = await _timetableRepository.GetStaffByNameAsync(firstName, lastName);
             if (matchedTeacher != null)
             {
                 dto.TeacherId = matchedTeacher.StaffId;
             }
         }
 
-        // Resolve RoomNo from Section if not supplied
+        // 5. Resolve RoomNo from Section if not supplied
         if (string.IsNullOrWhiteSpace(dto.RoomNo) && dto.SectionId > 0)
         {
-            var secObj = await _context.ClassSections.FindAsync(dto.SectionId);
+            var secObj = await _timetableRepository.GetSectionByIdAsync(dto.SectionId);
             if (secObj != null && !string.IsNullOrWhiteSpace(secObj.RoomNo))
             {
                 dto.RoomNo = secObj.RoomNo;
             }
         }
 
-        // 1. Get or Create Header
+        // 6. Get or Create Header
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(dto.ClassId, dto.SectionId, dto.AcademicYear);
         if (header == null)
         {
+            var classGradeObj = await _timetableRepository.GetClassByIdAsync(dto.ClassId);
+            var branchName = !string.IsNullOrWhiteSpace(dto.BranchName)
+                ? dto.BranchName
+                : (!string.IsNullOrWhiteSpace(classGradeObj?.CampusLocation) ? classGradeObj.CampusLocation : string.Empty);
+
             header = new TimetableHeader
             {
                 ClassId = dto.ClassId,
                 SectionId = dto.SectionId,
                 AcademicYear = dto.AcademicYear,
-                BranchName = dto.BranchName,
-                Status = "Draft",
+                BranchName = branchName,
+                Status = nameof(TimetableStatus.Draft),
                 IncludeSaturday = true
             };
             header = await _timetableRepository.CreateHeaderAsync(header);
         }
 
-        // 2. Resolve Subject
-        var subject = await _context.Subjects.FindAsync(dto.SubjectId)
+        // 7. Resolve Subject
+        var subject = await _timetableRepository.GetSubjectByIdAsync(dto.SubjectId)
             ?? throw new NotFoundException($"Subject with ID {dto.SubjectId} (Name: '{dto.SubjectName}') not found.");
 
-        // 3. Resolve Assigned Teacher (Auto-populated if not supplied)
+        // 8. Resolve Assigned Teacher strictly from TeacherSubjectAssignments
         int teacherId;
         if (dto.TeacherId.HasValue && dto.TeacherId.Value > 0)
         {
@@ -304,64 +329,32 @@ public class TimetableService : ITimetableService
             var assignedStaff = await _timetableRepository.GetAssignedTeacherForSubjectAsync(dto.ClassId, dto.SectionId, dto.SubjectId);
             if (assignedStaff == null)
             {
-                // BUG-017 FIX: load subject with its Department so we can compare by name, not int ID
-                var subjectWithDept = await _context.Subjects
-                    .Include(s => s.Department)
-                    .FirstOrDefaultAsync(s => s.SubjectId == dto.SubjectId);
-
-                if (subjectWithDept?.Department?.DepartmentName != null)
-                {
-                    var deptName = subjectWithDept.Department.DepartmentName.ToLower();
-                    assignedStaff = await _context.Staff
-                        .Where(s => s.IsActive == true && s.Department != null &&
-                                    s.Department.ToLower() == deptName)
-                        .FirstOrDefaultAsync();
-                }
-
-                // Final fallback: any active staff — only if no dept match found
-                if (assignedStaff == null)
-                {
-                    throw new BadRequestException(
-                        $"No assigned teacher found for subject '{subject.SubjectName}'. " +
-                        "Please assign a teacher to this class subject before saving a timetable slot.");
-                }
+                throw new BadRequestException(
+                    $"No assigned teacher found in Teacher Subject Assignments for subject '{subject.SubjectName}' in Class ID {dto.ClassId}, Section ID {dto.SectionId}. " +
+                    "Please assign a teacher to this class subject before creating a timetable slot.");
             }
             teacherId = assignedStaff.StaffId;
         }
 
-        var teacher = await _context.Staff.FindAsync(teacherId)
+        var teacher = await _timetableRepository.GetStaffByIdAsync(teacherId)
             ?? throw new NotFoundException($"Teacher/Staff with ID {teacherId} not found.");
 
-        // 4. TEACHER CONFLICT VALIDATION
-        var teacherConflict = await _timetableRepository.CheckTeacherConflictAsync(teacherId, dto.DayOfWeek, startTime, endTime);
-        if (teacherConflict != null && teacherConflict.HeaderId != header.HeaderId)
-        {
-            var otherClass = teacherConflict.Header?.ClassGrade?.ClassName ?? "another class";
-            var otherSec = teacherConflict.Header?.ClassSection?.SectionName ?? "";
-            throw new TimetableConflictException(
-                $"Teacher Overlap Conflict: Teacher '{teacher.FirstName} {teacher.LastName} ({teacher.EmployeeId})' is already assigned to {otherClass} - Section {otherSec} on {dto.DayOfWeek} ({FormatTime(teacherConflict.StartTime)} - {FormatTime(teacherConflict.EndTime)})."
-            );
-        }
+        var teacherName = teacher.DisplayName ?? $"{teacher.FirstName ?? ""} {teacher.LastName ?? ""}".Trim();
+        if (string.IsNullOrWhiteSpace(teacherName)) teacherName = "Faculty Member";
 
-        // 5. ROOM CONFLICT VALIDATION
-        if (!string.IsNullOrWhiteSpace(dto.RoomNo))
-        {
-            var roomConflict = await _timetableRepository.CheckRoomConflictAsync(dto.RoomNo, dto.DayOfWeek, startTime, endTime);
-            if (roomConflict != null && roomConflict.HeaderId != header.HeaderId)
-            {
-                var otherClass = roomConflict.Header?.ClassGrade?.ClassName ?? "another class";
-                var otherSec = roomConflict.Header?.ClassSection?.SectionName ?? "";
-                throw new TimetableConflictException(
-                    $"Room Overlap Conflict: '{dto.RoomNo}' is already occupied by {otherClass} - Section {otherSec} on {dto.DayOfWeek} ({FormatTime(roomConflict.StartTime)} - {FormatTime(roomConflict.EndTime)})."
-                );
-            }
-        }
-
-        // 6. Check existing slot for this class on same day and same period/time slot
+        // 9. Existing slot check
         var existingSlot = (await _timetableRepository.GetSlotsByHeaderIdAsync(header.HeaderId))
             .FirstOrDefault(s => s.DayOfWeek.Equals(dto.DayOfWeek, StringComparison.OrdinalIgnoreCase) &&
                                  ((s.PeriodId.HasValue && dto.PeriodId.HasValue && s.PeriodId == dto.PeriodId) ||
                                   (s.StartTime == startTime && s.EndTime == endTime)));
+
+        // 10. Weekly Subject Limit Enforcement
+        await _validationService.ValidateWeeklySubjectLimitAsync(
+            header.HeaderId, dto.ClassId, dto.SubjectId, subject.SubjectName ?? string.Empty, existingSlot?.SlotId);
+
+        // 11. Conflict Validation (Teacher & Room Overlap)
+        await _validationService.ValidateSlotConflictsAsync(
+            header.HeaderId, teacherId, teacherName, dto.RoomNo, dto.DayOfWeek, startTime, endTime, existingSlot?.SlotId);
 
         TimetableSlot slot;
         if (existingSlot != null)
@@ -404,7 +397,7 @@ public class TimetableService : ITimetableService
             SubjectName = subject.SubjectName ?? "",
             SubjectCode = subject.SubjectCode ?? "",
             TeacherId = teacher.StaffId,
-            TeacherName = $"{teacher.FirstName} {teacher.LastName}",
+            TeacherName = teacherName,
             EmployeeId = teacher.EmployeeId ?? "",
             RoomNo = slot.RoomNo
         };
@@ -417,43 +410,64 @@ public class TimetableService : ITimetableService
 
     public async Task<ClassTimetableGridDto> PublishTimetableAsync(PublishTimetableDto dto)
     {
-        // Resolve ClassId by name if not supplied
+        // 1. Resolve ClassId by name if not supplied
         if (dto.ClassId == 0 && !string.IsNullOrWhiteSpace(dto.ClassName))
         {
-            var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == dto.ClassName.ToLower().Trim());
+            var matchedClass = await _timetableRepository.GetClassByNameAsync(dto.ClassName);
             if (matchedClass != null)
             {
                 dto.ClassId = matchedClass.ClassId;
             }
+            else
+            {
+                throw new NotFoundException($"Class '{dto.ClassName}' not found.");
+            }
         }
 
-        // Resolve SectionId by name if not supplied
+        // 2. Resolve SectionId by name from ClassSections if not supplied
         if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
         {
-            var matchedSection = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == dto.ClassId && s.SectionName != null && s.SectionName.ToLower() == dto.SectionName.ToLower().Trim());
+            var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
             if (matchedSection != null)
             {
                 dto.SectionId = matchedSection.SectionId;
             }
+            else
+            {
+                throw new NotFoundException($"Section '{dto.SectionName}' not found for Class ID {dto.ClassId}.");
+            }
+        }
+
+        if (dto.ClassId == 0 || dto.SectionId == 0)
+        {
+            throw new BadRequestException("Valid ClassId and SectionId are required to publish a timetable.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.AcademicYear))
+        {
+            dto.AcademicYear = await _academicYearService.GetCurrentAcademicYearAsync();
         }
 
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(dto.ClassId, dto.SectionId, dto.AcademicYear);
+        string statusToSet = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status : nameof(TimetableStatus.Published);
+
         if (header == null)
         {
+            var classObj = await _timetableRepository.GetClassByIdAsync(dto.ClassId);
             header = new TimetableHeader
             {
                 ClassId = dto.ClassId,
                 SectionId = dto.SectionId,
                 AcademicYear = dto.AcademicYear,
-                BranchName = "Main Campus",
-                Status = dto.Status,
+                BranchName = !string.IsNullOrWhiteSpace(classObj?.CampusLocation) ? classObj.CampusLocation : string.Empty,
+                Status = statusToSet,
                 IncludeSaturday = true
             };
             header = await _timetableRepository.CreateHeaderAsync(header);
         }
         else
         {
-            await _timetableRepository.UpdateHeaderStatusAsync(header.HeaderId, dto.Status);
+            await _timetableRepository.UpdateHeaderStatusAsync(header.HeaderId, statusToSet);
         }
 
         return await GetClassTimetableGridAsync(dto.ClassId, dto.SectionId, dto.AcademicYear);
@@ -463,14 +477,27 @@ public class TimetableService : ITimetableService
     // AUTO-GENERATED TEACHER & STUDENT TIMETABLES
     // =========================================================
 
-    public async Task<TeacherTimetableDto> GetTeacherTimetableAsync(int teacherId, string academicYear = "2026-2027")
+    public async Task<TeacherTimetableDto> GetTeacherTimetableAsync(int teacherId, string academicYear = "")
     {
-        var teacher = await _context.Staff.FindAsync(teacherId)
+        if (string.IsNullOrWhiteSpace(academicYear))
+        {
+            academicYear = await _academicYearService.GetCurrentAcademicYearAsync();
+        }
+
+        var teacher = await _timetableRepository.GetStaffByIdAsync(teacherId)
             ?? throw new NotFoundException($"Teacher with ID {teacherId} not found.");
+
+        var teacherName = teacher.DisplayName ?? $"{teacher.FirstName ?? ""} {teacher.LastName ?? ""}".Trim();
+        if (string.IsNullOrWhiteSpace(teacherName)) teacherName = "Faculty Member";
 
         var slots = await _timetableRepository.GetTeacherTimetableSlotsAsync(teacherId, academicYear);
 
-        var daysOrder = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        var activeDays = slots.Select(s => s.DayOfWeek).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var daysOrder = Enum.GetValues<DayOfWeek>()
+            .Where(d => d != DayOfWeek.Sunday)
+            .Select(d => d.ToString())
+            .Where(d => activeDays.Count == 0 || activeDays.Contains(d, StringComparer.OrdinalIgnoreCase))
+            .ToList();
         var daySchedules = new List<DayScheduleDto>();
 
         foreach (var day in daysOrder)
@@ -489,7 +516,7 @@ public class TimetableService : ITimetableService
                     SubjectName = s.Subject?.SubjectName ?? "",
                     SubjectCode = s.Subject?.SubjectCode ?? "",
                     TeacherId = teacher.StaffId,
-                    TeacherName = $"{teacher.FirstName} {teacher.LastName}",
+                    TeacherName = teacherName,
                     EmployeeId = teacher.EmployeeId ?? "",
                     RoomNo = s.RoomNo
                 }).ToList();
@@ -504,31 +531,36 @@ public class TimetableService : ITimetableService
         return new TeacherTimetableDto
         {
             TeacherId = teacher.StaffId,
-            TeacherName = $"{teacher.FirstName} {teacher.LastName}",
+            TeacherName = teacherName,
             EmployeeId = teacher.EmployeeId ?? "",
             Department = teacher.Department ?? "",
             Days = daySchedules
         };
     }
 
-    public async Task<StudentTimetableDto> GetStudentTimetableAsync(int classId, int sectionId, string academicYear = "2026-2027")
+    public async Task<StudentTimetableDto> GetStudentTimetableAsync(int classId, int sectionId, string academicYear = "")
     {
+        if (string.IsNullOrWhiteSpace(academicYear))
+        {
+            academicYear = await _academicYearService.GetCurrentAcademicYearAsync();
+        }
+
         var classGrade = classId > 0
-            ? await _context.Classes.FindAsync(classId)
-            : await _context.Classes.FirstOrDefaultAsync();
+            ? await _timetableRepository.GetClassByIdAsync(classId)
+            : await _timetableRepository.GetDefaultClassAsync();
 
         if (classGrade == null)
         {
-            classGrade = new ClassGrade { ClassId = 1, ClassName = "Class 10" };
+            throw new NotFoundException($"Class with ID {classId} not found.");
         }
 
         var section = sectionId > 0
-            ? await _context.ClassSections.FindAsync(sectionId)
-            : await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classGrade.ClassId);
+            ? await _timetableRepository.GetSectionByIdAsync(sectionId)
+            : await _timetableRepository.GetDefaultSectionForClassAsync(classGrade.ClassId);
 
         if (section == null)
         {
-            section = new ClassSection { SectionId = 1, ClassId = classGrade.ClassId, SectionName = "A" };
+            throw new NotFoundException($"Section with ID {sectionId} not found for Class '{classGrade.ClassName}'.");
         }
 
         int resolvedClassId = classGrade.ClassId;
@@ -536,7 +568,12 @@ public class TimetableService : ITimetableService
 
         var slots = await _timetableRepository.GetStudentTimetableSlotsAsync(resolvedClassId, resolvedSectionId, academicYear);
 
-        var daysOrder = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        var activeDays = slots.Select(s => s.DayOfWeek).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var daysOrder = Enum.GetValues<DayOfWeek>()
+            .Where(d => d != DayOfWeek.Sunday)
+            .Select(d => d.ToString())
+            .Where(d => activeDays.Count == 0 || activeDays.Contains(d, StringComparer.OrdinalIgnoreCase))
+            .ToList();
         var daySchedules = new List<DayScheduleDto>();
 
         foreach (var day in daysOrder)
@@ -555,17 +592,12 @@ public class TimetableService : ITimetableService
                     SubjectName = s.Subject?.SubjectName ?? "",
                     SubjectCode = s.Subject?.SubjectCode ?? "",
                     TeacherId = s.TeacherId,
-                    TeacherName = s.Teacher != null ? $"{s.Teacher.FirstName} {s.Teacher.LastName}" : "",
+                    TeacherName = s.Teacher != null
+                        ? (s.Teacher.DisplayName ?? $"{s.Teacher.FirstName ?? ""} {s.Teacher.LastName ?? ""}".Trim())
+                        : "",
                     EmployeeId = s.Teacher?.EmployeeId ?? "",
-                    RoomNo = s.RoomNo
+                    RoomNo = !string.IsNullOrWhiteSpace(s.RoomNo) ? s.RoomNo : (section.RoomNo ?? "")
                 }).ToList();
-
-            // BUG-005 FIX: Return empty list instead of hardcoded fake schedule data
-            // Previously showed dummy names like "Jonathan Miller", "Robert Chen" in production
-            if (!daySlots.Any())
-            {
-                daySlots = new List<TimetableSlotDto>(); // No slots configured — return empty, not fake data
-            }
 
             daySchedules.Add(new DayScheduleDto
             {
@@ -577,9 +609,9 @@ public class TimetableService : ITimetableService
         return new StudentTimetableDto
         {
             ClassId = resolvedClassId,
-            ClassName = classGrade.ClassName ?? "Class 10",
+            ClassName = classGrade.ClassName ?? "",
             SectionId = resolvedSectionId,
-            SectionName = section.SectionName ?? "A",
+            SectionName = section.SectionName ?? "",
             AcademicYear = academicYear,
             Days = daySchedules
         };
@@ -591,6 +623,11 @@ public class TimetableService : ITimetableService
 
     public async Task<ClassTimetableGridDto> CopyTimetableAsync(CopyTimetableDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.AcademicYear))
+        {
+            dto.AcademicYear = await _academicYearService.GetCurrentAcademicYearAsync();
+        }
+
         var sourceHeader = await _timetableRepository.GetHeaderByClassSectionAsync(dto.SourceClassId, dto.SourceSectionId, dto.AcademicYear)
             ?? throw new NotFoundException($"Source timetable schedule for Class {dto.SourceClassId} Section {dto.SourceSectionId} not found.");
 
@@ -603,7 +640,7 @@ public class TimetableService : ITimetableService
                 SectionId = dto.TargetSectionId,
                 AcademicYear = dto.AcademicYear,
                 BranchName = sourceHeader.BranchName,
-                Status = "Draft",
+                Status = nameof(TimetableStatus.Draft),
                 IncludeSaturday = sourceHeader.IncludeSaturday
             };
             targetHeader = await _timetableRepository.CreateHeaderAsync(targetHeader);
@@ -619,556 +656,53 @@ public class TimetableService : ITimetableService
 
     public async Task<List<ClassSubjectQuotaDto>> GetClassSubjectsCandidatesAsync(int classId, int sectionId)
     {
-        // Fetch subjects mapped to class
-        var mappedSubjects = await _context.ClassSubjectMappings
-            .Where(c => c.ClassId == classId)
-            .Select(c => c.SubjectId)
-            .ToListAsync();
-
-        List<Subject> subjects;
-        if (mappedSubjects.Any())
-        {
-            subjects = await _context.Subjects
-                .Where(s => mappedSubjects.Contains(s.SubjectId))
-                .ToListAsync();
-        }
-        else
-        {
-            // Fallback: Return top active subjects
-            subjects = await _context.Subjects
-                .Take(6)
-                .ToListAsync();
-        }
+        var mappings = await _timetableRepository.GetClassSubjectMappingsByClassAsync(classId);
+        var allSubjects = (await _timetableRepository.GetAllSubjectsAsync()).ToDictionary(s => s.SubjectId);
 
         var result = new List<ClassSubjectQuotaDto>();
 
-        foreach (var sub in subjects)
+        if (mappings.Any())
         {
-            var teacher = await _timetableRepository.GetAssignedTeacherForSubjectAsync(classId, sectionId, sub.SubjectId);
-
-            result.Add(new ClassSubjectQuotaDto
+            foreach (var mapping in mappings)
             {
-                SubjectId = sub.SubjectId,
-                SubjectName = sub.SubjectName ?? "",
-                SubjectCode = sub.SubjectCode ?? "",
-                AssignedTeacherId = teacher?.StaffId ?? 0,
-                AssignedTeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName} ({teacher.EmployeeId})" : "Unassigned Faculty",
-                AssignedPeriodsPerWeek = 0,
-                MaxPeriodsPerWeek = 5
-            });
+                if (!allSubjects.TryGetValue(mapping.SubjectId, out var sub)) continue;
+
+                var teacher = await _timetableRepository.GetAssignedTeacherForSubjectAsync(classId, sectionId, sub.SubjectId);
+                var tName = teacher != null
+                    ? (teacher.DisplayName ?? $"{teacher.FirstName ?? ""} {teacher.LastName ?? ""}".Trim())
+                    : "Unassigned Faculty";
+
+                result.Add(new ClassSubjectQuotaDto
+                {
+                    SubjectId = sub.SubjectId,
+                    SubjectName = sub.SubjectName ?? "",
+                    SubjectCode = sub.SubjectCode ?? "",
+                    AssignedTeacherId = teacher?.StaffId ?? 0,
+                    AssignedTeacherName = tName,
+                    AssignedPeriodsPerWeek = 0,
+                    MaxPeriodsPerWeek = mapping.WeeklyPeriods > 0 ? mapping.WeeklyPeriods : 0
+                });
+            }
         }
 
         return result;
     }
 
     // =========================================================
-    // AUTOMATIC TIMETABLE GENERATION & VALIDATION
+    // AUTOMATIC TIMETABLE GENERATION & VALIDATION DELEGATES
     // =========================================================
-
-    private class ComputedPeriod
-    {
-        public string Name { get; set; } = string.Empty;
-        public string StartTime { get; set; } = string.Empty;
-        public string EndTime { get; set; } = string.Empty;
-        public string Type { get; set; } = "Teaching"; // "Teaching", "Break", "Lunch", "Assembly", "Tea", "Other"
-        public int Sequence { get; set; }
-    }
-
-    private class CandidateSubject
-    {
-        public int SubjectId { get; set; }
-        public string SubjectName { get; set; } = string.Empty;
-        public int TeacherId { get; set; }
-        public int WeeklyPeriods { get; set; }
-    }
-
-    private static int TimeToMinutes(string timeStr)
-    {
-        if (string.IsNullOrWhiteSpace(timeStr)) return 0;
-        try
-        {
-            var span = ParseTime(timeStr);
-            return (int)span.TotalMinutes;
-        }
-        catch
-        {
-            return 0;
-        }
-    }
-
-    private static string MinutesToTime(int totalMinutes)
-    {
-        var span = TimeSpan.FromMinutes(totalMinutes);
-        return FormatTime(span);
-    }
 
     public async Task<List<TimetableSlotDto>> GenerateTimetableAsync(GenerateTimetableRequestDto dto)
     {
-        int startMin = TimeToMinutes(dto.SchoolStartTime);
-        int endMin = TimeToMinutes(dto.SchoolEndTime);
-
-        var generatedPeriods = new List<ComputedPeriod>();
-        int numericPeriodDuration = dto.PeriodDurationMinutes;
-
-        if (startMin >= endMin || numericPeriodDuration <= 0)
-        {
-            throw new BadRequestException("Invalid timing configuration or period duration.");
-        }
-
-        int currentMin = startMin;
-        int sequence = 1;
-        int periodIndex = 1;
-
-        // 1. Initial breaks before period 1 (afterPeriod = 0)
-        var initialBreaks = dto.Breaks.Where(b => b.AfterPeriod == 0).ToList();
-        foreach (var b in initialBreaks)
-        {
-            int nextMin = currentMin + b.DurationMinutes;
-            if (nextMin <= endMin)
-            {
-                generatedPeriods.Add(new ComputedPeriod
-                {
-                    Name = b.Name,
-                    StartTime = MinutesToTime(currentMin),
-                    EndTime = MinutesToTime(nextMin),
-                    Type = b.Type,
-                    Sequence = sequence++
-                });
-                currentMin = nextMin;
-            }
-        }
-
-        // 2. Loop teaching periods and interleaving breaks
-        const int MAX_PERIODS = 20; // safety ceiling
-        while (currentMin + numericPeriodDuration <= endMin && periodIndex <= MAX_PERIODS)
-        {
-            int pStart = currentMin;
-            int pEnd = currentMin + numericPeriodDuration;
-
-            generatedPeriods.Add(new ComputedPeriod
-            {
-                Name = $"Period {periodIndex}",
-                StartTime = MinutesToTime(pStart),
-                EndTime = MinutesToTime(pEnd),
-                Type = "Teaching",
-                Sequence = sequence++
-            });
-
-            currentMin = pEnd;
-
-            // Check breaks configured for after this period
-            var matchedBreaks = dto.Breaks.Where(b => b.AfterPeriod == periodIndex).ToList();
-            foreach (var b in matchedBreaks)
-            {
-                int bStart = currentMin;
-                int bEnd = currentMin + b.DurationMinutes;
-                if (bEnd <= endMin)
-                {
-                    generatedPeriods.Add(new ComputedPeriod
-                    {
-                        Name = b.Name,
-                        StartTime = MinutesToTime(bStart),
-                        EndTime = MinutesToTime(bEnd),
-                        Type = b.Type,
-                        Sequence = sequence++
-                    });
-                    currentMin = bEnd;
-                }
-            }
-
-            periodIndex++;
-        }
-
-        // Ensure periods are mapped to DB PeriodSettings
-        var activePeriods = await _timetableRepository.GetPeriodSettingsAsync();
-        var periodMap = new Dictionary<string, PeriodSetting>();
-
-        foreach (var gp in generatedPeriods)
-        {
-            var gpStartSpan = ParseTime(gp.StartTime);
-            var gpEndSpan = ParseTime(gp.EndTime);
-            var gpTypeMapped = gp.Type == "Teaching" ? "Teaching Period" : gp.Type;
-
-            var existing = activePeriods.FirstOrDefault(p =>
-                p.PeriodName.Trim().ToLower() == gp.Name.Trim().ToLower() &&
-                p.StartTime == gpStartSpan &&
-                p.EndTime == gpEndSpan &&
-                p.PeriodType == gpTypeMapped);
-
-            if (existing == null)
-            {
-                var newPeriod = new PeriodSetting
-                {
-                    PeriodName = gp.Name,
-                    StartTime = gpStartSpan,
-                    EndTime = gpEndSpan,
-                    PeriodType = gpTypeMapped,
-                    DisplayOrder = gp.Sequence,
-                    IsActive = true,
-                    IsDeleted = false
-                };
-                newPeriod = await _timetableRepository.SavePeriodSettingAsync(newPeriod);
-                periodMap[gp.Name + "_" + gp.StartTime] = newPeriod;
-            }
-            else
-            {
-                periodMap[gp.Name + "_" + gp.StartTime] = existing;
-            }
-        }
-
-        var targetHeaders = new List<TimetableHeader>();
-        var targetHeaderIds = new List<int>();
-
-        foreach (var classSecStr in dto.SelectedClassSections)
-        {
-            var parts = classSecStr.Split('-');
-            if (parts.Length < 2) continue;
-            var className = parts[0].Trim();
-            var sectionName = parts[1].Trim();
-
-            // Find Class
-            var classGrade = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == className.ToLower());
-            if (classGrade == null) continue;
-
-            // Find Section
-            var section = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classGrade.ClassId && s.SectionName != null && s.SectionName.ToLower() == sectionName.ToLower());
-            if (section == null) continue;
-
-            // Get or create Header
-            var header = await _timetableRepository.GetHeaderByClassSectionAsync(classGrade.ClassId, section.SectionId, dto.AcademicYear);
-            if (header == null)
-            {
-                header = new TimetableHeader
-                {
-                    ClassId = classGrade.ClassId,
-                    SectionId = section.SectionId,
-                    AcademicYear = dto.AcademicYear,
-                    BranchName = "Main Campus",
-                    Status = "Draft",
-                    IncludeSaturday = false
-                };
-                header = await _timetableRepository.CreateHeaderAsync(header);
-            }
-
-            targetHeaders.Add(header);
-            targetHeaderIds.Add(header.HeaderId);
-        }
-
-        // Clean up old slots for sections being regenerated
-        if (targetHeaderIds.Any())
-        {
-            var oldSlots = await _context.TimetableSlots.Where(s => targetHeaderIds.Contains(s.HeaderId)).ToListAsync();
-            _context.TimetableSlots.RemoveRange(oldSlots);
-            await _context.SaveChangesAsync();
-        }
-
-        // Build busy schedule dictionary for teachers
-        var teacherBusySchedule = new Dictionary<int, HashSet<string>>();
-        var otherSlots = await _context.TimetableSlots
-            .Include(s => s.Header)
-            .Where(s => s.Header!.AcademicYear == dto.AcademicYear && !targetHeaderIds.Contains(s.HeaderId))
-            .ToListAsync();
-
-        foreach (var slot in otherSlots)
-        {
-            if (slot.TeacherId > 0)
-            {
-                if (!teacherBusySchedule.ContainsKey(slot.TeacherId))
-                {
-                    teacherBusySchedule[slot.TeacherId] = new HashSet<string>();
-                }
-                var timeKey = $"{slot.StartTime:hh\\:mm}-{slot.EndTime:hh\\:mm}";
-                teacherBusySchedule[slot.TeacherId].Add($"{slot.DayOfWeek}_{timeKey}");
-            }
-        }
-
-        var newlyGeneratedSlots = new List<TimetableSlot>();
-
-        foreach (var header in targetHeaders)
-        {
-            int classId = header.ClassId;
-            int sectionId = header.SectionId;
-
-            // Load mapped subjects
-            var mappedSubjectIds = await _context.ClassSubjectMappings
-                .Where(m => m.ClassId == classId)
-                .Select(m => m.SubjectId)
-                .ToListAsync();
-
-            if (!mappedSubjectIds.Any()) continue;
-
-            // Resolve subject details and assigned teachers
-            var mappedSubjects = new List<CandidateSubject>();
-            foreach (var subId in mappedSubjectIds)
-            {
-                var sub = await _context.Subjects.FindAsync(subId);
-                if (sub == null) continue;
-
-                var teacher = await _timetableRepository.GetAssignedTeacherForSubjectAsync(classId, sectionId, subId);
-                var mapping = await _context.ClassSubjectMappings
-                    .FirstOrDefaultAsync(m => m.ClassId == classId && m.SubjectId == subId);
-                mappedSubjects.Add(new CandidateSubject
-                {
-                    SubjectId = subId,
-                    SubjectName = sub.SubjectName ?? "",
-                    TeacherId = teacher?.StaffId ?? 0,
-                    WeeklyPeriods = mapping?.WeeklyPeriods ?? 5
-                });
-            }
-
-            if (!mappedSubjects.Any()) continue;
-
-            // Round-robin tracking index
-            int subjectDistributionIdx = 0;
-
-            // Loop over days
-            foreach (var day in dto.WorkingDays)
-            {
-                foreach (var period in generatedPeriods)
-                {
-                    var startTimeSpan = ParseTime(period.StartTime);
-                    var endTimeSpan = ParseTime(period.EndTime);
-                    var timeKey = $"{startTimeSpan:hh\\:mm}-{endTimeSpan:hh\\:mm}";
-
-                    var key = period.Name + "_" + period.StartTime;
-                    periodMap.TryGetValue(key, out var matchedPeriod);
-                    int? periodId = matchedPeriod?.PeriodId;
-
-                    if (period.Type != "Teaching")
-                    {
-                        continue;
-                    }
-
-                    CandidateSubject? selectedSub = null;
-                    for (int offset = 0; offset < mappedSubjects.Count; offset++)
-                    {
-                        var candidate = mappedSubjects[(subjectDistributionIdx + offset) % mappedSubjects.Count];
-                        if (candidate.TeacherId > 0)
-                        {
-                            var busyKey = $"{day}_{timeKey}";
-                            bool isBusy = teacherBusySchedule.ContainsKey(candidate.TeacherId) &&
-                                          teacherBusySchedule[candidate.TeacherId].Contains(busyKey);
-
-                            if (!isBusy)
-                            {
-                                selectedSub = candidate;
-                                subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.Count;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (selectedSub != null)
-                    {
-                        if (!teacherBusySchedule.ContainsKey(selectedSub.TeacherId))
-                        {
-                            teacherBusySchedule[selectedSub.TeacherId] = new HashSet<string>();
-                        }
-                        var busyKey = $"{day}_{timeKey}";
-                        teacherBusySchedule[selectedSub.TeacherId].Add(busyKey);
-
-                        var sectionRecord = await _context.ClassSections.FindAsync(sectionId);
-                        var roomNo = sectionRecord?.RoomNo ?? "";
-
-                        var slot = new TimetableSlot
-                        {
-                            HeaderId = header.HeaderId,
-                            PeriodId = periodId,
-                            DayOfWeek = day,
-                            StartTime = startTimeSpan,
-                            EndTime = endTimeSpan,
-                            SubjectId = selectedSub.SubjectId,
-                            TeacherId = selectedSub.TeacherId,
-                            RoomNo = roomNo
-                        };
-
-                        await _context.TimetableSlots.AddAsync(slot);
-                        newlyGeneratedSlots.Add(slot);
-                    }
-                }
-            }
-        }
-
-        await _context.SaveChangesAsync();
-
-        var results = new List<TimetableSlotDto>();
-        foreach (var slot in newlyGeneratedSlots)
-        {
-            var sub = await _context.Subjects.FindAsync(slot.SubjectId);
-            var staff = await _context.Staff.FindAsync(slot.TeacherId);
-            var per = slot.PeriodId.HasValue ? await _context.PeriodSettings.FindAsync(slot.PeriodId.Value) : null;
-
-            results.Add(new TimetableSlotDto
-            {
-                SlotId = slot.SlotId,
-                HeaderId = slot.HeaderId,
-                PeriodId = slot.PeriodId,
-                PeriodName = per?.PeriodName ?? "",
-                DayOfWeek = slot.DayOfWeek,
-                StartTime = FormatTime(slot.StartTime),
-                EndTime = FormatTime(slot.EndTime),
-                SubjectId = slot.SubjectId,
-                SubjectName = sub?.SubjectName ?? "",
-                SubjectCode = sub?.SubjectCode ?? "",
-                TeacherId = slot.TeacherId,
-                TeacherName = staff != null ? $"{staff.FirstName} {staff.LastName}" : "",
-                RoomNo = slot.RoomNo ?? ""
-            });
-        }
-
-        return results;
+        return await _generationService.GenerateTimetableAsync(dto);
     }
 
     public async Task<TimetableValidationResultDto> ValidateTimetableAsync(int classId, int sectionId, string academicYear)
     {
-        var result = new TimetableValidationResultDto { Valid = true };
-        var header = await _timetableRepository.GetHeaderByClassSectionAsync(classId, sectionId, academicYear);
-        if (header == null) return result;
-
-        var slots = await _timetableRepository.GetSlotsByHeaderIdAsync(header.HeaderId);
-        if (!slots.Any()) return result;
-
-        var subjectsDict = await _context.Subjects.ToDictionaryAsync(s => s.SubjectId);
-        var staffDict = await _context.Staff.ToDictionaryAsync(s => s.StaffId);
-
-        var classGrade = await _context.Classes.FindAsync(classId);
-        var section = await _context.ClassSections.FindAsync(sectionId);
-        var classSecName = $"{classGrade?.ClassName ?? "Class"}-{section?.SectionName ?? "Sec"}";
-
-        // 1. Check weekly subject counts
-        var subjectCounts = slots.GroupBy(s => s.SubjectId)
-            .ToDictionary(g => g.Key, g => g.Count());
-        foreach (var kvp in subjectCounts)
+        if (string.IsNullOrWhiteSpace(academicYear))
         {
-            if (subjectsDict.TryGetValue(kvp.Key, out var sub))
-            {
-                var mapping = await _context.ClassSubjectMappings
-                    .FirstOrDefaultAsync(m => m.ClassId == classId && m.SubjectId == kvp.Key);
-                int limit = mapping?.WeeklyPeriods ?? 5;
-                if (kvp.Value > limit)
-                {
-                    result.Valid = false;
-                    result.Conflicts.Add(new TimetableConflictDto
-                    {
-                        Type = "WeeklyLimit",
-                        Message = $"Subject Weekly Limit Exceeded: {sub.SubjectName} has a maximum limit of {limit} periods/week for {classSecName}, but is assigned {kvp.Value} times.",
-                        Day = "",
-                        TimeSlot = ""
-                    });
-                }
-            }
+            academicYear = await _academicYearService.GetCurrentAcademicYearAsync();
         }
-
-        // 2. Check each slot for conflicts and teacher workloads
-        var allSlots = await _context.TimetableSlots
-            .Include(s => s.Header)
-            .ThenInclude(h => h!.ClassGrade)
-            .Include(s => s.Header)
-            .ThenInclude(h => h!.ClassSection)
-            .Where(s => s.Header!.AcademicYear == academicYear)
-            .ToListAsync();
-
-        var teacherWeeklyCounts = allSlots.GroupBy(s => s.TeacherId)
-            .ToDictionary(g => g.Key, g => g.Count());
-        var teacherDailyCounts = allSlots.GroupBy(s => new { s.TeacherId, s.DayOfWeek })
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        foreach (var slot in slots)
-        {
-            var formattedTime = $"{FormatTime(slot.StartTime)} - {FormatTime(slot.EndTime)}";
-
-            // Check teacher double-booking conflict
-            var teacherConflict = allSlots.FirstOrDefault(s =>
-                s.SlotId != slot.SlotId &&
-                s.TeacherId == slot.TeacherId &&
-                s.DayOfWeek == slot.DayOfWeek &&
-                ((slot.StartTime >= s.StartTime && slot.StartTime < s.EndTime) ||
-                 (slot.EndTime > s.StartTime && slot.EndTime <= s.EndTime) ||
-                 (slot.StartTime <= s.StartTime && slot.EndTime >= s.EndTime)));
-
-            if (teacherConflict != null)
-            {
-                result.Valid = false;
-                var otherClass = teacherConflict.Header?.ClassGrade?.ClassName ?? "";
-                var otherSec = teacherConflict.Header?.ClassSection?.SectionName ?? "";
-                var teacherName = staffDict.TryGetValue(slot.TeacherId, out var t) ? $"{t.FirstName} {t.LastName}" : "Teacher";
-                result.Conflicts.Add(new TimetableConflictDto
-                {
-                    Type = "TeacherConflict",
-                    Message = $"Teacher Conflict: {teacherName} is already assigned to teach {otherClass}-{otherSec} at {formattedTime} on {slot.DayOfWeek}.",
-                    TeacherId = slot.TeacherId,
-                    TeacherName = teacherName,
-                    Day = slot.DayOfWeek,
-                    TimeSlot = formattedTime
-                });
-            }
-
-            // Check room double-booking conflict
-            if (!string.IsNullOrWhiteSpace(slot.RoomNo))
-            {
-                var roomConflict = allSlots.FirstOrDefault(s =>
-                    s.SlotId != slot.SlotId &&
-                    s.RoomNo != null && s.RoomNo.Trim().ToLower() == slot.RoomNo.Trim().ToLower() &&
-                    s.DayOfWeek == slot.DayOfWeek &&
-                    ((slot.StartTime >= s.StartTime && slot.StartTime < s.EndTime) ||
-                     (slot.EndTime > s.StartTime && slot.EndTime <= s.EndTime) ||
-                     (slot.StartTime <= s.StartTime && slot.EndTime >= s.EndTime)));
-
-                if (roomConflict != null)
-                {
-                    result.Valid = false;
-                    var otherClass = roomConflict.Header?.ClassGrade?.ClassName ?? "";
-                    var otherSec = roomConflict.Header?.ClassSection?.SectionName ?? "";
-                    result.Conflicts.Add(new TimetableConflictDto
-                    {
-                        Type = "RoomConflict",
-                        Message = $"Room Conflict: Room '{slot.RoomNo}' is already occupied by {otherClass}-{otherSec} at {formattedTime} on {slot.DayOfWeek}.",
-                        RoomNo = slot.RoomNo,
-                        Day = slot.DayOfWeek,
-                        TimeSlot = formattedTime
-                    });
-                }
-            }
-
-            // Check teacher workload limits
-            if (staffDict.TryGetValue(slot.TeacherId, out var teacherObj))
-            {
-                int dailyLimit = 5;
-                var dailyKey = new { TeacherId = slot.TeacherId, DayOfWeek = slot.DayOfWeek };
-                int dailyCount = teacherDailyCounts.TryGetValue(dailyKey, out var dc) ? dc : 0;
-                if (dailyCount > dailyLimit)
-                {
-                    result.Valid = false;
-                    result.Conflicts.Add(new TimetableConflictDto
-                    {
-                        Type = "TeacherDailyLimit",
-                        Message = $"Teacher Daily Workload Limit: {teacherObj.FirstName} {teacherObj.LastName} exceeds the limit of {dailyLimit} periods on {slot.DayOfWeek}.",
-                        TeacherId = slot.TeacherId,
-                        TeacherName = $"{teacherObj.FirstName} {teacherObj.LastName}",
-                        Day = slot.DayOfWeek,
-                        TimeSlot = formattedTime
-                    });
-                }
-
-                int weeklyLimit = 24;
-                int weeklyCount = teacherWeeklyCounts.TryGetValue(slot.TeacherId, out var wc) ? wc : 0;
-                if (weeklyCount > weeklyLimit)
-                {
-                    result.Valid = false;
-                    result.Conflicts.Add(new TimetableConflictDto
-                    {
-                        Type = "TeacherWeeklyLimit",
-                        Message = $"Teacher Weekly Workload Limit: {teacherObj.FirstName} {teacherObj.LastName} exceeds the limit of {weeklyLimit} periods/week.",
-                        TeacherId = slot.TeacherId,
-                        TeacherName = $"{teacherObj.FirstName} {teacherObj.LastName}",
-                        Day = slot.DayOfWeek,
-                        TimeSlot = formattedTime
-                    });
-                }
-            }
-        }
-
-        return result;
+        return await _validationService.ValidateTimetableAsync(classId, sectionId, academicYear);
     }
 }
-

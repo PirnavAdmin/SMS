@@ -19,3 +19,9 @@ public class SubjectQuotaExceededException : AppException
     public SubjectQuotaExceededException(string message)
         : base(message, HttpStatusCode.BadRequest) { }
 }
+
+public class TimetableValidationException : AppException
+{
+    public TimetableValidationException(string message)
+        : base(message, HttpStatusCode.BadRequest) { }
+}

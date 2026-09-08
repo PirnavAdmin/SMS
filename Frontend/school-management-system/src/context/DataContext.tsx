@@ -19025,43 +19025,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);
   }, [filteredStudents]);
-  const filteredStaff = filterByBranch(staff);
-  const filteredAdmissions = filterByBranch(admissions);
-  const filteredClasses = filterByBranch(academicClasses);
-  const filteredSubjects = filterByBranch(subjects);
-  const filteredExams = filterByBranch(exams);
-  const filteredTimetable = filterByBranch(timetable);
-  const filteredHomework = filterByBranch(homework);
-  const filteredFeeStructures = filterByBranch(feeStructures);
-  const filteredFeePayments = filterByBranch(feePayments);
-  const filteredFeeHeads = filterByBranch(feeHeads);
-  const filteredDynamicFeeStructures = filterByBranch(dynamicFeeStructures);
-  const filteredStudentFeeAssignments = filterByBranch(studentFeeAssignments);
-  const filteredERPTransportRoutes = filterByBranch(erpTransportRoutes);
-  const filteredStudentTransports = filterByBranch(studentTransports);
-  const filteredHostelMasters = filterByBranch(hostelMasters);
-  const filteredStudentHostels = filterByBranch(studentHostels);
-  const filteredRefunds = filterByBranch(refunds);
-  const filteredRouteMasters = filterByBranch(routeMasters);
-  const filteredPickupPoints = filterByBranch(pickupPoints);
-  const filteredVehicleMasters = filterByBranch(vehicleMasters);
-  const filteredDriverMasters = filterByBranch(driverMasters);
-  const filteredBusAttendants = filterByBranch(busAttendants);
-  const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
-  const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
-  const filteredUniformCategories = filterByBranch(uniformCategories).filter(
-    (c) => {
-      const name = (c?.name || (c as any)?.categoryName || "")
-        .toLowerCase()
-        .trim();
-      return (
-        (name !== "uniform package" && name !== "package") ||
-        name.includes("boys") ||
-        name.includes("girls")
-      );
-    },
-  );
-  const filteredUniforms = filterByBranch(uniforms).filter((u) => {
+
   const filteredStaff = useMemo(() => filterByBranch(staff), [staff, selectedBranch, selectedAcademicYear]);
   const filteredAdmissions = useMemo(() => filterByBranch(admissions), [admissions, selectedBranch, selectedAcademicYear]);
   const filteredClasses = useMemo(() => filterByBranch(academicClasses), [academicClasses, selectedBranch, selectedAcademicYear]);
@@ -20145,4 +20109,4 @@ export const useData = () => {
     ...exam,
     ...hr,
   } as unknown as DataContextType;
-};
+};

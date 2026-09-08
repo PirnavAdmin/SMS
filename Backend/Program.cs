@@ -175,7 +175,11 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFeeService, SMS.Api.Serv
 
 // Class Timetable Module
 builder.Services.AddScoped<ITimetableRepository, TimetableRepository>();
+builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
+builder.Services.AddScoped<ITimetableValidationService, TimetableValidationService>();
+builder.Services.AddScoped<ITimetableGenerationService, TimetableGenerationService>();
 builder.Services.AddScoped<ITimetableService, TimetableService>();
+
 //teacher dashboard
 // Teacher Dashboard Module
 builder.Services.AddScoped<ITeacherDashboardRepository, TeacherDashboardRepository>();
