@@ -76,29 +76,32 @@ export const LeaveManagementView: React.FC = () => {
     const uEmpId = (user as any)?.empId ? String((user as any).empId).trim() : '';
 
     const matched = staff.find(s =>
-      (uId && (String(s.id) === uId || String(s.empId) === uId)) ||
-      (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId)) ||
       (uEmail && s.email && s.email.toLowerCase().trim() === uEmail) ||
       (uName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === uName) ||
-      (uName && s.firstName && s.firstName.toLowerCase() === uName.split(' ')[0])
+      (uName && s.firstName && s.firstName.toLowerCase() === uName.split(' ')[0]) ||
+      (((uId && (String(s.id) === uId || String(s.empId) === uId)) ||
+        (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))) &&
+       (!isDriver || (s.designation || '').toLowerCase().includes('driver') || (s.department || '').toLowerCase().includes('transport')))
     );
     if (matched) return matched;
 
-    const fromDriverDesignation = staff.find(s =>
-      (s.designation || '').toLowerCase().includes('driver') ||
-      (s.department || '').toLowerCase().includes('transport')
-    );
-    if (fromDriverDesignation) return fromDriverDesignation;
+    if (isDriver) {
+      const fromDriverDesignation = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('driver') ||
+        (s.department || '').toLowerCase().includes('transport')
+      );
+      if (fromDriverDesignation) return fromDriverDesignation;
+    }
 
-    const parts = (user?.name || 'Nag Sahoo').trim().split(' ');
+    const parts = (user?.name || 'Staff Member').trim().split(' ');
     return {
-      id: user?.id || '3',
-      firstName: parts[0] || 'Nag',
-      lastName: parts.slice(1).join(' ') || 'Sahoo',
-      department: 'Transport Dept',
-      designation: 'Driver',
-      employeeCategory: 'Non-Teaching Staff',
-      empId: (user as any)?.empId || user?.id || 'STF-2026-0003',
+      id: user?.id || 'STF-2026-0000',
+      firstName: parts[0] || 'Staff',
+      lastName: parts.slice(1).join(' ') || 'Member',
+      department: isDriver ? 'Transport Dept' : 'Academic Dept',
+      designation: isDriver ? 'Driver' : 'Teacher',
+      employeeCategory: isDriver ? 'Non-Teaching Staff' : 'Teaching Staff',
+      empId: (user as any)?.empId || user?.id || 'STF-2026-0000',
       leaveBalance: { casual: 10, sick: 10, paid: 15 }
     } as any;
   }, [staff, user]);

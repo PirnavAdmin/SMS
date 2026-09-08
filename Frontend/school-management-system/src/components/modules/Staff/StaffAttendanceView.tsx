@@ -104,15 +104,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const uEmail = (user?.email || "").toLowerCase().trim();
     const uName = (user?.name || "").toLowerCase().trim();
 
-    if (uId || uEmpId) {
-      const byId = staff.find(
-        (s) =>
-          (uId && (String(s.id) === uId || String(s.empId) === uId)) ||
-          (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))
-      );
-      if (byId) return byId;
-    }
-
     if (uEmail) {
       const byEmail = staff.find(
         (s) => s.email && s.email.toLowerCase().trim() === uEmail
@@ -126,9 +117,19 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           .toLowerCase()
           .trim();
         const sName = (s.name || "").toLowerCase().trim();
-        return (full && full === uName) || (sName && sName === uName);
+        return (full && (full.includes(uName) || uName.includes(full))) || (sName && (sName.includes(uName) || uName.includes(sName)));
       });
       if (byName) return byName;
+    }
+
+    if (uId || uEmpId) {
+      const byId = staff.find(
+        (s) =>
+          ((uId && (String(s.id) === uId || String(s.empId) === uId)) ||
+           (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))) &&
+          (userRole !== 'teacher' || (s.department || '').toLowerCase().includes('academ') || (s.designation || '').toLowerCase().includes('teacher') || (s.role || '').toLowerCase().includes('teacher'))
+      );
+      if (byId) return byId;
     }
 
     if (userRole === "driver") {
@@ -145,20 +146,25 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
-    const rawName = user?.name || "";
-    const parts = rawName.trim() ? rawName.trim().split(" ") : [];
-    const defaultFirstName = parts[0] || (user as any)?.firstName || "";
-    const defaultLastName = parts.slice(1).join(" ") || (user as any)?.lastName || "";
+    const rawName = user?.name || "Robert Teacher";
+    const parts = rawName.trim() ? rawName.trim().split(" ") : ["Robert", "Teacher"];
+    const defaultFirstName = parts[0] || "Robert";
+    const defaultLastName = parts.slice(1).join(" ") || "Teacher";
 
-    if (dbTeacher) {
+    const isDbTeacherMatching = dbTeacher && (
+      !user?.name || 
+      `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])
+    );
+
+    if (isDbTeacherMatching && dbTeacher) {
       return {
         ...dbTeacher,
-        id: dbTeacher.id || user?.id || "",
-        empId: dbTeacher.empId || dbTeacher.id || user?.id || "",
-        firstName: dbTeacher.firstName || defaultFirstName,
-        lastName: dbTeacher.lastName || defaultLastName,
-        designation: dbTeacher.designation || (user as any)?.designation || "",
-        department: dbTeacher.department || (user as any)?.department || "",
+        id: dbTeacher.id || user?.id || "STF-2026-0000",
+        empId: dbTeacher.empId || dbTeacher.id || user?.id || "STF-2026-0000",
+        firstName: defaultFirstName,
+        lastName: defaultLastName,
+        designation: dbTeacher.designation || (user as any)?.designation || (userRole === "driver" ? "Bus Driver" : "Teacher"),
+        department: dbTeacher.department || (user as any)?.department || (userRole === "driver" ? "Transport Dept" : "Academic Dept"),
         assignedClasses: dbTeacher.assignedClasses || (user as any)?.assignedClasses || [],
         assignedSubjects: (dbTeacher as any).assignedSubjects || (user as any)?.assignedSubjects || [],
         leaveBalance: dbTeacher.leaveBalance || { casual: 10, sick: 10, paid: 15 }
@@ -166,17 +172,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
 
     return {
-      id: user?.id || (user as any)?.empId || "",
-      empId: (user as any)?.empId || user?.id || "",
+      id: user?.id || (user as any)?.empId || "STF-2026-0000",
+      empId: (user as any)?.empId || user?.id || "STF-2026-0000",
       firstName: defaultFirstName,
       lastName: defaultLastName,
       assignedClasses: (user as any)?.assignedClasses || [],
       assignedSubjects: (user as any)?.assignedSubjects || [],
-      department: (user as any)?.department || "",
-      designation: (user as any)?.designation || "",
+      department: userRole === "driver" ? "Transport Dept" : "Academic Dept",
+      designation: userRole === "driver" ? "Bus Driver" : "Teacher",
       leaveBalance: { casual: 10, sick: 10, paid: 15 },
     };
-  }, [dbTeacher, user]);
+  }, [dbTeacher, user, userRole]);
 
   // PERSONAL TEACHER ATTENDANCE STATES
   const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);

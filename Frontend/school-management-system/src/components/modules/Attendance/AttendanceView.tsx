@@ -9,7 +9,7 @@ import { useData } from '../../../context/DataContext';
 import { exportToExcel } from '../../../utils/excelExport';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
-import { matchesClassName, compareClassesAscending } from '../../../utils/classSorter';
+import { matchesClassName, compareClassesAscending, formatDisplayClassName } from '../../../utils/classSorter';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -40,7 +40,7 @@ const getLocalDateString = (d: Date) => {
   return `${year}-${monthVal}-${dayVal}`;
 };
 
-const normalizeClass = (c: string) => (c || '').replace(/^class\s*/i, '').trim();
+const normalizeClass = (c: string) => (c || '').replace(/^class\s*/i, '').trim().toLowerCase();
 const normalizeSec = (s: string) => (s || '').replace(/^section\s*/i, '').trim().toUpperCase();
 
 const getRegisterKey = (cls: string, sec: string, d: string) => {
@@ -61,7 +61,7 @@ export const AttendanceView = () => {
       const nameParts = (s.name || '').trim().split(' ');
       const firstName = s.firstName || nameParts[0] || 'Student';
       const lastName = s.lastName || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
-      const studentClass = s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : '';
+      const studentClass = s.className ? formatDisplayClassName(s.className) : '';
       return {
         id: String(s.id),
         rollNo: s.rollNo || s.admissionNo || s.admissionNumber || String(s.id),
@@ -149,8 +149,7 @@ export const AttendanceView = () => {
     const result = merged.map((c: any) => {
       const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : '');
       const parts = str.split('-');
-      let className = parts[0].trim();
-      if (!className.toLowerCase().startsWith('class')) className = `Class ${className}`;
+      let className = formatDisplayClassName(parts[0].trim());
       const section = parts[1] ? parts[1].trim() : 'A';
       return { className, section };
     }).filter((c: any) => Boolean(c.className) && !c.className.toLowerCase().includes('nursery') && !c.className.toLowerCase().includes('lkg') && !c.className.toLowerCase().includes('ukg'));
@@ -167,16 +166,16 @@ export const AttendanceView = () => {
   // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      const teacherCls = Array.from(new Set(teacherClasses.map(c => c.className)));
-      return teacherCls.sort(compareClassesAscending);
+      const teacherCls = Array.from(new Set(teacherClasses.map(c => formatDisplayClassName(c.className))));
+      return ['Select Class', ...teacherCls.sort(compareClassesAscending)];
     }
-    const fromAcademic = (academicClasses || []).map(ac => ac.name ? (ac.name.startsWith('Class ') ? ac.name : `Class ${ac.name}`) : null).filter(Boolean) as string[];
-    const fromStudents = (allStudents || []).map(s => s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : null).filter(Boolean) as string[];
+    const fromAcademic = (academicClasses || []).map(ac => ac.name ? formatDisplayClassName(ac.name) : null).filter(Boolean) as string[];
+    const fromStudents = (allStudents || []).map(s => s.className ? formatDisplayClassName(s.className) : null).filter(Boolean) as string[];
     const merged = Array.from(new Set([...fromAcademic, ...fromStudents])).filter(Boolean);
 
     merged.sort(compareClassesAscending);
 
-    return ['All Classes', ...merged];
+    return ['Select Class', ...merged];
   }, [isTeacher, teacherClasses, academicClasses, allStudents]);
 
   // Global View State
@@ -184,7 +183,7 @@ export const AttendanceView = () => {
   const currentMonthStr = React.useMemo(() => todayStr.slice(0, 7), [todayStr]);
 
   const [dateMode, setDateMode] = useState<'Select' | 'Daily' | 'Monthly' | 'Custom Range'>('Select');
-  const [date, setDate] = useState<string>(getLocalDateString(new Date()));
+  const [date, setDate] = useState<string>('');
   const [month, setMonth] = useState<string>(getLocalDateString(new Date()).slice(0, 7));
   const [startDate, setStartDate] = useState<string>(() => {
     const d = new Date();
@@ -193,25 +192,21 @@ export const AttendanceView = () => {
   const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
 
   // Context Selection State
-  const [selectedClass, setSelectedClass] = useState<string>(() => {
-    if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].className;
-    return 'Class 10';
-  });
-
-  const [selectedSection, setSelectedSection] = useState<string>(() => {
-    if (isTeacher && teacherClasses.length > 0) return teacherClasses[0].section;
-    return 'All Sections';
-  });
+  const [selectedClass, setSelectedClass] = useState<string>('Select Class');
+  const [selectedSection, setSelectedSection] = useState<string>('Select Section');
 
   // Dynamic list of section options for selected class
   const sectionOptions = useMemo(() => {
     if (isTeacher && teacherClasses.length > 0) {
+      if (selectedClass === 'Select Class' || selectedClass === 'All Classes') {
+        return ['Select Section'];
+      }
       const matched = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
-      return matched.length > 0 ? Array.from(new Set(matched.map(c => c.section))) : ['A'];
+      const secs = matched.length > 0 ? Array.from(new Set(matched.map(c => c.section))) : ['A'];
+      return ['Select Section', ...secs];
     }
-    if (selectedClass === 'All Classes') {
-      const sections = Array.from(new Set((allStudents || []).map(s => s.section).filter(Boolean)));
-      return ['All Sections', ...(sections.length > 0 ? sections.sort() : ['A', 'B'])];
+    if (selectedClass === 'Select Class' || selectedClass === 'All Classes') {
+      return ['Select Section'];
     }
     const fromAcademic = (academicClasses || [])
       .find(ac => matchesClassName(ac.name, selectedClass));
@@ -222,7 +217,7 @@ export const AttendanceView = () => {
       .filter(Boolean);
     const merged = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
     const validSections = merged.length > 0 ? merged.sort() : ['A'];
-    return ['All Sections', ...validSections];
+    return ['Select Section', ...validSections];
   }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
   // Dynamic list of subject options
@@ -231,24 +226,38 @@ export const AttendanceView = () => {
     const fromTimetable = (timetable || []).map((t: any) => t.subject || t.subjectName).filter(Boolean);
     const standardSubjs = ['Mathematics', 'Science', 'English', 'Social Studies', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Hindi', 'Physical Education'];
     const merged = Array.from(new Set([...teacherSubjs, ...fromTimetable, ...standardSubjs])).filter(Boolean);
-    return merged;
+    return ['Select Subject', ...merged];
   }, [dbTeacher, timetable]);
 
   // Dynamic list of period options
   const periodOptions = useMemo(() => {
     const fromTimetable = (timetable || []).map((t: any) => t.timeSlot ? `${t.period || `Period ${t.periodNumber || 1}`} (${t.timeSlot})` : (t.period || t.periodName)).filter(Boolean);
     const standardPeriods = [
-      'Period 1 (09:00 AM - 09:45 AM)',
-      'Period 2 (09:45 AM - 10:30 AM)',
-      'Period 3 (10:45 AM - 11:30 AM)',
-      'Period 4 (11:30 AM - 12:15 PM)',
-      'Period 5 (01:00 PM - 01:45 PM)',
-      'Period 6 (01:45 PM - 02:30 PM)',
-      'Period 7 (02:45 PM - 03:30 PM)',
-      'Period 8 (03:30 PM - 04:15 PM)'
+      'Period 1 (08:30 AM - 09:15 AM)',
+      'Period 2 (09:15 AM - 10:00 AM)',
+      'Period 3 (10:15 AM - 11:00 AM)',
+      'Period 4 (11:00 AM - 11:45 AM)',
+      'Period 5 (11:45 AM - 12:30 PM)',
+      'Period 6 (01:15 PM - 02:00 PM)',
+      'Period 7 (02:00 PM - 02:45 PM)',
+      'Period 8 (02:45 PM - 03:30 PM)'
     ];
-    const merged = Array.from(new Set([...fromTimetable, ...standardPeriods])).filter(Boolean);
-    return merged;
+
+    const rawList = [...fromTimetable, ...standardPeriods];
+    const seenPeriodNames = new Set<string>();
+    const result: string[] = [];
+
+    for (const item of rawList) {
+      if (!item) continue;
+      const match = item.match(/^(Period\s*\d+|Period\s*\w+|[^\(]+)/i);
+      const periodKey = match ? match[1].trim().toLowerCase() : item.trim().toLowerCase();
+
+      if (!seenPeriodNames.has(periodKey)) {
+        seenPeriodNames.add(periodKey);
+        result.push(item);
+      }
+    }
+    return result;
   }, [timetable]);
 
   // Auto-sync section when class changes
@@ -267,18 +276,29 @@ export const AttendanceView = () => {
     }
   }, [isTeacher, teacherClasses, selectedClass]);
 
-  const [selectedSubject, setSelectedSubject] = useState<string>('Select');
-  const [selectedPeriod, setSelectedPeriod] = useState('Select Period');
+  const [selectedSubject, setSelectedSubject] = useState<string>('Select Subject');
+  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [isSearching, setIsSearching] = useState(false);
 
-  const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections';
+  const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections' || selectedClass === 'Select Class' || selectedSection === 'Select Section';
   
-  // Class Teacher can edit by default; Admin / Supervisor is Read-Only mode by default
-  const [isEditable, setIsEditable] = useState<boolean>(() => isTeacher);
+  const isFilterSelected = Boolean(
+    dateMode !== 'Select' &&
+    ((dateMode === 'Daily' && date !== '') || (dateMode === 'Monthly' && month !== '') || (dateMode === 'Custom Range' && startDate !== '' && endDate !== '')) &&
+    selectedClass &&
+    selectedClass !== 'Select Class' &&
+    selectedClass !== 'All Classes' &&
+    selectedSection &&
+    selectedSection !== 'Select Section' &&
+    selectedSection !== 'All Sections'
+  );
+
+  // Enable editing by default when a specific Class & Section is selected for both Admin & Teacher
+  const [isEditable, setIsEditable] = useState<boolean>(() => !isAggregatedView);
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [isDownloading, setIsDownloading] = useState(false);
  
@@ -289,10 +309,12 @@ export const AttendanceView = () => {
   }, [fetchStudents, allStudents]);
 
   useEffect(() => {
-    if (isAggregatedView && isEditable) {
+    if (isAggregatedView) {
       setIsEditable(false);
+    } else {
+      setIsEditable(true);
     }
-  }, [isAggregatedView, isEditable]);
+  }, [selectedClass, selectedSection]);
  
   useEffect(() => {
     setCurrentPage(1);
@@ -349,38 +371,126 @@ export const AttendanceView = () => {
 
   const currentAttendance: AttendanceState = attendanceRegistry[registerKey] || attendanceRegistry[legacyRegisterKey] || {};
 
-  // Status computation for UI rendering (Daily View)
-  const getAttendanceStatus = (student: Student): AttendanceStatus => {
-    const periodKey = `${student.className}_${student.section}_${selectedSubject}_${selectedPeriod}_${date}`;
-    if (attendanceRegistry[periodKey]?.[student.id]) {
-      return attendanceRegistry[periodKey][student.id];
+  // Key builder helper for period & subject attendance
+  const buildAttendanceKeys = (cls: string, sec: string, subj: string, prd: string, d: string) => {
+    const cleanCls = normalizeClass(cls);
+    const cleanSec = normalizeSec(sec);
+    const cleanSubj = (subj || '').trim().toLowerCase();
+    const cleanPrd = (prd || '').trim().toLowerCase();
+
+    return {
+      periodKey: `${cls}_${sec}_${subj}_${prd}_${d}`,
+      normPeriodKey: `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${d}`,
+      subjectKey: `${cleanCls}_${cleanSec}_${cleanSubj}_${d}`,
+      rawSubjectKey: `${cls}_${sec}_${subj}_${d}`,
+      generalKey: getRegisterKey(cls, sec, d)
+    };
+  };
+
+  // Unified status computation for UI rendering (Daily & Matrix View)
+  const getAttendanceStatusForDate = (student: Student, targetDate: string): AttendanceStatus => {
+    if (!student || !targetDate) return null;
+
+    const sId = String(student.id);
+    const sRoll = String(student.rollNo || '');
+    const sName = `${student.firstName || ''} ${student.lastName || ''}`.trim().toLowerCase();
+
+    const cleanCls = normalizeClass(student.className);
+    const cleanSec = normalizeSec(student.section);
+    const cleanSubj = (selectedSubject || '').trim().toLowerCase();
+    const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
+
+    const keys = buildAttendanceKeys(student.className, student.section, selectedSubject, selectedPeriod, targetDate);
+
+    // 1. Check exact period key with current selectedSubject and selectedPeriod
+    if (attendanceRegistry[keys.periodKey]?.[sId] !== undefined) {
+      return attendanceRegistry[keys.periodKey][sId];
     }
-    const normKey = getRegisterKey(student.className, student.section, date);
-    if (attendanceRegistry[normKey]?.[student.id]) {
-      return attendanceRegistry[normKey][student.id];
+    if (attendanceRegistry[keys.normPeriodKey]?.[sId] !== undefined) {
+      return attendanceRegistry[keys.normPeriodKey][sId];
     }
-    const classSecKey = `${student.className}_${student.section}_${date}`;
-    if (attendanceRegistry[classSecKey]?.[student.id]) {
-      return attendanceRegistry[classSecKey][student.id];
+
+    // 2. Check subject-specific key for current selectedSubject
+    if (attendanceRegistry[keys.subjectKey]?.[sId] !== undefined) {
+      return attendanceRegistry[keys.subjectKey][sId];
     }
-    const specKey = `${student.className}_${student.section}_${selectedSubject}_${date}`;
-    if (attendanceRegistry[specKey]?.[student.id]) {
-      return attendanceRegistry[specKey][student.id];
+    if (attendanceRegistry[keys.rawSubjectKey]?.[sId] !== undefined) {
+      return attendanceRegistry[keys.rawSubjectKey][sId];
     }
-    if (currentAttendance[student.id]) {
-      return currentAttendance[student.id];
-    }
-    if (Array.isArray(studentAttendance)) {
+
+    // 3. Check DataContext studentAttendance array for matching subject and/or period
+    if (Array.isArray(studentAttendance) && studentAttendance.length > 0) {
       const match = studentAttendance.find(
         (record: any) =>
-          String(record.studentId) === String(student.id) &&
-          String(record.date || '').split('T')[0] === date
+          String(record.date || '').split('T')[0] === targetDate &&
+          (
+            String(record.studentId) === sId ||
+            (sRoll && (String(record.rollNo) === sRoll || String(record.studentId) === sRoll)) ||
+            (sName && String(record.studentName || '').trim().toLowerCase() === sName)
+          ) &&
+          (
+            !record.subject ||
+            String(record.subject).trim().toLowerCase() === cleanSubj ||
+            cleanSubj === 'all' || cleanSubj === 'all subjects'
+          )
       );
       if (match?.status) {
         return match.status as AttendanceStatus;
       }
+
+      // Check DataContext studentAttendance for ANY record for this student on targetDate
+      const anyMatch = studentAttendance.find(
+        (record: any) =>
+          String(record.date || '').split('T')[0] === targetDate &&
+          (
+            String(record.studentId) === sId ||
+            (sRoll && (String(record.rollNo) === sRoll || String(record.studentId) === sRoll)) ||
+            (sName && String(record.studentName || '').trim().toLowerCase() === sName)
+          )
+      );
+      if (anyMatch?.status) {
+        return anyMatch.status as AttendanceStatus;
+      }
     }
+
+    // 4. Fallback to general daily register key
+    if (attendanceRegistry[keys.generalKey]?.[sId] !== undefined) {
+      return attendanceRegistry[keys.generalKey][sId];
+    }
+    const rawGeneralKey = `${student.className}_${student.section}_${targetDate}`;
+    if (attendanceRegistry[rawGeneralKey]?.[sId] !== undefined) {
+      return attendanceRegistry[rawGeneralKey][sId];
+    }
+
+    // 5. Scan attendanceRegistry for ANY key for this date & class that contains student ID
+    for (const regKey of Object.keys(attendanceRegistry)) {
+      if (regKey.endsWith(`_${targetDate}`) && (regKey.toLowerCase().includes(cleanCls) || regKey.includes(student.className))) {
+        if (attendanceRegistry[regKey]?.[sId] !== undefined) {
+          return attendanceRegistry[regKey][sId];
+        }
+      }
+    }
+
+    // 6. Direct LocalStorage fallback scan
+    try {
+      const rawReg = localStorage.getItem('sms_attendance_registry');
+      if (rawReg) {
+        const parsed = JSON.parse(rawReg);
+        for (const regKey of Object.keys(parsed)) {
+          if (regKey.endsWith(`_${targetDate}`) && (regKey.toLowerCase().includes(cleanCls) || regKey.includes(student.className))) {
+            if (parsed[regKey]?.[sId] !== undefined) {
+              return parsed[regKey][sId];
+            }
+          }
+        }
+      }
+    } catch {}
+
     return null;
+  };
+
+  const getAttendanceStatus = (student: Student): AttendanceStatus => {
+    return getAttendanceStatusForDate(student, date);
   };
 
   // Generate date array for Matrix View
@@ -418,33 +528,7 @@ export const AttendanceView = () => {
   }, [dateMode, month, startDate, endDate]);
 
   const getMatrixStatus = (student: Student, dateStr: string): AttendanceStatus => {
-    const periodKey = `${student.className}_${student.section}_${selectedSubject}_${selectedPeriod}_${dateStr}`;
-    if (attendanceRegistry[periodKey]?.[student.id]) {
-      return attendanceRegistry[periodKey][student.id];
-    }
-    const normKey = getRegisterKey(student.className, student.section, dateStr);
-    if (attendanceRegistry[normKey]?.[student.id]) {
-      return attendanceRegistry[normKey][student.id];
-    }
-    const classSecKey = `${student.className}_${student.section}_${dateStr}`;
-    if (attendanceRegistry[classSecKey]?.[student.id]) {
-      return attendanceRegistry[classSecKey][student.id];
-    }
-    const specKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
-    if (attendanceRegistry[specKey]?.[student.id]) {
-      return attendanceRegistry[specKey][student.id];
-    }
-    if (Array.isArray(studentAttendance)) {
-      const match = studentAttendance.find(
-        (record: any) =>
-          String(record.studentId) === String(student.id) &&
-          String(record.date || '').split('T')[0] === dateStr
-      );
-      if (match?.status) {
-        return match.status as AttendanceStatus;
-      }
-    }
-    return null;
+    return getAttendanceStatusForDate(student, dateStr);
   };
  
   const filteredStudents = React.useMemo(() => {
@@ -471,31 +555,44 @@ export const AttendanceView = () => {
     const targetStudent = classStudents.find(s => String(s.id) === String(studentId));
     const targetClass = targetStudent ? targetStudent.className : selectedClass;
     const targetSec = targetStudent ? targetStudent.section : selectedSection;
+
+    const cleanCls = normalizeClass(targetClass);
+    const cleanSec = normalizeSec(targetSec);
+    const cleanSubj = (selectedSubject || '').trim().toLowerCase();
+    const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
+
     const periodKey = `${targetClass}_${targetSec}_${selectedSubject}_${selectedPeriod}_${date}`;
-    const normKey = getRegisterKey(targetClass, targetSec, date);
+    const normPeriodKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${date}`;
     const specKey = `${targetClass}_${targetSec}_${selectedSubject}_${date}`;
+    const normSpecKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${date}`;
+    const normKey = getRegisterKey(targetClass, targetSec, date);
+    const rawNormKey = `${targetClass}_${targetSec}_${date}`;
     const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
 
     let newStatus: AttendanceStatus = status;
     setAttendanceRegistry(prev => {
-      const periodReg = { ...(prev[periodKey] || {}) };
-      const normReg = { ...(prev[normKey] || {}) };
-      const specReg = { ...(prev[specKey] || {}) };
-      const legacyReg = { ...(prev[legacyKey] || {}) };
-      if (periodReg[studentId] === status || normReg[studentId] === status || specReg[studentId] === status) {
+      const keysToUpdate = [periodKey, normPeriodKey, specKey, normSpecKey, normKey, rawNormKey, legacyKey];
+      const isAlreadySame = prev[periodKey]?.[studentId] === status || prev[normKey]?.[studentId] === status;
+
+      const updated = { ...prev };
+      if (isAlreadySame) {
         newStatus = null;
-        delete periodReg[studentId];
-        delete normReg[studentId];
-        delete specReg[studentId];
-        delete legacyReg[studentId];
+        for (const k of keysToUpdate) {
+          if (updated[k]) {
+            const copy = { ...updated[k] };
+            delete copy[studentId];
+            updated[k] = copy;
+          }
+        }
       } else {
-        periodReg[studentId] = status;
-        normReg[studentId] = status;
-        specReg[studentId] = status;
-        legacyReg[studentId] = status;
+        for (const k of keysToUpdate) {
+          updated[k] = { ...(updated[k] || {}), [studentId]: status };
+        }
       }
-      const updated = { ...prev, [periodKey]: periodReg, [normKey]: normReg, [specKey]: specReg, [legacyKey]: legacyReg };
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
       return updated;
     });
 
@@ -506,19 +603,20 @@ export const AttendanceView = () => {
         className: targetStudent.className,
         section: targetStudent.section,
         date: date,
+        subject: selectedSubject,
+        period: selectedPeriod,
         status: newStatus,
         remarks: remarksState[`${date}_${targetStudent.id}`] || '',
-        markedBy: user?.name || teacherFullName
+        markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
     }
   };
- 
+
   // Matrix cell click toggle handler
   const handleMatrixCellClick = (student: Student, dateStr: string) => {
     if (!isEditable) return;
     const currentStatus = getMatrixStatus(student, dateStr);
    
-    // Cycle: null -> 'Present' -> 'HalfDay' -> 'Late' -> 'Absent' -> null
     let nextStatus: AttendanceStatus = null;
     if (currentStatus === null) nextStatus = 'Present';
     else if (currentStatus === 'Present') nextStatus = 'HalfDay';
@@ -526,24 +624,39 @@ export const AttendanceView = () => {
     else if (currentStatus === 'Late') nextStatus = 'Absent';
     else if (currentStatus === 'Absent') nextStatus = null;
    
+    const cleanCls = normalizeClass(student.className);
+    const cleanSec = normalizeSec(student.section);
+    const cleanSubj = (selectedSubject || '').trim().toLowerCase();
+    const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
+
     const periodKey = `${student.className}_${student.section}_${selectedSubject}_${selectedPeriod}_${dateStr}`;
-    const normKey = getRegisterKey(student.className, student.section, dateStr);
+    const normPeriodKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${dateStr}`;
     const specKey = `${student.className}_${student.section}_${selectedSubject}_${dateStr}`;
+    const normSpecKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${dateStr}`;
+    const normKey = getRegisterKey(student.className, student.section, dateStr);
+    const rawNormKey = `${student.className}_${student.section}_${dateStr}`;
+
     setAttendanceRegistry(prev => {
-      const periodReg = { ...(prev[periodKey] || {}) };
-      const normReg = { ...(prev[normKey] || {}) };
-      const specReg = { ...(prev[specKey] || {}) };
+      const keysToUpdate = [periodKey, normPeriodKey, specKey, normSpecKey, normKey, rawNormKey];
+      const updated = { ...prev };
+
       if (nextStatus === null) {
-        delete periodReg[student.id];
-        delete normReg[student.id];
-        delete specReg[student.id];
+        for (const k of keysToUpdate) {
+          if (updated[k]) {
+            const copy = { ...updated[k] };
+            delete copy[student.id];
+            updated[k] = copy;
+          }
+        }
       } else {
-        periodReg[student.id] = nextStatus;
-        normReg[student.id] = nextStatus;
-        specReg[student.id] = nextStatus;
+        for (const k of keysToUpdate) {
+          updated[k] = { ...(updated[k] || {}), [student.id]: nextStatus };
+        }
       }
-      const updated = { ...prev, [periodKey]: periodReg, [normKey]: normReg, [specKey]: specReg };
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
       return updated;
     });
 
@@ -554,27 +667,38 @@ export const AttendanceView = () => {
         className: student.className,
         section: student.section,
         date: dateStr,
+        subject: selectedSubject,
+        period: selectedPeriod,
         status: nextStatus,
         remarks: remarksState[`${dateStr}_${student.id}`] || '',
-        markedBy: user?.name || teacherFullName
+        markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
     }
   };
- 
+
   // Mark entire class
   const markAllClass = (status: AttendanceStatus) => {
     if (!isEditable) return;
     setAttendanceRegistry(prev => {
       const updated = { ...prev };
       classStudents.forEach(st => {
+        const cleanCls = normalizeClass(st.className);
+        const cleanSec = normalizeSec(st.section);
+        const cleanSubj = (selectedSubject || '').trim().toLowerCase();
+        const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
+
         const periodKey = `${st.className}_${st.section}_${selectedSubject}_${selectedPeriod}_${date}`;
-        const normKey = getRegisterKey(st.className, st.section, date);
+        const normPeriodKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${date}`;
         const specKey = `${st.className}_${st.section}_${selectedSubject}_${date}`;
+        const normSpecKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${date}`;
+        const normKey = getRegisterKey(st.className, st.section, date);
+        const rawNormKey = `${st.className}_${st.section}_${date}`;
         const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
-        updated[periodKey] = { ...(updated[periodKey] || {}), [st.id]: status };
-        updated[normKey] = { ...(updated[normKey] || {}), [st.id]: status };
-        updated[specKey] = { ...(updated[specKey] || {}), [st.id]: status };
-        updated[legacyKey] = { ...(updated[legacyKey] || {}), [st.id]: status };
+
+        const keysToUpdate = [periodKey, normPeriodKey, specKey, normSpecKey, normKey, rawNormKey, legacyKey];
+        for (const k of keysToUpdate) {
+          updated[k] = { ...(updated[k] || {}), [st.id]: status };
+        }
 
         if (saveStudentAttendance) {
           saveStudentAttendance({
@@ -583,17 +707,22 @@ export const AttendanceView = () => {
             className: st.className,
             section: st.section,
             date: date,
+            subject: selectedSubject,
+            period: selectedPeriod,
             status: status,
             remarks: remarksState[`${date}_${st.id}`] || '',
-            markedBy: user?.name || teacherFullName
+            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
           });
         }
       });
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
       return updated;
     });
   };
- 
+
   const handleRemarkChange = (studentId: string, remark: string) => {
     if (!isEditable) return;
     setRemarksState(prev => ({
@@ -601,16 +730,16 @@ export const AttendanceView = () => {
       [`${date}_${studentId}`]: remark
     }));
   };
- 
+
   // Auto-save mechanisms
   useEffect(() => {
     localStorage.setItem('sms_attendance_registry', JSON.stringify(attendanceRegistry));
   }, [attendanceRegistry]);
- 
+
   useEffect(() => {
     localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
   }, [remarksState]);
- 
+
   // Metrics calculation
   const summaryMetrics = React.useMemo(() => {
     let present = 0, absent = 0, halfDay = 0, late = 0;
@@ -631,8 +760,8 @@ export const AttendanceView = () => {
       percentage
     };
   }, [filteredStudents, currentAttendance, attendanceRegistry, date, selectedSubject]);
- 
- 
+
+
   const [toasts, setToasts] = useState<Array<{id: number, type: 'success' | 'warning' | 'info', title: string, message: string}>>([]);
   const addToast = (type: 'success' | 'warning' | 'info', title: string, message: string) => {
     const id = Date.now();
@@ -660,33 +789,56 @@ export const AttendanceView = () => {
       setTimeout(() => setIsSearching(false), 300);
     }
   };
- 
-  const handleSaveAttendance = () => {
-    localStorage.setItem('sms_attendance_registry', JSON.stringify(attendanceRegistry));
-    localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
 
-    classStudents.forEach(st => {
-      const status = getAttendanceStatus(st) || 'Present';
-      const remark = remarksState[`${date}_${st.id}`] || '';
-      if (saveStudentAttendance) {
-        saveStudentAttendance({
-          studentId: st.id,
-          studentName: `${st.firstName} ${st.lastName}`,
-          className: st.className,
-          section: st.section,
-          date: date,
-          status: status,
-          remarks: remark,
-          markedBy: teacherFullName
-        });
-      }
+  const handleSaveAttendance = () => {
+    setAttendanceRegistry(prev => {
+      const updated = { ...prev };
+      classStudents.forEach(st => {
+        const status = getAttendanceStatus(st) || 'Present';
+        const remark = remarksState[`${date}_${st.id}`] || '';
+
+        const cleanCls = normalizeClass(st.className);
+        const cleanSec = normalizeSec(st.section);
+        const cleanSubj = (selectedSubject || '').trim().toLowerCase();
+        const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
+
+        const periodKey = `${st.className}_${st.section}_${selectedSubject}_${selectedPeriod}_${date}`;
+        const normPeriodKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${date}`;
+        const specKey = `${st.className}_${st.section}_${selectedSubject}_${date}`;
+        const normSpecKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${date}`;
+        const normKey = getRegisterKey(st.className, st.section, date);
+        const rawNormKey = `${st.className}_${st.section}_${date}`;
+        const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
+
+        const keysToUpdate = [periodKey, normPeriodKey, specKey, normSpecKey, normKey, rawNormKey, legacyKey];
+        for (const k of keysToUpdate) {
+          updated[k] = { ...(updated[k] || {}), [st.id]: status };
+        }
+
+        if (saveStudentAttendance) {
+          saveStudentAttendance({
+            studentId: st.id,
+            studentName: `${st.firstName} ${st.lastName}`,
+            className: st.className,
+            section: st.section,
+            date: date,
+            subject: selectedSubject,
+            period: selectedPeriod,
+            status: status,
+            remarks: remark,
+            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+          });
+        }
+      });
+      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
+      localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
+      return updated;
     });
 
-    if (!isTeacher) {
-      setIsEditable(false);
-    }
-
-    addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, and Admin panels!');
+    addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, Teacher, and Admin panels!');
   };
 
   // Excel Exporter
@@ -787,15 +939,21 @@ export const AttendanceView = () => {
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 ${dateMode === 'Custom Range' ? 'xl:grid-cols-9' : 'xl:grid-cols-8'} gap-3 items-end`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 ${dateMode === 'Custom Range' ? 'xl:grid-cols-8' : 'xl:grid-cols-7'} gap-3 items-end`}>
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
             <select
               value={dateMode}
-              onChange={e => setDateMode(e.target.value as any)}
+              onChange={e => {
+                const mode = e.target.value as any;
+                setDateMode(mode);
+                if (mode === 'Daily' && !date) {
+                  setDate(todayStr);
+                }
+              }}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              <option value="Select">Select</option>
+              <option value="Select">Select Date Mode</option>
               <option value="Daily">Daily</option>
               <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
@@ -901,7 +1059,7 @@ export const AttendanceView = () => {
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
               {sectionOptions.map(sec => (
-                <option key={sec} value={sec}>{sec === 'All Sections' ? 'All Sections' : `Section ${sec}`}</option>
+                <option key={sec} value={sec}>{sec === 'Select Section' ? 'Select Section' : sec === 'All Sections' ? 'All Sections' : `Section ${sec}`}</option>
               ))}
             </select>
           </div>
@@ -948,58 +1106,55 @@ export const AttendanceView = () => {
               <option value="Late">Late</option>
             </select>
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-transparent select-none hidden sm:block">Action</label>
-            <button
-              type="button"
-              onClick={handleSearchData}
-              disabled={isSearching}
-              className="w-full py-1.5 px-3 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
-            >
-              {isSearching ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Search className="w-3.5 h-3.5" />
-              )}
-              <span>Search Data</span>
-            </button>
+      {!isFilterSelected ? (
+        <div className="glass-card p-10 sm:p-16 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 text-center space-y-4 shadow-xs my-4">
+          <div className="w-16 h-16 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto border border-brand-200/60 dark:border-brand-800/60 shadow-xs">
+            <Filter className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-base font-black text-slate-900 dark:text-white">Select Filter Options</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+              Please select a specific <strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.
+            </p>
           </div>
         </div>
-      </div>
- 
-      {/* Horizontal Summary Strip */}
-      <div className="glass-card rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between overflow-x-auto">
-        <div className="flex items-center gap-8 lg:gap-16 pl-2">
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-slate-400 font-bold uppercase">Total Students</span>
-            <span className="text-lg font-black text-slate-855 dark:text-white">{summaryMetrics.total}</span>
+      ) : (
+        <>
+          {/* Horizontal Summary Strip */}
+          <div className="glass-card rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between overflow-x-auto">
+            <div className="flex items-center gap-8 lg:gap-16 pl-2">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Total Students</span>
+                <span className="text-lg font-black text-slate-855 dark:text-white">{summaryMetrics.total}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Present</span>
+                <span className="text-lg font-black text-emerald-700 dark:text-emerald-455">{summaryMetrics.present}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-rose-600 dark:text-rose-455 font-bold uppercase">Absent</span>
+                <span className="text-lg font-black text-rose-700 dark:text-rose-455">{summaryMetrics.absent}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
+                <span className="text-lg font-black text-blue-700 dark:text-blue-455">{summaryMetrics.halfDay}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late</span>
+                <span className="text-lg font-black text-amber-700 dark:text-amber-455">{summaryMetrics.late}</span>
+              </div>
+            </div>
+     
+            <div className="flex items-center gap-3 pl-4 lg:border-l border-slate-200 dark:border-slate-800">
+              <div className="text-right">
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Attendance Rate</p>
+                <p className="text-xl font-black text-brand-600 dark:text-brand-400">{summaryMetrics.percentage}%</p>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Present</span>
-            <span className="text-lg font-black text-emerald-700 dark:text-emerald-455">{summaryMetrics.present}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-rose-600 dark:text-rose-455 font-bold uppercase">Absent</span>
-            <span className="text-lg font-black text-rose-700 dark:text-rose-455">{summaryMetrics.absent}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
-            <span className="text-lg font-black text-blue-700 dark:text-blue-455">{summaryMetrics.halfDay}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late</span>
-            <span className="text-lg font-black text-amber-700 dark:text-amber-455">{summaryMetrics.late}</span>
-          </div>
-        </div>
- 
-        <div className="flex items-center gap-3 pl-4 lg:border-l border-slate-200 dark:border-slate-800">
-          <div className="text-right">
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Attendance Rate</p>
-            <p className="text-xl font-black text-brand-600 dark:text-brand-400">{summaryMetrics.percentage}%</p>
-          </div>
-        </div>
-      </div>
  
       {/* Attendance marking sheet table (Full Screen Width) */}
       <div className="w-full space-y-6">
@@ -1008,21 +1163,41 @@ export const AttendanceView = () => {
             {/* Sheet Actions Header */}
             <div className="flex flex-col gap-3 pb-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="font-extrabold text-sm text-slate-855 dark:text-slate-200">
-                  Attendance ({classStudents.length} Students)
+                <span className="font-extrabold text-sm text-slate-855 dark:text-slate-200 flex items-center gap-2 flex-wrap">
+                  <span>Attendance ({classStudents.length} Students)</span>
+                  {!isAggregatedView && (
+                    <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 font-bold text-[10.5px] border border-brand-200/60 dark:border-brand-800">
+                      {selectedSubject} &bull; {selectedPeriod}
+                    </span>
+                  )}
                 </span>
  
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!isAggregatedView && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditable(!isEditable)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 text-xs shadow-xs cursor-pointer ${
+                        isEditable
+                          ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                      }`}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>{isEditable ? 'Editing Enabled' : 'Unlock Editing'}</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => markAllClass('Present')}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350 font-bold transition-colors"
+                    disabled={!isEditable}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350 font-bold transition-colors disabled:opacity-50 cursor-pointer text-xs"
                   >
                     Mark All Present
                   </button>
                   <button
                     onClick={handleExportCSV}
                     disabled={isDownloading}
-                    className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-955/40 dark:text-sky-350 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-955/40 dark:text-sky-350 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer text-xs"
                   >
                     {isDownloading ? (
                       <Loader2 className="w-4 h-4 animate-spin text-sky-600 dark:text-sky-400" />
@@ -1033,7 +1208,8 @@ export const AttendanceView = () => {
                   </button>
                   <button
                     onClick={handleSaveAttendance}
-                    className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-[10.5px] font-black"
+                    disabled={!isEditable}
+                    className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-xs font-black disabled:opacity-50 cursor-pointer"
                   >
                     <Save className="w-4 h-4" /> Save Attendance
                   </button>
@@ -1318,6 +1494,8 @@ export const AttendanceView = () => {
             )}
           </div>
         </div>
+      </>
+      )}
  
       {/* ----------------- MODAL: Student Profile Detailed Viewer ----------------- */}
       {profileStudent && (
