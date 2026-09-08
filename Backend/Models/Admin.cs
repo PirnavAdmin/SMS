@@ -13,6 +13,7 @@ public class Admin
     public string Role { get; set; } = "Admin";
     public bool IsEmailVerified { get; set; } = false;
     public bool IsMobileVerified { get; set; } = false;
+    public string? Avatar { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     
     public int? SchoolId { get; set; }

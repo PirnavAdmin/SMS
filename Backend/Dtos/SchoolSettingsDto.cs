@@ -82,4 +82,36 @@ namespace SMS.Api.Dtos
     {
         public Microsoft.AspNetCore.Http.IFormFile? File { get; set; }
     }
+
+    public class UserProfileDto
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("phone")]
+        public string Phone { get; set; } = string.Empty;
+
+        [JsonPropertyName("avatar")]
+        public string Avatar { get; set; } = string.Empty;
+
+        [JsonPropertyName("branch")]
+        public string Branch { get; set; } = "Main Campus";
+
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = "Admin";
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "Active Account";
+    }
+
+    public class UploadProfileImageFileRequest
+    {
+        public Microsoft.AspNetCore.Http.IFormFile? File { get; set; }
+    }
 }

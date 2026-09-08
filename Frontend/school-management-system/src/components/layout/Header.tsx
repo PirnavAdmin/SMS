@@ -9,6 +9,7 @@ import { useData } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { BRANCHES } from '../../utils/validation';
+import { resolveMediaUrl, DEFAULT_USER_AVATAR } from '../../utils/mediaUtils';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -525,8 +526,14 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <img
-              src={currentStaff?.avatar || user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+              src={resolveMediaUrl(user?.avatar) || DEFAULT_USER_AVATAR}
               alt=""
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (target.src !== DEFAULT_USER_AVATAR) {
+                  target.src = DEFAULT_USER_AVATAR;
+                }
+              }}
               className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"
             />
             <div className="hidden md:block text-left">
