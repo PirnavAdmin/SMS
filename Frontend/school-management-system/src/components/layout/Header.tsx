@@ -350,7 +350,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0 h-9"
           >
             <Search className="w-4 h-4 shrink-0 text-slate-400" />
-            <span className="truncate">Search...</span>
+            <span className="truncate">Search modules, students, staff...</span>
           </button>
 
         {/* Global Branch Selector with Permissions */}

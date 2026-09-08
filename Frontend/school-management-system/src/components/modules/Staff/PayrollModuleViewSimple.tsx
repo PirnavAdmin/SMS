@@ -404,7 +404,7 @@ const SearchableSelect: React.FC<{
               <input 
                 autoFocus
                 type="text"
-                placeholder="Search..."
+                placeholder="Search options..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full rounded-xl border-none bg-slate-50 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-900 dark:text-white"
@@ -575,7 +575,7 @@ const ModalShell: React.FC<{
   </div>
 );
 
-const defaultEffectiveDate = new Date().toISOString().split('T')[0];
+const defaultEffectiveDate = '';
 
 const structureDraftDefaults: StructureDraft = {
   structureName: '',
@@ -791,7 +791,7 @@ const assignmentDraftDefaults: AssignmentDraft = {
   basicSalary: '',
   allowances: '',
   deductions: '',
-  effectiveDate: todayString()
+  effectiveDate: ''
 };
 
 export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab = 'staff-payroll-employees', onTabChange }) => {
@@ -1407,7 +1407,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       basicSalary: structure ? String(activeAssignment?.overrideBasicSalary ?? breakdown.basicSalary) : '',
       allowances: structure ? String(activeAssignment?.overrideAllowances ?? breakdown.allowances) : '',
       deductions: structure ? String(activeAssignment?.overrideDeductions ?? breakdown.deductions) : '',
-      effectiveDate: activeAssignment?.effectiveDate || todayString()
+      effectiveDate: activeAssignment?.effectiveDate || ''
     });
     setAssignmentModalOpen(true);
   };
@@ -1507,7 +1507,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             department: linkedStaffMember.department,
             salaryStructureId: structureEditingId,
             salaryStructureName: payload.structureName,
-            effectiveDate: structureDraft.effectiveDate || todayString(),
+            effectiveDate: structureDraft.effectiveDate || '',
             status: 'Active',
             salaryOverride: false,
             overrideBasicSalary: breakdown.basicSalary,
@@ -1538,7 +1538,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             department: linkedStaffMember.department,
             salaryStructureId: newStructureId,
             salaryStructureName: payload.structureName,
-            effectiveDate: structureDraft.effectiveDate || todayString(),
+            effectiveDate: structureDraft.effectiveDate || '',
             status: 'Active',
             salaryOverride: false,
             overrideBasicSalary: breakdown.basicSalary,
@@ -1577,7 +1577,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       department: member.department,
       salaryStructureId: structure.id,
       salaryStructureName: structure.structureName,
-      effectiveDate: assignmentDraft.effectiveDate || todayString(),
+      effectiveDate: assignmentDraft.effectiveDate || '',
       status: 'Active',
       salaryOverride: assignmentDraft.salaryOverride,
       overrideBasicSalary: assignmentDraft.salaryOverride ? Number(assignmentDraft.basicSalary) || breakdown.basicSalary : undefined,
@@ -1729,7 +1729,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <input
                   value={employeeSearch}
                   onChange={e => setEmployeeSearch(e.target.value)}
-                  placeholder="Search..."
+                  placeholder="Search by Employee ID, Name, Department..."
                   className={`${inputClass} pl-9`}
                 />
               </div>
@@ -1763,18 +1763,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                   <th className="px-3 py-2 text-center w-10">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={filteredEmployeeRows.length > 0 && filteredEmployeeRows.every((r, idx) => selectedEmployeeIds.includes(getEmployeeUniqueId(r.member, idx)))}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedEmployeeIds(filteredEmployeeRows.map((r, idx) => getEmployeeUniqueId(r.member, idx)));
-                        } else {
-                          setSelectedEmployeeIds([]);
-                        }
-                      }}
-                    />
+                    {filteredEmployeeRows.length > 0 && (
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                        checked={filteredEmployeeRows.length > 0 && filteredEmployeeRows.every((r, idx) => selectedEmployeeIds.includes(getEmployeeUniqueId(r.member, idx)))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedEmployeeIds(filteredEmployeeRows.map((r, idx) => getEmployeeUniqueId(r.member, idx)));
+                          } else {
+                            setSelectedEmployeeIds([]);
+                          }
+                        }}
+                      />
+                    )}
                   </th>
                   <th className="px-3 py-2 text-center">Employee ID</th>
                   <th className="px-3 py-2 text-center">Employee Name</th>
@@ -1941,7 +1943,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Search</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search..." className={`${inputClass} pl-9`} />
+              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search by Structure Name, Employee, Code..." className={`${inputClass} pl-9`} />
             </div>
           </div>
           <div className="w-48">
@@ -1973,18 +1975,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10">
-                  <input 
-                    type="checkbox" 
-                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                    checked={filteredStructureRows.length > 0 && filteredStructureRows.every((r, idx) => selectedStructureIds.includes(r.structure?.id || `struct-${idx}`))}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedStructureIds(filteredStructureRows.map((r, idx) => r.structure?.id || `struct-${idx}`));
-                      } else {
-                        setSelectedStructureIds([]);
-                      }
-                    }}
-                  />
+                  {filteredStructureRows.length > 0 && (
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={filteredStructureRows.length > 0 && filteredStructureRows.every((r, idx) => selectedStructureIds.includes(r.structure?.id || `struct-${idx}`))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStructureIds(filteredStructureRows.map((r, idx) => r.structure?.id || `struct-${idx}`));
+                        } else {
+                          setSelectedStructureIds([]);
+                        }
+                      }}
+                    />
+                  )}
                 </th>
                 <th className="px-3 py-2 text-center">Structure Name</th>
                 <th className="px-3 py-2 text-center">Employee</th>
@@ -2213,7 +2217,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <input
                 value={leftEmployeeSearch}
                 onChange={e => setLeftEmployeeSearch(e.target.value)}
-                placeholder="Search..."
+                placeholder="Search by Employee ID, Name, Department..."
                 className={`${inputClass} pl-9`}
               />
             </div>
@@ -2580,18 +2584,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10">
-                  <input 
-                    type="checkbox" 
-                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                    checked={historyRows.length > 0 && historyRows.every((r, idx) => selectedHistoryIds.includes(getPayslipUniqueId(r, idx)))}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedHistoryIds(historyRows.map((r, idx) => getPayslipUniqueId(r, idx)));
-                      } else {
-                        setSelectedHistoryIds([]);
-                      }
-                    }}
-                  />
+                  {historyRows.length > 0 && (
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={historyRows.length > 0 && historyRows.every((r, idx) => selectedHistoryIds.includes(getPayslipUniqueId(r, idx)))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedHistoryIds(historyRows.map((r, idx) => getPayslipUniqueId(r, idx)));
+                        } else {
+                          setSelectedHistoryIds([]);
+                        }
+                      }}
+                    />
+                  )}
                 </th>
                 <th className="px-3 py-2 text-center">Month</th>
                 <th className="px-3 py-2 text-center">Year</th>

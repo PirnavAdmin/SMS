@@ -11,6 +11,8 @@ interface DateInputProps {
   id?: string;
   name?: string;
   placeholder?: string;
+  max?: string;
+  min?: string;
 }
 
 export const DateInput: React.FC<DateInputProps> = ({
@@ -21,7 +23,9 @@ export const DateInput: React.FC<DateInputProps> = ({
   disabled = false,
   id,
   name,
-  placeholder = 'DD-MM-YYYY'
+  placeholder = 'DD-MM-YYYY',
+  max,
+  min
 }) => {
   const datePickerRef = useRef<HTMLInputElement>(null);
 
@@ -38,15 +42,22 @@ export const DateInput: React.FC<DateInputProps> = ({
     setTextValue(val);
 
     // If matches DD-MM-YYYY or DD/MM/YYYY format or YYYY-MM-DD
-    const iso = formatToISO(val);
+    let iso = formatToISO(val);
     if (iso && iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (max && iso > max) {
+        iso = max;
+        setTextValue(formatToDDMMYYYY(max, '-'));
+      }
       onChange({ target: { value: iso } });
     }
   };
 
   const handleTextBlur = () => {
-    const iso = formatToISO(textValue);
+    let iso = formatToISO(textValue);
     if (iso && iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (max && iso > max) {
+        iso = max;
+      }
       setTextValue(formatToDDMMYYYY(iso, '-'));
       onChange({ target: { value: iso } });
     } else if (!textValue) {
@@ -55,8 +66,11 @@ export const DateInput: React.FC<DateInputProps> = ({
   };
 
   const handlePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const iso = e.target.value;
+    let iso = e.target.value;
     if (iso) {
+      if (max && iso > max) {
+        iso = max;
+      }
       setTextValue(formatToDDMMYYYY(iso, '-'));
       onChange({ target: { value: iso } });
     }
@@ -110,6 +124,8 @@ export const DateInput: React.FC<DateInputProps> = ({
         ref={datePickerRef}
         type="date"
         tabIndex={-1}
+        max={max}
+        min={min}
         value={isoValue.match(/^\d{4}-\d{2}-\d{2}$/) ? isoValue : ''}
         onChange={handlePickerChange}
         className="sr-only opacity-0 absolute pointer-events-none"

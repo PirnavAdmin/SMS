@@ -397,27 +397,37 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
           {activeTab === 'salary-structure' && (
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
               <DrawerCard title="Salary Components" subtitle="Basic, allowances, and deductions for the active structure.">
-                <div className="space-y-3">
-                  {[
-                    ['Basic Salary', basicSalary],
-                    ...structureAllowances.map(item => [item.name, item.amount] as const)
-                  ].map(([label, amount]) => (
-                    <div key={label} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</span>
-                      <span className="font-black text-slate-900 dark:text-white">{formatCurrency(Number(amount))}</span>
-                    </div>
-                  ))}
+                <div className="max-w-md overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                  <table className="w-full text-left text-xs">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {[
+                        ['Basic Salary', basicSalary],
+                        ...structureAllowances.map(item => [item.name, item.amount] as const)
+                      ].map(([label, amount]) => (
+                        <tr key={label} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{label}</td>
+                          <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">{formatCurrency(Number(amount))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </DrawerCard>
               <DrawerCard title="Deductions & Net" subtitle="Static payroll deductions and salary preview.">
-                <div className="space-y-3">
-                  {structureDeductions.map(item => (
-                    <div key={item.name} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900">
-                      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{item.name}</span>
-                      <span className="font-black text-rose-600">{formatCurrency(item.amount)}</span>
-                    </div>
-                  ))}
-                  <div className="rounded-2xl bg-brand-50 p-4 dark:bg-brand-950/30">
+                <div className="max-w-md space-y-3">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                    <table className="w-full text-left text-xs">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {structureDeductions.map(item => (
+                          <tr key={item.name} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{item.name}</td>
+                            <td className="px-4 py-3 text-right font-black text-rose-600">-{formatCurrency(item.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="rounded-2xl bg-brand-50 p-4 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/40">
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brand-500">Net Salary Preview</p>
                     <p className="mt-2 text-3xl font-black text-brand-700 dark:text-brand-300">{formatCurrency(netSalary)}</p>
                   </div>
@@ -428,26 +438,34 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
 
           {activeTab === 'allowances' && (
             <DrawerCard title="Allowances" subtitle="Positive earnings from the active salary structure.">
-              <div className="space-y-2">
-                {structureAllowances.map(item => (
-                  <div key={item.name} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{item.name}</span>
-                    <span className="font-black text-emerald-600">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
+              <div className="max-w-md overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <table className="w-full text-left text-xs">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {structureAllowances.map(item => (
+                      <tr key={item.name} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{item.name}</td>
+                        <td className="px-4 py-3 text-right font-black text-emerald-600">{formatCurrency(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </DrawerCard>
           )}
 
           {activeTab === 'deductions' && (
             <DrawerCard title="Deductions" subtitle="Statutory and policy deductions for the active employee.">
-              <div className="space-y-2">
-                {structureDeductions.map(item => (
-                  <div key={item.name} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{item.name}</span>
-                    <span className="font-black text-rose-600">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
+              <div className="max-w-md overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <table className="w-full text-left text-xs">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {structureDeductions.map(item => (
+                      <tr key={item.name} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{item.name}</td>
+                        <td className="px-4 py-3 text-right font-black text-rose-600">-{formatCurrency(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </DrawerCard>
           )}

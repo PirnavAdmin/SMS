@@ -699,7 +699,7 @@ export const StaffList: React.FC<{
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 " />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search by Staff ID, Name, Department, Designation..."
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);

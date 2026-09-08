@@ -179,7 +179,7 @@ const makeStructure = (draft: SalaryStructureDraft): SalaryStructure => {
     department: draft.department,
     employmentType: draft.employmentType,
     notes: draft.notes,
-    effectiveDate: today()
+    effectiveDate: ''
   };
 };
 
@@ -615,7 +615,7 @@ function TableShell<T extends { id: string }>({
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search..."
+              placeholder="Search by Employee ID, Name, Department..."
               className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white font-medium"
             />
           </label>
@@ -659,12 +659,14 @@ function TableShell<T extends { id: string }>({
             <tr className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500">
               {selectable && (
                 <th className="w-10 px-3.5 py-2">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleAll}
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                  />
+                  {paginatedRows.length > 0 && (
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                  )}
                 </th>
               )}
               {visibleColumnDefs.map(column => (
@@ -914,7 +916,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     status: 'All Status'
   });
   const [bulkStructureId, setBulkStructureId] = useState<string>(baseStructures[0].id);
-  const [bulkEffectiveDate, setBulkEffectiveDate] = useState('2026-08-01');
+  const [bulkEffectiveDate, setBulkEffectiveDate] = useState('');
 
   const [payrollMonth, setPayrollMonth] = useState('July 2026');
   const [processingStep, setProcessingStep] = useState(0);

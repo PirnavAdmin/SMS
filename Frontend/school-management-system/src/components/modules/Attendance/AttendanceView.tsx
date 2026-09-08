@@ -1288,10 +1288,10 @@ export const AttendanceView = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3 px-4 w-24">Roll No</th>
-                      <th className="py-3 px-4">Student Name</th>
-                      <th className="py-3 px-4 text-center">Attendance Status</th>
-                      <th className="py-3 px-4">Remarks (Optional)</th>
+                      <th className="py-3 px-4 w-24 whitespace-nowrap text-left">Roll No</th>
+                      <th className="py-3 px-4 whitespace-nowrap text-left">Student Name</th>
+                      <th className="py-3 px-4 text-center whitespace-nowrap">Attendance Status</th>
+                      <th className="py-3 px-4 whitespace-nowrap text-left">Remarks (Optional)</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">

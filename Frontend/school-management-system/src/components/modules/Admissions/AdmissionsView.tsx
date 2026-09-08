@@ -1137,6 +1137,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [siblingSearchQuery, students]);
 
   const [phoneError, setPhoneError] = useState("");
+  const [motherPhoneError, setMotherPhoneError] = useState("");
   const [altPhoneError, setAltPhoneError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [dobError, setDobError] = useState("");
@@ -1501,12 +1502,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   const handlePhoneChange = (val: string) => {
-    setFormData((prev) => ({ ...prev, phone: val }));
-    if (val) {
-      const res = validate10DigitPhone(val);
+    const cleaned = val.replace(/\D/g, "").slice(0, 10);
+    setFormData((prev) => ({ ...prev, phone: cleaned }));
+    if (cleaned) {
+      const res = validate10DigitPhone(cleaned);
       setPhoneError(res.isValid ? "" : res.error || "");
     } else {
       setPhoneError("Father mobile number is required.");
+    }
+  };
+
+  const handleMotherPhoneChange = (val: string) => {
+    const cleaned = val.replace(/\D/g, "").slice(0, 10);
+    setFormData((prev) => ({ ...prev, motherPhone: cleaned }));
+    if (cleaned && cleaned.length > 0 && cleaned.length !== 10) {
+      setMotherPhoneError("Mother mobile number must be exactly 10 digits");
+    } else {
+      setMotherPhoneError("");
     }
   };
 
@@ -2486,7 +2498,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter First Name"
                           value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
+                          onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -2499,7 +2511,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter Last Name"
                           value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
+                          onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -2715,7 +2727,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       placeholder="Enter Religion"
                       value={formData.religion}
                       onChange={(e) =>
-                        setFormData({ ...formData, religion: e.target.value })
+                        setFormData({
+                          ...formData,
+                          religion: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
+                        })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -2975,7 +2990,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       required
                       value={formData.parentName}
                       onChange={(e) =>
-                        setFormData({ ...formData, parentName: e.target.value })
+                        setFormData({ ...formData, parentName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -2988,7 +3003,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       type="text"
                       value={formData.motherName}
                       onChange={(e) =>
-                        setFormData({ ...formData, motherName: e.target.value })
+                        setFormData({ ...formData, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -3003,7 +3018,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <input
                       type="text"
                       required
-                      value={formData.phone}
+                      maxLength={10}
+                      placeholder="10-digit number"
+                      value={formData.phone || ""}
                       onChange={(e) => handlePhoneChange(e.target.value)}
                       className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                         phoneError
@@ -3024,17 +3041,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={10}
+                      placeholder="10-digit number"
                       value={formData.motherPhone || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          motherPhone: e.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 10),
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
+                      onChange={(e) => handleMotherPhoneChange(e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
+                        motherPhoneError
+                          ? "border-rose-500"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
                     />
+                    {motherPhoneError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {motherPhoneError}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -3043,6 +3064,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={10}
+                      placeholder="10-digit number"
                       value={formData.alternatePhone || ""}
                       onChange={(e) => handleAltPhoneChange(e.target.value)}
                       className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${

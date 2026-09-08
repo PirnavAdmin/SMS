@@ -458,7 +458,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   required
                   placeholder="Enter First Name"
                   value={formData.firstName}
-                  onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                  onChange={e => setFormData({ ...formData, firstName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 />
               </div>
@@ -469,7 +469,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   required
                   placeholder="Enter Last Name"
                   value={formData.lastName}
-                  onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                  onChange={e => setFormData({ ...formData, lastName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 />
               </div>
@@ -556,6 +556,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD-MM-YYYY) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <DateInput
                   required
+                  max={new Date().toISOString().split('T')[0]}
                   placeholder="15-08-2012"
                   value={formData.dob ? (formatToISO(formData.dob) || formData.dob) : ''}
                   onChange={e => {
@@ -589,7 +590,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   type="text"
                   placeholder="Enter Religion"
                   value={formData.religion}
-                  onChange={e => setFormData({ ...formData, religion: e.target.value })}
+                  onChange={e => setFormData({ ...formData, religion: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 />
               </div>
@@ -771,7 +772,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   type="text"
                   required
                   value={formData.fatherName}
-                  onChange={e => setFormData({ ...formData, fatherName: e.target.value })}
+                  onChange={e => setFormData({ ...formData, fatherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 />
               </div>
@@ -780,7 +781,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <input
                   type="text"
                   value={formData.motherName}
-                  onChange={e => setFormData({ ...formData, motherName: e.target.value })}
+                  onChange={e => setFormData({ ...formData, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 />
               </div>

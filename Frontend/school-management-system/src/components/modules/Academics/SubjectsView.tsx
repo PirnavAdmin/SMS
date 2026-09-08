@@ -1475,7 +1475,7 @@ export const SubjectsView: React.FC = () => {
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search by Staff Name, ID, Designation..."
                 value={staffModalSearch}
                 onChange={e => setStaffModalSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"

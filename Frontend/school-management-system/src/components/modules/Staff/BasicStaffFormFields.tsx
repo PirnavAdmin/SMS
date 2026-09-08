@@ -533,7 +533,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <input
                   type="text"
                   value={value.firstName}
-                  onChange={e => onChange('firstName', e.target.value)}
+                  onChange={e => onChange('firstName', e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
                   className={fieldClass}
                 />
                 {errors.firstName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.firstName}</p>}
@@ -547,7 +547,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <input
                   type="text"
                   value={value.lastName}
-                  onChange={e => onChange('lastName', e.target.value)}
+                  onChange={e => onChange('lastName', e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
                   className={fieldClass}
                 />
                 {errors.lastName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.lastName}</p>}
@@ -559,7 +559,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <input
                   type="text"
                   value={value.middleName || ''}
-                  onChange={e => onChange('middleName', e.target.value)}
+                  onChange={e => onChange('middleName', e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
                   className={fieldClass}
                 />
               </div>
@@ -603,7 +603,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Date of Birth <span className="text-rose-500">*</span>
                 </label>
-                <DateInput value={value.dob || ''} onChange={e => onChange('dob', e.target.value)} className={fieldClass} />
+                <DateInput value={value.dob || ''} max={new Date().toISOString().split('T')[0]} onChange={e => onChange('dob', e.target.value)} className={fieldClass} />
                 {errors.dob && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.dob}</p>}
               </div>
 

@@ -3069,16 +3069,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800">Employee ID</th>
-                      <th className="py-3.5 px-4 sticky left-[110px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800">Employee Name</th>
-                      <th className="py-3.5 px-4">Department</th>
-                      <th className="py-3.5 px-4">Designation</th>
-                      <th className="py-3.5 px-4 text-center">
-                        Attendance Status
-                      </th>
-                      <th className="py-3.5 px-4">In Time</th>
-                      <th className="py-3.5 px-4">Out Time</th>
-                      <th className="py-3.5 px-4 min-w-[260px]">Remarks</th>
+                      <th className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left">Employee ID</th>
+                      <th className="py-3.5 px-4 sticky left-[110px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left">Employee Name</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap text-left">Department</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap text-left">Designation</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance Status</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">In Time</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Out Time</th>
+                      <th className="py-3.5 px-4 min-w-[260px] whitespace-nowrap text-left">Remarks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -3216,7 +3214,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                             </td>
 
                             {/* In Time */}
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 text-center">
                               <input
                                 type="text"
                                 disabled={
@@ -3241,7 +3239,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                             </td>
 
                             {/* Out Time */}
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 text-center">
                               <input
                                 type="text"
                                 disabled={
