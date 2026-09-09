@@ -9,6 +9,7 @@ namespace SMS.Api.Controllers.AcademicManagement
     using SMS.Api.Data;
     using SMS.Api.Dtos;
     using SMS.Api.Exceptions;
+    using SMS.Api.Models;
     using SMS.Api.Services.Interfaces;
 
     [ApiController]
@@ -18,11 +19,13 @@ namespace SMS.Api.Controllers.AcademicManagement
     public class TimetableController : ControllerBase
     {
         private readonly ITimetableService _timetableService;
+        private readonly IAcademicYearService _academicYearService;
         private readonly AppDbContext _context;
 
-        public TimetableController(ITimetableService timetableService, AppDbContext context)
+        public TimetableController(ITimetableService timetableService, IAcademicYearService academicYearService, AppDbContext context)
         {
             _timetableService = timetableService;
+            _academicYearService = academicYearService;
             _context = context;
         }
 
@@ -31,10 +34,42 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpGet("options")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
-        public IActionResult GetTimetableDropdownOptions()
+        public async Task<IActionResult> GetTimetableDropdownOptions()
         {
-            var academicYears = new[] { "2026-2027", "2027-2028", "2025-2026" };
-            var days = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+            var academicYears = await _context.AcademicYears
+                .AsNoTracking()
+                .Where(ay => !ay.IsDeleted && ay.IsActive)
+                .OrderByDescending(ay => ay.StartDate)
+                .Select(ay => ay.AcademicYearName)
+                .ToListAsync();
+
+            if (!academicYears.Any())
+            {
+                var current = await _academicYearService.GetCurrentAcademicYearAsync();
+                academicYears.Add(current);
+            }
+
+            var days = await _context.TimetableSlots
+                .AsNoTracking()
+                .Where(s => !string.IsNullOrWhiteSpace(s.DayOfWeek))
+                .Select(s => s.DayOfWeek)
+                .Distinct()
+                .ToListAsync();
+
+            if (!days.Any())
+            {
+                days = Enum.GetValues<DayOfWeek>()
+                    .Where(d => d != DayOfWeek.Sunday)
+                    .Select(d => d.ToString())
+                    .ToList();
+            }
+
+            var periodTypes = await _context.PeriodSettings
+                .AsNoTracking()
+                .Where(p => !string.IsNullOrWhiteSpace(p.PeriodType) && !p.IsDeleted)
+                .Select(p => p.PeriodType)
+                .Distinct()
+                .ToListAsync();
 
             return Ok(new
             {
@@ -42,7 +77,8 @@ namespace SMS.Api.Controllers.AcademicManagement
                 data = new
                 {
                     academicYears,
-                    days
+                    days,
+                    periodTypes
                 }
             });
         }
@@ -55,12 +91,16 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetStudentTimetable(
             [FromQuery] int classId = 0,
             [FromQuery] int sectionId = 0,
-            [FromQuery] string academicYear = "2026-2027",
+            [FromQuery] string? academicYear = null,
             [FromQuery] string? dayOfWeek = null)
         {
             try
             {
-                var result = await _timetableService.GetStudentTimetableAsync(classId, sectionId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.GetStudentTimetableAsync(classId, sectionId, resolvedAcademicYear);
 
                 if (!string.IsNullOrWhiteSpace(dayOfWeek) && !dayOfWeek.Equals("All", StringComparison.OrdinalIgnoreCase))
                 {
@@ -101,11 +141,15 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetClassTimetableGrid(
             [FromQuery] int classId = 0, 
             [FromQuery] int sectionId = 0, 
-            [FromQuery] string academicYear = "2026-2027")
+            [FromQuery] string? academicYear = null)
         {
             try
             {
-                var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, resolvedAcademicYear);
                 return Ok(new { success = true, data = result });
             }
             catch (NotFoundException ex)
@@ -134,45 +178,139 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
         }
 
+        [HttpGet("all")]
+        [HttpGet("/api/academics/timetable/all")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        public async Task<IActionResult> GetAllTimetableSlots([FromQuery] string? academicYear = null)
+        {
+            try
+            {
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var query = _context.TimetableSlots
+                    .Include(s => s.Header)
+                        .ThenInclude(h => h.ClassGrade)
+                    .Include(s => s.Header)
+                        .ThenInclude(h => h.ClassSection)
+                    .Include(s => s.Subject)
+                    .Include(s => s.Teacher)
+                    .Include(s => s.Period)
+                    .AsNoTracking();
+
+                if (!string.IsNullOrWhiteSpace(resolvedAcademicYear) && resolvedAcademicYear != "All")
+                {
+                    query = query.Where(s => s.Header != null && s.Header.AcademicYear == resolvedAcademicYear);
+                }
+
+                var allPeriods = await _context.PeriodSettings.AsNoTracking().ToListAsync();
+                var rawSlots = await query.ToListAsync();
+
+                var slots = rawSlots.Select(s => {
+                    var dtStart = DateTime.Today.Add(s.StartTime);
+                    var dtEnd = DateTime.Today.Add(s.EndTime);
+                    var startFormatted = dtStart.ToString("hh:mm tt");
+                    var endFormatted = dtEnd.ToString("hh:mm tt");
+
+                    var matchedPeriod = s.Period ?? allPeriods.FirstOrDefault(p => (s.PeriodId.HasValue && p.PeriodId == s.PeriodId.Value) || (p.StartTime == s.StartTime && p.EndTime == s.EndTime));
+                    var pNum = matchedPeriod?.DisplayOrder ?? matchedPeriod?.PeriodId ?? s.PeriodId ?? 1;
+
+                    return new
+                    {
+                        id = s.SlotId.ToString(),
+                        className = s.Header?.ClassGrade?.ClassName ?? $"Class {s.Header?.ClassId}",
+                        section = s.Header?.ClassSection?.SectionName ?? "A",
+                        day = s.DayOfWeek,
+                        timeSlot = $"{startFormatted} - {endFormatted}",
+                        startTime = startFormatted,
+                        endTime = endFormatted,
+                        periodNumber = pNum,
+                        subject = s.Subject?.SubjectName ?? "",
+                        subjectId = s.SubjectId.ToString(),
+                        teacherName = s.Teacher != null
+                            ? (s.Teacher.DisplayName ?? $"{s.Teacher.FirstName ?? ""} {s.Teacher.LastName ?? ""}".Trim())
+                            : "",
+                        teacherId = s.TeacherId.ToString(),
+                        roomNo = s.RoomNo ?? s.Header?.ClassSection?.RoomNo ?? "",
+                        academicYear = s.Header?.AcademicYear ?? resolvedAcademicYear,
+                        status = s.Header?.Status ?? "Draft",
+                        branch = s.Header?.BranchName ?? ""
+                    };
+                }).ToList();
+
+                return Ok(new { success = true, data = slots });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet("/api/academics/timetable")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
         public async Task<IActionResult> GetAcademicsTimetable(
             [FromQuery] string classId,
             [FromQuery] string section,
-            [FromQuery] string academicYear = "2026-2027")
+            [FromQuery] string? academicYear = null)
         {
             try
             {
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
                 int numericClassId = 0;
                 if (string.IsNullOrEmpty(classId))
                 {
                     return BadRequest(new { success = false, message = "classId is required." });
                 }
 
-                if (classId.StartsWith("CL-"))
+                if (classId.StartsWith("CL-", StringComparison.OrdinalIgnoreCase))
                 {
-                    int.TryParse(classId.Replace("CL-", ""), out numericClassId);
+                    int.TryParse(classId.Substring(3), out numericClassId);
                 }
                 else
                 {
                     int.TryParse(classId, out numericClassId);
                 }
 
+                var cleanClassName = classId.ToLower().Trim();
                 var classItem = await _context.Classes
                     .Include(c => c.Sections)
-                    .FirstOrDefaultAsync(c => c.ClassId == numericClassId);
+                    .FirstOrDefaultAsync(c => (numericClassId > 0 && c.ClassId == numericClassId) ||
+                                              (c.ClassName != null && (c.ClassName.ToLower() == cleanClassName ||
+                                                                       c.ClassName.ToLower().Contains(cleanClassName) ||
+                                                                       cleanClassName.Contains(c.ClassName.ToLower()))));
                 
-                int sectionId = 0;
-                if (classItem != null && classItem.Sections != null)
+                if (classItem != null)
                 {
-                    var sec = classItem.Sections.FirstOrDefault(s => s.SectionName.Equals(section, StringComparison.OrdinalIgnoreCase));
+                    numericClassId = (int)classItem.ClassId;
+                }
+
+                int sectionId = 0;
+                var cleanSec = (section ?? "A").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+                if (classItem != null && classItem.Sections != null && classItem.Sections.Any())
+                {
+                    var sec = classItem.Sections.FirstOrDefault(s => 
+                        s.SectionName != null && (s.SectionName.Equals(section, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.SectionName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().Equals(cleanSec, StringComparison.OrdinalIgnoreCase)));
                     if (sec != null)
                     {
                         sectionId = (int)sec.SectionId;
                     }
+                    else
+                    {
+                        sectionId = (int)classItem.Sections.First().SectionId;
+                    }
                 }
 
-                var grid = await _timetableService.GetClassTimetableGridAsync(numericClassId, sectionId, academicYear);
+                if (numericClassId == 0 || sectionId == 0)
+                {
+                    return Ok(new { success = true, data = new object[0] });
+                }
+
+                var grid = await _timetableService.GetClassTimetableGridAsync(numericClassId, sectionId, resolvedAcademicYear);
                 
                 var slots = grid.Slots.Select(s => new
                 {
@@ -202,11 +340,15 @@ namespace SMS.Api.Controllers.AcademicManagement
 
         [HttpGet("teacher/{teacherId:int}")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
-        public async Task<IActionResult> GetTeacherTimetable(int teacherId, [FromQuery] string academicYear = "2026-2027")
+        public async Task<IActionResult> GetTeacherTimetable(int teacherId, [FromQuery] string? academicYear = null)
         {
             try
             {
-                var result = await _timetableService.GetTeacherTimetableAsync(teacherId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.GetTeacherTimetableAsync(teacherId, resolvedAcademicYear);
                 return Ok(new { success = true, data = result });
             }
             catch (NotFoundException ex)
@@ -328,7 +470,8 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Save (Create or Update) a weekly class timetable slot allocation mapping
         /// </summary>
         [HttpPost("slot")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [HttpPost("/api/academics/timetable/slot")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> SaveTimetableSlot([FromBody] SaveTimetableSlotDto dto)
         {
             try
@@ -354,17 +497,60 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Delete an allocated weekly class timetable slot mapping
         /// </summary>
         [HttpDelete("slot/{id:int}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [HttpDelete("/api/academics/timetable/slot/{id:int}")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> DeleteTimetableSlot(int id)
         {
             try
             {
                 var success = await _timetableService.DeleteTimetableSlotAsync(id);
-                if (success)
+                return Ok(new { success = true, message = "Timetable slot deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Clear all timetable slots for a class and section
+        /// </summary>
+        [HttpDelete("class")]
+        [HttpDelete("/api/academics/timetable/class")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> ClearClassTimetable(
+            [FromQuery] string className,
+            [FromQuery] string section,
+            [FromQuery] string? academicYear = null)
+        {
+            try
+            {
+                var cleanClass = (className ?? "").ToLower().Trim().Replace("class", "").Trim();
+                var cleanSec = (section ?? "").ToLower().Trim().Replace("section", "").Trim();
+
+                var headers = await _context.TimetableHeaders
+                    .Include(h => h.ClassGrade)
+                    .Include(h => h.ClassSection)
+                    .Include(h => h.Slots)
+                    .Where(h => (h.ClassGrade != null && (h.ClassGrade.ClassName.ToLower().Trim().Replace("class", "").Trim() == cleanClass || h.ClassGrade.ClassId.ToString() == cleanClass)) &&
+                                (h.ClassSection != null && (h.ClassSection.SectionName.ToLower().Trim().Replace("section", "").Trim() == cleanSec || h.ClassSection.SectionId.ToString() == cleanSec)))
+                    .ToListAsync();
+
+                if (!string.IsNullOrWhiteSpace(academicYear) && academicYear != "All")
                 {
-                    return Ok(new { success = true, message = "Timetable slot deleted successfully." });
+                    headers = headers.Where(h => h.AcademicYear == academicYear).ToList();
                 }
-                return NotFound(new { success = false, message = "Timetable slot not found." });
+
+                foreach (var h in headers)
+                {
+                    if (h.Slots != null && h.Slots.Any())
+                    {
+                        _context.TimetableSlots.RemoveRange(h.Slots);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok(new { success = true, message = "Timetable cleared for class section successfully." });
             }
             catch (Exception ex)
             {
@@ -439,11 +625,15 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpPost("/api/academics/timetable/validate")]
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string academicYear = "2026-2027")
+        public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string? academicYear = null)
         {
             try
             {
-                var result = await _timetableService.ValidateTimetableAsync(classId, sectionId, academicYear);
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var result = await _timetableService.ValidateTimetableAsync(classId, sectionId, resolvedAcademicYear);
                 return Ok(new { success = true, message = "Timetable validated successfully.", data = result });
             }
             catch (Exception ex)

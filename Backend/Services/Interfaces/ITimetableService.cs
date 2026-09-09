@@ -12,14 +12,14 @@ public interface ITimetableService
     Task<bool> DeletePeriodSettingAsync(int periodId);
 
     // Class Timetable Matrix & Slots
-    Task<ClassTimetableGridDto> GetClassTimetableGridAsync(int classId, int sectionId, string academicYear = "2026-2027");
+    Task<ClassTimetableGridDto> GetClassTimetableGridAsync(int classId, int sectionId, string academicYear = "");
     Task<TimetableSlotDto> SaveTimetableSlotAsync(SaveTimetableSlotDto dto);
     Task<bool> DeleteTimetableSlotAsync(int slotId);
     Task<ClassTimetableGridDto> PublishTimetableAsync(PublishTimetableDto dto);
 
     // Auto-Generated Teacher & Student Timetables
-    Task<TeacherTimetableDto> GetTeacherTimetableAsync(int teacherId, string academicYear = "2026-2027");
-    Task<StudentTimetableDto> GetStudentTimetableAsync(int classId, int sectionId, string academicYear = "2026-2027");
+    Task<TeacherTimetableDto> GetTeacherTimetableAsync(int teacherId, string academicYear = "");
+    Task<StudentTimetableDto> GetStudentTimetableAsync(int classId, int sectionId, string academicYear = "");
 
     // Copy Timetable
     Task<ClassTimetableGridDto> CopyTimetableAsync(CopyTimetableDto dto);

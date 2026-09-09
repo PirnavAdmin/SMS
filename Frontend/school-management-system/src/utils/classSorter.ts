@@ -65,3 +65,31 @@ export const matchesClassName = (classA?: string | null, classB?: string | null)
   return normA.includes(normB) || normB.includes(normA);
 };
 
+/**
+ * Formats a class name for clean UI display.
+ * Pre-school grades (Nursery, LKG, UKG, Playgroup, Prep) omit the "Class " prefix.
+ * Standard numerical grades (1 to 12) include the "Class " prefix (e.g. "Class 1").
+ */
+export const formatDisplayClassName = (name?: string | null): string => {
+  if (!name) return "";
+  const clean = name.trim();
+  const withoutPrefix = clean.replace(/^class\s+/i, "").trim();
+  const lowerWithoutPrefix = withoutPrefix.toLowerCase();
+
+  if (lowerWithoutPrefix === 'nursery' || lowerWithoutPrefix === 'nurs') return 'Nursery';
+  if (lowerWithoutPrefix === 'lkg' || lowerWithoutPrefix === 'l.k.g') return 'LKG';
+  if (lowerWithoutPrefix === 'ukg' || lowerWithoutPrefix === 'u.k.g') return 'UKG';
+  if (lowerWithoutPrefix === 'playgroup' || lowerWithoutPrefix === 'play group' || lowerWithoutPrefix === 'pg') return 'Playgroup';
+  if (lowerWithoutPrefix === 'prep') return 'Prep';
+
+  if (/^\d+/.test(withoutPrefix)) {
+    return `Class ${withoutPrefix}`;
+  }
+
+  if (clean.toLowerCase().startsWith('class ')) {
+    return `Class ${withoutPrefix}`;
+  }
+
+  return `Class ${withoutPrefix}`;
+};
+

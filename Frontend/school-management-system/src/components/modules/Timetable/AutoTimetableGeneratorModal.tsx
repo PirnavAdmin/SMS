@@ -106,7 +106,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   isOpen,
   onClose,
   onSuccess,
-  initialAcademicYear = '2026-2027'
+  initialAcademicYear = ''
 }) => {
   const {
     academicClasses,
@@ -122,16 +122,32 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     bulkAddTimetableSlots,
     deleteTimetableSlot,
     clearClassTimetable,
-    fetchPeriods
+    fetchPeriods,
+    academicYears
   } = useData();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   // Wizard active tab
   const [activeStep, setActiveStep] = useState<'timings' | 'classes' | 'generate'>('timings');
 
   // Academic Year & Campus
-  const [academicYear, setAcademicYear] = useState(initialAcademicYear);
+  const [academicYear, setAcademicYear] = useState(
+    initialAcademicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || ''
+  );
+
+  useEffect(() => {
+    if (initialAcademicYear) {
+      setAcademicYear(initialAcademicYear);
+    } else if (selectedAcademicYear) {
+      setAcademicYear(selectedAcademicYear);
+    } else if (academicYears && academicYears.length > 0) {
+      const current = academicYears.find(y => y.isCurrentAcademicYear || y.status === 'Active') || academicYears[0];
+      if (current?.academicYear) {
+        setAcademicYear(current.academicYear);
+      }
+    }
+  }, [initialAcademicYear, selectedAcademicYear, academicYears]);
 
   // Daily School Timing Inputs (dynamic)
   const [schoolStartTime, setSchoolStartTime] = useState('08:30 AM');
@@ -168,11 +184,11 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   const classGroups = useMemo(() => {
     const groups: { key: string; label: string; match: (name: string) => boolean }[] = [];
     
-    const hasNursery = academicClasses.some(c => /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup/i.test(c.name));
-    const hasPrimary = academicClasses.some(c => /class\s*[1-5]\b/i.test(c.name) || /grade\s*[1-5]\b/i.test(c.name) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(c.name));
-    const hasMiddle = academicClasses.some(c => /class\s*[6-8]\b/i.test(c.name) || /grade\s*[6-8]\b/i.test(c.name) || ['Class 6', 'Class 7', 'Class 8'].includes(c.name));
-    const hasHigh = academicClasses.some(c => /class\s*(9|10)\b/i.test(c.name) || ['Class 9', 'Class 10'].includes(c.name));
-    const hasSenior = academicClasses.some(c => /class\s*(11|12)\b/i.test(c.name) || ['Class 11', 'Class 12'].includes(c.name));
+    const hasNursery = (academicClasses || []).some(c => /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup/i.test(c.name));
+    const hasPrimary = (academicClasses || []).some(c => /class\s*[1-5]\b/i.test(c.name) || /grade\s*[1-5]\b/i.test(c.name) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(c.name));
+    const hasMiddle = (academicClasses || []).some(c => /class\s*[6-8]\b/i.test(c.name) || /grade\s*[6-8]\b/i.test(c.name) || ['Class 6', 'Class 7', 'Class 8'].includes(c.name));
+    const hasHigh = (academicClasses || []).some(c => /class\s*(9|10)\b/i.test(c.name) || ['Class 9', 'Class 10'].includes(c.name));
+    const hasSenior = (academicClasses || []).some(c => /class\s*(11|12)\b/i.test(c.name) || ['Class 11', 'Class 12'].includes(c.name));
 
     if (hasNursery) {
       groups.push({
@@ -214,9 +230,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   }, [academicClasses]);
 
   const displayedClasses = useMemo(() => {
-    return academicClasses.filter(c => {
+    return (academicClasses || []).filter(c => {
       if (classGroupFilter === 'all') return true;
-      const group = classGroups.find(g => g.key === classGroupFilter);
+      const group = (classGroups || []).find(g => g.key === classGroupFilter);
       return group ? group.match(c.name) : true;
     });
   }, [academicClasses, classGroupFilter, classGroups]);
@@ -441,6 +457,119 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     };
   }, [schoolStartTime, schoolEndTime, periodDurationMinutes, breaks]);
 
+interface GeneratedSlotAssignment {
+  subject: string;
+  teacherName: string;
+  teacherId?: string;
+}
+
+function computeScheduleMatrixForClassSection(
+  className: string,
+  section: string,
+  academicClasses: any[],
+  teacherAssignments: any[],
+  teachingPeriods: any[],
+  workingDays: string[],
+  maxPeriodsPerDayPerSubject: number = 2
+) {
+  const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+  const cls = academicClasses.find(c => norm(c.name) === norm(className));
+  const mappedSubs = cls?.subjects || [];
+  const weeklyPeriodsMap = cls?.weeklyPeriods || {};
+
+  const subjectRequests = mappedSubs.map((subName: string) => {
+    const classCount = weeklyPeriodsMap[subName];
+    const count = (typeof classCount === 'number' && classCount >= 0) ? classCount : 5;
+
+    const mapping = teacherAssignments.find((ta: any) =>
+      norm(ta.className) === norm(className) &&
+      norm(ta.section) === norm(section) &&
+      norm(ta.subject) === norm(subName)
+    );
+    const secTeachers = (cls as any)?.sectionTeachers || {};
+    const classTeacherName = secTeachers[section] || secTeachers[`Section ${section}`] || secTeachers[section.replace(/^Section\s*/i, '')] || '';
+    const teacherName = mapping?.teacherName || classTeacherName || 'Assigned Teacher';
+    const teacherId = mapping?.teacherId || '';
+
+    return {
+      subject: subName,
+      count,
+      teacherName,
+      teacherId
+    };
+  }).filter((req: any) => req.count > 0);
+
+  const numDays = workingDays.length;
+  const numPeriods = teachingPeriods.length;
+
+  if (numDays === 0 || numPeriods === 0) return { dayBuckets: [], assignedGrid: {} };
+
+  const dayBuckets: GeneratedSlotAssignment[][] = Array.from({ length: numDays }, () => []);
+  const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
+
+  sortedRequests.forEach((req, sIdx) => {
+    const dayOffset = sIdx % numDays;
+    for (let i = 0; i < req.count; i++) {
+      let bestDay = -1;
+      let minLoad = 9999;
+      for (let d = 0; d < numDays; d++) {
+        const targetDay = (dayOffset + d) % numDays;
+        const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
+        if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
+          if (dayBuckets[targetDay].length < minLoad) {
+            minLoad = dayBuckets[targetDay].length;
+            bestDay = targetDay;
+          }
+        }
+      }
+      if (bestDay === -1) {
+        for (let d = 0; d < numDays; d++) {
+          const targetDay = (dayOffset + d) % numDays;
+          if (dayBuckets[targetDay].length < numPeriods) {
+            if (dayBuckets[targetDay].length < minLoad) {
+              minLoad = dayBuckets[targetDay].length;
+              bestDay = targetDay;
+            }
+          }
+        }
+      }
+      if (bestDay !== -1) {
+        dayBuckets[bestDay].push({
+          subject: req.subject,
+          teacherName: req.teacherName,
+          teacherId: req.teacherId
+        });
+      }
+    }
+  });
+
+  const assignedGrid: Record<string, (GeneratedSlotAssignment | null)[]> = {};
+
+  workingDays.forEach((dayName, dIdx) => {
+    const subjectsForToday = dayBuckets[dIdx];
+    const assignedSlots: (GeneratedSlotAssignment | null)[] = Array(numPeriods).fill(null);
+
+    subjectsForToday.forEach((item, itemIdx) => {
+      const preferredStartPeriod = (dIdx + itemIdx) % numPeriods;
+      let chosenPeriodIdx = -1;
+      for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
+        const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
+        if (assignedSlots[pIdx] === null) {
+          chosenPeriodIdx = pIdx;
+          break;
+        }
+      }
+      if (chosenPeriodIdx !== -1) {
+        assignedSlots[chosenPeriodIdx] = item;
+      }
+    });
+
+    assignedGrid[dayName] = assignedSlots;
+  });
+
+  return { dayBuckets, assignedGrid };
+}
+
   // Dynamic Live Timetable Grid Preview for selected class/section
   const previewTimetableGrid = useMemo(() => {
     if (!previewClassSec || selectedClassSections.length === 0) return null;
@@ -449,102 +578,22 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     const className = lastDash !== -1 ? previewClassSec.substring(0, lastDash).trim() : previewClassSec.trim();
     const section = lastDash !== -1 ? previewClassSec.substring(lastDash + 1).trim() : 'A';
 
-    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
-    const cls = academicClasses.find(c => norm(c.name) === norm(className));
-    const mappedSubs = cls?.subjects || [];
-    const weeklyPeriodsMap = cls?.weeklyPeriods || {};
-
-    const subjectRequests = mappedSubs.map(subName => {
-      const classCount = weeklyPeriodsMap[subName];
-      const count = (typeof classCount === 'number' && classCount >= 0)
-        ? classCount
-        : 5;
-
-      const mapping = teacherAssignments.find(ta =>
-        norm(ta.className) === norm(className) &&
-        norm(ta.section) === norm(section) &&
-        norm(ta.subject) === norm(subName)
-      );
-      const secTeachers = (cls as any)?.sectionTeachers || {};
-      const classTeacherName = secTeachers[section] || secTeachers[`Section ${section}`] || secTeachers[section.replace(/^Section\s*/i, '')] || '';
-      const teacherName = mapping?.teacherName || classTeacherName || 'Assigned Teacher';
-
-      return {
-        subject: subName,
-        count,
-        teacherName
-      };
-    }).filter(req => req.count > 0);
-
     const teachingPeriods = calculationResult.periods.filter(p => p.type === 'Teaching');
-    const numDays = workingDays.length;
-    const numPeriods = teachingPeriods.length;
-
-    if (numDays === 0 || numPeriods === 0) return null;
-
-    const dayBuckets: { subject: string; teacherName: string }[][] = Array.from(
-      { length: numDays },
-      () => []
+    const { assignedGrid } = computeScheduleMatrixForClassSection(
+      className,
+      section,
+      academicClasses,
+      teacherAssignments,
+      teachingPeriods,
+      workingDays,
+      maxPeriodsPerDayPerSubject
     );
-
-    const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
-
-    sortedRequests.forEach((req, sIdx) => {
-      const dayOffset = sIdx % numDays;
-      for (let i = 0; i < req.count; i++) {
-        let bestDay = -1;
-        let minLoad = 9999;
-        for (let d = 0; d < numDays; d++) {
-          const targetDay = (dayOffset + d) % numDays;
-          const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
-          if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
-            if (dayBuckets[targetDay].length < minLoad) {
-              minLoad = dayBuckets[targetDay].length;
-              bestDay = targetDay;
-            }
-          }
-        }
-        if (bestDay === -1) {
-          for (let d = 0; d < numDays; d++) {
-            const targetDay = (dayOffset + d) % numDays;
-            if (dayBuckets[targetDay].length < numPeriods) {
-              if (dayBuckets[targetDay].length < minLoad) {
-                minLoad = dayBuckets[targetDay].length;
-                bestDay = targetDay;
-              }
-            }
-          }
-        }
-        if (bestDay !== -1) {
-          dayBuckets[bestDay].push({
-            subject: req.subject,
-            teacherName: req.teacherName
-          });
-        }
-      }
-    });
 
     const grid: Record<string, Record<string, { subject: string; teacherName: string; isBreak?: boolean; breakType?: string }>> = {};
 
-    workingDays.forEach((dayName, dIdx) => {
+    workingDays.forEach(dayName => {
       grid[dayName] = {};
-      const subjectsForToday = dayBuckets[dIdx];
-      const assignedSlots: (typeof subjectsForToday[0] | null)[] = Array(numPeriods).fill(null);
-
-      subjectsForToday.forEach((item, itemIdx) => {
-        const preferredStartPeriod = (dIdx + itemIdx) % numPeriods;
-        let chosenPeriodIdx = -1;
-        for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
-          const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
-          if (assignedSlots[pIdx] === null) {
-            chosenPeriodIdx = pIdx;
-            break;
-          }
-        }
-        if (chosenPeriodIdx !== -1) {
-          assignedSlots[chosenPeriodIdx] = item;
-        }
-      });
+      const assignedSlots = assignedGrid[dayName] || [];
 
       calculationResult.periods.forEach(p => {
         if (p.type === 'Teaching') {
@@ -623,11 +672,11 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       return;
     }
 
-    if (classGroups.some(g => g.key === group)) {
+    if ((classGroups || []).some(g => g.key === group)) {
       setClassGroupFilter(group);
-      const activeGroup = classGroups.find(g => g.key === group);
+      const activeGroup = (classGroups || []).find(g => g.key === group);
       if (activeGroup) {
-        const targetClasses = academicClasses.filter(c => activeGroup.match(c.name));
+        const targetClasses = (academicClasses || []).filter(c => activeGroup.match(c.name));
         const groupKeys: string[] = [];
         targetClasses.forEach(c => {
           const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
@@ -716,7 +765,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           sequence: p.sequence,
           status: 'Active',
           academicYear,
-          branch: selectedBranch || 'Main Campus'
+          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || ((academicClasses[0] as any)?.branch) || ((academicClasses[0] as any)?.campus) || ''
         });
       });
 
@@ -724,6 +773,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         const lastDash = classSec.lastIndexOf('-');
         const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
         const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
+        const rawCls = rawClasses?.find((rc: any) => rc.className === className || rc.name === className);
+        const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
+        const classBranch = selectedBranch || rawCls?.campusLocation || (clsObj as any)?.branch || (clsObj as any)?.campus || '';
 
         calculationResult.periods.forEach((p, idx) => {
           newPeriodSettings.push({
@@ -737,7 +789,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
             sequence: p.sequence,
             status: 'Active',
             academicYear,
-            branch: selectedBranch || 'Main Campus'
+            branch: classBranch
           });
         });
       }
@@ -759,143 +811,25 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
         const cls = academicClasses.find(c => norm(c.name) === norm(className));
         const mappedSubs = cls?.subjects || [];
-        const weeklyPeriodsMap = cls?.weeklyPeriods || {};
-
         if (!autoAssignMappedSubjects || mappedSubs.length === 0) {
           continue;
         }
 
-        // Build list of subject requests from Class Management configuration
-        const subjectRequests = mappedSubs.map(subName => {
-          const rawCount = weeklyPeriodsMap[subName];
-          const count = (typeof rawCount === 'number' && rawCount >= 0) ? rawCount : 5;
-          const mapping = teacherAssignments.find(ta =>
-            norm(ta.className) === norm(className) &&
-            norm(ta.section) === norm(section) &&
-            norm(ta.subject) === norm(subName)
-          );
-          const secTeachers = (cls as any)?.sectionTeachers || {};
-          const classTeacherName = secTeachers[section] || secTeachers[`Section ${section}`] || secTeachers[section.replace(/^Section\s*/i, '')] || '';
-
-          const teacherName = mapping?.teacherName || classTeacherName || '';
-          const teacherId = mapping?.teacherId || '';
-
-          return {
-            subject: subName,
-            count,
-            teacherName,
-            teacherId
-          };
-        }).filter(req => req.count > 0);
-
-        const numDays = workingDays.length;
-        const numPeriods = teachingPeriods.length;
-
-        // Create daily buckets for even distribution across working days
-        const dayBuckets: { subject: string; teacherName: string; teacherId?: string }[][] = Array.from(
-          { length: numDays },
-          () => []
+        const { assignedGrid } = computeScheduleMatrixForClassSection(
+          className,
+          section,
+          academicClasses,
+          teacherAssignments,
+          teachingPeriods,
+          workingDays,
+          maxPeriodsPerDayPerSubject
         );
 
-        // Sort subjects by count descending so subjects with most periods are placed first
-        const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
-
-        sortedRequests.forEach((req, sIdx) => {
-          const dayOffset = sIdx % numDays;
-
-          for (let i = 0; i < req.count; i++) {
-            let bestDay = -1;
-            let minLoad = 9999;
-
-            for (let d = 0; d < numDays; d++) {
-              const targetDay = (dayOffset + d) % numDays;
-              const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
-              if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
-                if (dayBuckets[targetDay].length < minLoad) {
-                  minLoad = dayBuckets[targetDay].length;
-                  bestDay = targetDay;
-                }
-              }
-            }
-
-            // Fallback if maxPeriodsPerDay limit prevents placement
-            if (bestDay === -1) {
-              for (let d = 0; d < numDays; d++) {
-                const targetDay = (dayOffset + d) % numDays;
-                if (dayBuckets[targetDay].length < numPeriods) {
-                  if (dayBuckets[targetDay].length < minLoad) {
-                    minLoad = dayBuckets[targetDay].length;
-                    bestDay = targetDay;
-                  }
-                }
-              }
-            }
-
-            if (bestDay !== -1) {
-              dayBuckets[bestDay].push({
-                subject: req.subject,
-                teacherName: req.teacherName,
-                teacherId: req.teacherId
-              });
-            }
-          }
-        });
-
-        // Place daily buckets into the day's teaching period slots
-        for (let d = 0; d < numDays; d++) {
-          const dayName = workingDays[d];
-          const subjectsForToday = dayBuckets[d];
-          const periodSlotsAssigned: (typeof subjectsForToday[0] | null)[] = Array(numPeriods).fill(null);
-
-          subjectsForToday.forEach((item, itemIdx) => {
-            const preferredStartPeriod = (d + itemIdx) % numPeriods;
-            let chosenPeriodIdx = -1;
-
-            // Try to find a period slot with no teacher conflict
-            for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
-              const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
-              if (periodSlotsAssigned[pIdx] === null) {
-                const period = teachingPeriods[pIdx];
-                const key = `${dayName}-${period.sequence || pIdx + 1}-${item.teacherId || item.teacherName}`;
-                if (item.teacherName && item.teacherName !== 'Unassigned' && teacherScheduleMap.has(key)) {
-                  const existingClass = teacherScheduleMap.get(key);
-                  detectedTeacherConflicts.push(
-                    `Teacher "${item.teacherName}" is already assigned to ${existingClass} on ${dayName} at ${period.startTime} - ${period.endTime}`
-                  );
-                }
-                if (!avoidTeacherConflicts || !item.teacherId || !teacherScheduleMap.has(key)) {
-                  chosenPeriodIdx = pIdx;
-                  break;
-                }
-              }
-            }
-
-            // Fallback to any empty period
-            if (chosenPeriodIdx === -1) {
-              for (let pIdx = 0; pIdx < numPeriods; pIdx++) {
-                if (periodSlotsAssigned[pIdx] === null) {
-                  chosenPeriodIdx = pIdx;
-                  break;
-                }
-              }
-            }
-
-            if (chosenPeriodIdx !== -1) {
-              periodSlotsAssigned[chosenPeriodIdx] = item;
-              const period = teachingPeriods[chosenPeriodIdx];
-              const teacherKey = `${dayName}-${period.sequence || chosenPeriodIdx + 1}-${item.teacherId || item.teacherName}`;
-              if (item.teacherId) {
-                teacherScheduleMap.set(teacherKey, classSec);
-              }
-            }
-          });
-
-          // ONLY create TimetableSlot objects for periods with assigned subjects.
-          // Unassigned / Free periods are NOT added so they remain empty in the grid.
-          for (let pIdx = 0; pIdx < numPeriods; pIdx++) {
-            const assigned = periodSlotsAssigned[pIdx];
+        workingDays.forEach(dayName => {
+          const assignedSlots = assignedGrid[dayName] || [];
+          teachingPeriods.forEach((period, pIdx) => {
+            const assigned = assignedSlots[pIdx];
             if (assigned) {
-              const period = teachingPeriods[pIdx];
               const slotTime = `${period.startTime} - ${period.endTime}`;
 
               const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
@@ -904,6 +838,11 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
               const dynamicRoomNo = secRoom && secRoom.toLowerCase() !== 'unassigned' && secRoom.toLowerCase() !== 'classroom'
                 ? secRoom
                 : `${className.replace(/class/gi, '').trim()}-${section}`;
+              const rawCls = rawClasses?.find((rc: any) => rc.className === className || rc.name === className);
+              const slotBranch = selectedBranch || rawCls?.campusLocation || (clsObj as any)?.branch || (clsObj as any)?.campus || '';
+
+              const subObj = subjects.find(s => norm(s.name) === norm(assigned.subject));
+              const subId = subObj?.id ? parseInt(String(subObj.id).replace(/\D/g, '')) || undefined : undefined;
 
               newTimetableSlots.push({
                 id: `SLOT-AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -911,18 +850,21 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 section,
                 day: dayName as any,
                 timeSlot: slotTime,
+                startTime: period.startTime,
+                endTime: period.endTime,
                 periodNumber: period.sequence || (pIdx + 1),
                 subject: assigned.subject,
+                subjectId: subId ? String(subId) : undefined,
                 teacherName: assigned.teacherName,
                 teacherId: assigned.teacherId,
                 roomNo: dynamicRoomNo,
                 academicYear,
                 status: 'Draft',
-                branch: selectedBranch || 'Main Campus'
+                branch: slotBranch
               });
             }
-          }
-        }
+          });
+        });
       }
 
       // Clear previous timetable slots from frontend memory and backend DB for selected class sections
@@ -980,11 +922,12 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                   classId,
                   className: slot.className,
                   sectionName: slot.section,
-                  academicYear: slot.academicYear || academicYear || "2026-2027",
+                  academicYear: slot.academicYear || academicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "",
                   dayOfWeek: slot.day,
                   startTime,
                   endTime,
                   subjectName: slot.subject,
+                  subjectId: (slot as any).subjectId,
                   teacherName: slot.teacherName,
                   teacherId: slot.teacherId,
                   roomNo: slot.roomNo,

@@ -352,15 +352,28 @@ export const deleteTimetableSlotApi = async (id: number | string) => {
   });
 };
 
+export const clearClassTimetableApi = async (className: string, section: string, academicYear?: string) => {
+  const query = `className=${encodeURIComponent(className)}&section=${encodeURIComponent(section)}${academicYear ? `&academicYear=${encodeURIComponent(academicYear)}` : ''}`;
+  return apiClient(`/api/timetable/class?${query}`, { method: 'DELETE' }).catch(() => null);
+};
+
 export const publishTimetableApi = async (payload: {
-  classId: number | string;
-  sectionId: number | string;
+  classId?: number | string;
+  className?: string;
+  sectionId?: number | string;
+  sectionName?: string;
   academicYear: string;
   status: string;
 }) => {
   const p = { ...payload } as any;
-  if (typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
-  if (typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
+  if (typeof p.classId === 'string') {
+    const clean = p.classId.replace('CL-', '');
+    p.classId = !isNaN(Number(clean)) ? Number(clean) : 0;
+  }
+  if (typeof p.sectionId === 'string') {
+    const clean = p.sectionId.replace('SEC-', '');
+    p.sectionId = !isNaN(Number(clean)) ? Number(clean) : 0;
+  }
   
   return apiClient('/api/timetable/publish', {
     method: 'POST',
@@ -474,6 +487,11 @@ export const validateTimetableApi = async (classId: number | string, sectionId: 
 export const fetchTeacherSubstitutionsApi = async (teacherName?: string, teacherId?: number | string) => {
   const query = teacherId ? `?teacherId=${teacherId}` : teacherName ? `?teacherName=${encodeURIComponent(teacherName)}` : '';
   return apiClient(`/api/academics/timetable/substitutions${query}`, { method: 'GET' });
+};
+
+export const fetchAllTimetablesApi = async (academicYear?: string) => {
+  const query = academicYear && academicYear !== 'All' ? `?academicYear=${encodeURIComponent(academicYear)}` : '';
+  return apiClient(`/api/timetable/all${query}`, { method: 'GET' });
 };
 
 

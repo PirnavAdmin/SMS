@@ -75,7 +75,7 @@ namespace Backend.Tests.Controllers
             _schoolServiceMock.Setup(s => s.UpdateApplicationAsync(2, dto))
                 .ReturnsAsync(expectedDto);
 
-            var result = await _controller.UpdateApplication(2, dto);
+            var result = await _controller.UpdateApplication("2", dto);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);

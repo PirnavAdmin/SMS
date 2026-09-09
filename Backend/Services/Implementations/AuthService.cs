@@ -144,12 +144,12 @@ namespace SMS.Api.Services.Implementations
                     if (schoolSettings != null && !string.IsNullOrWhiteSpace(schoolSettings.UserProfileJson))
                     {
                         var prof = System.Text.Json.JsonSerializer.Deserialize<Dtos.UserProfileDto>(schoolSettings.UserProfileJson);
-                        if (prof != null)
+                        if (prof != null && (prof.Email == admin.Email || prof.Phone == admin.MobileNumber || prof.Id == admin.AdminId.ToString()))
                         {
                             if (!string.IsNullOrWhiteSpace(prof.Avatar)) avatar = prof.Avatar;
-                            if (!string.IsNullOrWhiteSpace(prof.Name)) fullName = prof.Name;
-                            if (!string.IsNullOrWhiteSpace(prof.Email)) email = prof.Email;
-                            if (!string.IsNullOrWhiteSpace(prof.Phone)) phone = prof.Phone;
+                            if (string.IsNullOrWhiteSpace(fullName) && !string.IsNullOrWhiteSpace(prof.Name)) fullName = prof.Name;
+                            if (string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(prof.Email)) email = prof.Email;
+                            if (string.IsNullOrWhiteSpace(phone) && !string.IsNullOrWhiteSpace(prof.Phone)) phone = prof.Phone;
                             if (!string.IsNullOrWhiteSpace(prof.Branch)) branch = prof.Branch;
                         }
                     }
@@ -214,9 +214,9 @@ namespace SMS.Api.Services.Implementations
                         if (prof != null && (prof.Email == user.Email || prof.Phone == user.MobileNumber))
                         {
                             if (!string.IsNullOrWhiteSpace(prof.Avatar)) avatar = prof.Avatar;
-                            if (!string.IsNullOrWhiteSpace(prof.Name)) fullName = prof.Name;
-                            if (!string.IsNullOrWhiteSpace(prof.Email)) email = prof.Email;
-                            if (!string.IsNullOrWhiteSpace(prof.Phone)) phone = prof.Phone;
+                            if (string.IsNullOrWhiteSpace(fullName) && !string.IsNullOrWhiteSpace(prof.Name)) fullName = prof.Name;
+                            if (string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(prof.Email)) email = prof.Email;
+                            if (string.IsNullOrWhiteSpace(phone) && !string.IsNullOrWhiteSpace(prof.Phone)) phone = prof.Phone;
                             if (!string.IsNullOrWhiteSpace(prof.Branch)) branch = prof.Branch;
                         }
                     }

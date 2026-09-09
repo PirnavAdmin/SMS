@@ -750,7 +750,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
               </div>
               <div>
                 <FieldLabel label="Religion" />
-                <input value={form.personal.religion} onChange={e => updatePersonal('religion', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                <input value={form.personal.religion} onChange={e => updatePersonal('religion', e.target.value.replace(/[^a-zA-Z\s]/g, ''))} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
               </div>
               <div>
                 <FieldLabel label="Marital Status" />

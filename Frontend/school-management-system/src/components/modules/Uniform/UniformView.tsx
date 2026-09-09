@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getCategorySizes, normalizeUniformCategoryName } from '../../../utils/uniformUtils';
-import { Shirt, Plus, Search, Filter, Edit, Trash2, X, Package, Layers, CheckSquare, Square } from 'lucide-react';
+import { Shirt, Plus, Minus, Search, Filter, Edit, Trash2, X, Package, Layers, CheckSquare, Square } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformItem, PackageComponentItem } from '../../../types';
@@ -204,9 +204,9 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     const selectedCompList = Object.entries(categorySelections).filter(([_, data]) => data.selected);
     const isPkg = selectedCompList.length > 1 || finalName.toLowerCase().includes('package') || finalName.toLowerCase().includes('kit');
 
-    const packageComponents: PackageComponentItem[] = isPkg ? selectedCompList.map(([catName]) => ({
+    const packageComponents: PackageComponentItem[] = isPkg ? selectedCompList.map(([catName, data]) => ({
       categoryName: catName,
-      quantity: '1'
+      quantity: data.quantity || '1'
     })) : [];
 
     const isBasePkg = finalName.toLowerCase().includes('boys') || finalName.toLowerCase().includes('girls') || (finalName.toLowerCase().includes('package') && finalName.toLowerCase().includes('admission'));
@@ -551,9 +551,57 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                           ) : (
                             <Square className="w-4 h-4 text-slate-400 shrink-0" />
                           )}
-                          <span className={`font-extrabold text-xs ${isSel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                          <span className={`font-extrabold text-xs flex-1 ${isSel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
                             {catName}
                           </span>
+
+                          {isSel && !isCloth && (
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Qty:</label>
+                              <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 overflow-hidden h-7">
+                                <button
+                                  type="button"
+                                  className="px-2 h-full flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                  onClick={() => {
+                                    const currentQty = parseInt(selData.quantity || '1', 10);
+                                    if (currentQty > 1) {
+                                      setCategorySelections(prev => ({
+                                        ...prev,
+                                        [catName]: { ...prev[catName], quantity: String(currentQty - 1) }
+                                      }));
+                                    }
+                                  }}
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <input
+                                  type="text"
+                                  value={selData.quantity || '1'}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    setCategorySelections(prev => ({
+                                      ...prev,
+                                      [catName]: { ...prev[catName], quantity: val || '1' }
+                                    }));
+                                  }}
+                                  className="w-8 h-full text-center text-xs font-bold bg-transparent outline-none border-x border-slate-200 dark:border-slate-700 focus:bg-sky-50 dark:focus:bg-sky-900/20"
+                                />
+                                <button
+                                  type="button"
+                                  className="px-2 h-full flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                  onClick={() => {
+                                    const currentQty = parseInt(selData.quantity || '1', 10);
+                                    setCategorySelections(prev => ({
+                                      ...prev,
+                                      [catName]: { ...prev[catName], quantity: String(currentQty + 1) }
+                                    }));
+                                  }}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

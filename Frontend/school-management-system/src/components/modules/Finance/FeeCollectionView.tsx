@@ -193,7 +193,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
           if (p.paymentAllocation && p.paymentAllocation.length > 0) {
             return p.paymentAllocation.some((alloc) => {
-              const head = (alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || "").toLowerCase();
+              const head = String(alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || "").toLowerCase();
               const itemLower = (i.itemName || i.itemCategory || "").toLowerCase().replace(/\s*\(extra\)/gi, "").trim();
               const allocInstId = String((alloc as any).installmentId || (alloc as any).feeHeadId || "");
               if (allocInstId === instId1 || allocInstId === instId2 || allocInstId === instId3 || allocInstId === i.id) return true;
@@ -217,7 +217,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           (item.itemName.toLowerCase().includes("package") ||
             item.itemName.toLowerCase().includes("base")));
       let unitPrice =
-        item.price && item.price > 0 && item.price !== 85 ? item.price : 0;
+        item.price && item.price > 0 && item.price !== 35 && item.price !== 85 ? item.price : (item.price === 35 ? 350 : 0);
       if (unitPrice <= 0) {
         if (isPkg) {
           unitPrice =
@@ -237,7 +237,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               selectedStudent.gender,
               financeUniformConfigs,
               catItem?.price,
-            ) || 200;
+            ) || 350;
         }
       }
       return sum + unitPrice * (item.quantity || 1);

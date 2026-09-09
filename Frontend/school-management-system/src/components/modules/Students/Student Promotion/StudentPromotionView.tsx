@@ -964,9 +964,11 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                     <th className="py-3.5 px-4 w-10 text-center">
-                      <button onClick={handleToggleSelectAll}>
-                        {isAllSelected ? <CheckSquare className="w-4 h-4 text-brand-600" /> : <Square className="w-4 h-4 text-slate-400" />}
-                      </button>
+                      {filteredRows.length > 0 && (
+                        <button onClick={handleToggleSelectAll}>
+                          {isAllSelected ? <CheckSquare className="w-4 h-4 text-brand-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+                        </button>
+                      )}
                     </th>
                     <th className="py-3.5 px-4">Adm No</th>
                     <th className="py-3.5 px-4">Roll No</th>

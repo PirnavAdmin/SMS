@@ -130,3 +130,65 @@ export function formatDateDDMMYYYY(dateStr?: string | null): string {
   return clean;
 }
 
+export interface HolidayCheckResult {
+  isHoliday: boolean;
+  type: 'Sunday' | 'Holiday' | null;
+  name: string;
+}
+
+/**
+ * Checks if a given date (YYYY-MM-DD or DD-MM-YYYY) is a Sunday or declared Holiday
+ */
+export function checkSundayOrHoliday(dateStr?: string | null, holidays: any[] = []): HolidayCheckResult {
+  if (!dateStr || typeof dateStr !== 'string') {
+    return { isHoliday: false, type: null, name: '' };
+  }
+
+  const iso = formatToISO(dateStr.trim());
+  if (!iso || iso.length < 10) {
+    return { isHoliday: false, type: null, name: '' };
+  }
+
+  const parts = iso.split('-');
+  if (parts.length !== 3) {
+    return { isHoliday: false, type: null, name: '' };
+  }
+
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+
+  const dateObj = new Date(y, m, d);
+  if (isNaN(dateObj.getTime())) {
+    return { isHoliday: false, type: null, name: '' };
+  }
+
+  // 1. Sunday check
+  if (dateObj.getDay() === 0) {
+    return { isHoliday: true, type: 'Sunday', name: 'Sunday' };
+  }
+
+  // 2. Declared Holiday check from holidays array
+  if (Array.isArray(holidays) && holidays.length > 0) {
+    const matched = holidays.find(h => {
+      if (!h || h.status === 'Inactive' || h.status === 'Cancelled') return false;
+      const sRaw = h.startDate || h.date || '';
+      const eRaw = h.endDate || h.startDate || h.date || '';
+      const s = formatToISO(String(sRaw).split('T')[0].trim());
+      const e = formatToISO(String(eRaw).split('T')[0].trim());
+      if (!s) return false;
+      return iso >= s && iso <= (e || s);
+    });
+
+    if (matched) {
+      return {
+        isHoliday: true,
+        type: 'Holiday',
+        name: matched.name || matched.title || 'School Holiday'
+      };
+    }
+  }
+
+  return { isHoliday: false, type: null, name: '' };
+}
+

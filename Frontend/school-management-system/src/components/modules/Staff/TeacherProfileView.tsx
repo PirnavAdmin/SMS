@@ -23,12 +23,28 @@ export const TeacherProfileView: React.FC = () => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
     const userId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
-    const isWarden = (user?.role || '').toLowerCase().includes('warden');
+    const userRoleStr = (user?.role || '').toLowerCase().trim();
+
+    const isWarden = userRoleStr.includes('warden');
+    const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
 
     // 1. Check exact email match across all staff
     if (userEmail) {
       const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) return byEmail;
+      if (byEmail) {
+        const isGenericName = (byEmail.firstName || '').toLowerCase().includes('administrator') || (byEmail.firstName || '').toLowerCase().includes('admin');
+        const userFirst = userName ? userName.split(' ')[0] : '';
+        const userLast = userName ? userName.split(' ').slice(1).join(' ') : '';
+        return {
+          ...byEmail,
+          firstName: (isGenericName && userFirst) ? userFirst : (byEmail.firstName || userFirst || 'Sardhar'),
+          lastName: (isGenericName && userLast) ? userLast : (byEmail.lastName || userLast || 'Karthi'),
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
+          empId: (isGenericName || byEmail.empId === '358' || byEmail.id === '358') ? (user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : 'STF-001')) : (byEmail.empId || byEmail.employeeId || byEmail.id)
+        };
+      }
     }
 
     // 2. Check exact ID or Employee ID match
@@ -38,7 +54,14 @@ export const TeacherProfileView: React.FC = () => {
         (s.empId && String(s.empId).toLowerCase().trim() === userId) ||
         (s.employeeId && String(s.employeeId).toLowerCase().trim() === userId)
       );
-      if (byId) return byId;
+      if (byId) {
+        return {
+          ...byId,
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byId.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.role || 'Teacher')
+        };
+      }
     }
 
     // 3. Check name match
@@ -49,10 +72,25 @@ export const TeacherProfileView: React.FC = () => {
         const uFirst = userName.split(' ')[0].toLowerCase();
         return (sFullName && sFullName === userName) || (sName && sName === userName) || (uFirst.length > 2 && sFullName.includes(uFirst));
       });
-      if (byName) return byName;
+      if (byName) {
+        return {
+          ...byName,
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byName.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.role || 'Teacher')
+        };
+      }
     }
 
-    // 4. Role specific search if warden
+    // 4. Role specific search if accountant or warden
+    if (isAccountant) {
+      const accountantStaff = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('accountant') ||
+        (s.role || '').toLowerCase().includes('accountant') ||
+        (s.department || '').toLowerCase().includes('finance')
+      );
+      if (accountantStaff) return accountantStaff;
+    }
     if (isWarden) {
       const wardenStaff = staff.find(s =>
         (s.designation || '').toLowerCase().includes('warden') ||
@@ -62,23 +100,23 @@ export const TeacherProfileView: React.FC = () => {
       if (wardenStaff) return wardenStaff;
     }
 
-    // 5. Fallback: Return dynamic profile object from logged in user (DO NOT return random teacher)
-    const rawName = user?.name || (isWarden ? 'VaraPrasad' : 'Faculty Member');
+    // 5. Fallback: Return dynamic profile object from logged in user
+    const rawName = user?.name || (isAccountant ? 'Sardhar Karthi' : isWarden ? 'VaraPrasad' : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : 'STF-001'),
-      empId: (user as any)?.empId || user?.id || (isWarden ? 'WRD-102' : 'STF-001'),
+      id: user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001'),
+      empId: (user as any)?.empId || user?.id || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001'),
       firstName: nameParts[0] || 'Faculty',
       lastName: nameParts.slice(1).join(' ') || 'Member',
-      email: user?.email || (isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
-      phone: user?.phone || '+91 9878645565',
+      email: user?.email || (isAccountant ? 'sardhar@gmail.com' : isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
+      phone: user?.phone || '+91 9985852577',
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
-      department: isWarden ? 'Hostel Management' : ((user as any)?.department || 'Academics'),
-      designation: isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
-      qualification: (user as any)?.qualification || (isWarden ? 'Hostel Administration & Student Welfare' : 'Academic Qualification Completed'),
-      experience: (user as any)?.experience || (isWarden ? '5 Years Hostel Management Experience' : 'Teaching Experience'),
+      department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : ((user as any)?.department || 'Academics'),
+      designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
+      qualification: (user as any)?.qualification || (isAccountant ? 'M.Com, Chartered Accountancy (CA Inter)' : isWarden ? 'Hostel Administration & Student Welfare' : 'Academic Qualification Completed'),
+      experience: (user as any)?.experience || (isAccountant ? '7 Years Institutional Accounting & Audit Experience' : isWarden ? '5 Years Hostel Management Experience' : 'Teaching Experience'),
       branch: user?.branch || 'Main Campus',
       avatar: user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
     };
@@ -224,10 +262,7 @@ export const TeacherProfileView: React.FC = () => {
       .map(ta => formatClsSec(ta.className, ta.section));
 
     const fromTimetable = timetable
-      .filter(t => {
-        const tName = (t.teacherName || '').toLowerCase();
-        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
-      })
+      .filter(t => isTeacherNameMatch(t.teacherName))
       .map(t => formatClsSec(t.className, t.section));
 
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => {
@@ -318,18 +353,43 @@ export const TeacherProfileView: React.FC = () => {
 
   // Reactive staff profile construction merging Admin master data & user edits
   const profile = useMemo(() => {
-    const isWarden = (user?.role || '').toLowerCase().includes('warden');
+    const userRoleStr = (user?.role || '').toLowerCase().trim();
+    const isWarden = userRoleStr.includes('warden');
+    const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
+
     const dbFullName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '';
-    const nameParts = (user?.name || (isWarden ? 'VaraPrasad' : 'Faculty Member')).split(' ');
-    const defaultFullName = dbFullName || `${nameParts[0] || 'Faculty'} ${nameParts.slice(1).join(' ') || 'Member'}`.trim();
-    const fallbackDept = dbTeacher?.department || (isWarden ? 'Hostel Management' : ((dbTeacher as any)?.primarySubject || 'General'));
+    const isGenericAdminName = dbFullName.toLowerCase().includes('administrator') || dbFullName.toLowerCase().includes('admin');
+
+    const defaultFullName = (user?.name && !user.name.toLowerCase().includes('admin'))
+      ? user.name
+      : (!isGenericAdminName && dbFullName)
+      ? dbFullName
+      : (isAccountant ? 'Sardhar Karthi' : isWarden ? 'VaraPrasad' : 'Faculty Member');
+
+    const fallbackDept = isAccountant
+      ? 'Finance & Accounts'
+      : isWarden
+      ? 'Hostel Management'
+      : (dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'Academics');
+
+    const fallbackDesignation = isAccountant
+      ? 'Accountant'
+      : isWarden
+      ? 'Hostel Warden'
+      : (dbTeacher?.designation && !dbTeacher.designation.toLowerCase().includes('administrator') ? dbTeacher.designation : 'Teacher');
+
+    const fallbackRole = isAccountant
+      ? 'Accountant'
+      : isWarden
+      ? 'Hostel Warden'
+      : (dbTeacher?.role || fallbackDesignation);
 
     return {
-      staffId: dbTeacher?.id || (user as any)?.empId || user?.id || (isWarden ? 'WRD-102' : 'STF-2026-0009'),
-      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || dbTeacher?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : 'STF-2026-0009'),
+      staffId: (user as any)?.empId || user?.id || (dbTeacher?.id && String(dbTeacher.id) !== '358' ? dbTeacher.id : (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-2026-0009')),
+      employeeId: (user as any)?.empId || user?.id || (dbTeacher?.empId && String(dbTeacher.empId) !== '358' ? dbTeacher.empId : (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-2026-0009')),
       fullName: localEdit?.fullName || defaultFullName,
-      email: localEdit?.email || dbTeacher?.email || user?.email || (isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
-      mobile: localEdit?.mobile || dbTeacher?.phone || user?.phone || '+91-9878645565',
+      email: localEdit?.email || user?.email || dbTeacher?.email || (isAccountant ? 'sardhar@gmail.com' : isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
+      mobile: localEdit?.mobile || user?.phone || dbTeacher?.phone || '+91 9985852577',
       gender: localEdit?.gender || dbTeacher?.gender || 'Male',
       dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || '1990-05-15',
       bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || 'O+',
@@ -337,13 +397,14 @@ export const TeacherProfileView: React.FC = () => {
       emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '+91 9876543210',
       branch: dbTeacher?.branch || user?.branch || 'Main Campus',
       department: fallbackDept,
-      designation: dbTeacher?.designation || (isWarden ? 'Hostel Warden' : 'Teacher'),
+      designation: fallbackDesignation,
+      role: fallbackRole,
       joiningDate: dbTeacher?.joiningDate || '2026-08-26',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (isWarden ? 'Post Graduate Diploma in Hostel Administration' : 'Academic Qualification Completed'),
-      experience: localEdit?.experience || (dbTeacher as any)?.experience || (isWarden ? '5 Years Hostel Management Experience' : '8 Years Teaching Experience'),
+      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (isAccountant ? 'M.Com, Chartered Accountancy (CA Inter)' : isWarden ? 'Post Graduate Diploma in Hostel Administration' : 'Academic Qualification Completed'),
+      experience: localEdit?.experience || (dbTeacher as any)?.experience || (isAccountant ? '7 Years Institutional Accounting & Audit Experience' : isWarden ? '5 Years Hostel Management Experience' : '8 Years Teaching Experience'),
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
-      assignedSubjects: isWarden ? ['Hostel Administration', 'Student Welfare'] : dynamicAssignedSubjects,
+      assignedSubjects: isAccountant ? ['Fee Management', 'Financial Auditing'] : isWarden ? ['Hostel Administration', 'Student Welfare'] : dynamicAssignedSubjects,
       employmentStatus: dbTeacher?.status || 'Active',
       profileStatus: 'Completed',
       profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
@@ -626,13 +687,17 @@ export const TeacherProfileView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 3: Teaching or Hostel Assignments */}
+        {/* Card 3: Teaching, Hostel or Accountant Duties */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
           <div>
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                {(user?.role || '').toLowerCase().includes('warden') ? 'Hostel Duties & Responsibilities' : 'Teaching Assignments'}
+                {(user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance'
+                  ? 'Finance & Accounting Duties'
+                  : (user?.role || '').toLowerCase().includes('warden')
+                  ? 'Hostel Duties & Responsibilities'
+                  : 'Teaching Assignments'}
               </h2>
               <span className="text-[10px] bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800">
                 Active Academic Year
@@ -641,12 +706,12 @@ export const TeacherProfileView: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               {/* Assigned Classes / Department */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
+              <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') ? (
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? (
                     <span className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                       {profile.department}
                     </span>
@@ -661,9 +726,9 @@ export const TeacherProfileView: React.FC = () => {
               </div>
 
               {/* Assigned Subjects / Duties */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
+              <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedSubjects.map((sbj, idx) => (

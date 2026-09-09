@@ -298,7 +298,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
                   <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search name/roll..."
+                    placeholder="Search by Student Name, Roll No..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     disabled={!selectedClass || !selectedSection}

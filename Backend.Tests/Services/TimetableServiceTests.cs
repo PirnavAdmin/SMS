@@ -5,14 +5,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Implementations;
+using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Implementations;
 using SMS.Api.Services.Implementations.AcademicManagement;
+using SMS.Api.Services.Interfaces;
 using Xunit;
 
 public class TimetableServiceTests
@@ -25,6 +28,10 @@ public class TimetableServiceTests
 
         var context = new AppDbContext(options);
         await context.Database.EnsureCreatedAsync();
+
+        // Seed Active Academic Year
+        var ay = new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", IsActive = true, IsCurrent = true };
+        await context.AcademicYears.AddAsync(ay);
 
         // Seed Class
         var class9 = new ClassGrade { ClassId = 1, ClassName = "Class 9" };
@@ -50,6 +57,18 @@ public class TimetableServiceTests
         var teacherJohn = new Staff { StaffId = 2, EmployeeId = "EMP002", FirstName = "John", LastName = "Doe", Email = "john@school.com", Designation = "Teacher", Department = "1" };
         await context.Staff.AddRangeAsync(teacherSarah, teacherJohn);
 
+        // Seed Class Subject Mappings
+        var mapping1 = new ClassSubjectMapping { Id = 1, ClassId = 1, SubjectId = 1, WeeklyPeriods = 5 };
+        var mapping2 = new ClassSubjectMapping { Id = 2, ClassId = 1, SubjectId = 2, WeeklyPeriods = 5 };
+        var mapping3 = new ClassSubjectMapping { Id = 3, ClassId = 2, SubjectId = 2, WeeklyPeriods = 5 };
+        await context.ClassSubjectMappings.AddRangeAsync(mapping1, mapping2, mapping3);
+
+        // Seed Teacher Subject Assignments
+        var tsa1 = new TeacherSubjectAssignment { AssignmentId = 1, StaffId = 1, ClassId = 1, SectionId = 1, SubjectId = 1 };
+        var tsa2 = new TeacherSubjectAssignment { AssignmentId = 2, StaffId = 2, ClassId = 1, SectionId = 1, SubjectId = 2 };
+        var tsa3 = new TeacherSubjectAssignment { AssignmentId = 3, StaffId = 2, ClassId = 2, SectionId = 3, SubjectId = 2 };
+        await context.TeacherSubjectAssignments.AddRangeAsync(tsa1, tsa2, tsa3);
+
         // Seed Period Settings
         var p1 = new PeriodSetting { PeriodId = 1, PeriodName = "Period 1", StartTime = new TimeSpan(8, 30, 0), EndTime = new TimeSpan(9, 15, 0), PeriodType = "Teaching Period", DisplayOrder = 1 };
         var p2 = new PeriodSetting { PeriodId = 2, PeriodName = "Period 2", StartTime = new TimeSpan(9, 15, 0), EndTime = new TimeSpan(10, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 2 };
@@ -59,12 +78,23 @@ public class TimetableServiceTests
         return context;
     }
 
+    private (TimetableService service, AppDbContext context, ITimetableRepository repo, ITimetableValidationService validationService, ITimetableGenerationService generationService) CreateService(AppDbContext context)
+    {
+        var repo = new TimetableRepository(context);
+        var academicYearService = new AcademicYearService(context);
+        var validationService = new TimetableValidationService(repo, NullLogger<TimetableValidationService>.Instance);
+        var generationService = new TimetableGenerationService(repo, academicYearService, NullLogger<TimetableGenerationService>.Instance);
+        var logger = NullLogger<TimetableService>.Instance;
+
+        var service = new TimetableService(repo, academicYearService, validationService, generationService, logger);
+        return (service, context, repo, validationService, generationService);
+    }
+
     [Fact]
     public async Task GetPeriodSettings_ReturnsActivePeriods()
     {
         var context = await GetInMemoryDbContextAsync();
-        var repo = new TimetableRepository(context);
-        var service = new TimetableService(repo, context);
+        var (service, _, _, _, _) = CreateService(context);
 
         var periods = await service.GetPeriodSettingsAsync();
 
@@ -77,8 +107,7 @@ public class TimetableServiceTests
     public async Task SavePeriodSetting_InvalidTiming_ThrowsPeriodOverlapException()
     {
         var context = await GetInMemoryDbContextAsync();
-        var repo = new TimetableRepository(context);
-        var service = new TimetableService(repo, context);
+        var (service, _, _, _, _) = CreateService(context);
 
         var dto = new SavePeriodSettingDto
         {
@@ -94,8 +123,7 @@ public class TimetableServiceTests
     public async Task SaveTimetableSlot_TeacherConflict_ThrowsTimetableConflictException()
     {
         var context = await GetInMemoryDbContextAsync();
-        var repo = new TimetableRepository(context);
-        var service = new TimetableService(repo, context);
+        var (service, _, _, _, _) = CreateService(context);
 
         // Save Slot 1 for Sarah Jenkins in Class 9 Sec A
         var dto1 = new SaveTimetableSlotDto
@@ -134,8 +162,7 @@ public class TimetableServiceTests
     public async Task SaveTimetableSlot_RoomConflict_ThrowsTimetableConflictException()
     {
         var context = await GetInMemoryDbContextAsync();
-        var repo = new TimetableRepository(context);
-        var service = new TimetableService(repo, context);
+        var (service, _, _, _, _) = CreateService(context);
 
         // Slot 1 in Room 101
         var dto1 = new SaveTimetableSlotDto
@@ -174,8 +201,7 @@ public class TimetableServiceTests
     public async Task PublishTimetable_UpdatesStatusToPublished()
     {
         var context = await GetInMemoryDbContextAsync();
-        var repo = new TimetableRepository(context);
-        var service = new TimetableService(repo, context);
+        var (service, _, _, _, _) = CreateService(context);
 
         var pubDto = new PublishTimetableDto
         {
@@ -195,8 +221,7 @@ public class TimetableServiceTests
     public async Task CopyTimetable_DuplicatesSlotsToTargetSection()
     {
         var context = await GetInMemoryDbContextAsync();
-        var repo = new TimetableRepository(context);
-        var service = new TimetableService(repo, context);
+        var (service, _, _, _, _) = CreateService(context);
 
         // Slot 1 in Class 9 Sec A
         var dto1 = new SaveTimetableSlotDto
@@ -228,5 +253,150 @@ public class TimetableServiceTests
         Assert.NotNull(targetGrid);
         Assert.Single(targetGrid.Slots);
         Assert.Equal("Monday", targetGrid.Slots[0].DayOfWeek);
+    }
+
+    [Fact]
+    public async Task ValidateTimetableAsync_NonExistentClass_ThrowsNotFoundException()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var (_, _, _, validationService, _) = CreateService(context);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => validationService.ValidateTimetableAsync(999, 1, "2026-2027"));
+    }
+
+    [Fact]
+    public async Task ValidateTimetableAsync_NonExistentSection_ThrowsNotFoundException()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var (_, _, _, validationService, _) = CreateService(context);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => validationService.ValidateTimetableAsync(1, 999, "2026-2027"));
+    }
+
+    [Fact]
+    public async Task GetStudentTimetableAsync_NonExistentClass_ThrowsNotFoundException()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var (service, _, _, _, _) = CreateService(context);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetStudentTimetableAsync(999, 1, "2026-2027"));
+    }
+
+    [Fact]
+    public async Task GetStudentTimetableAsync_NonExistentSection_ThrowsNotFoundException()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var (service, _, _, _, _) = CreateService(context);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetStudentTimetableAsync(1, 999, "2026-2027"));
+    }
+
+    [Fact]
+    public async Task GetTeacherTimetableAsync_NullTeacherNames_DoesNotThrowNullReferenceException()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var staff = new Staff { StaffId = 50, FirstName = null, LastName = null, EmployeeId = "EMP050" };
+        await context.Staff.AddAsync(staff);
+        await context.SaveChangesAsync();
+
+        var (service, _, _, _, _) = CreateService(context);
+        var result = await service.GetTeacherTimetableAsync(50, "2026-2027");
+
+        Assert.NotNull(result);
+        Assert.Equal(50, result.TeacherId);
+        Assert.NotNull(result.TeacherName);
+    }
+
+    [Fact]
+    public async Task SaveTimetableSlotAsync_ExceedingWeeklyLimit_ThrowsTimetableValidationException()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var mapping = await context.ClassSubjectMappings.FirstAsync(m => m.ClassId == 1 && m.SubjectId == 1);
+        mapping.WeeklyPeriods = 1;
+        await context.SaveChangesAsync();
+
+        var (service, _, _, _, _) = CreateService(context);
+
+        // Slot 1 (Monday)
+        await service.SaveTimetableSlotAsync(new SaveTimetableSlotDto
+        {
+            ClassId = 1,
+            SectionId = 1,
+            AcademicYear = "2026-2027",
+            DayOfWeek = "Monday",
+            StartTime = "08:30 AM",
+            EndTime = "09:15 AM",
+            SubjectId = 1,
+            TeacherId = 1
+        });
+
+        // Slot 2 (Tuesday) - exceeds weekly limit of 1
+        var ex = await Assert.ThrowsAsync<TimetableValidationException>(() => service.SaveTimetableSlotAsync(new SaveTimetableSlotDto
+        {
+            ClassId = 1,
+            SectionId = 1,
+            AcademicYear = "2026-2027",
+            DayOfWeek = "Tuesday",
+            StartTime = "08:30 AM",
+            EndTime = "09:15 AM",
+            SubjectId = 1,
+            TeacherId = 1
+        }));
+
+        Assert.Contains("Weekly period limit exceeded", ex.Message);
+    }
+
+    [Fact]
+    public async Task GenerateTimetableAsync_NoMappedSubjects_HandlesGracefullyWithoutDivideByZero()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var classEmpty = new ClassGrade { ClassId = 10, ClassName = "Class Empty" };
+        var secEmpty = new ClassSection { SectionId = 10, ClassId = 10, SectionName = "A" };
+        await context.Classes.AddAsync(classEmpty);
+        await context.ClassSections.AddAsync(secEmpty);
+        await context.SaveChangesAsync();
+
+        var (service, _, _, _, _) = CreateService(context);
+
+        var req = new GenerateTimetableRequestDto
+        {
+            SelectedClassSections = new List<string> { "Class Empty-A" },
+            AcademicYear = "2026-2027",
+            SchoolStartTime = "08:00 AM",
+            SchoolEndTime = "02:00 PM",
+            PeriodDurationMinutes = 45
+        };
+
+        // Must not throw DivideByZeroException; skips empty class gracefully
+        var result = await service.GenerateTimetableAsync(req);
+        Assert.NotNull(result);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GenerateTimetableAsync_ValidClass_GeneratesSlotsSuccessfully()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var (service, _, _, _, _) = CreateService(context);
+
+        var req = new GenerateTimetableRequestDto
+        {
+            SelectedClassSections = new List<string> { "Class 9-A" },
+            AcademicYear = "2026-2027",
+            SchoolStartTime = "08:00 AM",
+            SchoolEndTime = "12:00 PM",
+            PeriodDurationMinutes = 45,
+            WorkingDays = new List<string> { "Monday", "Tuesday" },
+            Breaks = new List<BreakItemDto>
+            {
+                new BreakItemDto { Name = "Short Break", DurationMinutes = 15, AfterPeriod = 2, Type = "Break" }
+            }
+        };
+
+        var result = await service.GenerateTimetableAsync(req);
+
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+        Assert.All(result, slot => Assert.NotNull(slot.SubjectName));
     }
 }

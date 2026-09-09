@@ -124,8 +124,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
     activeModule === "teacher-profile" ||
+    activeModule === "warden-profile" ||
     activeModule.startsWith("driver-") ||
     activeModule.startsWith("teacher-") ||
+    activeModule.startsWith("warden-") ||
     activeModule.startsWith("parent-teacher-");
   const isAcademicsActive =
     activeModule.startsWith("academic-") ||
@@ -250,11 +252,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? []
       : [
           {
-            id: "finance-dashboard",
-            label: "Dashboard",
-            icon: LayoutDashboard,
-          },
-          {
             id: "finance-fee-collection",
             label: "Fee Collection",
             icon: IndianRupee,
@@ -359,7 +356,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: "driver-leave", label: "Leave Management", icon: FileText },
           { id: "driver-payslips", label: "My Payslips", icon: IndianRupee },
         ]
-      : role.toLowerCase() === "teacher" || role.toLowerCase().includes("warden")
+      : role.toLowerCase() === "teacher" || role.toLowerCase().includes("warden") || role.toLowerCase().includes("accountant") || role.toLowerCase() === "finance"
       ? [
           { id: "warden-profile", label: "My Profile", icon: User },
           {

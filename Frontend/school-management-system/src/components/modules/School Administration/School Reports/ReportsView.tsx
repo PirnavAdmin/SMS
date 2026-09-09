@@ -292,7 +292,7 @@ export const ReportsView: React.FC = () => {
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search report by title or description..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none focus:border-sky-500 transition h-[38px] text-xs"

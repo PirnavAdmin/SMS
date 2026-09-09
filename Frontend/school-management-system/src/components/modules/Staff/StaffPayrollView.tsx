@@ -1686,7 +1686,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                   <option value="Guest Faculty">Guest Faculty</option>
                 </Select>
               </Field>
-              <Field label="Effective Date"><Input type="date" value={draft.effectiveDate || today()} onChange={e => setStructureDraft({ ...draft, effectiveDate: e.target.value })} /></Field>
+              <Field label="Effective Date"><Input type="date" value={draft.effectiveDate ?? ''} onChange={e => setStructureDraft({ ...draft, effectiveDate: e.target.value })} /></Field>
               <Field label="Status">
                 <Select value={draft.status || 'Active'} onChange={e => setStructureDraft({ ...draft, status: e.target.value as 'Active' | 'Inactive' })}>
                   <option value="Active">Active</option>
@@ -1899,7 +1899,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                   department: 'General',
                   designation: 'Teacher',
                   employmentType: 'Full-time',
-                  effectiveDate: today(),
+                  effectiveDate: '',
                   earnings: [],
                   deductions: [],
                   grossSalary: 0,
@@ -1928,7 +1928,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                   department: 'General',
                   designation: 'Teacher',
                   employmentType: 'Full-time',
-                  effectiveDate: today(),
+                  effectiveDate: '',
                   earnings: [],
                   deductions: [],
                   grossSalary: 0,
@@ -1956,7 +1956,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                   department: 'General',
                   designation: 'Teacher',
                   employmentType: 'Full-time',
-                  effectiveDate: today(),
+                  effectiveDate: '',
                   earnings: [],
                   deductions: [],
                   grossSalary: 0,
@@ -2767,7 +2767,7 @@ const AssignmentPanel = ({
   const [statusFilter, setStatusFilter] = useState('All');
 
   const [bulkStructureId, setBulkStructureId] = useState(structures[0]?.id || '');
-  const [bulkEffectiveDate, setBulkEffectiveDate] = useState(today());
+  const [bulkEffectiveDate, setBulkEffectiveDate] = useState('');
   const [bulkReason, setBulkReason] = useState('Bulk salary structure assignment');
 
   React.useEffect(() => {
@@ -2830,7 +2830,7 @@ const AssignmentPanel = ({
           department: employee.department || 'General',
           salaryStructureId: structure.id,
           salaryStructureName: structure.structureName,
-          effectiveDate: bulkEffectiveDate || today(),
+          effectiveDate: bulkEffectiveDate || '',
           status: 'Active',
           reason: bulkReason
         });
@@ -2857,7 +2857,7 @@ const AssignmentPanel = ({
         <Field label="Search Employee">
           <Input
             type="text"
-            placeholder="Search by name or ID..."
+            placeholder="Search by Employee ID, Name, Department..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -2890,12 +2890,14 @@ const AssignmentPanel = ({
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-800/60 font-bold uppercase text-slate-400 text-[10px] border-b border-slate-200 dark:border-slate-800">
               <th className="p-3 w-10">
-                <input
-                  type="checkbox"
-                  checked={filteredStaff.length > 0 && selectedIds.length === filteredStaff.length}
-                  onChange={toggleSelectAll}
-                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer"
-                />
+                {filteredStaff.length > 0 && (
+                  <input
+                    type="checkbox"
+                    checked={filteredStaff.length > 0 && selectedIds.length === filteredStaff.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                )}
               </th>
               <th className="p-3">Employee Name</th>
               <th className="p-3">Emp ID</th>

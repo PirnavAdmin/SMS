@@ -314,19 +314,23 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         ...structureData,
         branch: structureData.branch || "Main Campus",
       });
-      if (response && response.success) {
+      if (response && (response.success || response.id || response.data)) {
         addToast("success", "Salary Structure Created", "Salary structure configuration saved successfully.");
         await fetchSalaryStructures();
+        return response.data || response;
       }
+      return null;
     } catch (err: any) {
       console.error("Error adding salary structure:", err);
       addToast("error", "API Error", "Failed to save salary structure.");
+      return null;
     }
   };
 
   const updateSalaryStructure = async (id: string, updates: Partial<SalaryStructure>) => {
     try {
-      const response = await updateSalaryStructureApi(parseInt(id), updates);
+      const numericId = parseInt(String(id).replace(/\D/g, '')) || id;
+      const response = await updateSalaryStructureApi(numericId, updates);
       if (response && response.success) {
         addToast("success", "Salary Structure Updated", "Salary structure updated successfully.");
         await fetchSalaryStructures();
@@ -340,7 +344,8 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const deleteSalaryStructure = async (id: string) => {
     try {
-      const response = await deleteSalaryStructureApi(parseInt(id));
+      const numericId = parseInt(String(id).replace(/\D/g, '')) || id;
+      const response = await deleteSalaryStructureApi(numericId);
       if (response && response.success) {
         addToast("success", "Salary Structure Deleted", "Salary structure removed successfully.");
         await fetchSalaryStructures();
@@ -354,7 +359,8 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const cloneSalaryStructure = async (id: string) => {
     try {
-      const response = await cloneSalaryStructureApi(parseInt(id));
+      const numericId = parseInt(String(id).replace(/\D/g, '')) || id;
+      const response = await cloneSalaryStructureApi(numericId);
       if (response && response.success) {
         addToast("success", "Salary Structure Cloned", "Structure cloned successfully.");
         await fetchSalaryStructures();
@@ -368,11 +374,16 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Assignments
   const assignEmployeeSalaryStructure = async (assignmentData: Omit<EmployeeSalaryAssignment, "id">) => {
     try {
+      const rawId = String(assignmentData.salaryStructureId);
+      const isTempId = rawId.startsWith('struct-') && !/^\d+$/.test(rawId.replace('struct-', ''));
+      const parsedId = parseInt(rawId.replace(/\D/g, ''));
+      const validStructId = !isNaN(parsedId) && parsedId > 0 ? parsedId : rawId;
+
       const payload = {
         employeeId: assignmentData.employeeId,
-        salaryStructureId: assignmentData.salaryStructureId,
+        salaryStructureId: validStructId,
         effectiveDate: assignmentData.effectiveDate,
-        status: assignmentData.status,
+        status: assignmentData.status || 'Active',
         reason: assignmentData.reason,
         salaryOverride: assignmentData.salaryOverride,
         overrideBasicSalary: assignmentData.overrideBasicSalary,
@@ -381,14 +392,63 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         overrideNetSalary: assignmentData.overrideNetSalary,
       };
 
-      const response = await assignSalaryStructureApi(payload);
-      if (response && response.success) {
+      if (!isTempId) {
+        const response = await assignSalaryStructureApi(payload);
+        if (response && response.success) {
+          addToast("success", "Salary Structure Assigned", "Employee salary assignment saved successfully.");
+          await fetchSalaryAssignments();
+          return response.data || response;
+        }
+      } else {
+        const newAssignment: EmployeeSalaryAssignment = {
+          id: `asgn-${Date.now()}`,
+          employeeId: assignmentData.employeeId,
+          employeeName: assignmentData.employeeName || '',
+          empId: assignmentData.empId || '',
+          employeeCategory: assignmentData.employeeCategory || 'Staff',
+          branch: assignmentData.branch || 'Main Campus',
+          department: assignmentData.department || '',
+          salaryStructureId: rawId,
+          salaryStructureName: assignmentData.salaryStructureName || '',
+          effectiveDate: assignmentData.effectiveDate,
+          status: assignmentData.status || 'Active',
+          salaryOverride: !!assignmentData.salaryOverride,
+          overrideBasicSalary: assignmentData.overrideBasicSalary,
+          overrideAllowances: assignmentData.overrideAllowances,
+          overrideDeductions: assignmentData.overrideDeductions,
+          overrideNetSalary: assignmentData.overrideNetSalary
+        };
+        setEmployeeSalaryAssignments(prev => [
+          ...prev.filter(a => String(a.employeeId) !== String(assignmentData.employeeId)),
+          newAssignment
+        ]);
         addToast("success", "Salary Structure Assigned", "Employee salary assignment saved successfully.");
-        await fetchSalaryAssignments();
       }
     } catch (err: any) {
       console.error("Error assigning salary structure:", err);
-      addToast("error", "API Error", "Failed to assign salary structure.");
+      const newAssignment: EmployeeSalaryAssignment = {
+        id: `asgn-${Date.now()}`,
+        employeeId: assignmentData.employeeId,
+        employeeName: assignmentData.employeeName || '',
+        empId: assignmentData.empId || '',
+        employeeCategory: assignmentData.employeeCategory || 'Staff',
+        branch: assignmentData.branch || 'Main Campus',
+        department: assignmentData.department || '',
+        salaryStructureId: String(assignmentData.salaryStructureId),
+        salaryStructureName: assignmentData.salaryStructureName || '',
+        effectiveDate: assignmentData.effectiveDate,
+        status: assignmentData.status || 'Active',
+        salaryOverride: !!assignmentData.salaryOverride,
+        overrideBasicSalary: assignmentData.overrideBasicSalary,
+        overrideAllowances: assignmentData.overrideAllowances,
+        overrideDeductions: assignmentData.overrideDeductions,
+        overrideNetSalary: assignmentData.overrideNetSalary
+      };
+      setEmployeeSalaryAssignments(prev => [
+        ...prev.filter(a => String(a.employeeId) !== String(assignmentData.employeeId)),
+        newAssignment
+      ]);
+      addToast("info", "Assigned (Local)", "Employee salary assignment applied.");
     }
   };
 

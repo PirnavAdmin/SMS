@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
+import { publishTimetableApi } from "../api/academic";
 import {
   generateNextStudentId,
   generateNextAdmissionNo,
@@ -326,6 +327,8 @@ import {
   deleteTimetableSlotApi,
   fetchTimetableGridApi,
   fetchClassTeacherAssignmentsApi,
+  fetchAllTimetablesApi,
+  clearClassTimetableApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -792,6 +795,7 @@ interface DataContextType {
   fetchAcademicClasses: (force?: boolean) => Promise<void>;
   fetchSubjects: (force?: boolean) => Promise<void>;
   fetchPeriods: (force?: boolean) => Promise<void>;
+  fetchTimetables: (force?: boolean) => Promise<void>;
   fetchDepartments: (force?: boolean) => Promise<void>;
   fetchDesignations: (force?: boolean) => Promise<void>;
   fetchBooks: () => Promise<void>;
@@ -2067,27 +2071,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("hostel_beds", initialHostelBeds),
   );
   const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
-    const versionKey = "edu_db_uniforms_reset_clean_user_added_only_v999999_wipe_all_clean";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_uniforms", JSON.stringify([]));
-      localStorage.setItem("uniforms", JSON.stringify([]));
-      return [];
-    }
-
-    const saved =
-      localStorage.getItem("edu_db_uniforms") ||
-      localStorage.getItem("uniforms");
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem("edu_db_uniforms") || localStorage.getItem("uniforms");
+      if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
 
-    return [];
+    return initialUniforms;
   });
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() =>
     getStored("custom_roles", initialCustomRoles),
@@ -2361,38 +2355,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Uniform ERP States
-  const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
-    () => {
-      const versionKey = "edu_db_uniform_categories_reset_clean_empty_v999999_wipe_all_clean";
-      if (!localStorage.getItem(versionKey)) {
-        localStorage.setItem(versionKey, "true");
-        localStorage.setItem("edu_db_uniform_categories", JSON.stringify([]));
-        localStorage.setItem("uniform_categories", JSON.stringify([]));
-        return [];
-      }
-
-      try {
-        const saved =
-          localStorage.getItem("edu_db_uniform_categories") ||
-          localStorage.getItem("uniform_categories");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed.filter((c: any) => {
-              const catName = (c.name || c.categoryName || "").toLowerCase().trim();
-              return !(
-                catName.includes("package") ||
-                catName.includes("kit") ||
-                (catName.includes("base") && (catName.includes("boys") || catName.includes("girls")))
-              );
-            });
-          }
+  const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem("edu_db_uniform_categories") || localStorage.getItem("uniform_categories");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((c: any) => {
+            const catName = (c.name || c.categoryName || "").toLowerCase().trim();
+            return !(
+              catName.includes("package") ||
+              catName.includes("kit") ||
+              (catName.includes("base") && (catName.includes("boys") || catName.includes("girls")))
+            );
+          });
         }
-      } catch (e) {}
-
-      return [];
-    },
-  );
+      }
+    } catch (e) {}
+    
+    // Fallback to initial mock data if cache was cleared
+    return initialUniformCategories;
+  });
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => {
     const vKey = "edu_db_uniform_sizes_restored_v999999_keep_sizes";
     if (!localStorage.getItem(vKey)) {
@@ -2429,51 +2412,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(deduplicated));
     return deduplicated;
   });
-  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(
-    () => {
-      const vKey = "edu_db_uniform_suppliers_reset_clean_empty_v999999_wipe_all_clean";
-      if (!localStorage.getItem(vKey)) {
-        localStorage.setItem(vKey, "true");
-        localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify([]));
-        localStorage.setItem("uniform_suppliers", JSON.stringify([]));
-        return [];
-      }
-      try {
-        const saved =
-          localStorage.getItem("edu_db_uniform_suppliers") ||
-          localStorage.getItem("uniform_suppliers");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {}
-      return [];
-    },
-  );
-  const [uniformInventory, setUniformInventory] = useState<
-    UniformInventoryItem[]
-  >(() => {
-    const versionKey = "edu_db_uniform_inventory_reset_clean_empty_v999999_wipe_all_clean";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_uniform_inventory", JSON.stringify([]));
-      localStorage.setItem("uniform_inventory", JSON.stringify([]));
-      return [];
-    }
-
+  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(() => {
     try {
-      const saved =
-        localStorage.getItem("edu_db_uniform_inventory") ||
-        localStorage.getItem("uniform_inventory");
+      const saved = localStorage.getItem("edu_db_uniform_suppliers") || localStorage.getItem("uniform_suppliers");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return initialUniformSuppliers;
+  });
+
+  const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("edu_db_uniform_inventory") || localStorage.getItem("uniform_inventory");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
     } catch (e) {}
-
-    return [];
+    return initialUniformInventory;
   });
 
   const [studentUniformIssues, setStudentUniformIssues] = useState<
@@ -2504,24 +2464,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     return [];
   });
-  const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
-    FinanceUniformConfig[]
-  >(() => {
-    const versionKey = "edu_db_finance_uniform_configs_reset_clean_empty_v999999_wipe_all_clean";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify([]));
-      localStorage.setItem("finance_uniform_configs", JSON.stringify([]));
-      return [];
-    }
-
+  const [financeUniformConfigs, setFinanceUniformConfigs] = useState<FinanceUniformConfig[]>(() => {
     try {
-      const saved =
-        localStorage.getItem("edu_db_finance_uniform_configs") ||
-        localStorage.getItem("finance_uniform_configs");
+      const saved = localStorage.getItem("edu_db_finance_uniform_configs") || localStorage.getItem("finance_uniform_configs");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
@@ -2530,79 +2478,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return [];
   });
 
-  // ERP Finance System Clean Slate Wipe Migration
-  useEffect(() => {
-    const wipeKey = "edu_db_finance_module_clean_slate_v2";
-    if (!localStorage.getItem(wipeKey)) {
-      localStorage.setItem(wipeKey, "true");
-      [
-        "fee_heads",
-        "edu_db_fee_heads",
-        "dynamic_fee_structures",
-        "edu_db_dynamic_fee_structures",
-        "fee_structures",
-        "edu_db_fee_structures",
-        "fee_payments",
-        "edu_db_fee_payments",
-        "student_fee_assignments",
-        "edu_db_student_fee_assignments",
-        "scholarships",
-        "edu_db_scholarships",
-        "student_scholarships",
-        "edu_db_student_scholarships",
-        "discounts",
-        "edu_db_discounts",
-        "student_discounts",
-        "edu_db_student_discounts",
-        "fine_rules",
-        "edu_db_fine_rules",
-        "refunds",
-        "edu_db_refunds",
-        "finance_transactions",
-        "edu_db_finance_transactions",
-        "financial_accounts",
-        "edu_db_financial_accounts",
-        "financial_categories",
-        "edu_db_financial_categories",
-        "financial_budgets",
-        "edu_db_financial_budgets",
-        "finance_hostel_configs",
-        "edu_db_finance_hostel_configs",
-        "finance_transport_configs",
-        "edu_db_finance_transport_configs",
-        "finance_uniform_configs",
-        "edu_db_finance_uniform_configs",
-        "student_fee_ledgers",
-        "edu_db_student_fee_ledgers",
-        "student_fee_installments",
-        "edu_db_student_fee_installments",
-      ].forEach((k) => localStorage.removeItem(k));
-    }
-  }, []);
 
-  // Force Master Wipe for ALL Uniform Data
-  useEffect(() => {
-    const forceResetKey = "edu_db_uniform_master_absolute_clean_wipe_v100003_keep_standard_sizes";
-    if (!localStorage.getItem(forceResetKey)) {
-      localStorage.setItem(forceResetKey, "true");
-      [
-        "uniform_categories", "edu_db_uniform_categories",
-        "uniforms", "edu_db_uniforms",
-        "uniform_inventory", "edu_db_uniform_inventory",
-        "finance_uniform_configs", "edu_db_finance_uniform_configs",
-        "student_uniform_issues", "edu_db_student_uniform_issues",
-        "uniform_suppliers", "edu_db_uniform_suppliers"
-      ].forEach((k) => {
-        localStorage.setItem(k, JSON.stringify([]));
-      });
-      setUniformCategories([]);
-      setUniforms([]);
-      setUniformInventory([]);
-      setFinanceUniformConfigs([]);
-      setUniformSuppliers([]);
-      setStudentUniformIssues([]);
-    }
-  }, []);
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() =>
@@ -4816,6 +4692,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchTimetables = async (force: boolean = false) => {
+    try {
+      const data: any = await fetchAllTimetablesApi(selectedAcademicYear);
+      const dataArray = Array.isArray(data) ? data : data?.data || [];
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
+        const mappedData: TimetableSlot[] = dataArray.map((item: any) => {
+          const timeSlotStr =
+            item.timeSlot ||
+            (item.startTime && item.endTime
+              ? `${item.startTime} - ${item.endTime}`
+              : "");
+          return {
+            id:
+              item.id?.toString() ||
+              item.slotId?.toString() ||
+              `TT-${Math.random().toString(36).substr(2, 9)}`,
+            className: item.className || "Class 9",
+            section: item.section || item.sectionName || "A",
+            day: item.day || item.dayOfWeek || "Monday",
+            timeSlot: timeSlotStr,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            periodNumber: item.periodNumber || 1,
+            subject: item.subject || item.subjectName || "",
+            subjectId: item.subjectId?.toString(),
+            teacherName: item.teacherName || "",
+            teacherId: item.teacherId?.toString(),
+            roomNo: item.roomNo || "",
+            academicYear: item.academicYear || selectedAcademicYear || "",
+            status: item.status || "Draft",
+            branch: item.branch || selectedBranch || "Main Campus",
+          };
+        });
+
+        setTimetable((prev) => {
+          const norm = (str?: string) =>
+            (str || "")
+              .toLowerCase()
+              .replace(/\s+/g, "")
+              .replace(/class/gi, "");
+          const map = new Map<string, TimetableSlot>();
+
+          // Add existing local slots first
+          (prev || []).forEach((slot) => {
+            const key = `${norm(slot.className)}_${norm(slot.section)}_${(slot.day || "").toLowerCase()}_${(slot.timeSlot || "").trim().toLowerCase()}`;
+            map.set(key, slot);
+          });
+
+          // Overwrite with backend database slots
+          mappedData.forEach((slot) => {
+            const key = `${norm(slot.className)}_${norm(slot.section)}_${(slot.day || "").toLowerCase()}_${(slot.timeSlot || "").trim().toLowerCase()}`;
+            map.set(key, slot);
+          });
+
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem("edu_db_timetable", JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch all timetables from backend", err);
+    }
+  };
+
   const getPersistedOptionalFees = (
     appId?: string,
     regNo?: string,
@@ -6010,6 +5952,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchAcademicClasses();
         fetchSubjects();
         fetchPeriods();
+        fetchTimetables();
         fetchDepartments();
         fetchDesignations();
         fetchPayrollConfigurations();
@@ -7934,7 +7877,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           let baseItems: any[] = [];
           if (dfs && dfs.items && dfs.items.length > 0) {
-            baseItems = dfs.items;
+            baseItems = [...dfs.items];
           } else {
             // Find active fee heads applicable to this class from master fee heads
             const applicableHeads = (feeHeads || []).filter((h) =>
@@ -7950,6 +7893,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               category: h.category,
               amount: h.amount || 0,
             }));
+          }
+
+          if (
+            baseItems.length === 0 ||
+            !baseItems.some(
+              (i) =>
+                (i.feeHeadName || i.name || "").toLowerCase().includes("tuition") ||
+                (i.category || "").toLowerCase().includes("tuition"),
+            )
+          ) {
+            const defaultAcademicHeads = [
+              { feeHeadId: "FH-01", feeHeadName: "Tuition Fee", category: "Tuition Fee", amount: 25000 },
+              { feeHeadId: "FH-02", feeHeadName: "Admission Fee", category: "Admission Fee", amount: 5000 },
+              { feeHeadId: "FH-03", feeHeadName: "Books & Stationery Fee", category: "Books Fee", amount: 4500 },
+              { feeHeadId: "FH-04", feeHeadName: "Examination & Assessment Fee", category: "Exam Fee", amount: 2500 },
+              { feeHeadId: "FH-05", feeHeadName: "Science & Computer Lab Fee", category: "Lab Fee", amount: 2000 },
+            ];
+            defaultAcademicHeads.forEach((d) => {
+              if (
+                !baseItems.some(
+                  (b) =>
+                    b.feeHeadId === d.feeHeadId ||
+                    (b.feeHeadName || "").toLowerCase() === d.feeHeadName.toLowerCase(),
+                )
+              ) {
+                baseItems.push(d);
+              }
+            });
           }
 
           const selectedOptional = app.selectedOptionalFees || [];
@@ -8843,7 +8814,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTeacherAssignments((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const publishClassTimetable = (
+  const publishClassTimetable = async (
     className: string,
     section: string,
     academicYear?: string,
@@ -8861,6 +8832,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Published Timetable",
       `Published timetable for ${className}-${section}`,
     );
+
+    try {
+      const clsObj = (academicClasses || []).find(
+        (c) =>
+          c.name?.toLowerCase().trim() === className?.toLowerCase().trim() ||
+          (c as any).className?.toLowerCase().trim() === className?.toLowerCase().trim()
+      );
+      const classId = clsObj?.id;
+      const secLetter = (section || 'A').replace(/^Section\s*/i, '').trim();
+
+      await publishTimetableApi({
+        classId,
+        className,
+        sectionName: secLetter,
+        academicYear: academicYear || selectedAcademicYear || '',
+        status: 'Published',
+      });
+    } catch (err) {
+      console.warn('Backend publish timetable sync notice:', err);
+    }
   };
   const addUniform = async (itemData: Omit<UniformItem, "id">) => {
     const id = "UNI-" + Date.now();
@@ -12233,6 +12224,89 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         });
       }
+    }
+
+    // Ensure base academic fee heads exist if missing
+    const hasTuitionFeeHead = ledgerItems.some(
+      (item) =>
+        item.category === "Tuition Fee" ||
+        item.headName.toLowerCase().includes("tuition"),
+    );
+
+    if (!hasTuitionFeeHead) {
+      const defaultAcademicFeeHeads: LedgerFeeItem[] = [
+        {
+          headId: "FH-01",
+          headName: "Tuition Fee",
+          category: "Tuition Fee",
+          originalAmount: 25000,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 25000,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-02",
+          headName: "Admission Fee",
+          category: "Admission Fee",
+          originalAmount: 5000,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 5000,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-03",
+          headName: "Books & Stationery Fee",
+          category: "Books Fee",
+          originalAmount: 4500,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 4500,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-04",
+          headName: "Examination & Assessment Fee",
+          category: "Exam Fee",
+          originalAmount: 2500,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 2500,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-05",
+          headName: "Science & Computer Lab Fee",
+          category: "Lab Fee",
+          originalAmount: 2000,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 2000,
+          isApplicable: true,
+          status: "Pending",
+        },
+      ];
+
+      defaultAcademicFeeHeads.forEach((dItem) => {
+        const exists = ledgerItems.some(
+          (item) =>
+            item.headId === dItem.headId ||
+            item.headName.toLowerCase() === dItem.headName.toLowerCase(),
+        );
+        if (!exists) {
+          ledgerItems.push({ ...dItem });
+        }
+      });
     }
 
     // Ensure Uniform Fee category amount matches config lookup
@@ -16339,7 +16413,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
 
-    // 2. Delete local state slots from backend
+    // 2. Call backend clear API to remove all slots for this class and section
+    try {
+      await clearClassTimetableApi(className, section, selectedAcademicYear);
+    } catch (err) {
+      console.warn("Failed to clear timetable slots from backend", err);
+    }
+
+    // 3. Delete any known local id slots
     try {
       await Promise.all(
         existing.map(async (t) => {
@@ -16350,41 +16431,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }),
       );
-    } catch (err) {
-      console.warn("Failed to clear timetable slots from backend", err);
-    }
-
-    // 3. Query backend DB for any remaining active slots for this class & section and delete them
-    try {
-      const cls = academicClasses.find((c) => norm(c.name) === norm(className));
-      if (cls?.id) {
-        const gridRes: any = await fetchTimetableGridApi(
-          cls.id,
-          section,
-          selectedAcademicYear || "2026-2027",
-        ).catch(() => null);
-
-        const rawList = Array.isArray(gridRes?.data)
-          ? gridRes.data
-          : Array.isArray(gridRes)
-          ? gridRes
-          : [];
-
-        if (rawList.length > 0) {
-          await Promise.all(
-            rawList.map(async (oldItem: any) => {
-              const sId = oldItem?.slotId || oldItem?.id;
-              if (sId) {
-                const numericId = String(sId).replace(/^TT-/i, "");
-                await deleteTimetableSlotApi(numericId).catch(() => {});
-              }
-            }),
-          );
-        }
-      }
-    } catch (e) {
-      console.warn("Backend timetable pre-clear notice:", e);
-    }
+    } catch (e) {}
   };
 
   const bulkAddTimetableSlots = (newSlots: TimetableSlot[]) => {
@@ -18072,7 +18119,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       branch: hData.branch || selectedBranch || "Main Campus",
     };
-    setHolidays((prev) => [newHoliday, ...prev]);
+    setHolidays((prev) => {
+      const updated = [newHoliday, ...prev];
+      try {
+        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
+        window.dispatchEvent(new Event("storage"));
+      } catch {}
+      return updated;
+    });
 
     try {
       const payload = {
@@ -19240,21 +19294,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               .toLowerCase()
               .replace(/\s+/g, "")
               .replace(/class/gi, "");
-          const existingLocal = prev.filter(
-            (t) =>
-              norm(t.className) === norm(targetClassName) &&
-              norm(t.section) === norm(sectionName),
-          );
 
-          // If local memory has freshly generated slots and backend returned fewer slots due to conflict, preserve local slots
-          if (
-            existingLocal.length > mappedSlots.length &&
-            mappedSlots.length === 0
-          ) {
-            return prev;
-          }
-
-          const filtered = prev.filter(
+          const filtered = (prev || []).filter(
             (t) =>
               !(
                 norm(t.className) === norm(targetClassName) &&
@@ -19701,6 +19742,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchAcademicClasses,
         fetchSubjects,
         fetchPeriods,
+        fetchTimetables,
         fetchDepartments,
         fetchDesignations,
         fetchBooks,

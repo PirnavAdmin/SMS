@@ -627,37 +627,45 @@ namespace SMS.Api.Services.Implementations.Settings
 
         public async Task<UserProfileDto> GetUserProfileAsync()
         {
-            var settings = await _repository.GetSettingsAsync();
-            if (!string.IsNullOrWhiteSpace(settings.UserProfileJson))
-            {
-                try
-                {
-                    var parsed = JsonSerializer.Deserialize<UserProfileDto>(settings.UserProfileJson);
-                    if (parsed != null && (!string.IsNullOrWhiteSpace(parsed.Name) || !string.IsNullOrWhiteSpace(parsed.Email)))
-                    {
-                        return parsed;
-                    }
-                }
-                catch { }
-            }
-
-            // Fallback to Admin from database if available
+            // Primary source of truth: Admin table in database
             try
             {
                 var admin = await _context.Admins.FirstOrDefaultAsync();
                 if (admin != null)
                 {
-                    return new UserProfileDto
+                    var dto = new UserProfileDto
                     {
                         Id = admin.AdminId.ToString(),
-                        Name = admin.FullName ?? "Vasantha Gokul",
-                        Email = admin.Email ?? "vasantha.gokul@pirnav.com",
-                        Phone = admin.MobileNumber ?? "+91 9876543210",
-                        Avatar = admin.Avatar ?? "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+                        Name = !string.IsNullOrWhiteSpace(admin.FullName) ? admin.FullName : "Administrator",
+                        Email = !string.IsNullOrWhiteSpace(admin.Email) ? admin.Email : "pirnavsms@gmail.com",
+                        Phone = !string.IsNullOrWhiteSpace(admin.MobileNumber) ? admin.MobileNumber : "+91 9581768555",
+                        Avatar = !string.IsNullOrWhiteSpace(admin.Avatar) ? admin.Avatar : "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
                         Branch = "Main Campus",
-                        Role = admin.Role ?? "Admin",
+                        Role = !string.IsNullOrWhiteSpace(admin.Role) ? admin.Role : "Admin",
                         Status = "Active Account"
                     };
+
+                    // Supplemental settings (custom avatar or branch if saved in settings)
+                    var settings = await _repository.GetSettingsAsync();
+                    if (!string.IsNullOrWhiteSpace(settings.UserProfileJson))
+                    {
+                        try
+                        {
+                            var parsed = JsonSerializer.Deserialize<UserProfileDto>(settings.UserProfileJson);
+                            if (parsed != null && (parsed.Email == admin.Email || parsed.Phone == admin.MobileNumber || parsed.Id == admin.AdminId.ToString()))
+                            {
+                                if (!string.IsNullOrWhiteSpace(parsed.Avatar)) dto.Avatar = parsed.Avatar;
+                                if (!string.IsNullOrWhiteSpace(parsed.Branch)) dto.Branch = parsed.Branch;
+                                if (!string.IsNullOrWhiteSpace(parsed.Name) && parsed.Name != "Pirnavsms" && parsed.Name != "Vasantha Gokul")
+                                {
+                                    dto.Name = parsed.Name;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+
+                    return dto;
                 }
             }
             catch { }
@@ -665,9 +673,9 @@ namespace SMS.Api.Services.Implementations.Settings
             return new UserProfileDto
             {
                 Id = "USR-001",
-                Name = "Vasantha Gokul",
-                Email = "vasantha.gokul@pirnav.com",
-                Phone = "+91 9876543210",
+                Name = "Administrator",
+                Email = "pirnavsms@gmail.com",
+                Phone = "+91 9581768555",
                 Avatar = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
                 Branch = "Main Campus",
                 Role = "Admin",

@@ -53,6 +53,7 @@ import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import {
   validate10DigitPhone,
+  validateEmail,
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   BRANCHES,
@@ -1136,7 +1137,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [siblingSearchQuery, students]);
 
   const [phoneError, setPhoneError] = useState("");
+  const [motherPhoneError, setMotherPhoneError] = useState("");
   const [altPhoneError, setAltPhoneError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [dobError, setDobError] = useState("");
   const [photoError, setPhotoError] = useState("");
 
@@ -1149,6 +1152,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const classOptions = (academicClasses || []).map(
     (cls) => cls.name || (cls as any).className || "",
   );
+
+  const handleEmailChange = (val: string) => {
+    setFormData((prev) => ({ ...prev, email: val }));
+    const res = validateEmail(val, true);
+    setEmailError(res.isValid ? "" : res.error || "Email address is required.");
+  };
 
   const handleAltPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -1281,6 +1290,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       documentsSubmitted: [],
     });
     setPhoneError("");
+    setAltPhoneError("");
+    setEmailError("");
     setDobError("");
     setPhotoError("");
     setIsFormView(true);
@@ -1456,6 +1467,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         (app.siblingStudentId ? [app.siblingStudentId] : []),
     );
     setPhoneError("");
+    setAltPhoneError("");
+    setEmailError("");
     setDobError("");
     setPhotoError("");
     setIsFormView(true);
@@ -1489,12 +1502,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   const handlePhoneChange = (val: string) => {
-    setFormData((prev) => ({ ...prev, phone: val }));
-    if (val) {
-      const res = validate10DigitPhone(val);
+    const cleaned = val.replace(/\D/g, "").slice(0, 10);
+    setFormData((prev) => ({ ...prev, phone: cleaned }));
+    if (cleaned) {
+      const res = validate10DigitPhone(cleaned);
       setPhoneError(res.isValid ? "" : res.error || "");
     } else {
       setPhoneError("Father mobile number is required.");
+    }
+  };
+
+  const handleMotherPhoneChange = (val: string) => {
+    const cleaned = val.replace(/\D/g, "").slice(0, 10);
+    setFormData((prev) => ({ ...prev, motherPhone: cleaned }));
+    if (cleaned && cleaned.length > 0 && cleaned.length !== 10) {
+      setMotherPhoneError("Mother mobile number must be exactly 10 digits");
+    } else {
+      setMotherPhoneError("");
     }
   };
 
@@ -1593,6 +1617,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || "Invalid 10-digit phone");
       addToast("error", "Phone Validation Error", phoneValidation.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!formData.email || !formData.email.trim()) {
+      setEmailError("Please enter parent email address.");
+      addToast("error", "Missing Required Field", "Please enter Email Address.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const emailValidation = validateEmail(formData.email.trim(), true);
+    if (!emailValidation.isValid) {
+      setEmailError(emailValidation.error || "Please enter a valid email address.");
+      addToast("error", "Email Validation Error", emailValidation.error || "Please enter a valid email address.");
       setIsSubmitting(false);
       return;
     }
@@ -1892,8 +1931,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   ) => {
     if (!idOrName || !item) return false;
     const str = String(idOrName).toLowerCase().trim();
-    const itemId = (item.feeHeadId || "").toLowerCase().trim();
-    const itemName = (item.feeHeadName || "").toLowerCase().trim();
+    const itemId = String(item.feeHeadId || "").toLowerCase().trim();
+    const itemName = String(item.feeHeadName || "").toLowerCase().trim();
 
     if (str === itemId || str === itemName) return true;
 
@@ -1916,7 +1955,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     feeHeadName: string;
     category?: string;
   }) => {
-    const nameLower = (item.feeHeadName || "").toLowerCase().trim();
+    const nameLower = String(item.feeHeadName || "").toLowerCase().trim();
     const catLower = (item.category || "").toLowerCase().trim();
 
     const fh = feeHeads.find((h) => {
@@ -2012,7 +2051,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           feeHeads.some(
             (h) =>
               h.id === item.feeHeadId ||
-              h.name.toLowerCase() === item.feeHeadName.toLowerCase(),
+              String(h.name || "").toLowerCase() === String(item.feeHeadName || "").toLowerCase(),
           )),
     );
 
@@ -2047,7 +2086,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       let amt = i.amount;
       let itemName = i.feeHeadName;
-      const lowerName = (i.feeHeadName || "").toLowerCase();
+      const lowerName = String(i.feeHeadName || "").toLowerCase();
       const isUniform =
         lowerName.includes("uniform") || lowerName.includes("kit");
       if (isUniform) {
@@ -2058,7 +2097,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       const fh = (feeHeads || []).find(
         (h) =>
           (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
-          (h.name && i.feeHeadName && h.name.toLowerCase().trim() === i.feeHeadName.toLowerCase().trim()),
+          (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
       );
 
       const detectedFreq =
@@ -2459,7 +2498,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter First Name"
                           value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
+                          onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -2472,7 +2511,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter Last Name"
                           value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
+                          onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -2688,7 +2727,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       placeholder="Enter Religion"
                       value={formData.religion}
                       onChange={(e) =>
-                        setFormData({ ...formData, religion: e.target.value })
+                        setFormData({
+                          ...formData,
+                          religion: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
+                        })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -2948,7 +2990,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       required
                       value={formData.parentName}
                       onChange={(e) =>
-                        setFormData({ ...formData, parentName: e.target.value })
+                        setFormData({ ...formData, parentName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -2961,7 +3003,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       type="text"
                       value={formData.motherName}
                       onChange={(e) =>
-                        setFormData({ ...formData, motherName: e.target.value })
+                        setFormData({ ...formData, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -2976,7 +3018,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <input
                       type="text"
                       required
-                      value={formData.phone}
+                      maxLength={10}
+                      placeholder="10-digit number"
+                      value={formData.phone || ""}
                       onChange={(e) => handlePhoneChange(e.target.value)}
                       className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                         phoneError
@@ -2997,17 +3041,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={10}
+                      placeholder="10-digit number"
                       value={formData.motherPhone || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          motherPhone: e.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 10),
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
+                      onChange={(e) => handleMotherPhoneChange(e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
+                        motherPhoneError
+                          ? "border-rose-500"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
                     />
+                    {motherPhoneError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {motherPhoneError}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -3016,6 +3064,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={10}
+                      placeholder="10-digit number"
                       value={formData.alternatePhone || ""}
                       onChange={(e) => handleAltPhoneChange(e.target.value)}
                       className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
@@ -3033,16 +3083,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Email Address
+                      Email Address <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
-                      type="text"
+                      type="email"
+                      required
+                      placeholder="e.g. parent@example.com"
                       value={formData.email || ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                      onChange={(e) => handleEmailChange(e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none ${
+                        emailError
+                          ? "border-rose-500 focus:border-rose-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      }`}
                     />
+                    {emailError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4017,8 +4076,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         feeHeads.some(
                           (h) =>
                             h.id === item.feeHeadId ||
-                            h.name.toLowerCase().trim() ===
-                              item.feeHeadName.toLowerCase().trim(),
+                            String(h.name || "").toLowerCase().trim() ===
+                              String(item.feeHeadName || "").toLowerCase().trim(),
                         )),
                   );
 
@@ -4043,7 +4102,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           ).some((idOrName) =>
                             isOptionalFeeMatched(idOrName, item)
                           );
-                          const lowerName = (item.feeHeadName || "").toLowerCase();
+                          const lowerName = String(item.feeHeadName || "").toLowerCase();
                           const isUniform = lowerName.includes("uniform") || lowerName.includes("kit");
                           const gnd = formData.gender || "Unisex";
                           const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
@@ -4419,29 +4478,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => setSelectedAppForView(app)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                          title="View Application Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        {app.status !== "Rejected" && (
+                          <>
+                            <button
+                              onClick={() => setSelectedAppForView(app)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                              title="View Application Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
 
-                        <button
-                          onClick={() => handleOpenEdit(app)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400"
-                          title="Edit Application"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                            <button
+                              onClick={() => handleOpenEdit(app)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400"
+                              title="Edit Application"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
 
-                        <button
-                          onClick={() => setDeletingApp(app)}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400"
-                          title="Delete Application"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                            <button
+                              onClick={() => setDeletingApp(app)}
+                              className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400"
+                              title="Delete Application"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
 
                         {/* Strict Status Options */}
                         {app.status === "Enrolled" ? (
@@ -4827,18 +4890,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const appToEdit = selectedAppForView;
-                    setSelectedAppForView(null);
-                    handleOpenEdit(appToEdit);
-                  }}
-                  className="px-4 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 hover:bg-brand-100 dark:hover:bg-brand-900/40 border border-brand-200 dark:border-brand-800 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                  Edit Application
-                </button>
+                {selectedAppForView.status !== "Rejected" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const appToEdit = selectedAppForView;
+                      setSelectedAppForView(null);
+                      handleOpenEdit(appToEdit);
+                    }}
+                    className="px-4 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 hover:bg-brand-100 dark:hover:bg-brand-900/40 border border-brand-200 dark:border-brand-800 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit Application
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setSelectedAppForView(null)}

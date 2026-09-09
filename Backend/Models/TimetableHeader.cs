@@ -15,11 +15,11 @@ public class TimetableHeader
 
     [Required]
     [MaxLength(50)]
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string AcademicYear { get; set; } = string.Empty;
 
     [Required]
     [MaxLength(100)]
-    public string BranchName { get; set; } = "Main Campus";
+    public string BranchName { get; set; } = string.Empty;
 
     [Required]
     public int ClassId { get; set; }

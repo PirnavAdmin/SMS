@@ -67,15 +67,20 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetClasses()
         {
             var campus = Request.Headers["X-Branch-Id"].ToString();
-            if (string.IsNullOrEmpty(campus)) campus = "Main Campus";
-
             var academicYear = Request.Headers["X-Academic-Year-Id"].ToString();
-            if (string.IsNullOrEmpty(academicYear)) academicYear = "2026-2027";
+            if (string.IsNullOrEmpty(academicYear))
+            {
+                academicYear = await _context.AcademicYears
+                    .AsNoTracking()
+                    .Where(ay => !ay.IsDeleted && ay.IsActive && ay.IsCurrent)
+                    .Select(ay => ay.AcademicYearName)
+                    .FirstOrDefaultAsync() ?? string.Empty;
+            }
 
             var classes = await _context.Classes
                 .AsNoTracking()
-                .Where(c => (c.CampusLocation == campus || string.IsNullOrEmpty(c.CampusLocation)) && 
-                            (c.AcademicYear == academicYear || string.IsNullOrEmpty(c.AcademicYear)))
+                .Where(c => (string.IsNullOrEmpty(campus) || c.CampusLocation == campus || string.IsNullOrEmpty(c.CampusLocation)) && 
+                            (string.IsNullOrEmpty(academicYear) || c.AcademicYear == academicYear || string.IsNullOrEmpty(c.AcademicYear)))
                 .Include(c => c.Sections)
                 .Include(c => c.SubjectMappings)
                     .ThenInclude(cs => cs.Subject)
@@ -183,10 +188,24 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> CreateClassGrade([FromBody] CreateClassGradeDto dto)
         {
             var campus = Request.Headers["X-Branch-Id"].ToString();
-            if (string.IsNullOrEmpty(campus)) campus = "Main Campus";
+            if (string.IsNullOrEmpty(campus))
+            {
+                campus = await _context.Branches
+                    .AsNoTracking()
+                    .Where(b => b.Status == "Active")
+                    .Select(b => b.BranchName)
+                    .FirstOrDefaultAsync() ?? string.Empty;
+            }
 
             var academicYear = Request.Headers["X-Academic-Year-Id"].ToString();
-            if (string.IsNullOrEmpty(academicYear)) academicYear = "2026-2027";
+            if (string.IsNullOrEmpty(academicYear))
+            {
+                academicYear = await _context.AcademicYears
+                    .AsNoTracking()
+                    .Where(ay => !ay.IsDeleted && ay.IsActive && ay.IsCurrent)
+                    .Select(ay => ay.AcademicYearName)
+                    .FirstOrDefaultAsync() ?? string.Empty;
+            }
 
             var normalizedInput = NormalizeClassName(dto.Name ?? dto.ClassName ?? "");
             var existingClasses = await _context.Classes
@@ -330,8 +349,8 @@ await transaction.CommitAsync();
                 return NotFound(new { success = false, message = "Class not found." });
             }
 
-            var campus = classObj.CampusLocation ?? "Main Campus";
-            var academicYear = classObj.AcademicYear ?? "2026-2027";
+            var campus = classObj.CampusLocation ?? string.Empty;
+            var academicYear = classObj.AcademicYear ?? string.Empty;
 
             var newClassName = dto.Name ?? dto.ClassName;
             if (!string.IsNullOrEmpty(newClassName) && newClassName != classObj.ClassName)

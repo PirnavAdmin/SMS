@@ -46,7 +46,7 @@ export const LibraryTimetableView: React.FC = () => {
 
   // Filter Library Timetable Slots dynamically from Admin Master Timetable
   const librarySlots = useMemo(() => {
-    return timetable.filter(s => {
+    return (timetable || []).filter(s => {
       const subj = (s.subject || '').toLowerCase();
       const tName = (s.teacherName || '').toLowerCase();
       const room = (s.roomNo || '').toLowerCase();

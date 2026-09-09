@@ -25,8 +25,7 @@ import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
 import { BRANCHES } from '../../../utils/validation';
 import { Pagination } from '../../common/Pagination';
-
-
+import { hasModuleAccess } from '../../../utils/rbac';
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, applications = [], teacherAssignments = [], timetable = [] } = useData();
@@ -37,6 +36,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   const isTeacherRole = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
   const isWardenRole = ((user?.role || role || '') as string).toLowerCase().includes('warden');
+  const canAddStudent = hasModuleAccess(role || user?.role, 'admissions');
 
   // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
   const teachingStaff = useMemo(() => {
@@ -1091,7 +1091,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               >
                 <Upload className="h-4 w-4" /> Upload Excel / Import
               </button>
-              {onNavigate && !isWardenRole && (
+              {onNavigate && canAddStudent && (
                 <button
                   onClick={() => onNavigate('admissions')}
                   className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-brand-600/20 hover:bg-brand-500 transition-colors cursor-pointer"

@@ -46,7 +46,7 @@ export const ParentTimetableView: React.FC = () => {
         status: 'Active'
       }));
     } else {
-      const localMatches = students.filter(s => 
+      const localMatches = (students || []).filter(s => 
         s.status === 'Active' && 
         (
           role === 'Student' ? (s.id === user?.id || (s.email && s.email.toLowerCase() === userEmail)) :
@@ -67,7 +67,7 @@ export const ParentTimetableView: React.FC = () => {
           )
         )
       );
-      return localMatches.length > 0 ? localMatches : students.filter(s => s.status === 'Active').slice(0, 1);
+      return localMatches.length > 0 ? localMatches : (students || []).filter(s => s.status === 'Active').slice(0, 1);
     }
   }, [students, user, role, apiChildren]);
 
