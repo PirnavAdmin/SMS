@@ -278,6 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
       localStorage.setItem('auth_token', realToken);
       localStorage.setItem('roles', JSON.stringify(roles));
+      localStorage.setItem('active_module', 'dashboard');
 
       return true;
     } catch (err: any) {
@@ -292,6 +293,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('roles');
+    localStorage.removeItem('active_module');
+    localStorage.removeItem('active_selected_class_id');
+    localStorage.removeItem('active_class_tab');
   };
 
   const changePassword = async (_oldPass: string, _newPass: string): Promise<boolean> => {

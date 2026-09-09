@@ -109,14 +109,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isHostelActive =
     activeModule.startsWith("hostel-") ||
     activeModule === "hostel" ||
-    activeModule.startsWith("parent-hostel-");
+    activeModule.startsWith("parent-hostel-") ||
+    activeModule === "room-allocation" ||
+    activeModule === "outpass" ||
+    activeModule === "student-hostel" ||
+    activeModule === "warden-attendance" ||
+    activeModule === "hostel-warden-attendance";
   const isTransportActive =
     activeModule.startsWith("transport-") ||
     activeModule === "transport" ||
     activeModule.startsWith("parent-bus-") ||
     activeModule.startsWith("parent-transport-");
   const isUniformActive =
-    activeModule.startsWith("uniform-") || activeModule === "uniforms";
+    activeModule.startsWith("uniform-") ||
+    activeModule === "uniforms" ||
+    activeModule === "uniform";
   const isLibraryActive =
     activeModule.startsWith("library") ||
     activeModule === "librarian-attendance";
@@ -143,104 +150,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [staffExpanded, setStaffExpanded] = useState(isStaffActive);
   const [academicsExpanded, setAcademicsExpanded] = useState(isAcademicsActive);
 
-  const [lastActiveGroup, setLastActiveGroup] = useState<
-    | "finance"
-    | "hostel"
-    | "transport"
-    | "uniform"
-    | "staff"
-    | "academics"
-    | "other"
-  >(
-    isFinanceActive
-      ? "finance"
-      : isHostelActive
-        ? "hostel"
-        : isTransportActive
-          ? "transport"
-          : isUniformActive
-            ? "uniform"
-            : isStaffActive
-              ? "staff"
-              : isAcademicsActive
-                ? "academics"
-                : "other",
-  );
+  const navRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    if (isFinanceActive && lastActiveGroup !== "finance") {
+    if (isFinanceActive) {
       setFinanceExpanded(true);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setLibraryExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup("finance");
-    } else if (isHostelActive && lastActiveGroup !== "hostel") {
+    } else if (isHostelActive) {
       setHostelExpanded(true);
       setFinanceExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setLibraryExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup("hostel");
-    } else if (isTransportActive && lastActiveGroup !== "transport") {
+    } else if (isTransportActive) {
       setTransportExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setUniformExpanded(false);
+      setLibraryExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup("transport");
-    } else if (isUniformActive && lastActiveGroup !== "uniform") {
+    } else if (isUniformActive) {
       setUniformExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
+      setLibraryExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup("uniform");
-    } else if (isStaffActive && lastActiveGroup !== "staff") {
+    } else if (isLibraryActive) {
+      setLibraryExpanded(true);
+      setFinanceExpanded(false);
+      setHostelExpanded(false);
+      setTransportExpanded(false);
+      setUniformExpanded(false);
+      setStaffExpanded(false);
+      setAcademicsExpanded(false);
+    } else if (isStaffActive) {
       setStaffExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setLibraryExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup("staff");
-    } else if (isAcademicsActive && lastActiveGroup !== "academics") {
+    } else if (isAcademicsActive) {
       setAcademicsExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setLibraryExpanded(false);
       setStaffExpanded(false);
-      setLastActiveGroup("academics");
-    } else if (
-      !isFinanceActive &&
-      !isHostelActive &&
-      !isTransportActive &&
-      !isUniformActive &&
-      !isStaffActive &&
-      !isAcademicsActive
-    ) {
+    } else {
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setLibraryExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup("other");
     }
+
+    const timer = setTimeout(() => {
+      if (navRef.current) {
+        const activeElem = navRef.current.querySelector<HTMLElement>('[data-active="true"]');
+        if (activeElem) {
+          activeElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [
     activeModule,
     isFinanceActive,
     isHostelActive,
     isTransportActive,
     isUniformActive,
+    isLibraryActive,
     isStaffActive,
     isAcademicsActive,
-    lastActiveGroup,
   ]);
 
   const pendingAdmissions = admissions.filter(
@@ -576,7 +573,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Nav Menu */}
-      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar">
+      <div ref={navRef} className="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar">
         {menuGroups.map((group, idx) => {
           const visibleItems = group.items.filter(
             (item: any) => {
@@ -676,8 +673,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
+                              (sub.id === "finance-fee-collection" &&
+                                [
+                                  "finance-fee-collection",
+                                  "finance-fee-receipts",
+                                  "finance-due-fees",
+                                  "finance-due",
+                                  "finance-dues",
+                                  "finance-promoted-dues",
+                                  "finance-dashboard",
+                                  "fees",
+                                ].includes(activeModule)) ||
                               (sub.id === "finance-masters" &&
                                 [
+                                  "finance-masters",
                                   "finance-fee-heads",
                                   "finance-fee-structure",
                                   "finance-student-fee-assignment",
@@ -691,16 +700,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   "finance-refund-management",
                                   "finance-settings",
                                 ].includes(activeModule)) ||
-                              (sub.id === "finance-fee-collection" &&
+                              (sub.id === "finance-transactions" &&
                                 [
-                                  "finance-fee-collection",
-                                  "finance-fee-receipts",
-                                  "finance-due-fees",
-                                  "fees",
+                                  "finance-transactions",
+                                  "finance-ledger",
+                                  "finance-master-ledger",
+                                ].includes(activeModule)) ||
+                              (sub.id === "finance-reports" &&
+                                [
+                                  "finance-reports",
                                 ].includes(activeModule));
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -778,22 +791,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isSubActive =
                               activeModule === sub.id ||
                               (sub.id === "hostel-dashboard" &&
-                                activeModule === "hostel") ||
+                                ["hostel-dashboard", "hostel"].includes(activeModule)) ||
+                              (sub.id === "warden-attendance" &&
+                                ["warden-attendance", "hostel-warden-attendance"].includes(activeModule)) ||
                               (sub.id === "hostel-masters" &&
                                 [
+                                  "hostel-masters",
                                   "hostel-master",
+                                  "hostel-blocks",
                                   "hostel-room-type",
                                   "hostel-room-master",
+                                  "hostel-rooms",
                                 ].includes(activeModule)) ||
                               (sub.id === "hostel-student-hostel" &&
                                 [
                                   "hostel-student-hostel",
                                   "hostel-student-assignment",
                                   "hostel-attendance",
-                                ].includes(activeModule));
+                                  "hostel-outpass",
+                                  "hostel-outpass-leave",
+                                  "hostel-leave",
+                                  "hostel-room-allocation",
+                                  "hostel-room-allocations",
+                                  "hostel-allocation",
+                                  "hostel-allocations",
+                                  "hostel-student-room-allocation",
+                                  "room-allocation",
+                                  "outpass",
+                                  "student-hostel",
+                                ].includes(activeModule)) ||
+                              (sub.id === "hostel-reports" &&
+                                ["hostel-reports"].includes(activeModule));
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -897,6 +929,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -966,9 +999,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isSubActive =
                               activeModule === sub.id ||
                               (sub.id === "uniform-dashboard" &&
-                                activeModule === "uniforms") ||
+                                ["uniform-dashboard", "uniforms", "uniform"].includes(activeModule)) ||
                               (sub.id === "uniform-masters" &&
                                 [
+                                  "uniform-masters",
                                   "uniform-master",
                                   "uniform-categories",
                                   "uniform-sizes",
@@ -979,10 +1013,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 [
                                   "uniform-student-uniform",
                                   "uniform-issues",
-                                ].includes(activeModule));
+                                  "uniform-distribution",
+                                ].includes(activeModule)) ||
+                              (sub.id === "uniform-reports" &&
+                                ["uniform-reports"].includes(activeModule));
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -1054,10 +1092,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
                           {librarySubItems.map((sub) => {
                             const SubIcon = sub.icon;
-                            const isSubActive = activeModule === sub.id;
+                            const isSubActive =
+                              activeModule === sub.id ||
+                              (sub.id === "library" &&
+                                [
+                                  "library",
+                                  "library-books",
+                                  "library-issue",
+                                  "library-return",
+                                  "library-fines",
+                                  "digital-library",
+                                ].includes(activeModule)) ||
+                              (sub.id === "librarian-attendance" &&
+                                ["librarian-attendance", "library-attendance"].includes(activeModule)) ||
+                              (sub.id === "library-timetable" &&
+                                ["library-timetable"].includes(activeModule));
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -1154,11 +1207,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
+                              (sub.id === "academic-dashboard" &&
+                                ["academic-dashboard", "academics"].includes(activeModule)) ||
                               (sub.id === "academic-class" &&
-                                activeModule === "academics");
+                                [
+                                  "academic-class",
+                                  "academic-sections",
+                                  "academic-settings",
+                                  "academic-year",
+                                  "academic-mapping",
+                                  "academic-class-teacher",
+                                  "academic-subject-teacher",
+                                  "academic-student-assignment",
+                                  "academic-publish",
+                                ].includes(activeModule)) ||
+                              (sub.id === "subjects" &&
+                                ["subjects", "academic-subjects"].includes(activeModule)) ||
+                              (sub.id === "timetable" &&
+                                ["timetable", "academic-timetable"].includes(activeModule));
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -1256,6 +1326,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 [
                                   "teacher-profile",
                                   "warden-profile",
+                                  "teacher-my-profile",
                                   "staff-teachers",
                                   "staff",
                                 ].includes(activeModule)) ||
@@ -1265,13 +1336,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   "staff-teachers",
                                   "staff",
                                   "staff-directory",
+                                  "staff-non-teaching",
                                 ].includes(activeModule)) ||
+                              (sub.id === "staff-attendance" &&
+                                ["staff-attendance", "attendance-staff"].includes(activeModule)) ||
+                              (sub.id === "staff-leave" &&
+                                ["staff-leave", "leave-management"].includes(activeModule)) ||
                               (isPayroll &&
                                 (activeModule === "staff-payroll" ||
-                                  activeModule.startsWith("staff-payroll-")));
+                                  activeModule.startsWith("staff-payroll-") ||
+                                  activeModule === "payroll"));
                             return (
                               <button
                                 key={sub.id}
+                                data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
@@ -1295,12 +1373,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 const Icon = item.icon;
                 const isActive =
                   activeModule === item.id ||
-                  (item.id === "admissions" &&
-                    activeModule === "admissions-add");
+                  (item.id === "dashboard" && activeModule === "dashboard") ||
+                  (item.id === "admissions" && ["admissions", "admissions-add"].includes(activeModule)) ||
+                  (item.id === "students" && ["students", "student-directory"].includes(activeModule)) ||
+                  (item.id === "certificates" && ["certificates", "transfer-certificates"].includes(activeModule)) ||
+                  (item.id === "academic-history" && activeModule === "academic-history") ||
+                  (item.id === "student-promotion" && activeModule === "student-promotion") ||
+                  (item.id === "alumni" && activeModule === "alumni") ||
+                  (item.id === "attendance" && activeModule === "attendance") ||
+                  (item.id === "examination" && ["examination", "report-cards", "exam-results", "marks-entry"].includes(activeModule)) ||
+                  (item.id === "homework" && activeModule === "homework") ||
+                  (item.id === "inventory" && activeModule === "inventory") ||
+                  (item.id === "communication" && activeModule === "communication") ||
+                  (item.id === "events" && activeModule === "events") ||
+                  (item.id === "training" && activeModule === "training") ||
+                  (item.id === "reports" && activeModule === "reports") ||
+                  (item.id === "settings" && activeModule === "settings") ||
+                  (item.id === "warden-attendance" && ["warden-attendance", "hostel-warden-attendance"].includes(activeModule));
 
                 return (
                   <button
                     key={item.id}
+                    data-active={isActive ? "true" : undefined}
                     onClick={() => {
                       setActiveModule(item.id);
                       setStaffExpanded(false);

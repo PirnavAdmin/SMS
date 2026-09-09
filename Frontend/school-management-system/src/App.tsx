@@ -72,7 +72,24 @@ import { TrainingContainerView } from "./components/modules/School Administratio
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user, setUser } = useAuth();
   const { staff } = useData();
-  const [activeModule, setActiveModule] = useState<string>("dashboard");
+  const [activeModule, setActiveModuleState] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("active_module");
+      return saved || "dashboard";
+    } catch {
+      return "dashboard";
+    }
+  });
+
+  const setActiveModule = (mod: string | ((prev: string) => string)) => {
+    setActiveModuleState((prev) => {
+      const next = typeof mod === "function" ? mod(prev) : mod;
+      try {
+        localStorage.setItem("active_module", next);
+      } catch {}
+      return next;
+    });
+  };
   const [showLogin, setShowLogin] = useState(false);
   const [selectedPortalRole, setSelectedPortalRole] = useState<string | undefined>(undefined);
 
@@ -120,8 +137,24 @@ const MainLayout: React.FC = () => {
   };
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [classWorkspaceTab, setClassWorkspaceTab] = useState<
+  const [selectedClassId, setSelectedClassIdState] = useState<string>(() => {
+    try {
+      return localStorage.getItem("active_selected_class_id") || "";
+    } catch {
+      return "";
+    }
+  });
+  const setSelectedClassId = (val: string | ((prev: string) => string)) => {
+    setSelectedClassIdState((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      try {
+        localStorage.setItem("active_selected_class_id", next);
+      } catch {}
+      return next;
+    });
+  };
+
+  const [classWorkspaceTab, setClassWorkspaceTabState] = useState<
     | "overview"
     | "sections"
     | "subjects"
@@ -130,7 +163,23 @@ const MainLayout: React.FC = () => {
     | "timetable"
     | "settings"
     | "future"
-  >("overview");
+  >(() => {
+    try {
+      const saved = localStorage.getItem("active_class_tab");
+      return (saved as any) || "overview";
+    } catch {
+      return "overview";
+    }
+  });
+  const setClassWorkspaceTab = (tab: any) => {
+    setClassWorkspaceTabState((prev: any) => {
+      const next = typeof tab === "function" ? tab(prev) : tab;
+      try {
+        localStorage.setItem("active_class_tab", next);
+      } catch {}
+      return next;
+    });
+  };
   const [autoOpenClassModal, setAutoOpenClassModal] = useState(false);
 
   const userRole = user?.role?.toLowerCase() || "";
@@ -139,7 +188,10 @@ const MainLayout: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setActiveModule("dashboard");
+      setActiveModuleState("dashboard");
+      try {
+        localStorage.removeItem("active_module");
+      } catch {}
       if (prevAuthenticated.current) {
         setShowLogin(true);
       }
@@ -151,19 +203,9 @@ const MainLayout: React.FC = () => {
     window.scrollTo({ top: 0, behavior: "instant" });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-    if (
-      activeModule === "dashboard" ||
-      activeModule === "academic-class" ||
-      activeModule === "academic-dashboard"
-    ) {
+    if (activeModule === "dashboard") {
       setClassWorkspaceTab("overview");
-      if (
-        activeModule === "dashboard" ||
-        activeModule === "academic-dashboard" ||
-        activeModule === "academic-class"
-      ) {
-        setSelectedClassId("");
-      }
+      setSelectedClassId("");
     }
   }, [activeModule]);
 
