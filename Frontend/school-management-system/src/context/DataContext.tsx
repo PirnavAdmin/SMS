@@ -222,7 +222,6 @@ import {
   initialFeePayments,
   initialExamSetups,
   initialExamMarks,
-  initialTimetable,
   initialHomework,
   initialBooks,
   initialBookIssues,
@@ -523,118 +522,7 @@ const initialClasses: AcademicClass[] = [
   },
 ];
 
-const defaultPeriodSettings: PeriodSetting[] = [
-  {
-    id: "PS-1",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 1",
-    startTime: "08:30 AM",
-    endTime: "09:15 AM",
-    sequence: 1,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-2",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 2",
-    startTime: "09:15 AM",
-    endTime: "10:00 AM",
-    sequence: 2,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-3",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Morning Break",
-    startTime: "10:00 AM",
-    endTime: "10:15 AM",
-    sequence: 3,
-    periodType: "Break",
-    status: "Active",
-  },
-  {
-    id: "PS-4",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 3",
-    startTime: "10:15 AM",
-    endTime: "11:00 AM",
-    sequence: 4,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-5",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 4",
-    startTime: "11:00 AM",
-    endTime: "11:45 AM",
-    sequence: 5,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-6",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Lunch Break",
-    startTime: "11:45 AM",
-    endTime: "12:30 PM",
-    sequence: 6,
-    periodType: "Lunch",
-    status: "Active",
-  },
-  {
-    id: "PS-7",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 5",
-    startTime: "12:30 PM",
-    endTime: "01:15 PM",
-    sequence: 7,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-8",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 6",
-    startTime: "01:15 PM",
-    endTime: "02:00 PM",
-    sequence: 8,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-9",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 7",
-    startTime: "02:00 PM",
-    endTime: "02:45 PM",
-    sequence: 9,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-10",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 8",
-    startTime: "02:45 PM",
-    endTime: "03:30 PM",
-    sequence: 10,
-    periodType: "Teaching",
-    status: "Active",
-  },
-];
+const defaultPeriodSettings: PeriodSetting[] = [];
 const defaultTeacherAssignments: TeacherAssignment[] = [];
 export interface StudentCalculationResult {
   student: Student;
@@ -2169,7 +2057,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() =>
-    getStored("timetable", initialTimetable),
+    getStored("timetable", []),
   );
   const [homework, setHomework] = useState<Homework[]>(() => {
     const raw = getStored("homework", initialHomework);
@@ -4686,6 +4574,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           return [...uniquePeriods, ...classSpecific];
         });
+      } else {
+        setPeriodSettings([]);
       }
     } catch (err: any) {
       console.warn("Error fetching periods", err);
@@ -4696,7 +4586,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const data: any = await fetchAllTimetablesApi(selectedAcademicYear);
       const dataArray = Array.isArray(data) ? data : data?.data || [];
-      if (Array.isArray(dataArray) && dataArray.length > 0) {
+      if (Array.isArray(dataArray)) {
         const mappedData: TimetableSlot[] = dataArray.map((item: any) => {
           const timeSlotStr =
             item.timeSlot ||
@@ -4708,9 +4598,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               item.id?.toString() ||
               item.slotId?.toString() ||
               `TT-${Math.random().toString(36).substr(2, 9)}`,
-            className: item.className || "Class 9",
-            section: item.section || item.sectionName || "A",
-            day: item.day || item.dayOfWeek || "Monday",
+            className: item.className || "",
+            section: item.section || item.sectionName || "",
+            day: item.day || item.dayOfWeek || "",
             timeSlot: timeSlotStr,
             startTime: item.startTime,
             endTime: item.endTime,
@@ -4726,32 +4616,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           };
         });
 
-        setTimetable((prev) => {
-          const norm = (str?: string) =>
-            (str || "")
-              .toLowerCase()
-              .replace(/\s+/g, "")
-              .replace(/class/gi, "");
-          const map = new Map<string, TimetableSlot>();
-
-          // Add existing local slots first
-          (prev || []).forEach((slot) => {
-            const key = `${norm(slot.className)}_${norm(slot.section)}_${(slot.day || "").toLowerCase()}_${(slot.timeSlot || "").trim().toLowerCase()}`;
-            map.set(key, slot);
-          });
-
-          // Overwrite with backend database slots
-          mappedData.forEach((slot) => {
-            const key = `${norm(slot.className)}_${norm(slot.section)}_${(slot.day || "").toLowerCase()}_${(slot.timeSlot || "").trim().toLowerCase()}`;
-            map.set(key, slot);
-          });
-
-          const merged = Array.from(map.values());
-          try {
-            localStorage.setItem("edu_db_timetable", JSON.stringify(merged));
-          } catch (e) {}
-          return merged;
-        });
+        setTimetable(mappedData);
+        try {
+          localStorage.setItem("edu_db_timetable", JSON.stringify(mappedData));
+        } catch (e) {}
       }
     } catch (err) {
       console.warn("Failed to fetch all timetables from backend", err);
@@ -8511,7 +8379,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>(
-    defaultPeriodSettings,
+    () => getStored("period_settings", defaultPeriodSettings),
   );
   const [teacherAssignments, setTeacherAssignments] = useState<
     TeacherAssignment[]

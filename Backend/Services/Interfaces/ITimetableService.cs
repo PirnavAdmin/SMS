@@ -10,6 +10,7 @@ public interface ITimetableService
     Task<List<PeriodSettingDto>> GetPeriodSettingsAsync();
     Task<PeriodSettingDto> SavePeriodSettingAsync(SavePeriodSettingDto dto);
     Task<bool> DeletePeriodSettingAsync(int periodId);
+    Task<List<PeriodSettingDto>> SyncPeriodSettingsAsync(List<SavePeriodSettingDto> dtos);
 
     // Class Timetable Matrix & Slots
     Task<ClassTimetableGridDto> GetClassTimetableGridAsync(int classId, int sectionId, string academicYear = "");

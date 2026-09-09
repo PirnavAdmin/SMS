@@ -235,41 +235,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [teacher.id, teacher.firstName, teacher.lastName]);
 
   const substitutionSchedule = useMemo(() => {
-    if (apiSubstitutions.length > 0) {
-      return apiSubstitutions;
-    }
-
-    const teacherSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || (teacher as any)?.primarySubject || 'General';
-
-    // Dynamically calculate substitution schedule matching non-clashing active period settings
-    const activeMasterPeriods = (periodSettings || [])
-      .filter(p => p.status === 'Active' && !p.isBreak)
-      .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-
-    const p3 = activeMasterPeriods.find(p => p.periodName === 'Period 3') || activeMasterPeriods[2];
-    const p5 = activeMasterPeriods.find(p => p.periodName === 'Period 5') || activeMasterPeriods[4];
-
-    return [
-      {
-        id: 'SUB-DYN-1',
-        period: p3?.periodName || 'Period 3',
-        time: p3 ? `${p3.startTime} - ${p3.endTime}` : '10:15 AM - 11:00 AM',
-        classSection: 'Class 11-A',
-        subject: teacherSub,
-        room: 'Room 205',
-        status: 'Substituting for Sarah Jenkins'
-      },
-      {
-        id: 'SUB-DYN-2',
-        period: p5?.periodName || 'Period 5',
-        time: p5 ? `${p5.startTime} - ${p5.endTime}` : '12:30 PM - 01:15 PM',
-        classSection: 'Class 10-B',
-        subject: teacherSub,
-        room: 'Physics Lab',
-        status: 'Room changed from Room 202'
-      }
-    ];
-  }, [apiSubstitutions, periodSettings, teacher]);
+    return apiSubstitutions;
+  }, [apiSubstitutions]);
 
   // Derived Free Periods Today dynamically synced with master activePeriods, scheduled lectures, and substitution duties
   const freePeriods = useMemo(() => {
@@ -313,53 +280,21 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }));
   }, [teacherTodaysSchedule, substitutionSchedule, periodSettings]);
 
-  // Mock Lesson Plans Database
-  const lessonPlans: Record<string, { subject: string; topic: string; objective: string; materials: string; steps: string[]; status: string }> = {
-    'Mathematics': {
-      subject: 'Mathematics',
-      topic: 'Quadratic Equations - Factoring methods',
-      objective: 'Solve binomial quadratic equations of the format ax^2 + bx + c = 0 using splitting-the-middle-term factoring.',
-      materials: 'Algebra workbooks, Graph plotting spreadsheets, smart board slides.',
-      steps: [
-        'Review basic algebra expansions (10 mins)',
-        'Demonstrate factoring quadratic trinomial steps (15 mins)',
-        'Class workbook exercise solving 6 trinomials (15 mins)',
-        'Collect exit ticket and homework allocation (5 mins)'
-      ],
-      status: 'Approved'
-    },
-    'Physics': {
-      subject: 'Physics',
-      topic: 'Faraday’s Law of Induction',
-      objective: 'Understand how a changing magnetic flux induce electromotive force (EMF) inside a wire coil loop.',
-      materials: 'Coil windings, Bar magnets, Galvenometer, simulation portal.',
-      steps: [
-        'Introduce magnet loop experiments (10 mins)',
-        'Detail electromagnetic induction formula (15 mins)',
-        'Solve 3 practice EMF problems on chalkboard (15 mins)',
-        'Wrap up check and assign readings (5 mins)'
-      ],
-      status: 'Approved'
-    },
-    'General': {
-      subject: 'Academics',
-      topic: 'General Variable Formulations',
-      objective: 'Analyze and isolate mathematical variables on either side of balanced equations.',
-      materials: 'Algebra balance scales, worksheet templates.',
-      steps: [
-        'Equation balance scale game warmup (10 mins)',
-        'Solving for variable X demo (15 mins)',
-        'Group work on balanced equations (15 mins)',
-        'Summary check (5 mins)'
-      ],
-      status: 'In Progress'
-    }
-  };
-
   const handleOpenLessonPlan = (subject: string) => {
-    const key = subject.toLowerCase().includes('physics') ? 'Physics' :
-                subject.toLowerCase().includes('math') ? 'Mathematics' : 'General';
-    setSelectedLessonPlan(lessonPlans[key]);
+    const cleanSub = subject || 'General Academic';
+    setSelectedLessonPlan({
+      subject: cleanSub,
+      topic: `${cleanSub} Curriculum & Lesson Delivery`,
+      objective: `Engage students in learning core objectives and syllabus competencies for ${cleanSub}.`,
+      materials: `${cleanSub} textbook, reference notes, interactive display.`,
+      steps: [
+        `Introduction and review of previous concept (10 mins)`,
+        `Explanation of core lesson topics in ${cleanSub} (15 mins)`,
+        `Guided class exercises and interactive discussion (15 mins)`,
+        `Review, assessment checks, and homework assignment (5 mins)`
+      ],
+      status: 'Active'
+    });
     setShowLessonPlanModal(true);
   };
 
@@ -407,10 +342,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
   const [periodFormData, setPeriodFormData] = useState<Partial<PeriodSetting>>({
-    periodName: 'Period 7',
-    startTime: '02:00 PM',
-    endTime: '02:45 PM',
-    sequence: 9,
+    periodName: '',
+    startTime: '',
+    endTime: '',
+    sequence: 1,
     periodType: 'Teaching',
     status: 'Active'
   });
@@ -560,13 +495,20 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
-    const match = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (!match) return 9999;
-    let [_, h, m, p] = match;
-    let hr = parseInt(h, 10);
-    if (p.toUpperCase() === 'PM' && hr !== 12) hr += 12;
-    if (p.toUpperCase() === 'AM' && hr === 12) hr = 0;
-    return hr * 60 + parseInt(m, 10);
+    const match12 = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (match12) {
+      let [_, h, m, p] = match12;
+      let hr = parseInt(h, 10);
+      if (p.toUpperCase() === 'PM' && hr !== 12) hr += 12;
+      if (p.toUpperCase() === 'AM' && hr === 12) hr = 0;
+      return hr * 60 + parseInt(m, 10);
+    }
+    const match24 = ts.match(/(\d+):(\d+)/);
+    if (match24) {
+      let [_, h, m] = match24;
+      return parseInt(h, 10) * 60 + parseInt(m, 10);
+    }
+    return 9999;
   };
 
   const parseTo24 = (timeStr: any) => {
@@ -598,18 +540,36 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [classTimetable]);
 
   const timeSlots = useMemo(() => {
+    const list: string[] = [];
     if (activeBranchPeriods && activeBranchPeriods.length > 0) {
-      return activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
+      activeBranchPeriods.forEach(p => {
+        const str = `${p.startTime} - ${p.endTime}`;
+        if (!list.includes(str)) list.push(str);
+      });
     }
-    const fromData = (classTimetable || []).map(t => t.timeSlot);
-    return Array.from(new Set(fromData)).sort((a, b) => parseSortable(a) - parseSortable(b));
+    (classTimetable || []).forEach(t => {
+      const ts = t.timeSlot || (t.startTime && t.endTime ? `${t.startTime} - ${t.endTime}` : '');
+      if (ts) {
+        const [tStartRaw] = ts.split('-');
+        const tStart = parseSortable(tStartRaw);
+        const alreadyCovered = list.some(existing => {
+          const [eStartRaw] = existing.split('-');
+          return Math.abs(parseSortable(eStartRaw) - tStart) <= 5;
+        });
+        if (!alreadyCovered && !list.includes(ts)) {
+          list.push(ts);
+        }
+      }
+    });
+
+    return list.sort((a, b) => parseSortable(a) - parseSortable(b));
   }, [classTimetable, activeBranchPeriods]);
 
   const [formData, setFormData] = useState<Partial<TimetableSlot>>({
     day: 'Monday',
-    timeSlot: '08:30 AM - 09:15 AM',
-    className: 'Class 10',
-    section: 'A',
+    timeSlot: '',
+    className: '',
+    section: '',
     subject: '',
     teacherName: '',
     roomNo: ''
@@ -646,7 +606,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     if (assigned) return assigned.teacherName;
     const fallbackStaff = (teachingStaff || []).find(s => (s.assignedSubjects || []).includes(formData.subject || ''));
     if (fallbackStaff) return `${fallbackStaff.firstName} ${fallbackStaff.lastName}`;
-    return 'Jonathan Miller';
+    return '';
   }, [formData.subject, formData.className, formData.section, teacherAssignments, teachingStaff]);
 
   useEffect(() => {
@@ -763,21 +723,25 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const handleOpenAdd = (day?: string, slot?: string) => {
     setEditingSlot(null);
     setValidationErrors([]);
-    const initialClassName = selectedClass || academicClasses[0]?.name || 'Class 9';
+    const initialClassName = selectedClass || academicClasses[0]?.name || '';
     const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === initialClassName.toLowerCase().trim());
     const assignedNames = clsObj?.subjects || [];
-    const firstSubject = assignedNames[0] || subjects[0]?.name || 'Mathematics';
+    const firstSubject = assignedNames[0] || subjects[0]?.name || '';
+    const firstPeriod = activeBranchPeriods[0];
+    const defaultStart = firstPeriod ? firstPeriod.startTime : '08:00 AM';
+    const defaultEnd = firstPeriod ? firstPeriod.endTime : '08:45 AM';
+    const defaultSlot = firstPeriod ? `${firstPeriod.startTime} - ${firstPeriod.endTime}` : '';
     if (slot) {
       const parts = slot.split('-');
-      setStartTime(parseTo24(parts[0]?.trim() || '08:30 AM'));
-      setEndTime(parseTo24(parts[1]?.trim() || '09:15 AM'));
+      setStartTime(parseTo24(parts[0]?.trim() || defaultStart));
+      setEndTime(parseTo24(parts[1]?.trim() || defaultEnd));
     } else {
-      setStartTime('08:30');
-      setEndTime('09:15');
+      setStartTime(parseTo24(defaultStart));
+      setEndTime(parseTo24(defaultEnd));
     }
     const initialSlot = {
       day: (day as any) || 'Monday',
-      timeSlot: slot || '08:30 AM - 09:15 AM',
+      timeSlot: slot || defaultSlot,
       className: initialClassName,
       section: selectedSection,
       subject: firstSubject,
@@ -796,8 +760,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     setValidationErrors([]);
     setFormData(t);
     const parts = t.timeSlot.split('-');
-    setStartTime(parseTo24(parts[0]?.trim() || '08:30 AM'));
-    setEndTime(parseTo24(parts[1]?.trim() || '09:15 AM'));
+    const firstPeriod = activeBranchPeriods[0];
+    const defaultStart = firstPeriod ? firstPeriod.startTime : '08:00 AM';
+    const defaultEnd = firstPeriod ? firstPeriod.endTime : '08:45 AM';
+    setStartTime(parseTo24(parts[0]?.trim() || defaultStart));
+    setEndTime(parseTo24(parts[1]?.trim() || defaultEnd));
     setIsSubjectDropdownOpen(false);
     setSubjectSearchQuery('');
     setIsFormOpen(true);
@@ -1640,20 +1607,37 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                             const match = (classTimetable || []).find(t => {
                               if (!t || (t.day || '').toLowerCase() !== day.toLowerCase()) return false;
                               
-                              // Direct normalized string match
+                              // 1. Direct normalized string match
                               if (t.timeSlot && slot) {
                                 const normT = t.timeSlot.replace(/\s+/g, '').toLowerCase();
                                 const normS = slot.replace(/\s+/g, '').toLowerCase();
                                 if (normT === normS) return true;
                               }
 
-                              // Accurate start and end minute match
                               const tTimes = (t.timeSlot || '').split('-');
                               const tStartMin = parseSortable(t.startTime || tTimes[0]);
                               const tEndMin = parseSortable(t.endTime || tTimes[1]);
 
-                              if (tStartMin !== 9999 && pStartMin !== 9999 && tStartMin === pStartMin) {
-                                if (tEndMin === 9999 || pEndMin === 9999 || tEndMin === pEndMin) {
+                              // 2. Start minute match (with 5 min tolerance)
+                              if (tStartMin !== 9999 && pStartMin !== 9999 && Math.abs(tStartMin - pStartMin) <= 5) {
+                                return true;
+                              }
+
+                              // 3. Period sequence / number match
+                              if (t.periodNumber) {
+                                if (matchingPeriodSetting?.sequence && t.periodNumber === matchingPeriodSetting.sequence) {
+                                  return true;
+                                }
+                                if (t.periodNumber === (pIdx + 1)) {
+                                  return true;
+                                }
+                              }
+
+                              // 4. Time overlap match (at least 15 mins overlap)
+                              if (tStartMin !== 9999 && tEndMin !== 9999 && pStartMin !== 9999 && pEndMin !== 9999) {
+                                const overlapStart = Math.max(tStartMin, pStartMin);
+                                const overlapEnd = Math.min(tEndMin, pEndMin);
+                                if (overlapEnd - overlapStart >= 15) {
                                   return true;
                                 }
                               }
@@ -1789,10 +1773,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   <button
                     onClick={() => {
                       setIsEditingMaster(true);
+                      const lastPeriod = masterPeriods[masterPeriods.length - 1];
+                      const nextStart = lastPeriod?.endTime || '08:00 AM';
                       setPeriodFormData({
                         periodName: `Period ${masterPeriods.length + 1}`,
-                        startTime: '08:30 AM',
-                        endTime: '09:15 AM',
+                        startTime: nextStart,
+                        endTime: nextStart,
                         sequence: masterPeriods.length + 1,
                         periodType: 'Teaching',
                         status: 'Active'
@@ -2012,10 +1998,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                       onClick={() => {
                         setIsEditingMaster(false);
                         const len = activePeriodsToDisplay?.length || 0;
+                        const lastPeriod = activePeriodsToDisplay && activePeriodsToDisplay.length > 0 ? activePeriodsToDisplay[activePeriodsToDisplay.length - 1] : null;
+                        const nextStart = lastPeriod?.endTime || '08:00 AM';
                         setPeriodFormData({
                           periodName: `Period ${len + 1}`,
-                          startTime: '08:30 AM',
-                          endTime: '09:15 AM',
+                          startTime: nextStart,
+                          endTime: nextStart,
                           sequence: len + 1,
                           periodType: 'Teaching',
                           status: 'Active'
@@ -2256,12 +2244,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 <button
                   onClick={() => {
                     const targetStaff = (teachingStaff || []).find(s => `${s.firstName} ${s.lastName}` === selectedTeacherName);
+                    const firstPeriod = activeBranchPeriods[0];
+                    const defaultSlot = firstPeriod ? `${firstPeriod.startTime} - ${firstPeriod.endTime}` : '';
                     setFormData({
                       day: 'Monday',
-                      timeSlot: '08:30 AM - 09:15 AM',
-                      className: targetStaff?.assignedClasses?.[0] || 'Class 10',
+                      timeSlot: defaultSlot,
+                      className: targetStaff?.assignedClasses?.[0] || academicClasses[0]?.name || '',
                       section: 'A',
-                      subject: targetStaff?.assignedSubjects?.[0] || 'Mathematics',
+                      subject: targetStaff?.assignedSubjects?.[0] || subjects[0]?.name || '',
                       teacherName: selectedTeacherName,
                       roomNo: ''
                     });
@@ -2281,20 +2271,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                     .map(s => s.id)
                 );
 
-                // Standard master period timeline covering school open (08:30 AM) to school end (04:30 PM)
-                const masterSchoolTimeline = [
-                  { name: 'Period 1', slot: '08:30 AM - 09:15 AM', type: 'Teaching' },
-                  { name: 'Period 2', slot: '09:15 AM - 10:00 AM', type: 'Teaching' },
-                  { name: 'Period 3', slot: '10:00 AM - 10:45 AM', type: 'Teaching' },
-                  { name: 'Morning Break', slot: '10:45 AM - 11:00 AM', type: 'Break' },
-                  { name: 'Period 4', slot: '11:00 AM - 11:45 AM', type: 'Teaching' },
-                  { name: 'Period 5', slot: '11:45 AM - 12:30 PM', type: 'Teaching' },
-                  { name: 'Lunch Break', slot: '12:30 PM - 01:15 PM', type: 'Lunch' },
-                  { name: 'Period 6', slot: '01:15 PM - 02:00 PM', type: 'Teaching' },
-                  { name: 'Period 7', slot: '02:00 PM - 02:45 PM', type: 'Teaching' },
-                  { name: 'Period 8', slot: '02:45 PM - 03:30 PM', type: 'Teaching' },
-                  { name: 'Dispersal & Activity', slot: '03:30 PM - 04:15 PM', type: 'Other' },
-                ];
+                // Dynamically populate timeline from active branch periods
+                const masterSchoolTimeline = (activeBranchPeriods && activeBranchPeriods.length > 0)
+                  ? activeBranchPeriods.map(p => ({
+                      name: p.periodName,
+                      slot: `${p.startTime} - ${p.endTime}`,
+                      type: p.periodType || (p.isBreak ? 'Break' : 'Teaching')
+                    }))
+                  : [];
 
                 if (teacherAllSlots.length === 0) {
                   return (
@@ -2365,7 +2349,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                 </td>
                                 {baseDays.map(day => {
                                   const teacherSlots = (timetable || []).filter(t => t.teacherName === selectedTeacherName && t.day === day);
-                                  const matchSlots = (teacherSlots || []).filter(s => s.timeSlot === timelinePeriod.slot);
+                                  const matchSlots = (teacherSlots || []).filter(s => {
+                                    if ((s.timeSlot || '').trim().toLowerCase() === (timelinePeriod.slot || '').trim().toLowerCase()) return true;
+                                    const sStart = (s.startTime || s.timeSlot.split('-')[0] || '').trim();
+                                    const tStart = (timelinePeriod.slot.split('-')[0] || '').trim();
+                                    return sStart && tStart && sStart === tStart;
+                                  });
 
                                   if (matchSlots.length === 0) {
                                     return (
@@ -3014,6 +3003,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         onClose={() => setIsAutoGeneratorOpen(false)}
         initialAcademicYear={academicYear}
         onSuccess={() => {
+          if (fetchPeriods) {
+            fetchPeriods(true);
+          }
+          if (fetchTimetables) {
+            fetchTimetables(true);
+          }
           const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === selectedClass.toLowerCase().trim());
           if (clsObj && selectedSection) {
             lastFetchedTimetableRef.current = '';

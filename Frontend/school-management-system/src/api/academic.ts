@@ -260,6 +260,20 @@ export const savePeriodApi = async (payload: {
   });
 };
 
+export const syncPeriodSettingsApi = async (periods: Array<{
+  periodId?: number;
+  periodName: string;
+  startTime: string;
+  endTime: string;
+  periodType: string;
+  displayOrder: number;
+}>) => {
+  return apiClient('/api/timetable/periods/sync', {
+    method: 'POST',
+    body: JSON.stringify(periods)
+  });
+};
+
 export const deletePeriodApi = async (id: number | string) => {
   const numericId = typeof id === 'string' && id.startsWith('PS-') ? id.replace('PS-', '') : id;
   return apiClient(`/api/timetable/period/${numericId}`, { method: 'DELETE' });
@@ -315,11 +329,13 @@ export const saveTimetableSlotApi = async (payload: {
 
   if (p.sectionId !== undefined) {
     let s = typeof p.sectionId === 'string' ? p.sectionId.replace(/^SEC-/i, '').trim() : String(p.sectionId);
-    if (isNaN(Number(s))) {
-      const letter = s.replace(/^Section\s*/i, '').toUpperCase();
-      p.sectionId = (letter.length === 1 && letter >= 'A' && letter <= 'Z') ? (letter.charCodeAt(0) - 64) : 1;
-    } else {
+    if (!isNaN(Number(s))) {
       p.sectionId = Number(s);
+    } else {
+      if (!p.sectionName) {
+        p.sectionName = s.replace(/^Section\s*/i, '').trim();
+      }
+      delete p.sectionId;
     }
   }
 

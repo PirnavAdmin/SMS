@@ -145,6 +145,36 @@ public class TimetableService : ITimetableService
         return await _timetableRepository.DeletePeriodSettingAsync(periodId);
     }
 
+    public async Task<List<PeriodSettingDto>> SyncPeriodSettingsAsync(List<SavePeriodSettingDto> dtos)
+    {
+        if (dtos == null || !dtos.Any())
+        {
+            return await GetPeriodSettingsAsync();
+        }
+
+        var domainPeriods = dtos.Select(d => new PeriodSetting
+        {
+            PeriodName = d.PeriodName.Trim(),
+            StartTime = ParseTime(d.StartTime),
+            EndTime = ParseTime(d.EndTime),
+            PeriodType = !string.IsNullOrWhiteSpace(d.PeriodType) ? d.PeriodType.Trim() : (d.PeriodName.Contains("Break", StringComparison.OrdinalIgnoreCase) ? "Break" : "Teaching Period"),
+            DisplayOrder = d.DisplayOrder,
+            IsActive = true,
+            IsDeleted = false
+        }).ToList();
+
+        var synced = await _timetableRepository.SyncPeriodSettingsAsync(domainPeriods);
+        return synced.Select(p => new PeriodSettingDto
+        {
+            PeriodId = p.PeriodId,
+            PeriodName = p.PeriodName,
+            StartTime = FormatTime(p.StartTime),
+            EndTime = FormatTime(p.EndTime),
+            PeriodType = p.PeriodType,
+            DisplayOrder = p.DisplayOrder
+        }).ToList();
+    }
+
     // =========================================================
     // CLASS TIMETABLE MATRIX & SLOTS
     // =========================================================
@@ -252,13 +282,25 @@ public class TimetableService : ITimetableService
             throw new BadRequestException("A valid ClassId or ClassName is required.");
         }
 
-        // 2. Resolve SectionId by name if not supplied
-        if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
+        // 2. Resolve SectionId by name if not supplied or verify it belongs to ClassId
+        if (dto.ClassId > 0)
         {
-            var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
-            if (matchedSection != null)
+            if (dto.SectionId > 0)
             {
-                dto.SectionId = matchedSection.SectionId;
+                var existingSec = await _timetableRepository.GetSectionByIdAsync(dto.SectionId);
+                if (existingSec == null || existingSec.ClassId != dto.ClassId)
+                {
+                    dto.SectionId = 0; // force resolution from SectionName
+                }
+            }
+
+            if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName))
+            {
+                var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
+                if (matchedSection != null)
+                {
+                    dto.SectionId = matchedSection.SectionId;
+                }
             }
         }
 
@@ -444,6 +486,19 @@ public class TimetableService : ITimetableService
             : (dto.TeacherName ?? "Faculty Member");
         if (string.IsNullOrWhiteSpace(teacherName)) teacherName = "Faculty Member";
 
+        // 8.5 Auto-resolve PeriodId if not explicitly supplied
+        if (!dto.PeriodId.HasValue || dto.PeriodId.Value == 0)
+        {
+            var periodSettings = await _timetableRepository.GetPeriodSettingsAsync();
+            var matchedPeriod = periodSettings.FirstOrDefault(p =>
+                (p.StartTime == startTime && p.EndTime == endTime) ||
+                (p.StartTime == startTime));
+            if (matchedPeriod != null)
+            {
+                dto.PeriodId = matchedPeriod.PeriodId;
+            }
+        }
+
         // 9. Existing slot check
         var existingSlot = (await _timetableRepository.GetSlotsByHeaderIdAsync(header.HeaderId))
             .FirstOrDefault(s => s.DayOfWeek.Equals(dto.DayOfWeek, StringComparison.OrdinalIgnoreCase) &&
@@ -453,15 +508,8 @@ public class TimetableService : ITimetableService
         // 10. Weekly Subject Limit Enforcement & Conflict Validation
         if (dto.Overwrite != true && dto.IgnoreConflicts != true)
         {
-            try
-            {
-                await _validationService.ValidateWeeklySubjectLimitAsync(
-                    header.HeaderId, dto.ClassId, dto.SubjectId, subject.SubjectName ?? string.Empty, existingSlot?.SlotId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Weekly subject limit check notice: {Message}", ex.Message);
-            }
+            await _validationService.ValidateWeeklySubjectLimitAsync(
+                header.HeaderId, dto.ClassId, dto.SubjectId, subject.SubjectName ?? string.Empty, existingSlot?.SlotId);
 
             // 11. Conflict Validation (Teacher & Room Overlap)
             await _validationService.ValidateSlotConflictsAsync(

@@ -219,6 +219,9 @@ public class TimetableGenerationService : ITimetableGenerationService
 
             foreach (var day in dto.WorkingDays)
             {
+                int? lastAssignedSubjectIdOnDay = null;
+                var dailyAssignedSubjectCounts = new Dictionary<int, int>();
+
                 foreach (var period in generatedPeriods)
                 {
                     var startTimeSpan = ParseTime(period.StartTime);
@@ -248,11 +251,27 @@ public class TimetableGenerationService : ITimetableGenerationService
                         break;
                     }
 
-                    // Find next available candidate without teacher conflict
+                    // Pass A: Find next available candidate without teacher conflict,
+                    // strictly enforcing no back-to-back period on the same day,
+                    // and prioritizing even weekly distribution across days
                     for (int offset = 0; offset < eligibleCandidates.Count; offset++)
                     {
                         int targetIdx = (subjectDistributionIdx + offset) % eligibleCandidates.Count;
                         var candidate = eligibleCandidates[targetIdx];
+
+                        // Rule 1: Same subject must NEVER be scheduled back-to-back on the same day
+                        if (lastAssignedSubjectIdOnDay.HasValue && candidate.SubjectId == lastAssignedSubjectIdOnDay.Value)
+                        {
+                            continue;
+                        }
+
+                        // Rule 2: Even weekly distribution - don't exceed daily quota before weekly coverage
+                        dailyAssignedSubjectCounts.TryGetValue(candidate.SubjectId, out int assignedToday);
+                        int maxAllowedToday = Math.Max(1, (int)Math.Ceiling((double)candidate.WeeklyPeriods / Math.Max(1, dto.WorkingDays.Count)));
+                        if (assignedToday >= maxAllowedToday)
+                        {
+                            continue;
+                        }
 
                         if (candidate.TeacherId > 0)
                         {
@@ -269,8 +288,41 @@ public class TimetableGenerationService : ITimetableGenerationService
                         }
                     }
 
+                    // Pass B (Fallback if no candidate met strict daily quota, but STILL enforcing no back-to-back)
+                    if (selectedSub == null)
+                    {
+                        for (int offset = 0; offset < eligibleCandidates.Count; offset++)
+                        {
+                            int targetIdx = (subjectDistributionIdx + offset) % eligibleCandidates.Count;
+                            var candidate = eligibleCandidates[targetIdx];
+
+                            // Rule 1: Same subject must NEVER be consecutive on the same day
+                            if (lastAssignedSubjectIdOnDay.HasValue && candidate.SubjectId == lastAssignedSubjectIdOnDay.Value)
+                            {
+                                continue;
+                            }
+
+                            if (candidate.TeacherId > 0)
+                            {
+                                var busyKey = $"{day}_{timeKey}";
+                                bool isBusy = teacherBusySchedule.ContainsKey(candidate.TeacherId) &&
+                                              teacherBusySchedule[candidate.TeacherId].Contains(busyKey);
+
+                                if (!isBusy)
+                                {
+                                    selectedSub = candidate;
+                                    subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % eligibleCandidates.Count;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     if (selectedSub != null)
                     {
+                        lastAssignedSubjectIdOnDay = selectedSub.SubjectId;
+                        dailyAssignedSubjectCounts.TryGetValue(selectedSub.SubjectId, out int curCount);
+                        dailyAssignedSubjectCounts[selectedSub.SubjectId] = curCount + 1;
                         // Mark teacher busy
                         if (!teacherBusySchedule.ContainsKey(selectedSub.TeacherId))
                         {
