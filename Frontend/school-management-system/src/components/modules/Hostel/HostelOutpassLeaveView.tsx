@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
@@ -50,6 +51,10 @@ const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [
 export const HostelOutpassLeaveView: React.FC = () => {
   const { students } = useData();
   const { addToast } = useToast();
+  const { role } = useAuth();
+
+  const isWarden = Boolean(role && role.toLowerCase().includes('warden'));
+  const actionLabel = isWarden ? 'Issue Outpass / Leave' : 'Apply Outpass / Leave';
 
   const [records, setRecords] = useState<OutpassRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -132,7 +137,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
     };
 
     saveRecords([newRecord, ...records]);
-    addToast('Outpass / Leave request submitted successfully.', 'success');
+    addToast(isWarden ? 'Outpass / Leave issued successfully.' : 'Outpass / Leave request submitted successfully.', 'success');
     setIsSubmitting(false);
     setIsModalOpen(false);
   };
@@ -167,7 +172,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
           onClick={handleOpenAdd}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
         >
-          <Plus className="w-4 h-4" /> Apply Outpass / Leave
+          <Plus className="w-4 h-4" /> {actionLabel}
         </button>
       </div>
 
@@ -279,7 +284,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Apply Outpass / Leave</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{actionLabel}</h3>
               <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
