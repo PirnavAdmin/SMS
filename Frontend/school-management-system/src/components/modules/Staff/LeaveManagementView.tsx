@@ -1062,7 +1062,7 @@ export const LeaveManagementView: React.FC = () => {
             </table>
 
             {/* Pagination bar */}
-            {filteredStaffForBalance.length > 0 && (
+            {!isSelfServiceStaff && filteredStaffForBalance.length > 0 && (
               <div className="px-4 pb-3">
                 <Pagination
                   currentPage={balanceCurrentPage}
