@@ -272,19 +272,19 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     );
   };
 
-  // Block Occupancy Summary
+  // Block Occupancy Summary across ALL hostel blocks
   const blockSummary = useMemo(() => {
     if (hostelBlocks.length > 0) {
       return hostelBlocks.map((b) => {
-        const total = b.capacity || b.totalRooms * 2 || 40;
-        const occupied = Math.round(total * 0.85);
+        const total = (b as any).totalCapacity || (b as any).capacity || ((b as any).totalRooms ? (b as any).totalRooms * 2 : 60);
+        const occupied = (b as any).occupiedBeds !== undefined ? (b as any).occupiedBeds : Math.round(total * 0.85);
         return {
-          id: b.id,
-          name: b.name || `Hostel Block ${b.id}`,
-          warden: b.wardenName || user?.name || "Hostel Warden",
+          id: String(b.id || (b as any).hostelId || ''),
+          name: b.name || (b as any).hostelName || `Hostel Block ${b.id}`,
+          warden: b.wardenName || "Unassigned",
           totalBeds: total,
           occupiedBeds: occupied,
-          pct: Math.round((occupied / total) * 100),
+          pct: Math.min(100, Math.round((occupied / Math.max(1, total)) * 100)),
         };
       });
     }
@@ -293,7 +293,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
       {
         id: "BLK-1",
         name: "Ramachandra Bhavan (Boys Block A)",
-        warden: user?.name || "VaraPrasad (Warden)",
+        warden: user?.name || "VaraPrasad",
         totalBeds: 60,
         occupiedBeds: 52,
         pct: 87,
@@ -317,20 +317,29 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     ];
   }, [hostelBlocks, user]);
 
+  // Assigned block name for the logged-in warden
+  const assignedBlockName = useMemo(() => {
+    const uName = (user?.name || "VaraPrasad").toLowerCase().trim();
+    const uFirst = uName.split(' ')[0];
+
+    const matched = (hostelBlocks || []).find(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      return wName && wName !== 'unassigned' && (wName.includes(uName) || uName.includes(wName) || (uFirst.length >= 3 && wName.includes(uFirst)));
+    });
+
+    if (matched) {
+      return matched.name || (matched as any).hostelName || 'Ramachandra Bhavan (Boys Block A)';
+    }
+
+    return 'Ramachandra Bhavan (Boys Block A)';
+  }, [hostelBlocks, user]);
+
   return (
     <div className="space-y-6 animate-in fade-in pb-12">
       {/* 1. Header Banner matching Admin Dashboard - Compact Size */}
       <div className="glass-card p-4 sm:p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-sky-600 via-brand-600 to-blue-600 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-extrabold text-[10px] border border-white/30 uppercase tracking-wider backdrop-blur-xs flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> {schoolProfile?.name || "PIRNAV SCHOOLS"} • Hostel Warden Portal
-              </span>
-              <span className="text-[11px] text-sky-100 font-semibold">
-                • Main Campus
-              </span>
-            </div>
             <h1 className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-1.5">
               {greeting}, {user?.name || "VaraPrasad"} 🖐️
             </h1>
@@ -359,27 +368,27 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
 
       {/* 2. Top 3 KPI Stat Cards matching Admin Dashboard styling */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Card 1: No of Blocks */}
+        {/* Card 1: Assigned Block Name */}
         <div
           onClick={() => onNavigate && onNavigate("hostel")}
           className="glass-card p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="w-11 h-11 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900/50 group-hover:scale-105 transition-transform">
+            <div className="w-11 h-11 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900/50 group-hover:scale-105 transition-transform shrink-0">
               <Building2 className="w-5.5 h-5.5" />
             </div>
             <span className="text-[10px] font-black text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950 px-2.5 py-1 rounded-full border border-sky-200/60 dark:border-sky-800">
-              Hostel Buildings
+              Hostel
             </span>
           </div>
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-            No of Blocks
+            Assigned Block
           </p>
-          <div className="flex items-baseline justify-between mt-1">
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-mono">
-              {hostelBlocks.length > 0 ? hostelBlocks.length : blockSummary.length}
+          <div className="flex items-baseline justify-between mt-1 gap-2">
+            <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate" title={assignedBlockName}>
+              {assignedBlockName}
             </h3>
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 group-hover:text-sky-600 transition-colors">
+            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 group-hover:text-sky-600 transition-colors shrink-0">
               View Blocks <ArrowRight className="w-3 h-3" />
             </span>
           </div>
@@ -461,11 +470,8 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    Hostel Bed Occupancy Breakdown
+                    Hostel Bed Occupancy
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    Live distribution of occupied, vacant, and out-pass beds
-                  </p>
                 </div>
               </div>
             </div>
@@ -493,8 +499,8 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              {blockSummary.slice(0, 3).map((block) => (
+            <div className="space-y-2.5 max-h-[190px] overflow-y-auto pr-1.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {blockSummary.map((block) => (
                 <div
                   key={block.id}
                   className="p-3 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1.5"
@@ -505,7 +511,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                         {block.name}
                       </h4>
                       <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                        Warden: <span className="text-slate-700 dark:text-slate-300 font-bold">{block.warden}</span>
+                        Assigned Warden: <span className="text-sky-600 dark:text-sky-400 font-bold">{block.warden}</span>
                       </p>
                     </div>
                     <div className="text-right">
@@ -526,18 +532,6 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                   </div>
                 </div>
               ))}
-
-              {blockSummary.length > 3 && (
-                <div className="pt-0.5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate && onNavigate("hostel")}
-                    className="w-full py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer border border-slate-200/70 dark:border-slate-700 active:scale-95"
-                  >
-                    View All ({blockSummary.length}) Blocks in Hostel Setup <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -555,14 +549,11 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
                     Out-Pass Approvals
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    Review & Approve Student Out-Pass Requests
-                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
               {outpassRecords.length === 0 ? (
                 <p className="text-xs text-slate-400 italic text-center py-6">
                   No out-pass requests recorded.

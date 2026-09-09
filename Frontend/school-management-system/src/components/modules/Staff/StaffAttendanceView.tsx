@@ -103,6 +103,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const uEmpId = ((user as any)?.empId || "").trim();
     const uEmail = (user?.email || "").toLowerCase().trim();
     const uName = (user?.name || "").toLowerCase().trim();
+    const isGenericAdmin = uName.includes("administrator") || uName.includes("admin");
 
     if (uEmail) {
       const byEmail = staff.find(
@@ -111,7 +112,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (byEmail) return byEmail;
     }
 
-    if (uName) {
+    if (uName && !isGenericAdmin) {
       const byName = staff.find((s) => {
         const full = `${s.firstName || ""} ${s.lastName || ""}`
           .toLowerCase()
@@ -122,7 +123,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (byName) return byName;
     }
 
-    if (uId || uEmpId) {
+    if ((uId || uEmpId) && uId !== '358' && uId !== '1' && uId !== '90') {
       const byId = staff.find(
         (s) =>
           ((uId && (String(s.id) === uId || String(s.empId) === uId)) ||
@@ -141,46 +142,68 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (byDriver) return byDriver;
     }
 
+    if (userRole.includes("warden")) {
+      const byWarden = staff.find(
+        (s) =>
+          (s.designation || "").toLowerCase().includes("warden") ||
+          (s.department || "").toLowerCase().includes("hostel")
+      );
+      if (byWarden) return byWarden;
+    }
+
+    if (userRole.includes("accountant") || userRole === "finance") {
+      const byAccountant = staff.find(
+        (s) =>
+          (s.designation || "").toLowerCase().includes("accountant") ||
+          (s.department || "").toLowerCase().includes("finance")
+      );
+      if (byAccountant) return byAccountant;
+    }
+
     return null;
   }, [user, staff, userRole]);
 
   // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
-    const rawName = user?.name || "Robert Teacher";
-    const parts = rawName.trim() ? rawName.trim().split(" ") : ["Robert", "Teacher"];
-    const defaultFirstName = parts[0] || "Robert";
-    const defaultLastName = parts.slice(1).join(" ") || "Teacher";
+    const isWarden = userRole.includes("warden");
+    const isDriver = userRole === "driver";
+    const isAccountant = userRole.includes("accountant") || userRole === "finance";
 
-    const isDbTeacherMatching = dbTeacher && (
-      !user?.name || 
-      `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])
-    );
+    const defaultRoleFirstName = isAccountant ? "Sardhar" : isWarden ? "Vara" : isDriver ? "Nag" : "Robert";
+    const defaultRoleLastName = isAccountant ? "Karthi" : isWarden ? "Prasad" : isDriver ? "Sahoo" : "Teacher";
+    const defaultEmpId = isAccountant ? "ACT-101" : isWarden ? "WRD-102" : isDriver ? "DRV-001" : "STF-2026-0001";
+    const defaultDept = isAccountant ? "Finance & Accounts" : isWarden ? "Hostel Management" : isDriver ? "Transport & Logistics" : "Academic Dept";
+    const defaultDesig = isAccountant ? "Accountant" : isWarden ? "Hostel Warden" : isDriver ? "Bus Driver" : "Teacher";
 
-    if (isDbTeacherMatching && dbTeacher) {
-      return {
-        ...dbTeacher,
-        id: dbTeacher.id || user?.id || "STF-2026-0000",
-        empId: dbTeacher.empId || dbTeacher.id || user?.id || "STF-2026-0000",
-        firstName: defaultFirstName,
-        lastName: defaultLastName,
-        designation: dbTeacher.designation || (user as any)?.designation || (userRole === "driver" ? "Bus Driver" : "Teacher"),
-        department: dbTeacher.department || (user as any)?.department || (userRole === "driver" ? "Transport Dept" : "Academic Dept"),
-        assignedClasses: dbTeacher.assignedClasses || (user as any)?.assignedClasses || [],
-        assignedSubjects: (dbTeacher as any).assignedSubjects || (user as any)?.assignedSubjects || [],
-        leaveBalance: dbTeacher.leaveBalance || { casual: 10, sick: 10, paid: 15 }
-      };
+    const rawName = user?.name || "";
+    const isGenericName = !rawName || rawName.toLowerCase().includes("admin") || rawName.toLowerCase().includes("administrator");
+
+    let firstName = defaultRoleFirstName;
+    let lastName = defaultRoleLastName;
+
+    if (!isGenericName && rawName.trim()) {
+      const parts = rawName.trim().split(" ");
+      firstName = parts[0] || defaultRoleFirstName;
+      lastName = parts.slice(1).join(" ") || defaultRoleLastName;
+    } else if (dbTeacher && dbTeacher.firstName && !dbTeacher.firstName.toLowerCase().includes("admin")) {
+      firstName = dbTeacher.firstName;
+      lastName = dbTeacher.lastName || "";
     }
 
+    const matchedEmpId = (user as any)?.empId || user?.id || (dbTeacher?.empId && String(dbTeacher.empId) !== "358" && String(dbTeacher.empId) !== "90" ? dbTeacher.empId : defaultEmpId);
+    const matchedDept = isAccountant ? "Finance & Accounts" : isWarden ? "Hostel Management" : isDriver ? "Transport & Logistics" : (dbTeacher?.department || (user as any)?.department || defaultDept);
+    const matchedDesig = isAccountant ? "Accountant" : isWarden ? "Hostel Warden" : isDriver ? "Bus Driver" : (dbTeacher?.designation || (user as any)?.designation || defaultDesig);
+
     return {
-      id: user?.id || (user as any)?.empId || "STF-2026-0000",
-      empId: (user as any)?.empId || user?.id || "STF-2026-0000",
-      firstName: defaultFirstName,
-      lastName: defaultLastName,
-      assignedClasses: (user as any)?.assignedClasses || [],
-      assignedSubjects: (user as any)?.assignedSubjects || [],
-      department: userRole === "driver" ? "Transport Dept" : "Academic Dept",
-      designation: userRole === "driver" ? "Bus Driver" : "Teacher",
-      leaveBalance: { casual: 10, sick: 10, paid: 15 },
+      id: matchedEmpId,
+      empId: matchedEmpId,
+      firstName,
+      lastName,
+      designation: matchedDesig,
+      department: matchedDept,
+      assignedClasses: dbTeacher?.assignedClasses || (user as any)?.assignedClasses || [],
+      assignedSubjects: (dbTeacher as any)?.assignedSubjects || (user as any)?.assignedSubjects || [],
+      leaveBalance: dbTeacher?.leaveBalance || { casual: 10, sick: 10, paid: 15 }
     };
   }, [dbTeacher, user, userRole]);
 

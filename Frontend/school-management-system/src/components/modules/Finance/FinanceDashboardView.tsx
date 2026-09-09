@@ -95,9 +95,6 @@ export const FinanceDashboardView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-sky-500" /> Finance Dashboard
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time fee collection, institutional revenue streams, and cash-flow health
-          </p>
         </div>
 
         <div className="flex items-center gap-3">

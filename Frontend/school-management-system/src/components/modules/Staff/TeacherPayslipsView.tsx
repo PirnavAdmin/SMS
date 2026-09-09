@@ -34,22 +34,72 @@ export const TeacherPayslipsView: React.FC = () => {
   const [itemsPerPage] = useState(5);
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
+  const isWarden = (user?.role || '').toLowerCase().includes('warden');
   const isDriver = (user?.role || '').toLowerCase() === 'driver';
+  const isAccountant = (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance';
 
   const teacherStaffMember = useMemo(() => {
     const uEmail = user?.email?.toLowerCase().trim();
     const uName = user?.name?.toLowerCase().trim();
     const uRole = (user?.role || '').toLowerCase();
+    const uId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
 
-    // 1. Direct match on email / name / id in full staff list
-    const directMatch = staff.find(s =>
-      (uEmail && s.email && s.email.toLowerCase().trim() === uEmail) ||
-      (uName && `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim() === uName) ||
-      (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
-    );
-    if (directMatch) return directMatch;
+    // 1. Direct match on email in staff list
+    if (uEmail) {
+      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === uEmail);
+      if (byEmail) {
+        const isGenericAdmin = (byEmail.firstName || '').toLowerCase().includes('administrator') || (byEmail.firstName || '').toLowerCase().includes('admin');
+        const userFirst = uName ? uName.split(' ')[0] : '';
+        const userLast = uName ? uName.split(' ').slice(1).join(' ') : '';
+        
+        return {
+          ...byEmail,
+          firstName: (isGenericAdmin && userFirst) ? userFirst : (isAccountant ? (userFirst || 'Sardhar') : (byEmail.firstName || userFirst || 'Faculty')),
+          lastName: (isGenericAdmin && userLast) ? userLast : (isAccountant ? (userLast || 'Karthi') : (byEmail.lastName || userLast || 'Member')),
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
+          empId: (isGenericAdmin || byEmail.empId === '358' || byEmail.id === '358') ? (user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001')) : (byEmail.empId || byEmail.employeeId || byEmail.id || 'STF-001')
+        };
+      }
+    }
 
-    // 2. Driver role fallback
+    // 2. Direct match on ID or Employee ID
+    if (uId) {
+      const byId = staff.find(s =>
+        (s.id && String(s.id).toLowerCase().trim() === uId) ||
+        (s.empId && String(s.empId).toLowerCase().trim() === uId) ||
+        (s.employeeId && String(s.employeeId).toLowerCase().trim() === uId)
+      );
+      if (byId) {
+        return {
+          ...byId,
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byId.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.role || 'Teacher'),
+          empId: isAccountant ? (user?.id || (user as any)?.empId || 'ACT-101') : (byId.empId || byId.id)
+        };
+      }
+    }
+
+    // 3. Match on user full name if available and not generic admin
+    if (uName && !uName.includes('admin')) {
+      const byName = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return sFullName === uName || sName === uName;
+      });
+      if (byName) {
+        return {
+          ...byName,
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byName.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.role || 'Teacher')
+        };
+      }
+    }
+
+    // 4. Role specific search for Driver
     if (uRole === 'driver') {
       const driverStaff = staff.find(s =>
         (s.designation || '').toLowerCase().includes('driver') ||
@@ -58,21 +108,84 @@ export const TeacherPayslipsView: React.FC = () => {
       if (driverStaff) return driverStaff;
     }
 
-    // 3. Teaching staff fallback for teachers
-    const teachingStaff = staff.filter(s => {
-      const des = (s.designation || '').toLowerCase();
-      const dept = (s.department || '').toLowerCase();
-      const cat = (s.employeeCategory || '').toLowerCase();
-      return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
-    });
+    // 5. Role specific search for Warden
+    if (isWarden) {
+      const wardenStaff = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('warden') ||
+        (s.role || '').toLowerCase().includes('warden') ||
+        (s.department || '').toLowerCase().includes('hostel')
+      );
+      if (wardenStaff) return wardenStaff;
+    }
 
-    return teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
-  }, [staff, user]);
+    // 6. Role specific search for Accountant
+    if (isAccountant) {
+      const accountantStaff = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('accountant') ||
+        (s.role || '').toLowerCase().includes('accountant') ||
+        (s.department || '').toLowerCase().includes('finance')
+      );
+      if (accountantStaff) {
+        const userFirst = uName ? uName.split(' ')[0] : '';
+        const userLast = uName ? uName.split(' ').slice(1).join(' ') : '';
+        return {
+          ...accountantStaff,
+          firstName: userFirst || accountantStaff.firstName || 'Sardhar',
+          lastName: userLast || accountantStaff.lastName || 'Karthi',
+          designation: 'Accountant',
+          department: 'Finance & Accounts',
+          role: 'Accountant',
+          empId: user?.id || (user as any)?.empId || accountantStaff.empId || 'ACT-101'
+        };
+      }
+    }
+
+    // 7. Role specific search for Teacher (ONLY if role is teacher)
+    if (uRole === 'teacher') {
+      const teachingStaff = staff.filter(s => {
+        const des = (s.designation || '').toLowerCase();
+        const dept = (s.department || '').toLowerCase();
+        const cat = (s.employeeCategory || '').toLowerCase();
+        return !dept.includes('transport') && !des.includes('driver') && !des.includes('attendant') && !cat.includes('non-teaching');
+      });
+
+      const teacherMatch = teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher');
+      if (teacherMatch) return teacherMatch;
+    }
+
+    // 8. Dynamic staff object fallback for logged in user (DO NOT default to random teacher like Srinivas Rao)
+    const rawName = user?.name || (isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar Karthi' : 'Faculty Member');
+    const nameParts = rawName.split(' ');
+    return {
+      id: user?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-001'),
+      empId: (user as any)?.empId || user?.id || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-001'),
+      firstName: nameParts[0] || (isAccountant ? 'Sardhar' : 'Faculty'),
+      lastName: nameParts.slice(1).join(' ') || (isAccountant ? 'Karthi' : 'Member'),
+      email: user?.email || (isWarden ? 'warden@pirnavschools.edu' : isAccountant ? 'accountant@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
+      phone: user?.phone || '+91 9878645565',
+      department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : ((user as any)?.department || 'Academics'),
+      designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : ((user as any)?.designation || 'Teacher'),
+      role: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : 'Teacher',
+      branch: user?.branch || 'Main Campus',
+      bankDetails: { accountNumber: 'XXXX-XXXX-4829' }
+    };
+  }, [staff, user, isWarden, isAccountant]);
 
   // Synthesize realistic historical payslips for the teacher if none or few exist in state
   const teacherPayslips: Payslip[] = useMemo(() => {
+    const staffName = teacherStaffMember ? `${teacherStaffMember.firstName || ''} ${teacherStaffMember.lastName || ''}`.trim() : (user?.name || (isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar Karthi' : 'Faculty Member'));
+    const empIdCode = teacherStaffMember?.empId || teacherStaffMember?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-2026-0001');
+    const dept = teacherStaffMember?.department || (isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : 'Academics');
+    const desig = teacherStaffMember?.designation || (isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : 'Teacher');
+
+    const staffFullName = staffName.toLowerCase().trim();
     const existing = payslips.filter(p =>
-      teacherStaffMember && (p.employeeId === teacherStaffMember.id || p.empId === teacherStaffMember.empId || p.employeeName.toLowerCase().includes(teacherStaffMember.firstName.toLowerCase()))
+      teacherStaffMember && (
+        p.employeeId === teacherStaffMember.id ||
+        p.empId === teacherStaffMember.empId ||
+        p.empId === empIdCode ||
+        (staffFullName && p.employeeName && p.employeeName.toLowerCase().trim() === staffFullName)
+      )
     );
 
     if (existing.length >= 3) return existing;
@@ -95,13 +208,13 @@ export const TeacherPayslipsView: React.FC = () => {
       const net = gross - totalDeductions;
       return {
         id: `PS-TCH-${1000 + idx}`,
-        employeeId: teacherStaffMember?.id || 'STF-001',
-        employeeName: teacherStaffMember ? `${teacherStaffMember.firstName} ${teacherStaffMember.lastName}` : (user?.name || 'Faculty Member'),
-        empId: teacherStaffMember?.empId || 'STF-2026-0001',
-        branch: (teacherStaffMember as any)?.branch || 'Main Campus',
-        department: teacherStaffMember?.department || 'Mathematics',
-        designation: teacherStaffMember?.designation || 'Senior PGT Teacher',
-        employeeCategory: 'Teacher',
+        employeeId: teacherStaffMember?.id || empIdCode,
+        employeeName: staffName,
+        empId: empIdCode,
+        branch: (teacherStaffMember as any)?.branch || user?.branch || 'Main Campus',
+        department: dept,
+        designation: desig,
+        employeeCategory: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher',
         month: m.month,
         basicSalary: m.basic,
         hra: m.hra,
@@ -138,7 +251,7 @@ export const TeacherPayslipsView: React.FC = () => {
     });
 
     return finalPayslips;
-  }, [payslips, teacherStaffMember, user]);
+  }, [payslips, teacherStaffMember, user, isWarden, isAccountant]);
 
   // Filtered & Sorted payslips
   const sortedPayslips = useMemo(() => {
@@ -189,16 +302,17 @@ export const TeacherPayslipsView: React.FC = () => {
     const totalEarnings = earnings.reduce((sum, e) => sum + e.amount, 0);
     const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
 
-    const grossVal = p.grossSalary || (p.basicSalary + p.hra + p.da);
-    const basicVal = p.basicSalary || Math.round(grossVal * 0.4);
-    const hraVal = p.hra || Math.round(grossVal * 0.3);
-    const conveyanceVal = (p as any).conveyance || 1600;
-    const medicalVal = (p as any).medical || 1250;
+    const basicVal = Number(p.basicSalary) || 35000;
+    const hraVal = Number(p.hra) || 12000;
+    const daVal = Number(p.da) || 5000;
+    const grossVal = Number(p.grossSalary) || (basicVal + hraVal + daVal);
+    const conveyanceVal = Number((p as any).conveyance) || 1600;
+    const medicalVal = Number((p as any).medical) || 1250;
     const othAllowVal = Math.max(0, grossVal - (basicVal + hraVal + conveyanceVal + medicalVal));
-    const ptVal = p.otherDeductions || 200;
-    const pfVal = p.pfDeduction || 1527;
-    const esiVal = (p as any).esiDeduction || 0;
-    const totalDeductionsVal = ptVal + pfVal + esiVal + (p.lopDeduction || 0);
+    const ptVal = Number(p.otherDeductions) || 200;
+    const pfVal = Number(p.pfDeduction) || 2400;
+    const esiVal = Number((p as any).esiDeduction) || 0;
+    const totalDeductionsVal = ptVal + pfVal + esiVal + (Number(p.lopDeduction) || 0);
     const netTakeHomeVal = grossVal - totalDeductionsVal;
     const employerPfVal = pfVal;
     const employerEsiVal = esiVal;
@@ -639,19 +753,20 @@ export const TeacherPayslipsView: React.FC = () => {
 
             {/* MONTHLY SALARY STATEMENT BREAKDOWN TABLE */}
             {(() => {
-              const grossVal = viewingPayslip.grossSalary || (viewingPayslip.basicSalary + viewingPayslip.hra + viewingPayslip.da);
-              const basicVal = viewingPayslip.basicSalary || Math.round(grossVal * 0.4);
-              const hraVal = viewingPayslip.hra || Math.round(grossVal * 0.3);
-              const conveyanceVal = (viewingPayslip as any).conveyance || 1600;
-              const medicalVal = (viewingPayslip as any).medical || 1250;
+              const basicVal = Number(viewingPayslip.basicSalary) || 35000;
+              const hraVal = Number(viewingPayslip.hra) || 12000;
+              const daVal = Number(viewingPayslip.da) || 5000;
+              const grossVal = Number(viewingPayslip.grossSalary) || (basicVal + hraVal + daVal);
+              const conveyanceVal = Number((viewingPayslip as any).conveyance) || 1600;
+              const medicalVal = Number((viewingPayslip as any).medical) || 1250;
               const othAllowVal = Math.max(0, grossVal - (basicVal + hraVal + conveyanceVal + medicalVal));
-              const ptVal = viewingPayslip.otherDeductions || 200;
-              const pfVal = viewingPayslip.pfDeduction || 2400;
-              const esiVal = (viewingPayslip as any).esiDeduction || 0;
-              const totalDeductionsVal = ptVal + pfVal + esiVal + (viewingPayslip.lopDeduction || 0);
+              const ptVal = Number(viewingPayslip.otherDeductions) || 200;
+              const pfVal = Number(viewingPayslip.pfDeduction) || 2400;
+              const esiVal = Number((viewingPayslip as any).esiDeduction) || 0;
+              const totalDeductionsVal = ptVal + pfVal + esiVal + (Number(viewingPayslip.lopDeduction) || 0);
               const netTakeHomeVal = grossVal - totalDeductionsVal;
 
-              const formatNum = (num: number) => num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const formatNum = (num: number) => isNaN(num) ? '0.00' : num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
               return (
                 <div className="space-y-3">

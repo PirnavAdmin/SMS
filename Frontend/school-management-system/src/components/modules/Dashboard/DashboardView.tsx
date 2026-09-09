@@ -16,6 +16,7 @@ import { StudentDashboardView } from './StudentDashboardView';
 import { LibrarianDashboardView } from './LibrarianDashboardView';
 import { WardenDashboardView } from './WardenDashboardView';
 import { DriverDashboardView } from './DriverDashboardView';
+import { FinanceDashboardView } from '../Finance/FinanceDashboardView';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface DashboardViewProps {
@@ -287,6 +288,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   if (['librarian', 'library'].includes(userRole)) return <LibrarianDashboardView onNavigate={onNavigate} />;
   if (userRole.includes('warden') || userRole === 'hostel warden') return <WardenDashboardView onNavigate={onNavigate} />;
   if (['driver', 'bus driver', 'chauffeur'].includes(userRole)) return <DriverDashboardView onNavigate={onNavigate} />;
+  if (['accountant', 'accounts', 'finance'].includes(userRole)) return <FinanceDashboardView />;
 
   const formatAcademicYearDisplay = (ay?: string) => {
     if (!ay) return '2026-27';

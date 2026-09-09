@@ -45,10 +45,12 @@ export const LeaveManagementView: React.FC = () => {
   const { addToast } = useToast();
 
   const userRole = (role || user?.role || '').toLowerCase();
-  const isTeacher = userRole === 'teacher';
+  const isTeacher = userRole === 'teacher' || userRole === 'class-teacher';
   const isDriver = userRole === 'driver';
-  const isSelfServiceStaff = isTeacher || isDriver;
-  const hasApprovalPermission = ['admin', 'principal', 'hr'].includes(userRole);
+  const isWarden = userRole.includes('warden');
+  const isAccountant = userRole.includes('accountant') || userRole === 'finance';
+  const hasApprovalPermission = ['admin', 'super admin', 'principal', 'hr', 'vice principal'].includes(userRole);
+  const isSelfServiceStaff = !hasApprovalPermission || isTeacher || isDriver || isWarden || isAccountant;
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>(
@@ -104,28 +106,157 @@ export const LeaveManagementView: React.FC = () => {
       empId: (user as any)?.empId || user?.id || 'STF-2026-0000',
       leaveBalance: { casual: 10, sick: 10, paid: 15 }
     } as any;
-  }, [staff, user]);
+  }, [staff, user, isDriver]);
 
-  // Filter applications for current user if teacher or driver
-  const myApplications = leaveApplications.filter(a => {
-    if (!isSelfServiceStaff) return true;
-    if (isDriver) {
-      if (driverStaffMember && (a.employeeId === driverStaffMember.id || a.empId === driverStaffMember.empId)) return true;
-      if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
-      if (user?.id && (String(a.employeeId) === String(user.id) || String(a.empId) === String(user.id))) return true;
-      if (a.designation?.toLowerCase().includes('driver') || a.department?.toLowerCase().includes('transport')) return true;
-      return false;
+  const loggedUserStaffMember = useMemo(() => {
+    const uEmail = user?.email?.toLowerCase().trim();
+    const uName = user?.name?.toLowerCase().trim();
+    const uId = user?.id ? String(user.id).trim() : '';
+    const uEmpId = (user as any)?.empId ? String((user as any).empId).trim() : '';
+
+    const isGenericAdminName = !uName || uName.includes('admin') || uName.includes('administrator');
+
+    // 1. Direct match on email
+    if (uEmail) {
+      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === uEmail);
+      if (byEmail) {
+        return {
+          ...byEmail,
+          firstName: isGenericAdminName ? (isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (byEmail.firstName || 'Staff')) : (byEmail.firstName || user?.name?.split(' ')[0] || 'Staff'),
+          lastName: isGenericAdminName ? (isWarden ? '' : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (byEmail.lastName || '')) : (byEmail.lastName || user?.name?.split(' ').slice(1).join(' ') || ''),
+          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byEmail.designation || 'Teacher'),
+          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byEmail.department || 'Academic Dept'),
+          empId: isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (byEmail.empId || byEmail.id || 'STF-2026-0001')
+        };
+      }
     }
-    if (teacherStaffMember && (
-      a.employeeId === teacherStaffMember.id || 
-      a.empId === teacherStaffMember.empId ||
-      a.employeeId === teacherStaffMember.empId || 
-      a.empId === teacherStaffMember.id
-    )) return true;
-    if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
-    if (user?.id && (String(a.employeeId) === String(user.id) || String(a.empId) === String(user.id))) return true;
-    return false;
-  });
+
+    // 2. Match by Name if not generic admin
+    if (uName && !isGenericAdminName) {
+      const byName = staff.find(s => {
+        const full = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (full && (full.includes(uName) || uName.includes(full))) || (sName && (sName.includes(uName) || uName.includes(sName)));
+      });
+      if (byName) {
+        return {
+          ...byName,
+          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byName.designation || 'Teacher'),
+          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byName.department || 'Academic Dept'),
+          empId: isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (byName.empId || byName.id || 'STF-2026-0001')
+        };
+      }
+    }
+
+    // 3. Match by ID if not generic 358 or 90
+    if ((uId || uEmpId) && uId !== '358' && uId !== '90') {
+      const byId = staff.find(s =>
+        (uId && (String(s.id) === uId || String(s.empId) === uId)) ||
+        (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))
+      );
+      if (byId) {
+        return {
+          ...byId,
+          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byId.designation || 'Teacher'),
+          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byId.department || 'Academic Dept'),
+          empId: isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (byId.empId || byId.id || 'STF-2026-0001')
+        };
+      }
+    }
+
+    // 4. Role specific search in staff list
+    if (isWarden) {
+      const byWarden = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('warden') ||
+        (s.department || '').toLowerCase().includes('hostel')
+      );
+      if (byWarden) {
+        return {
+          ...byWarden,
+          firstName: (isGenericAdminName || !byWarden.firstName) ? 'VaraPrasad' : byWarden.firstName,
+          lastName: (isGenericAdminName || !byWarden.firstName) ? '' : (byWarden.lastName || ''),
+          designation: 'Hostel Warden',
+          department: 'Hostel Management',
+          empId: (byWarden.empId && String(byWarden.empId) !== '358' && String(byWarden.empId) !== '90') ? byWarden.empId : 'WRD-102'
+        };
+      }
+    }
+
+    if (isAccountant) {
+      const byAccountant = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('accountant') ||
+        (s.department || '').toLowerCase().includes('finance')
+      );
+      if (byAccountant) {
+        return {
+          ...byAccountant,
+          firstName: (isGenericAdminName || !byAccountant.firstName) ? 'Sardhar' : byAccountant.firstName,
+          lastName: (isGenericAdminName || !byAccountant.firstName) ? 'Karthi' : (byAccountant.lastName || ''),
+          designation: 'Accountant',
+          department: 'Finance & Accounts',
+          empId: (byAccountant.empId && String(byAccountant.empId) !== '358' && String(byAccountant.empId) !== '90') ? byAccountant.empId : 'ACT-101'
+        };
+      }
+    }
+
+    if (isDriver) {
+      const byDriver = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('driver') ||
+        (s.department || '').toLowerCase().includes('transport')
+      );
+      if (byDriver) return byDriver;
+    }
+
+    // Fallback default profile
+    const defaultFirstName = isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (user?.name?.split(' ')[0] || 'Staff');
+    const defaultLastName = isWarden ? '' : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (user?.name?.split(' ').slice(1).join(' ') || '');
+    const defaultEmpId = isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (user?.id || 'STF-2026-0001');
+    const defaultDept = isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : 'Academic Dept';
+    const defaultDesig = isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : 'Teacher';
+
+    const rawName = user?.name || '';
+    const parts = (!isGenericAdminName && rawName.trim()) ? rawName.trim().split(' ') : [defaultFirstName, defaultLastName];
+
+    return {
+      id: uEmpId || uId || defaultEmpId,
+      empId: uEmpId || uId || defaultEmpId,
+      firstName: parts[0] || defaultFirstName,
+      lastName: parts.slice(1).join(' ') || defaultLastName,
+      department: (user as any)?.department || defaultDept,
+      designation: (user as any)?.designation || defaultDesig,
+      employeeCategory: (isWarden || isAccountant || isDriver) ? 'Non-Teaching Staff' : 'Teaching Staff',
+      leaveBalance: { casual: 10, sick: 10, paid: 15 }
+    } as Staff;
+  }, [staff, user, userRole, isWarden, isAccountant, isDriver]);
+
+  // Filter applications for current user if self service staff (teacher, warden, driver, accountant)
+  const myApplications = useMemo(() => {
+    if (!isSelfServiceStaff) return leaveApplications;
+
+    const loggedEmpId = (loggedUserStaffMember.empId || loggedUserStaffMember.id || '').toString().toLowerCase().trim();
+    const loggedId = (loggedUserStaffMember.id || '').toString().toLowerCase().trim();
+    const uId = user?.id ? String(user.id).toLowerCase().trim() : '';
+    const uEmpId = (user as any)?.empId ? String((user as any).empId).toLowerCase().trim() : '';
+    const uFirst = (user?.name || loggedUserStaffMember.firstName || '').toLowerCase().trim().split(' ')[0];
+    const isGenericAdmin = !user?.name || user.name.toLowerCase().includes('admin');
+
+    return leaveApplications.filter(a => {
+      const appEmpId = (a.empId || '').toString().toLowerCase().trim();
+      const appEmployeeId = (a.employeeId || '').toString().toLowerCase().trim();
+      const appName = (a.employeeName || '').toLowerCase().trim();
+
+      const isIdMatch = (
+        (loggedEmpId && (appEmpId === loggedEmpId || appEmployeeId === loggedEmpId)) ||
+        (loggedId && (appEmpId === loggedId || appEmployeeId === loggedId)) ||
+        (uId && (appEmpId === uId || appEmployeeId === uId)) ||
+        (uEmpId && (appEmpId === uEmpId || appEmployeeId === uEmpId))
+      );
+
+      const isNameMatch = !isGenericAdmin && uFirst && uFirst.length > 2 && appName.includes(uFirst);
+
+      return isIdMatch || isNameMatch;
+    });
+  }, [leaveApplications, isSelfServiceStaff, loggedUserStaffMember, user]);
 
   // Filter applications by selected branch/campus for Admin
   const campusApplications = useMemo(() => {
@@ -154,24 +285,14 @@ export const LeaveManagementView: React.FC = () => {
   }, [query, balanceCategoryFilter, selectedBranch]);
 
   const filteredStaffForBalance = useMemo(() => {
-    if (isDriver) {
-      const driverMatches = staff.filter(s =>
-        (driverStaffMember && (s.id === driverStaffMember.id || s.empId === driverStaffMember.empId)) ||
+    if (isSelfServiceStaff) {
+      const selfMatches = staff.filter(s =>
+        (loggedUserStaffMember && (s.id === loggedUserStaffMember.id || s.empId === loggedUserStaffMember.empId)) ||
         (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
-        (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
+        (user?.name && !user.name.toLowerCase().includes('admin') && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
         (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
       );
-      return driverMatches.length > 0 ? driverMatches : [driverStaffMember];
-    }
-
-    if (isTeacher) {
-      const teacherMatches = staff.filter(s =>
-        (teacherStaffMember && (s.id === teacherStaffMember.id || s.empId === teacherStaffMember.empId)) ||
-        (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
-        (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
-        (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
-      );
-      return teacherMatches.length > 0 ? teacherMatches : [teacherStaffMember];
+      return selfMatches.length > 0 ? selfMatches : [loggedUserStaffMember];
     }
 
     const isTeaching = (s: Staff) => {
@@ -242,7 +363,7 @@ export const LeaveManagementView: React.FC = () => {
   }>({ show: false, available: 0, requested: 0, appData: null });
 
   // Summaries Calculations
-  const targetList = isTeacher || isDriver ? myApplications : campusApplications;
+  const targetList = isSelfServiceStaff ? myApplications : campusApplications;
   const pendingCount = targetList.filter(a => (a.status || '').toLowerCase() === 'pending').length;
   const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
   const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
@@ -277,7 +398,9 @@ export const LeaveManagementView: React.FC = () => {
     attachments: [] as string[]
   });
 
-  const selectedStaffMember = (isTeacher && teacherStaffMember) ? teacherStaffMember : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
+  const selectedStaffMember = isSelfServiceStaff
+    ? loggedUserStaffMember
+    : (staff.find(s => s.id === applyForm.employeeId) || loggedUserStaffMember);
   const selectedLeaveType = leaveTypes.find(t => t.id === applyForm.leaveTypeId);
 
   const calculateDays = (from: string, to: string, half: boolean) => {
@@ -303,9 +426,9 @@ export const LeaveManagementView: React.FC = () => {
   // Submit Leave application
   const handleApplySubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const employee = (isTeacher && teacherStaffMember) 
-      ? teacherStaffMember 
-      : (staff.find(s => s.id === applyForm.employeeId) || teacherStaffMember);
+    const employee = isSelfServiceStaff
+      ? loggedUserStaffMember
+      : (staff.find(s => s.id === applyForm.employeeId) || loggedUserStaffMember);
 
     const lType = leaveTypes.find(t => t.id === applyForm.leaveTypeId) || activeLeaveTypes[0] || { id: 'LT-01', name: 'Casual Leave', isPaid: true };
 
@@ -690,7 +813,7 @@ export const LeaveManagementView: React.FC = () => {
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              {!isTeacher && (
+              {!isSelfServiceStaff && (
                 <div className="relative">
                   <select
                     value={filterCategory}
@@ -753,7 +876,7 @@ export const LeaveManagementView: React.FC = () => {
                 </thead>
                 <tbody className="divide-y font-medium">
                   {(() => {
-                    const baseApps = isTeacher || isDriver ? myApplications : campusApplications;
+                    const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
                     const filteredList = baseApps.filter(app => {
                       const nameMatch = !query || app.employeeName.toLowerCase().includes(query.toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
@@ -939,7 +1062,7 @@ export const LeaveManagementView: React.FC = () => {
             </table>
 
             {/* Pagination bar */}
-            {filteredStaffForBalance.length > 0 && (
+            {!isSelfServiceStaff && filteredStaffForBalance.length > 0 && (
               <div className="px-4 pb-3">
                 <Pagination
                   currentPage={balanceCurrentPage}
@@ -1100,11 +1223,12 @@ export const LeaveManagementView: React.FC = () => {
                 <label className="block font-bold mb-0.5 text-slate-700 dark:text-slate-300 text-[11px]">
                   Applicant Employee <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                {isTeacher && teacherStaffMember ? (
+                {isSelfServiceStaff ? (
                   <input
                     type="text"
                     disabled
-                    value={`${teacherStaffMember.firstName} ${teacherStaffMember.lastName} (${teacherStaffMember.empId} - ${teacherStaffMember.designation || 'Teacher'})`}
+                    readOnly
+                    value={`${loggedUserStaffMember.firstName || ''} ${loggedUserStaffMember.lastName || ''}`.trim() + ` (${loggedUserStaffMember.empId || loggedUserStaffMember.id} - ${loggedUserStaffMember.designation || 'Staff'})`}
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold cursor-not-allowed outline-none text-xs"
                   />
                 ) : (
