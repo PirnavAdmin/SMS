@@ -25,6 +25,8 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
   useEffect(() => {
     if (initialSubTab === 'promoted_dues' || initialSubTab === 'promoted-dues') {
       setActiveSubTab('promoted_dues');
+    } else if (initialSubTab === 'due' || initialSubTab === 'due-fees' || initialSubTab === 'due_fees' || initialSubTab === 'dues') {
+      setActiveSubTab('due');
     }
   }, [initialSubTab]);
 

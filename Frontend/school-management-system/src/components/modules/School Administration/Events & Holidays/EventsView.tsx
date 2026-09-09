@@ -105,12 +105,9 @@ export const EventsView: React.FC = () => {
     return unique;
   }, [schoolEvents]);
 
-  const { role } = useAuth();
-  const userRoleStr = (role || '').toLowerCase();
-  const isLibrarianRole = userRoleStr.includes('librarian') || userRoleStr.includes('library');
-  const isWardenRole = userRoleStr.includes('warden') || userRoleStr.includes('hostel');
-  const isDriverRole = userRoleStr.includes('driver') || userRoleStr.includes('chauffeur');
-  const canManageEvents = role !== 'Student' && role !== 'Parent' && userRoleStr !== 'student' && userRoleStr !== 'parent' && !isLibrarianRole && !isWardenRole && !isDriverRole;
+  const { role, user } = useAuth();
+  const cleanRole = (role || user?.role || '').toLowerCase().trim();
+  const canManageEvents = cleanRole === 'admin' || cleanRole === 'super admin' || cleanRole === 'superadmin' || cleanRole === 'principal';
 
   const { addToast } = useToast();
 

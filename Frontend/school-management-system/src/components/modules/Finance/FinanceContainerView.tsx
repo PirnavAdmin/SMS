@@ -14,7 +14,7 @@ interface FinanceContainerViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard' }) => {
+export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'fee-collection' }) => {
   const { fetchFinanceData } = useData();
 
   useEffect(() => {
@@ -35,8 +35,6 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <FinanceDashboardView />;
       case 'transactions':
       case 'ledger':
       case 'master-ledger':
@@ -55,11 +53,16 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
       case 'refund-management':
       case 'settings':
         return <FinanceMastersView />;
+      case 'dashboard':
       case 'fee-collection':
       case 'fees':
       case 'fee-receipts':
-      case 'due-fees':
         return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+      case 'due-fees':
+      case 'due_fees':
+      case 'due':
+      case 'dues':
+        return <FeeCollectionContainerView initialSubTab="due" onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
       case 'promoted-dues':
       case 'promoted_dues':
       case 'promoted-students-dues':
@@ -67,7 +70,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
       case 'reports':
         return <FinanceReportsView />;
       default:
-        return <FinanceDashboardView />;
+        return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
     }
   };
 

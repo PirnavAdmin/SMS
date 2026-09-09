@@ -328,7 +328,7 @@ const MainLayout: React.FC = () => {
       case "staff-directory":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden") return <TeacherProfileView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance") return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return <StaffList onNavigate={setActiveModule} />;
       case "staff-non-teaching":
