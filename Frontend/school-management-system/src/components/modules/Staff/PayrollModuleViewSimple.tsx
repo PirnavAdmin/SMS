@@ -1299,7 +1299,12 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const matchesDepartment = generationDepartment === 'All Departments' || row.member.department === generationDepartment;
       const matchesCategory = generationCategory === 'All' || row.category === generationCategory;
       const employeeLabel = `${row.member.firstName} ${row.member.lastName} (${row.member.empId})`.trim();
-      const matchesEmployee = generationEmployee === 'All Employees' || employeeLabel === generationEmployee;
+      const matchesEmployee =
+        generationEmployee === 'All Employees' ||
+        employeeLabel === generationEmployee ||
+        String(row.member.id) === String(generationEmployee) ||
+        row.member.empId === generationEmployee ||
+        `${row.member.firstName} ${row.member.lastName}`.trim() === generationEmployee;
       return matchesBranch && matchesDepartment && matchesCategory && matchesEmployee;
     });
   }, [employeeRows, generationBranch, generationCategory, generationDepartment, generationEmployee, selectedGenerationIds]);
@@ -1343,14 +1348,57 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const historyRows = useMemo(() => {
     return payslips.filter(item => {
       const { month, year } = splitMonthYear(item.month);
-      const employeeLabel = `${item.employeeName} (${item.empId})`.trim();
-      const matchesEmployee = historyEmployee === 'All Employees' || employeeLabel === historyEmployee;
+      const linkedStaff = staff.find(
+        s =>
+          String(s.id) === String(item.employeeId) ||
+          s.empId === item.empId ||
+          s.empId === item.employeeId ||
+          `${s.firstName} ${s.lastName}`.trim().toLowerCase() === (item.employeeName || '').trim().toLowerCase()
+      );
+
+      const targetStaff = historyEmployee !== 'All Employees'
+        ? staff.find(
+            s =>
+              `${s.firstName} ${s.lastName} (${s.empId})`.trim() === historyEmployee ||
+              `${s.firstName} ${s.lastName}`.trim() === historyEmployee ||
+              String(s.id) === String(historyEmployee) ||
+              s.empId === historyEmployee
+          )
+        : null;
+
+      let matchesEmployee = historyEmployee === 'All Employees';
+      if (!matchesEmployee) {
+        if (targetStaff) {
+          matchesEmployee =
+            String(item.employeeId) === String(targetStaff.id) ||
+            item.employeeId === targetStaff.empId ||
+            item.empId === targetStaff.empId ||
+            item.empId === targetStaff.id ||
+            (item.employeeName || '').trim().toLowerCase() === `${targetStaff.firstName} ${targetStaff.lastName}`.trim().toLowerCase() ||
+            (linkedStaff && String(linkedStaff.id) === String(targetStaff.id));
+        } else {
+          const employeeLabel = `${item.employeeName || ''} (${item.empId || item.employeeId || ''})`.trim();
+          matchesEmployee =
+            employeeLabel === historyEmployee ||
+            (item.employeeName || '').trim() === historyEmployee ||
+            (item.empId || '').trim() === historyEmployee ||
+            (item.employeeId || '').trim() === historyEmployee ||
+            historyEmployee.includes((item.employeeName || '___NO_MATCH___').trim());
+        }
+      }
+
       const matchesMonth = historyMonth === 'All' || month === historyMonth;
       const matchesYear = historyYear === 'All' || year === historyYear;
-      const matchesDepartment = historyDepartment === 'All Departments' || (item.department || 'Unknown') === historyDepartment;
+
+      const itemDept = item.department || linkedStaff?.department || 'Unknown';
+      const matchesDepartment =
+        historyDepartment === 'All Departments' ||
+        itemDept === historyDepartment ||
+        (linkedStaff && linkedStaff.department === historyDepartment);
+
       return matchesEmployee && matchesMonth && matchesYear && matchesDepartment;
     });
-  }, [historyDepartment, historyEmployee, historyMonth, historyYear, payslips]);
+  }, [historyDepartment, historyEmployee, historyMonth, historyYear, payslips, staff]);
 
   const activePreviewMonth = useMemo(() => {
     if (historyMonth === 'All' && historyYear === 'All') {

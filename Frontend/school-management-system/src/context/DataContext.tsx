@@ -8005,7 +8005,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           let baseItems: any[] = [];
           if (dfs && dfs.items && dfs.items.length > 0) {
-            baseItems = dfs.items;
+            baseItems = [...dfs.items];
           } else {
             // Find active fee heads applicable to this class from master fee heads
             const applicableHeads = (feeHeads || []).filter((h) =>
@@ -8021,6 +8021,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               category: h.category,
               amount: h.amount || 0,
             }));
+          }
+
+          if (
+            baseItems.length === 0 ||
+            !baseItems.some(
+              (i) =>
+                (i.feeHeadName || i.name || "").toLowerCase().includes("tuition") ||
+                (i.category || "").toLowerCase().includes("tuition"),
+            )
+          ) {
+            const defaultAcademicHeads = [
+              { feeHeadId: "FH-01", feeHeadName: "Tuition Fee", category: "Tuition Fee", amount: 25000 },
+              { feeHeadId: "FH-02", feeHeadName: "Admission Fee", category: "Admission Fee", amount: 5000 },
+              { feeHeadId: "FH-03", feeHeadName: "Books & Stationery Fee", category: "Books Fee", amount: 4500 },
+              { feeHeadId: "FH-04", feeHeadName: "Examination & Assessment Fee", category: "Exam Fee", amount: 2500 },
+              { feeHeadId: "FH-05", feeHeadName: "Science & Computer Lab Fee", category: "Lab Fee", amount: 2000 },
+            ];
+            defaultAcademicHeads.forEach((d) => {
+              if (
+                !baseItems.some(
+                  (b) =>
+                    b.feeHeadId === d.feeHeadId ||
+                    (b.feeHeadName || "").toLowerCase() === d.feeHeadName.toLowerCase(),
+                )
+              ) {
+                baseItems.push(d);
+              }
+            });
           }
 
           const selectedOptional = app.selectedOptionalFees || [];
@@ -12324,6 +12352,89 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         });
       }
+    }
+
+    // Ensure base academic fee heads exist if missing
+    const hasTuitionFeeHead = ledgerItems.some(
+      (item) =>
+        item.category === "Tuition Fee" ||
+        item.headName.toLowerCase().includes("tuition"),
+    );
+
+    if (!hasTuitionFeeHead) {
+      const defaultAcademicFeeHeads: LedgerFeeItem[] = [
+        {
+          headId: "FH-01",
+          headName: "Tuition Fee",
+          category: "Tuition Fee",
+          originalAmount: 25000,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 25000,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-02",
+          headName: "Admission Fee",
+          category: "Admission Fee",
+          originalAmount: 5000,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 5000,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-03",
+          headName: "Books & Stationery Fee",
+          category: "Books Fee",
+          originalAmount: 4500,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 4500,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-04",
+          headName: "Examination & Assessment Fee",
+          category: "Exam Fee",
+          originalAmount: 2500,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 2500,
+          isApplicable: true,
+          status: "Pending",
+        },
+        {
+          headId: "FH-05",
+          headName: "Science & Computer Lab Fee",
+          category: "Lab Fee",
+          originalAmount: 2000,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: 2000,
+          isApplicable: true,
+          status: "Pending",
+        },
+      ];
+
+      defaultAcademicFeeHeads.forEach((dItem) => {
+        const exists = ledgerItems.some(
+          (item) =>
+            item.headId === dItem.headId ||
+            item.headName.toLowerCase() === dItem.headName.toLowerCase(),
+        );
+        if (!exists) {
+          ledgerItems.push({ ...dItem });
+        }
+      });
     }
 
     // Ensure Uniform Fee category amount matches config lookup
