@@ -62,6 +62,8 @@ public class TimetableSlotDto
     public string TeacherName { get; set; } = string.Empty;
     public string EmployeeId { get; set; } = string.Empty;
     public string? RoomNo { get; set; }
+    public string? ClassName { get; set; }
+    public string? SectionName { get; set; }
 }
 
 // 3. Main Grid Matrix DTO
@@ -142,6 +144,7 @@ public class PublishTimetableDto
 public class GenerateTimetableRequestDto
 {
     public string? AcademicYear { get; set; }
+    public string? BranchName { get; set; }
     public string? SchoolStartTime { get; set; }
     public string? SchoolEndTime { get; set; }
     public int PeriodDurationMinutes { get; set; }
@@ -149,6 +152,25 @@ public class GenerateTimetableRequestDto
     public List<BreakItemDto> Breaks { get; set; } = new();
     public List<string> SelectedClassSections { get; set; } = new(); // e.g. ["Class 9-A"]
     public bool AutoAssignMappedSubjects { get; set; } = true;
+    public bool AllowConsecutiveForLabs { get; set; } = true;
+    public int MaxDailyPeriodsPerSubject { get; set; } = 2;
+    public int MinPeriodGap { get; set; } = 1; // At least 1 intervening period between normal same-subject periods
+    public int TimeoutSeconds { get; set; } = 30;
+    public int? Seed { get; set; } // Deterministic PRNG seed for reproducible variation
+    public List<LockedSlotDto> LockedSlots { get; set; } = new(); // Pre-assigned slots that must be preserved
+}
+
+public class LockedSlotDto
+{
+    public string DayOfWeek { get; set; } = string.Empty;
+    public string StartTime { get; set; } = string.Empty;
+    public string EndTime { get; set; } = string.Empty;
+    public int SubjectId { get; set; }
+    public int TeacherId { get; set; }
+    public string? RoomNo { get; set; }
+    public int? ClassId { get; set; }
+    public int? SectionId { get; set; }
+    public string? PeriodName { get; set; }
 }
 
 public class BreakItemDto

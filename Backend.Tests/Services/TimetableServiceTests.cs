@@ -83,7 +83,8 @@ public class TimetableServiceTests
         var repo = new TimetableRepository(context);
         var academicYearService = new AcademicYearService(context);
         var validationService = new TimetableValidationService(repo, NullLogger<TimetableValidationService>.Instance);
-        var generationService = new TimetableGenerationService(repo, academicYearService, NullLogger<TimetableGenerationService>.Instance);
+        var integrityValidator = new TimetableIntegrityValidator();
+        var generationService = new TimetableGenerationService(repo, academicYearService, integrityValidator, NullLogger<TimetableGenerationService>.Instance);
         var logger = NullLogger<TimetableService>.Instance;
 
         var service = new TimetableService(repo, academicYearService, validationService, generationService, logger);
@@ -370,7 +371,7 @@ public class TimetableServiceTests
         // Must not throw DivideByZeroException; skips empty class gracefully
         var result = await service.GenerateTimetableAsync(req);
         Assert.NotNull(result);
-        Assert.Empty(result);
+        Assert.Empty(result.Timetable);
     }
 
     [Fact]
@@ -396,8 +397,8 @@ public class TimetableServiceTests
         var result = await service.GenerateTimetableAsync(req);
 
         Assert.NotNull(result);
-        Assert.NotEmpty(result);
-        Assert.All(result, slot => Assert.NotNull(slot.SubjectName));
+        Assert.NotEmpty(result.Timetable);
+        Assert.All(result.Timetable, slot => Assert.NotNull(slot.SubjectName));
     }
 
     [Fact]

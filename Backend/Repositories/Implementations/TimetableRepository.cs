@@ -544,5 +544,44 @@ public class TimetableRepository : ITimetableRepository
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task ReplaceSlotsInTransactionAsync(IEnumerable<int> headerIdsToDelete, IEnumerable<TimetableSlot> slotsToInsert, System.Threading.CancellationToken cancellationToken = default)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var ids = headerIdsToDelete.ToList();
+                if (ids.Any())
+                {
+                    var slotsToDelete = await _context.TimetableSlots
+                        .Where(s => ids.Contains(s.HeaderId))
+                        .ToListAsync(cancellationToken);
+
+                    if (slotsToDelete.Any())
+                    {
+                        _context.TimetableSlots.RemoveRange(slotsToDelete);
+                        await _context.SaveChangesAsync(cancellationToken);
+                    }
+                }
+
+                var newSlots = slotsToInsert.ToList();
+                if (newSlots.Any())
+                {
+                    await _context.TimetableSlots.AddRangeAsync(newSlots, cancellationToken);
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
+                await tx.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await tx.RollbackAsync(cancellationToken);
+                throw;
+            }
+        });
+    }
 }
 

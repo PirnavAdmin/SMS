@@ -67,4 +67,5 @@ public interface ITimetableRepository
     Task<List<TimetableSlot>> GetSlotsByAcademicYearAsync(string academicYear);
     Task DeleteSlotsByHeaderIdsAsync(IEnumerable<int> headerIds);
     Task SaveSlotsBatchAsync(IEnumerable<TimetableSlot> slots);
+    Task ReplaceSlotsInTransactionAsync(IEnumerable<int> headerIdsToDelete, IEnumerable<TimetableSlot> slotsToInsert, System.Threading.CancellationToken cancellationToken = default);
 }

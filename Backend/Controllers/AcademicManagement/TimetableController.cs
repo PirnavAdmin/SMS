@@ -626,12 +626,12 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpPost("/api/academics/timetable/generate")]
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto)
+        public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                var result = await _timetableService.GenerateTimetableAsync(dto);
-                return Ok(new { success = true, message = "Timetable generated successfully.", data = result });
+                var result = await _timetableService.GenerateTimetableAsync(dto, cancellationToken);
+                return Ok(new { success = result.Success, message = result.Message, data = result });
             }
             catch (Exception ex)
             {

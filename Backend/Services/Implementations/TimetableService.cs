@@ -852,9 +852,9 @@ public class TimetableService : ITimetableService
     // AUTOMATIC TIMETABLE GENERATION & VALIDATION DELEGATES
     // =========================================================
 
-    public async Task<List<TimetableSlotDto>> GenerateTimetableAsync(GenerateTimetableRequestDto dto)
+    public async Task<GenerateTimetableResponseDto> GenerateTimetableAsync(GenerateTimetableRequestDto dto, System.Threading.CancellationToken cancellationToken = default)
     {
-        return await _generationService.GenerateTimetableAsync(dto);
+        return await _generationService.GenerateTimetableAsync(dto, cancellationToken);
     }
 
     public async Task<TimetableValidationResultDto> ValidateTimetableAsync(int classId, int sectionId, string academicYear)
