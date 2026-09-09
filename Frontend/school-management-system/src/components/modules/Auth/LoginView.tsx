@@ -370,7 +370,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Sign In to Portal</span>
+                        <span>Sign In</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
