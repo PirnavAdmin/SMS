@@ -340,11 +340,11 @@ export const SettingsView: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 3 * 1024 * 1024) {
       addToast(
         "error",
         "File Too Large",
-        "Please select an image smaller than 10MB.",
+        "Please select an image smaller than 3MB.",
       );
       return;
     }
@@ -966,7 +966,6 @@ export const SettingsView: React.FC = () => {
               : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
           }`}
         >
-          <UserIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />
           <span>
             My Profile
             <br />
@@ -986,7 +985,6 @@ export const SettingsView: React.FC = () => {
                   : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <Building2 className="w-3.5 h-3.5 shrink-0 opacity-70" />
               <span>
                 School
                 <br />
@@ -1004,7 +1002,6 @@ export const SettingsView: React.FC = () => {
                   : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
               <span>
                 Campus
                 <br />
@@ -1022,7 +1019,6 @@ export const SettingsView: React.FC = () => {
                   : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <Calendar className="w-3.5 h-3.5 shrink-0 opacity-70" />
               <span>
                 Academic Year
                 <br />
@@ -1040,7 +1036,6 @@ export const SettingsView: React.FC = () => {
                   : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
               }`}
             >
-              <Award className="w-3.5 h-3.5 shrink-0 opacity-70" />
               <span>
                 Certificate
                 <br />
@@ -1105,32 +1100,28 @@ export const SettingsView: React.FC = () => {
       {activeTab === "my-profile" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Basic Details Form Card */}
-          <div className="lg:col-span-2 glass-card p-6 rounded-3xl space-y-6 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-3xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
                   <UserCheck className="w-5 h-5 text-brand-600" /> Basic Details
                   & Profile Setup
                 </h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  Update your personal information, profile photo avatar, and
-                  contact details.
-                </p>
               </div>
               <span className="px-3 py-1 rounded-full text-xs font-black bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
                 {myProfileForm.role}
               </span>
             </div>
 
-            <form onSubmit={handleSaveMyProfile} className="space-y-5 text-xs">
+            <form onSubmit={handleSaveMyProfile} className="space-y-3 text-xs">
               {/* Profile Photo Uploader */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700 space-y-3">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700 space-y-2">
                 <label className="block font-bold text-slate-800 dark:text-slate-200 text-xs">
-                  Profile Photo / Avatar{" "}
+                  Profile Photo{" "}
                   <span className="text-rose-500 font-bold">*</span>
                 </label>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-3">
                   <div className="relative group">
                     <img
                       src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
@@ -1141,19 +1132,19 @@ export const SettingsView: React.FC = () => {
                           target.src = DEFAULT_USER_AVATAR;
                         }
                       }}
-                      className="w-20 h-20 rounded-2xl object-cover border-2 border-brand-500 shadow-md bg-white dark:bg-slate-800"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500 shadow-md bg-white dark:bg-slate-800"
                     />
                     <button
                       type="button"
                       onClick={() => avatarFileInputRef.current?.click()}
-                      className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow-md cursor-pointer transition-transform group-hover:scale-110"
+                      className="absolute -bottom-1 -right-1 p-1 rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow-md cursor-pointer transition-transform group-hover:scale-110"
                       title="Upload New Photo"
                     >
-                      <Camera className="w-3.5 h-3.5" />
+                      <Camera className="w-3 h-3" />
                     </button>
                   </div>
 
-                  <div className="space-y-2 flex-1 w-full">
+                  <div className="space-y-1.5 flex-1 w-full">
                     <div className="flex flex-wrap items-center gap-2">
                       <input
                         ref={avatarFileInputRef}
@@ -1170,7 +1161,7 @@ export const SettingsView: React.FC = () => {
                         <Upload className="w-3.5 h-3.5 text-brand-600" /> Upload
                         Profile Image
                       </button>
-                      {myProfileForm.avatar && (
+                      {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) && (
                         <button
                           type="button"
                           onClick={() =>
@@ -1186,39 +1177,15 @@ export const SettingsView: React.FC = () => {
                       )}
                     </div>
                     <p className="text-[11px] text-slate-400 font-medium">
-                      Supports JPG, PNG, WEBP files up to 5MB. Click upload or
+                      Supports JPG, PNG, WEBP files up to 3MB. Click upload or
                       change button.
                     </p>
                   </div>
                 </div>
-
-                {/* Optional Image URL Input */}
-                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                    Or Enter Photo URL Link
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://example.com/avatar.jpg"
-                    value={
-                      myProfileForm.avatar?.startsWith("data:") ||
-                      myProfileForm.avatar?.startsWith("/uploads/")
-                        ? ""
-                        : myProfileForm.avatar
-                    }
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        avatar: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px] text-slate-800 dark:text-slate-200"
-                  />
-                </div>
               </div>
 
               {/* Input Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
                     Full Name <span className="text-rose-500 font-bold">*</span>

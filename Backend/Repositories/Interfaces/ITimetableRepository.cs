@@ -14,6 +14,7 @@ public interface ITimetableRepository
     Task<PeriodSetting> SavePeriodSettingAsync(PeriodSetting period);
     Task<bool> DeletePeriodSettingAsync(int periodId);
     Task<bool> HasOverlappingPeriodSettingAsync(TimeSpan startTime, TimeSpan endTime, int? excludePeriodId = null);
+    Task<List<PeriodSetting>> SyncPeriodSettingsAsync(List<PeriodSetting> periods);
 
     // Timetable Header & Slots
     Task<TimetableHeader?> GetHeaderByClassSectionAsync(int classId, int sectionId, string academicYear);

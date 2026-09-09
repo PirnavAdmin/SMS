@@ -9,7 +9,7 @@ import { PeriodSetting, TimetableSlot } from '../../../types';
 import { useData, AcademicClass } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { saveTimetableSlotApi, fetchTimetableGridApi, deleteTimetableSlotApi } from '../../../api/academic';
+import { saveTimetableSlotApi, fetchTimetableGridApi, deleteTimetableSlotApi, syncPeriodSettingsApi, clearClassTimetableApi } from '../../../api/academic';
 
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
@@ -123,6 +123,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     deleteTimetableSlot,
     clearClassTimetable,
     fetchPeriods,
+    fetchTimetables,
     academicYears
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
@@ -155,10 +156,57 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   const [periodDurationMinutes, setPeriodDurationMinutes] = useState<number | string>(45);
 
   // Dynamic Breaks List (with Add, Edit, Delete options)
-  const [breaks, setBreaks] = useState<BreakItem[]>([
-    { id: 'BRK-1', name: 'Morning Break', durationMinutes: 15, afterPeriod: 2, type: 'Break', enabled: true },
-    { id: 'BRK-2', name: 'Lunch Break', durationMinutes: 45, afterPeriod: 4, type: 'Lunch', enabled: true }
-  ]);
+  const [breaks, setBreaks] = useState<BreakItem[]>([]);
+  const [hasInitializedTimings, setHasInitializedTimings] = useState(false);
+
+  useEffect(() => {
+    if (hasInitializedTimings) return;
+    const active = (periodSettings || [])
+      .filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'))
+      .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+    if (active.length > 0) {
+      const first = active[0];
+      const last = active[active.length - 1];
+      if (first?.startTime) setSchoolStartTime(first.startTime);
+      if (last?.endTime) setSchoolEndTime(last.endTime);
+
+      const firstTeaching = active.find(p => !p.isBreak && p.periodType === 'Teaching');
+      if (firstTeaching) {
+        if (firstTeaching.durationMinutes && Number(firstTeaching.durationMinutes) > 0) {
+          setPeriodDurationMinutes(Number(firstTeaching.durationMinutes));
+        } else if (firstTeaching.startTime && firstTeaching.endTime) {
+          const sMin = timeToMinutes(firstTeaching.startTime);
+          const eMin = timeToMinutes(firstTeaching.endTime);
+          if (eMin > sMin) setPeriodDurationMinutes(eMin - sMin);
+        }
+      }
+
+      const extractedBreaks: BreakItem[] = [];
+      let teachingCount = 0;
+      active.forEach((p, idx) => {
+        const isB = p.isBreak || p.periodType === 'Break' || p.periodType === 'Lunch';
+        if (!isB) {
+          teachingCount++;
+        } else {
+          const sMin = timeToMinutes(p.startTime);
+          const eMin = timeToMinutes(p.endTime);
+          const dur = p.durationMinutes && Number(p.durationMinutes) > 0 ? Number(p.durationMinutes) : (eMin > sMin ? eMin - sMin : 15);
+          extractedBreaks.push({
+            id: p.id || `BRK-${idx + 1}`,
+            name: p.periodName || (p.periodType === 'Lunch' ? 'Lunch Break' : 'Morning Break'),
+            durationMinutes: dur,
+            afterPeriod: teachingCount,
+            type: p.periodType === 'Lunch' ? 'Lunch' : 'Break',
+            enabled: true
+          });
+        }
+      });
+
+      setBreaks(extractedBreaks);
+      setHasInitializedTimings(true);
+    }
+  }, [periodSettings, hasInitializedTimings]);
 
   // Editing / adding break state
   const [editingBreakId, setEditingBreakId] = useState<string | null>(null);
@@ -463,6 +511,106 @@ interface GeneratedSlotAssignment {
   teacherId?: string;
 }
 
+function solveDailyPlacement(
+  items: GeneratedSlotAssignment[],
+  slots: (GeneratedSlotAssignment | null)[],
+  numPeriods: number,
+  preferredSlotOrder: number[]
+): boolean {
+  const freq = new Map<string, number>();
+  items.forEach(it => freq.set(it.subject, (freq.get(it.subject) || 0) + 1));
+  const sorted = [...items].sort((a, b) => {
+    const fDiff = (freq.get(b.subject) || 0) - (freq.get(a.subject) || 0);
+    if (fDiff !== 0) return fDiff;
+    return a.subject.localeCompare(b.subject);
+  });
+
+  function backtrack(idx: number): boolean {
+    if (idx >= sorted.length) {
+      return true;
+    }
+
+    const currentItem = sorted[idx];
+    const validCandidateSlots: { slot: number; score: number }[] = [];
+
+    for (let orderIdx = 0; orderIdx < preferredSlotOrder.length; orderIdx++) {
+      const slot = preferredSlotOrder[orderIdx];
+      if (slots[slot] !== null) continue;
+
+      // Check left neighbor - same subject must NEVER be consecutive
+      if (slot > 0 && slots[slot - 1] !== null && slots[slot - 1]!.subject === currentItem.subject) {
+        continue;
+      }
+
+      // Check right neighbor - same subject must NEVER be consecutive
+      if (slot < numPeriods - 1 && slots[slot + 1] !== null && slots[slot + 1]!.subject === currentItem.subject) {
+        continue;
+      }
+
+      // Check distance from existing instances of this subject today (must be >= 2)
+      let minDistance = 999;
+      let hasTooClose = false;
+      for (let s = 0; s < numPeriods; s++) {
+        if (slots[s] !== null && slots[s]!.subject === currentItem.subject) {
+          const dist = Math.abs(s - slot);
+          if (dist < 2) {
+            hasTooClose = true;
+            break;
+          }
+          if (dist < minDistance) {
+            minDistance = dist;
+          }
+        }
+      }
+      if (hasTooClose) continue;
+
+      // Scoring: reward large distance between instances of the same subject
+      const score = minDistance !== 999 ? (minDistance * 20 - orderIdx) : (100 - orderIdx);
+      validCandidateSlots.push({ slot, score });
+    }
+
+    validCandidateSlots.sort((a, b) => b.score - a.score);
+
+    for (const cand of validCandidateSlots) {
+      slots[cand.slot] = currentItem;
+      if (backtrack(idx + 1)) {
+        return true;
+      }
+      slots[cand.slot] = null;
+    }
+
+    return false;
+  }
+
+  return backtrack(0);
+}
+
+function eliminateConsecutiveDuplicates(slots: (GeneratedSlotAssignment | null)[]) {
+  const numPeriods = slots.length;
+  for (let i = 0; i < numPeriods - 1; i++) {
+    const cur = slots[i];
+    const next = slots[i + 1];
+    if (cur && next && cur.subject === next.subject) {
+      for (let j = 0; j < numPeriods; j++) {
+        if (j === i || j === i + 1) continue;
+        const other = slots[j];
+
+        const otherValidAtIPlus1 = (!other || other.subject !== cur.subject) &&
+          (i + 2 >= numPeriods || !slots[i + 2] || !other || slots[i + 2]!.subject !== other.subject);
+
+        const nextValidAtJ = (j === 0 || !slots[j - 1] || slots[j - 1]!.subject !== next.subject) &&
+          (j === numPeriods - 1 || !slots[j + 1] || slots[j + 1]!.subject !== next.subject);
+
+        if (otherValidAtIPlus1 && nextValidAtJ) {
+          slots[i + 1] = other;
+          slots[j] = next;
+          break;
+        }
+      }
+    }
+  }
+}
+
 function computeScheduleMatrixForClassSection(
   className: string,
   section: string,
@@ -470,14 +618,22 @@ function computeScheduleMatrixForClassSection(
   teacherAssignments: any[],
   teachingPeriods: any[],
   workingDays: string[],
-  maxPeriodsPerDayPerSubject: number = 2
+  maxPeriodsPerDayPerSubject: number = 2,
+  classSectionOffset: number = 0
 ) {
   const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
   const cls = academicClasses.find(c => norm(c.name) === norm(className));
   const mappedSubs = cls?.subjects || [];
   const weeklyPeriodsMap = cls?.weeklyPeriods || {};
 
-  const subjectRequests = mappedSubs.map((subName: string) => {
+  interface SubjectRequirement {
+    subject: string;
+    count: number;
+    teacherName: string;
+    teacherId: string;
+  }
+
+  const subjectRequests: SubjectRequirement[] = mappedSubs.map((subName: string): SubjectRequirement => {
     const classCount = weeklyPeriodsMap[subName];
     const count = (typeof classCount === 'number' && classCount >= 0) ? classCount : 5;
 
@@ -497,72 +653,133 @@ function computeScheduleMatrixForClassSection(
       teacherName,
       teacherId
     };
-  }).filter((req: any) => req.count > 0);
+  }).filter((req: SubjectRequirement) => req.count > 0);
 
   const numDays = workingDays.length;
   const numPeriods = teachingPeriods.length;
 
   if (numDays === 0 || numPeriods === 0) return { dayBuckets: [], assignedGrid: {} };
 
+  // =========================================================================
+  // STEP 1: EVEN DISTRIBUTION OF PERIODS ACROSS DAYS (WEEKLY COVERAGE FIRST)
+  // =========================================================================
   const dayBuckets: GeneratedSlotAssignment[][] = Array.from({ length: numDays }, () => []);
-  const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
+  const daySubjectCounts: number[][] = Array.from({ length: numDays }, () => Array(subjectRequests.length).fill(0));
 
-  sortedRequests.forEach((req, sIdx) => {
-    const dayOffset = sIdx % numDays;
-    for (let i = 0; i < req.count; i++) {
-      let bestDay = -1;
-      let minLoad = 9999;
+  // Sort subjects by count descending
+  const sortedRequestsWithOriginalIdx = subjectRequests
+    .map((req: SubjectRequirement, origIdx: number) => ({ ...req, origIdx }))
+    .sort((a: { count: number }, b: { count: number }) => b.count - a.count);
+
+  sortedRequestsWithOriginalIdx.forEach((req: SubjectRequirement & { origIdx: number }) => {
+    let remaining = req.count;
+    const item: GeneratedSlotAssignment = {
+      subject: req.subject,
+      teacherName: req.teacherName,
+      teacherId: req.teacherId
+    };
+
+    const basePerDay = Math.floor(req.count / numDays);
+    const maxForThisSubject = Math.max(
+      maxPeriodsPerDayPerSubject,
+      Math.ceil(req.count / numDays)
+    );
+
+    // Pass 1: Assign basePerDay to ALL days (ensuring complete weekly coverage first)
+    for (let round = 0; round < basePerDay; round++) {
       for (let d = 0; d < numDays; d++) {
-        const targetDay = (dayOffset + d) % numDays;
-        const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
-        if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
-          if (dayBuckets[targetDay].length < minLoad) {
-            minLoad = dayBuckets[targetDay].length;
-            bestDay = targetDay;
-          }
+        if (remaining > 0 && dayBuckets[d].length < numPeriods) {
+          dayBuckets[d].push(item);
+          daySubjectCounts[d][req.origIdx]++;
+          remaining--;
         }
       }
-      if (bestDay === -1) {
-        for (let d = 0; d < numDays; d++) {
-          const targetDay = (dayOffset + d) % numDays;
-          if (dayBuckets[targetDay].length < numPeriods) {
-            if (dayBuckets[targetDay].length < minLoad) {
-              minLoad = dayBuckets[targetDay].length;
-              bestDay = targetDay;
-            }
-          }
-        }
-      }
-      if (bestDay !== -1) {
-        dayBuckets[bestDay].push({
-          subject: req.subject,
-          teacherName: req.teacherName,
-          teacherId: req.teacherId
+    }
+
+    // Pass 2: Distribute remaining periods to days with the lowest total load
+    if (remaining > 0) {
+      const candidateDays = Array.from({ length: numDays }, (_, d) => d)
+        .filter(d => 
+          daySubjectCounts[d][req.origIdx] <= basePerDay &&
+          daySubjectCounts[d][req.origIdx] < maxForThisSubject &&
+          dayBuckets[d].length < numPeriods
+        )
+        .sort((a, b) => {
+          const loadDiff = dayBuckets[a].length - dayBuckets[b].length;
+          if (loadDiff !== 0) return loadDiff;
+          const offsetA = (a + req.origIdx * 2 + classSectionOffset) % numDays;
+          const offsetB = (b + req.origIdx * 2 + classSectionOffset) % numDays;
+          return offsetA - offsetB;
         });
+
+      for (const d of candidateDays) {
+        if (remaining <= 0) break;
+        dayBuckets[d].push(item);
+        daySubjectCounts[d][req.origIdx]++;
+        remaining--;
+      }
+
+      // Fallback: If still remaining, place in any day with capacity
+      if (remaining > 0) {
+        for (let d = 0; d < numDays && remaining > 0; d++) {
+          if (dayBuckets[d].length < numPeriods && daySubjectCounts[d][req.origIdx] < maxForThisSubject) {
+            dayBuckets[d].push(item);
+            daySubjectCounts[d][req.origIdx]++;
+            remaining--;
+          }
+        }
       }
     }
   });
 
+  // =========================================================================
+  // STEP 2: PERIOD SLOT PLACEMENT WITHIN EACH DAY (NEVER BACK-TO-BACK)
+  // =========================================================================
   const assignedGrid: Record<string, (GeneratedSlotAssignment | null)[]> = {};
 
   workingDays.forEach((dayName, dIdx) => {
-    const subjectsForToday = dayBuckets[dIdx];
+    const todayItems = [...dayBuckets[dIdx]];
     const assignedSlots: (GeneratedSlotAssignment | null)[] = Array(numPeriods).fill(null);
 
-    subjectsForToday.forEach((item, itemIdx) => {
-      const preferredStartPeriod = (dIdx + itemIdx) % numPeriods;
-      let chosenPeriodIdx = -1;
-      for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
-        const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
-        if (assignedSlots[pIdx] === null) {
-          chosenPeriodIdx = pIdx;
-          break;
+    if (todayItems.length === 0) {
+      assignedGrid[dayName] = assignedSlots;
+      return;
+    }
+
+    // Preferred slot order: rotate by day index to avoid every subject always in period 1
+    const preferredSlotOrder: number[] = [];
+    const startOffset = (dIdx * 2 + classSectionOffset) % numPeriods;
+    for (let i = 0; i < numPeriods; i++) {
+      preferredSlotOrder.push((startOffset + i) % numPeriods);
+    }
+
+    // Solve placement
+    const solved = solveDailyPlacement(
+      todayItems,
+      assignedSlots,
+      numPeriods,
+      preferredSlotOrder
+    );
+
+    if (!solved) {
+      // Fallback: Alternating stride placement
+      const strideOrder: number[] = [];
+      for (let i = 0; i < numPeriods; i += 2) strideOrder.push(i);
+      for (let i = 1; i < numPeriods; i += 2) strideOrder.push(i);
+
+      todayItems.forEach((it, idx) => {
+        const slotIdx = strideOrder[idx % strideOrder.length];
+        if (assignedSlots[slotIdx] === null) {
+          assignedSlots[slotIdx] = it;
+        } else {
+          const nextFree = assignedSlots.findIndex(s => s === null);
+          if (nextFree !== -1) assignedSlots[nextFree] = it;
         }
-      }
-      if (chosenPeriodIdx !== -1) {
-        assignedSlots[chosenPeriodIdx] = item;
-      }
-    });
+      });
+    }
+
+    // Final safety verification pass
+    eliminateConsecutiveDuplicates(assignedSlots);
 
     assignedGrid[dayName] = assignedSlots;
   });
@@ -632,19 +849,12 @@ function computeScheduleMatrixForClassSection(
 
   // Quick Class & Section Group Selector
   const handleSelectClassGroup = (group: string) => {
-    const allSections: string[] = [];
-    academicClasses.forEach(c => {
-      const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-      sections.forEach(sec => allSections.push(`${c.name}-${sec}`));
-    });
-
     if (group === 'none') {
       setSelectedClassSections([]);
       return;
     }
     if (group === 'all') {
       setClassGroupFilter('all');
-      setSelectedClassSections(allSections);
       return;
     }
     if (group === 'sec-A' || group === 'sec-B') {
@@ -674,16 +884,6 @@ function computeScheduleMatrixForClassSection(
 
     if ((classGroups || []).some(g => g.key === group)) {
       setClassGroupFilter(group);
-      const activeGroup = (classGroups || []).find(g => g.key === group);
-      if (activeGroup) {
-        const targetClasses = (academicClasses || []).filter(c => activeGroup.match(c.name));
-        const groupKeys: string[] = [];
-        targetClasses.forEach(c => {
-          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-          sections.forEach(sec => groupKeys.push(`${c.name}-${sec}`));
-        });
-        setSelectedClassSections(groupKeys);
-      }
     }
   };
 
@@ -752,7 +952,21 @@ function computeScheduleMatrixForClassSection(
         autoAssignMappedSubjects
       };
 
-      // 1. Prepare Period Settings in memory (both Master and for each selected Class-Section)
+      // 1. Sync generated Master Periods to the backend DB so all clients and reloads have identical period boundaries
+      try {
+        const periodPayload = calculationResult.periods.map(p => ({
+          periodName: p.name,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          periodType: p.type === 'Teaching' ? 'Teaching Period' : p.type,
+          displayOrder: p.sequence
+        }));
+        await syncPeriodSettingsApi(periodPayload);
+      } catch (pErr) {
+        console.warn('Failed to sync master periods to backend:', pErr);
+      }
+
+      // Prepare Period Settings in memory (both Master and for each selected Class-Section)
       const newPeriodSettings: PeriodSetting[] = [];
 
       calculationResult.periods.forEach((p, idx) => {
@@ -804,7 +1018,8 @@ function computeScheduleMatrixForClassSection(
       const newTimetableSlots: TimetableSlot[] = [];
       const detectedTeacherConflicts: string[] = [];
 
-      for (const classSec of selectedClassSections) {
+      for (let csIdx = 0; csIdx < selectedClassSections.length; csIdx++) {
+        const classSec = selectedClassSections[csIdx];
         const lastDash = classSec.lastIndexOf('-');
         const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
         const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
@@ -822,7 +1037,8 @@ function computeScheduleMatrixForClassSection(
           teacherAssignments,
           teachingPeriods,
           workingDays,
-          maxPeriodsPerDayPerSubject
+          maxPeriodsPerDayPerSubject,
+          csIdx
         );
 
         workingDays.forEach(dayName => {
@@ -867,36 +1083,27 @@ function computeScheduleMatrixForClassSection(
         });
       }
 
-      // Clear previous timetable slots from frontend memory and backend DB for selected class sections
+      // Clear previous timetable slots from backend DB and frontend memory for selected class sections
       for (const classSec of selectedClassSections) {
         const lastDash = classSec.lastIndexOf('-');
         const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
         const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
-        
-        if (clearClassTimetable) {
-          await clearClassTimetable(className, section);
+        const cleanNum = className.replace(/^Class\s*/i, '').trim();
+
+        try {
+          await Promise.all([
+            clearClassTimetableApi(className, section, academicYear),
+            clearClassTimetableApi(`Class ${cleanNum}`, section, academicYear),
+            clearClassTimetableApi(cleanNum, section, academicYear),
+            clearClassTimetableApi(className, section),
+            clearClassTimetableApi(cleanNum, section)
+          ]);
+        } catch (e) {
+          console.warn('Pre-clear backend timetable slots notice:', e);
         }
 
-        // Fetch and delete existing backend DB slots for this class/section to avoid 409 DB conflicts completely
-        const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
-        if (clsObj?.id) {
-          try {
-            const gridRes: any = await fetchTimetableGridApi(clsObj.id, section, academicYear).catch(() => null);
-            const rawList = Array.isArray(gridRes?.data) ? gridRes.data : (Array.isArray(gridRes) ? gridRes : []);
-            if (rawList.length > 0) {
-              await Promise.all(
-                rawList.map(async (oldItem: any) => {
-                  const sId = oldItem?.slotId || oldItem?.id;
-                  if (sId) {
-                    const numericId = String(sId).replace(/^TT-/i, '');
-                    await deleteTimetableSlotApi(numericId).catch(() => {});
-                  }
-                })
-              );
-            }
-          } catch (e) {
-            console.warn('Pre-clear backend timetable slots skipped:', e);
-          }
+        if (clearClassTimetable) {
+          await clearClassTimetable(className, section);
         }
       }
 
@@ -926,6 +1133,7 @@ function computeScheduleMatrixForClassSection(
                   dayOfWeek: slot.day,
                   startTime,
                   endTime,
+                  periodId: slot.periodNumber,
                   subjectName: slot.subject,
                   subjectId: (slot as any).subjectId,
                   teacherName: slot.teacherName,
@@ -951,7 +1159,10 @@ function computeScheduleMatrixForClassSection(
       }
 
       if (fetchPeriods) {
-        fetchPeriods(true).catch(() => {});
+        await fetchPeriods(true).catch(() => {});
+      }
+      if (fetchTimetables) {
+        await fetchTimetables(true).catch(() => {});
       }
 
       const classListSummary = formattedSelectedClasses
@@ -1495,20 +1706,38 @@ function computeScheduleMatrixForClassSection(
 
                   {/* Quick Select Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {classGroups.map(g => (
-                      <button
-                        key={g.key}
-                        type="button"
-                        onClick={() => handleSelectClassGroup(g.key)}
-                        className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                          classGroupFilter === g.key
-                            ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
-                        }`}
-                      >
-                        {g.label}
-                      </button>
-                    ))}
+                    {classGroups.map(g => {
+                      const selCount = (academicClasses || [])
+                        .filter(c => g.match(c.name))
+                        .reduce((count, c) => {
+                          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+                          return count + sections.filter(sec => selectedClassSections.includes(`${c.name}-${sec}`)).length;
+                        }, 0);
+
+                      return (
+                        <button
+                          key={g.key}
+                          type="button"
+                          onClick={() => handleSelectClassGroup(g.key)}
+                          className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                            classGroupFilter === g.key
+                              ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                          }`}
+                        >
+                          <span>{g.label}</span>
+                          {selCount > 0 && (
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              classGroupFilter === g.key
+                                ? 'bg-white/20 text-white'
+                                : 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
+                            }`}>
+                              {selCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
 
                     <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
 

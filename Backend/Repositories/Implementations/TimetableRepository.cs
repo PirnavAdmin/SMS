@@ -28,7 +28,7 @@ public class TimetableRepository : ITimetableRepository
         var rawPeriods = await _context.PeriodSettings
             .Where(p => !p.IsDeleted && p.IsActive)
             .OrderBy(p => p.DisplayOrder)
-            .ThenBy(p => p.StartTime)
+            .ThenByDescending(p => p.PeriodId)
             .ToListAsync();
 
         var distinctPeriods = new List<PeriodSetting>();
@@ -53,7 +53,67 @@ public class TimetableRepository : ITimetableRepository
             }
         }
 
-        return distinctPeriods;
+        return distinctPeriods.OrderBy(p => p.DisplayOrder).ToList();
+    }
+
+    public async Task<List<PeriodSetting>> SyncPeriodSettingsAsync(List<PeriodSetting> periods)
+    {
+        if (periods == null || !periods.Any())
+            return await GetPeriodSettingsAsync();
+
+        var existingActive = await _context.PeriodSettings
+            .Where(p => !p.IsDeleted && p.IsActive)
+            .ToListAsync();
+
+        var usedExistingIds = new HashSet<int>();
+        var resultList = new List<PeriodSetting>();
+
+        foreach (var newP in periods)
+        {
+            var match = existingActive.FirstOrDefault(e =>
+                !usedExistingIds.Contains(e.PeriodId) &&
+                (e.DisplayOrder == newP.DisplayOrder ||
+                 e.PeriodName.Trim().Equals(newP.PeriodName.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+            if (match != null)
+            {
+                usedExistingIds.Add(match.PeriodId);
+                match.PeriodName = newP.PeriodName.Trim();
+                match.StartTime = newP.StartTime;
+                match.EndTime = newP.EndTime;
+                match.PeriodType = !string.IsNullOrWhiteSpace(newP.PeriodType) ? newP.PeriodType.Trim() : match.PeriodType;
+                match.DisplayOrder = newP.DisplayOrder;
+                match.IsActive = true;
+                match.IsDeleted = false;
+                resultList.Add(match);
+            }
+            else
+            {
+                var created = new PeriodSetting
+                {
+                    PeriodName = newP.PeriodName.Trim(),
+                    StartTime = newP.StartTime,
+                    EndTime = newP.EndTime,
+                    PeriodType = !string.IsNullOrWhiteSpace(newP.PeriodType) ? newP.PeriodType.Trim() : "Teaching Period",
+                    DisplayOrder = newP.DisplayOrder,
+                    IsActive = true,
+                    IsDeleted = false
+                };
+                await _context.PeriodSettings.AddAsync(created);
+                resultList.Add(created);
+            }
+        }
+
+        foreach (var oldP in existingActive)
+        {
+            if (!usedExistingIds.Contains(oldP.PeriodId))
+            {
+                oldP.IsDeleted = true;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return resultList.OrderBy(p => p.DisplayOrder).ToList();
     }
 
     public async Task<PeriodSetting?> GetPeriodSettingByIdAsync(int periodId)

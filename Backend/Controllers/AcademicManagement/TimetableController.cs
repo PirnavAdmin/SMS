@@ -467,6 +467,25 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         /// <summary>
+        /// Synchronize/replace master period settings from timetable generator or setup
+        /// </summary>
+        [HttpPost("periods/sync")]
+        [HttpPost("/api/academics/periods/sync")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> SyncPeriodSettings([FromBody] List<SavePeriodSettingDto> dtos)
+        {
+            try
+            {
+                var result = await _timetableService.SyncPeriodSettingsAsync(dtos);
+                return Ok(new { success = true, message = "Period settings synchronized successfully.", data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Save (Create or Update) a weekly class timetable slot allocation mapping
         /// </summary>
         [HttpPost("slot")]
