@@ -230,21 +230,33 @@ export const LeaveManagementView: React.FC = () => {
   }, [staff, user, userRole, isWarden, isAccountant, isDriver]);
 
   // Filter applications for current user if self service staff (teacher, warden, driver, accountant)
-  const myApplications = leaveApplications.filter(a => {
-    if (!isSelfServiceStaff) return true;
-    if (loggedUserStaffMember && (
-      a.employeeId === loggedUserStaffMember.id || 
-      a.empId === loggedUserStaffMember.empId ||
-      a.employeeId === loggedUserStaffMember.empId || 
-      a.empId === loggedUserStaffMember.id
-    )) return true;
-    if (user?.name && a.employeeName && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
-    if (user?.id && (String(a.employeeId) === String(user.id) || String(a.empId) === String(user.id))) return true;
-    if (isWarden && (a.designation?.toLowerCase().includes('warden') || a.department?.toLowerCase().includes('hostel'))) return true;
-    if (isAccountant && (a.designation?.toLowerCase().includes('accountant') || a.department?.toLowerCase().includes('finance'))) return true;
-    if (isDriver && (a.designation?.toLowerCase().includes('driver') || a.department?.toLowerCase().includes('transport'))) return true;
-    return false;
-  });
+  const myApplications = useMemo(() => {
+    if (!isSelfServiceStaff) return leaveApplications;
+
+    const loggedEmpId = (loggedUserStaffMember.empId || loggedUserStaffMember.id || '').toString().toLowerCase().trim();
+    const loggedId = (loggedUserStaffMember.id || '').toString().toLowerCase().trim();
+    const uId = user?.id ? String(user.id).toLowerCase().trim() : '';
+    const uEmpId = (user as any)?.empId ? String((user as any).empId).toLowerCase().trim() : '';
+    const uFirst = (user?.name || loggedUserStaffMember.firstName || '').toLowerCase().trim().split(' ')[0];
+    const isGenericAdmin = !user?.name || user.name.toLowerCase().includes('admin');
+
+    return leaveApplications.filter(a => {
+      const appEmpId = (a.empId || '').toString().toLowerCase().trim();
+      const appEmployeeId = (a.employeeId || '').toString().toLowerCase().trim();
+      const appName = (a.employeeName || '').toLowerCase().trim();
+
+      const isIdMatch = (
+        (loggedEmpId && (appEmpId === loggedEmpId || appEmployeeId === loggedEmpId)) ||
+        (loggedId && (appEmpId === loggedId || appEmployeeId === loggedId)) ||
+        (uId && (appEmpId === uId || appEmployeeId === uId)) ||
+        (uEmpId && (appEmpId === uEmpId || appEmployeeId === uEmpId))
+      );
+
+      const isNameMatch = !isGenericAdmin && uFirst && uFirst.length > 2 && appName.includes(uFirst);
+
+      return isIdMatch || isNameMatch;
+    });
+  }, [leaveApplications, isSelfServiceStaff, loggedUserStaffMember, user]);
 
   // Filter applications by selected branch/campus for Admin
   const campusApplications = useMemo(() => {
@@ -273,24 +285,14 @@ export const LeaveManagementView: React.FC = () => {
   }, [query, balanceCategoryFilter, selectedBranch]);
 
   const filteredStaffForBalance = useMemo(() => {
-    if (isDriver) {
-      const driverMatches = staff.filter(s =>
-        (driverStaffMember && (s.id === driverStaffMember.id || s.empId === driverStaffMember.empId)) ||
+    if (isSelfServiceStaff) {
+      const selfMatches = staff.filter(s =>
+        (loggedUserStaffMember && (s.id === loggedUserStaffMember.id || s.empId === loggedUserStaffMember.empId)) ||
         (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
-        (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
+        (user?.name && !user.name.toLowerCase().includes('admin') && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
         (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
       );
-      return driverMatches.length > 0 ? driverMatches : [driverStaffMember];
-    }
-
-    if (isTeacher) {
-      const teacherMatches = staff.filter(s =>
-        (teacherStaffMember && (s.id === teacherStaffMember.id || s.empId === teacherStaffMember.empId)) ||
-        (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
-        (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
-        (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
-      );
-      return teacherMatches.length > 0 ? teacherMatches : [teacherStaffMember];
+      return selfMatches.length > 0 ? selfMatches : [loggedUserStaffMember];
     }
 
     const isTeaching = (s: Staff) => {
@@ -361,7 +363,7 @@ export const LeaveManagementView: React.FC = () => {
   }>({ show: false, available: 0, requested: 0, appData: null });
 
   // Summaries Calculations
-  const targetList = isTeacher || isDriver ? myApplications : campusApplications;
+  const targetList = isSelfServiceStaff ? myApplications : campusApplications;
   const pendingCount = targetList.filter(a => (a.status || '').toLowerCase() === 'pending').length;
   const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
   const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
@@ -811,7 +813,7 @@ export const LeaveManagementView: React.FC = () => {
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              {!isTeacher && (
+              {!isSelfServiceStaff && (
                 <div className="relative">
                   <select
                     value={filterCategory}
@@ -874,7 +876,7 @@ export const LeaveManagementView: React.FC = () => {
                 </thead>
                 <tbody className="divide-y font-medium">
                   {(() => {
-                    const baseApps = isTeacher || isDriver ? myApplications : campusApplications;
+                    const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
                     const filteredList = baseApps.filter(app => {
                       const nameMatch = !query || app.employeeName.toLowerCase().includes(query.toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;

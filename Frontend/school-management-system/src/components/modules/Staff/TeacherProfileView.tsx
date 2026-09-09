@@ -262,10 +262,7 @@ export const TeacherProfileView: React.FC = () => {
       .map(ta => formatClsSec(ta.className, ta.section));
 
     const fromTimetable = timetable
-      .filter(t => {
-        const tName = (t.teacherName || '').toLowerCase();
-        return (teacherName && tName.includes(teacherName.toLowerCase())) || (tFirstName && tName.includes(tFirstName));
-      })
+      .filter(t => isTeacherNameMatch(t.teacherName))
       .map(t => formatClsSec(t.className, t.section));
 
     const fromStaff = (dbTeacher?.assignedClasses || []).map(ac => {
