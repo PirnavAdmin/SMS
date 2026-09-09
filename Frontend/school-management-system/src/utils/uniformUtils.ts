@@ -563,7 +563,7 @@ export const getStudentUniformFeeStatus = (
 
     if (p.paymentAllocation && p.paymentAllocation.length > 0) {
       return p.paymentAllocation.some((alloc: any) => {
-        const head = (alloc.feeHeadName || alloc.termName || alloc.feeHeadId || '').toLowerCase();
+        const head = String(alloc.feeHeadName || alloc.termName || alloc.feeHeadId || '').toLowerCase();
         const isBaseHead = head.includes('uniform') || head.includes('package') || head.includes('fh-04') || head.includes('fh-uni-base');
         const isExtraHead = head.includes('extra') || head.includes('socks') || head.includes('tracksuit') || head.includes('shoes');
         return isBaseHead && !isExtraHead;

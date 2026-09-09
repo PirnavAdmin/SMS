@@ -1931,8 +1931,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   ) => {
     if (!idOrName || !item) return false;
     const str = String(idOrName).toLowerCase().trim();
-    const itemId = (item.feeHeadId || "").toLowerCase().trim();
-    const itemName = (item.feeHeadName || "").toLowerCase().trim();
+    const itemId = String(item.feeHeadId || "").toLowerCase().trim();
+    const itemName = String(item.feeHeadName || "").toLowerCase().trim();
 
     if (str === itemId || str === itemName) return true;
 
@@ -1955,7 +1955,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     feeHeadName: string;
     category?: string;
   }) => {
-    const nameLower = (item.feeHeadName || "").toLowerCase().trim();
+    const nameLower = String(item.feeHeadName || "").toLowerCase().trim();
     const catLower = (item.category || "").toLowerCase().trim();
 
     const fh = feeHeads.find((h) => {
@@ -2051,7 +2051,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           feeHeads.some(
             (h) =>
               h.id === item.feeHeadId ||
-              h.name.toLowerCase() === item.feeHeadName.toLowerCase(),
+              String(h.name || "").toLowerCase() === String(item.feeHeadName || "").toLowerCase(),
           )),
     );
 
@@ -2086,7 +2086,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       let amt = i.amount;
       let itemName = i.feeHeadName;
-      const lowerName = (i.feeHeadName || "").toLowerCase();
+      const lowerName = String(i.feeHeadName || "").toLowerCase();
       const isUniform =
         lowerName.includes("uniform") || lowerName.includes("kit");
       if (isUniform) {
@@ -2097,7 +2097,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       const fh = (feeHeads || []).find(
         (h) =>
           (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
-          (h.name && i.feeHeadName && h.name.toLowerCase().trim() === i.feeHeadName.toLowerCase().trim()),
+          (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
       );
 
       const detectedFreq =
@@ -4076,8 +4076,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         feeHeads.some(
                           (h) =>
                             h.id === item.feeHeadId ||
-                            h.name.toLowerCase().trim() ===
-                              item.feeHeadName.toLowerCase().trim(),
+                            String(h.name || "").toLowerCase().trim() ===
+                              String(item.feeHeadName || "").toLowerCase().trim(),
                         )),
                   );
 
@@ -4102,7 +4102,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           ).some((idOrName) =>
                             isOptionalFeeMatched(idOrName, item)
                           );
-                          const lowerName = (item.feeHeadName || "").toLowerCase();
+                          const lowerName = String(item.feeHeadName || "").toLowerCase();
                           const isUniform = lowerName.includes("uniform") || lowerName.includes("kit");
                           const gnd = formData.gender || "Unisex";
                           const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);

@@ -2071,27 +2071,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("hostel_beds", initialHostelBeds),
   );
   const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
-    const versionKey = "edu_db_uniforms_reset_clean_user_added_only_v999999_wipe_all_clean";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_uniforms", JSON.stringify([]));
-      localStorage.setItem("uniforms", JSON.stringify([]));
-      return [];
-    }
-
-    const saved =
-      localStorage.getItem("edu_db_uniforms") ||
-      localStorage.getItem("uniforms");
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem("edu_db_uniforms") || localStorage.getItem("uniforms");
+      if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
 
-    return [];
+    return initialUniforms;
   });
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() =>
     getStored("custom_roles", initialCustomRoles),
@@ -2365,38 +2355,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Uniform ERP States
-  const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
-    () => {
-      const versionKey = "edu_db_uniform_categories_reset_clean_empty_v999999_wipe_all_clean";
-      if (!localStorage.getItem(versionKey)) {
-        localStorage.setItem(versionKey, "true");
-        localStorage.setItem("edu_db_uniform_categories", JSON.stringify([]));
-        localStorage.setItem("uniform_categories", JSON.stringify([]));
-        return [];
-      }
-
-      try {
-        const saved =
-          localStorage.getItem("edu_db_uniform_categories") ||
-          localStorage.getItem("uniform_categories");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed.filter((c: any) => {
-              const catName = (c.name || c.categoryName || "").toLowerCase().trim();
-              return !(
-                catName.includes("package") ||
-                catName.includes("kit") ||
-                (catName.includes("base") && (catName.includes("boys") || catName.includes("girls")))
-              );
-            });
-          }
+  const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem("edu_db_uniform_categories") || localStorage.getItem("uniform_categories");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((c: any) => {
+            const catName = (c.name || c.categoryName || "").toLowerCase().trim();
+            return !(
+              catName.includes("package") ||
+              catName.includes("kit") ||
+              (catName.includes("base") && (catName.includes("boys") || catName.includes("girls")))
+            );
+          });
         }
-      } catch (e) {}
-
-      return [];
-    },
-  );
+      }
+    } catch (e) {}
+    
+    // Fallback to initial mock data if cache was cleared
+    return initialUniformCategories;
+  });
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => {
     const vKey = "edu_db_uniform_sizes_restored_v999999_keep_sizes";
     if (!localStorage.getItem(vKey)) {
@@ -2433,51 +2412,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(deduplicated));
     return deduplicated;
   });
-  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(
-    () => {
-      const vKey = "edu_db_uniform_suppliers_reset_clean_empty_v999999_wipe_all_clean";
-      if (!localStorage.getItem(vKey)) {
-        localStorage.setItem(vKey, "true");
-        localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify([]));
-        localStorage.setItem("uniform_suppliers", JSON.stringify([]));
-        return [];
-      }
-      try {
-        const saved =
-          localStorage.getItem("edu_db_uniform_suppliers") ||
-          localStorage.getItem("uniform_suppliers");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {}
-      return [];
-    },
-  );
-  const [uniformInventory, setUniformInventory] = useState<
-    UniformInventoryItem[]
-  >(() => {
-    const versionKey = "edu_db_uniform_inventory_reset_clean_empty_v999999_wipe_all_clean";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_uniform_inventory", JSON.stringify([]));
-      localStorage.setItem("uniform_inventory", JSON.stringify([]));
-      return [];
-    }
-
+  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(() => {
     try {
-      const saved =
-        localStorage.getItem("edu_db_uniform_inventory") ||
-        localStorage.getItem("uniform_inventory");
+      const saved = localStorage.getItem("edu_db_uniform_suppliers") || localStorage.getItem("uniform_suppliers");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return initialUniformSuppliers;
+  });
+
+  const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("edu_db_uniform_inventory") || localStorage.getItem("uniform_inventory");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
     } catch (e) {}
-
-    return [];
+    return initialUniformInventory;
   });
 
   const [studentUniformIssues, setStudentUniformIssues] = useState<
@@ -2508,24 +2464,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     return [];
   });
-  const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
-    FinanceUniformConfig[]
-  >(() => {
-    const versionKey = "edu_db_finance_uniform_configs_reset_clean_empty_v999999_wipe_all_clean";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify([]));
-      localStorage.setItem("finance_uniform_configs", JSON.stringify([]));
-      return [];
-    }
-
+  const [financeUniformConfigs, setFinanceUniformConfigs] = useState<FinanceUniformConfig[]>(() => {
     try {
-      const saved =
-        localStorage.getItem("edu_db_finance_uniform_configs") ||
-        localStorage.getItem("finance_uniform_configs");
+      const saved = localStorage.getItem("edu_db_finance_uniform_configs") || localStorage.getItem("finance_uniform_configs");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
@@ -2534,79 +2478,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return [];
   });
 
-  // ERP Finance System Clean Slate Wipe Migration
-  useEffect(() => {
-    const wipeKey = "edu_db_finance_module_clean_slate_v2";
-    if (!localStorage.getItem(wipeKey)) {
-      localStorage.setItem(wipeKey, "true");
-      [
-        "fee_heads",
-        "edu_db_fee_heads",
-        "dynamic_fee_structures",
-        "edu_db_dynamic_fee_structures",
-        "fee_structures",
-        "edu_db_fee_structures",
-        "fee_payments",
-        "edu_db_fee_payments",
-        "student_fee_assignments",
-        "edu_db_student_fee_assignments",
-        "scholarships",
-        "edu_db_scholarships",
-        "student_scholarships",
-        "edu_db_student_scholarships",
-        "discounts",
-        "edu_db_discounts",
-        "student_discounts",
-        "edu_db_student_discounts",
-        "fine_rules",
-        "edu_db_fine_rules",
-        "refunds",
-        "edu_db_refunds",
-        "finance_transactions",
-        "edu_db_finance_transactions",
-        "financial_accounts",
-        "edu_db_financial_accounts",
-        "financial_categories",
-        "edu_db_financial_categories",
-        "financial_budgets",
-        "edu_db_financial_budgets",
-        "finance_hostel_configs",
-        "edu_db_finance_hostel_configs",
-        "finance_transport_configs",
-        "edu_db_finance_transport_configs",
-        "finance_uniform_configs",
-        "edu_db_finance_uniform_configs",
-        "student_fee_ledgers",
-        "edu_db_student_fee_ledgers",
-        "student_fee_installments",
-        "edu_db_student_fee_installments",
-      ].forEach((k) => localStorage.removeItem(k));
-    }
-  }, []);
 
-  // Force Master Wipe for ALL Uniform Data
-  useEffect(() => {
-    const forceResetKey = "edu_db_uniform_master_absolute_clean_wipe_v100003_keep_standard_sizes";
-    if (!localStorage.getItem(forceResetKey)) {
-      localStorage.setItem(forceResetKey, "true");
-      [
-        "uniform_categories", "edu_db_uniform_categories",
-        "uniforms", "edu_db_uniforms",
-        "uniform_inventory", "edu_db_uniform_inventory",
-        "finance_uniform_configs", "edu_db_finance_uniform_configs",
-        "student_uniform_issues", "edu_db_student_uniform_issues",
-        "uniform_suppliers", "edu_db_uniform_suppliers"
-      ].forEach((k) => {
-        localStorage.setItem(k, JSON.stringify([]));
-      });
-      setUniformCategories([]);
-      setUniforms([]);
-      setUniformInventory([]);
-      setFinanceUniformConfigs([]);
-      setUniformSuppliers([]);
-      setStudentUniformIssues([]);
-    }
-  }, []);
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() =>

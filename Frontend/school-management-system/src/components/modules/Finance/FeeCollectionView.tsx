@@ -193,7 +193,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
           if (p.paymentAllocation && p.paymentAllocation.length > 0) {
             return p.paymentAllocation.some((alloc) => {
-              const head = (alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || "").toLowerCase();
+              const head = String(alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || "").toLowerCase();
               const itemLower = (i.itemName || i.itemCategory || "").toLowerCase().replace(/\s*\(extra\)/gi, "").trim();
               const allocInstId = String((alloc as any).installmentId || (alloc as any).feeHeadId || "");
               if (allocInstId === instId1 || allocInstId === instId2 || allocInstId === instId3 || allocInstId === i.id) return true;

@@ -182,7 +182,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         if (!fa) return false;
         const isMatch = fa.studentId === stdIdMatch || fa.studentId === stdAdmMatch || (stdAdmMatch && fa.studentId?.includes(stdAdmMatch));
         if (!isMatch) return false;
-        const nameLower = (fa.feeHeadName || fa.termName || fa.feeHeadId || '').toLowerCase();
+        const nameLower = String(fa.feeHeadName || fa.termName || fa.feeHeadId || '').toLowerCase();
         return nameLower.includes('uniform') || nameLower.includes('fh-04') || nameLower.includes('unif-base');
       });
       if (hasFeeAssigned) return true;
@@ -294,7 +294,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
         if (p.paymentAllocation && p.paymentAllocation.length > 0) {
           return p.paymentAllocation.some(alloc => {
-            const head = (alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || '').toLowerCase();
+            const head = String(alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || '').toLowerCase();
             const itemLower = (issue.itemName || issue.itemCategory || '').toLowerCase().replace(/\s*\(extra\)/gi, '').trim();
             const allocInstId = String((alloc as any).installmentId || (alloc as any).feeHeadId || '');
             if (allocInstId === instId1 || allocInstId === instId2 || allocInstId === instId3 || allocInstId === issue.id) return true;
@@ -4068,7 +4068,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
             if (p.paymentAllocation && p.paymentAllocation.length > 0) {
               return p.paymentAllocation.some((alloc) => {
-                const head = (alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || "").toLowerCase();
+                const head = String(alloc.feeHeadName || alloc.termName || (alloc as any).feeHeadId || "").toLowerCase();
                 const itemLower = (item.itemName || item.itemCategory || "").toLowerCase().replace(/\s*\(extra\)/gi, "").trim();
                 const allocInstId = String((alloc as any).installmentId || (alloc as any).feeHeadId || "");
                 if (allocInstId === instId1 || allocInstId === instId2 || allocInstId === instId3 || allocInstId === item.id) return true;
