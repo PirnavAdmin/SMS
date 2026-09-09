@@ -15,6 +15,7 @@ export const MODULES = [
   "attendance",
   "timetable",
   "examination",
+  "report-cards",
   "homework",
   "fees",
   "uniforms",
@@ -173,6 +174,7 @@ export const hasModuleAccess = (
   if (moduleId === "librarian-attendance") moduleId = "library";
   if (moduleId === "library-timetable") moduleId = "library";
   if (moduleId === "warden-profile") moduleId = "staff";
+  if (moduleId === "report-cards") moduleId = "examination";
   const baseModule = moduleId.split("-")[0] as ModuleId;
   const lookupRole = normalizeRoleForRbac(role);
   const allowedModules =

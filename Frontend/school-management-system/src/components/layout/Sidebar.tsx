@@ -42,6 +42,7 @@ import {
   Link2,
   TrendingUp,
   History,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -481,11 +482,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: "examination",
-          label:
-            role.toLowerCase() === "parent" || role.toLowerCase() === "student"
-              ? "Report Cards"
-              : "Examinations",
+          label: "Examinations",
           icon: Award,
+        },
+        {
+          id: "report-cards",
+          label: "Report Cards",
+          icon: ClipboardList,
         },
         { id: "homework", label: "Homework", icon: FileText },
       ],
@@ -1381,7 +1384,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "student-promotion" && activeModule === "student-promotion") ||
                   (item.id === "alumni" && activeModule === "alumni") ||
                   (item.id === "attendance" && activeModule === "attendance") ||
-                  (item.id === "examination" && ["examination", "report-cards", "exam-results", "marks-entry"].includes(activeModule)) ||
+                  (item.id === "examination" && ["examination", "exam-results", "marks-entry"].includes(activeModule)) ||
+                  (item.id === "report-cards" && ["report-cards", "examination-report-cards"].includes(activeModule)) ||
                   (item.id === "homework" && activeModule === "homework") ||
                   (item.id === "inventory" && activeModule === "inventory") ||
                   (item.id === "communication" && activeModule === "communication") ||
