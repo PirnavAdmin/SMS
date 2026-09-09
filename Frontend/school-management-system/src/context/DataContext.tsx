@@ -22,7 +22,7 @@ import {
   getUniformFeeForClass,
   getItemFeeFromFinanceConfig,
 } from "../utils/uniformUtils";
-import { matchesClassName, normalizeClassName } from "../utils/classSorter";
+import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
 import {
   Student,
   AcademicHistoryRecord,
@@ -4481,6 +4481,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 sectionDetails: secDetails,
               };
             });
+            mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
             setAcademicClasses(mapped);
           }
         }
@@ -16281,14 +16282,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
 
-    // 2. Call backend clear API to remove all slots for this class and section
+    // 2. Call backend clear API to remove all slots for this class and section (all className & year variants)
+    const cleanNum = className.replace(/^Class\s*/i, "").trim();
     try {
-      await clearClassTimetableApi(className, section, selectedAcademicYear);
+      await Promise.all([
+        clearClassTimetableApi(className, section, selectedAcademicYear),
+        clearClassTimetableApi(`Class ${cleanNum}`, section, selectedAcademicYear),
+        clearClassTimetableApi(cleanNum, section, selectedAcademicYear),
+        clearClassTimetableApi(className, section),
+        clearClassTimetableApi(cleanNum, section),
+      ]);
     } catch (err) {
       console.warn("Failed to clear timetable slots from backend", err);
     }
 
-    // 3. Delete any known local id slots
+    // 3. Delete any known local id slots individually via backend API
     try {
       await Promise.all(
         existing.map(async (t) => {
@@ -18950,7 +18958,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const filteredStaff = useMemo(() => filterByBranch(staff), [staff, selectedBranch, selectedAcademicYear]);
   const filteredAdmissions = useMemo(() => filterByBranch(admissions), [admissions, selectedBranch, selectedAcademicYear]);
-  const filteredClasses = useMemo(() => filterByBranch(academicClasses), [academicClasses, selectedBranch, selectedAcademicYear]);
+  const filteredClasses = useMemo(() => {
+    const list = filterByBranch(academicClasses);
+    return [...list].sort((a, b) => compareClassesAscending(a.name, b.name));
+  }, [academicClasses, selectedBranch, selectedAcademicYear]);
   const filteredSubjects = useMemo(() => filterByBranch(subjects), [subjects, selectedBranch, selectedAcademicYear]);
   const filteredExams = useMemo(() => filterByBranch(exams), [exams, selectedBranch, selectedAcademicYear]);
   const filteredTimetable = useMemo(() => filterByBranch(timetable), [timetable, selectedBranch, selectedAcademicYear]);

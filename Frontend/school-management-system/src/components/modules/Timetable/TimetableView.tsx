@@ -18,6 +18,7 @@ import {
   fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
   publishTimetableApi, copyTimetableApi, fetchTeacherSubstitutionsApi
 } from '../../../api/academic';
+import { compareClassesAscending } from '../../../utils/classSorter';
 
 type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
 
@@ -329,7 +330,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
   };
 
-  const classOptions = useMemo(() => academicClasses.map(c => c.name), [academicClasses]);
+  const classOptions = useMemo(() => {
+    const names = academicClasses.map(c => c.name);
+    return names.sort(compareClassesAscending);
+  }, [academicClasses]);
   const getSectionsForClass = (className?: string) => {
     if (!className) return [];
     return academicClasses.find(c => c.name === className)?.sections || [];
@@ -1604,7 +1608,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                             const pStartMin = parseSortable(matchingPeriodSetting?.startTime || pStartRaw);
                             const pEndMin = parseSortable(matchingPeriodSetting?.endTime || pEndRaw);
 
-                            const match = (classTimetable || []).find(t => {
+                            const matchingSlots = (classTimetable || []).filter(t => {
                               if (!t || (t.day || '').toLowerCase() !== day.toLowerCase()) return false;
                               
                               // 1. Direct normalized string match
@@ -1618,32 +1622,34 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               const tStartMin = parseSortable(t.startTime || tTimes[0]);
                               const tEndMin = parseSortable(t.endTime || tTimes[1]);
 
-                              // 2. Start minute match (with 5 min tolerance)
-                              if (tStartMin !== 9999 && pStartMin !== 9999 && Math.abs(tStartMin - pStartMin) <= 5) {
+                              // 2. Start minute match (with 10 min tolerance)
+                              if (tStartMin !== 9999 && pStartMin !== 9999 && Math.abs(tStartMin - pStartMin) <= 10) {
                                 return true;
                               }
 
-                              // 3. Period sequence / number match
+                              // 3. Period sequence match ONLY if start time is not drastically different (within 15 mins)
                               if (t.periodNumber) {
-                                if (matchingPeriodSetting?.sequence && t.periodNumber === matchingPeriodSetting.sequence) {
-                                  return true;
-                                }
-                                if (t.periodNumber === (pIdx + 1)) {
-                                  return true;
+                                const isSeqMatch = (matchingPeriodSetting?.sequence && t.periodNumber === matchingPeriodSetting.sequence) || (t.periodNumber === (pIdx + 1));
+                                if (isSeqMatch) {
+                                  if (tStartMin === 9999 || pStartMin === 9999 || Math.abs(tStartMin - pStartMin) <= 15) {
+                                    return true;
+                                  }
                                 }
                               }
 
-                              // 4. Time overlap match (at least 15 mins overlap)
+                              // 4. Significant Time overlap match (at least 20 mins overlap)
                               if (tStartMin !== 9999 && tEndMin !== 9999 && pStartMin !== 9999 && pEndMin !== 9999) {
                                 const overlapStart = Math.max(tStartMin, pStartMin);
                                 const overlapEnd = Math.min(tEndMin, pEndMin);
-                                if (overlapEnd - overlapStart >= 15) {
+                                if (overlapEnd - overlapStart >= 20) {
                                   return true;
                                 }
                               }
 
                               return false;
                             });
+
+                            const match = matchingSlots.length > 0 ? matchingSlots[matchingSlots.length - 1] : undefined;
                             return (
                               <td key={day} className="py-3 px-2 text-center align-middle">
                                 {match ? (

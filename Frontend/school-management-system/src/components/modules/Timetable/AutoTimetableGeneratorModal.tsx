@@ -123,6 +123,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     deleteTimetableSlot,
     clearClassTimetable,
     fetchPeriods,
+    fetchTimetables,
     academicYears
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
@@ -1104,9 +1105,16 @@ function computeScheduleMatrixForClassSection(
         const lastDash = classSec.lastIndexOf('-');
         const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
         const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
-        
+        const cleanNum = className.replace(/^Class\s*/i, '').trim();
+
         try {
-          await clearClassTimetableApi(className, section, academicYear);
+          await Promise.all([
+            clearClassTimetableApi(className, section, academicYear),
+            clearClassTimetableApi(`Class ${cleanNum}`, section, academicYear),
+            clearClassTimetableApi(cleanNum, section, academicYear),
+            clearClassTimetableApi(className, section),
+            clearClassTimetableApi(cleanNum, section)
+          ]);
         } catch (e) {
           console.warn('Pre-clear backend timetable slots notice:', e);
         }
@@ -1169,6 +1177,9 @@ function computeScheduleMatrixForClassSection(
 
       if (fetchPeriods) {
         await fetchPeriods(true).catch(() => {});
+      }
+      if (fetchTimetables) {
+        await fetchTimetables(true).catch(() => {});
       }
 
       const classListSummary = formattedSelectedClasses

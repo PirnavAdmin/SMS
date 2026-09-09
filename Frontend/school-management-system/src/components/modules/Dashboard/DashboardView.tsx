@@ -313,7 +313,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     if (hour < 12) return 'Good Morning';
     if (hour < 17) return 'Good Afternoon';
     return 'Good Evening';
-  }, []); 
+  }, []);
+
+  const displayUserName = useMemo(() => {
+    const rawName = (user?.name || '').trim();
+    if (rawName && rawName.toLowerCase() !== 'user' && rawName.toLowerCase() !== 'administrator') {
+      return rawName;
+    }
+    if (user?.email) {
+      const username = user.email.split('@')[0];
+      const parts = username.split(/[._-]/);
+      const derived = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      if (derived) return derived;
+    }
+    return rawName || (isLibrarian ? 'Librarian' : 'Administrator');
+  }, [user, isLibrarian]);
   
   const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
   const nonTeachingStaff = useMemo(() => staff.filter(s => !teachingStaff.includes(s)), [staff, teachingStaff]);
@@ -682,7 +696,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div className="relative z-10 text-left">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span>{greeting}, {user?.name || (isLibrarian ? 'Librarian' : 'Admin')}!</span>
+              <span>{greeting}, {displayUserName}!</span>
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
             {isLibrarian && (
