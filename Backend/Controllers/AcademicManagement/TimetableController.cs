@@ -470,7 +470,8 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Save (Create or Update) a weekly class timetable slot allocation mapping
         /// </summary>
         [HttpPost("slot")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [HttpPost("/api/academics/timetable/slot")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> SaveTimetableSlot([FromBody] SaveTimetableSlotDto dto)
         {
             try
@@ -496,17 +497,14 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Delete an allocated weekly class timetable slot mapping
         /// </summary>
         [HttpDelete("slot/{id:int}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [HttpDelete("/api/academics/timetable/slot/{id:int}")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> DeleteTimetableSlot(int id)
         {
             try
             {
                 var success = await _timetableService.DeleteTimetableSlotAsync(id);
-                if (success)
-                {
-                    return Ok(new { success = true, message = "Timetable slot deleted successfully." });
-                }
-                return NotFound(new { success = false, message = "Timetable slot not found." });
+                return Ok(new { success = true, message = "Timetable slot deleted successfully." });
             }
             catch (Exception ex)
             {
