@@ -2270,7 +2270,40 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </div>
 
               {(() => {
-                const teacherAllSlots = (timetable || []).filter(t => t.teacherName === selectedTeacherName);
+                const isTeacherMatch = (t: TimetableSlot, targetName: string) => {
+                  if (!t || !targetName) return false;
+
+                  const targetNameLower = targetName.trim().toLowerCase();
+                  const slotTeacherLower = (t.teacherName || '').trim().toLowerCase();
+
+                  if (slotTeacherLower && targetNameLower) {
+                    if (slotTeacherLower === targetNameLower) return true;
+                    if (slotTeacherLower.includes(targetNameLower) || targetNameLower.includes(slotTeacherLower)) return true;
+                  }
+
+                  const staffObj = (teachingStaff || []).find(st => {
+                    const stFullName = `${st.firstName || ''} ${st.lastName || ''}`.trim().toLowerCase();
+                    const stName = (st.name || '').trim().toLowerCase();
+                    return (
+                      (stFullName && (stFullName === targetNameLower || targetNameLower.includes(stFullName) || stFullName.includes(targetNameLower))) ||
+                      (stName && (stName === targetNameLower || targetNameLower.includes(stName) || stName.includes(targetNameLower)))
+                    );
+                  });
+
+                  if (staffObj) {
+                    const staffIdStr = String(staffObj.id || '').trim();
+                    const staffEmpIdStr = String(staffObj.empId || '').trim();
+                    const slotTeacherIdStr = String(t.teacherId || '').trim();
+
+                    if (slotTeacherIdStr && (slotTeacherIdStr === staffIdStr || slotTeacherIdStr === staffEmpIdStr)) {
+                      return true;
+                    }
+                  }
+
+                  return false;
+                };
+
+                const teacherAllSlots = (timetable || []).filter(t => isTeacherMatch(t, selectedTeacherName));
                 const clashingSlotIds = new Set(
                   (teacherAllSlots || [])
                     .filter(s1 => (teacherAllSlots || []).some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
@@ -2354,7 +2387,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                   {timelinePeriod.slot}
                                 </td>
                                 {baseDays.map(day => {
-                                  const teacherSlots = (timetable || []).filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                                  const teacherSlots = (timetable || []).filter(t => isTeacherMatch(t, selectedTeacherName) && (t.day || '').toLowerCase() === day.toLowerCase());
                                   const matchSlots = (teacherSlots || []).filter(s => {
                                     if ((s.timeSlot || '').trim().toLowerCase() === (timelinePeriod.slot || '').trim().toLowerCase()) return true;
                                     const sStart = (s.startTime || s.timeSlot.split('-')[0] || '').trim();

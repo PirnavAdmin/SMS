@@ -849,19 +849,12 @@ function computeScheduleMatrixForClassSection(
 
   // Quick Class & Section Group Selector
   const handleSelectClassGroup = (group: string) => {
-    const allSections: string[] = [];
-    academicClasses.forEach(c => {
-      const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-      sections.forEach(sec => allSections.push(`${c.name}-${sec}`));
-    });
-
     if (group === 'none') {
       setSelectedClassSections([]);
       return;
     }
     if (group === 'all') {
       setClassGroupFilter('all');
-      setSelectedClassSections(allSections);
       return;
     }
     if (group === 'sec-A' || group === 'sec-B') {
@@ -891,16 +884,6 @@ function computeScheduleMatrixForClassSection(
 
     if ((classGroups || []).some(g => g.key === group)) {
       setClassGroupFilter(group);
-      const activeGroup = (classGroups || []).find(g => g.key === group);
-      if (activeGroup) {
-        const targetClasses = (academicClasses || []).filter(c => activeGroup.match(c.name));
-        const groupKeys: string[] = [];
-        targetClasses.forEach(c => {
-          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-          sections.forEach(sec => groupKeys.push(`${c.name}-${sec}`));
-        });
-        setSelectedClassSections(groupKeys);
-      }
     }
   };
 
@@ -1723,20 +1706,38 @@ function computeScheduleMatrixForClassSection(
 
                   {/* Quick Select Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {classGroups.map(g => (
-                      <button
-                        key={g.key}
-                        type="button"
-                        onClick={() => handleSelectClassGroup(g.key)}
-                        className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                          classGroupFilter === g.key
-                            ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
-                        }`}
-                      >
-                        {g.label}
-                      </button>
-                    ))}
+                    {classGroups.map(g => {
+                      const selCount = (academicClasses || [])
+                        .filter(c => g.match(c.name))
+                        .reduce((count, c) => {
+                          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+                          return count + sections.filter(sec => selectedClassSections.includes(`${c.name}-${sec}`)).length;
+                        }, 0);
+
+                      return (
+                        <button
+                          key={g.key}
+                          type="button"
+                          onClick={() => handleSelectClassGroup(g.key)}
+                          className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                            classGroupFilter === g.key
+                              ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                          }`}
+                        >
+                          <span>{g.label}</span>
+                          {selCount > 0 && (
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              classGroupFilter === g.key
+                                ? 'bg-white/20 text-white'
+                                : 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
+                            }`}>
+                              {selCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
 
                     <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
 
