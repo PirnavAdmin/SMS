@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { getRooms, createRoom, updateRoom, deleteRoom, getHostelBlocks, getRoomTypes, HostelRoom, HostelBlock, RoomType } from '../../../api/hostel';
@@ -12,6 +13,9 @@ interface RoomMasterViewProps {
 
 export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFilter, onHostelFilterChange }) => {
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
 
   const [rooms, setRooms] = useState<HostelRoom[]>([]);
   const [blocks, setBlocks] = useState<HostelBlock[]>([]);
@@ -77,7 +81,8 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
   const handleOpenAdd = async () => {
     setEditingRoom(null);
-    setFormHostelId('');
+    const initialBlockId = isWarden && targetBlocks.length > 0 ? String(targetBlocks[0].hostelId) : '';
+    setFormHostelId(initialBlockId);
     setFormFloorLevel('');
     setFormRoomNumber('');
     setFormRoomTypeId('');
@@ -120,8 +125,10 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
     try {
       setIsSubmitting(true);
+      const selectedBlock = (blocks || []).find(b => b && String(b.hostelId) === String(formHostelId));
       const payload = {
         hostelId: Number(formHostelId),
+        hostelName: selectedBlock?.hostelName || `Hostel Block #${formHostelId}`,
         roomTypeId: Number(formRoomTypeId),
         floorLevel: formFloorLevel,
         roomNumber: formRoomNumber,
@@ -144,6 +151,39 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     }
   };
 
+  const wardenAssignedBlocks = useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
+
+  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
+
+  useEffect(() => {
+    if (isWarden && targetBlocks.length > 0 && !filterHostel) {
+      setFilterHostel(String(targetBlocks[0].hostelId));
+    }
+  }, [isWarden, targetBlocks, filterHostel, setFilterHostel]);
+
   const handleDelete = async () => {
     if (deletingRoom) {
       try {
@@ -159,12 +199,13 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   };
 
   const filteredRooms = rooms.filter(rm => {
+    const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === String(rm.hostelId));
     const matchQuery = !searchQuery.trim() ||
                        rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                        rm.hostelName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                        rm.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchHostel = !filterHostel || filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
-    return matchQuery && matchHostel;
+    return isBlockMatch && matchQuery && matchHostel;
   });
 
   const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
@@ -172,6 +213,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  const getBlockDisplayName = (rm: HostelRoom) => {
+    const rawName = String(rm.hostelName || '').trim();
+    if (rawName && isNaN(Number(rawName)) && rawName !== String(rm.hostelId)) {
+      return rawName;
+    }
+    const matched = (blocks || []).find(b => Number(b.hostelId) === Number(rm.hostelId));
+    return matched?.hostelName || `Hostel Block #${rm.hostelId}`;
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -204,25 +254,31 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
-          <select
-            value={filterHostel}
-            onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
-          >
-            <option value="">Select Hostel...</option>
-            <option value="All">All Hostels</option>
-            {(blocks || [])
-              .filter(h => h != null)
-              .map((h, idx) => {
-                const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
-                const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
-                return (
-                  <option key={`filter_h_${idVal}_${idx}`} value={idVal}>
-                    {nameVal}
-                  </option>
-                );
-              })}
-          </select>
+          {isWarden ? (
+            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400">
+              {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
+            </div>
+          ) : (
+            <select
+              value={filterHostel}
+              onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+            >
+              <option value="">Select Hostel...</option>
+              <option value="All">All Hostels</option>
+              {(targetBlocks || [])
+                .filter(h => h != null)
+                .map((h, idx) => {
+                  const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                  const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
+                  return (
+                    <option key={`filter_h_${idVal}_${idx}`} value={idVal}>
+                      {nameVal}
+                    </option>
+                  );
+                })}
+            </select>
+          )}
         </div>
       </div>
 
@@ -250,7 +306,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">Room #{rm.roomNumber}</span>
-                    <h3 className="font-black text-base text-slate-900 dark:text-white">{rm.hostelName}</h3>
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">{getBlockDisplayName(rm)}</h3>
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
                     {rm.roomTypeSpecification || 'Standard Room'}
@@ -258,7 +314,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 </div>
 
                 <div className="space-y-1.5 text-xs">
-                  <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{rm.hostelName} → {rm.floorLevel}</strong></p>
+                  <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{getBlockDisplayName(rm)} → {rm.floorLevel}</strong></p>
                   <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{rm.occupiedBeds || 0} / {rm.bedCapacity} Beds Occupied</strong></p>
                   <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
                 </div>
@@ -292,29 +348,35 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold mb-1">Select Hostel Block <span className="text-rose-500">*</span></label>
-                <select
-                  value={formHostelId}
-                  onChange={e => {
-                    setFormHostelId(e.target.value);
-                    setFormFloorLevel('');
-                  }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                  disabled={isSubmitting}
-                  required
-                >
-                  <option value="" disabled>Select Hostel Block...</option>
-                  {(blocks || [])
-                    .filter(h => h != null)
-                    .map((h, idx) => {
-                      const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
-                      const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
-                      return (
-                        <option key={`form_h_${idVal}_${idx}`} value={idVal}>
-                          {nameVal}
-                        </option>
-                      );
-                    })}
-                </select>
+                {isWarden ? (
+                  <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-sky-600 dark:text-sky-400">
+                    {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
+                  </div>
+                ) : (
+                  <select
+                    value={formHostelId}
+                    onChange={e => {
+                      setFormHostelId(e.target.value);
+                      setFormFloorLevel('');
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                    disabled={isSubmitting}
+                    required
+                  >
+                    <option value="" disabled>Select Hostel Block...</option>
+                    {(targetBlocks || [])
+                      .filter(h => h != null)
+                      .map((h, idx) => {
+                        const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                        const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
+                        return (
+                          <option key={`form_h_${idVal}_${idx}`} value={idVal}>
+                            {nameVal}
+                          </option>
+                        );
+                      })}
+                  </select>
+                )}
               </div>
 
               <div>

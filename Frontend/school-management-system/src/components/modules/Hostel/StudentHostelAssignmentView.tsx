@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { useAuth } from '../../../context/AuthContext';
 import { getAllocations, createAllocation, vacateAllocation, getRooms, getHostelBlocks, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
 
 const StudentInlineCombobox: React.FC<{
@@ -116,6 +117,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const dataContext = useData();
   const students = Array.isArray(dataContext?.students) ? dataContext.students : [];
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
 
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [rooms, setRooms] = useState<HostelRoom[]>([]);
@@ -124,6 +128,39 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHostel, setFilterHostel] = useState('');
+
+  const wardenAssignedBlocks = React.useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
+
+  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
+
+  useEffect(() => {
+    if (isWarden && targetBlocks.length > 0 && !filterHostel) {
+      setFilterHostel(String(targetBlocks[0].hostelId));
+    }
+  }, [isWarden, targetBlocks, filterHostel]);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -282,7 +319,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setSelectedStudentId('');
-    setSelectedHostelId('');
+    setSelectedHostelId(isWarden && targetBlocks.length > 0 ? String(targetBlocks[0].hostelId) : '');
     setSelectedRoomId('');
     setSelectedBedNo('');
     setJoiningDate(new Date().toISOString().split('T')[0]);
@@ -291,7 +328,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const handleOpenAddForStudent = (stId: string) => {
     setSelectedStudentId(stId);
-    setSelectedHostelId('');
+    setSelectedHostelId(isWarden && targetBlocks.length > 0 ? String(targetBlocks[0].hostelId) : '');
     setSelectedRoomId('');
     setSelectedBedNo('');
     setJoiningDate(new Date().toISOString().split('T')[0]);
@@ -385,6 +422,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
   }, [searchQuery, filterHostel]);
 
   const filteredAssignments = combinedAssignmentsList.filter(a => {
+    const isBlockAllowed = !isWarden || targetBlocks.some(b =>
+      (a.hostelId && String(b.hostelId) === String(a.hostelId)) ||
+      (a.hostelName && b.hostelName && b.hostelName.toLowerCase().trim() === a.hostelName.toLowerCase().trim()) ||
+      a.isPendingAdmitted
+    );
+    if (!isBlockAllowed) return false;
+
     const matchQuery = (a.studentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (a.admissionNo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (a.roomNumber || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -398,7 +442,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   );
 
   const safeRooms = Array.isArray(rooms) ? rooms : [];
-  const safeBlocks = Array.isArray(blocks) ? blocks : [];
+  const safeBlocks = Array.isArray(targetBlocks) ? targetBlocks : [];
   const selectedBlock = safeBlocks.find(b => b && b.hostelId !== undefined && String(b.hostelId) === String(selectedHostelId));
 
   const availableRooms = safeRooms.filter(r => {
@@ -442,25 +486,31 @@ export const StudentHostelAssignmentView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <select
-            value={filterHostel}
-            onChange={e => setFilterHostel(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
-          >
-            <option value="">Select Hostel...</option>
-            <option value="All">All Hostels</option>
-            {(blocks || [])
-              .filter(b => b != null)
-              .map((b, idx) => {
-                const idVal = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : String((b as any).id || idx);
-                const nameVal = b.hostelName || (b as any).name || `Hostel Block #${idVal}`;
-                return (
-                  <option key={`stu_filter_${idVal}_${idx}`} value={idVal}>
-                    {nameVal}
-                  </option>
-                );
-              })}
-          </select>
+          {isWarden ? (
+            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400">
+              {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
+            </div>
+          ) : (
+            <select
+              value={filterHostel}
+              onChange={e => setFilterHostel(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+            >
+              <option value="">Select Hostel...</option>
+              <option value="All">All Hostels</option>
+              {(targetBlocks || [])
+                .filter(b => b != null)
+                .map((b, idx) => {
+                  const idVal = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : String((b as any).id || idx);
+                  const nameVal = b.hostelName || (b as any).name || `Hostel Block #${idVal}`;
+                  return (
+                    <option key={`stu_filter_${idVal}_${idx}`} value={idVal}>
+                      {nameVal}
+                    </option>
+                  );
+                })}
+            </select>
+          )}
         </div>
       </div>
 
@@ -587,30 +637,36 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
               <div>
                 <label className="block font-semibold mb-1">Select Hostel Block <span className="text-rose-500">*</span></label>
-                <select 
-                  value={selectedHostelId || ''} 
-                  onChange={e => {
-                    const newHostelId = e.target.value;
-                    setSelectedHostelId(newHostelId);
-                    const newRooms = (rooms || []).filter(r => r && r.hostelId !== undefined && r.hostelId !== null && String(r.hostelId) === newHostelId);
-                    setSelectedRoomId(newRooms.length > 0 ? String(newRooms[0].roomId) : '');
-                  }} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
-                  disabled={isSubmitting}
-                >
-                  <option value="" disabled>Select Hostel Block</option>
-                  {(blocks || [])
-                    .filter(h => h != null)
-                    .map((h, idx) => {
-                      const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
-                      const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
-                      return (
-                        <option key={`modal_blk_${idVal}_${idx}`} value={idVal}>
-                          {nameVal}
-                        </option>
-                      );
-                    })}
-                </select>
+                {isWarden ? (
+                  <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-sky-600 dark:text-sky-400">
+                    {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
+                  </div>
+                ) : (
+                  <select 
+                    value={selectedHostelId || ''} 
+                    onChange={e => {
+                      const newHostelId = e.target.value;
+                      setSelectedHostelId(newHostelId);
+                      const newRooms = (rooms || []).filter(r => r && r.hostelId !== undefined && r.hostelId !== null && String(r.hostelId) === newHostelId);
+                      setSelectedRoomId(newRooms.length > 0 ? String(newRooms[0].roomId) : '');
+                    }} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
+                    disabled={isSubmitting}
+                  >
+                    <option value="" disabled>Select Hostel Block</option>
+                    {(targetBlocks || [])
+                      .filter(h => h != null)
+                      .map((h, idx) => {
+                        const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                        const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
+                        return (
+                          <option key={`modal_blk_${idVal}_${idx}`} value={idVal}>
+                            {nameVal}
+                          </option>
+                        );
+                      })}
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

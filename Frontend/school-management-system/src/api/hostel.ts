@@ -581,9 +581,15 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
       (Number(a.roomId) === Number(rm.roomId) || (String(a.roomNumber) === String(rm.roomNumber) && Number(a.hostelId) === Number(rm.hostelId)))
     ).length;
 
+    const rawHostelName = String(rm.hostelName || '').trim();
+    const isInvalidHostelName = !rawHostelName || !isNaN(Number(rawHostelName)) || rawHostelName === String(rm.hostelId);
+    const resolvedHostelName = isInvalidHostelName
+      ? (matchingBlock?.hostelName || `Hostel Block #${rm.hostelId}`)
+      : rawHostelName;
+
     return {
       ...rm,
-      hostelName: rm.hostelName || matchingBlock?.hostelName || `Hostel Block #${rm.hostelId}`,
+      hostelName: resolvedHostelName,
       roomTypeSpecification: rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room',
       bedCapacity: cap,
       capacity: cap,
@@ -616,10 +622,16 @@ export const createRoom = async (data: Partial<HostelRoom>) => {
   const blocks = getStoredHostelBlocks();
   const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(data.hostelId));
 
+  const rawDataHostelName = String(data.hostelName || '').trim();
+  const isInvalidHostelName = !rawDataHostelName || !isNaN(Number(rawDataHostelName)) || rawDataHostelName === String(data.hostelId);
+  const resolvedHostelName = !isInvalidHostelName
+    ? rawDataHostelName
+    : (matchingBlock?.hostelName || `Hostel Block #${data.hostelId || 1}`);
+
   const newRoom: HostelRoom = {
     roomId: nextId,
     hostelId: Number(data.hostelId) || 1,
-    hostelName: data.hostelName || matchingBlock?.hostelName || 'Ramachandra Bhavan Block',
+    hostelName: resolvedHostelName,
     hostelCode: matchingBlock?.hostelCode || `HST-00${data.hostelId || 1}`,
     roomTypeId: Number(data.roomTypeId) || 1,
     roomTypeSpecification: matchingRt?.roomTypeSpecification || 'Standard Room',
@@ -650,7 +662,19 @@ export const createRoom = async (data: Partial<HostelRoom>) => {
 
 export const updateRoom = async (id: number, data: Partial<HostelRoom>) => {
   const current = getStoredRooms();
-  const updated = current.map(r => Number(r.roomId) === Number(id) ? { ...r, ...data } : r);
+  const blocks = getStoredHostelBlocks();
+
+  const updated = current.map(r => {
+    if (Number(r.roomId) === Number(id)) {
+      const mergedHostelId = data.hostelId ? Number(data.hostelId) : r.hostelId;
+      const b = blocks.find(blk => Number(blk.hostelId) === Number(mergedHostelId));
+      const rawName = String(data.hostelName || '').trim();
+      const isInvalid = !rawName || !isNaN(Number(rawName)) || rawName === String(mergedHostelId);
+      const hName = !isInvalid ? rawName : (b?.hostelName || (r.hostelName && isNaN(Number(r.hostelName)) ? r.hostelName : `Hostel Block #${mergedHostelId}`));
+      return { ...r, ...data, hostelId: mergedHostelId, hostelName: hName };
+    }
+    return r;
+  });
   saveStoredRooms(updated);
 
   try {

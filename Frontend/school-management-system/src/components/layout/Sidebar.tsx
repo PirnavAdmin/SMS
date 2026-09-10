@@ -274,11 +274,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const hostelSubItems =
     role.toLowerCase() === "parent" || role.toLowerCase() === "student"
       ? []
+      : role.toLowerCase().includes("warden")
+      ? [
+          {
+            id: "hostel-masters",
+            label: "Hostel Master Setup",
+            icon: Building2,
+          },
+          {
+            id: "hostel-student-hostel",
+            label: "Room Allocation",
+            icon: UserPlus,
+          },
+          {
+            id: "hostel-reports",
+            label: "Hostel Reports",
+            icon: FileSpreadsheet,
+          },
+        ]
       : [
           { id: "hostel-dashboard", label: "Dashboard", icon: LayoutDashboard },
-          ...(!role.toLowerCase().includes("warden") ? [
-            { id: "warden-attendance", label: "Warden Attendance", icon: CalendarCheck }
-          ] : []),
           {
             id: "hostel-masters",
             label: "Hostel Master Setup",

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-
+import { useAuth } from '../../../context/AuthContext';
 import { HostelDashboardView } from './HostelDashboardView';
 import { HostelMastersView } from './HostelMastersView';
 import { StudentHostelContainerView } from './StudentHostelContainerView';
@@ -11,10 +11,17 @@ interface HostelContainerViewProps {
 }
 
 export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
+
   const getCleanTab = (tab: string) => {
     let clean = tab.startsWith('hostel-') ? tab.replace('hostel-', '') : tab;
     if (clean === 'room-allocation' || clean === 'room-allocations' || clean === 'allocation' || clean === 'allocations' || clean === 'student-room-allocation') {
       return 'student-hostel';
+    }
+    if (isWarden && (clean === 'dashboard' || !clean)) {
+      return 'masters';
     }
     return clean;
   };
@@ -23,7 +30,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
 
   useEffect(() => {
     setActiveTab(getCleanTab(initialTab));
-  }, [initialTab]);
+  }, [initialTab, isWarden]);
 
   const handleNavigate = (tab: string) => {
     const clean = getCleanTab(tab);
@@ -32,6 +39,10 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   };
 
   const renderTabContent = () => {
+    if (isWarden && activeTab === 'dashboard') {
+      return <HostelMastersView />;
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <HostelDashboardView onNavigate={handleNavigate} />;
@@ -67,7 +78,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
       case 'reports':
         return <HostelReportsView />;
       default:
-        return <HostelDashboardView onNavigate={handleNavigate} />;
+        return isWarden ? <HostelMastersView /> : <HostelDashboardView onNavigate={handleNavigate} />;
     }
   };
 

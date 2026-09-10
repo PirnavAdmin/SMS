@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
 import { Building2, Layers, Home, Users } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { HostelMasterView } from './HostelMasterView';
 import { RoomTypeMasterView } from './RoomTypeMasterView';
 import { RoomMasterView } from './RoomMasterView';
 import { WardenMasterView } from './WardenMasterView';
 
 export const HostelMastersView: React.FC = () => {
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
+
   const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>('blocks');
   const [sharedHostelFilter, setSharedHostelFilter] = useState('');
 
-  const subTabs = [
+  const allSubTabs = [
     { id: 'blocks', label: 'Hostel Blocks', icon: Building2 },
     { id: 'room-types', label: 'Room Categories', icon: Layers },
     { id: 'rooms', label: 'Rooms & Bed Allocation', icon: Home },
     { id: 'wardens', label: 'Warden Allocation', icon: Users }
   ] as const;
+
+  const subTabs = isWarden ? allSubTabs.filter(t => t.id !== 'wardens') : allSubTabs;
 
   return (
     <div className="space-y-6 animate-in fade-in">

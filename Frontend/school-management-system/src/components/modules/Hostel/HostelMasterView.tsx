@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { getHostelBlocks, createHostelBlock, updateHostelBlock, deleteHostelBlock, getRooms, getAllocations, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 
@@ -18,6 +19,9 @@ interface FloorAlloc {
 
 export const HostelMasterView: React.FC = () => {
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
 
   const [hostelMasters, setHostelMasters] = useState<HostelBlock[]>([]);
   const [roomMasters, setRoomMasters] = useState<HostelRoom[]>([]);
@@ -212,7 +216,34 @@ export const HostelMasterView: React.FC = () => {
     }
   };
 
-  const filteredHostels = hostelMasters.filter(h => {
+  const wardenAssignedHostels = useMemo(() => {
+    if (!isWarden) return hostelMasters;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = hostelMasters.filter(h => {
+      const wName = (h.wardenName || (h as any).warden || '').toLowerCase().trim();
+      const wEmail = (h.email || (h as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = hostelMasters.find(h =>
+      (h.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (h.hostelName || '').toLowerCase().includes('bhanu') ||
+      (h.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (hostelMasters.length > 0 ? [hostelMasters[0]] : []);
+  }, [hostelMasters, isWarden, user]);
+
+  const targetHostels = isWarden ? wardenAssignedHostels : hostelMasters;
+
+  const filteredHostels = targetHostels.filter(h => {
     const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
 
     const matchesSearch = displayTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -236,50 +267,54 @@ export const HostelMasterView: React.FC = () => {
             <Building2 className="w-6 h-6 text-sky-500" /> Hostels
           </h2>
         </div>
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
-        >
-          <Plus className="w-4 h-4" /> Add New Hostel Block
-        </button>
+        {!isWarden && (
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          >
+            <Plus className="w-4 h-4" /> Add New Hostel Block
+          </button>
+        )}
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search by name or code..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
-          />
-        </div>
+      {!isWarden && (
+        <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              placeholder="Search by name or code..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            />
+          </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
-          >
-            <option value="">Select Hostel...</option>
-            <option value="All">All Hostels</option>
-            {hostelMasters.map((h, idx) => {
-              const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
-              return (
-                <option key={`h-opt-${h.hostelId || idx}-${idx}`} value={displayTitle}>
-                  {displayTitle} ({h.hostelCode || 'HST-01'})
-                </option>
-              );
-            })}
-          </select>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+            >
+              <option value="">Select Hostel...</option>
+              <option value="All">All Hostels</option>
+              {targetHostels.map((h, idx) => {
+                const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
+                return (
+                  <option key={`h-opt-${h.hostelId || idx}-${idx}`} value={displayTitle}>
+                    {displayTitle} ({h.hostelCode || 'HST-01'})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Empty State Prompt if no filter selected and no search query */}
-      {!filterType && !searchQuery.trim() ? (
+      {!filterType && !searchQuery.trim() && !isWarden ? (
         <div className="py-16 px-6 glass-card rounded-3xl border border-sky-200/80 dark:border-sky-900/50 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
           <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-500 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto shadow-inner">
             <Building2 className="w-7 h-7" />
@@ -358,7 +393,9 @@ export const HostelMasterView: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleOpenEdit(h)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => setDeletingHostel(h)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                      {!isWarden && (
+                        <button onClick={() => setDeletingHostel(h)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                      )}
                     </div>
                   </div>
                 </div>

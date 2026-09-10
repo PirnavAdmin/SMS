@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Home, Building2, Bed, Users, IndianRupee, Shield, Plus, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, PieChart, Layers, Search } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { Pagination } from '../../common/Pagination';
 import { getHostelBlocks, getRooms, getAllocations, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
@@ -46,8 +47,37 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
     loadData();
   }, [loadData]);
 
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
+
+  const wardenAssignedBlocks = React.useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
+
   // Derived calculations from real data across all hostel modules
-  const displayBlocks = blocks;
+  const displayBlocks = isWarden ? wardenAssignedBlocks : blocks;
   const totalHostels = displayBlocks.length;
 
   const activeBlockIds = new Set(displayBlocks.map(b => String(b.hostelId)));
@@ -292,45 +322,47 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
               <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-sky-500" /> Hostel Block Overview
               </h3>
-              <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap sm:flex-nowrap">
-                {/* Optional Search Input */}
-                <div className="relative w-full sm:w-52">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search block name or code..."
-                    value={dashboardSearchQuery}
-                    onChange={e => setDashboardSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
-                  />
-                </div>
+              {!isWarden && (
+                <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                  {/* Optional Search Input */}
+                  <div className="relative w-full sm:w-52">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search block name or code..."
+                      value={dashboardSearchQuery}
+                      onChange={e => setDashboardSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
+                    />
+                  </div>
 
-                {/* Block Name Filter Dropdown */}
-                <select
-                  value={dashboardBlockFilter}
-                  onChange={e => setDashboardBlockFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
-                >
-                  <option value="">Select Hostel Block...</option>
-                  <option value="All">All Hostel Blocks</option>
-                  {(displayBlocks || [])
-                    .filter(b => b != null)
-                    .map((b, idx) => {
-                      const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
-                      const title = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
-                      const idKey = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : `dash_blk_${idx}`;
-                      return (
-                        <option key={`dash_opt_${idKey}_${idx}`} value={title}>
-                          {title}
-                        </option>
-                      );
-                    })}
-                </select>
-              </div>
+                  {/* Block Name Filter Dropdown */}
+                  <select
+                    value={dashboardBlockFilter}
+                    onChange={e => setDashboardBlockFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                  >
+                    <option value="">Select Hostel Block...</option>
+                    <option value="All">All Hostel Blocks</option>
+                    {(displayBlocks || [])
+                      .filter(b => b != null)
+                      .map((b, idx) => {
+                        const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
+                        const title = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
+                        const idKey = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : `dash_blk_${idx}`;
+                        return (
+                          <option key={`dash_opt_${idKey}_${idx}`} value={title}>
+                            {title}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Render Empty State Prompt if not selected */}
-            {!dashboardBlockFilter && !dashboardSearchQuery.trim() ? (
+            {!dashboardBlockFilter && !dashboardSearchQuery.trim() && !isWarden ? (
               <div className="py-12 px-6 rounded-2xl border border-sky-200/80 dark:border-sky-900/50 text-center space-y-2 bg-slate-50/50 dark:bg-slate-800/30">
                 <Building2 className="w-8 h-8 text-sky-500 mx-auto opacity-70" />
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Select a Hostel Block</p>

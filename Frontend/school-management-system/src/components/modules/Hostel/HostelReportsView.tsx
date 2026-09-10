@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileSpreadsheet, Printer, FileText, Search } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
@@ -10,7 +11,6 @@ import { SearchableSelect } from '../../common/SearchableSelect';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 
 const ENTERPRISE_HOSTEL_REPORTS = [
-  'Hostel Report',
   'Block Report',
   'Warden Report',
   'Room Occupancy Report',
@@ -19,6 +19,10 @@ const ENTERPRISE_HOSTEL_REPORTS = [
 
 export const HostelReportsView: React.FC = () => {
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
+
   const dataContext = useData();
   const students = Array.isArray(dataContext?.students) ? dataContext.students : [];
   const admissions = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
@@ -36,6 +40,33 @@ export const HostelReportsView: React.FC = () => {
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [wardens, setWardens] = useState<WardenRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const wardenAssignedBlocks = useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
+
+  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,10 +168,14 @@ export const HostelReportsView: React.FC = () => {
 
   // Generate Live Report Data JSON
   const rawReportData = useMemo(() => {
+    const reportBlocks = isWarden ? targetBlocks : blocks;
+    const reportBlockIds = new Set(reportBlocks.map(b => String(b.hostelId)));
+    const reportBlockNames = new Set(reportBlocks.map(b => (b.hostelName || '').toLowerCase().trim()));
+
     switch (selectedReport) {
       case 'Hostel Report': {
-        if (blocks.length === 0) return [];
-        return blocks.map(b => {
+        if (reportBlocks.length === 0) return [];
+        return reportBlocks.map(b => {
           const bName = b.hostelName || (b as any).name || `Block #${b.hostelId}`;
           const blockRooms = rooms.filter(r => String(r.hostelId) === String(b.hostelId));
           const totalBeds = blockRooms.reduce((acc, r) => acc + (r.bedCapacity || 0), 0);
@@ -163,8 +198,8 @@ export const HostelReportsView: React.FC = () => {
       }
 
       case 'Block Report': {
-        if (blocks.length === 0) return [];
-        return blocks.map(b => ({
+        if (reportBlocks.length === 0) return [];
+        return reportBlocks.map(b => ({
           'Block Code': b.hostelCode || `BLK-${b.hostelId}`,
           'Block Name': b.hostelName || `Block #${b.hostelId}`,
           'Category': b.hostelType || 'Boys Hostel',
@@ -177,9 +212,12 @@ export const HostelReportsView: React.FC = () => {
       }
 
       case 'Warden Report': {
-        if (wardens.length === 0 && blocks.length === 0) return [];
+        if (wardens.length === 0 && reportBlocks.length === 0) return [];
         if (wardens.length > 0) {
-          return wardens.map(w => ({
+          const filteredWardens = isWarden
+            ? wardens.filter(w => reportBlockNames.has((w.hostelName || '').toLowerCase().trim()))
+            : wardens;
+          return filteredWardens.map(w => ({
             'Warden Name': w.wardenName || 'Warden',
             'Employee ID': w.employeeId || 'EMP-101',
             'Assigned Block': w.hostelName || 'Hostel Block',
@@ -188,7 +226,7 @@ export const HostelReportsView: React.FC = () => {
             'Assignment Date': w.createdAt ? w.createdAt.split('T')[0] : 'Active'
           }));
         }
-        return blocks.filter(b => b.wardenName && b.wardenName !== 'Unassigned').map(b => ({
+        return reportBlocks.filter(b => b.wardenName && b.wardenName !== 'Unassigned').map(b => ({
           'Warden Name': b.wardenName,
           'Employee ID': `EMP-${b.hostelId}`,
           'Assigned Block': b.hostelName,
@@ -199,8 +237,11 @@ export const HostelReportsView: React.FC = () => {
       }
 
       case 'Room Occupancy Report': {
-        if (rooms.length === 0) return [];
-        return rooms.map(r => {
+        const filteredRooms = isWarden
+          ? rooms.filter(r => reportBlockIds.has(String(r.hostelId)))
+          : rooms;
+        if (filteredRooms.length === 0) return [];
+        return filteredRooms.map(r => {
           const blockObj = blocks.find(b => String(b.hostelId) === String(r.hostelId));
           const blockName = blockObj?.hostelName || (r as any).hostelName || `Block #${r.hostelId}`;
           const occBeds = allocations.filter(a => String(a.roomId) === String(r.roomId) && a.status === 'Active').length;
@@ -224,8 +265,11 @@ export const HostelReportsView: React.FC = () => {
 
       case 'Student Hostel Report': {
         const list: any[] = [];
+        const filteredAllocations = isWarden
+          ? allocations.filter(a => reportBlockIds.has(String(a.hostelId)))
+          : allocations;
 
-        allocations.forEach(a => {
+        filteredAllocations.forEach(a => {
           const blockObj = blocks.find(b => String(b.hostelId) === String(a.hostelId));
           const bName = a.hostelName || blockObj?.hostelName || `Block #${a.hostelId}`;
           list.push({
@@ -239,27 +283,29 @@ export const HostelReportsView: React.FC = () => {
           });
         });
 
-        const allocatedStudentIds = new Set(allocations.map(a => String(a.studentId || a.admissionNo)));
-        const allCandidates = [...students, ...admissions];
+        if (!isWarden) {
+          const allocatedStudentIds = new Set(allocations.map(a => String(a.studentId || a.admissionNo)));
+          const allCandidates = [...students, ...admissions];
 
-        allCandidates.forEach((s: any) => {
-          const sId = String(s.id || s.applicationNo || s.admissionNo);
-          const sType = String(s.studentType || s.residenceType || s.facilityOpted || '').toLowerCase();
-          const isRes = sType.includes('hostel') || sType.includes('residential') || sType.includes('boarder') || s.isHostelRequired === true;
+          allCandidates.forEach((s: any) => {
+            const sId = String(s.id || s.applicationNo || s.admissionNo);
+            const sType = String(s.studentType || s.residenceType || s.facilityOpted || '').toLowerCase();
+            const isRes = sType.includes('hostel') || sType.includes('residential') || sType.includes('boarder') || s.isHostelRequired === true;
 
-          if (isRes && !allocatedStudentIds.has(sId) && !allocatedStudentIds.has(String(s.admissionNo))) {
-            allocatedStudentIds.add(sId);
-            list.push({
-              'Admission No': s.admissionNo || s.applicationNo || sId,
-              'Student Name': s.applicantName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student',
-              'Hostel Facility': s.hostelBlock || 'Opted during Admission',
-              'Room & Bed': 'Unassigned (Pending Bed)',
-              'Assigned Warden': 'Unassigned',
-              'Joining Date': 'Registration Date',
-              'Status': 'Pending Allocation'
-            });
-          }
-        });
+            if (isRes && !allocatedStudentIds.has(sId) && !allocatedStudentIds.has(String(s.admissionNo))) {
+              allocatedStudentIds.add(sId);
+              list.push({
+                'Admission No': s.admissionNo || s.applicationNo || sId,
+                'Student Name': s.applicantName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student',
+                'Hostel Facility': s.hostelBlock || 'Opted during Admission',
+                'Room & Bed': 'Unassigned (Pending Bed)',
+                'Assigned Warden': 'Unassigned',
+                'Joining Date': 'Registration Date',
+                'Status': 'Pending Allocation'
+              });
+            }
+          });
+        }
 
         return list;
       }
@@ -267,7 +313,7 @@ export const HostelReportsView: React.FC = () => {
       default:
         return [];
     }
-  }, [selectedReport, blocks, rooms, allocations, wardens, students, admissions]);
+  }, [selectedReport, blocks, rooms, allocations, wardens, students, admissions, isWarden, targetBlocks]);
 
   // Apply Real-Time Filters (Search, Hostel Block & Tab-Specific Filter)
   const reportData = useMemo(() => {
@@ -357,7 +403,43 @@ export const HostelReportsView: React.FC = () => {
       <div className="glass-card p-4 rounded-2xl space-y-4 border border-slate-200 dark:border-slate-800 shadow-sm text-xs no-print">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           
-          {/* 1. Report Category Select */}
+          {/* 1. Hostel Block Filter */}
+          <div>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Block Filter</label>
+            {isWarden ? (
+              <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 flex items-center h-[38px]">
+                {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
+              </div>
+            ) : (
+              <>
+                <select
+                  value={filterHostel}
+                  onChange={e => {
+                    setFilterHostel(e.target.value);
+                    if (e.target.value !== 'MANUAL') setManualHostelInput('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+                >
+                  {blockFilterOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+
+                {filterHostel === 'MANUAL' && (
+                  <input
+                    type="text"
+                    placeholder="Type manual hostel block (e.g. Block C)..."
+                    value={manualHostelInput}
+                    onChange={e => setManualHostelInput(e.target.value)}
+                    className="w-full mt-2 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
+                  />
+                )}
+              </>
+            )}
+          </div>
+
+          {/* 2. Report Category Select */}
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Report Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
@@ -381,34 +463,6 @@ export const HostelReportsView: React.FC = () => {
                 placeholder="Type custom hostel report..."
                 value={manualReportInput}
                 onChange={e => setManualReportInput(e.target.value)}
-                className="w-full mt-2 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
-              />
-            )}
-          </div>
-
-          {/* 2. Hostel Block Filter Dropdown */}
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Block Filter</label>
-            <select
-              value={filterHostel}
-              onChange={e => {
-                setFilterHostel(e.target.value);
-                if (e.target.value !== 'MANUAL') setManualHostelInput('');
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
-            >
-              {blockFilterOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
-            {filterHostel === 'MANUAL' && (
-              <input
-                type="text"
-                placeholder="Type manual hostel block (e.g. Block C)..."
-                value={manualHostelInput}
-                onChange={e => setManualHostelInput(e.target.value)}
                 className="w-full mt-2 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
               />
             )}

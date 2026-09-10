@@ -334,6 +334,19 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     return 'Ramachandra Bhavan (Boys Block A)';
   }, [hostelBlocks, user]);
 
+  const displayName = useMemo(() => {
+    const rawName = (user?.name || '').trim();
+    if (rawName && rawName.toLowerCase() !== 'administrator' && rawName.toLowerCase() !== 'admin' && rawName.toLowerCase() !== 'user') {
+      return rawName;
+    }
+    const uEmail = (user?.email || '').toLowerCase().trim();
+    if (uEmail) {
+      const matchedBlock = (hostelBlocks || []).find(b => (b.email || (b as any).wardenEmail || '').toLowerCase().trim() === uEmail);
+      if (matchedBlock?.wardenName) return matchedBlock.wardenName;
+    }
+    return 'VaraPrasad';
+  }, [user, hostelBlocks]);
+
   return (
     <div className="space-y-6 animate-in fade-in pb-12">
       {/* 1. Header Banner matching Admin Dashboard - Compact Size */}
@@ -341,23 +354,8 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-1">
             <h1 className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-1.5">
-              {greeting}, {user?.name || "VaraPrasad"} 🖐️
+              {greeting}, {displayName} 🖐️
             </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <button
-              onClick={() => onNavigate && onNavigate("hostel-attendance")}
-              className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-xs border border-white/30 transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-xs active:scale-95"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" /> Night Roll Call
-            </button>
-            <button
-              onClick={() => onNavigate && onNavigate("hostel")}
-              className="px-3.5 py-1.5 rounded-xl bg-white text-brand-600 hover:bg-sky-50 text-xs font-black shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <Building2 className="w-3.5 h-3.5 text-brand-600" /> Manage Hostel
-            </button>
           </div>
         </div>
 
