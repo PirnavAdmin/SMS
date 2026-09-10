@@ -73,6 +73,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
     setRecords(newRecords);
     if (typeof window !== 'undefined') {
       localStorage.setItem(OUTPASSES_STORE_KEY, JSON.stringify(newRecords));
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
     }
   };
 

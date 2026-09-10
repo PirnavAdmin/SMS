@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Building2,
   Bed,
@@ -223,6 +223,27 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
       },
     ];
   });
+
+  useEffect(() => {
+    const syncOutpasses = () => {
+      try {
+        const saved = localStorage.getItem("edu_db_hostel_outpasses");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setOutpassRecords(parsed);
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener("hostel_outpasses_updated", syncOutpasses);
+    window.addEventListener("storage", syncOutpasses);
+    return () => {
+      window.removeEventListener("hostel_outpasses_updated", syncOutpasses);
+      window.removeEventListener("storage", syncOutpasses);
+    };
+  }, []);
 
   const activeOutpassCount = useMemo(() => {
     return outpassRecords.filter(

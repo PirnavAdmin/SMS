@@ -234,7 +234,38 @@ namespace SMS.Api.Services.Implementations
                     branch);
             }
 
-            // 3. User does not exist
+            // 3. Try Hostel Warden lookup if not found in Users/Admin
+            var lowerIdentifier = identifier.ToLower();
+            var warden = await _dbContext.HostelWardens
+                .Include(w => w.Staff)
+                .FirstOrDefaultAsync(w => (w.EmailAddress != null && w.EmailAddress.ToLower() == lowerIdentifier)
+                                       || w.MobileNumber == identifier
+                                       || (w.Staff != null && ((w.Staff.Email != null && w.Staff.Email.ToLower() == lowerIdentifier) || w.Staff.Phone == identifier)));
+            if (warden != null)
+            {
+                var wardenRoles = new List<string> { "Hostel Warden" };
+                var dummyUser = new User
+                {
+                    UserId = warden.WardenId,
+                    FullName = warden.WardenName ?? (warden.Staff != null ? $"{warden.Staff.FirstName} {warden.Staff.LastName}".Trim() : "VaraPrasad"),
+                    Email = warden.EmailAddress ?? warden.Staff?.Email ?? "Warden@pirnav.com",
+                    MobileNumber = warden.MobileNumber ?? warden.Staff?.Phone ?? "9581768444",
+                    Role = "Hostel Warden"
+                };
+
+                var wardenToken = GenerateJwtToken(dummyUser, wardenRoles);
+                return new AuthResponseDto(
+                    dummyUser.UserId,
+                    dummyUser.FullName,
+                    wardenToken,
+                    wardenRoles,
+                    dummyUser.Email,
+                    dummyUser.MobileNumber,
+                    null,
+                    "Main Campus");
+            }
+
+            // 4. User does not exist
             throw new AppException(
                 "Invalid email/mobile number or password.",
                 HttpStatusCode.Unauthorized);
@@ -249,6 +280,9 @@ namespace SMS.Api.Services.Implementations
                 "teacher" => "Teacher",
                 "student" => "Student",
                 "parent" => "Parent",
+                "warden" => "Hostel Warden",
+                "hostel warden" => "Hostel Warden",
+                "hostelwarden" => "Hostel Warden",
 
                 _ => throw new AppException(
                     "Invalid login portal.",

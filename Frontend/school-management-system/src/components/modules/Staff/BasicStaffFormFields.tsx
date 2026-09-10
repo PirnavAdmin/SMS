@@ -24,7 +24,7 @@ import {
 
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
-import { lookupPostalCode, getOfflinePostalInfo, validateStateName, validateCityName, VALID_INDIAN_STATES, KNOWN_INDIAN_CITIES } from '../../../utils/postalLookup';
+import { lookupPostalCode, getOfflinePostalInfo, validateStateName, validateCityName, VALID_INDIAN_STATES, KNOWN_INDIAN_CITIES, WORLD_COUNTRIES, COUNTRY_DIAL_CODES } from '../../../utils/postalLookup';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;
@@ -139,8 +139,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
   const parsePhone = (phoneStr: string = '') => {
     const clean = phoneStr.trim();
-    const codes = ['+91', '+971', '+44', '+61', '+1'];
-    for (const code of codes) {
+    const sortedCodes = COUNTRY_DIAL_CODES.map(c => c.code).sort((a, b) => b.length - a.length);
+    for (const code of sortedCodes) {
       if (clean.startsWith(code)) {
         let local = clean.slice(code.length);
         if (local.startsWith('-')) local = local.slice(1);
@@ -646,19 +646,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   Mobile Number <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex gap-2 mt-1.5">
-                  <div className="relative shrink-0 w-24">
+                  <div className="relative shrink-0 w-28">
                     <select
                       value={primaryCc}
                       onChange={e => onChange('mobileNumber', `${e.target.value}-${primaryLocal}`)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3.5 pr-8 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3 pr-7 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
                     >
-                      <option value="+91">🇮🇳 +91</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+971">🇦🇪 +971</option>
-                      <option value="+61">🇦🇺 +61</option>
+                      {COUNTRY_DIAL_CODES.map(item => (
+                        <option key={item.code} value={item.code}>
+                          {item.label}
+                        </option>
+                      ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                   <input
                     type="tel"
@@ -675,19 +675,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alternate Mobile Number <span className="text-slate-400 font-normal">(Optional)</span></label>
                 <div className="flex gap-2 mt-1.5">
-                  <div className="relative shrink-0 w-24">
+                  <div className="relative shrink-0 w-28">
                     <select
                       value={altCc}
                       onChange={e => onChange('alternateMobileNumber', `${e.target.value}-${altLocal}`)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3.5 pr-8 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3 pr-7 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
                     >
-                      <option value="+91">🇮🇳 +91</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+971">🇦🇪 +971</option>
-                      <option value="+61">🇦🇺 +61</option>
+                      {COUNTRY_DIAL_CODES.map(item => (
+                        <option key={item.code} value={item.code}>
+                          {item.label}
+                        </option>
+                      ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                   <input
                     type="tel"
@@ -887,13 +887,18 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">PIN Code</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  PIN Code <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
                   placeholder="e.g. 560001"
                   value={value.pinCode || ''}
                   onChange={e => {
-                    const pin = e.target.value;
+                    const pin = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
                     onChange('pinCode', pin);
                     if (!pin.trim()) {
                       onChange('city', '');
@@ -905,7 +910,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       onChange('city', offline.city);
                       onChange('state', offline.state);
                     }
-                    if (pin.replace(/\D/g, '').length >= 4) {
+                    if (pin.length >= 4) {
                       lookupPostalCode(pin).then(info => {
                         if (info) {
                           onChange('city', info.city);
@@ -916,6 +921,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   }}
                   className={`${fieldClass} font-mono`}
                 />
+                {errors.pinCode && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.pinCode}</p>}
               </div>
 
               <div>
@@ -929,11 +935,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
                   >
                     <option value="">Select Country</option>
-                    <option value="India">India</option>
-                    <option value="United States">United States</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="United Arab Emirates">United Arab Emirates</option>
-                    <option value="Australia">Australia</option>
+                    {WORLD_COUNTRIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

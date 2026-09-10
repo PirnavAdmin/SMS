@@ -14,6 +14,11 @@ export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
   const { staff = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff } = useData();
   const { addToast } = useToast();
+
+  const userRoleStr = (user?.role || '').toLowerCase().trim();
+  const isWarden = userRoleStr.includes('warden');
+  const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchProfileData = () => window.location.reload();
@@ -781,7 +786,7 @@ export const TeacherProfileView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit Teacher Profile
+                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit {isWarden ? 'Warden' : isAccountant ? 'Accountant' : (dbTeacher?.designation || 'Teacher')} Profile
                 </h3>
               </div>
               <button

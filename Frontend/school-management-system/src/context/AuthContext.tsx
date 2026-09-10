@@ -213,6 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!normalizedRoles.includes('Admin')) {
             throw new Error('This account does not have Administrator privileges. Please sign in via the appropriate portal.');
           }
+        } else if (targetRole === 'Hostel Warden') {
+          if (!normalizedRoles.includes('Hostel Warden') && !normalizedRoles.includes('Admin')) {
+            throw new Error('This account does not have Hostel Warden privileges. Please sign in via the appropriate portal.');
+          }
         }
       }
 
