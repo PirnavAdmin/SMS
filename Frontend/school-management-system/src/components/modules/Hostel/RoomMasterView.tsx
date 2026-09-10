@@ -228,16 +228,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Home className="w-6 h-6 text-sky-500" /> Rooms & Bed Allocation
+            <Home className="w-6 h-6 text-sky-500" /> {isWarden ? 'Rooms & Beds' : 'Rooms & Bed Allocation'}
           </h2>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
-        >
-          <Plus className="w-4 h-4" /> Add New Room
-        </button>
+        {!isWarden && (
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          >
+            <Plus className="w-4 h-4" /> Add New Room
+          </button>
+        )}
       </div>
 
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -319,10 +321,12 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                  <button onClick={() => handleOpenEdit(rm)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => setDeletingRoom(rm)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
-                </div>
+                {!isWarden && (
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                    <button onClick={() => handleOpenEdit(rm)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => setDeletingRoom(rm)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
