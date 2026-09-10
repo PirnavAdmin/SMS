@@ -287,10 +287,6 @@ public class TimetableService : ITimetableService
             throw new BadRequestException("A valid ClassId or ClassName is required.");
         }
 
-<<<<<<< Updated upstream
-        // 2. Resolve SectionId by name if not supplied or verify it belongs to ClassId
-        if (dto.ClassId > 0)
-=======
         // 2. Resolve SectionId by name if not supplied or if mismatched
         if (dto.SectionId > 0 && dto.ClassId > 0)
         {
@@ -303,24 +299,11 @@ public class TimetableService : ITimetableService
         }
 
         if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
->>>>>>> Stashed changes
         {
-            if (dto.SectionId > 0)
+            var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
+            if (matchedSection != null)
             {
-                var existingSec = await _timetableRepository.GetSectionByIdAsync(dto.SectionId);
-                if (existingSec == null || existingSec.ClassId != dto.ClassId)
-                {
-                    dto.SectionId = 0; // force resolution from SectionName
-                }
-            }
-
-            if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName))
-            {
-                var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
-                if (matchedSection != null)
-                {
-                    dto.SectionId = matchedSection.SectionId;
-                }
+                dto.SectionId = matchedSection.SectionId;
             }
         }
 

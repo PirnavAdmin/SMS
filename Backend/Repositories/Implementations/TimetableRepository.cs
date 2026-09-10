@@ -27,8 +27,8 @@ public class TimetableRepository : ITimetableRepository
     {
         var rawPeriods = await _context.PeriodSettings
             .Where(p => !p.IsDeleted && p.IsActive)
-            .OrderBy(p => p.DisplayOrder)
-            .ThenByDescending(p => p.PeriodId)
+            .OrderBy(p => p.StartTime)
+            .ThenBy(p => p.DisplayOrder)
             .ToListAsync();
 
         var distinctPeriods = new List<PeriodSetting>();
@@ -36,24 +36,36 @@ public class TimetableRepository : ITimetableRepository
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenOrders = new HashSet<int>();
         var seenTimes = new HashSet<string>();
+        TimeSpan lastEndTime = TimeSpan.Zero;
 
         foreach (var p in rawPeriods)
         {
             var timeKey = $"{p.StartTime}-{p.EndTime}";
-            if (!seenIds.Contains(p.PeriodId) &&
-                !seenNames.Contains(p.PeriodName) &&
-                !seenOrders.Contains(p.DisplayOrder) &&
-                !seenTimes.Contains(timeKey))
+            if (p.StartTime >= p.EndTime) continue;
+
+            bool isDuplicate = seenIds.Contains(p.PeriodId) ||
+                               seenNames.Contains(p.PeriodName) ||
+                               seenOrders.Contains(p.DisplayOrder) ||
+                               seenTimes.Contains(timeKey);
+
+            // Period cannot start before the previous period has finished (allow 1 min tolerance)
+            bool isOverlap = p.StartTime < lastEndTime.Subtract(TimeSpan.FromMinutes(1));
+
+            if (!isDuplicate && !isOverlap)
             {
                 seenIds.Add(p.PeriodId);
                 seenNames.Add(p.PeriodName);
                 seenOrders.Add(p.DisplayOrder);
                 seenTimes.Add(timeKey);
+                if (p.EndTime > lastEndTime)
+                {
+                    lastEndTime = p.EndTime;
+                }
                 distinctPeriods.Add(p);
             }
         }
 
-        return distinctPeriods.OrderBy(p => p.DisplayOrder).ToList();
+        return distinctPeriods.OrderBy(p => p.DisplayOrder).ThenBy(p => p.StartTime).ToList();
     }
 
     public async Task<List<PeriodSetting>> SyncPeriodSettingsAsync(List<PeriodSetting> periods)

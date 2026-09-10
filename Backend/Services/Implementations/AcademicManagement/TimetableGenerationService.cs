@@ -1198,42 +1198,24 @@ public class TimetableGenerationService : ITimetableGenerationService
 
     private async Task<Dictionary<string, PeriodSetting>> SyncPeriodSettingsAsync(List<ComputedPeriodInfo> generatedPeriods)
     {
-        var activePeriods = await _timetableRepository.GetPeriodSettingsAsync();
-        var periodMap = new Dictionary<string, PeriodSetting>();
-
-        foreach (var gp in generatedPeriods)
+        var entities = generatedPeriods.Select(gp => new PeriodSetting
         {
-            var gpStartSpan = ParseTime(gp.StartTime);
-            var gpEndSpan = ParseTime(gp.EndTime);
-            var gpTypeMapped = gp.IsTeaching ? "Teaching Period" : gp.Type;
+            PeriodName = gp.Name.Trim(),
+            StartTime = ParseTime(gp.StartTime),
+            EndTime = ParseTime(gp.EndTime),
+            PeriodType = gp.IsTeaching ? "Teaching Period" : gp.Type,
+            DisplayOrder = gp.Sequence,
+            IsActive = true,
+            IsDeleted = false
+        }).ToList();
 
-            var existing = activePeriods.FirstOrDefault(p =>
-                p.PeriodName.Trim().Equals(gp.Name.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                p.StartTime == gpStartSpan &&
-                p.EndTime == gpEndSpan &&
-                p.PeriodType == gpTypeMapped);
-
-            if (existing == null)
-            {
-                var newPeriod = new PeriodSetting
-                {
-                    PeriodName = gp.Name,
-                    StartTime = gpStartSpan,
-                    EndTime = gpEndSpan,
-                    PeriodType = gpTypeMapped,
-                    DisplayOrder = gp.Sequence,
-                    IsActive = true,
-                    IsDeleted = false
-                };
-                newPeriod = await _timetableRepository.SavePeriodSettingAsync(newPeriod);
-                periodMap[gp.Name + "_" + gp.StartTime] = newPeriod;
-            }
-            else
-            {
-                periodMap[gp.Name + "_" + gp.StartTime] = existing;
-            }
+        var syncedList = await _timetableRepository.SyncPeriodSettingsAsync(entities);
+        var periodMap = new Dictionary<string, PeriodSetting>();
+        foreach (var p in syncedList)
+        {
+            var pStartStr = FormatTime(p.StartTime);
+            periodMap[p.PeriodName + "_" + pStartStr] = p;
         }
-
         return periodMap;
     }
 
