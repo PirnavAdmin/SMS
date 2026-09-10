@@ -87,7 +87,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       };
     }
 
-    return driverMasters[0] || {
+    return {
       id: '1',
       driverName: user?.name || 'Nag Sahoo',
       licenseNumber: 'DL-2026-9874',

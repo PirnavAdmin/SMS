@@ -52,7 +52,7 @@ export const DriverPayslipsView: React.FC = () => {
       };
     }
 
-    return driverMasters[0] || {
+    return {
       id: '1',
       driverName: user?.name || 'Nag Sahoo',
       employeeId: 'DRV-001',

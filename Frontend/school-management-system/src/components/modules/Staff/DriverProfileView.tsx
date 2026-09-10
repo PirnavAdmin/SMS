@@ -40,21 +40,24 @@ export const DriverProfileView: React.FC = () => {
       (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
     );
 
-    if (fromMaster) return fromMaster;
+    if (fromMaster) {
+      return {
+        ...fromMaster,
+        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : fromMaster.driverName
+      };
+    }
 
     // Match from staff
     const fromStaff = staff.find(s =>
       (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
       (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName) ||
-      (s.designation || '').toLowerCase().includes('driver') ||
-      (s.department || '').toLowerCase().includes('transport')
+      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
     );
 
     if (fromStaff) {
       return {
         id: fromStaff.id,
-        driverName: `${fromStaff.firstName} ${fromStaff.lastName}`.trim(),
+        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : `${fromStaff.firstName} ${fromStaff.lastName}`.trim(),
         licenseNumber: (fromStaff as any).licenseNumber || `DL-${fromStaff.empId || fromStaff.id}`,
         mobileNumber: fromStaff.phone || '',
         employeeId: fromStaff.empId || fromStaff.employeeId || `STF-${fromStaff.id}`,
@@ -71,7 +74,7 @@ export const DriverProfileView: React.FC = () => {
 
     return {
       id: user?.id || '1',
-      driverName: user?.name || 'Nag Sahoo',
+      driverName: user?.name || 'Sai Kiran V',
       licenseNumber: `DL-${user?.id || '2026-0003'}`,
       mobileNumber: user?.phone || '',
       employeeId: (user as any)?.empId || user?.id || 'STF-2026-0003',
