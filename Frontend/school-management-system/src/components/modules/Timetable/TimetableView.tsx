@@ -153,16 +153,24 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const tFirstName = (teacher.firstName || '').toLowerCase().trim();
     const tLastName = (teacher.lastName || '').toLowerCase().trim();
     const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
 
     const mainSub = (teacher.assignedSubjects && teacher.assignedSubjects[0]) || teacher.department || (teacher as any)?.primarySubject || 'General';
 
-    // 1. Direct timetable slots matching logged-in teacher
+    // 1. Direct timetable slots matching logged-in teacher (considering dynamically assigned teacher)
     const directSlots = (timetable || []).filter(t => {
-      if (!t || !t.teacherName) return false;
-      const entryTeacher = t.teacherName.toLowerCase().trim();
-      const matchesTeacher = (tFullName && entryTeacher === tFullName) ||
-        (tFirstName.length > 2 && entryTeacher.includes(tFirstName)) || 
-        (tLastName.length > 2 && entryTeacher.includes(tLastName)) || 
+      if (!t) return false;
+      const mappedTa = (teacherAssignments || []).find((ta: any) =>
+        norm(ta.className) === norm(t.className) &&
+        norm(ta.section) === norm(t.section) &&
+        norm(ta.subject) === norm(t.subject)
+      );
+      const effectiveTeacher = (mappedTa?.teacherName || t.teacherName || '').toLowerCase().trim();
+      if (!effectiveTeacher) return false;
+
+      const matchesTeacher = (tFullName && effectiveTeacher === tFullName) ||
+        (tFirstName.length > 2 && effectiveTeacher.includes(tFirstName)) || 
+        (tLastName.length > 2 && effectiveTeacher.includes(tLastName)) || 
         (t.teacherId && (String(t.teacherId) === String(teacher.id) || String(t.teacherId) === String((teacher as any).empId)));
       
       const matchesDay = !t.day || t.day === 'All' || t.day.toLowerCase() === todayDay.toLowerCase();
@@ -171,15 +179,23 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     if (directSlots.length > 0) {
       return directSlots
-        .map(s => ({
-          ...s,
-          subject: s.subject || mainSub
-        }))
+        .map(s => {
+          const mappedTa = (teacherAssignments || []).find((ta: any) =>
+            norm(ta.className) === norm(s.className) &&
+            norm(ta.section) === norm(s.section) &&
+            norm(ta.subject) === norm(s.subject)
+          );
+          return {
+            ...s,
+            teacherName: mappedTa?.teacherName || s.teacherName,
+            subject: s.subject || mainSub
+          };
+        })
         .sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
     }
 
     return [];
-  }, [timetable, teacher, todayDay]);
+  }, [timetable, teacher, todayDay, teacherAssignments]);
 
   // Helper: parse timeSlot to relative status (Current / Upcoming / Completed)
   const getPeriodStatus = (timeSlot: string) => {
@@ -386,7 +402,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   );
 
   const classTimetable = useMemo(() => {
-    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
     return (timetable || []).filter(
       t => norm(t.className) === norm(selectedClass) && norm(t.section) === norm(selectedSection)
     );
@@ -445,58 +461,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
   }, [isBulkAssignModalOpen, periodSettings, academicClasses]);
 
-  // Master periods with strict deduplication
-  const masterPeriods = useMemo(() => {
-    const masterRaw = (periodSettings || []).filter(p => 
-      p.status === 'Active' && 
-      (!p.className || p.className === 'Master' || p.className === 'All' || p.className === '')
-    );
-
-    const uniqueMaster: PeriodSetting[] = [];
-    const seenIds = new Set<string>();
-    const seenNames = new Set<string>();
-    const seenSequences = new Set<number>();
-    const seenTimes = new Set<string>();
-
-    masterRaw
-      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
-      .forEach(p => {
-        const idKey = p.id ? String(p.id).trim() : '';
-        const nameKey = (p.periodName || '').trim().toLowerCase();
-        const seqKey = Number(p.sequence);
-        const timeKey = `${(p.startTime || '').trim()}-${(p.endTime || '').trim()}`;
-
-        const isDuplicate = 
-          (idKey && seenIds.has(idKey)) ||
-          (nameKey && seenNames.has(nameKey)) ||
-          (seqKey && seenSequences.has(seqKey)) ||
-          (timeKey && timeKey !== '-' && seenTimes.has(timeKey));
-
-        if (!isDuplicate) {
-          if (idKey) seenIds.add(idKey);
-          if (nameKey) seenNames.add(nameKey);
-          if (seqKey) seenSequences.add(seqKey);
-          if (timeKey && timeKey !== '-') seenTimes.add(timeKey);
-          uniqueMaster.push(p);
-        }
-      });
-
-    return uniqueMaster;
-  }, [periodSettings]);
-
-  const activeBranchPeriods = useMemo(() => {
-    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
-    const specific = (periodSettings || []).filter(p => 
-      norm(p.className) === norm(selectedClass) && 
-      norm(p.section) === norm(selectedSection) && 
-      p.status === 'Active'
-    );
-    if (specific.length > 0) {
-      return specific.sort((a, b) => a.sequence - b.sequence);
-    }
-    return masterPeriods;
-  }, [periodSettings, selectedClass, selectedSection, masterPeriods]);
-
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
     const match12 = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -514,6 +478,87 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
     return 9999;
   };
+
+  // Master periods with strict chronological sequence and non-overlapping timeline integrity
+  const masterPeriods = useMemo(() => {
+    const masterRaw = (periodSettings || []).filter(p => 
+      p.status === 'Active' && 
+      (!p.className || p.className === 'Master' || p.className === 'All' || p.className === '')
+    );
+
+    // Sort strictly by start time, then sequence
+    const sorted = [...masterRaw].sort((a, b) => {
+      const startA = parseSortable(a.startTime);
+      const startB = parseSortable(b.startTime);
+      if (startA !== startB) return startA - startB;
+      const seqA = Number(a.sequence) || 99;
+      const seqB = Number(b.sequence) || 99;
+      return seqA - seqB;
+    });
+
+    const uniqueMaster: PeriodSetting[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    let lastEndMin = -1;
+
+    sorted.forEach((p, idx) => {
+      const idKey = p.id ? String(p.id).trim() : '';
+      const nameKey = (p.periodName || '').trim().toLowerCase();
+      const pStart = parseSortable(p.startTime);
+      const pEnd = parseSortable(p.endTime);
+
+      if (pStart >= 9999 || pEnd >= 9999 || pStart >= pEnd) return;
+
+      const isDuplicate = (idKey && seenIds.has(idKey)) || (nameKey && seenNames.has(nameKey));
+      // Overlap check: period cannot start before the previous period has finished (allow 1 min tolerance)
+      const hasOverlap = pStart < lastEndMin - 1;
+
+      if (!isDuplicate && !hasOverlap) {
+        if (idKey) seenIds.add(idKey);
+        if (nameKey) seenNames.add(nameKey);
+        lastEndMin = Math.max(lastEndMin, pEnd);
+        uniqueMaster.push({
+          ...p,
+          sequence: idx + 1
+        });
+      }
+    });
+
+    return uniqueMaster;
+  }, [periodSettings]);
+
+  const activeBranchPeriods = useMemo(() => {
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+    const specific = (periodSettings || []).filter(p => 
+      norm(p.className) === norm(selectedClass) && 
+      norm(p.section) === norm(selectedSection) && 
+      p.status === 'Active'
+    );
+    if (specific.length > 0) {
+      const sorted = [...specific].sort((a, b) => {
+        const startA = parseSortable(a.startTime);
+        const startB = parseSortable(b.startTime);
+        if (startA !== startB) return startA - startB;
+        return (a.sequence || 0) - (b.sequence || 0);
+      });
+      const uniqueSpecific: PeriodSetting[] = [];
+      let lastEndMin = -1;
+      sorted.forEach((p, idx) => {
+        const pStart = parseSortable(p.startTime);
+        const pEnd = parseSortable(p.endTime);
+        if (pStart >= 9999 || pEnd >= 9999 || pStart >= pEnd) return;
+        if (pStart >= lastEndMin - 1) {
+          lastEndMin = Math.max(lastEndMin, pEnd);
+          uniqueSpecific.push({
+            ...p,
+            sequence: idx + 1
+          });
+        }
+      });
+      return uniqueSpecific;
+    }
+    return masterPeriods;
+  }, [periodSettings, selectedClass, selectedSection, masterPeriods]);
 
   const parseTo24 = (timeStr: any) => {
     if (!timeStr || typeof timeStr !== 'string') return '09:00';
@@ -544,25 +589,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   }, [classTimetable]);
 
   const timeSlots = useMemo(() => {
-    const list: string[] = [];
     if (activeBranchPeriods && activeBranchPeriods.length > 0) {
-      activeBranchPeriods.forEach(p => {
-        const str = `${p.startTime} - ${p.endTime}`;
-        if (!list.includes(str)) list.push(str);
-      });
+      return activeBranchPeriods.map(p => `${p.startTime} - ${p.endTime}`);
     }
+    const list: string[] = [];
     (classTimetable || []).forEach(t => {
       const ts = t.timeSlot || (t.startTime && t.endTime ? `${t.startTime} - ${t.endTime}` : '');
-      if (ts) {
-        const [tStartRaw] = ts.split('-');
-        const tStart = parseSortable(tStartRaw);
-        const alreadyCovered = list.some(existing => {
-          const [eStartRaw] = existing.split('-');
-          return Math.abs(parseSortable(eStartRaw) - tStart) <= 5;
-        });
-        if (!alreadyCovered && !list.includes(ts)) {
-          list.push(ts);
-        }
+      if (ts && !list.includes(ts)) {
+        list.push(ts);
       }
     });
 
@@ -580,12 +614,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   });
 
   const availableClassSubjects = useMemo(() => {
-    const targetClass = formData.className || '';
+    const targetClass = formData.className || selectedClass || '';
     if (!targetClass) return subjects || [];
-    const clsObj = (academicClasses || []).find(c => c.name.toLowerCase().trim() === targetClass.toLowerCase().trim());
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+    const clsObj = (academicClasses || []).find(c => norm(c.name) === norm(targetClass));
     const assignedNames = clsObj?.subjects || [];
+    const targetSec = formData.section || selectedSection || '';
     const teacherAssignedNames = (teacherAssignments || [])
-      .filter(ta => (ta.className || '').toLowerCase().trim() === targetClass.toLowerCase().trim())
+      .filter(ta => norm(ta.className) === norm(targetClass) && (!targetSec || norm(ta.section) === norm(targetSec)))
       .map(ta => ta.subject);
     const combinedNames = Array.from(new Set([...assignedNames, ...teacherAssignedNames]));
     if (combinedNames.length > 0) {
@@ -600,18 +636,37 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       });
     }
     return subjects || [];
-  }, [academicClasses, formData.className, teacherAssignments, subjects]);
+  }, [academicClasses, formData.className, formData.section, selectedClass, selectedSection, teacherAssignments, subjects]);
 
   const autoAssignedTeacher = useMemo(() => {
-    if (!formData.subject || !formData.className || !formData.section) return '';
+    const targetClass = formData.className || selectedClass || '';
+    const targetSec = formData.section || selectedSection || '';
+    const targetSub = formData.subject || '';
+    if (!targetSub || !targetClass) return '';
+
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+
+    // 1. Direct Teacher Assignment mapping for (class, section, subject)
     const assigned = (teacherAssignments || []).find(
-      ta => ta.className === formData.className && ta.section === formData.section && ta.subject === formData.subject
+      ta => norm(ta.className) === norm(targetClass) &&
+            (!targetSec || norm(ta.section) === norm(targetSec)) &&
+            norm(ta.subject) === norm(targetSub)
     );
-    if (assigned) return assigned.teacherName;
-    const fallbackStaff = (teachingStaff || []).find(s => (s.assignedSubjects || []).includes(formData.subject || ''));
+    if (assigned?.teacherName) return assigned.teacherName;
+
+    // 2. Class / Section Teacher mapping from Class Management
+    const clsObj = (academicClasses || []).find(c => norm(c.name) === norm(targetClass));
+    const secTeachers = (clsObj as any)?.sectionTeachers || {};
+    const secKey = targetSec || 'A';
+    const cleanSecKey = secKey.replace(/^Section\s*/i, '').trim();
+    const classTeacherName = secTeachers[secKey] || secTeachers[cleanSecKey] || secTeachers[`Section ${cleanSecKey}`];
+    if (classTeacherName) return classTeacherName;
+
+    // 3. Fallback: Staff with subject in assignedSubjects
+    const fallbackStaff = (teachingStaff || []).find(s => (s.assignedSubjects || []).some(sub => norm(sub) === norm(targetSub)));
     if (fallbackStaff) return `${fallbackStaff.firstName} ${fallbackStaff.lastName}`;
-    return '';
-  }, [formData.subject, formData.className, formData.section, teacherAssignments, teachingStaff]);
+    return 'Unassigned';
+  }, [formData.subject, formData.className, formData.section, selectedClass, selectedSection, teacherAssignments, teachingStaff, academicClasses]);
 
   useEffect(() => {
     if (autoAssignedTeacher && formData.subject) {
@@ -624,7 +679,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const targetSection = section || selectedSection;
 
     // 1. Check Class Management sectionDetails first for pre-configured room number
-    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
     const cls = academicClasses.find(c => norm(c.name) === norm(targetClass));
     const secDetails = cls?.sectionDetails?.[targetSection] ||
                        cls?.sectionDetails?.[targetSection?.toUpperCase()] ||
@@ -1291,7 +1346,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                             const targetSlot = slot.trim().toLowerCase();
                             if (tSlot !== targetSlot && !tSlot.includes(targetSlot) && !targetSlot.includes(tSlot)) return false;
 
-                            const entryTeacher = (t.teacherName || '').toLowerCase().trim();
+                            const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+                            const mappedTa = (teacherAssignments || []).find((ta: any) =>
+                              norm(ta.className) === norm(t.className) &&
+                              norm(ta.section) === norm(t.section) &&
+                              norm(ta.subject) === norm(t.subject)
+                            );
+
+                            const entryTeacher = (mappedTa?.teacherName || t.teacherName || '').toLowerCase().trim();
                             const tFirstName = (teacher.firstName || '').toLowerCase().trim();
                             const tLastName = (teacher.lastName || '').toLowerCase().trim();
                             const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
@@ -1664,7 +1726,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                                       );
                                     })()}
                                      {(() => {
-                                       const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+                                       const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
                                        const mappedTa = (teacherAssignments || []).find((ta: any) =>
                                          norm(ta.className) === norm(match.className || selectedClass) &&
                                          norm(ta.section) === norm(match.section || selectedSection) &&
@@ -2274,7 +2336,13 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   if (!t || !targetName) return false;
 
                   const targetNameLower = targetName.trim().toLowerCase();
-                  const slotTeacherLower = (t.teacherName || '').trim().toLowerCase();
+                  const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+                  const mappedTa = (teacherAssignments || []).find((ta: any) =>
+                    norm(ta.className) === norm(t.className) &&
+                    norm(ta.section) === norm(t.section) &&
+                    norm(ta.subject) === norm(t.subject)
+                  );
+                  const slotTeacherLower = (mappedTa?.teacherName || t.teacherName || '').trim().toLowerCase();
 
                   if (slotTeacherLower && targetNameLower) {
                     if (slotTeacherLower === targetNameLower) return true;

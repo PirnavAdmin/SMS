@@ -8,7 +8,7 @@ import {
 import { useData, AcademicClass } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { generateTimetableApi } from '../../../api/academic';
+import { generateTimetableApi, syncPeriodSettingsApi } from '../../../api/academic';
 
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
@@ -113,6 +113,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     teacherAssignments,
     subjects,
     periodSettings,
+    bulkAddPeriodSettings,
+    bulkAddTimetableSlots,
+    loadTimetableForClassSection,
     fetchPeriods,
     fetchTimetables,
     academicYears
@@ -681,8 +684,67 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         return;
       }
 
+      // Sync exact computed periods to API and local application state
+      const syncedPeriods = calculationResult.periods.map(gp => ({
+        periodName: gp.name,
+        startTime: gp.startTime,
+        endTime: gp.endTime,
+        periodType: gp.type === 'Teaching' ? 'Teaching Period' : gp.type,
+        displayOrder: gp.sequence
+      }));
+
+      await syncPeriodSettingsApi(syncedPeriods).catch(() => {});
+
+      if (bulkAddPeriodSettings) {
+        bulkAddPeriodSettings(calculationResult.periods.map((gp, idx) => ({
+          id: `PS-${gp.name.replace(/\s+/g, '-')}-${idx + 1}`,
+          academicYear: academicYear || selectedAcademicYear || '',
+          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || '',
+          periodName: gp.name,
+          startTime: gp.startTime,
+          endTime: gp.endTime,
+          sequence: gp.sequence,
+          periodType: gp.type === 'Teaching' ? 'Teaching' : (gp.type || 'Break'),
+          status: 'Active',
+          isBreak: gp.type !== 'Teaching'
+        })));
+      }
+
       // Backend ACID transaction has committed the new slots to MySQL.
       // Refresh context so all timetable grids across the application stay strictly in sync.
+      const backendSlots = (outcome?.timetable || []) as any[];
+      if (backendSlots.length > 0 && bulkAddTimetableSlots) {
+        const mappedSlots = backendSlots.map((s, idx) => ({
+          id: s.id ? `TT-${s.id}` : `TT-GEN-${Date.now()}-${idx}`,
+          academicYear: academicYear || selectedAcademicYear || s.academicYear || '2026-2027',
+          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || 'Main Campus',
+          className: s.className || '',
+          section: s.sectionName || s.section || 'A',
+          day: (s.dayOfWeek || s.day || 'Monday') as any,
+          periodName: s.periodName || '',
+          timeSlot: (s.startTime && s.endTime) ? `${s.startTime} - ${s.endTime}` : (s.timeSlot || ''),
+          startTime: s.startTime || '',
+          endTime: s.endTime || '',
+          periodNumber: s.sequence || s.periodNumber || (idx + 1),
+          subject: s.subjectName || s.subject || '',
+          teacherName: s.teacherName || '',
+          teacherId: s.teacherId ? String(s.teacherId) : undefined,
+          roomNo: s.roomNo || s.room || '',
+          status: 'Active'
+        }));
+        bulkAddTimetableSlots(mappedSlots as any);
+      }
+
+      if (loadTimetableForClassSection) {
+        await Promise.all(
+          formattedSelectedClasses.flatMap(c =>
+            c.sections.map(sec =>
+              loadTimetableForClassSection(c.className, sec, academicYear || selectedAcademicYear || '2026-2027').catch(() => {})
+            )
+          )
+        );
+      }
+
       if (fetchPeriods) {
         await fetchPeriods(true).catch(() => {});
       }
@@ -1433,92 +1495,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 </div>
               </div>
 
-              {/* Engine Rules & Guarantees Banner */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                    Authoritative Backend Solver Rules
-                  </span>
-                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" /> Enforced Strictly
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
-                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-1">
-                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Anti-Consecutive Rule
-                    </div>
-                    <p className="text-slate-500 dark:text-slate-400 text-[10.5px]">
-                      Same normal subject is never placed back-to-back on same day (|p₁ - p₂| ≥ 2).
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-1">
-                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Lab Double-Blocks
-                    </div>
-                    <p className="text-slate-500 dark:text-slate-400 text-[10.5px]">
-                      Lab/Practical subjects are paired consecutively on same day for experiments.
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-1">
-                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Zero Clashes & ACID
-                    </div>
-                    <p className="text-slate-500 dark:text-slate-400 text-[10.5px]">
-                      Zero teacher & room overlap with atomic database transaction rollback.
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Advanced Solver Controls (Seed & Variation) */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <SlidersHorizontal className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                    Solver Seed & Variation Controls
-                  </span>
-                  <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-                    Seeded PRNG (Deterministic Reproducibility)
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="flex-1">
-                    <input
-                      type="number"
-                      placeholder="Random Seed (e.g. 42 — Leave blank for auto-generated seed)"
-                      value={generationSeed}
-                      onChange={(e) => setGenerationSeed(e.target.value)}
-                      className="w-full text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setGenerationSeed(String(Math.floor(Math.random() * 900000) + 100000))}
-                      className="px-3 py-2 rounded-xl text-xs font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-300 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/60 flex items-center gap-1.5 transition-colors"
-                      title="Generate random seed"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Randomize
-                    </button>
-                    {generationSeed && (
-                      <button
-                        type="button"
-                        onClick={() => setGenerationSeed('')}
-                        className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-1 transition-colors"
-                        title="Clear seed"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-tight">
-                  Leaving seed blank ensures different valid timetable permutations each run. Setting an explicit seed guarantees 100% identical schedule reproduction.
-                </p>
-              </div>
 
               {/* Generation Quality Summary (When successfully generated) */}
               {generationResult?.success && generationResult.summary && (
