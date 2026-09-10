@@ -283,7 +283,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           },
           {
             id: "hostel-student-hostel",
-            label: "Room Allocation",
+            label: "Student Management",
             icon: UserPlus,
           },
           {
@@ -301,7 +301,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           },
           {
             id: "hostel-student-hostel",
-            label: "Room Allocation",
+            label: "Student Management",
             icon: UserPlus,
           },
           {
