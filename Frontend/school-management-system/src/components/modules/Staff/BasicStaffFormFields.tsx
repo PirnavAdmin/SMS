@@ -24,7 +24,7 @@ import {
 
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
-import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
+import { lookupPostalCode, getOfflinePostalInfo, validateStateName, validateCityName, VALID_INDIAN_STATES, KNOWN_INDIAN_CITIES } from '../../../utils/postalLookup';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;
@@ -94,7 +94,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
         require("permanentAddress", !!value.permanentAddress.trim(), "Permanent Address is required.");
       }
       require("city", !!value.city.trim(), "City is required.");
+      if (value.city.trim()) {
+        const cityRes = validateCityName(value.city);
+        if (!cityRes.isValid && cityRes.error) {
+          stepErrors.city = cityRes.error;
+        }
+      }
       require("state", !!value.state.trim(), "State is required.");
+      if (value.state.trim()) {
+        const stateRes = validateStateName(value.state);
+        if (!stateRes.isValid && stateRes.error) {
+          stepErrors.state = stateRes.error;
+        }
+      }
       require("pinCode", !!value.pinCode.trim(), "PIN Code is required.");
       require("country", !!value.country.trim(), "Country is required.");
       if (value.pinCode.trim() && !/^\d{6}$/.test(value.pinCode.trim())) {
@@ -794,11 +806,40 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 </label>
                 <input
                   type="text"
+                  list="indian-states-list"
                   value={value.state || ''}
-                  onChange={e => onChange('state', e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
+                    onChange('state', val);
+                    if (val.trim()) {
+                      const res = validateStateName(val);
+                      if (!res.isValid && res.error) {
+                        setLocalErrors(prev => ({ ...prev, state: res.error! }));
+                      } else {
+                        setLocalErrors(prev => {
+                          const next = { ...prev };
+                          delete next.state;
+                          return next;
+                        });
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    if (value.state?.trim()) {
+                      const res = validateStateName(value.state);
+                      if (!res.isValid && res.error) {
+                        setLocalErrors(prev => ({ ...prev, state: res.error! }));
+                      }
+                    }
+                  }}
                   className={fieldClass}
-                  placeholder="Enter state"
+                  placeholder="e.g. Telangana, Andhra Pradesh"
                 />
+                <datalist id="indian-states-list">
+                  {VALID_INDIAN_STATES.map(st => (
+                    <option key={st} value={st} />
+                  ))}
+                </datalist>
                 {errors.state && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.state}</p>}
               </div>
 
@@ -808,11 +849,40 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 </label>
                 <input
                   type="text"
+                  list="popular-cities-list"
                   value={value.city || ''}
-                  onChange={e => onChange('city', e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
+                    onChange('city', val);
+                    if (val.trim()) {
+                      const res = validateCityName(val);
+                      if (!res.isValid && res.error) {
+                        setLocalErrors(prev => ({ ...prev, city: res.error! }));
+                      } else {
+                        setLocalErrors(prev => {
+                          const next = { ...prev };
+                          delete next.city;
+                          return next;
+                        });
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    if (value.city?.trim()) {
+                      const res = validateCityName(value.city);
+                      if (!res.isValid && res.error) {
+                        setLocalErrors(prev => ({ ...prev, city: res.error! }));
+                      }
+                    }
+                  }}
                   className={fieldClass}
-                  placeholder="Enter city"
+                  placeholder="e.g. Hyderabad, Vijayawada"
                 />
+                <datalist id="popular-cities-list">
+                  {KNOWN_INDIAN_CITIES.map(ct => (
+                    <option key={ct} value={ct} />
+                  ))}
+                </datalist>
                 {errors.city && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.city}</p>}
               </div>
 

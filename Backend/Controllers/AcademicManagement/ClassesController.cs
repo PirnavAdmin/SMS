@@ -670,11 +670,18 @@ await transaction.CommitAsync();
                 subjectId = firstMapping?.SubjectId ?? 0;
             }
 
+            var cleanSec = section_letter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+            var prefixedSec = "Section " + cleanSec;
+
             if (dto.Role == "Class Teacher")
             {
                 // Unassign any existing Class Teacher for this section
                 var existingClassTeacher = await _context.TeacherAssignments
-                    .FirstOrDefaultAsync(a => a.ClassId == id && a.SectionLetter.ToLower() == section_letter.ToLower() && a.Role == "Class Teacher");
+                    .FirstOrDefaultAsync(a => a.ClassId == id &&
+                        (a.SectionLetter.ToLower() == section_letter.ToLower() ||
+                         a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                         a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                        a.Role == "Class Teacher");
 
                 if (existingClassTeacher != null)
                 {
@@ -685,7 +692,12 @@ await transaction.CommitAsync();
             {
                 // Prevent duplicate Subject Teacher for same class/section/subject
                 var existingSubjectTeacher = await _context.TeacherAssignments
-                    .FirstOrDefaultAsync(a => a.ClassId == id && a.SectionLetter.ToLower() == section_letter.ToLower() && a.SubjectId == subjectId && a.Role == "Subject Teacher");
+                    .FirstOrDefaultAsync(a => a.ClassId == id &&
+                        (a.SectionLetter.ToLower() == section_letter.ToLower() ||
+                         a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                         a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                        a.SubjectId == subjectId &&
+                        a.Role == "Subject Teacher");
 
                 if (existingSubjectTeacher != null)
                 {
@@ -694,7 +706,10 @@ await transaction.CommitAsync();
 
                 // Also sync to teacher_subject_assignments (used by Timetable & Attendance modules)
                 var section = await _context.ClassSections
-                    .FirstOrDefaultAsync(s => s.ClassId == id && s.SectionName.ToLower() == section_letter.ToLower());
+                    .FirstOrDefaultAsync(s => s.ClassId == id &&
+                        (s.SectionName.ToLower() == section_letter.ToLower() ||
+                         s.SectionName.ToLower() == cleanSec.ToLower() ||
+                         s.SectionName.ToLower() == prefixedSec.ToLower()));
 
                 if (section != null && subjectId > 0)
                 {

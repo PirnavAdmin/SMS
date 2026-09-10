@@ -5,11 +5,10 @@ import {
   SlidersHorizontal, Info, Coffee, Utensils, RefreshCw,
   ArrowRight, ShieldCheck, FileSpreadsheet, Plus, Edit, Trash2
 } from 'lucide-react';
-import { PeriodSetting, TimetableSlot } from '../../../types';
 import { useData, AcademicClass } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { saveTimetableSlotApi, fetchTimetableGridApi, deleteTimetableSlotApi } from '../../../api/academic';
+import { generateTimetableApi } from '../../../api/academic';
 
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
@@ -110,19 +109,12 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 }) => {
   const {
     academicClasses,
-    updateAcademicClass,
     rawClasses,
     teacherAssignments,
     subjects,
-    addPeriodSetting,
-    bulkAddPeriodSettings,
     periodSettings,
-    timetable,
-    addTimetableSlot,
-    bulkAddTimetableSlots,
-    deleteTimetableSlot,
-    clearClassTimetable,
     fetchPeriods,
+    fetchTimetables,
     academicYears
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
@@ -155,10 +147,57 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   const [periodDurationMinutes, setPeriodDurationMinutes] = useState<number | string>(45);
 
   // Dynamic Breaks List (with Add, Edit, Delete options)
-  const [breaks, setBreaks] = useState<BreakItem[]>([
-    { id: 'BRK-1', name: 'Morning Break', durationMinutes: 15, afterPeriod: 2, type: 'Break', enabled: true },
-    { id: 'BRK-2', name: 'Lunch Break', durationMinutes: 45, afterPeriod: 4, type: 'Lunch', enabled: true }
-  ]);
+  const [breaks, setBreaks] = useState<BreakItem[]>([]);
+  const [hasInitializedTimings, setHasInitializedTimings] = useState(false);
+
+  useEffect(() => {
+    if (hasInitializedTimings) return;
+    const active = (periodSettings || [])
+      .filter(p => p.status === 'Active' && (!p.className || p.className === 'Master' || p.className === 'All'))
+      .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+    if (active.length > 0) {
+      const first = active[0];
+      const last = active[active.length - 1];
+      if (first?.startTime) setSchoolStartTime(first.startTime);
+      if (last?.endTime) setSchoolEndTime(last.endTime);
+
+      const firstTeaching = active.find(p => !p.isBreak && p.periodType === 'Teaching');
+      if (firstTeaching) {
+        if (firstTeaching.durationMinutes && Number(firstTeaching.durationMinutes) > 0) {
+          setPeriodDurationMinutes(Number(firstTeaching.durationMinutes));
+        } else if (firstTeaching.startTime && firstTeaching.endTime) {
+          const sMin = timeToMinutes(firstTeaching.startTime);
+          const eMin = timeToMinutes(firstTeaching.endTime);
+          if (eMin > sMin) setPeriodDurationMinutes(eMin - sMin);
+        }
+      }
+
+      const extractedBreaks: BreakItem[] = [];
+      let teachingCount = 0;
+      active.forEach((p, idx) => {
+        const isB = p.isBreak || p.periodType === 'Break' || p.periodType === 'Lunch';
+        if (!isB) {
+          teachingCount++;
+        } else {
+          const sMin = timeToMinutes(p.startTime);
+          const eMin = timeToMinutes(p.endTime);
+          const dur = p.durationMinutes && Number(p.durationMinutes) > 0 ? Number(p.durationMinutes) : (eMin > sMin ? eMin - sMin : 15);
+          extractedBreaks.push({
+            id: p.id || `BRK-${idx + 1}`,
+            name: p.periodName || (p.periodType === 'Lunch' ? 'Lunch Break' : 'Morning Break'),
+            durationMinutes: dur,
+            afterPeriod: teachingCount,
+            type: p.periodType === 'Lunch' ? 'Lunch' : 'Break',
+            enabled: true
+          });
+        }
+      });
+
+      setBreaks(extractedBreaks);
+      setHasInitializedTimings(true);
+    }
+  }, [periodSettings, hasInitializedTimings]);
 
   // Editing / adding break state
   const [editingBreakId, setEditingBreakId] = useState<string | null>(null);
@@ -288,7 +327,12 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   const [autoAssignMappedSubjects, setAutoAssignMappedSubjects] = useState(true);
   const [avoidTeacherConflicts, setAvoidTeacherConflicts] = useState(true);
   const [maxPeriodsPerDayPerSubject, setMaxPeriodsPerDayPerSubject] = useState(2);
+  const [allowConsecutiveForLabs, setAllowConsecutiveForLabs] = useState(true);
+  const [minPeriodGap, setMinPeriodGap] = useState(1);
+  const [generationSeed, setGenerationSeed] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationResult, setGenerationResult] = useState<any | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Add new break handler
   const handleAddBreak = () => {
@@ -457,156 +501,41 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     };
   }, [schoolStartTime, schoolEndTime, periodDurationMinutes, breaks]);
 
-interface GeneratedSlotAssignment {
-  subject: string;
-  teacherName: string;
-  teacherId?: string;
-}
-
-function computeScheduleMatrixForClassSection(
-  className: string,
-  section: string,
-  academicClasses: any[],
-  teacherAssignments: any[],
-  teachingPeriods: any[],
-  workingDays: string[],
-  maxPeriodsPerDayPerSubject: number = 2
-) {
-  const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
-  const cls = academicClasses.find(c => norm(c.name) === norm(className));
-  const mappedSubs = cls?.subjects || [];
-  const weeklyPeriodsMap = cls?.weeklyPeriods || {};
-
-  const subjectRequests = mappedSubs.map((subName: string) => {
-    const classCount = weeklyPeriodsMap[subName];
-    const count = (typeof classCount === 'number' && classCount >= 0) ? classCount : 5;
-
-    const mapping = teacherAssignments.find((ta: any) =>
-      norm(ta.className) === norm(className) &&
-      norm(ta.section) === norm(section) &&
-      norm(ta.subject) === norm(subName)
-    );
-    const secTeachers = (cls as any)?.sectionTeachers || {};
-    const classTeacherName = secTeachers[section] || secTeachers[`Section ${section}`] || secTeachers[section.replace(/^Section\s*/i, '')] || '';
-    const teacherName = mapping?.teacherName || classTeacherName || 'Assigned Teacher';
-    const teacherId = mapping?.teacherId || '';
-
-    return {
-      subject: subName,
-      count,
-      teacherName,
-      teacherId
-    };
-  }).filter((req: any) => req.count > 0);
-
-  const numDays = workingDays.length;
-  const numPeriods = teachingPeriods.length;
-
-  if (numDays === 0 || numPeriods === 0) return { dayBuckets: [], assignedGrid: {} };
-
-  const dayBuckets: GeneratedSlotAssignment[][] = Array.from({ length: numDays }, () => []);
-  const sortedRequests = [...subjectRequests].sort((a, b) => b.count - a.count);
-
-  sortedRequests.forEach((req, sIdx) => {
-    const dayOffset = sIdx % numDays;
-    for (let i = 0; i < req.count; i++) {
-      let bestDay = -1;
-      let minLoad = 9999;
-      for (let d = 0; d < numDays; d++) {
-        const targetDay = (dayOffset + d) % numDays;
-        const countInDay = dayBuckets[targetDay].filter(x => x.subject === req.subject).length;
-        if (countInDay < maxPeriodsPerDayPerSubject && dayBuckets[targetDay].length < numPeriods) {
-          if (dayBuckets[targetDay].length < minLoad) {
-            minLoad = dayBuckets[targetDay].length;
-            bestDay = targetDay;
-          }
-        }
-      }
-      if (bestDay === -1) {
-        for (let d = 0; d < numDays; d++) {
-          const targetDay = (dayOffset + d) % numDays;
-          if (dayBuckets[targetDay].length < numPeriods) {
-            if (dayBuckets[targetDay].length < minLoad) {
-              minLoad = dayBuckets[targetDay].length;
-              bestDay = targetDay;
-            }
-          }
-        }
-      }
-      if (bestDay !== -1) {
-        dayBuckets[bestDay].push({
-          subject: req.subject,
-          teacherName: req.teacherName,
-          teacherId: req.teacherId
-        });
-      }
-    }
-  });
-
-  const assignedGrid: Record<string, (GeneratedSlotAssignment | null)[]> = {};
-
-  workingDays.forEach((dayName, dIdx) => {
-    const subjectsForToday = dayBuckets[dIdx];
-    const assignedSlots: (GeneratedSlotAssignment | null)[] = Array(numPeriods).fill(null);
-
-    subjectsForToday.forEach((item, itemIdx) => {
-      const preferredStartPeriod = (dIdx + itemIdx) % numPeriods;
-      let chosenPeriodIdx = -1;
-      for (let pOffset = 0; pOffset < numPeriods; pOffset++) {
-        const pIdx = (preferredStartPeriod + pOffset) % numPeriods;
-        if (assignedSlots[pIdx] === null) {
-          chosenPeriodIdx = pIdx;
-          break;
-        }
-      }
-      if (chosenPeriodIdx !== -1) {
-        assignedSlots[chosenPeriodIdx] = item;
-      }
-    });
-
-    assignedGrid[dayName] = assignedSlots;
-  });
-
-  return { dayBuckets, assignedGrid };
-}
-
-  // Dynamic Live Timetable Grid Preview for selected class/section
+  // Live Timetable Grid Preview for selected class/section (reads authoritative backend generation result)
   const previewTimetableGrid = useMemo(() => {
     if (!previewClassSec || selectedClassSections.length === 0) return null;
 
     const lastDash = previewClassSec.lastIndexOf('-');
     const className = lastDash !== -1 ? previewClassSec.substring(0, lastDash).trim() : previewClassSec.trim();
     const section = lastDash !== -1 ? previewClassSec.substring(lastDash + 1).trim() : 'A';
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
 
-    const teachingPeriods = calculationResult.periods.filter(p => p.type === 'Teaching');
-    const { assignedGrid } = computeScheduleMatrixForClassSection(
-      className,
-      section,
-      academicClasses,
-      teacherAssignments,
-      teachingPeriods,
-      workingDays,
-      maxPeriodsPerDayPerSubject
-    );
+    // Slots produced by the authoritative backend engine
+    const backendSlots = (generationResult?.timetable || []) as any[];
 
     const grid: Record<string, Record<string, { subject: string; teacherName: string; isBreak?: boolean; breakType?: string }>> = {};
 
     workingDays.forEach(dayName => {
       grid[dayName] = {};
-      const assignedSlots = assignedGrid[dayName] || [];
 
       calculationResult.periods.forEach(p => {
         if (p.type === 'Teaching') {
-          const teachingIdx = teachingPeriods.findIndex(tp => tp.id === p.id);
-          const assigned = assignedSlots[teachingIdx];
-          if (assigned) {
+          // Find matching slot from authoritative backend generation
+          const matchedSlot = backendSlots.find(s =>
+            (norm(s.className) === norm(className) || (s.className && s.className.includes(className))) &&
+            (norm(s.sectionName) === norm(section) || s.sectionName === section) &&
+            s.dayOfWeek?.toLowerCase() === dayName.toLowerCase() &&
+            (s.periodName?.toLowerCase() === p.name.toLowerCase() || s.startTime === p.startTime)
+          );
+
+          if (matchedSlot) {
             grid[dayName][p.name] = {
-              subject: assigned.subject,
-              teacherName: assigned.teacherName
+              subject: matchedSlot.subjectName || matchedSlot.subject,
+              teacherName: matchedSlot.teacherName || 'Assigned Faculty'
             };
           } else {
             grid[dayName][p.name] = {
-              subject: 'Free Period',
+              subject: generationResult?.success ? 'Free Period' : 'Ready to Generate',
               teacherName: '-'
             };
           }
@@ -628,23 +557,16 @@ function computeScheduleMatrixForClassSection(
       workingDays,
       grid
     };
-  }, [previewClassSec, selectedClassSections, academicClasses, teacherAssignments, calculationResult, workingDays, maxPeriodsPerDayPerSubject]);
+  }, [previewClassSec, selectedClassSections, calculationResult, workingDays, generationResult]);
 
   // Quick Class & Section Group Selector
   const handleSelectClassGroup = (group: string) => {
-    const allSections: string[] = [];
-    academicClasses.forEach(c => {
-      const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-      sections.forEach(sec => allSections.push(`${c.name}-${sec}`));
-    });
-
     if (group === 'none') {
       setSelectedClassSections([]);
       return;
     }
     if (group === 'all') {
       setClassGroupFilter('all');
-      setSelectedClassSections(allSections);
       return;
     }
     if (group === 'sec-A' || group === 'sec-B') {
@@ -674,16 +596,6 @@ function computeScheduleMatrixForClassSection(
 
     if ((classGroups || []).some(g => g.key === group)) {
       setClassGroupFilter(group);
-      const activeGroup = (classGroups || []).find(g => g.key === group);
-      if (activeGroup) {
-        const targetClasses = (academicClasses || []).filter(c => activeGroup.match(c.name));
-        const groupKeys: string[] = [];
-        targetClasses.forEach(c => {
-          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-          sections.forEach(sec => groupKeys.push(`${c.name}-${sec}`));
-        });
-        setSelectedClassSections(groupKeys);
-      }
     }
   };
 
@@ -732,252 +644,68 @@ function computeScheduleMatrixForClassSection(
     }
 
     setIsGenerating(true);
-
-    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+    setGenerationError(null);
 
     try {
       const apiPayload = {
         academicYear,
+        branchName: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || '',
         schoolStartTime,
         schoolEndTime,
         periodDurationMinutes: Number(periodDurationMinutes),
         workingDays,
-        breaks: breaks.map(b => ({
+        breaks: breaks.filter(b => b.enabled).map(b => ({
           name: b.name,
           durationMinutes: Number(b.durationMinutes),
           afterPeriod: Number(b.afterPeriod),
           type: b.type
         })),
         selectedClassSections,
-        autoAssignMappedSubjects
+        autoAssignMappedSubjects,
+        allowConsecutiveForLabs,
+        maxDailyPeriodsPerSubject: Number(maxPeriodsPerDayPerSubject) || 2,
+        minPeriodGap: Number(minPeriodGap) || 1,
+        seed: generationSeed.trim() !== '' ? parseInt(generationSeed.trim(), 10) : undefined,
+        timeoutSeconds: 30
       };
 
-      // 1. Prepare Period Settings in memory (both Master and for each selected Class-Section)
-      const newPeriodSettings: PeriodSetting[] = [];
+      const res = await generateTimetableApi(apiPayload);
+      const outcome = (res && res.data && typeof res.data === 'object' && ('timetable' in res.data || 'status' in res.data))
+        ? res.data
+        : res;
+      setGenerationResult(outcome);
 
-      calculationResult.periods.forEach((p, idx) => {
-        newPeriodSettings.push({
-          id: `PS-AUTO-M-${Date.now()}-${idx + 1}`,
-          periodName: p.name,
-          startTime: p.startTime,
-          endTime: p.endTime,
-          periodType: p.type,
-          sequence: p.sequence,
-          status: 'Active',
-          academicYear,
-          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || ((academicClasses[0] as any)?.branch) || ((academicClasses[0] as any)?.campus) || ''
-        });
-      });
-
-      for (const classSec of selectedClassSections) {
-        const lastDash = classSec.lastIndexOf('-');
-        const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
-        const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
-        const rawCls = rawClasses?.find((rc: any) => rc.className === className || rc.name === className);
-        const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
-        const classBranch = selectedBranch || rawCls?.campusLocation || (clsObj as any)?.branch || (clsObj as any)?.campus || '';
-
-        calculationResult.periods.forEach((p, idx) => {
-          newPeriodSettings.push({
-            id: `PS-AUTO-CS-${Date.now()}-${className}-${section}-${idx + 1}`,
-            className,
-            section,
-            periodName: p.name,
-            startTime: p.startTime,
-            endTime: p.endTime,
-            periodType: p.type,
-            sequence: p.sequence,
-            status: 'Active',
-            academicYear,
-            branch: classBranch
-          });
-        });
+      if (!outcome?.success) {
+        setGenerationError(outcome?.message || 'Could not find a conflict-free timetable schedule.');
+        addToast('error', `Generation ${outcome?.status || 'Failed'}`, outcome?.message || 'Failed to generate timetable.');
+        return;
       }
 
-      if (bulkAddPeriodSettings) {
-        bulkAddPeriodSettings(newPeriodSettings);
-      }
-
-      // 2. Generate Timetable Slots in memory respecting weeklyPeriods & teacher assignments
-      const teachingPeriods = calculationResult.periods.filter(p => p.type === 'Teaching');
-      const teacherScheduleMap = new Map<string, string>(); // key: `${day}-${periodNumber}-${teacherId}` -> classSec
-      const newTimetableSlots: TimetableSlot[] = [];
-      const detectedTeacherConflicts: string[] = [];
-
-      for (const classSec of selectedClassSections) {
-        const lastDash = classSec.lastIndexOf('-');
-        const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
-        const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
-
-        const cls = academicClasses.find(c => norm(c.name) === norm(className));
-        const mappedSubs = cls?.subjects || [];
-        if (!autoAssignMappedSubjects || mappedSubs.length === 0) {
-          continue;
-        }
-
-        const { assignedGrid } = computeScheduleMatrixForClassSection(
-          className,
-          section,
-          academicClasses,
-          teacherAssignments,
-          teachingPeriods,
-          workingDays,
-          maxPeriodsPerDayPerSubject
-        );
-
-        workingDays.forEach(dayName => {
-          const assignedSlots = assignedGrid[dayName] || [];
-          teachingPeriods.forEach((period, pIdx) => {
-            const assigned = assignedSlots[pIdx];
-            if (assigned) {
-              const slotTime = `${period.startTime} - ${period.endTime}`;
-
-              const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
-              const secDetails = clsObj?.sectionDetails?.[section] || clsObj?.sectionDetails?.[section.toUpperCase()] || clsObj?.sectionDetails?.[section.toLowerCase()];
-              const secRoom = secDetails?.roomNo?.trim() || (secDetails as any)?.roomNumber?.trim();
-              const dynamicRoomNo = secRoom && secRoom.toLowerCase() !== 'unassigned' && secRoom.toLowerCase() !== 'classroom'
-                ? secRoom
-                : `${className.replace(/class/gi, '').trim()}-${section}`;
-              const rawCls = rawClasses?.find((rc: any) => rc.className === className || rc.name === className);
-              const slotBranch = selectedBranch || rawCls?.campusLocation || (clsObj as any)?.branch || (clsObj as any)?.campus || '';
-
-              const subObj = subjects.find(s => norm(s.name) === norm(assigned.subject));
-              const subId = subObj?.id ? parseInt(String(subObj.id).replace(/\D/g, '')) || undefined : undefined;
-
-              newTimetableSlots.push({
-                id: `SLOT-AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                className,
-                section,
-                day: dayName as any,
-                timeSlot: slotTime,
-                startTime: period.startTime,
-                endTime: period.endTime,
-                periodNumber: period.sequence || (pIdx + 1),
-                subject: assigned.subject,
-                subjectId: subId ? String(subId) : undefined,
-                teacherName: assigned.teacherName,
-                teacherId: assigned.teacherId,
-                roomNo: dynamicRoomNo,
-                academicYear,
-                status: 'Draft',
-                branch: slotBranch
-              });
-            }
-          });
-        });
-      }
-
-      // Clear previous timetable slots from frontend memory and backend DB for selected class sections
-      for (const classSec of selectedClassSections) {
-        const lastDash = classSec.lastIndexOf('-');
-        const className = lastDash !== -1 ? classSec.substring(0, lastDash).trim() : classSec.trim();
-        const section = lastDash !== -1 ? classSec.substring(lastDash + 1).trim() : 'A';
-        
-        if (clearClassTimetable) {
-          await clearClassTimetable(className, section);
-        }
-
-        // Fetch and delete existing backend DB slots for this class/section to avoid 409 DB conflicts completely
-        const clsObj = academicClasses.find(c => norm(c.name) === norm(className));
-        if (clsObj?.id) {
-          try {
-            const gridRes: any = await fetchTimetableGridApi(clsObj.id, section, academicYear).catch(() => null);
-            const rawList = Array.isArray(gridRes?.data) ? gridRes.data : (Array.isArray(gridRes) ? gridRes : []);
-            if (rawList.length > 0) {
-              await Promise.all(
-                rawList.map(async (oldItem: any) => {
-                  const sId = oldItem?.slotId || oldItem?.id;
-                  if (sId) {
-                    const numericId = String(sId).replace(/^TT-/i, '');
-                    await deleteTimetableSlotApi(numericId).catch(() => {});
-                  }
-                })
-              );
-            }
-          } catch (e) {
-            console.warn('Pre-clear backend timetable slots skipped:', e);
-          }
-        }
-      }
-
-      if (bulkAddTimetableSlots) {
-        bulkAddTimetableSlots(newTimetableSlots);
-      }
-
-      // 3. Persist exact generated slots to backend in controlled sequential batches
-      try {
-        const BATCH_SIZE = 4;
-        for (let i = 0; i < newTimetableSlots.length; i += BATCH_SIZE) {
-          const batch = newTimetableSlots.slice(i, i + BATCH_SIZE);
-          await Promise.all(
-            batch.map(async (slot) => {
-              const times = slot.timeSlot.split('-');
-              const startTime = times[0]?.trim() || '';
-              const endTime = times[1]?.trim() || '';
-              const clsObj = academicClasses.find(c => norm(c.name) === norm(slot.className));
-              const classId = clsObj?.id;
-
-              try {
-                await saveTimetableSlotApi({
-                  classId,
-                  className: slot.className,
-                  sectionName: slot.section,
-                  academicYear: slot.academicYear || academicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "",
-                  dayOfWeek: slot.day,
-                  startTime,
-                  endTime,
-                  subjectName: slot.subject,
-                  subjectId: (slot as any).subjectId,
-                  teacherName: slot.teacherName,
-                  teacherId: slot.teacherId,
-                  roomNo: slot.roomNo,
-                  overwrite: true,
-                });
-              } catch (slotErr: any) {
-                // Catch 409 Conflict silently so single slot collisions don't flood error logs or stop generation
-                if (slotErr?.status === 409 || String(slotErr?.message || '').includes('409')) {
-                  console.info(`[AutoTimetable] Conflict resolved / overwritten for slot ${slot.className}-${slot.section} (${slot.day} ${slot.timeSlot})`);
-                } else {
-                  console.warn('Backend timetable slot save notice:', slotErr);
-                }
-              }
-            })
-          );
-          // Brief 30ms pause between batches to prevent ngrok tunnel connection lockup
-          await new Promise(r => setTimeout(r, 30));
-        }
-      } catch (e) {
-        console.warn('Backend timetable slot save skipped:', e);
-      }
-
+      // Backend ACID transaction has committed the new slots to MySQL.
+      // Refresh context so all timetable grids across the application stay strictly in sync.
       if (fetchPeriods) {
-        fetchPeriods(true).catch(() => {});
+        await fetchPeriods(true).catch(() => {});
+      }
+      if (fetchTimetables) {
+        await fetchTimetables(true).catch(() => {});
       }
 
       const classListSummary = formattedSelectedClasses
         .map(c => `${c.className} (Sec ${c.sections.join(', ')})`)
         .join(', ');
 
-      if (detectedTeacherConflicts.length > 0) {
-        const uniqueConflicts = [...new Set(detectedTeacherConflicts)];
-        addToast(
-          'warning',
-          'Teacher Assignment Conflicts Detected',
-          `Teacher schedule warning: ${uniqueConflicts.slice(0, 3).join(' | ')}`
-        );
-      }
-
       addToast(
         'success',
-        'Auto-Generation Complete! 🎉',
-        `Timetable schedule successfully generated for ${selectedClassSections.length} class section(s): ${classListSummary}`
+        'Authoritative Timetable Generated! 🎉',
+        outcome.message || `Timetable successfully generated for ${selectedClassSections.length} class section(s): ${classListSummary}`
       );
 
       if (onSuccess) onSuccess();
-      onClose();
     } catch (err: any) {
-      console.error('Error generating auto timetable:', err);
-      addToast('error', 'Generation Error', err.message || 'Failed to generate timetable slots.');
+      console.error('Error during authoritative timetable generation:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to generate timetable slots.';
+      setGenerationError(msg);
+      addToast('error', 'Generation Error', msg);
     } finally {
       setIsGenerating(false);
     }
@@ -1495,20 +1223,38 @@ function computeScheduleMatrixForClassSection(
 
                   {/* Quick Select Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {classGroups.map(g => (
-                      <button
-                        key={g.key}
-                        type="button"
-                        onClick={() => handleSelectClassGroup(g.key)}
-                        className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                          classGroupFilter === g.key
-                            ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
-                        }`}
-                      >
-                        {g.label}
-                      </button>
-                    ))}
+                    {classGroups.map(g => {
+                      const selCount = (academicClasses || [])
+                        .filter(c => g.match(c.name))
+                        .reduce((count, c) => {
+                          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+                          return count + sections.filter(sec => selectedClassSections.includes(`${c.name}-${sec}`)).length;
+                        }, 0);
+
+                      return (
+                        <button
+                          key={g.key}
+                          type="button"
+                          onClick={() => handleSelectClassGroup(g.key)}
+                          className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                            classGroupFilter === g.key
+                              ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                          }`}
+                        >
+                          <span>{g.label}</span>
+                          {selCount > 0 && (
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              classGroupFilter === g.key
+                                ? 'bg-white/20 text-white'
+                                : 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
+                            }`}>
+                              {selCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
 
                     <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
 
@@ -1687,6 +1433,200 @@ function computeScheduleMatrixForClassSection(
                 </div>
               </div>
 
+              {/* Engine Rules & Guarantees Banner */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                    Authoritative Backend Solver Rules
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Enforced Strictly
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Anti-Consecutive Rule
+                    </div>
+                    <p className="text-slate-500 dark:text-slate-400 text-[10.5px]">
+                      Same normal subject is never placed back-to-back on same day (|p₁ - p₂| ≥ 2).
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Lab Double-Blocks
+                    </div>
+                    <p className="text-slate-500 dark:text-slate-400 text-[10.5px]">
+                      Lab/Practical subjects are paired consecutively on same day for experiments.
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Zero Clashes & ACID
+                    </div>
+                    <p className="text-slate-500 dark:text-slate-400 text-[10.5px]">
+                      Zero teacher & room overlap with atomic database transaction rollback.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced Solver Controls (Seed & Variation) */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                    Solver Seed & Variation Controls
+                  </span>
+                  <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                    Seeded PRNG (Deterministic Reproducibility)
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      placeholder="Random Seed (e.g. 42 — Leave blank for auto-generated seed)"
+                      value={generationSeed}
+                      onChange={(e) => setGenerationSeed(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setGenerationSeed(String(Math.floor(Math.random() * 900000) + 100000))}
+                      className="px-3 py-2 rounded-xl text-xs font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-300 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/60 flex items-center gap-1.5 transition-colors"
+                      title="Generate random seed"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Randomize
+                    </button>
+                    {generationSeed && (
+                      <button
+                        type="button"
+                        onClick={() => setGenerationSeed('')}
+                        className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-1 transition-colors"
+                        title="Clear seed"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-tight">
+                  Leaving seed blank ensures different valid timetable permutations each run. Setting an explicit seed guarantees 100% identical schedule reproduction.
+                </p>
+              </div>
+
+              {/* Generation Quality Summary (When successfully generated) */}
+              {generationResult?.success && generationResult.summary && (
+                <div className="bg-emerald-50/90 dark:bg-emerald-950/40 p-4 rounded-xl sm:rounded-2xl border border-emerald-300 dark:border-emerald-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      <div>
+                        <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-wider">
+                          Schedule Successfully Generated & Verified
+                        </h4>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                          {generationResult.message}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 text-white shadow-xs">
+                      {generationResult.summary.overallQualityScore}% Score
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+                    <div className="p-2 bg-white dark:bg-slate-850 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-[10px] uppercase font-extrabold text-slate-400">Total Slots</div>
+                      <div className="text-sm font-black text-slate-800 dark:text-slate-200">{generationResult.summary.slotsGenerated}</div>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-slate-850 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-[10px] uppercase font-extrabold text-slate-400">Hard Violations</div>
+                      <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">{generationResult.summary.hardViolations}</div>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-slate-850 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-[10px] uppercase font-extrabold text-slate-400">Daily Similarity</div>
+                      <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                        {generationResult.dailyPatternSimilarity !== undefined ? `${Math.round(generationResult.dailyPatternSimilarity)}%` : '0%'}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-slate-850 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-[10px] uppercase font-extrabold text-slate-400">Period Diversity</div>
+                      <div className="text-sm font-black text-sky-600 dark:text-sky-400">
+                        {generationResult.summary.periodDiversityScore !== undefined ? `${Math.round(generationResult.summary.periodDiversityScore)}%` : '100%'}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-slate-850 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-[10px] uppercase font-extrabold text-slate-400">Generation Seed</div>
+                      <div className="text-sm font-black text-slate-800 dark:text-slate-200 font-mono">
+                        {generationResult.generationSeed ?? 'Auto'}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-slate-850 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-[10px] uppercase font-extrabold text-slate-400">Time Taken</div>
+                      <div className="text-sm font-black text-slate-800 dark:text-slate-200">{generationResult.summary.executionTimeMs} ms</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Generation Diagnostics & Conflict Card (When generation returned NO_SOLUTION or VALIDATION_FAILED) */}
+              {generationResult && !generationResult.success && (
+                <div className="bg-rose-50 dark:bg-rose-950/40 p-4 rounded-xl sm:rounded-2xl border border-rose-300 dark:border-rose-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                      <div>
+                        <h4 className="text-xs font-black text-rose-900 dark:text-rose-100 uppercase tracking-wider">
+                          {generationResult.status === 'SYSTEM_ERROR'
+                            ? 'System Error Occurred'
+                            : generationResult.status === 'CAPACITY_EXCEEDED'
+                            ? 'Workload Exceeds Capacity'
+                            : generationResult.status === 'TIMEOUT'
+                            ? 'Solver Timeout'
+                            : `Generation Notice (${generationResult.status || 'NO_SOLUTION'})`}
+                        </h4>
+                        <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                          {generationResult.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {generationResult.conflicts && generationResult.conflicts.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] uppercase font-extrabold text-rose-800 dark:text-rose-300 tracking-wider">Conflict Details:</span>
+                      <div className="space-y-1 max-h-36 overflow-y-auto">
+                        {generationResult.conflicts.map((c: any, i: number) => (
+                          <div key={i} className="p-2 rounded-lg bg-white dark:bg-slate-850 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex items-start gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300 shrink-0 uppercase">
+                              {c.type}
+                            </span>
+                            <span>{c.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {generationResult.suggestions && generationResult.suggestions.length > 0 && (
+                    <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider block">Recommended Adjustments:</span>
+                      <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                        {generationResult.suggestions.map((s: string, i: number) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Live Dynamic Timetable Grid Preview Card */}
               <div className="bg-white dark:bg-slate-850 p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -1836,24 +1776,39 @@ function computeScheduleMatrixForClassSection(
             )}
 
             {activeStep === 'generate' && (
-              <button
-                type="button"
-                disabled={isGenerating || calculationResult.errors.length > 0 || selectedClassSections.length === 0}
-                onClick={handleExecuteGeneration}
-                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl transition-all shadow-md flex items-center gap-1.5"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Generate & Apply</span>
-                  </>
+              <div className="flex items-center gap-2">
+                {generationResult?.success && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-all"
+                  >
+                    Done & Close
+                  </button>
                 )}
-              </button>
+                <button
+                  type="button"
+                  disabled={isGenerating || calculationResult.errors.length > 0 || selectedClassSections.length === 0}
+                  onClick={handleExecuteGeneration}
+                  className={`px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 ${
+                    generationResult?.success
+                      ? 'bg-brand-600 hover:bg-brand-700'
+                      : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  {isGenerating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Generating with Engine...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>{generationResult?.success ? 'Re-Generate' : 'Generate & Apply Schedule'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -141,6 +141,8 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetClassTimetableGrid(
             [FromQuery] int classId = 0, 
             [FromQuery] int sectionId = 0, 
+            [FromQuery] string? sectionName = null,
+            [FromQuery] string? section = null,
             [FromQuery] string? academicYear = null)
         {
             try
@@ -148,6 +150,24 @@ namespace SMS.Api.Controllers.AcademicManagement
                 var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
                     ? academicYear
                     : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var secQuery = !string.IsNullOrWhiteSpace(sectionName) ? sectionName : section;
+                if (!string.IsNullOrWhiteSpace(secQuery) && classId > 0)
+                {
+                    var cleanSec = secQuery.Trim().ToLower().Replace("section", "").Replace("-", "").Trim();
+                    var sections = await _context.ClassSections
+                        .Where(s => s.ClassId == classId)
+                        .ToListAsync();
+
+                    var matchedSection = sections.FirstOrDefault(s => s.SectionName != null &&
+                        (s.SectionName.Equals(secQuery, StringComparison.OrdinalIgnoreCase) ||
+                         s.SectionName.ToLower().Replace("section", "").Replace("-", "").Trim() == cleanSec ||
+                         s.SectionId.ToString() == secQuery));
+                    if (matchedSection != null)
+                    {
+                        sectionId = matchedSection.SectionId;
+                    }
+                }
 
                 var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, resolvedAcademicYear);
                 return Ok(new { success = true, data = result });
@@ -467,6 +487,25 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         /// <summary>
+        /// Synchronize/replace master period settings from timetable generator or setup
+        /// </summary>
+        [HttpPost("periods/sync")]
+        [HttpPost("/api/academics/periods/sync")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> SyncPeriodSettings([FromBody] List<SavePeriodSettingDto> dtos)
+        {
+            try
+            {
+                var result = await _timetableService.SyncPeriodSettingsAsync(dtos);
+                return Ok(new { success = true, message = "Period settings synchronized successfully.", data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Save (Create or Update) a weekly class timetable slot allocation mapping
         /// </summary>
         [HttpPost("slot")]
@@ -518,7 +557,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         [HttpDelete("class")]
         [HttpDelete("/api/academics/timetable/class")]
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> ClearClassTimetable(
+        public async Task<IActionResult> ClearClassTimetable( 
             [FromQuery] string className,
             [FromQuery] string section,
             [FromQuery] string? academicYear = null)
@@ -607,12 +646,12 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpPost("/api/academics/timetable/generate")]
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto)
+        public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                var result = await _timetableService.GenerateTimetableAsync(dto);
-                return Ok(new { success = true, message = "Timetable generated successfully.", data = result });
+                var result = await _timetableService.GenerateTimetableAsync(dto, cancellationToken);
+                return Ok(new { success = result.Success, message = result.Message, data = result });
             }
             catch (Exception ex)
             {

@@ -76,6 +76,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       const hadToken = !!localStorage.getItem('auth_token');
       localStorage.removeItem('auth_user');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('active_module');
       if (hadToken) {
         window.location.reload();
       }

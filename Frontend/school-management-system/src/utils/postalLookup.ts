@@ -138,3 +138,126 @@ export async function lookupPostalCode(pinCode: string): Promise<PostalLocationI
 
   return fallback;
 }
+
+export const VALID_INDIAN_STATES = [
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+  'Andaman and Nicobar Islands',
+  'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
+  'Lakshadweep',
+  'Puducherry'
+];
+
+export const KNOWN_INDIAN_CITIES = [
+  'Hyderabad', 'Secunderabad', 'Visakhapatnam', 'Vijayawada', 'Guntur', 'Tirupati', 'Warangal', 'Karimnagar', 'Nizamabad', 'Khammam', 'Nellore', 'Kurnool', 'Rajahmundry', 'Kakinada',
+  'Bengaluru', 'Bangalore', 'Mysuru', 'Mysore', 'Hubballi', 'Dharwad', 'Mangaluru', 'Mangalore', 'Belagavi', 'Belgaum', 'Kalaburagi', 'Gulbarga', 'Ballari', 'Davangere',
+  'Mumbai', 'Bombay', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Aurangabad', 'Chhatrapati Sambhajinagar', 'Solapur', 'Kolhapur', 'Navi Mumbai', 'Amravati', 'Nanded',
+  'Chennai', 'Madras', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Trichy', 'Salem', 'Erode', 'Vellore', 'Tirunelveli', 'Thanjavur',
+  'Kochi', 'Cochin', 'Thiruvananthapuram', 'Trivandrum', 'Kozhikode', 'Calicut', 'Thrissur', 'Kollam', 'Kannur',
+  'Kolkata', 'Calcutta', 'Howrah', 'Siliguri', 'Asansol', 'Durgapur', 'Kharagpur',
+  'New Delhi', 'Gurugram', 'Gurgaon', 'Noida', 'Ghaziabad', 'Faridabad', 'Greater Noida',
+  'Lucknow', 'Kanpur', 'Varanasi', 'Prayagraj', 'Allahabad', 'Agra', 'Meerut', 'Bareilly', 'Aligarh', 'Gorakhpur', 'Mathura',
+  'Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Bikaner', 'Ajmer', 'Bhilwara', 'Alwar',
+  'Ahmedabad', 'Surat', 'Vadodara', 'Baroda', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Gandhinagar',
+  'Patna', 'Gaya', 'Muzaffarpur', 'Bhagalpur', 'Darbhanga',
+  'Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro',
+  'Raipur', 'Bhilai', 'Bilaspur', 'Korba',
+  'Bhubaneswar', 'Cuttack', 'Rourkela', 'Puri', 'Berhampur',
+  'Guwahati', 'Silchar', 'Dibrugarh', 'Jorhat',
+  'Shillong', 'Imphal', 'Agartala', 'Aizawl', 'Kohima', 'Gangtok', 'Itanagar',
+  'Shimla', 'Dharamshala', 'Mandi', 'Solan',
+  'Srinagar', 'Jammu', 'Anantnag', 'Baramulla',
+  'Dehradun', 'Haridwar', 'Roorkee', 'Haldwani', 'Rishikesh',
+  'Panaji', 'Panjim', 'Margao', 'Vasco da Gama',
+  'Puducherry', 'Pondicherry', 'Chandigarh'
+];
+
+export interface LocationValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+export function validateStateName(stateInput: string): LocationValidationResult {
+  const clean = stateInput.trim();
+  if (!clean) {
+    return { isValid: false, error: 'State is required.' };
+  }
+
+  if (!/^[A-Za-z\s.\-']+$/.test(clean)) {
+    return { isValid: false, error: 'State name must contain only alphabetic characters.' };
+  }
+
+  const lowerInput = clean.toLowerCase();
+
+  const matchedCity = KNOWN_INDIAN_CITIES.find(city => city.toLowerCase() === lowerInput);
+  if (matchedCity) {
+    return {
+      isValid: false,
+      error: `"${clean}" is a City name. Please enter a valid State name (e.g. Telangana, Andhra Pradesh).`
+    };
+  }
+
+  const isValidState = VALID_INDIAN_STATES.some(state => state.toLowerCase() === lowerInput);
+  if (!isValidState) {
+    return {
+      isValid: false,
+      error: `"${clean}" is not a recognized State name. Please enter a valid State (e.g. Telangana, Andhra Pradesh, Maharashtra).`
+    };
+  }
+
+  return { isValid: true };
+}
+
+export function validateCityName(cityInput: string): LocationValidationResult {
+  const clean = cityInput.trim();
+  if (!clean) {
+    return { isValid: false, error: 'City is required.' };
+  }
+
+  if (!/^[A-Za-z\s.\-']+$/.test(clean)) {
+    return { isValid: false, error: 'City name must contain only alphabetic characters.' };
+  }
+
+  const lowerInput = clean.toLowerCase();
+
+  const matchedState = VALID_INDIAN_STATES.find(state => state.toLowerCase() === lowerInput);
+  if (matchedState) {
+    return {
+      isValid: false,
+      error: `"${clean}" is a State name. Please enter a valid City name (e.g. Hyderabad, Vijayawada, Visakhapatnam).`
+    };
+  }
+
+  return { isValid: true };
+}
+

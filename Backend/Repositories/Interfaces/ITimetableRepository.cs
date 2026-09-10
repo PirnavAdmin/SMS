@@ -14,6 +14,7 @@ public interface ITimetableRepository
     Task<PeriodSetting> SavePeriodSettingAsync(PeriodSetting period);
     Task<bool> DeletePeriodSettingAsync(int periodId);
     Task<bool> HasOverlappingPeriodSettingAsync(TimeSpan startTime, TimeSpan endTime, int? excludePeriodId = null);
+    Task<List<PeriodSetting>> SyncPeriodSettingsAsync(List<PeriodSetting> periods);
 
     // Timetable Header & Slots
     Task<TimetableHeader?> GetHeaderByClassSectionAsync(int classId, int sectionId, string academicYear);
@@ -66,4 +67,5 @@ public interface ITimetableRepository
     Task<List<TimetableSlot>> GetSlotsByAcademicYearAsync(string academicYear);
     Task DeleteSlotsByHeaderIdsAsync(IEnumerable<int> headerIds);
     Task SaveSlotsBatchAsync(IEnumerable<TimetableSlot> slots);
+    Task ReplaceSlotsInTransactionAsync(IEnumerable<int> headerIdsToDelete, IEnumerable<TimetableSlot> slotsToInsert, System.Threading.CancellationToken cancellationToken = default);
 }

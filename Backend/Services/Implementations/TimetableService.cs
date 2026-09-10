@@ -145,6 +145,36 @@ public class TimetableService : ITimetableService
         return await _timetableRepository.DeletePeriodSettingAsync(periodId);
     }
 
+    public async Task<List<PeriodSettingDto>> SyncPeriodSettingsAsync(List<SavePeriodSettingDto> dtos)
+    {
+        if (dtos == null || !dtos.Any())
+        {
+            return await GetPeriodSettingsAsync();
+        }
+
+        var domainPeriods = dtos.Select(d => new PeriodSetting
+        {
+            PeriodName = d.PeriodName.Trim(),
+            StartTime = ParseTime(d.StartTime),
+            EndTime = ParseTime(d.EndTime),
+            PeriodType = !string.IsNullOrWhiteSpace(d.PeriodType) ? d.PeriodType.Trim() : (d.PeriodName.Contains("Break", StringComparison.OrdinalIgnoreCase) ? "Break" : "Teaching Period"),
+            DisplayOrder = d.DisplayOrder,
+            IsActive = true,
+            IsDeleted = false
+        }).ToList();
+
+        var synced = await _timetableRepository.SyncPeriodSettingsAsync(domainPeriods);
+        return synced.Select(p => new PeriodSettingDto
+        {
+            PeriodId = p.PeriodId,
+            PeriodName = p.PeriodName,
+            StartTime = FormatTime(p.StartTime),
+            EndTime = FormatTime(p.EndTime),
+            PeriodType = p.PeriodType,
+            DisplayOrder = p.DisplayOrder
+        }).ToList();
+    }
+
     // =========================================================
     // CLASS TIMETABLE MATRIX & SLOTS
     // =========================================================
@@ -159,8 +189,13 @@ public class TimetableService : ITimetableService
         var classGrade = await _timetableRepository.GetClassByIdAsync(classId)
             ?? throw new NotFoundException($"Class with ID {classId} not found.");
 
-        var section = await _timetableRepository.GetSectionByIdAsync(sectionId)
-            ?? throw new NotFoundException($"Section with ID {sectionId} not found.");
+        var section = await _timetableRepository.GetSectionByIdAsync(sectionId);
+        if (section == null || section.ClassId != classId)
+        {
+            section = await _timetableRepository.GetDefaultSectionForClassAsync(classId)
+                ?? throw new NotFoundException($"Section with ID {sectionId} not found for Class with ID {classId}.");
+            sectionId = section.SectionId;
+        }
 
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(classId, sectionId, academicYear);
         if (header == null)
@@ -252,13 +287,32 @@ public class TimetableService : ITimetableService
             throw new BadRequestException("A valid ClassId or ClassName is required.");
         }
 
-        // 2. Resolve SectionId by name if not supplied
+        // 2. Resolve SectionId by name if not supplied or if mismatched
+        if (dto.SectionId > 0 && dto.ClassId > 0)
+        {
+            var secObj = await _timetableRepository.GetSectionByIdAsync(dto.SectionId);
+            if (secObj == null || secObj.ClassId != dto.ClassId)
+            {
+                // Mismatched or non-existent section ID provided; re-resolve
+                dto.SectionId = 0;
+            }
+        }
+
         if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
         {
             var matchedSection = await _timetableRepository.GetSectionByNameAsync(dto.ClassId, dto.SectionName);
             if (matchedSection != null)
             {
                 dto.SectionId = matchedSection.SectionId;
+            }
+        }
+
+        if (dto.SectionId == 0 && dto.ClassId > 0)
+        {
+            var defSection = await _timetableRepository.GetDefaultSectionForClassAsync(dto.ClassId);
+            if (defSection != null)
+            {
+                dto.SectionId = defSection.SectionId;
             }
         }
 
@@ -444,6 +498,19 @@ public class TimetableService : ITimetableService
             : (dto.TeacherName ?? "Faculty Member");
         if (string.IsNullOrWhiteSpace(teacherName)) teacherName = "Faculty Member";
 
+        // 8.5 Auto-resolve PeriodId if not explicitly supplied
+        if (!dto.PeriodId.HasValue || dto.PeriodId.Value == 0)
+        {
+            var periodSettings = await _timetableRepository.GetPeriodSettingsAsync();
+            var matchedPeriod = periodSettings.FirstOrDefault(p =>
+                (p.StartTime == startTime && p.EndTime == endTime) ||
+                (p.StartTime == startTime));
+            if (matchedPeriod != null)
+            {
+                dto.PeriodId = matchedPeriod.PeriodId;
+            }
+        }
+
         // 9. Existing slot check
         var existingSlot = (await _timetableRepository.GetSlotsByHeaderIdAsync(header.HeaderId))
             .FirstOrDefault(s => s.DayOfWeek.Equals(dto.DayOfWeek, StringComparison.OrdinalIgnoreCase) &&
@@ -453,15 +520,8 @@ public class TimetableService : ITimetableService
         // 10. Weekly Subject Limit Enforcement & Conflict Validation
         if (dto.Overwrite != true && dto.IgnoreConflicts != true)
         {
-            try
-            {
-                await _validationService.ValidateWeeklySubjectLimitAsync(
-                    header.HeaderId, dto.ClassId, dto.SubjectId, subject.SubjectName ?? string.Empty, existingSlot?.SlotId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Weekly subject limit check notice: {Message}", ex.Message);
-            }
+            await _validationService.ValidateWeeklySubjectLimitAsync(
+                header.HeaderId, dto.ClassId, dto.SubjectId, subject.SubjectName ?? string.Empty, existingSlot?.SlotId);
 
             // 11. Conflict Validation (Teacher & Room Overlap)
             await _validationService.ValidateSlotConflictsAsync(
@@ -508,9 +568,9 @@ public class TimetableService : ITimetableService
             SubjectId = slot.SubjectId,
             SubjectName = subject.SubjectName ?? "",
             SubjectCode = subject.SubjectCode ?? "",
-            TeacherId = teacher.StaffId,
+            TeacherId = teacher?.StaffId ?? teacherId,
             TeacherName = teacherName,
-            EmployeeId = teacher.EmployeeId ?? "",
+            EmployeeId = teacher?.EmployeeId ?? "",
             RoomNo = slot.RoomNo
         };
     }
@@ -804,9 +864,9 @@ public class TimetableService : ITimetableService
     // AUTOMATIC TIMETABLE GENERATION & VALIDATION DELEGATES
     // =========================================================
 
-    public async Task<List<TimetableSlotDto>> GenerateTimetableAsync(GenerateTimetableRequestDto dto)
+    public async Task<GenerateTimetableResponseDto> GenerateTimetableAsync(GenerateTimetableRequestDto dto, System.Threading.CancellationToken cancellationToken = default)
     {
-        return await _generationService.GenerateTimetableAsync(dto);
+        return await _generationService.GenerateTimetableAsync(dto, cancellationToken);
     }
 
     public async Task<TimetableValidationResultDto> ValidateTimetableAsync(int classId, int sectionId, string academicYear)

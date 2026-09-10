@@ -83,7 +83,8 @@ public class TimetableServiceTests
         var repo = new TimetableRepository(context);
         var academicYearService = new AcademicYearService(context);
         var validationService = new TimetableValidationService(repo, NullLogger<TimetableValidationService>.Instance);
-        var generationService = new TimetableGenerationService(repo, academicYearService, NullLogger<TimetableGenerationService>.Instance);
+        var integrityValidator = new TimetableIntegrityValidator();
+        var generationService = new TimetableGenerationService(repo, academicYearService, integrityValidator, NullLogger<TimetableGenerationService>.Instance);
         var logger = NullLogger<TimetableService>.Instance;
 
         var service = new TimetableService(repo, academicYearService, validationService, generationService, logger);
@@ -370,7 +371,7 @@ public class TimetableServiceTests
         // Must not throw DivideByZeroException; skips empty class gracefully
         var result = await service.GenerateTimetableAsync(req);
         Assert.NotNull(result);
-        Assert.Empty(result);
+        Assert.Empty(result.Timetable);
     }
 
     [Fact]
@@ -396,7 +397,29 @@ public class TimetableServiceTests
         var result = await service.GenerateTimetableAsync(req);
 
         Assert.NotNull(result);
-        Assert.NotEmpty(result);
-        Assert.All(result, slot => Assert.NotNull(slot.SubjectName));
+        Assert.NotEmpty(result.Timetable);
+        Assert.All(result.Timetable, slot => Assert.NotNull(slot.SubjectName));
+    }
+
+    [Fact]
+    public async Task SyncPeriodSettingsAsync_UpdatesAndSynchronizesPeriodsCorrectly()
+    {
+        var context = await GetInMemoryDbContextAsync();
+        var (service, _, _, _, _) = CreateService(context);
+
+        var newPeriods = new List<SavePeriodSettingDto>
+        {
+            new SavePeriodSettingDto { PeriodName = "Period 1", StartTime = "08:30 AM", EndTime = "09:15 AM", DisplayOrder = 1, PeriodType = "Teaching Period" },
+            new SavePeriodSettingDto { PeriodName = "Period 2", StartTime = "09:15 AM", EndTime = "10:00 AM", DisplayOrder = 2, PeriodType = "Teaching Period" },
+            new SavePeriodSettingDto { PeriodName = "Morning Break", StartTime = "10:00 AM", EndTime = "10:15 AM", DisplayOrder = 3, PeriodType = "Break" }
+        };
+
+        var synced = await service.SyncPeriodSettingsAsync(newPeriods);
+
+        Assert.NotNull(synced);
+        Assert.Equal(3, synced.Count);
+        Assert.Equal("08:30 AM", synced[0].StartTime);
+        Assert.Equal("09:15 AM", synced[0].EndTime);
+        Assert.Equal("Morning Break", synced[2].PeriodName);
     }
 }

@@ -169,8 +169,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const isDriver = userRole === "driver";
     const isAccountant = userRole.includes("accountant") || userRole === "finance";
 
-    const defaultRoleFirstName = isAccountant ? "Sardhar" : isWarden ? "Vara" : isDriver ? "Nag" : "Robert";
-    const defaultRoleLastName = isAccountant ? "Karthi" : isWarden ? "Prasad" : isDriver ? "Sahoo" : "Teacher";
+    const defaultRoleFirstName = isAccountant ? "Sardhar" : isWarden ? "VaraPrasad" : isDriver ? "Nag" : "Robert";
+    const defaultRoleLastName = isAccountant ? "Karthi" : isWarden ? "" : isDriver ? "Sahoo" : "Teacher";
     const defaultEmpId = isAccountant ? "ACT-101" : isWarden ? "WRD-102" : isDriver ? "DRV-001" : "STF-2026-0001";
     const defaultDept = isAccountant ? "Finance & Accounts" : isWarden ? "Hostel Management" : isDriver ? "Transport & Logistics" : "Academic Dept";
     const defaultDesig = isAccountant ? "Accountant" : isWarden ? "Hostel Warden" : isDriver ? "Bus Driver" : "Teacher";
@@ -182,9 +182,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     let lastName = defaultRoleLastName;
 
     if (!isGenericName && rawName.trim()) {
-      const parts = rawName.trim().split(" ");
+      const parts = rawName.trim().split(/\s+/);
       firstName = parts[0] || defaultRoleFirstName;
-      lastName = parts.slice(1).join(" ") || defaultRoleLastName;
+      lastName = parts.length > 1 ? parts.slice(1).join(" ") : "";
     } else if (dbTeacher && dbTeacher.firstName && !dbTeacher.firstName.toLowerCase().includes("admin")) {
       firstName = dbTeacher.firstName;
       lastName = dbTeacher.lastName || "";
@@ -903,7 +903,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <span>
                 👤 Name:{" "}
                 <strong className="text-slate-800 dark:text-slate-200">
-                  {teacher.firstName} {teacher.lastName}
+                  {`${teacher.firstName} ${teacher.lastName}`.trim()}
                 </strong>
               </span>
               <span>

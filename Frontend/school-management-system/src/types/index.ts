@@ -757,6 +757,8 @@ export interface PeriodSetting {
   sequence: number;
   periodType: string;
   status: 'Active' | 'Inactive';
+  durationMinutes?: number;
+  isBreak?: boolean;
 }
 
 export interface TeacherAssignment {

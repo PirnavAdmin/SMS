@@ -27,8 +27,8 @@ public class TimetableRepository : ITimetableRepository
     {
         var rawPeriods = await _context.PeriodSettings
             .Where(p => !p.IsDeleted && p.IsActive)
-            .OrderBy(p => p.DisplayOrder)
-            .ThenBy(p => p.StartTime)
+            .OrderBy(p => p.StartTime)
+            .ThenBy(p => p.DisplayOrder)
             .ToListAsync();
 
         var distinctPeriods = new List<PeriodSetting>();
@@ -36,24 +36,96 @@ public class TimetableRepository : ITimetableRepository
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenOrders = new HashSet<int>();
         var seenTimes = new HashSet<string>();
+        TimeSpan lastEndTime = TimeSpan.Zero;
 
         foreach (var p in rawPeriods)
         {
             var timeKey = $"{p.StartTime}-{p.EndTime}";
-            if (!seenIds.Contains(p.PeriodId) &&
-                !seenNames.Contains(p.PeriodName) &&
-                !seenOrders.Contains(p.DisplayOrder) &&
-                !seenTimes.Contains(timeKey))
+            if (p.StartTime >= p.EndTime) continue;
+
+            bool isDuplicate = seenIds.Contains(p.PeriodId) ||
+                               seenNames.Contains(p.PeriodName) ||
+                               seenOrders.Contains(p.DisplayOrder) ||
+                               seenTimes.Contains(timeKey);
+
+            // Period cannot start before the previous period has finished (allow 1 min tolerance)
+            bool isOverlap = p.StartTime < lastEndTime.Subtract(TimeSpan.FromMinutes(1));
+
+            if (!isDuplicate && !isOverlap)
             {
                 seenIds.Add(p.PeriodId);
                 seenNames.Add(p.PeriodName);
                 seenOrders.Add(p.DisplayOrder);
                 seenTimes.Add(timeKey);
+                if (p.EndTime > lastEndTime)
+                {
+                    lastEndTime = p.EndTime;
+                }
                 distinctPeriods.Add(p);
             }
         }
 
-        return distinctPeriods;
+        return distinctPeriods.OrderBy(p => p.DisplayOrder).ThenBy(p => p.StartTime).ToList();
+    }
+
+    public async Task<List<PeriodSetting>> SyncPeriodSettingsAsync(List<PeriodSetting> periods)
+    {
+        if (periods == null || !periods.Any())
+            return await GetPeriodSettingsAsync();
+
+        var existingActive = await _context.PeriodSettings
+            .Where(p => !p.IsDeleted && p.IsActive)
+            .ToListAsync();
+
+        var usedExistingIds = new HashSet<int>();
+        var resultList = new List<PeriodSetting>();
+
+        foreach (var newP in periods)
+        {
+            var match = existingActive.FirstOrDefault(e =>
+                !usedExistingIds.Contains(e.PeriodId) &&
+                (e.DisplayOrder == newP.DisplayOrder ||
+                 e.PeriodName.Trim().Equals(newP.PeriodName.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+            if (match != null)
+            {
+                usedExistingIds.Add(match.PeriodId);
+                match.PeriodName = newP.PeriodName.Trim();
+                match.StartTime = newP.StartTime;
+                match.EndTime = newP.EndTime;
+                match.PeriodType = !string.IsNullOrWhiteSpace(newP.PeriodType) ? newP.PeriodType.Trim() : match.PeriodType;
+                match.DisplayOrder = newP.DisplayOrder;
+                match.IsActive = true;
+                match.IsDeleted = false;
+                resultList.Add(match);
+            }
+            else
+            {
+                var created = new PeriodSetting
+                {
+                    PeriodName = newP.PeriodName.Trim(),
+                    StartTime = newP.StartTime,
+                    EndTime = newP.EndTime,
+                    PeriodType = !string.IsNullOrWhiteSpace(newP.PeriodType) ? newP.PeriodType.Trim() : "Teaching Period",
+                    DisplayOrder = newP.DisplayOrder,
+                    IsActive = true,
+                    IsDeleted = false
+                };
+                await _context.PeriodSettings.AddAsync(created);
+                resultList.Add(created);
+            }
+        }
+
+        foreach (var oldP in existingActive)
+        {
+            if (!usedExistingIds.Contains(oldP.PeriodId))
+            {
+                oldP.IsDeleted = true;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return resultList.OrderBy(p => p.DisplayOrder).ToList();
     }
 
     public async Task<PeriodSetting?> GetPeriodSettingByIdAsync(int periodId)
@@ -232,20 +304,41 @@ public class TimetableRepository : ITimetableRepository
         if (assignment?.Staff != null)
             return assignment.Staff;
 
-        // Fallback: Check if section has a Class Teacher assigned
+        // Fallback: Check if section has a Subject Teacher or Class Teacher assigned
         var section = await _context.ClassSections
             .FirstOrDefaultAsync(s => s.SectionId == sectionId);
 
         if (section != null)
         {
+            var secName = section.SectionName ?? "";
+            var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+            var prefixedSec = "Section " + cleanSec;
+
+            // 1. Check Subject Teacher in TeacherAssignments table
+            var subjectTeacherAssignment = await _context.TeacherAssignments
+                .Include(a => a.Teacher)
+                .FirstOrDefaultAsync(a =>
+                    a.ClassId == section.ClassId &&
+                    (a.SectionLetter.ToLower() == secName.ToLower() ||
+                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                    a.SubjectId == subjectId &&
+                    a.Role == "Subject Teacher");
+
+            if (subjectTeacherAssignment?.Teacher != null)
+                return subjectTeacherAssignment.Teacher;
+
+            // 2. Check Class Teacher in TeacherAssignments table
             var classTeacherAssignment = await _context.TeacherAssignments
                 .Include(a => a.Teacher)
                 .FirstOrDefaultAsync(a =>
                     a.ClassId == section.ClassId &&
-                    a.SectionLetter == section.SectionName &&
+                    (a.SectionLetter.ToLower() == secName.ToLower() ||
+                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
                     a.Role == "Class Teacher");
 
-            if (classTeacherAssignment != null)
+            if (classTeacherAssignment?.Teacher != null)
                 return classTeacherAssignment.Teacher;
         }
 
@@ -351,9 +444,18 @@ public class TimetableRepository : ITimetableRepository
     public async Task<ClassSection?> GetSectionByNameAsync(int classId, string sectionName)
     {
         if (string.IsNullOrWhiteSpace(sectionName)) return null;
-        var clean = sectionName.Trim().ToLower();
-        return await _context.ClassSections
-            .FirstOrDefaultAsync(s => s.ClassId == classId && s.SectionName != null && s.SectionName.ToLower() == clean);
+        var raw = sectionName.Trim();
+        var clean = raw.ToLower().Replace("section", "").Replace("-", "").Trim();
+
+        var sections = await _context.ClassSections
+            .Where(s => s.ClassId == classId)
+            .ToListAsync();
+
+        return sections.FirstOrDefault(s =>
+            !string.IsNullOrWhiteSpace(s.SectionName) &&
+            (s.SectionName.Trim().Equals(raw, StringComparison.OrdinalIgnoreCase) ||
+             s.SectionName.Trim().ToLower().Replace("section", "").Replace("-", "").Trim() == clean ||
+             s.SectionId.ToString() == raw));
     }
 
     public async Task<ClassSection?> GetDefaultSectionForClassAsync(int classId)
@@ -483,6 +585,45 @@ public class TimetableRepository : ITimetableRepository
             await _context.TimetableSlots.AddRangeAsync(list);
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task ReplaceSlotsInTransactionAsync(IEnumerable<int> headerIdsToDelete, IEnumerable<TimetableSlot> slotsToInsert, System.Threading.CancellationToken cancellationToken = default)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var ids = headerIdsToDelete.ToList();
+                if (ids.Any())
+                {
+                    var slotsToDelete = await _context.TimetableSlots
+                        .Where(s => ids.Contains(s.HeaderId))
+                        .ToListAsync(cancellationToken);
+
+                    if (slotsToDelete.Any())
+                    {
+                        _context.TimetableSlots.RemoveRange(slotsToDelete);
+                        await _context.SaveChangesAsync(cancellationToken);
+                    }
+                }
+
+                var newSlots = slotsToInsert.ToList();
+                if (newSlots.Any())
+                {
+                    await _context.TimetableSlots.AddRangeAsync(newSlots, cancellationToken);
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
+                await tx.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await tx.RollbackAsync(cancellationToken);
+                throw;
+            }
+        });
     }
 }
 

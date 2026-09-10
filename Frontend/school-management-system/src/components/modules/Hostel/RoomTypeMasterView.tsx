@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
@@ -47,6 +48,9 @@ const saveStoredFloorConfigs = (hostelId: string, configs: FloorSharingConfig[])
 
 export const RoomTypeMasterView: React.FC = () => {
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
 
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [blocks, setBlocks] = useState<HostelBlock[]>([]);
@@ -417,14 +421,16 @@ export const RoomTypeMasterView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex justify-end">
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
-        >
-          <Plus className="w-4 h-4" /> Add Room Type
-        </button>
-      </div>
+      {!isWarden && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          >
+            <Plus className="w-4 h-4" /> Add Room Type
+          </button>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -496,17 +502,17 @@ export const RoomTypeMasterView: React.FC = () => {
                   <th className="py-3.5 px-5 text-center">AC / NON AC</th>
                   <th className="py-3.5 px-5">Description</th>
                   <th className="py-3.5 px-5 text-center">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  {!isWarden && <th className="py-3.5 px-5 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400 italic font-semibold">Loading room types...</td>
+                    <td colSpan={isWarden ? 5 : 6} className="py-10 text-center text-slate-400 italic font-semibold">Loading room types...</td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400 italic font-semibold">No room type configurations found matching filter.</td>
+                    <td colSpan={isWarden ? 5 : 6} className="py-10 text-center text-slate-400 italic font-semibold">No room type configurations found matching filter.</td>
                   </tr>
                 ) : (
                   paginated.map((rt, idx) => (
@@ -528,12 +534,14 @@ export const RoomTypeMasterView: React.FC = () => {
                           {rt.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleOpenEdit(rt)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => setDeletingRt(rt)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </td>
+                      {!isWarden && (
+                        <td className="py-3.5 px-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => handleOpenEdit(rt)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
+                            <button onClick={() => setDeletingRt(rt)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

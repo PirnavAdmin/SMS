@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserCheck, Calendar, Search, Filter, Save, Sun, Moon, Printer, FileText, FileSpreadsheet, CheckCircle2, XCircle, Clock, UserX, RotateCcw } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNightAttendance, HostelBlock, HostelRoom, BedAllocation, NightAttendanceRecord } from '../../../api/hostel';
 
 export const HostelAttendanceView: React.FC = () => {
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isWarden = userRole.includes('warden');
 
   const [blocks, setBlocks] = useState<HostelBlock[]>([]);
   const [rooms, setRooms] = useState<HostelRoom[]>([]);
@@ -14,6 +18,33 @@ export const HostelAttendanceView: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<NightAttendanceRecord[]>([]);
   
   const [loading, setLoading] = useState(true);
+
+  const wardenAssignedBlocks = React.useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
+
+  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
 
   // Shift, View Mode & Date state
   const [attendanceShift, setAttendanceShift] = useState<'morning' | 'night'>('morning');
@@ -26,6 +57,15 @@ export const HostelAttendanceView: React.FC = () => {
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  useEffect(() => {
+    if (isWarden && targetBlocks.length > 0) {
+      const assignedId = String(targetBlocks[0].hostelId);
+      if (!selectedBlockId || !targetBlocks.some(b => String(b.hostelId) === selectedBlockId)) {
+        setSelectedBlockId(assignedId);
+      }
+    }
+  }, [isWarden, targetBlocks, selectedBlockId]);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -330,26 +370,32 @@ export const HostelAttendanceView: React.FC = () => {
 
           <div>
             <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Hostel Block</label>
-            <select
-              value={selectedBlockId}
-              onChange={e => {
-                setSelectedBlockId(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-            >
-              <option value="">All Blocks</option>
-              {(blocks || [])
-                .filter(h => h != null)
-                .map((h, idx) => {
-                  const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
-                  return (
-                    <option key={`att_blk_${idVal}_${idx}`} value={idVal}>
-                      {h.hostelName || `Block #${idVal}`}
-                    </option>
-                  );
-                })}
-            </select>
+            {isWarden ? (
+              <div className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 font-bold">
+                {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
+              </div>
+            ) : (
+              <select
+                value={selectedBlockId}
+                onChange={e => {
+                  setSelectedBlockId(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+              >
+                <option value="">All Blocks</option>
+                {(targetBlocks || [])
+                  .filter(h => h != null)
+                  .map((h, idx) => {
+                    const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                    return (
+                      <option key={`att_blk_${idVal}_${idx}`} value={idVal}>
+                        {h.hostelName || `Block #${idVal}`}
+                      </option>
+                    );
+                  })}
+              </select>
+            )}
           </div>
 
           <div>
