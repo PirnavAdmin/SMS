@@ -537,7 +537,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         [HttpDelete("class")]
         [HttpDelete("/api/academics/timetable/class")]
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> ClearClassTimetable(
+        public async Task<IActionResult> ClearClassTimetable( 
             [FromQuery] string className,
             [FromQuery] string section,
             [FromQuery] string? academicYear = null)
