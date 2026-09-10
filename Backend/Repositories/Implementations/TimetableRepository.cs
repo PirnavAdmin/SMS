@@ -304,20 +304,41 @@ public class TimetableRepository : ITimetableRepository
         if (assignment?.Staff != null)
             return assignment.Staff;
 
-        // Fallback: Check if section has a Class Teacher assigned
+        // Fallback: Check if section has a Subject Teacher or Class Teacher assigned
         var section = await _context.ClassSections
             .FirstOrDefaultAsync(s => s.SectionId == sectionId);
 
         if (section != null)
         {
+            var secName = section.SectionName ?? "";
+            var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+            var prefixedSec = "Section " + cleanSec;
+
+            // 1. Check Subject Teacher in TeacherAssignments table
+            var subjectTeacherAssignment = await _context.TeacherAssignments
+                .Include(a => a.Teacher)
+                .FirstOrDefaultAsync(a =>
+                    a.ClassId == section.ClassId &&
+                    (a.SectionLetter.ToLower() == secName.ToLower() ||
+                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                    a.SubjectId == subjectId &&
+                    a.Role == "Subject Teacher");
+
+            if (subjectTeacherAssignment?.Teacher != null)
+                return subjectTeacherAssignment.Teacher;
+
+            // 2. Check Class Teacher in TeacherAssignments table
             var classTeacherAssignment = await _context.TeacherAssignments
                 .Include(a => a.Teacher)
                 .FirstOrDefaultAsync(a =>
                     a.ClassId == section.ClassId &&
-                    a.SectionLetter == section.SectionName &&
+                    (a.SectionLetter.ToLower() == secName.ToLower() ||
+                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
                     a.Role == "Class Teacher");
 
-            if (classTeacherAssignment != null)
+            if (classTeacherAssignment?.Teacher != null)
                 return classTeacherAssignment.Teacher;
         }
 
