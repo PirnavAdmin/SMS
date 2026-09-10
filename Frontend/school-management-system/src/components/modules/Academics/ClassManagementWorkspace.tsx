@@ -541,10 +541,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       if (hasSubjects && hasSections) {
         cl.sections.forEach(sec => {
           cl.subjects.forEach(sub => {
+            const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
             const assignment = teacherAssignments.find(ta => 
-              ta.className === cl.name && 
-              ta.section === sec && 
-              ta.subject === sub
+              norm(ta.className) === norm(cl.name) && 
+              norm(ta.section) === norm(sec) && 
+              norm(ta.subject) === norm(sub)
             );
             if (!assignment) hasAllSubjectTeachers = false;
           });
@@ -1476,16 +1477,20 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         );
 
         targetSubjects.forEach(targetSubject => {
+          const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
           const exist = teacherAssignments.find(ta => 
-            ta.className === activeClass.name && 
-            ta.section === activeWorkspaceSection && 
-            ta.subject === targetSubject
+            norm(ta.className) === norm(activeClass.name) && 
+            norm(ta.section) === norm(activeWorkspaceSection) && 
+            norm(ta.subject) === norm(targetSubject)
           );
 
           if (exist) {
             updateTeacherAssignment(exist.id, { 
               teacherId: t.id, 
-              teacherName: teacherFullName
+              teacherName: teacherFullName,
+              className: activeClass.name,
+              section: activeWorkspaceSection,
+              subject: targetSubject
             });
           } else {
             addTeacherAssignment({
@@ -1519,17 +1524,21 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     const t = teachersList.find(s => s.id === teacherId);
     if (!t) return;
     const teacherFullName = t.name || `${t.firstName} ${t.lastName}`;
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
 
     const exist = teacherAssignments.find(ta => 
-      ta.className === activeClass.name && 
-      ta.section === activeWorkspaceSection && 
-      ta.subject === subjectName
+      norm(ta.className) === norm(activeClass.name) && 
+      norm(ta.section) === norm(activeWorkspaceSection) && 
+      norm(ta.subject) === norm(subjectName)
     );
 
     if (exist) {
       updateTeacherAssignment(exist.id, { 
         teacherId: t.id, 
-        teacherName: teacherFullName
+        teacherName: teacherFullName,
+        className: activeClass.name,
+        section: activeWorkspaceSection,
+        subject: subjectName
       });
     } else {
       addTeacherAssignment({
@@ -1546,7 +1555,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     addToast('success', 'Subject Teacher Mapped', `Mapped ${teacherFullName} to ${subjectName} in Section ${activeWorkspaceSection}`);
 
     assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-      teacher_id: teacherId,
+      teacher_id: t.id || t.empId || teacherId,
       role: "Subject Teacher",
       subject_name: subjectName
     }).catch(() => {});
@@ -1555,15 +1564,23 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const handleRemoveSubjectTeacher = (subjectName: string) => {
     if (!activeClass || !activeWorkspaceSection) return;
     verifySafetyLock(() => {
+      const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
       const exist = teacherAssignments.find(ta => 
-        ta.className === activeClass.name && 
-        ta.section === activeWorkspaceSection && 
-        ta.subject === subjectName
+        norm(ta.className) === norm(activeClass.name) && 
+        norm(ta.section) === norm(activeWorkspaceSection) && 
+        norm(ta.subject) === norm(subjectName)
       );
 
       if (exist) {
         deleteTeacherAssignment(exist.id);
         addToast('info', 'Teacher assignment removed');
+      }
+
+      const targetSub = (subjects || []).find(s => norm(s.name) === norm(subjectName));
+      const subId = (exist as any)?.subjectId || targetSub?.id;
+      if (subId) {
+        const numericSubId = typeof subId === 'string' && subId.startsWith('SUB-') ? subId.replace(/^SUB-/i, '') : subId;
+        unassignTeacherApi(activeClass.id, activeWorkspaceSection, numericSubId).catch(() => {});
       }
     });
   };
@@ -2504,7 +2521,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   const subName = sub.name;
                                   const subCode = sub.code || (sub as any).subjectId;
                                   const deptName = sub.department || 'General Academics';
-                                  const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '');
+                                  const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
                                   const mapping = teacherAssignments.find(ta => 
                                     norm(ta.className) === norm(activeClass.name) && 
                                     norm(ta.section) === norm(activeWorkspaceSection) && 
@@ -2626,11 +2643,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 const classTeacherName = ((activeClass as any).sectionTeachers || {})[sec];
                                 const isCTAssigned = Boolean(classTeacherName && classTeacherName !== 'Unassigned');
                                 
+                                const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
                                 const secSubjectAssignments = mappedSubjectsForClass.map(sub => {
                                   const ta = teacherAssignments.find(t => 
-                                    t.className === activeClass.name && 
-                                    t.section === sec && 
-                                    t.subject === sub.name
+                                    norm(t.className) === norm(activeClass.name) && 
+                                    norm(t.section) === norm(sec) && 
+                                    norm(t.subject) === norm(sub.name)
                                   );
                                   return {
                                     subject: sub.name,

@@ -21,7 +21,9 @@ export const HostelMastersView: React.FC = () => {
     { id: 'wardens', label: 'Warden Allocation', icon: Users }
   ] as const;
 
-  const subTabs = isWarden ? allSubTabs.filter(t => t.id !== 'wardens') : allSubTabs;
+  const subTabs = isWarden
+    ? allSubTabs.filter(t => t.id !== 'wardens' && t.id !== 'room-types').map(t => t.id === 'rooms' ? { ...t, label: 'Rooms & Beds' } : t)
+    : allSubTabs;
 
   return (
     <div className="space-y-6 animate-in fade-in">

@@ -469,17 +469,6 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
               </button>
             </>
           )}
-
-          {onNavigate && (
-            <button
-              type="button"
-              onClick={() => onNavigate('examination')}
-              className="px-3.5 py-2 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/60 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Exam Center</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -523,52 +512,49 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         </div>
       </div>
 
-      {/* 3. Streamlined Clean Multi-Filter Bar */}
-      <div className="p-4 sm:p-5 rounded-3xl border border-sky-400 bg-slate-50/60 dark:bg-slate-950/60 shadow-xs space-y-4 no-print">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-            <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
-              Filter Report Cards
-            </span>
+      {/* 3. Comprehensive Multi-Filter Bar with Searchable Student Dropdown with ID */}
+      <div className="p-4 sm:p-5 rounded-3xl border border-sky-400 bg-slate-50/60 dark:bg-slate-950/60 shadow-xs space-y-3.5 no-print">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 dark:border-slate-800 pb-2.5">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            <Filter className="w-3.5 h-3.5 text-sky-600" />
+            <span>Search & Filter</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Status quick tabs */}
-            <div className="inline-flex p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-              {(['All', 'Pass', 'Fail'] as const).map(st => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    statusFilter === st
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {st === 'All' ? 'All Results' : st}
-                </button>
-              ))}
-            </div>
-
-            {(selectedClass || selectedSection || selectedStudentId !== 'all' || statusFilter !== 'All' || searchQuery || selectedExamId !== 'all') && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg flex items-center gap-1 cursor-pointer transition border border-transparent hover:border-rose-200 dark:hover:border-rose-900/60"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Reset</span>
-              </button>
-            )}
-          </div>
+          {(selectedClass || selectedSection || selectedStudentId !== 'all' || statusFilter !== 'All' || searchQuery || selectedExamId !== 'all') && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 flex items-center gap-1 cursor-pointer transition"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Filters</span>
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end">
-          {/* Class Filter */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 block">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* Exam Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
+              Examination
+            </label>
+            <select
+              value={selectedExamId}
+              onChange={e => setSelectedExamId(e.target.value)}
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
+            >
+              <option value="all">All Released Exams</option>
+              {releasedExams.map(ex => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.name} ({ex.term || ex.academicTerm || 'Term'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Class Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
               Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span>
             </label>
             <select
@@ -578,7 +564,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                 setSelectedSection('');
                 setSelectedStudentId('all');
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[40px] shadow-xs focus:ring-2 focus:ring-sky-500/30 transition"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
             >
               <option value="">-- All Classes --</option>
               {classOptions.map(cls => (
@@ -587,9 +573,9 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
             </select>
           </div>
 
-          {/* Section Filter */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 block">
+          {/* Section Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
               Section
             </label>
             <select
@@ -599,7 +585,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                 setSelectedStudentId('all');
               }}
               disabled={!selectedClass}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[40px] shadow-xs disabled:opacity-50 focus:ring-2 focus:ring-sky-500/30 transition"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs disabled:opacity-50"
             >
               <option value="">All Sections</option>
               {availableSections.map(sec => (
@@ -611,14 +597,14 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           </div>
 
           {/* Searchable Student Dropdown displaying Student Name AND ID */}
-          <div className="space-y-1.5 relative" ref={studentDropdownRef}>
-            <label className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 block">
-              Student (With ID & Search)
+          <div className="space-y-1 relative" ref={studentDropdownRef}>
+            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
+              Search Student
             </label>
             <button
               type="button"
               onClick={() => setIsStudentDropdownOpen(prev => !prev)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[40px] shadow-xs flex items-center justify-between text-left focus:ring-2 focus:ring-sky-500/30 transition"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs flex items-center justify-between text-left transition"
             >
               <span className="truncate">
                 {selectedStudentObj 
@@ -627,29 +613,29 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                     ? 'All Students' 
                     : '-- Select Student --'}
               </span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 ml-1 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 ml-1 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Popover */}
             {isStudentDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 min-w-[300px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 min-w-[280px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                 {/* Search input inside dropdown */}
-                <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Type name, ID, admission no, roll no..."
+                      placeholder="Search student by name, ID, adm no..."
                       value={studentSearchText}
                       onChange={e => setStudentSearchText(e.target.value)}
                       autoFocus
-                      className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/40"
+                      className="w-full pl-8 pr-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/40"
                     />
                   </div>
                 </div>
 
                 {/* Dropdown list items */}
-                <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
                   <button
                     type="button"
                     onClick={() => {
@@ -657,7 +643,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                       setIsStudentDropdownOpen(false);
                       setStudentSearchText('');
                     }}
-                    className={`w-full px-3 py-2.5 text-left flex items-center justify-between hover:bg-sky-50 dark:hover:bg-sky-950/40 transition cursor-pointer ${
+                    className={`w-full px-3 py-2 text-left flex items-center justify-between hover:bg-sky-50 dark:hover:bg-sky-950/40 transition cursor-pointer ${
                       selectedStudentId === 'all' ? 'bg-sky-50/80 dark:bg-sky-950/60 font-bold text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-200'
                     }`}
                   >
@@ -666,7 +652,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                   </button>
 
                   {filteredDropdownStudents.length === 0 ? (
-                    <div className="p-3.5 text-center text-slate-400 text-xs font-semibold">
+                    <div className="p-3 text-center text-slate-400 text-xs font-semibold">
                       No matching students found
                     </div>
                   ) : (
@@ -681,7 +667,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                             setIsStudentDropdownOpen(false);
                             setStudentSearchText('');
                           }}
-                          className={`w-full px-3 py-2.5 text-left flex items-center justify-between gap-2 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition cursor-pointer ${
+                          className={`w-full px-3 py-2 text-left flex items-center justify-between gap-2 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition cursor-pointer ${
                             isSelected ? 'bg-sky-50/80 dark:bg-sky-950/60 font-bold text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-200'
                           }`}
                         >
@@ -689,7 +675,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                             <span className="font-extrabold block truncate text-slate-900 dark:text-white">
                               {st.firstName} {st.lastName}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                            <span className="text-[10px] text-slate-400 font-medium block">
                               ID: <strong className="text-slate-700 dark:text-slate-300 font-mono">{st.admissionNo || st.id}</strong> • Roll #{st.rollNo || 'N/A'} • {st.className} {st.section ? `(${st.section})` : ''}
                             </span>
                           </div>
@@ -703,22 +689,33 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
             )}
           </div>
 
-          {/* Quick Search Student Input */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 block">
-              Quick Search
+          {/* Status Filter */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
+              Result Status
             </label>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by Name, ID, Roll No..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/30 transition h-[40px] shadow-xs"
-              />
-            </div>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as any)}
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
+            >
+              <option value="All">All Results</option>
+              <option value="Pass">Pass</option>
+              <option value="Fail">Fail</option>
+            </select>
           </div>
+        </div>
+
+        {/* Global Quick Search Bar */}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/50 transition h-[38px] shadow-xs"
+          />
         </div>
       </div>
 

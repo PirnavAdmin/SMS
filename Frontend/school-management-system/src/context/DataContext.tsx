@@ -2860,32 +2860,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [academicYears]);
   useEffect(() => {
-    localStorage.setItem("edu_db_students", JSON.stringify(students));
+    try {
+      const lightweightStudents = (students || []).map((s) => {
+        if (s.avatar && typeof s.avatar === "string" && s.avatar.startsWith("data:")) {
+          const { avatar, ...rest } = s;
+          return rest;
+        }
+        return s;
+      });
+      localStorage.setItem("edu_db_students", JSON.stringify(lightweightStudents));
+    } catch {}
   }, [students]);
   useEffect(() => {
-    localStorage.setItem("edu_db_staff", JSON.stringify(staff));
+    try {
+      const lightweightStaff = (staff || []).map((s) => {
+        if (s.avatar && typeof s.avatar === "string" && s.avatar.startsWith("data:")) {
+          const { avatar, ...rest } = s;
+          return rest;
+        }
+        return s;
+      });
+      localStorage.setItem("edu_db_staff", JSON.stringify(lightweightStaff));
+    } catch {}
   }, [staff]);
   useEffect(() => {
-    localStorage.setItem("edu_db_admissions", JSON.stringify(admissions));
+    try {
+      localStorage.setItem("edu_db_admissions", JSON.stringify(admissions));
+    } catch {}
   }, [admissions]);
   useEffect(() => {
-    localStorage.setItem(
-      "edu_db_academic_classes",
-      JSON.stringify(academicClasses),
-    );
+    try {
+      localStorage.setItem(
+        "edu_db_academic_classes",
+        JSON.stringify(academicClasses),
+      );
+    } catch {}
   }, [academicClasses]);
   useEffect(() => {
-    localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
+    try {
+      localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
+    } catch {}
   }, [attendance]);
   useEffect(() => {
-    localStorage.setItem(
-      "edu_db_leave_applications",
-      JSON.stringify(leaveApplications),
-    );
-    localStorage.setItem(
-      "leave_applications",
-      JSON.stringify(leaveApplications),
-    );
+    try {
+      localStorage.setItem(
+        "edu_db_leave_applications",
+        JSON.stringify(leaveApplications),
+      );
+    } catch {}
   }, [leaveApplications]);
   useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
@@ -4294,6 +4316,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const res: any = await fetchClassTeacherAssignmentsApi();
       const list = Array.isArray(res) ? res : res?.data || [];
       if (Array.isArray(list)) {
+        const norm = (str?: string) =>
+          (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "").replace(/section/gi, "");
         const mapped: TeacherAssignment[] = list.map((ta: any) => ({
           id: ta.id
             ? String(ta.id)
@@ -4308,12 +4332,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: ta.status || "Active",
           role: ta.role || "Subject Teacher",
         }));
-        setTeacherAssignments(mapped);
+
+        // Deduplicate: ensure latest assignment per class/section/subject
+        const deduplicatedMap = new Map<string, TeacherAssignment>();
+        for (const ta of mapped) {
+          const key = `${norm(ta.className)}_${norm(ta.section)}_${norm(ta.subject)}_${(ta.role || "Subject Teacher").toLowerCase()}`;
+          deduplicatedMap.set(key, ta);
+        }
+        const finalAssignments = Array.from(deduplicatedMap.values());
+
+        setTeacherAssignments(finalAssignments);
         localStorage.setItem(
           "edu_db_teacher_assignments",
-          JSON.stringify(mapped),
+          JSON.stringify(finalAssignments),
         );
-        return mapped;
+        return finalAssignments;
       }
     } catch (err) {
       console.warn("Error fetching teacher assignments", err);
@@ -4335,7 +4368,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         let liveAssignments: TeacherAssignment[] = [];
         const rawTaList = Array.isArray(taData) ? taData : taData?.data || [];
         if (Array.isArray(rawTaList) && rawTaList.length > 0) {
-          liveAssignments = rawTaList.map((ta: any) => ({
+          const norm = (str?: string) =>
+            (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "").replace(/section/gi, "");
+          const mappedTa = rawTaList.map((ta: any) => ({
             id: ta.id
               ? String(ta.id)
               : `TA-${Math.floor(100 + Math.random() * 900)}`,
@@ -4349,6 +4384,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: ta.status || "Active",
             role: ta.role || "Subject Teacher",
           }));
+
+          const deduplicatedMap = new Map<string, TeacherAssignment>();
+          for (const ta of mappedTa) {
+            const key = `${norm(ta.className)}_${norm(ta.section)}_${norm(ta.subject)}_${(ta.role || "Subject Teacher").toLowerCase()}`;
+            deduplicatedMap.set(key, ta);
+          }
+          liveAssignments = Array.from(deduplicatedMap.values());
+
           setTeacherAssignments(liveAssignments);
           localStorage.setItem(
             "edu_db_teacher_assignments",
@@ -8653,13 +8696,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addTeacherAssignment = (data: Omit<TeacherAssignment, "id">) => {
     const id = "TA-" + Math.floor(100 + Math.random() * 900);
     const newTa: TeacherAssignment = { ...data, id };
+    const norm = (str?: string) =>
+      (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "").replace(/section/gi, "");
     setTeacherAssignments((prev) => [
       ...prev.filter(
         (t) =>
           !(
-            t.className === data.className &&
-            t.section === data.section &&
-            t.subject === data.subject
+            norm(t.className) === norm(data.className) &&
+            norm(t.section) === norm(data.section) &&
+            norm(t.subject) === norm(data.subject)
           ),
       ),
       newTa,
@@ -8674,8 +8719,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<TeacherAssignment>,
   ) => {
+    const norm = (str?: string) =>
+      (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "").replace(/section/gi, "");
     setTeacherAssignments((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+      prev.map((t) => {
+        if (t.id === id) return { ...t, ...updates };
+        if (
+          updates.className &&
+          updates.section &&
+          updates.subject &&
+          norm(t.className) === norm(updates.className) &&
+          norm(t.section) === norm(updates.section) &&
+          norm(t.subject) === norm(updates.subject)
+        ) {
+          return { ...t, ...updates };
+        }
+        return t;
+      }),
     );
   };
 
@@ -16260,7 +16320,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearClassTimetable = async (className: string, section: string) => {
     const norm = (str?: string) =>
-      (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "");
+      (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "").replace(/section/gi, "");
     const existing = timetable.filter(
       (t) =>
         norm(t.className) === norm(className) &&
@@ -16313,7 +16373,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const bulkAddTimetableSlots = (newSlots: TimetableSlot[]) => {
     setTimetable((prev) => {
       const norm = (str?: string) =>
-        (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "");
+        (str || "").toLowerCase().replace(/\s+/g, "").replace(/class/gi, "").replace(/section/gi, "");
       const affectedKeys = new Set(
         newSlots.map((s) => `${norm(s.className)}-${norm(s.section)}`),
       );
@@ -19172,7 +19232,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (str || "")
               .toLowerCase()
               .replace(/\s+/g, "")
-              .replace(/class/gi, "");
+              .replace(/class/gi, "")
+              .replace(/section/gi, "");
 
           const filtered = (prev || []).filter(
             (t) =>

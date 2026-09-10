@@ -383,20 +383,27 @@ export const HostelMasterView: React.FC = () => {
 
                   {/* Footer Actions */}
                   <div className="flex items-center justify-between pt-2 text-xs border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      onClick={() => toggleStatus(h)}
-                      className={`flex items-center gap-1 font-bold ${h.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'}`}
-                    >
-                      {h.status === 'Active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                      <span>{h.status}</span>
-                    </button>
+                    {isWarden ? (
+                      <div className="flex items-center gap-1 font-bold text-emerald-600">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{h.status}</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => toggleStatus(h)}
+                        className={`flex items-center gap-1 font-bold ${h.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'}`}
+                      >
+                        {h.status === 'Active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                        <span>{h.status}</span>
+                      </button>
+                    )}
 
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleOpenEdit(h)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
-                      {!isWarden && (
+                    {!isWarden && (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleOpenEdit(h)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
                         <button onClick={() => setDeletingHostel(h)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

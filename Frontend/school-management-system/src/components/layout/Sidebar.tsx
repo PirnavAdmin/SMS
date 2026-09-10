@@ -278,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? [
           {
             id: "hostel-masters",
-            label: "Hostel Master Setup",
+            label: "Hostel Blocks & Rooms",
             icon: Building2,
           },
           {

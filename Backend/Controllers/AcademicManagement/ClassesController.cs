@@ -43,9 +43,21 @@ namespace SMS.Api.Controllers.AcademicManagement
                 .Include(ta => ta.Subject)
                 .Include(ta => ta.ClassGrade)
                 .Where(ta => ta.Status == "Active")
+                .OrderByDescending(ta => ta.Id)
                 .ToListAsync();
 
-            var result = assignments.Select(ta => new
+            // Deduplicate to ensure latest assignment per (ClassId, SectionLetter, SubjectId/Role)
+            var deduplicated = assignments
+                .GroupBy(ta => (
+                    ta.ClassId,
+                    Section: (ta.SectionLetter ?? "").ToLower().Replace("section", "").Trim(),
+                    ta.SubjectId,
+                    Role: (ta.Role ?? "Subject Teacher").ToLower()
+                ))
+                .Select(g => g.First())
+                .ToList();
+
+            var result = deduplicated.Select(ta => new
             {
                 id = $"TA-{ta.Id}",
                 classId = $"CL-{ta.ClassId}",
@@ -626,13 +638,30 @@ await transaction.CommitAsync();
             }
 
             Staff? staff = null;
-            if (int.TryParse(dto.TeacherId, out int staffId))
+            var cleanTeacherId = (dto.TeacherId ?? "").Trim();
+            var cleanNumeric = cleanTeacherId.Replace("STF-", "", StringComparison.OrdinalIgnoreCase).Trim();
+
+            if (int.TryParse(cleanTeacherId, out int staffId))
             {
                 staff = await _context.Staff.FindAsync(staffId);
             }
+            if (staff == null && int.TryParse(cleanNumeric, out int numericId))
+            {
+                staff = await _context.Staff.FindAsync(numericId);
+            }
             if (staff == null)
             {
-                staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.TeacherId);
+                staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == cleanTeacherId || s.EmployeeId == dto.TeacherId);
+            }
+            if (staff == null)
+            {
+                staff = await _context.Staff.FirstOrDefaultAsync(s => s.StaffId.ToString() == cleanTeacherId);
+            }
+            if (staff == null)
+            {
+                staff = await _context.Staff.FirstOrDefaultAsync(s =>
+                    (s.FirstName + " " + s.LastName).ToLower() == cleanTeacherId.ToLower() ||
+                    (s.DisplayName != null && s.DisplayName.ToLower() == cleanTeacherId.ToLower()));
             }
 
             if (staff == null)
@@ -643,16 +672,25 @@ await transaction.CommitAsync();
             int subjectId = 0;
             if (!string.IsNullOrEmpty(dto.SubjectName))
             {
+                var cleanSubName = dto.SubjectName.Trim().ToLower();
                 var subject = await _context.Subjects
-                    .FirstOrDefaultAsync(s => (s.SubjectName ?? "").ToLower() == (dto.SubjectName ?? "").ToLower());
+                    .FirstOrDefaultAsync(s => (s.SubjectName ?? "").ToLower() == cleanSubName ||
+                                              (s.SubjectCode != null && s.SubjectCode.ToLower() == cleanSubName));
                 if (subject != null)
                 {
                     subjectId = subject.SubjectId;
                 }
                 else
                 {
-                    // BUG-010 FIX: Subject name provided but not found — reject rather than silently falling back
-                    return BadRequest(new { success = false, message = $"Subject '{dto.SubjectName}' not found in the system. Please map the subject to this class first." });
+                    if (int.TryParse(dto.SubjectName, out int parsedSubId))
+                    {
+                        var subById = await _context.Subjects.FindAsync(parsedSubId);
+                        if (subById != null) subjectId = subById.SubjectId;
+                    }
+                    if (subjectId == 0)
+                    {
+                        return BadRequest(new { success = false, message = $"Subject '{dto.SubjectName}' not found in the system. Please map the subject to this class first." });
+                    }
                 }
             }
 
@@ -676,32 +714,33 @@ await transaction.CommitAsync();
             if (dto.Role == "Class Teacher")
             {
                 // Unassign any existing Class Teacher for this section
-                var existingClassTeacher = await _context.TeacherAssignments
-                    .FirstOrDefaultAsync(a => a.ClassId == id &&
+                var existingClassTeachers = await _context.TeacherAssignments
+                    .Where(a => a.ClassId == id &&
                         (a.SectionLetter.ToLower() == section_letter.ToLower() ||
                          a.SectionLetter.ToLower() == cleanSec.ToLower() ||
                          a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
-                        a.Role == "Class Teacher");
+                        a.Role == "Class Teacher")
+                    .ToListAsync();
 
-                if (existingClassTeacher != null)
+                if (existingClassTeachers.Any())
                 {
-                    _context.TeacherAssignments.Remove(existingClassTeacher);
+                    _context.TeacherAssignments.RemoveRange(existingClassTeachers);
                 }
             }
-            else if (dto.Role == "Subject Teacher")
+            else
             {
-                // Prevent duplicate Subject Teacher for same class/section/subject
-                var existingSubjectTeacher = await _context.TeacherAssignments
-                    .FirstOrDefaultAsync(a => a.ClassId == id &&
+                // Prevent duplicate assignments for same class/section/subject (regardless of previous role)
+                var existingAssignments = await _context.TeacherAssignments
+                    .Where(a => a.ClassId == id &&
                         (a.SectionLetter.ToLower() == section_letter.ToLower() ||
                          a.SectionLetter.ToLower() == cleanSec.ToLower() ||
                          a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
-                        a.SubjectId == subjectId &&
-                        a.Role == "Subject Teacher");
+                        a.SubjectId == subjectId)
+                    .ToListAsync();
 
-                if (existingSubjectTeacher != null)
+                if (existingAssignments.Any())
                 {
-                    _context.TeacherAssignments.Remove(existingSubjectTeacher);
+                    _context.TeacherAssignments.RemoveRange(existingAssignments);
                 }
 
                 // Also sync to teacher_subject_assignments (used by Timetable & Attendance modules)
@@ -713,12 +752,16 @@ await transaction.CommitAsync();
 
                 if (section != null && subjectId > 0)
                 {
-                    var existingTsa = await _context.TeacherSubjectAssignments
-                        .FirstOrDefaultAsync(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId && tsa.SubjectId == subjectId);
+                    var existingTsas = await _context.TeacherSubjectAssignments
+                        .Where(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId && tsa.SubjectId == subjectId)
+                        .ToListAsync();
 
-                    if (existingTsa != null)
+                    if (existingTsas.Any())
                     {
-                        existingTsa.StaffId = staff.StaffId;
+                        foreach (var tsa in existingTsas)
+                        {
+                            tsa.StaffId = staff.StaffId;
+                        }
                     }
                     else
                     {
@@ -754,15 +797,25 @@ await transaction.CommitAsync();
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
         public async Task<IActionResult> UnassignTeacher(int id, string section_letter, int subject_id)
         {
+            var cleanSec = section_letter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+            var prefixedSec = "Section " + cleanSec;
+
             // Remove from teacher_assignments
             var assignments = await _context.TeacherAssignments
-                .Where(a => a.ClassId == id && a.SectionLetter.ToLower() == section_letter.ToLower() && a.SubjectId == subject_id)
+                .Where(a => a.ClassId == id &&
+                    (a.SectionLetter.ToLower() == section_letter.ToLower() ||
+                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                    a.SubjectId == subject_id)
                 .ToListAsync();
             _context.TeacherAssignments.RemoveRange(assignments);
 
             // Also remove from teacher_subject_assignments
             var section = await _context.ClassSections
-                .FirstOrDefaultAsync(s => s.ClassId == id && s.SectionName.ToLower() == section_letter.ToLower());
+                .FirstOrDefaultAsync(s => s.ClassId == id &&
+                    (s.SectionName.ToLower() == section_letter.ToLower() ||
+                     s.SectionName.ToLower() == cleanSec.ToLower() ||
+                     s.SectionName.ToLower() == prefixedSec.ToLower()));
 
             if (section != null)
             {
