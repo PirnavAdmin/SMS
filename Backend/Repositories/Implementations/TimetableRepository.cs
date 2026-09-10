@@ -411,9 +411,18 @@ public class TimetableRepository : ITimetableRepository
     public async Task<ClassSection?> GetSectionByNameAsync(int classId, string sectionName)
     {
         if (string.IsNullOrWhiteSpace(sectionName)) return null;
-        var clean = sectionName.Trim().ToLower();
-        return await _context.ClassSections
-            .FirstOrDefaultAsync(s => s.ClassId == classId && s.SectionName != null && s.SectionName.ToLower() == clean);
+        var raw = sectionName.Trim();
+        var clean = raw.ToLower().Replace("section", "").Replace("-", "").Trim();
+
+        var sections = await _context.ClassSections
+            .Where(s => s.ClassId == classId)
+            .ToListAsync();
+
+        return sections.FirstOrDefault(s =>
+            !string.IsNullOrWhiteSpace(s.SectionName) &&
+            (s.SectionName.Trim().Equals(raw, StringComparison.OrdinalIgnoreCase) ||
+             s.SectionName.Trim().ToLower().Replace("section", "").Replace("-", "").Trim() == clean ||
+             s.SectionId.ToString() == raw));
     }
 
     public async Task<ClassSection?> GetDefaultSectionForClassAsync(int classId)

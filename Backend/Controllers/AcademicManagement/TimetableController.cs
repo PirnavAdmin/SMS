@@ -141,6 +141,8 @@ namespace SMS.Api.Controllers.AcademicManagement
         public async Task<IActionResult> GetClassTimetableGrid(
             [FromQuery] int classId = 0, 
             [FromQuery] int sectionId = 0, 
+            [FromQuery] string? sectionName = null,
+            [FromQuery] string? section = null,
             [FromQuery] string? academicYear = null)
         {
             try
@@ -148,6 +150,24 @@ namespace SMS.Api.Controllers.AcademicManagement
                 var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
                     ? academicYear
                     : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var secQuery = !string.IsNullOrWhiteSpace(sectionName) ? sectionName : section;
+                if (!string.IsNullOrWhiteSpace(secQuery) && classId > 0)
+                {
+                    var cleanSec = secQuery.Trim().ToLower().Replace("section", "").Replace("-", "").Trim();
+                    var sections = await _context.ClassSections
+                        .Where(s => s.ClassId == classId)
+                        .ToListAsync();
+
+                    var matchedSection = sections.FirstOrDefault(s => s.SectionName != null &&
+                        (s.SectionName.Equals(secQuery, StringComparison.OrdinalIgnoreCase) ||
+                         s.SectionName.ToLower().Replace("section", "").Replace("-", "").Trim() == cleanSec ||
+                         s.SectionId.ToString() == secQuery));
+                    if (matchedSection != null)
+                    {
+                        sectionId = matchedSection.SectionId;
+                    }
+                }
 
                 var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, resolvedAcademicYear);
                 return Ok(new { success = true, data = result });

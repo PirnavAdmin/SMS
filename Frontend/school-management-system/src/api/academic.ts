@@ -286,17 +286,13 @@ export const fetchTimetableGridApi = async (classId: number | string, sectionId:
   let secStr = typeof sectionId === 'string' ? sectionId.replace(/^SEC-/i, '').trim() : String(sectionId);
   const secName = secStr.replace(/^Section\s*/i, '').trim();
 
-  let numSecId = secStr;
-  if (isNaN(Number(numSecId))) {
-    const letter = secName.toUpperCase();
-    if (letter.length === 1 && letter >= 'A' && letter <= 'Z') {
-      numSecId = String(letter.charCodeAt(0) - 64);
-    } else {
-      numSecId = '1';
-    }
+  let numSecId = '';
+  if (!isNaN(Number(secStr))) {
+    numSecId = secStr;
   }
 
-  const query = `classId=${encodeURIComponent(numClassId)}&sectionId=${encodeURIComponent(numSecId)}&sectionName=${encodeURIComponent(secName)}&section=${encodeURIComponent(secName)}&academicYear=${encodeURIComponent(academicYear)}`;
+  const secIdParam = numSecId ? `sectionId=${encodeURIComponent(numSecId)}&` : '';
+  const query = `classId=${encodeURIComponent(numClassId)}&${secIdParam}sectionName=${encodeURIComponent(secName)}&section=${encodeURIComponent(secName)}&academicYear=${encodeURIComponent(academicYear)}`;
   return apiClient(`/api/timetable/class-grid?${query}`, {
     method: 'GET'
   });

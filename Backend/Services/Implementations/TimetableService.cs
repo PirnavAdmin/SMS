@@ -189,8 +189,13 @@ public class TimetableService : ITimetableService
         var classGrade = await _timetableRepository.GetClassByIdAsync(classId)
             ?? throw new NotFoundException($"Class with ID {classId} not found.");
 
-        var section = await _timetableRepository.GetSectionByIdAsync(sectionId)
-            ?? throw new NotFoundException($"Section with ID {sectionId} not found.");
+        var section = await _timetableRepository.GetSectionByIdAsync(sectionId);
+        if (section == null || section.ClassId != classId)
+        {
+            section = await _timetableRepository.GetDefaultSectionForClassAsync(classId)
+                ?? throw new NotFoundException($"Section with ID {sectionId} not found for Class with ID {classId}.");
+            sectionId = section.SectionId;
+        }
 
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(classId, sectionId, academicYear);
         if (header == null)
@@ -282,8 +287,23 @@ public class TimetableService : ITimetableService
             throw new BadRequestException("A valid ClassId or ClassName is required.");
         }
 
+<<<<<<< Updated upstream
         // 2. Resolve SectionId by name if not supplied or verify it belongs to ClassId
         if (dto.ClassId > 0)
+=======
+        // 2. Resolve SectionId by name if not supplied or if mismatched
+        if (dto.SectionId > 0 && dto.ClassId > 0)
+        {
+            var secObj = await _timetableRepository.GetSectionByIdAsync(dto.SectionId);
+            if (secObj == null || secObj.ClassId != dto.ClassId)
+            {
+                // Mismatched or non-existent section ID provided; re-resolve
+                dto.SectionId = 0;
+            }
+        }
+
+        if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
+>>>>>>> Stashed changes
         {
             if (dto.SectionId > 0)
             {
@@ -301,6 +321,15 @@ public class TimetableService : ITimetableService
                 {
                     dto.SectionId = matchedSection.SectionId;
                 }
+            }
+        }
+
+        if (dto.SectionId == 0 && dto.ClassId > 0)
+        {
+            var defSection = await _timetableRepository.GetDefaultSectionForClassAsync(dto.ClassId);
+            if (defSection != null)
+            {
+                dto.SectionId = defSection.SectionId;
             }
         }
 
@@ -556,9 +585,9 @@ public class TimetableService : ITimetableService
             SubjectId = slot.SubjectId,
             SubjectName = subject.SubjectName ?? "",
             SubjectCode = subject.SubjectCode ?? "",
-            TeacherId = teacher.StaffId,
+            TeacherId = teacher?.StaffId ?? teacherId,
             TeacherName = teacherName,
-            EmployeeId = teacher.EmployeeId ?? "",
+            EmployeeId = teacher?.EmployeeId ?? "",
             RoomNo = slot.RoomNo
         };
     }
