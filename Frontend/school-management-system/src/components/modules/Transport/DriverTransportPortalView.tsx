@@ -364,7 +364,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
             <Bus className="w-5 h-5 text-sky-600" /> My Assigned Transport Operations
           </h2>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Assigned Bus: <span className="font-bold text-slate-800 dark:text-slate-200">{assignedVehicle?.vehicleNumber || 'AP04 Z 4567'}</span> • Route: <span className="font-bold text-slate-800 dark:text-slate-200">{assignedRoute?.routeName || 'Banjara Hills Route'}</span>
+            Assigned Bus: <span className="font-bold text-slate-800 dark:text-slate-200">{assignedVehicle?.vehicleNumber || 'Unassigned'}</span> • Route: <span className="font-bold text-slate-800 dark:text-slate-200">{assignedRoute?.routeName || 'Unassigned'}</span>
           </p>
         </div>
 
@@ -396,14 +396,14 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Bus Plate & Model</span>
-                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedVehicle?.vehicleNumber || 'AP04 Z 4567'}</div>
-                <p className="text-[11px] text-slate-500 font-mono">Reg: {assignedVehicle?.registrationNumber || 'REG-5646'} • {assignedVehicle?.vehicleType || 'Bus'}</p>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedVehicle?.vehicleNumber || 'Unassigned'}</div>
+                <p className="text-[11px] text-slate-500 font-mono">Reg: {assignedVehicle?.registrationNumber || assignedVehicle?.vehicleNumber || 'N/A'} • {assignedVehicle?.vehicleType || 'Bus'}</p>
               </div>
 
               <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Route</span>
-                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedRoute?.routeName || 'Banjara Hills Route'}</div>
-                <p className="text-[11px] text-emerald-600 font-bold">{routeStops.length} Stops • {assignedRoute?.totalDistanceKm || 25} km</p>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedRoute?.routeName || 'Unassigned'}</div>
+                <p className="text-[11px] text-emerald-600 font-bold">{routeStops.length} Stops • {assignedRoute?.totalDistanceKm ? `${assignedRoute.totalDistanceKm} km` : 'N/A'}</p>
               </div>
 
               <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">

@@ -2457,26 +2457,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Transport ERP System States
   const [routeMasters, setRouteMasters] = useState<RouteMaster[]>(() =>
-    getStored("edu_db_route_masters", []),
+    getStored("edu_db_route_masters", initialRouteMasters),
   );
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(() =>
-    getStored("edu_db_pickup_points", []),
+    getStored("edu_db_pickup_points", initialPickupPoints),
   );
   const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>(() =>
-    getStored("edu_db_vehicle_masters", []),
+    getStored("edu_db_vehicle_masters", initialVehicleMasters),
   );
   const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
-    getStored("edu_db_driver_masters", []),
+    getStored("edu_db_driver_masters", initialDriverMasters),
   );
   const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
     getStored("edu_db_bus_attendants", []),
   );
   const [vehicleAssignments, setVehicleAssignments] = useState<
     VehicleAssignment[]
-  >(() => getStored("edu_db_vehicle_assignments", []));
+  >(() => getStored("edu_db_vehicle_assignments", initialVehicleAssignments));
   const [vehicleMaintenances, setVehicleMaintenances] = useState<
     VehicleMaintenance[]
-  >(() => getStored("edu_db_vehicle_maintenances", []));
+  >(() => getStored("edu_db_vehicle_maintenances", initialVehicleMaintenances));
 
   // Hostel ERP System States
   const [roomTypeMasters, setRoomTypeMasters] = useState<RoomTypeMaster[]>(() =>
@@ -3821,7 +3821,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           localStoredPoints.forEach((pt) => {
             const key = (
-              pt.id ? String(pt.id) : pt.pickupName + "_" + pt.routeId
+              pt.id ? String(pt.id) : (pt.pickupName || '') + "_" + (pt.routeId || '')
             ).toLowerCase();
             if (
               !deletedPickupTrack.has(key) &&
@@ -3833,13 +3833,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           mappedPoints.forEach((pt: PickupPoint) => {
             const key = (
-              pt.id ? String(pt.id) : pt.pickupName + "_" + pt.routeId
+              pt.id ? String(pt.id) : (pt.pickupName || '') + "_" + (pt.routeId || '')
             ).toLowerCase();
             if (
               !deletedPickupTrack.has(key) &&
               !deletedPickupTrack.has(String(pt.id))
             ) {
-              mergedMap.set(key, { ...mergedMap.get(key), ...pt });
+              const existing = mergedMap.get(key) || (pt.id ? mergedMap.get(String(pt.id).toLowerCase()) : undefined);
+              const validRouteId = (pt.routeId && pt.routeId !== "0" && String(pt.routeId) !== "0") ? pt.routeId : (existing?.routeId || "");
+              const validRouteName = pt.routeName || existing?.routeName || "";
+              const validPickupName = pt.pickupName || (pt as any).pickupPointName || existing?.pickupName || "";
+
+              mergedMap.set(key, {
+                ...existing,
+                ...pt,
+                id: pt.id || existing?.id || "",
+                routeId: validRouteId,
+                routeName: validRouteName,
+                pickupName: validPickupName,
+                sequenceNumber: pt.sequenceNumber || existing?.sequenceNumber || 1,
+                distanceFromSchoolKm: pt.distanceFromSchoolKm !== undefined && !isNaN(Number(pt.distanceFromSchoolKm)) ? pt.distanceFromSchoolKm : (existing?.distanceFromSchoolKm || 0),
+                monthlyFee: pt.monthlyFee !== undefined && !isNaN(Number(pt.monthlyFee)) ? pt.monthlyFee : (existing?.monthlyFee || 0),
+                morningPickupTime: pt.morningPickupTime || pt.arrivalTime || existing?.morningPickupTime || "",
+                eveningDropTime: pt.eveningDropTime || existing?.eveningDropTime || "",
+                status: pt.status || existing?.status || "Active",
+              });
             }
           });
 
@@ -13668,12 +13686,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const toTimeSpanString = (timeStr: string): string => {
-    if (!timeStr) return "00:00:00";
+    if (!timeStr || !timeStr.trim()) return "";
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr;
     if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr + ":00";
 
     const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!match) return "00:00:00";
+    if (!match) return timeStr;
 
     let hours = parseInt(match[1], 10);
     const minutes = match[2];
@@ -13688,22 +13706,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addPickupPoint = async (p: Omit<PickupPoint, "id">) => {
     try {
       const payload = {
-        routeId: Number(p.routeId) || 0,
+        routeId: !isNaN(Number(p.routeId)) && Number(p.routeId) > 0 ? Number(p.routeId) : (p.routeId || 0),
+        routeName: p.routeName || "",
         pickupPointName: p.pickupName || "",
         pickupName: p.pickupName || "",
         landmark: (p as any).landmark || "",
         sequenceNo: Number(p.sequenceNumber) || 0,
         sequenceNumber: Number(p.sequenceNumber) || 0,
         pickupTime: toTimeSpanString(
-          p.morningPickupTime || p.arrivalTime || "07:30 AM",
+          p.morningPickupTime || p.arrivalTime || "",
         ),
         arrivalTime: toTimeSpanString(
-          p.morningPickupTime || p.arrivalTime || "07:30 AM",
+          p.morningPickupTime || p.arrivalTime || "",
         ),
-        dropTime: toTimeSpanString(p.eveningDropTime || "04:15 PM"),
-        eveningDropTime: toTimeSpanString(p.eveningDropTime || "04:15 PM"),
+        dropTime: toTimeSpanString(p.eveningDropTime || ""),
+        eveningDropTime: toTimeSpanString(p.eveningDropTime || ""),
         morningPickupTime: toTimeSpanString(
-          p.morningPickupTime || p.arrivalTime || "07:30 AM",
+          p.morningPickupTime || p.arrivalTime || "",
         ),
         distanceFromStart: Number(p.distanceFromSchoolKm) || 0,
         distanceFromSchoolKm: Number(p.distanceFromSchoolKm) || 0,
@@ -13719,9 +13738,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         "PP-" + Math.floor(100 + Math.random() * 900)
       ).toString();
       const newPt: PickupPoint = {
-        ...p,
         ...backendData,
+        ...p,
         id,
+        routeId: (p.routeId !== undefined && p.routeId !== null && String(p.routeId) !== '0') ? p.routeId : (backendData.routeId || ""),
+        routeName: p.routeName || backendData.routeName || "",
+        pickupName: p.pickupName || backendData.pickupPointName || backendData.pickupName || "",
+        sequenceNumber: Number(p.sequenceNumber) || Number(backendData.sequenceNo) || 1,
+        morningPickupTime: p.morningPickupTime || p.arrivalTime || backendData.pickupTime || "",
+        eveningDropTime: p.eveningDropTime || backendData.dropTime || "",
+        distanceFromSchoolKm: Number(p.distanceFromSchoolKm) || Number(backendData.distanceFromStart) || 0,
+        monthlyFee: Number(p.monthlyFee) || Number(backendData.monthlyFare) || 0,
         status:
           backendData.status === true ||
           String(backendData.status).toLowerCase() === "true" ||

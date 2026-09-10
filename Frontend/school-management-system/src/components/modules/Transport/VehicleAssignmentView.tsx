@@ -43,6 +43,27 @@ type AssignmentFormState = {
   status: 'Active' | 'Inactive';
 };
 
+const to24HourTime = (value?: string) => {
+  if (!value) return '07:00';
+  const clean = value.trim();
+  const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (ampmMatch) {
+    let hour = parseInt(ampmMatch[1], 10);
+    const minute = ampmMatch[2];
+    const ampm = ampmMatch[3] ? ampmMatch[3].toUpperCase() : null;
+    if (ampm === 'PM' && hour < 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, '0')}:${minute}`;
+  }
+  if (/^\d{2}:\d{2}:\d{2}$/.test(clean)) {
+    return clean.slice(0, 5);
+  }
+  if (/^\d{2}:\d{2}$/.test(clean)) {
+    return clean;
+  }
+  return '07:00';
+};
+
 const formatTripTime = (value?: string) => {
   if (!value) return 'Not set';
   if (value.includes('AM') || value.includes('PM')) return value;
@@ -263,8 +284,11 @@ export const VehicleAssignmentView: React.FC = () => {
       ? assignment.attendantName
       : (attendant?.attendantName || 'Unassigned');
 
+    const employeeId = attendant?.employeeId || (assignment as any).attendantEmployeeId || '';
+
     return {
       id: attendant?.id || assignment.attendantId || '',
+      employeeId,
       name,
       mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
     };
@@ -293,17 +317,40 @@ export const VehicleAssignmentView: React.FC = () => {
     setModalMode('edit');
     setEditingAssignment(assignment);
     setReassignSource(null);
+
+    const matchedRoute = routeMasters.find(
+      r => String(r.id) === String(assignment.routeId) ||
+           (assignment.routeName && r.routeName?.trim().toLowerCase() === assignment.routeName?.trim().toLowerCase()) ||
+           (assignment.routeName && r.routeCode?.trim().toLowerCase() === assignment.routeName?.trim().toLowerCase())
+    );
+
+    const matchedVehicle = vehicleMasters.find(
+      v => String(v.id) === String(assignment.vehicleId) ||
+           (assignment.vehicleNumber && v.vehicleNumber?.trim().toUpperCase() === assignment.vehicleNumber?.trim().toUpperCase()) ||
+           (assignment.vehicleNumber && v.registrationNumber?.trim().toUpperCase() === assignment.vehicleNumber?.trim().toUpperCase())
+    );
+
+    const matchedDriver = driverMasters.find(
+      d => String(d.id) === String(assignment.driverId) ||
+           (assignment.driverName && d.driverName?.trim().toLowerCase() === assignment.driverName?.trim().toLowerCase())
+    );
+
+    const matchedAttendant = busAttendants.find(
+      a => String(a.id) === String(assignment.attendantId) ||
+           (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
+    );
+
     setForm({
       branch: assignment.branch || selectedBranch || 'Main Campus',
       academicYear: assignment.academicYear || getCurrentAcademicYear(),
-      vehicleId: assignment.vehicleId,
-      routeId: assignment.routeId,
-      driverId: assignment.driverId,
-      attendantId: assignment.attendantId || '',
-      morningTripTime: assignment.morningTripTime || '07:00',
-      eveningTripTime: assignment.eveningTripTime || '15:45',
-      effectiveFrom: assignment.effectiveFrom,
-      status: 'Active'
+      vehicleId: matchedVehicle ? String(matchedVehicle.id) : (assignment.vehicleId ? String(assignment.vehicleId) : ''),
+      routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
+      driverId: matchedDriver ? String(matchedDriver.id) : (assignment.driverId ? String(assignment.driverId) : ''),
+      attendantId: matchedAttendant ? String(matchedAttendant.id) : (assignment.attendantId ? String(assignment.attendantId) : ''),
+      morningTripTime: to24HourTime(assignment.morningTripTime),
+      eveningTripTime: to24HourTime(assignment.eveningTripTime),
+      effectiveFrom: (assignment.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      status: assignment.status === 'Active' || (assignment.status as any) === true ? 'Active' : 'Inactive'
     });
     setIsModalOpen(true);
   };
@@ -312,15 +359,38 @@ export const VehicleAssignmentView: React.FC = () => {
     setModalMode('reassign');
     setEditingAssignment(null);
     setReassignSource(assignment);
+
+    const matchedRoute = routeMasters.find(
+      r => String(r.id) === String(assignment.routeId) ||
+           (assignment.routeName && r.routeName?.trim().toLowerCase() === assignment.routeName?.trim().toLowerCase()) ||
+           (assignment.routeName && r.routeCode?.trim().toLowerCase() === assignment.routeName?.trim().toLowerCase())
+    );
+
+    const matchedVehicle = vehicleMasters.find(
+      v => String(v.id) === String(assignment.vehicleId) ||
+           (assignment.vehicleNumber && v.vehicleNumber?.trim().toUpperCase() === assignment.vehicleNumber?.trim().toUpperCase()) ||
+           (assignment.vehicleNumber && v.registrationNumber?.trim().toUpperCase() === assignment.vehicleNumber?.trim().toUpperCase())
+    );
+
+    const matchedDriver = driverMasters.find(
+      d => String(d.id) === String(assignment.driverId) ||
+           (assignment.driverName && d.driverName?.trim().toLowerCase() === assignment.driverName?.trim().toLowerCase())
+    );
+
+    const matchedAttendant = busAttendants.find(
+      a => String(a.id) === String(assignment.attendantId) ||
+           (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
+    );
+
     setForm({
       branch: assignment.branch || selectedBranch || 'Main Campus',
       academicYear: assignment.academicYear || getCurrentAcademicYear(),
-      vehicleId: assignment.vehicleId,
-      routeId: assignment.routeId,
-      driverId: assignment.driverId,
-      attendantId: assignment.attendantId || '',
-      morningTripTime: assignment.morningTripTime || '07:00',
-      eveningTripTime: assignment.eveningTripTime || '15:45',
+      vehicleId: matchedVehicle ? String(matchedVehicle.id) : (assignment.vehicleId ? String(assignment.vehicleId) : ''),
+      routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
+      driverId: matchedDriver ? String(matchedDriver.id) : (assignment.driverId ? String(assignment.driverId) : ''),
+      attendantId: matchedAttendant ? String(matchedAttendant.id) : (assignment.attendantId ? String(assignment.attendantId) : ''),
+      morningTripTime: to24HourTime(assignment.morningTripTime),
+      eveningTripTime: to24HourTime(assignment.eveningTripTime),
       effectiveFrom: new Date().toISOString().split('T')[0],
       status: 'Active'
     });
@@ -358,38 +428,28 @@ export const VehicleAssignmentView: React.FC = () => {
     return matchesSearch && matchesRoute;
   });
 
-  const assignmentsByVehicleMap = new Map<string, VehicleAssignment>();
+  const filteredAssignments = useMemo(() => {
+    const activeAssignments = rawFilteredAssignments.filter(assignment => {
+      const isActive = assignment.status === 'Active' || (assignment.status as any) === true || String(assignment.status).toLowerCase() === 'true';
+      return isActive;
+    });
 
-  rawFilteredAssignments.forEach(assignment => {
-    const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
-    const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
-    const hasValidRoute = resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A';
+    const uniqueMap = new Map<string, VehicleAssignment>();
+    activeAssignments.forEach(assignment => {
+      const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
+      const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
+      const resolvedVehicleNumber = (assignment.vehicleNumber || '').trim();
 
-    const vehicleKey = assignment.vehicleNumber && assignment.vehicleNumber.trim() !== ''
-      ? assignment.vehicleNumber.trim().toUpperCase()
-      : (assignment.vehicleId || assignment.id);
-
-    if (!assignmentsByVehicleMap.has(vehicleKey)) {
-      assignmentsByVehicleMap.set(vehicleKey, assignment);
-    } else {
-      const existing = assignmentsByVehicleMap.get(vehicleKey)!;
-      const existingRoute = routeMasters.find(r => r.id?.toString() === existing.routeId?.toString() || r.routeName?.toLowerCase() === existing.routeName?.toLowerCase());
-      const existingRouteName = (existingRoute?.routeName || existing.routeName || '').trim();
-      const existingHasValidRoute = existingRouteName !== '' && existingRouteName.toUpperCase() !== 'N/A';
-
-      if (!existingHasValidRoute && hasValidRoute) {
-        assignmentsByVehicleMap.set(vehicleKey, assignment);
+      if ((resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A') || resolvedVehicleNumber !== '') {
+        const uniqueKey = assignment.id || `${assignment.vehicleNumber || assignment.vehicleId}-${resolvedRouteName || assignment.routeId}`;
+        if (!uniqueMap.has(uniqueKey)) {
+          uniqueMap.set(uniqueKey, assignment);
+        }
       }
-    }
-  });
+    });
 
-  const filteredAssignments = Array.from(assignmentsByVehicleMap.values()).filter(assignment => {
-    const route = routeMasters.find(r => r.id?.toString() === assignment.routeId?.toString() || r.routeName?.toLowerCase() === assignment.routeName?.toLowerCase());
-    const resolvedRouteName = (route?.routeName || assignment.routeName || '').trim();
-    const resolvedVehicleNumber = (assignment.vehicleNumber || '').trim();
-    
-    return (resolvedRouteName !== '' && resolvedRouteName.toUpperCase() !== 'N/A') || resolvedVehicleNumber !== '';
-  });
+    return Array.from(uniqueMap.values());
+  }, [rawFilteredAssignments, routeMasters]);
 
   const filteredAssignmentLogs = assignmentLogs.filter(log => {
     const matchesSearch =
@@ -427,88 +487,66 @@ export const VehicleAssignmentView: React.FC = () => {
       return;
     }
 
-    if (vehicle.status === 'Inactive' || vehicle.status === 'Maintenance') {
-      addToast('warning', 'Inactive Vehicle', `Cannot assign ${vehicle.vehicleNumber} because its status is ${vehicle.status}.`);
-      return;
-    }
-
-    if (driver.status !== 'Active') {
-      addToast('warning', 'Inactive Driver', `Cannot assign ${driver.driverName} because its status is ${driver.status}.`);
-      return;
-    }
-
-    if (attendant && attendant.status !== 'Active') {
-      addToast('warning', 'Inactive Bus Attendant', `Cannot assign ${attendant.attendantName} because its status is ${attendant.status}.`);
-      return;
-    }
-
     const isAssignmentActive = (va: VehicleAssignment) => {
       return va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
     };
 
     const targetVehicleNo = vehicle.vehicleNumber.trim().toUpperCase();
-    const isEditingSameVehicle = Boolean(
-      (editingAssignment?.vehicleNumber && editingAssignment.vehicleNumber.trim().toUpperCase() === targetVehicleNo) ||
-      (reassignSource?.vehicleNumber && reassignSource.vehicleNumber.trim().toUpperCase() === targetVehicleNo)
-    );
 
-    // Strict Rule 1: A route can only be assigned to ONE active bus (ignore if assigned to THIS same vehicle being edited/reassigned)
+    // 1-to-1 Rule 1: A route can only be assigned to ONE active bus
     const routeAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
       isAssignmentActive(va) &&
-      route.routeName && route.routeName.toUpperCase() !== 'N/A' && route.routeName.toUpperCase() !== 'UNASSIGNED' &&
-      (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase()))
+      (String(va.routeId) === String(route.id) || (va.routeName && va.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase()))
     );
     if (routeAlreadyAssigned) {
-      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}.`);
+      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}. Please remove or reassign the previous assignment first.`);
       return;
     }
 
-    // Strict Rule 2: A bus can only be assigned to ONE active route (ignore if editing/reassigning this same bus or placeholder N/A routes)
-    const vehicleAlreadyAssigned = !isEditingSameVehicle && vehicleAssignments.find(va =>
+    // 1-to-1 Rule 2: A bus can only be assigned to ONE active route
+    const vehicleAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
       isAssignmentActive(va) &&
-      va.routeName && va.routeName.toUpperCase() !== 'N/A' && va.routeName.toUpperCase() !== 'UNASSIGNED' && va.routeName.trim() !== '' &&
-      (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase()))
+      (String(va.vehicleId) === String(vehicle.id) || (va.vehicleNumber && va.vehicleNumber.trim().toUpperCase() === targetVehicleNo))
     );
     if (vehicleAlreadyAssigned) {
-      addToast('warning', 'Vehicle Already Assigned', `Bus "${vehicle.vehicleNumber}" is already assigned to route "${vehicleAlreadyAssigned.routeName}".`);
+      addToast('warning', 'Vehicle Already Assigned', `Bus "${vehicle.vehicleNumber}" is already assigned to route "${vehicleAlreadyAssigned.routeName}". Please remove or reassign the previous assignment first.`);
       return;
     }
 
-    // Strict Rule 3: No single driver can drive multiple buses (ignore if assigned to THIS same vehicle being edited/reassigned)
+    // 1-to-1 Rule 3: No single driver can drive multiple active buses
     const driverAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
       va.id !== reassignSource?.id &&
-      va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
       isAssignmentActive(va) &&
-      (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase()))
+      (String(va.driverId) === String(driver.id) || (va.driverName && va.driverName.trim().toLowerCase() === driver.driverName.trim().toLowerCase()))
     );
     if (driverAlreadyAssigned) {
-      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}).`);
+      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber}. Please unassign the driver from the other bus first.`);
       return;
     }
 
-    // Strict Rule 4: No single attendant for two buses (ignore if assigned to THIS same vehicle being edited/reassigned)
+    // 1-to-1 Rule 4: No single attendant for multiple active buses
     if (attendant) {
       const attendantAlreadyAssigned = vehicleAssignments.find(va =>
         va.id !== editingAssignment?.id &&
         va.id !== reassignSource?.id &&
-        va.vehicleNumber?.trim().toUpperCase() !== targetVehicleNo &&
         isAssignmentActive(va) &&
-        (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase()))
+        (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.trim().toLowerCase() === attendant.attendantName.trim().toLowerCase()))
       );
       if (attendantAlreadyAssigned) {
-        addToast('warning', 'Attendant Already Assigned', `Bus Attendant "${attendant.attendantName}" is already assigned to bus ${attendantAlreadyAssigned.vehicleNumber}.`);
+        addToast('warning', 'Attendant Already Assigned', `Bus Attendant "${attendant.attendantName}" is already assigned to bus ${attendantAlreadyAssigned.vehicleNumber}. Please unassign the attendant first.`);
         return;
       }
     }
 
     const attendantName = attendant?.attendantName || 'Unassigned';
     const attendantMobile = attendant?.mobileNumber || '';
+    const attendantEmployeeId = attendant?.employeeId || (attendant?.id && String(attendant.id).startsWith('STF') ? attendant.id : '') || '';
+    const driverEmployeeId = driver?.employeeId || (driver?.id ? `DRV-${driver.id}` : '');
     const assignedStudents = studentTransports.filter(st => st.routeId === route.id || st.routeName === route.routeName).length;
     const gpsStatus: 'Online' | 'Offline' = vehicle.gpsDeviceId ? 'Online' : 'Offline';
 
@@ -524,8 +562,10 @@ export const VehicleAssignmentView: React.FC = () => {
       routeName: route.routeName,
       driverId: driver.id,
       driverName: driver.driverName,
+      driverEmployeeId,
       attendantId: attendant?.id,
       attendantName,
+      attendantEmployeeId,
       attendantMobile,
       morningTripTime: form.morningTripTime,
       eveningTripTime: form.eveningTripTime,
@@ -810,17 +850,16 @@ export const VehicleAssignmentView: React.FC = () => {
                           <div className="font-bold text-sky-600 dark:text-sky-400">
                             {route?.routeName || (assignment.routeName && assignment.routeName.toUpperCase() !== 'N/A' ? assignment.routeName : '') || 'Unassigned Route'}
                           </div>
-                          <div className="text-[10px] text-slate-400">
-                            {assignment.branch || 'Main Campus'} • {assignment.academicYear || getCurrentAcademicYear()}
-                          </div>
                         </td>
                         <td className="py-3 px-4 text-left">
                           <div className="font-bold text-slate-800 dark:text-slate-200">{driver?.driverName || assignment.driverName || 'Unassigned'}</div>
-                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {driver?.employeeId || assignment.driverEmployeeId || (driver?.id ? `DRV-${driver.id}` : '-')}</div>
+                          <div className="text-[10px] font-mono text-slate-400">{driver?.employeeId || assignment.driverEmployeeId || (driver?.id ? `DRV-${driver.id}` : '-')}</div>
                         </td>
                         <td className="py-3 px-4 text-left">
                           <div className="font-bold text-emerald-600 dark:text-emerald-400">{attendant.name || 'Unassigned'}</div>
-                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {attendant.id || assignment.attendantEmployeeId || '-'}</div>
+                          <div className="text-[10px] font-mono text-slate-400">
+                            {attendant.employeeId ? `${attendant.employeeId}` : (attendant.id && attendant.name !== 'Unassigned' ? `Emp ID: ${attendant.id}` : '-')}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{capacity}</td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-emerald-600">
@@ -981,10 +1020,11 @@ export const VehicleAssignmentView: React.FC = () => {
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
-                    const isCurrentVal = form.routeId === route.id || form.routeId === route.routeName;
+                    const isCurrent = form.routeId === route.id || (editingAssignment && (String(editingAssignment.routeId) === String(route.id) || editingAssignment.routeName?.toLowerCase() === route.routeName?.toLowerCase()));
+                    const isDisabled = !!activeOther && !isCurrent;
                     return (
-                      <option key={route.id} value={route.id} disabled={!!activeOther && !isCurrentVal}>
-                        {route.routeName} ({route.routeCode}) {activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      <option key={route.id} value={route.id} disabled={isDisabled}>
+                        {route.routeName} ({route.routeCode}){activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ''}
                       </option>
                     );
                   })}
@@ -1006,10 +1046,11 @@ export const VehicleAssignmentView: React.FC = () => {
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
-                    const isCurrentVal = form.vehicleId === vehicle.id || form.vehicleId === vehicle.vehicleNumber;
+                    const isCurrent = form.vehicleId === vehicle.id || (editingAssignment && (String(editingAssignment.vehicleId) === String(vehicle.id) || editingAssignment.vehicleNumber?.toUpperCase() === vehicle.vehicleNumber?.toUpperCase()));
+                    const isDisabled = !!activeOther && !isCurrent;
                     return (
-                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther && !isCurrentVal}>
-                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats) {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
+                      <option key={vehicle.id} value={vehicle.id} disabled={isDisabled}>
+                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats){activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ''}
                       </option>
                     );
                   })}
@@ -1038,11 +1079,12 @@ export const VehicleAssignmentView: React.FC = () => {
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
-                    const isCurrentVal = form.driverId === driver.id || form.driverId === driver.driverName;
+                    const isCurrent = form.driverId === driver.id || (editingAssignment && (String(editingAssignment.driverId) === String(driver.id) || editingAssignment.driverName?.toLowerCase() === driver.driverName?.toLowerCase()));
                     const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
+                    const isDisabled = !!activeOther && !isCurrent;
                     return (
-                      <option key={driver.id} value={driver.id} disabled={!!activeOther && !isCurrentVal}>
-                        {driver.driverName} ({empIdText}{driver.mobileNumber ? ` • ${driver.mobileNumber}` : ''}) {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      <option key={driver.id} value={driver.id} disabled={isDisabled}>
+                        {driver.driverName} ({empIdText}{driver.mobileNumber ? ` • ${driver.mobileNumber}` : ''}){activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ''}
                       </option>
                     );
                   })}
@@ -1050,7 +1092,7 @@ export const VehicleAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Bus Attendant <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-semibold mb-1">Select Bus Attendant</label>
                 <select
                   value={form.attendantId}
                   onChange={e => {
@@ -1063,18 +1105,19 @@ export const VehicleAssignmentView: React.FC = () => {
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
-                  <option value="">-- Select Bus Attendant --</option>
-                  {busAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
+                  <option value="">-- Select Bus Attendant (Optional) --</option>
+                  {busAttendants.map(attendant => {
                     const activeOther = vehicleAssignments.find(va =>
                       (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
-                      String(va.attendantId) === String(attendant.id) &&
+                      (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.trim().toLowerCase() === attendant.attendantName.trim().toLowerCase())) &&
                       va.id !== editingAssignment?.id &&
                       va.id !== reassignSource?.id
                     );
+                    const isCurrent = form.attendantId === attendant.id || (editingAssignment && (String(editingAssignment.attendantId) === String(attendant.id) || editingAssignment.attendantName?.toLowerCase() === attendant.attendantName?.toLowerCase()));
+                    const isDisabled = !!activeOther && !isCurrent;
                     return (
-                      <option key={attendant.id} value={attendant.id} disabled={!!activeOther}>
-                        {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber})
-                        {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      <option key={attendant.id} value={attendant.id} disabled={isDisabled}>
+                        {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber}){activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ''}
                       </option>
                     );
                   })}

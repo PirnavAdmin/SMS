@@ -434,7 +434,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
         <div 
           onClick={() => onNavigate?.('student-uniform', undefined, undefined, 'Issued')}
           className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm transition-all group"
-          title="Click to view student uniform distribution"
+          title="Click to view uniform distribution"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Issued Units</span>

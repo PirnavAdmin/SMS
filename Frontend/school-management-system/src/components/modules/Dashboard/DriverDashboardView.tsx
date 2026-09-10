@@ -471,10 +471,10 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
           </div>
           <div>
             <div className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'AP04 Z 4567'}
+              {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'Unassigned'}
             </div>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-              Reg: {assignedVehicle?.registrationNumber || 'REG-5646'} • {assignedVehicle?.vehicleType || 'Bus'}
+              Reg: {assignedVehicle?.registrationNumber || assignedVehicle?.vehicleNumber || 'N/A'} • {assignedVehicle?.vehicleType || 'Bus'}
             </div>
           </div>
           <div className="flex items-center justify-between pt-1.5 border-t border-sky-100 dark:border-sky-900/60 text-[11px] font-bold">

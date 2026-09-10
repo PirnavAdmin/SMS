@@ -156,7 +156,7 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
             id: p.id,
             label: p.pickupName,
             order: seq++,
-            time: p.morningPickupTime || p.arrivalTime || '07:30 AM',
+            time: p.morningPickupTime || p.arrivalTime || '',
             distanceKm: p.distanceFromSchoolKm || 5,
             status: p.status || 'Active'
           });

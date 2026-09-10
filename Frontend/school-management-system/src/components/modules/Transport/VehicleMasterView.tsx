@@ -168,8 +168,12 @@ export const VehicleMasterView: React.FC = () => {
   };
 
   const resolveCurrentAssignment = (vehicle: VehicleMaster) =>
-    vehicleAssignments.find(assignment => assignment.vehicleId === vehicle.id && assignment.status === 'Active') ||
-    vehicleAssignments.find(assignment => assignment.vehicleNumber === vehicle.vehicleNumber && assignment.status === 'Active');
+    vehicleAssignments.find(assignment =>
+      (String(assignment.vehicleId) === String(vehicle.id) ||
+       (assignment.vehicleNumber && vehicle.vehicleNumber && assignment.vehicleNumber.trim().toUpperCase() === vehicle.vehicleNumber.trim().toUpperCase()) ||
+       (assignment.vehicleNumber && vehicle.registrationNumber && assignment.vehicleNumber.trim().toUpperCase() === vehicle.registrationNumber.trim().toUpperCase())) &&
+      (assignment.status === 'Active' || (assignment.status as any) === true || String(assignment.status).toLowerCase() === 'true')
+    );
 
   return (
     <div className="space-y-6 animate-in fade-in">
