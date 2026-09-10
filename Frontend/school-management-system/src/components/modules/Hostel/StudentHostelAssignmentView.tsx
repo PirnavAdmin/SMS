@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -417,9 +417,30 @@ export const StudentHostelAssignmentView: React.FC = () => {
     }))
   ];
 
+  const [filterFloor, setFilterFloor] = useState('All Floors');
+  const [filterRoom, setFilterRoom] = useState('All Rooms');
+
+  const availableFloorOptions = useMemo(() => {
+    const set = new Set<string>();
+    rooms.forEach(r => {
+      if (r && r.floorLevel) set.add(r.floorLevel);
+    });
+    const list = Array.from(set).sort();
+    return ['All Floors', ...list.length > 0 ? list : ['Ground Floor', '1st Floor', '2nd Floor', '3rd Floor']];
+  }, [rooms]);
+
+  const availableRoomOptions = useMemo(() => {
+    const set = new Set<string>();
+    rooms.forEach(r => {
+      if (r && r.roomNumber) set.add(`Room #${r.roomNumber}`);
+    });
+    const list = Array.from(set).sort();
+    return ['All Rooms', ...list.length > 0 ? list : ['Room #101', 'Room #102', 'Room #103', 'Room #107', 'Room #108', 'Room #201', 'Room #202']];
+  }, [rooms]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterHostel]);
+  }, [searchQuery, filterHostel, filterFloor, filterRoom]);
 
   const filteredAssignments = combinedAssignmentsList.filter(a => {
     const isBlockAllowed = !isWarden || targetBlocks.some(b =>
@@ -433,7 +454,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
                        (a.admissionNo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (a.roomNumber || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchHostel = filterHostel === 'All' || !filterHostel || (a.hostelId && a.hostelId.toString() === filterHostel) || a.isPendingAdmitted;
-    return matchQuery && matchHostel;
+    const matchFloor = filterFloor === 'All Floors' || !filterFloor || ((a as any).floorLevel && (a as any).floorLevel.toLowerCase() === filterFloor.toLowerCase()) || a.isPendingAdmitted;
+    const matchRoom = filterRoom === 'All Rooms' || !filterRoom || (a.roomNumber && `Room #${a.roomNumber}` === filterRoom) || a.isPendingAdmitted;
+
+    return matchQuery && matchHostel && matchFloor && matchRoom;
   });
 
   const paginatedAssignments = filteredAssignments.slice(
@@ -474,7 +498,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
       {/* Filter Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative w-full sm:w-80">
+        <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
@@ -485,16 +509,16 @@ export const StudentHostelAssignmentView: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
           {isWarden ? (
-            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400">
+            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => setFilterHostel(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="">Select Hostel...</option>
               <option value="All">All Hostels</option>
@@ -511,6 +535,26 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 })}
             </select>
           )}
+
+          <select
+            value={filterFloor}
+            onChange={e => setFilterFloor(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            {availableFloorOptions.map((f: string) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterRoom}
+            onChange={e => setFilterRoom(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            {availableRoomOptions.map((r: string) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
         </div>
       </div>
 

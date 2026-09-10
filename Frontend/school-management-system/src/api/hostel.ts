@@ -113,13 +113,13 @@ const HOSTEL_BLOCKS_STORE_KEY = 'edu_db_hostel_blocks';
 export const defaultHostelBlocks: HostelBlock[] = [
   {
     hostelId: 1,
-    hostelName: 'Block A - Boys Senior Hostel',
+    hostelName: 'Ramachandra Bhavan (Block A)',
     hostelCode: 'HST-001',
     hostelType: 'Boys Hostel',
-    wardenName: 'Rajesh Kumar',
+    wardenName: 'VaraPrasad',
     primaryMobileNumber: '+91 9876543210',
     alternateMobileNumber: '+91 9876543211',
-    email: 'rajesh.warden@stxaviers.edu',
+    email: 'warden@school.com',
     status: 'Active',
     address: 'Campus East Wing, Near Sports Complex',
     createdAt: new Date().toISOString(),
@@ -231,8 +231,8 @@ export const getHostelBlocks = async (search?: string, type?: string, signal?: A
     const hostelId = Number(rawId) || (fallbackIndex + 1);
 
     let hostelName = String(b?.hostelName || b?.name || b?.blockName || '').trim();
-    if (!hostelName || !isNaN(Number(hostelName)) || hostelName.includes('undefined')) {
-      hostelName = hostelId === 1 ? 'Ramachandra Bhavan Block' : `Hostel Block #${hostelId}`;
+    if (!hostelName || !isNaN(Number(hostelName)) || hostelName.includes('undefined') || hostelName.includes('Block A - Boys') || hostelName === 'Block A (Boys)') {
+      hostelName = hostelId === 1 ? 'Ramachandra Bhavan (Block A)' : `Hostel Block #${hostelId}`;
     }
 
     let hostelType = String(b?.hostelType || b?.type || b?.genderType || '').trim();

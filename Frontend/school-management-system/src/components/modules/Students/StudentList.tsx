@@ -7,7 +7,7 @@ import {
   Eye, Building2, ChevronLeft, ChevronRight, User, Users, ArrowLeft,
   Clock, Calendar, BookOpen, BookMarked, MessageSquare, Mail, Phone,
   HeartPulse, FileText, CheckCircle2, ShieldAlert, Award, Check, GraduationCap, School,
-  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet, Home
+  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet, Home, Layers
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -807,11 +807,16 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   }
 
   // Warden Portal View (Hostel Resident Student Directory)
-  const [wardenSelectedBlock, setWardenSelectedBlock] = useState<string>('All Blocks');
+  const [wardenSelectedFloor, setWardenSelectedFloor] = useState<string>('All Floors');
+  const [wardenSelectedRoom, setWardenSelectedRoom] = useState<string>('All Rooms');
   const [wardenSelectedClass, setWardenSelectedClass] = useState<string>('All Classes');
   const [wardenSearchQuery, setWardenSearchQuery] = useState<string>('');
   const [wardenCurrentPage, setWardenCurrentPage] = useState<number>(1);
   const [wardenPageSize, setWardenPageSize] = useState<number>(10);
+
+  const wardenAssignedBlockName = useMemo(() => {
+    return 'Ramachandra Bhavan (Block A)';
+  }, []);
 
   const wardenHostelStudents = useMemo(() => {
     // Filter active residential / hosteller students
@@ -827,31 +832,47 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       // 1. Class filter
       const matchesClass = wardenSelectedClass === 'All Classes' || s.className.toLowerCase() === wardenSelectedClass.toLowerCase();
 
-      // 2. Block filter
-      const sBlock = (s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || (s as any).buildingName || 'Ramachandra Bhavan (Block A)';
-      const matchesBlock = wardenSelectedBlock === 'All Blocks' || sBlock.toLowerCase().includes(wardenSelectedBlock.toLowerCase()) || wardenSelectedBlock.toLowerCase().includes(sBlock.toLowerCase());
+      // 2. Floor filter
+      const sFloor = (s as any).floorLevel || (s as any).floor || '';
+      const matchesFloor = wardenSelectedFloor === 'All Floors' || !sFloor || sFloor.toLowerCase().includes(wardenSelectedFloor.toLowerCase());
 
-      // 3. Search query
+      // 3. Room filter
+      const sRoom = (s as any).roomNumber || (s as any).roomNo || (s as any).room || '';
+      const cleanRoom = wardenSelectedRoom.replace(/^Room\s*#/i, '').trim();
+      const matchesRoom = wardenSelectedRoom === 'All Rooms' || !sRoom || sRoom.toString().toLowerCase().includes(cleanRoom.toLowerCase());
+
+      // 4. Search query
       const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
       const q = wardenSearchQuery.trim().toLowerCase();
       const matchesSearch = !q || fullName.includes(q) || (s.admissionNo || '').toLowerCase().includes(q) || (s.rollNo || '').toLowerCase().includes(q);
 
-      return matchesClass && matchesBlock && matchesSearch;
+      return matchesClass && matchesFloor && matchesRoom && matchesSearch;
     });
-  }, [apiStudents, wardenSelectedClass, wardenSelectedBlock, wardenSearchQuery]);
+  }, [apiStudents, wardenSelectedClass, wardenSelectedFloor, wardenSelectedRoom, wardenSearchQuery]);
 
   const wardenTotalPages = Math.ceil(wardenHostelStudents.length / wardenPageSize) || 1;
   const wardenPaginatedStudents = wardenHostelStudents.slice((wardenCurrentPage - 1) * wardenPageSize, wardenCurrentPage * wardenPageSize);
 
-  // Available Hostel Blocks
-  const wardenBlockOptions = useMemo(() => {
-    const blocksSet = new Set<string>();
+  // Available Floor Options
+  const wardenFloorOptions = useMemo(() => {
+    const floorsSet = new Set<string>();
     apiStudents.forEach(s => {
-      const blk = (s as any).hostelBlock || (s as any).blockName || (s as any).hostelName;
-      if (blk) blocksSet.add(blk);
+      const fl = (s as any).floorLevel || (s as any).floor;
+      if (fl) floorsSet.add(fl);
     });
-    const list = Array.from(blocksSet).sort();
-    return ['All Blocks', ...list.length > 0 ? list : ['Ramachandra Bhavan (Block A)', 'Vivekananda Hostel (Block B)', 'Saraswati Bhavan (Girls Block)']];
+    const list = Array.from(floorsSet).sort();
+    return ['All Floors', ...list.length > 0 ? list : ['Ground Floor', '1st Floor', '2nd Floor', '3rd Floor']];
+  }, [apiStudents]);
+
+  // Available Room Options
+  const wardenRoomOptions = useMemo(() => {
+    const roomsSet = new Set<string>();
+    apiStudents.forEach(s => {
+      const rm = (s as any).roomNumber || (s as any).roomNo || (s as any).room;
+      if (rm) roomsSet.add(`Room #${rm}`);
+    });
+    const list = Array.from(roomsSet).sort();
+    return ['All Rooms', ...list.length > 0 ? list : ['Room #101', 'Room #102', 'Room #103', 'Room #107', 'Room #108', 'Room #201', 'Room #202', 'Room #203']];
   }, [apiStudents]);
 
   // Available Classes
@@ -880,43 +901,51 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
         {/* Warden Filters Bar */}
         <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search Input */}
-            <div className="relative">
+            <div className="relative col-span-1 sm:col-span-2 lg:col-span-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search student name, adm no, roll no..."
+                placeholder="Search student name, adm no..."
                 value={wardenSearchQuery}
                 onChange={e => { setWardenSearchQuery(e.target.value); setWardenCurrentPage(1); }}
                 className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>
 
-            {/* Block Filter */}
+            {/* Static Assigned Block Box (No Dropdown / Scroll Down) */}
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
+              <div className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
+                {wardenAssignedBlockName}
+              </div>
+            </div>
+
+            {/* Floor Filter */}
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-sky-600 shrink-0" />
               <select
-                value={wardenSelectedBlock}
-                onChange={e => { setWardenSelectedBlock(e.target.value); setWardenCurrentPage(1); }}
+                value={wardenSelectedFloor}
+                onChange={e => { setWardenSelectedFloor(e.target.value); setWardenCurrentPage(1); }}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
               >
-                {wardenBlockOptions.map(b => (
-                  <option key={b} value={b}>{b}</option>
+                {wardenFloorOptions.map(f => (
+                  <option key={f} value={f}>{f}</option>
                 ))}
               </select>
             </div>
 
-            {/* Class Filter */}
+            {/* Room Filter */}
             <div className="flex items-center gap-2">
-              <School className="w-4 h-4 text-sky-600 shrink-0" />
+              <Home className="w-4 h-4 text-sky-600 shrink-0" />
               <select
-                value={wardenSelectedClass}
-                onChange={e => { setWardenSelectedClass(e.target.value); setWardenCurrentPage(1); }}
+                value={wardenSelectedRoom}
+                onChange={e => { setWardenSelectedRoom(e.target.value); setWardenCurrentPage(1); }}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
               >
-                {wardenClassOptions.map(c => (
-                  <option key={c} value={c}>{c}</option>
+                {wardenRoomOptions.map(r => (
+                  <option key={r} value={r}>{r}</option>
                 ))}
               </select>
             </div>
@@ -926,11 +955,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           <div className="flex items-center justify-between text-xs font-extrabold text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
             <div className="flex items-center gap-2">
               <span>Showing <strong className="text-slate-900 dark:text-white">{wardenHostelStudents.length}</strong> Resident Hostel Students</span>
-              {(wardenSelectedBlock !== 'All Blocks' || wardenSelectedClass !== 'All Classes' || wardenSearchQuery) && (
+              {(wardenSelectedFloor !== 'All Floors' || wardenSelectedRoom !== 'All Rooms' || wardenSearchQuery) && (
                 <button
                   onClick={() => {
-                    setWardenSelectedBlock('All Blocks');
-                    setWardenSelectedClass('All Classes');
+                    setWardenSelectedFloor('All Floors');
+                    setWardenSelectedRoom('All Rooms');
                     setWardenSearchQuery('');
                     setWardenCurrentPage(1);
                   }}

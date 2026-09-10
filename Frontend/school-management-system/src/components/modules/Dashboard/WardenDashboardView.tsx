@@ -292,7 +292,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     return [
       {
         id: "BLK-1",
-        name: "Ramachandra Bhavan (Boys Block A)",
+        name: "Ramachandra Bhavan (Block A)",
         warden: user?.name || "VaraPrasad",
         totalBeds: 60,
         occupiedBeds: 52,
@@ -328,10 +328,10 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     });
 
     if (matched) {
-      return matched.name || (matched as any).hostelName || 'Ramachandra Bhavan (Boys Block A)';
+      return matched.name || (matched as any).hostelName || 'Ramachandra Bhavan (Block A)';
     }
 
-    return 'Ramachandra Bhavan (Boys Block A)';
+    return 'Ramachandra Bhavan (Block A)';
   }, [hostelBlocks, user]);
 
   const displayName = useMemo(() => {
