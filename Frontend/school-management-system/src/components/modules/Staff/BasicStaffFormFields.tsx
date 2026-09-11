@@ -41,6 +41,116 @@ interface BasicStaffFormFieldsProps {
 const fieldClass =
   'mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium';
 
+const PRESET_QUALIFICATIONS = [
+  "10th / SSC / Secondary School",
+  "12th / Intermediate / HSC",
+  "Diploma / ITI",
+  "B.A (Bachelor of Arts)",
+  "B.Sc (Bachelor of Science)",
+  "B.Com (Bachelor of Commerce)",
+  "B.Tech / B.E (Engineering)",
+  "B.Ed (Bachelor of Education)",
+  "BBA / BCA",
+  "M.A (Master of Arts)",
+  "M.Sc (Master of Science)",
+  "M.Com (Master of Commerce)",
+  "M.Tech / M.E",
+  "M.Ed (Master of Education)",
+  "MBA / MCA",
+  "Ph.D / Doctorate",
+  "Other (Specify Below)"
+];
+
+const validatePercentageCgpaValue = (val: string): string => {
+  const scoreStr = (val || '').toString().trim();
+  if (!scoreStr) return "Percentage or CGPA is required.";
+
+  const cleanScore = scoreStr.replace(/%/g, '').replace(/cgpa/i, '').trim();
+  const num = Number(cleanScore);
+
+  if (isNaN(num) || cleanScore === '') {
+    return "Enter a valid numeric score (e.g. 85%, 8.5, or 8.5 CGPA).";
+  }
+
+  if (num < 0) {
+    return "Score cannot be negative.";
+  }
+
+  const isCgpa = scoreStr.toLowerCase().includes('cgpa');
+  const isPercent = scoreStr.includes('%');
+
+  if (isCgpa) {
+    if (num > 10) {
+      return "CGPA cannot exceed 10.0.";
+    }
+  } else if (isPercent) {
+    if (num > 100) {
+      return "Percentage cannot exceed 100%.";
+    }
+  } else {
+    if (num > 100) {
+      return "Percentage cannot exceed 100%.";
+    }
+    if (num > 10 && num < 30) {
+      return `Invalid score (${scoreStr}). CGPA max is 10.0, and Percentage must be between 30% and 100%.`;
+    }
+  }
+
+  return "";
+};
+
+const validatePassingYearValue = (val: string): string => {
+  const currentYear = new Date().getFullYear();
+  const yearStr = (val || '').toString().trim();
+  if (!yearStr) return "Passing year is required.";
+
+  if (!/^\d{4}$/.test(yearStr)) {
+    return "Passing year must be a valid 4-digit year (e.g. 2018).";
+  }
+
+  const yr = parseInt(yearStr, 10);
+  if (yr > currentYear) {
+    return `Passing year cannot be in the future (max ${currentYear}).`;
+  }
+  if (yr < 1950) {
+    return "Passing year must be 1950 or later.";
+  }
+
+  return "";
+};
+
+const validateQualificationForm = (form: StaffQualificationItem): Record<string, string> => {
+  const errs: Record<string, string> = {};
+
+  if (!form.qualification || !form.qualification.trim()) {
+    errs.qualification = "Qualification level / degree is required.";
+  }
+
+  if (!form.institution || !form.institution.trim()) {
+    errs.institution = "Institution / School / College is required.";
+  } else if (form.institution.trim().length < 2) {
+    errs.institution = "Institution name must be at least 2 characters.";
+  }
+
+  if (!form.boardUniversity || !form.boardUniversity.trim()) {
+    errs.boardUniversity = "Board / University is required.";
+  } else if (form.boardUniversity.trim().length < 2) {
+    errs.boardUniversity = "Board / University must be at least 2 characters.";
+  }
+
+  const yearErr = validatePassingYearValue(form.passingYear);
+  if (yearErr) {
+    errs.passingYear = yearErr;
+  }
+
+  const scoreErr = validatePercentageCgpaValue(form.percentageCgpa);
+  if (scoreErr) {
+    errs.percentageCgpa = scoreErr;
+  }
+
+  return errs;
+};
+
 export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   value,
   errors: parentErrors = {},
@@ -130,6 +240,29 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       require("designation", !!value.designation.trim(), "Designation is required.");
       require("joiningDate", !!value.joiningDate.trim(), "Joining date is required.");
       require("employmentType", !!value.employmentType.trim(), "Employment type is required.");
+    } else if (step === 3) {
+      if (isAddingQual) {
+        const hasAnyInput = Boolean(
+          qualForm.qualification.trim() ||
+          qualForm.institution.trim() ||
+          qualForm.boardUniversity.trim() ||
+          qualForm.passingYear.trim() ||
+          qualForm.percentageCgpa.trim()
+        );
+        if (!hasAnyInput) {
+          setIsAddingQual(false);
+          setQualFormErrors({});
+        } else {
+          const qErrs = validateQualificationForm(qualForm);
+          if (Object.keys(qErrs).length > 0) {
+            setQualFormErrors(qErrs);
+            return false;
+          } else {
+            handleSaveQualification();
+          }
+        }
+      }
+      return true;
     }
 
     console.log("Validation Errors for Step " + step + ":", stepErrors);
@@ -266,6 +399,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   // Qualification inline form state
   const [isAddingQual, setIsAddingQual] = useState(false);
   const [editingQualId, setEditingQualId] = useState<string | null>(null);
+  const [qualFormErrors, setQualFormErrors] = useState<Record<string, string>>({});
+  const [customQualActive, setCustomQualActive] = useState<boolean>(false);
   const [qualForm, setQualForm] = useState<StaffQualificationItem>({
     id: '',
     qualification: '',
@@ -328,10 +463,21 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   };
 
   // Qualification Handlers
-  const handleSaveQualification = () => {
-    if (!qualForm.qualification.trim()) return;
+  const handleSaveQualification = (): boolean => {
+    const qErrs = validateQualificationForm(qualForm);
+    if (Object.keys(qErrs).length > 0) {
+      setQualFormErrors(qErrs);
+      addToast('Please correct the validation errors in the qualification form.', 'error');
+      return false;
+    }
+
+    const finalQual = { ...qualForm };
+    if (!finalQual.specialization.trim()) {
+      finalQual.specialization = 'General';
+    }
+
     const newQual: StaffQualificationItem = {
-      ...qualForm,
+      ...finalQual,
       id: editingQualId || `QUAL-${Date.now()}`
     };
 
@@ -345,6 +491,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     onChange('qualifications', updatedList);
     setIsAddingQual(false);
     setEditingQualId(null);
+    setQualFormErrors({});
+    setCustomQualActive(false);
     setQualForm({
       id: '',
       qualification: '',
@@ -354,6 +502,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       passingYear: '',
       percentageCgpa: ''
     });
+    return true;
   };
 
   const handleDeleteQualification = (id: string) => {
@@ -1215,6 +1364,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     passingYear: '',
                     percentageCgpa: ''
                   });
+                  setQualFormErrors({});
+                  setCustomQualActive(false);
                   setIsAddingQual(true);
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-2xs"
@@ -1228,7 +1379,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400">
                 <GraduationCap className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                 <p className="font-bold">No qualifications added yet.</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Click "+ Add Qualification" to record degrees and certifications.</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Click "+ Add Qualification" to record degrees, 10th/SSC, 12th/Intermediate, or certifications.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1248,6 +1399,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                         onClick={() => {
                           setEditingQualId(q.id);
                           setQualForm(q);
+                          setQualFormErrors({});
+                          setCustomQualActive(!PRESET_QUALIFICATIONS.includes(q.qualification));
                           setIsAddingQual(true);
                         }}
                         className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
@@ -1277,74 +1430,201 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Qualification Degree</label>
-                    <input
-                      type="text"
-                      value={qualForm.qualification}
-                      onChange={e => setQualForm(prev => ({ ...prev, qualification: e.target.value }))}
-                      className={fieldClass}
-                    />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Qualification Level / Degree <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={
+                        PRESET_QUALIFICATIONS.includes(qualForm.qualification)
+                          ? qualForm.qualification
+                          : (qualForm.qualification || customQualActive ? 'Other (Specify Below)' : '')
+                      }
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === 'Other (Specify Below)') {
+                          setCustomQualActive(true);
+                          setQualForm(prev => ({
+                            ...prev,
+                            qualification: PRESET_QUALIFICATIONS.includes(prev.qualification) ? '' : prev.qualification
+                          }));
+                        } else {
+                          setCustomQualActive(false);
+                          setQualForm(prev => ({ ...prev, qualification: val }));
+                        }
+                        setQualFormErrors(prev => ({ ...prev, qualification: '' }));
+                      }}
+                      className={`${fieldClass} ${qualFormErrors.qualification ? 'border-rose-500 bg-rose-50/20' : ''}`}
+                    >
+                      <option value="">Select Qualification Level / Degree...</option>
+                      {PRESET_QUALIFICATIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+
+                    {(customQualActive || (qualForm.qualification && !PRESET_QUALIFICATIONS.includes(qualForm.qualification))) && (
+                      <input
+                        type="text"
+                        placeholder="Specify Custom Qualification Level / Degree Title"
+                        value={qualForm.qualification}
+                        onChange={e => {
+                          setQualForm(prev => ({ ...prev, qualification: e.target.value }));
+                          setQualFormErrors(prev => ({ ...prev, qualification: '' }));
+                        }}
+                        className={`${fieldClass} mt-2`}
+                      />
+                    )}
+                    {qualFormErrors.qualification && (
+                      <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> {qualFormErrors.qualification}
+                      </p>
+                    )}
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Specialization / Subject</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Specialization / Subject
+                    </label>
                     <input
                       type="text"
+                      placeholder="e.g. Science, Mathematics, MPC, General"
                       value={qualForm.specialization}
-                      onChange={e => setQualForm(prev => ({ ...prev, specialization: e.target.value }))}
-                      className={fieldClass}
+                      onChange={e => {
+                        setQualForm(prev => ({ ...prev, specialization: e.target.value }));
+                        setQualFormErrors(prev => ({ ...prev, specialization: '' }));
+                      }}
+                      className={`${fieldClass} ${qualFormErrors.specialization ? 'border-rose-500 bg-rose-50/20' : ''}`}
                     />
+                    {qualFormErrors.specialization && (
+                      <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> {qualFormErrors.specialization}
+                      </p>
+                    )}
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Institution / College</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Institution / School / College <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
+                      placeholder="e.g. St. Xavier High School / Delhi University"
                       value={qualForm.institution}
-                      onChange={e => setQualForm(prev => ({ ...prev, institution: e.target.value }))}
-                      className={fieldClass}
+                      onChange={e => {
+                        setQualForm(prev => ({ ...prev, institution: e.target.value }));
+                        setQualFormErrors(prev => ({ ...prev, institution: '' }));
+                      }}
+                      className={`${fieldClass} ${qualFormErrors.institution ? 'border-rose-500 bg-rose-50/20' : ''}`}
                     />
+                    {qualFormErrors.institution && (
+                      <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> {qualFormErrors.institution}
+                      </p>
+                    )}
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Board / University</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Board / University <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
+                      placeholder="e.g. State Board, CBSE, ICSE, University"
                       value={qualForm.boardUniversity}
-                      onChange={e => setQualForm(prev => ({ ...prev, boardUniversity: e.target.value }))}
-                      className={fieldClass}
+                      onChange={e => {
+                        setQualForm(prev => ({ ...prev, boardUniversity: e.target.value }));
+                        setQualFormErrors(prev => ({ ...prev, boardUniversity: '' }));
+                      }}
+                      className={`${fieldClass} ${qualFormErrors.boardUniversity ? 'border-rose-500 bg-rose-50/20' : ''}`}
                     />
+                    {qualFormErrors.boardUniversity && (
+                      <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> {qualFormErrors.boardUniversity}
+                      </p>
+                    )}
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Passing Year</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Passing Year <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
+                      maxLength={4}
+                      placeholder={`e.g. 2018 (Max ${new Date().getFullYear()})`}
                       value={qualForm.passingYear}
-                      onChange={e => setQualForm(prev => ({ ...prev, passingYear: e.target.value }))}
-                      className={fieldClass}
+                      onChange={e => {
+                        const cleanVal = e.target.value.replace(/[^\d]/g, '').slice(0, 4);
+                        setQualForm(prev => ({ ...prev, passingYear: cleanVal }));
+                        if (cleanVal.length === 4) {
+                          const err = validatePassingYearValue(cleanVal);
+                          setQualFormErrors(prev => ({ ...prev, passingYear: err }));
+                        } else if (cleanVal.length > 0) {
+                          setQualFormErrors(prev => ({ ...prev, passingYear: 'Passing year must be a 4-digit year.' }));
+                        } else {
+                          setQualFormErrors(prev => ({ ...prev, passingYear: '' }));
+                        }
+                      }}
+                      onBlur={e => {
+                        const err = validatePassingYearValue(e.target.value);
+                        setQualFormErrors(prev => ({ ...prev, passingYear: err }));
+                      }}
+                      className={`${fieldClass} ${qualFormErrors.passingYear ? 'border-rose-500 bg-rose-50/20' : ''}`}
                     />
+                    {qualFormErrors.passingYear && (
+                      <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> {qualFormErrors.passingYear}
+                      </p>
+                    )}
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Percentage / CGPA</label>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Percentage / CGPA <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
+                      placeholder="e.g. 85% or 8.5 CGPA"
                       value={qualForm.percentageCgpa}
-                      onChange={e => setQualForm(prev => ({ ...prev, percentageCgpa: e.target.value }))}
-                      className={fieldClass}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setQualForm(prev => ({ ...prev, percentageCgpa: val }));
+                        if (val.trim()) {
+                          const err = validatePercentageCgpaValue(val);
+                          setQualFormErrors(prev => ({ ...prev, percentageCgpa: err }));
+                        } else {
+                          setQualFormErrors(prev => ({ ...prev, percentageCgpa: '' }));
+                        }
+                      }}
+                      onBlur={e => {
+                        const err = validatePercentageCgpaValue(e.target.value);
+                        setQualFormErrors(prev => ({ ...prev, percentageCgpa: err }));
+                      }}
+                      className={`${fieldClass} ${qualFormErrors.percentageCgpa ? 'border-rose-500 bg-rose-50/20' : ''}`}
                     />
+                    {qualFormErrors.percentageCgpa && (
+                      <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> {qualFormErrors.percentageCgpa}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsAddingQual(false)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-bold"
+                    onClick={() => {
+                      setIsAddingQual(false);
+                      setQualFormErrors({});
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-bold text-xs hover:bg-slate-200"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveQualification}
-                    className="px-3 py-1.5 rounded-xl bg-brand-600 text-white font-bold"
+                    className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-xs"
                   >
-                    Save
+                    Save Qualification
                   </button>
                 </div>
               </div>

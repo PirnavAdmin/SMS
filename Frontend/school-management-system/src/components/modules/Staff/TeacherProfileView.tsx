@@ -221,6 +221,7 @@ export const TeacherProfileView: React.FC = () => {
 
   // Dynamically compute assigned classes with section suffixes (e.g. Class 9-A, Class 8-A)
   const dynamicAssignedClasses = useMemo(() => {
+    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
     const uNameLower = (user?.name || '').toLowerCase().trim();
     const dbNameLower = (dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '').toLowerCase();
     const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();

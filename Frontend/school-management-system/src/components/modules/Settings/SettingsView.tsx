@@ -1492,9 +1492,16 @@ export const SettingsView: React.FC = () => {
             <div className="pt-2">
               <SchoolLogoUploader
                 value={profileForm.logoUrl || ""}
-                onChange={(newLogoUrl) =>
-                  setProfileForm((prev) => ({ ...prev, logoUrl: newLogoUrl }))
-                }
+                onChange={(newLogoUrl) => {
+                  setProfileForm((prev) => ({ ...prev, logoUrl: newLogoUrl }));
+                  updateSchoolProfile({ logoUrl: newLogoUrl });
+                  try {
+                    localStorage.setItem("school_logo", newLogoUrl);
+                    localStorage.setItem("logoUrl", newLogoUrl);
+                    localStorage.setItem("schoolLogo", newLogoUrl);
+                  } catch (e) {}
+                  window.dispatchEvent(new Event("school_profile_updated"));
+                }}
               />
             </div>
 

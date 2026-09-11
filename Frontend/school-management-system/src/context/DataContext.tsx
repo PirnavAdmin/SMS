@@ -5977,7 +5977,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             data.logoUrl !== undefined ||
             data.address !== undefined)
         ) {
+          const localCustomLogo =
+            localStorage.getItem("school_logo") ||
+            localStorage.getItem("logoUrl") ||
+            localStorage.getItem("schoolLogo") ||
+            "";
+
           setSchoolProfile((prev) => {
+            // Preserve user-customized logo from localStorage (especially Base64 data URLs)
+            const effectiveLogo =
+              localCustomLogo && (localCustomLogo.startsWith("data:") || localCustomLogo !== "/pirnav-school-logo.png")
+                ? localCustomLogo
+                : (data.logoUrl && data.logoUrl !== "/pirnav-school-logo.png" ? data.logoUrl : (localCustomLogo || prev.logoUrl));
+
             const next = {
               ...prev,
               name: data.schoolName || data.name || prev.name,
@@ -5996,7 +6008,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 data.principalName !== undefined
                   ? data.principalName
                   : prev.principalName,
-              logoUrl: data.logoUrl !== undefined ? data.logoUrl : prev.logoUrl,
+              logoUrl: effectiveLogo,
             };
             try {
               localStorage.setItem("edu_db_profile", JSON.stringify(next));
@@ -6005,10 +6017,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 localStorage.setItem("school_logo", next.logoUrl);
                 localStorage.setItem("logoUrl", next.logoUrl);
                 localStorage.setItem("schoolLogo", next.logoUrl);
-              } else {
-                localStorage.removeItem("school_logo");
-                localStorage.removeItem("logoUrl");
-                localStorage.removeItem("schoolLogo");
               }
             } catch (e) {}
             return next;
@@ -6025,19 +6033,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const handleProfileUpdate = () => {
       try {
+        const schoolLogo =
+          localStorage.getItem("school_logo") ||
+          localStorage.getItem("logoUrl") ||
+          localStorage.getItem("schoolLogo") ||
+          "";
+
         const stored =
           localStorage.getItem("edu_db_profile") ||
           localStorage.getItem("profile");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const schoolLogo =
-            localStorage.getItem("school_logo") ?? parsed.logoUrl ?? "";
-          setSchoolProfile((prev) => ({
-            ...prev,
-            ...parsed,
-            logoUrl: schoolLogo,
-          }));
-        }
+        const parsed = stored ? JSON.parse(stored) : {};
+
+        setSchoolProfile((prev) => ({
+          ...prev,
+          ...parsed,
+          logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed.logoUrl || prev.logoUrl || ""),
+        }));
       } catch (e) {}
     };
 

@@ -64,11 +64,63 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { role, user } = useAuth();
   const { schoolProfile, admissions, students } = useData();
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
+    return (
+      localStorage.getItem("school_logo") ||
+      localStorage.getItem("logoUrl") ||
+      localStorage.getItem("schoolLogo") ||
+      schoolProfile?.logoUrl ||
+      ""
+    );
+  });
   const [logoLoadError, setLogoLoadError] = useState(false);
+  const [logoMeta, setLogoMeta] = useState<{ width: number; height: number; ratio: number } | null>(null);
 
   React.useEffect(() => {
-    setLogoLoadError(false);
+    const updateLogo = () => {
+      const activeLogo =
+        localStorage.getItem("school_logo") ||
+        localStorage.getItem("logoUrl") ||
+        localStorage.getItem("schoolLogo") ||
+        schoolProfile?.logoUrl ||
+        "";
+      setCurrentLogoUrl(activeLogo);
+      setLogoLoadError(false);
+    };
+
+    updateLogo();
+
+    window.addEventListener("school_profile_updated", updateLogo);
+    window.addEventListener("storage", updateLogo);
+    return () => {
+      window.removeEventListener("school_profile_updated", updateLogo);
+      window.removeEventListener("storage", updateLogo);
+    };
   }, [schoolProfile?.logoUrl]);
+
+  const handleSidebarLogoLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth && img.naturalHeight) {
+      setLogoMeta({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        ratio: img.naturalWidth / img.naturalHeight,
+      });
+    }
+  };
+
+  const handleSidebarLogoError = () => {
+    const fallbackLogo =
+      localStorage.getItem("school_logo") ||
+      localStorage.getItem("logoUrl") ||
+      localStorage.getItem("schoolLogo");
+
+    if (fallbackLogo && fallbackLogo !== currentLogoUrl && fallbackLogo.startsWith("data:")) {
+      setCurrentLogoUrl(fallbackLogo);
+    } else {
+      setLogoLoadError(true);
+    }
+  };
 
   let isHosteller = true;
   let usesTransport = true;
@@ -560,11 +612,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setCollapsed(false)}
             title={schoolProfile?.name || "School Dashboard"}
           >
-            {schoolProfile?.logoUrl && !logoLoadError ? (
+            {currentLogoUrl && !logoLoadError ? (
               <img
-                src={resolveMediaUrl(schoolProfile.logoUrl)}
+                src={resolveMediaUrl(currentLogoUrl)}
                 alt="School Logo"
-                onError={() => setLogoLoadError(true)}
+                onError={handleSidebarLogoError}
+                onLoad={handleSidebarLogoLoad}
                 className="max-h-8 max-w-8 object-contain"
               />
             ) : (
@@ -573,16 +626,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <div
-            className="flex items-center justify-center w-48 h-12 select-none cursor-pointer px-2 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
+            className={`flex items-center justify-center select-none cursor-pointer border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden ${
+              logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
+                ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
+                : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
+            }`}
             onClick={() => setActiveModule("dashboard")}
             title={schoolProfile?.name || "School Dashboard"}
           >
-            {schoolProfile?.logoUrl && !logoLoadError ? (
+            {currentLogoUrl && !logoLoadError ? (
               <img
-                src={resolveMediaUrl(schoolProfile.logoUrl)}
+                src={resolveMediaUrl(currentLogoUrl)}
                 alt="School Logo"
-                onError={() => setLogoLoadError(true)}
-                className="max-h-10 max-w-[190px] object-contain"
+                onError={handleSidebarLogoError}
+                onLoad={handleSidebarLogoLoad}
+                className={`object-contain ${
+                  logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
+                    ? "max-h-9 max-w-9"
+                    : "max-h-10 max-w-full w-auto"
+                }`}
               />
             ) : (
               <div className="flex items-center gap-2 px-2">
