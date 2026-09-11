@@ -64,9 +64,9 @@ export const WardenAttendanceView: React.FC = () => {
 
   // 1. Identify logged-in Warden Details
   const wardenInfo = useMemo(() => {
-    const userName = user?.name || 'VaraPrasad';
-    const userEmail = user?.email || 'warden@pirnavschools.edu';
-    const userEmpId = user?.id || 'WRD-102';
+    const userName = user?.name || (user as any)?.firstName || 'Hostel Warden';
+    const userEmail = user?.email || '';
+    const userEmpId = user?.id || '';
 
     const matchedStaff = staff.find(s =>
       s.email?.toLowerCase() === userEmail.toLowerCase() ||
