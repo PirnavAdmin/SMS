@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserCheck, Calendar, Search, Filter, Save, Sun, Moon, Printer, FileText, FileSpreadsheet, CheckCircle2, XCircle, Clock, UserX, RotateCcw } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNightAttendance, HostelBlock, HostelRoom, BedAllocation, NightAttendanceRecord } from '../../../api/hostel';
@@ -9,6 +10,7 @@ import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNigh
 export const HostelAttendanceView: React.FC = () => {
   const { addToast } = useToast();
   const { user, role } = useAuth();
+  const { students } = useData();
   const userRole = (role || user?.role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
 
@@ -71,10 +73,15 @@ export const HostelAttendanceView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Attendance & Time state per student
-  const [attendanceState, setAttendanceState] = useState<Record<string, string>>({});
-  const [inTimeState, setInTimeState] = useState<Record<string, string>>({});
-  const [outTimeState, setOutTimeState] = useState<Record<string, string>>({});
+  // Attendance & Time state per student for Morning and Night shifts separately
+  const [morningAttendanceState, setMorningAttendanceState] = useState<Record<string, string>>({});
+  const [nightAttendanceState, setNightAttendanceState] = useState<Record<string, string>>({});
+
+  const [morningInTimeState, setMorningInTimeState] = useState<Record<string, string>>({});
+  const [nightInTimeState, setNightInTimeState] = useState<Record<string, string>>({});
+
+  const [morningOutTimeState, setMorningOutTimeState] = useState<Record<string, string>>({});
+  const [nightOutTimeState, setNightOutTimeState] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     try {
@@ -106,20 +113,65 @@ export const HostelAttendanceView: React.FC = () => {
           const records = await getNightAttendance(selectedDate, Number(selectedBlockId));
           setAttendanceRecords(records || []);
           
-          // Hydrate local state
-          const newState: Record<string, string> = {};
+          const newMorningAtt: Record<string, string> = {};
+          const newMorningIn: Record<string, string> = {};
+          const newMorningOut: Record<string, string> = {};
+
+          const newNightAtt: Record<string, string> = {};
+          const newNightIn: Record<string, string> = {};
+          const newNightOut: Record<string, string> = {};
+
           (records || []).forEach(r => {
-            if (r && r.studentId !== undefined && r.studentId !== null) {
-              newState[String(r.studentId)] = r.curfewStatus;
+            if (r) {
+              const status = r.curfewStatus;
+              const inT = r.inTime;
+              const outT = r.outTime;
+              const isMorningRecord = Boolean(r.remarks && r.remarks.toLowerCase().includes('morning'));
+
+              const populate = (attMap: Record<string, string>, inMap: Record<string, string>, outMap: Record<string, string>) => {
+                if (r.studentId !== undefined && r.studentId !== null) {
+                  const sKey = String(r.studentId);
+                  if (status) attMap[sKey] = status;
+                  if (status) attMap[`st_${sKey}`] = status;
+                  if (inT) inMap[sKey] = inT;
+                  if (inT) inMap[`st_${sKey}`] = inT;
+                  if (outT) outMap[sKey] = outT;
+                  if (outT) outMap[`st_${sKey}`] = outT;
+                }
+                if (r.allocationId !== undefined && r.allocationId !== null) {
+                  const aKey = String(r.allocationId);
+                  if (status) attMap[aKey] = status;
+                  if (inT) inMap[aKey] = inT;
+                  if (outT) outMap[aKey] = outT;
+                }
+              };
+
+              if (isMorningRecord) {
+                populate(newMorningAtt, newMorningIn, newMorningOut);
+              } else {
+                populate(newNightAtt, newNightIn, newNightOut);
+              }
             }
           });
-          setAttendanceState(newState);
+
+          setMorningAttendanceState(newMorningAtt);
+          setMorningInTimeState(newMorningIn);
+          setMorningOutTimeState(newMorningOut);
+
+          setNightAttendanceState(newNightAtt);
+          setNightInTimeState(newNightIn);
+          setNightOutTimeState(newNightOut);
         } catch (error: any) {
           addToast('error', 'Failed to load attendance', error.message);
         }
       } else {
         setAttendanceRecords([]);
-        setAttendanceState({});
+        setMorningAttendanceState({});
+        setMorningInTimeState({});
+        setMorningOutTimeState({});
+        setNightAttendanceState({});
+        setNightInTimeState({});
+        setNightOutTimeState({});
       }
     };
     fetchAttendance();
@@ -135,43 +187,137 @@ export const HostelAttendanceView: React.FC = () => {
     (!selectedFloor || rm.floorLevel === selectedFloor)
   );
 
-  const getAttendanceStatus = (studentId: string): string => {
-    return attendanceState[studentId] || 'Present';
+  const getItemKey = (a: BedAllocation, idx: number = 0): string => {
+    return String(a.studentId || a.allocationId || `row_${idx}`);
   };
 
-  const getInTime = (studentId: string): string => {
-    return inTimeState[studentId] || (attendanceShift === 'morning' ? '07:00 AM' : '09:00 PM');
+  const getAttendanceStatus = (key: string): string => {
+    const map = attendanceShift === 'morning' ? morningAttendanceState : nightAttendanceState;
+    return map[key] || '';
   };
 
-  const getOutTime = (studentId: string): string => {
-    return outTimeState[studentId] || (attendanceShift === 'morning' ? '08:30 AM' : '06:00 AM');
+  const getInTime = (key: string): string => {
+    const map = attendanceShift === 'morning' ? morningInTimeState : nightInTimeState;
+    return map[key] || (attendanceShift === 'morning' ? '07:00 AM' : '09:00 PM');
   };
 
-  const handleStatusChange = (studentId: string, status: string) => {
-    setAttendanceState(prev => ({ ...prev, [studentId]: status }));
+  const getOutTime = (key: string): string => {
+    const map = attendanceShift === 'morning' ? morningOutTimeState : nightOutTimeState;
+    return map[key] || (attendanceShift === 'morning' ? '08:30 AM' : '06:00 AM');
   };
 
-  const matchedAssignments = (allocations || []).filter(a => {
-    if (!a || a.status !== 'Active') return false;
-    // Exclude invalid/N/A waste dummy data
-    if (!a.hostelName || a.hostelName === 'N/A' || !a.roomNumber || a.roomNumber === 'N/A' || a.bedNumber === 'N/A') return false;
-
-    if (selectedBlockId && a.hostelId.toString() !== selectedBlockId) return false;
-    if (selectedRoomId && a.roomId.toString() !== selectedRoomId) return false;
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const nameMatch = (a.studentName || '').toLowerCase().includes(q);
-      const admMatch = (a.admissionNo || '').toLowerCase().includes(q);
-      const roomMatch = (a.roomNumber || '').toLowerCase().includes(q);
-      if (!nameMatch && !admMatch && !roomMatch) return false;
+  const handleStatusChange = (key: string, status: string) => {
+    if (attendanceShift === 'morning') {
+      setMorningAttendanceState(prev => ({ ...prev, [key]: status }));
+    } else {
+      setNightAttendanceState(prev => ({ ...prev, [key]: status }));
     }
+  };
 
-    const currentSt = getAttendanceStatus(a.studentId.toString());
-    if (statusFilter !== 'All' && currentSt !== statusFilter) return false;
+  const handleInTimeChange = (key: string, value: string) => {
+    if (attendanceShift === 'morning') {
+      setMorningInTimeState(prev => ({ ...prev, [key]: value }));
+    } else {
+      setNightInTimeState(prev => ({ ...prev, [key]: value }));
+    }
+  };
 
-    return true;
-  });
+  const handleOutTimeChange = (key: string, value: string) => {
+    if (attendanceShift === 'morning') {
+      setMorningOutTimeState(prev => ({ ...prev, [key]: value }));
+    } else {
+      setNightOutTimeState(prev => ({ ...prev, [key]: value }));
+    }
+  };
+
+  const currentBlockObj = useMemo(() => {
+    return blocks.find(b => String(b.hostelId) === selectedBlockId) || targetBlocks[0];
+  }, [blocks, selectedBlockId, targetBlocks]);
+
+  const targetBlockName = useMemo(() => {
+    return (currentBlockObj?.hostelName || '').toLowerCase().trim();
+  }, [currentBlockObj]);
+
+  const blockAllocations = useMemo(() => {
+    return allocations.filter(a =>
+      a && (a.status === 'Active' || !a.status) &&
+      (!selectedBlockId || String(a.hostelId) === selectedBlockId ||
+       (a.hostelName || '').toLowerCase().includes(targetBlockName))
+    );
+  }, [allocations, selectedBlockId, targetBlockName]);
+
+  const attendanceStudentRows = useMemo(() => {
+    const allocatedStudentKeys = new Set<string>();
+    blockAllocations.forEach(a => {
+      if (a.studentId) allocatedStudentKeys.add(String(a.studentId).toLowerCase().trim());
+      if (a.admissionNo) allocatedStudentKeys.add(String(a.admissionNo).toLowerCase().trim());
+      if (a.studentName) allocatedStudentKeys.add(String(a.studentName).toLowerCase().trim());
+    });
+
+    const activeHostellersFromManagement = (students || []).filter(s => {
+      if (s.status === 'Completed' || s.status === 'Alumni') return false;
+
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+      const hBlock = String((s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || '').toLowerCase().trim();
+
+      const hasDirectAllocation = allocatedStudentKeys.has(sId) || allocatedStudentKeys.has(sAdm) || allocatedStudentKeys.has(sName);
+      const isTargetBlockExplicit = targetBlockName && hBlock.includes(targetBlockName);
+
+      if (blockAllocations.length > 0) {
+        return hasDirectAllocation || isTargetBlockExplicit;
+      }
+
+      const isHostellerType = (s as any).studentType === 'Hosteller' || (s as any).studentType === 'Residential' || (s as any).isHosteller || Boolean(hBlock);
+      return isHostellerType && (isTargetBlockExplicit || !hBlock || !targetBlockName);
+    });
+
+    return activeHostellersFromManagement.map((s, idx) => {
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const alloc = blockAllocations.find(a =>
+        (a.studentId && String(a.studentId).toLowerCase().trim() === sId) ||
+        (a.admissionNo && String(a.admissionNo).toLowerCase().trim() === sAdm)
+      );
+
+      return {
+        allocationId: alloc?.allocationId || s.id || `alloc_${idx + 1}`,
+        studentId: s.id,
+        studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+        admissionNo: s.admissionNo || `ADM-${s.id}`,
+        hostelId: alloc?.hostelId || Number(selectedBlockId) || 1,
+        hostelName: alloc?.hostelName || (currentBlockObj?.hostelName) || 'Luxury hostel',
+        roomId: alloc?.roomId || 101,
+        roomNumber: alloc?.roomNumber || (s as any).roomNumber || (s as any).room || '101',
+        bedNumber: alloc?.bedNumber || (s as any).bedNumber || (s as any).bed || 'BED-1',
+        status: 'Active'
+      } as BedAllocation;
+    });
+  }, [students, blockAllocations, selectedBlockId, currentBlockObj, targetBlockName]);
+
+  const matchedAssignments = useMemo(() => {
+    return attendanceStudentRows.filter((a, idx) => {
+      if (selectedRoomId) {
+        const roomMatch = String(a.roomId) === selectedRoomId || String(a.roomNumber) === selectedRoomId;
+        if (!roomMatch) return false;
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const nameMatch = (a.studentName || '').toLowerCase().includes(q);
+        const admMatch = (a.admissionNo || '').toLowerCase().includes(q);
+        const roomMatch = (a.roomNumber || '').toLowerCase().includes(q);
+        if (!nameMatch && !admMatch && !roomMatch) return false;
+      }
+
+      const itemKey = getItemKey(a, idx);
+      const currentSt = getAttendanceStatus(itemKey);
+      if (statusFilter !== 'All' && currentSt !== statusFilter) return false;
+
+      return true;
+    });
+  }, [attendanceStudentRows, selectedRoomId, searchQuery, statusFilter, attendanceShift, morningAttendanceState, nightAttendanceState]);
 
   const totalPages = Math.ceil(matchedAssignments.length / itemsPerPage);
   const paginatedAssignments = matchedAssignments.slice(
@@ -181,10 +327,10 @@ export const HostelAttendanceView: React.FC = () => {
 
   // Summary Counts
   const totalStudentsCount = matchedAssignments.length;
-  const presentCount = matchedAssignments.filter(a => getAttendanceStatus(a.studentId.toString()) === 'Present').length;
-  const absentCount = matchedAssignments.filter(a => getAttendanceStatus(a.studentId.toString()) === 'Absent').length;
-  const leaveCount = matchedAssignments.filter(a => getAttendanceStatus(a.studentId.toString()) === 'Leave').length;
-  const lateCount = matchedAssignments.filter(a => getAttendanceStatus(a.studentId.toString()) === 'Late').length;
+  const presentCount = matchedAssignments.filter((a, idx) => getAttendanceStatus(getItemKey(a, idx)) === 'Present').length;
+  const absentCount = matchedAssignments.filter((a, idx) => getAttendanceStatus(getItemKey(a, idx)) === 'Absent').length;
+  const leaveCount = matchedAssignments.filter((a, idx) => getAttendanceStatus(getItemKey(a, idx)) === 'Leave').length;
+  const lateCount = matchedAssignments.filter((a, idx) => getAttendanceStatus(getItemKey(a, idx)) === 'Late').length;
 
   // Bulk Quick Actions
   const handleBulkAction = (targetStatus: string) => {
@@ -192,21 +338,28 @@ export const HostelAttendanceView: React.FC = () => {
       addToast('info', 'No Students', 'No resident students available for bulk action.');
       return;
     }
-    const newState: Record<string, string> = { ...attendanceState };
-    matchedAssignments.forEach(a => {
-      newState[a.studentId.toString()] = targetStatus;
+    const updateFn = attendanceShift === 'morning' ? setMorningAttendanceState : setNightAttendanceState;
+    updateFn(prev => {
+      const newState = { ...prev };
+      matchedAssignments.forEach((a, idx) => {
+        newState[getItemKey(a, idx)] = targetStatus;
+      });
+      return newState;
     });
-    setAttendanceState(newState);
-    addToast('success', `Marked All ${targetStatus}`, `Set ${matchedAssignments.length} students to ${targetStatus}.`);
+    addToast('success', `Marked All ${targetStatus}`, `Set ${matchedAssignments.length} students to ${targetStatus} for ${attendanceShift === 'morning' ? 'Morning' : 'Night'} Attendance.`);
   };
 
   const handleClearSelection = () => {
-    setAttendanceState({});
-    addToast('info', 'Selection Cleared', 'Attendance selections reset to default.');
+    if (attendanceShift === 'morning') {
+      setMorningAttendanceState({});
+    } else {
+      setNightAttendanceState({});
+    }
+    addToast('info', 'Selection Cleared', `${attendanceShift === 'morning' ? 'Morning' : 'Night'} attendance selections reset to default.`);
   };
 
   // Prepare Data for Export
-  const exportData = matchedAssignments.map(a => ({
+  const exportData = matchedAssignments.map((a, idx) => ({
     'Shift': attendanceShift === 'morning' ? 'Morning Attendance' : 'Night Attendance',
     'Date': selectedDate,
     'Student Name': a.studentName,
@@ -214,9 +367,9 @@ export const HostelAttendanceView: React.FC = () => {
     'Hostel Block': a.hostelName,
     'Room No': `Room #${a.roomNumber}`,
     'Bed No': a.bedNumber || 'BED-1',
-    'Attendance Status': getAttendanceStatus(a.studentId.toString()),
-    'In Time': getInTime(a.studentId.toString()),
-    'Out Time': getOutTime(a.studentId.toString())
+    'Attendance Status': getAttendanceStatus(getItemKey(a, idx)),
+    'In Time': getInTime(getItemKey(a, idx)),
+    'Out Time': getOutTime(getItemKey(a, idx))
   }));
 
   const handlePrint = () => {
@@ -234,12 +387,21 @@ export const HostelAttendanceView: React.FC = () => {
       return;
     }
 
-    const records = matchedAssignments.map(a => ({
-      allocationId: a.allocationId,
-      studentId: a.studentId,
-      curfewStatus: getAttendanceStatus(a.studentId.toString()),
-      remarks: `${attendanceShift === 'morning' ? 'Morning Roll Call' : 'Night Curfew Roll Call'}`
-    }));
+    const records = matchedAssignments.map((a, idx) => {
+      const itemKey = getItemKey(a, idx);
+      const rawStudId = String(a.studentId || '').trim();
+      const studIdNum = typeof a.studentId === 'number' ? a.studentId : (parseInt(rawStudId.replace(/\D/g, ''), 10) || null);
+      const allocIdNum = typeof a.allocationId === 'number' ? a.allocationId : (parseInt(String(a.allocationId).replace(/\D/g, ''), 10) || (studIdNum ?? (idx + 1)));
+
+      return {
+        allocationId: allocIdNum,
+        studentId: studIdNum,
+        curfewStatus: getAttendanceStatus(itemKey) || 'Present',
+        inTime: getInTime(itemKey),
+        outTime: getOutTime(itemKey),
+        remarks: `${attendanceShift === 'morning' ? 'Morning Roll Call' : 'Night Curfew Roll Call'}`
+      };
+    });
 
     try {
       await saveNightAttendance({
@@ -250,7 +412,7 @@ export const HostelAttendanceView: React.FC = () => {
       });
       addToast('success', 'Attendance Log Saved', `${attendanceShift === 'morning' ? 'Morning' : 'Night'} attendance saved for ${records.length} students.`);
     } catch (error: any) {
-      addToast('error', 'Save Failed', error.message);
+      addToast('error', 'Save Failed', error.message || 'Error saving attendance log');
     }
   };
 
@@ -522,10 +684,11 @@ export const HostelAttendanceView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedAssignments.map(a => {
-                  const currentSt = getAttendanceStatus(a.studentId.toString());
+                paginatedAssignments.map((a, idx) => {
+                  const itemKey = getItemKey(a, idx);
+                  const currentSt = getAttendanceStatus(itemKey);
                   return (
-                    <tr key={a.allocationId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                    <tr key={`alloc_${a.allocationId}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-500 whitespace-nowrap">{a.admissionNo}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
                         {a.studentName}
@@ -544,7 +707,7 @@ export const HostelAttendanceView: React.FC = () => {
                             <button
                               key={st}
                               type="button"
-                              onClick={() => handleStatusChange(a.studentId.toString(), st)}
+                              onClick={() => handleStatusChange(itemKey, st)}
                               className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all ${
                                 currentSt === st
                                   ? st === 'Present' ? 'bg-sky-600 text-white shadow-md shadow-sky-500/25 scale-[1.02]' :
@@ -562,16 +725,16 @@ export const HostelAttendanceView: React.FC = () => {
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <input
                           type="text"
-                          value={getInTime(a.studentId.toString())}
-                          onChange={e => setInTimeState(prev => ({ ...prev, [a.studentId.toString()]: e.target.value }))}
+                          value={getInTime(itemKey)}
+                          onChange={e => handleInTimeChange(itemKey, e.target.value)}
                           className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center font-mono font-bold w-28 outline-none focus:ring-2 focus:ring-sky-500"
                         />
                       </td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <input
                           type="text"
-                          value={getOutTime(a.studentId.toString())}
-                          onChange={e => setOutTimeState(prev => ({ ...prev, [a.studentId.toString()]: e.target.value }))}
+                          value={getOutTime(itemKey)}
+                          onChange={e => handleOutTimeChange(itemKey, e.target.value)}
                           className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center font-mono font-bold w-28 outline-none focus:ring-2 focus:ring-sky-500"
                         />
                       </td>

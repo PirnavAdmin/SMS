@@ -247,7 +247,7 @@ namespace SMS.Api.Services.Implementations
                 var dummyUser = new User
                 {
                     UserId = warden.WardenId,
-                    FullName = warden.WardenName ?? (warden.Staff != null ? $"{warden.Staff.FirstName} {warden.Staff.LastName}".Trim() : "VaraPrasad"),
+                    FullName = !string.IsNullOrWhiteSpace(warden.WardenName) ? warden.WardenName : (warden.Staff != null ? $"{warden.Staff.FirstName} {warden.Staff.LastName}".Trim() : "Hostel Warden"),
                     Email = warden.EmailAddress ?? warden.Staff?.Email ?? "Warden@pirnav.com",
                     MobileNumber = warden.MobileNumber ?? warden.Staff?.Phone ?? "9581768444",
                     Role = "Hostel Warden"

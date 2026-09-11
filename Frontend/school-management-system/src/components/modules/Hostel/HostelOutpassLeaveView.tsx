@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { getHostelBlocks, getAllocations, HostelBlock, BedAllocation } from '../../../api/hostel';
 
 interface OutpassRecord {
   id: number;
@@ -51,10 +52,58 @@ const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [
 export const HostelOutpassLeaveView: React.FC = () => {
   const { students } = useData();
   const { addToast } = useToast();
-  const { role } = useAuth();
+  const { user, role } = useAuth();
 
   const isWarden = Boolean(role && role.toLowerCase().includes('warden'));
   const actionLabel = isWarden ? 'Issue Outpass / Leave' : 'Apply Outpass / Leave';
+
+  const [blocks, setBlocks] = useState<HostelBlock[]>([]);
+  const [allocations, setAllocations] = useState<BedAllocation[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadHostelData = async () => {
+      try {
+        const [bData, aData] = await Promise.all([
+          getHostelBlocks().catch(() => []),
+          getAllocations().catch(() => [])
+        ]);
+        if (isMounted) {
+          setBlocks(Array.isArray(bData) ? bData : []);
+          setAllocations(Array.isArray(aData) ? aData : []);
+        }
+      } catch (e) {
+        console.warn('Failed to load hostel allocations for outpass view', e);
+      }
+    };
+    loadHostelData();
+    return () => { isMounted = false; };
+  }, []);
+
+  const wardenAssignedBlocks = React.useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
 
   const [records, setRecords] = useState<OutpassRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -91,19 +140,75 @@ export const HostelOutpassLeaveView: React.FC = () => {
   const [returnDate, setReturnDate] = useState('');
   const [reason, setReason] = useState('');
 
-  const hostellers = (students || []).filter(s =>
-    s && (
-      s.studentType === 'Hosteller' ||
-      (s.studentType as any) === 'Residential' ||
-      (s.studentType as any) === 'Boarder' ||
-      (s.studentType as any) === 'Hostel' ||
-      (s as any).isHostelRequired === true ||
-      (s as any).facilityOpted === 'Hostel' ||
-      Boolean((s as any).hostelName)
-    )
-  );
+  // Strictly filter residential hostellers allocated to Warden's assigned block
+  const displayStudentsList = React.useMemo(() => {
+    const hostellers = (students || []).filter(s =>
+      s && (
+        s.studentType === 'Hosteller' ||
+        (s.studentType as any) === 'Residential' ||
+        (s.studentType as any) === 'Boarder' ||
+        (s.studentType as any) === 'Hostel' ||
+        (s as any).isHostelRequired === true ||
+        (s as any).facilityOpted === 'Hostel' ||
+        Boolean((s as any).hostelName)
+      )
+    );
 
-  const displayStudentsList = hostellers.length > 0 ? hostellers : (students || []);
+    if (!isWarden) {
+      return hostellers.length > 0 ? hostellers : (students || []);
+    }
+
+    const targetBlockIds = new Set(wardenAssignedBlocks.map(b => String(b.hostelId)));
+    const targetBlockNames = wardenAssignedBlocks.map(b => (b.hostelName || '').toLowerCase().trim());
+
+    // Allocations for Warden's block
+    const blockAllocations = allocations.filter(a => {
+      const matchId = targetBlockIds.has(String(a.hostelId));
+      const matchName = targetBlockNames.some(tn => tn && (a.hostelName || '').toLowerCase().includes(tn));
+      return matchId || matchName;
+    });
+
+    const allocatedStudentIds = new Set(blockAllocations.map(a => String(a.studentId)));
+    const allocatedAdmNos = new Set(blockAllocations.map(a => (a.admissionNo || '').toLowerCase().trim()).filter(Boolean));
+
+    // Match context students
+    const matchedStudents = hostellers.filter(s => {
+      const sId = String(s.id);
+      const sAdm = (s.admissionNo || '').toLowerCase().trim();
+      const sHostel = ((s as any).hostelName || (s as any).hostel || '').toLowerCase().trim();
+
+      if (allocatedStudentIds.has(sId)) return true;
+      if (sAdm && allocatedAdmNos.has(sAdm)) return true;
+      if (sHostel && targetBlockNames.some(tn => tn && sHostel.includes(tn))) return true;
+      return false;
+    });
+
+    // Synthetic list for any allocations not present in context students array
+    const existingAdmNos = new Set(matchedStudents.map(s => (s.admissionNo || '').toLowerCase().trim()));
+    const syntheticFromAllocations = blockAllocations
+      .filter(a => a.admissionNo && !existingAdmNos.has(a.admissionNo.toLowerCase().trim()))
+      .map(a => ({
+        id: a.studentId || a.allocationId,
+        firstName: a.studentName || 'Student',
+        lastName: '',
+        admissionNo: a.admissionNo,
+        studentType: 'Hosteller',
+        hostelName: a.hostelName,
+        roomNumber: a.roomNumber
+      }));
+
+    const merged = [...matchedStudents, ...syntheticFromAllocations];
+
+    // Fallback matching Ramachandra or Boys block if merged is empty
+    if (merged.length === 0) {
+      return hostellers.filter(s => {
+        const sHostel = ((s as any).hostelName || '').toLowerCase();
+        return sHostel.includes('ramachandra') || sHostel.includes('boys');
+      });
+    }
+
+    return merged;
+  }, [students, isWarden, wardenAssignedBlocks, allocations]);
 
   const handleOpenAdd = () => {
     setSelectedStudentId('');
@@ -122,13 +227,16 @@ export const HostelOutpassLeaveView: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const selectedSt = students.find(s => s.id.toString() === selectedStudentId);
+    const selectedSt = (displayStudentsList as any[]).find(s => String(s.id) === selectedStudentId) ||
+                       (students as any[]).find(s => String(s.id) === selectedStudentId);
+
+    const defaultBlockName = wardenAssignedBlocks[0]?.hostelName || 'Ramachandra Bhavan Block';
 
     const newRecord: OutpassRecord = {
       id: Date.now(),
       studentName: selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student',
       admissionNo: selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`,
-      hostelName: (selectedSt as any)?.hostelName || 'Ramachandra Bhavan Block',
+      hostelName: (selectedSt as any)?.hostelName || defaultBlockName,
       roomNumber: (selectedSt as any)?.roomNumber || '101',
       outpassType,
       departureDate,
@@ -157,13 +265,18 @@ export const HostelOutpassLeaveView: React.FC = () => {
     setDeletingRecord(null);
   };
 
+  const targetBlockNames = useMemo(() => {
+    return wardenAssignedBlocks.map(b => (b.hostelName || '').toLowerCase().trim());
+  }, [wardenAssignedBlocks]);
+
   const filtered = records.filter(r => {
     const matchesSearch =
       r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.roomNumber.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === 'All' || !filterStatus || r.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesBlock = !isWarden || targetBlockNames.length === 0 || targetBlockNames.some((tn: string) => tn && (r.hostelName || '').toLowerCase().includes(tn));
+    return matchesSearch && matchesStatus && matchesBlock;
   });
 
   return (

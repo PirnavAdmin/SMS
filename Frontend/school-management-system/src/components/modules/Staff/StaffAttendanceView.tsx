@@ -170,8 +170,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const isDriver = userRole === "driver";
     const isAccountant = userRole.includes("accountant") || userRole === "finance";
 
-    const defaultRoleFirstName = isAccountant ? "Sardhar" : isWarden ? "VaraPrasad" : isDriver ? "Nag" : "Robert";
-    const defaultRoleLastName = isAccountant ? "Karthi" : isWarden ? "" : isDriver ? "Sahoo" : "Teacher";
+    const defaultRoleFirstName = isAccountant ? "Sardhar" : isWarden ? (user?.name?.split(' ')[0] || user?.firstName || "Hostel") : isDriver ? "Nag" : "Robert";
+    const defaultRoleLastName = isAccountant ? "Karthi" : isWarden ? (user?.name?.split(' ').slice(1).join(' ') || "Warden") : isDriver ? "Sahoo" : "Teacher";
     const defaultEmpId = isAccountant ? "ACT-101" : isWarden ? "WRD-102" : isDriver ? "DRV-001" : "STF-2026-0001";
     const defaultDept = isAccountant ? "Finance & Accounts" : isWarden ? "Hostel Management" : isDriver ? "Transport & Logistics" : "Academic Dept";
     const defaultDesig = isAccountant ? "Accountant" : isWarden ? "Hostel Warden" : isDriver ? "Bus Driver" : "Teacher";
@@ -922,7 +922,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           <div className="space-y-1">
             <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
               <CalendarCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-              {userRole === 'driver' ? 'My Attendance' : userRole === 'teacher' ? 'My Attendance' : 'Staff Attendance'}
+              My Attendance
             </h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 dark:text-slate-400 font-bold text-xs">
               <span>

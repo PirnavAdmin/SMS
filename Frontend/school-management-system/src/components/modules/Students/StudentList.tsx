@@ -23,6 +23,7 @@ import { PromoteStudentModal } from './PromoteStudentModal';
 import { TransferStudentModal } from './TransferStudentModal';
 import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
+import { getAllocations, getHostelBlocks, BedAllocation } from '../../../api/hostel';
 import { BRANCHES } from '../../../utils/validation';
 import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
@@ -30,6 +31,9 @@ import { hasModuleAccess } from '../../../utils/rbac';
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, applications = [], teacherAssignments = [], timetable = [] } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
+  const [allocations, setAllocations] = useState<BedAllocation[]>([]);
+  const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
+  const [wardenSelectedBlockId, setWardenSelectedBlockId] = useState<string>('All');
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
@@ -142,20 +146,35 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       }
     };
     loadStudents();
+
+    const loadAllocationsData = async () => {
+      try {
+        const [data, blocksData] = await Promise.all([
+          getAllocations().catch(() => []),
+          getHostelBlocks().catch(() => [])
+        ]);
+        if (Array.isArray(data)) setAllocations(data);
+        if (Array.isArray(blocksData)) setHostelBlocks(blocksData);
+      } catch (e) {
+        console.warn('Failed to load hostel allocations:', e);
+      }
+    };
+    loadAllocationsData();
+
+    const handleSync = () => loadAllocationsData();
+    window.addEventListener('hostel_outpasses_updated', handleSync);
+    window.addEventListener('residential_students_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('hostel_outpasses_updated', handleSync);
+      window.removeEventListener('residential_students_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, []);
 
   useEffect(() => {
-    if (isWardenRole) {
-      setApiStudents(students.filter(s =>
-        (s as any).studentType === 'Hosteller' ||
-        (s as any).studentType === 'Residential' ||
-        (s as any).isHosteller ||
-        (s as any).studentType !== 'Day Scholar'
-      ));
-    } else {
-      setApiStudents(students);
-    }
-  }, [students, isWardenRole]);
+    setApiStudents(students);
+  }, [students]);
 
   // Helper to calculate natural ascending order rank for classes
   const getClassOrderRank = (name: string): number => {
@@ -814,41 +833,160 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [wardenCurrentPage, setWardenCurrentPage] = useState<number>(1);
   const [wardenPageSize, setWardenPageSize] = useState<number>(10);
 
-  const wardenAssignedBlockName = useMemo(() => {
-    return 'Ramachandra Bhavan (Block A)';
-  }, []);
+  const wardenAssignedBlock = useMemo(() => {
+    if (!hostelBlocks || hostelBlocks.length === 0) return null;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
 
-  const wardenHostelStudents = useMemo(() => {
-    // Filter active residential / hosteller students
-    const activeHostellers = apiStudents.filter(s =>
-      s.status !== 'Completed' && s.status !== 'Alumni' &&
-      ((s as any).studentType === 'Hosteller' ||
-       (s as any).studentType === 'Residential' ||
-       (s as any).isHosteller ||
-       (s as any).studentType !== 'Day Scholar')
+    const matched = hostelBlocks.find(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched) return matched;
+
+    const defaultBlock = hostelBlocks.find(b =>
+      (b.hostelName || b.name || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || b.name || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || b.name || '').toLowerCase().includes('boys')
     );
 
+    return defaultBlock || hostelBlocks[0];
+  }, [hostelBlocks, user]);
+
+  const wardenTargetBlocks = useMemo(() => {
+    if (!isWardenRole) return hostelBlocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = hostelBlocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+    return wardenAssignedBlock ? [wardenAssignedBlock] : hostelBlocks;
+  }, [hostelBlocks, isWardenRole, user, wardenAssignedBlock]);
+
+  useEffect(() => {
+    if (isWardenRole && wardenTargetBlocks.length > 0) {
+      const firstId = String(wardenTargetBlocks[0].hostelId || wardenTargetBlocks[0].id);
+      if (wardenSelectedBlockId === 'All' || !wardenSelectedBlockId || !wardenTargetBlocks.some(b => String(b.hostelId || b.id) === wardenSelectedBlockId)) {
+        setWardenSelectedBlockId(firstId);
+      }
+    }
+  }, [isWardenRole, wardenTargetBlocks, wardenSelectedBlockId]);
+
+  const wardenAssignedBlockName = useMemo(() => {
+    if (wardenAssignedBlock) {
+      return wardenAssignedBlock.hostelName || wardenAssignedBlock.name || 'Ramachandra Bhavan (Block A)';
+    }
+    return 'Ramachandra Bhavan (Block A)';
+  }, [wardenAssignedBlock]);
+
+  const wardenHostelStudents = useMemo(() => {
+    const activeBlockId = (wardenSelectedBlockId && wardenSelectedBlockId !== 'All')
+      ? wardenSelectedBlockId
+      : (wardenTargetBlocks[0] ? String(wardenTargetBlocks[0].hostelId || wardenTargetBlocks[0].id) : '');
+
+    const selectedBlockObj = hostelBlocks.find(b => String(b.hostelId || b.id) === activeBlockId) || wardenAssignedBlock;
+    const targetBlockName = (selectedBlockObj?.hostelName || selectedBlockObj?.name || '').toLowerCase();
+
+    // Get active allocations for target block
+    const targetAllocations = allocations.filter(a =>
+      a && (a.status === 'Active' || !a.status) &&
+      (!activeBlockId || Number(a.hostelId) === Number(activeBlockId) ||
+       (a.hostelName || '').toLowerCase().includes(targetBlockName))
+    );
+
+    const allocatedStudentKeys = new Set<string>();
+    targetAllocations.forEach(a => {
+      if (a.studentId) allocatedStudentKeys.add(String(a.studentId).toLowerCase().trim());
+      if (a.admissionNo) allocatedStudentKeys.add(String(a.admissionNo).toLowerCase().trim());
+      if (a.studentName) allocatedStudentKeys.add(String(a.studentName).toLowerCase().trim());
+    });
+
+    // Filter active students assigned to target block
+    const activeHostellers = apiStudents.filter(s => {
+      if (s.status === 'Completed' || s.status === 'Alumni') return false;
+
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+      const hBlock = String((s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || '').toLowerCase().trim();
+
+      const hasDirectAllocation = allocatedStudentKeys.has(sId) || allocatedStudentKeys.has(sAdm) || allocatedStudentKeys.has(sName);
+      const isTargetBlockExplicit = targetBlockName && hBlock.includes(targetBlockName);
+
+      if (targetAllocations.length > 0) {
+        return hasDirectAllocation || isTargetBlockExplicit;
+      }
+
+      const isHostellerType = (s as any).studentType === 'Hosteller' || (s as any).studentType === 'Residential' || (s as any).isHosteller || Boolean(hBlock);
+      return isHostellerType && (isTargetBlockExplicit || !hBlock || !targetBlockName);
+    });
+
     return activeHostellers.filter(s => {
-      // 1. Class filter
       const matchesClass = wardenSelectedClass === 'All Classes' || s.className.toLowerCase() === wardenSelectedClass.toLowerCase();
 
-      // 2. Floor filter
-      const sFloor = (s as any).floorLevel || (s as any).floor || '';
-      const matchesFloor = wardenSelectedFloor === 'All Floors' || !sFloor || sFloor.toLowerCase().includes(wardenSelectedFloor.toLowerCase());
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const alloc = targetAllocations.find(a =>
+        (a.studentId && String(a.studentId).toLowerCase().trim() === sId) ||
+        (a.admissionNo && String(a.admissionNo).toLowerCase().trim() === sAdm)
+      );
 
-      // 3. Room filter
-      const sRoom = (s as any).roomNumber || (s as any).roomNo || (s as any).room || '';
-      const cleanRoom = wardenSelectedRoom.replace(/^Room\s*#/i, '').trim();
-      const matchesRoom = wardenSelectedRoom === 'All Rooms' || !sRoom || sRoom.toString().toLowerCase().includes(cleanRoom.toLowerCase());
+      const rawRoom = String((alloc?.roomNumber || (s as any).roomNumber || (s as any).roomNo || (s as any).room || '')).trim().replace(/^Room\s*#/i, '');
+      const rawFloor = String(alloc?.floorLevel || (s as any).floorLevel || (s as any).floor || '').trim();
+      let sFloor = rawFloor;
+      if (!sFloor && rawRoom) {
+        if (rawRoom.startsWith('0')) sFloor = 'Ground Floor';
+        else if (rawRoom.startsWith('1')) sFloor = '1st Floor';
+        else if (rawRoom.startsWith('2')) sFloor = '2nd Floor';
+        else if (rawRoom.startsWith('3')) sFloor = '3rd Floor';
+      }
 
-      // 4. Search query
+      let matchesFloor = wardenSelectedFloor === 'All Floors';
+      if (!matchesFloor) {
+        const targetFl = wardenSelectedFloor.toLowerCase();
+        const currentFl = sFloor.toLowerCase();
+        if (currentFl && currentFl.includes(targetFl)) {
+          matchesFloor = true;
+        } else if (targetFl.includes('1st') && (currentFl.includes('1st') || rawRoom.startsWith('1') || rawRoom.startsWith('0'))) {
+          matchesFloor = true;
+        } else if (targetFl.includes('2nd') && (currentFl.includes('2nd') || rawRoom.startsWith('2'))) {
+          matchesFloor = true;
+        } else if (targetFl.includes('3rd') && (currentFl.includes('3rd') || rawRoom.startsWith('3'))) {
+          matchesFloor = true;
+        } else if (targetFl.includes('ground') && (currentFl.includes('ground') || rawRoom.startsWith('0'))) {
+          matchesFloor = true;
+        }
+      }
+
+      let matchesRoom = wardenSelectedRoom === 'All Rooms';
+      if (!matchesRoom) {
+        const cleanRoomFilter = wardenSelectedRoom.replace(/^Room\s*#/i, '').trim().toLowerCase();
+        const cleanStudentRoom = rawRoom.toLowerCase();
+        if (cleanStudentRoom && (cleanStudentRoom === cleanRoomFilter || cleanStudentRoom.includes(cleanRoomFilter) || cleanRoomFilter.includes(cleanStudentRoom))) {
+          matchesRoom = true;
+        }
+      }
+
       const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
       const q = wardenSearchQuery.trim().toLowerCase();
       const matchesSearch = !q || fullName.includes(q) || (s.admissionNo || '').toLowerCase().includes(q) || (s.rollNo || '').toLowerCase().includes(q);
 
       return matchesClass && matchesFloor && matchesRoom && matchesSearch;
     });
-  }, [apiStudents, wardenSelectedClass, wardenSelectedFloor, wardenSelectedRoom, wardenSearchQuery]);
+  }, [apiStudents, allocations, hostelBlocks, wardenTargetBlocks, wardenAssignedBlock, wardenSelectedBlockId, wardenSelectedClass, wardenSelectedFloor, wardenSelectedRoom, wardenSearchQuery]);
 
   const wardenTotalPages = Math.ceil(wardenHostelStudents.length / wardenPageSize) || 1;
   const wardenPaginatedStudents = wardenHostelStudents.slice((wardenCurrentPage - 1) * wardenPageSize, wardenCurrentPage * wardenPageSize);
@@ -857,23 +995,47 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const wardenFloorOptions = useMemo(() => {
     const floorsSet = new Set<string>();
     apiStudents.forEach(s => {
-      const fl = (s as any).floorLevel || (s as any).floor;
-      if (fl) floorsSet.add(fl);
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const alloc = allocations.find(a =>
+        (a.studentId && String(a.studentId).toLowerCase().trim() === sId) ||
+        (a.admissionNo && String(a.admissionNo).toLowerCase().trim() === sAdm)
+      );
+      const rawRoom = String((alloc?.roomNumber || (s as any).roomNumber || (s as any).roomNo || (s as any).room || '')).trim().replace(/^Room\s*#/i, '');
+      const rawFloor = String(alloc?.floorLevel || (s as any).floorLevel || (s as any).floor || '').trim();
+      let fl = (rawFloor && rawFloor.toUpperCase() !== 'N/A') ? rawFloor : '';
+      if (!fl && rawRoom && rawRoom.toUpperCase() !== 'N/A') {
+        if (rawRoom.startsWith('0')) fl = 'Ground Floor';
+        else if (rawRoom.startsWith('1')) fl = '1st Floor';
+        else if (rawRoom.startsWith('2')) fl = '2nd Floor';
+        else if (rawRoom.startsWith('3')) fl = '3rd Floor';
+      }
+      if (fl && fl.toUpperCase() !== 'N/A' && fl.toLowerCase() !== 'undefined' && fl.toLowerCase() !== 'null') {
+        floorsSet.add(fl);
+      }
     });
-    const list = Array.from(floorsSet).sort();
-    return ['All Floors', ...list.length > 0 ? list : ['Ground Floor', '1st Floor', '2nd Floor', '3rd Floor']];
-  }, [apiStudents]);
+    const list = Array.from(floorsSet).filter(f => f && f.toUpperCase() !== 'N/A').sort();
+    return ['All Floors', ...list];
+  }, [apiStudents, allocations]);
 
   // Available Room Options
   const wardenRoomOptions = useMemo(() => {
     const roomsSet = new Set<string>();
     apiStudents.forEach(s => {
-      const rm = (s as any).roomNumber || (s as any).roomNo || (s as any).room;
-      if (rm) roomsSet.add(`Room #${rm}`);
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const alloc = allocations.find(a =>
+        (a.studentId && String(a.studentId).toLowerCase().trim() === sId) ||
+        (a.admissionNo && String(a.admissionNo).toLowerCase().trim() === sAdm)
+      );
+      const rm = String((alloc?.roomNumber || (s as any).roomNumber || (s as any).roomNo || (s as any).room || '')).trim().replace(/^Room\s*#/i, '');
+      if (rm && rm.toUpperCase() !== 'N/A' && rm.toLowerCase() !== 'undefined' && rm.toLowerCase() !== 'null') {
+        roomsSet.add(`Room #${rm}`);
+      }
     });
-    const list = Array.from(roomsSet).sort();
-    return ['All Rooms', ...list.length > 0 ? list : ['Room #101', 'Room #102', 'Room #103', 'Room #107', 'Room #108', 'Room #201', 'Room #202', 'Room #203']];
-  }, [apiStudents]);
+    const list = Array.from(roomsSet).filter(r => r && !r.toUpperCase().includes('N/A')).sort();
+    return ['All Rooms', ...list];
+  }, [apiStudents, allocations]);
 
   // Available Classes
   const wardenClassOptions = useMemo(() => {
@@ -914,12 +1076,27 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               />
             </div>
 
-            {/* Static Assigned Block Box (No Dropdown / Scroll Down) */}
+            {/* Dynamic Assigned Block Dropdown */}
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
-              <div className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
-                {wardenAssignedBlockName}
-              </div>
+              {wardenTargetBlocks.length > 0 ? (
+                <select
+                  value={wardenSelectedBlockId || (wardenTargetBlocks[0] ? String(wardenTargetBlocks[0].hostelId || wardenTargetBlocks[0].id) : '')}
+                  onChange={e => { setWardenSelectedBlockId(e.target.value); setWardenCurrentPage(1); }}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px]"
+                >
+                  {!isWardenRole && <option value="All">All Hostel Blocks</option>}
+                  {wardenTargetBlocks.map(b => (
+                    <option key={b.hostelId || b.id} value={String(b.hostelId || b.id)}>
+                      {b.hostelName || b.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
+                  {wardenAssignedBlockName}
+                </div>
+              )}
             </div>
 
             {/* Floor Filter */}
@@ -996,42 +1173,54 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     </td>
                   </tr>
                 ) : (
-                  wardenPaginatedStudents.map(s => (
-                    <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                        {s.admissionNo}
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
-                        {s.rollNo}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          {s.photoUrl ? (
-                            <img src={s.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-black flex items-center justify-center text-xs">
-                              {s.firstName?.[0] || 'S'}
+                  wardenPaginatedStudents.map(s => {
+                    const matchingAlloc = allocations.find(a =>
+                      a && (
+                        String(a.studentId).toLowerCase().trim() === String(s.id).toLowerCase().trim() ||
+                        String(a.admissionNo).toLowerCase().trim() === String(s.admissionNo).toLowerCase().trim() ||
+                        String(a.studentName).toLowerCase().trim() === `${s.firstName} ${s.lastName}`.toLowerCase().trim()
+                      )
+                    );
+                    const displayBlock = matchingAlloc?.hostelName || (s as any).hostelBlock || (s as any).blockName || 'Block A (Ramachandra)';
+                    const displayRoom = matchingAlloc?.roomNumber || (s as any).roomNo || (s as any).roomNumber || '101';
+                    const displayBed = matchingAlloc?.bedNumber || (s as any).bedNo || (s as any).bedNumber || 'BED-1';
+
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                          {s.admissionNo}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                          {s.rollNo}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            {s.photoUrl ? (
+                              <img src={s.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-black flex items-center justify-center text-xs">
+                                {s.firstName?.[0] || 'S'}
+                              </div>
+                            )}
+                            <div>
+                              <span className="font-bold text-slate-900 dark:text-white block">{s.firstName} {s.lastName}</span>
+                              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">Residential / Hosteller</span>
                             </div>
-                          )}
-                          <div>
-                            <span className="font-bold text-slate-900 dark:text-white block">{s.firstName} {s.lastName}</span>
-                            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">Residential / Hosteller</span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-extrabold text-slate-800 dark:text-slate-200">
-                        {s.className} - {s.section}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-extrabold text-slate-900 dark:text-white">
-                            {(s as any).hostelBlock || (s as any).blockName || 'Block A (Ramachandra)'}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-mono">
-                            Room: {(s as any).roomNo || '102'} • Bed: {(s as any).bedNo || 'B1'}
-                          </span>
-                        </div>
-                      </td>
+                        </td>
+                        <td className="py-3.5 px-4 font-extrabold text-slate-800 dark:text-slate-200">
+                          {s.className} - {s.section}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-extrabold text-slate-900 dark:text-white">
+                              {displayBlock}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Room: {displayRoom} • Bed: {displayBed}
+                            </span>
+                          </div>
+                        </td>
                       <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-mono">
                         {s.fatherPhone || s.guardianPhone || s.contactPhone || '9876543210'}
                       </td>
@@ -1049,8 +1238,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
+                  );
+                })
+              )}
               </tbody>
             </table>
           </div>

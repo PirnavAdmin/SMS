@@ -154,7 +154,7 @@ export const TeacherPayslipsView: React.FC = () => {
     }
 
     // 8. Dynamic staff object fallback for logged in user (DO NOT default to random teacher like Srinivas Rao)
-    const rawName = user?.name || (isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar Karthi' : 'Faculty Member');
+    const rawName = user?.name || (isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : isAccountant ? 'Sardhar Karthi' : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
       id: user?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-001'),
@@ -173,7 +173,7 @@ export const TeacherPayslipsView: React.FC = () => {
 
   // Synthesize realistic historical payslips for the teacher if none or few exist in state
   const teacherPayslips: Payslip[] = useMemo(() => {
-    const staffName = teacherStaffMember ? `${teacherStaffMember.firstName || ''} ${teacherStaffMember.lastName || ''}`.trim() : (user?.name || (isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar Karthi' : 'Faculty Member'));
+    const staffName = teacherStaffMember ? `${teacherStaffMember.firstName || ''} ${teacherStaffMember.lastName || ''}`.trim() : (user?.name || (isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : isAccountant ? 'Sardhar Karthi' : 'Faculty Member'));
     const empIdCode = teacherStaffMember?.empId || teacherStaffMember?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-2026-0001');
     const dept = teacherStaffMember?.department || (isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : 'Academics');
     const desig = teacherStaffMember?.designation || (isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : 'Teacher');

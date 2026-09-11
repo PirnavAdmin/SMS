@@ -772,13 +772,14 @@ public class HostelService : IHostelService
         var defaultAllocId = allAllocations.First().AllocationId;
 
         var existing = await _hostelRepo.GetAttendanceForDateAsync(dto.Date, dto.HostelId, dto.FloorLevel, dto.RoomId);
-        var existingDict = existing.ToDictionary(e => e.AllocationId);
+        var existingDict = existing.GroupBy(e => e.AllocationId).ToDictionary(g => g.Key, g => g.First());
 
+        var processedAllocIds = new HashSet<int>();
         var newRecords = new List<HostelAttendance>();
         foreach (var rec in dto.Records)
         {
             int allocId = rec.AllocationId;
-            if (allocId <= 0 && rec.StudentId.HasValue && rec.StudentId.Value > 0)
+            if (rec.StudentId.HasValue && rec.StudentId.Value > 0)
             {
                 var matched = allAllocations.FirstOrDefault(a => a.StudentId == rec.StudentId.Value);
                 if (matched != null) allocId = matched.AllocationId;
@@ -788,6 +789,9 @@ public class HostelService : IHostelService
             {
                 allocId = defaultAllocId;
             }
+
+            if (processedAllocIds.Contains(allocId)) continue;
+            processedAllocIds.Add(allocId);
 
             string status = string.IsNullOrWhiteSpace(rec.CurfewStatus) ? "Present" : rec.CurfewStatus.Trim();
 
