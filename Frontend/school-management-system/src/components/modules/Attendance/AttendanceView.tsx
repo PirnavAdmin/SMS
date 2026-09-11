@@ -287,6 +287,16 @@ export const AttendanceView = () => {
 
   const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections' || selectedClass === 'Select Class' || selectedSection === 'Select Section';
   
+  const displayClassSummary = useMemo(() => {
+    const isClassSelected = selectedClass && selectedClass !== 'Select Class';
+    const isSecSelected = selectedSection && selectedSection !== 'Select Section';
+
+    if (selectedClass === 'All Classes') return 'All Classes';
+    if (isClassSelected && isSecSelected) return `${selectedClass} - Section ${selectedSection}`;
+    if (isClassSelected) return selectedClass;
+    return 'Not Selected';
+  }, [selectedClass, selectedSection]);
+
   const isFilterSelected = Boolean(
     dateMode !== 'Select' &&
     ((dateMode === 'Daily' && date !== '') || (dateMode === 'Monthly' && month !== '') || (dateMode === 'Custom Range' && startDate !== '' && endDate !== '')) &&
@@ -935,9 +945,9 @@ export const AttendanceView = () => {
           </h2>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 font-bold">
             <span>🏫 Class: <strong className="text-slate-855 dark:text-slate-200">
-              {selectedClass === 'All Classes' ? 'All Classes' : `${selectedClass}-${selectedSection}`}
+              {displayClassSummary}
             </strong></span>
-            {selectedClass !== 'All Classes' && selectedSection !== 'All Sections' && (
+            {selectedClass !== 'Select Class' && selectedClass !== 'All Classes' && selectedSection !== 'Select Section' && selectedSection !== 'All Sections' && (
               <span>👤 Class Teacher: <strong className="text-slate-855 dark:text-slate-200">{teacherFullName}</strong></span>
             )}
           </div>

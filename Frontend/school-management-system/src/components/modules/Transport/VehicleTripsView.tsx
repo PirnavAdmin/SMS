@@ -358,7 +358,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                   <div>
                     <h3 className="font-black text-sm text-slate-900 dark:text-white">{displayRouteName}</h3>
                     <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      Reg: {vehicle?.registrationNumber || vehicle?.vehicleNumber || 'REG-5646'}
+                      Reg: {vehicle?.registrationNumber || vehicle?.vehicleNumber || 'N/A'}
                     </p>
                   </div>
                 </div>

@@ -816,7 +816,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">District</label><input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">State</label><input type="text" value={stateName} onChange={e => setStateName(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
-              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">PIN Code</label><input type="text" value={pinCode} onChange={e => setPinCode(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-mono" /></div>
+              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">PIN Code</label><input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} value={pinCode} onChange={e => setPinCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-mono" /></div>
             </div>
           </div>
 

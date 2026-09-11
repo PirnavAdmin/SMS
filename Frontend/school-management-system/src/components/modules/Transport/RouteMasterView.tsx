@@ -224,8 +224,10 @@ export const RouteMasterView: React.FC = () => {
             const routePickupPoints = pickupPoints
               .filter(p => p.routeId === r.id)
               .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-            const activeAssignment = vehicleAssignments.find(va => va.routeId === r.id && va.status === 'Active')
-              || vehicleAssignments.find(va => va.routeId === r.id);
+            const activeAssignment = vehicleAssignments.find(va =>
+              (String(va.routeId) === String(r.id) || (va.routeName && va.routeName.trim().toLowerCase() === r.routeName.trim().toLowerCase()) || (va.routeName && va.routeName.trim().toLowerCase() === r.routeCode.trim().toLowerCase())) &&
+              (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true')
+            );
             const assignedBus = activeAssignment?.vehicleNumber || 'Unassigned';
             const assignedDriver = activeAssignment?.driverName || 'Unassigned';
             const previewStops: RouteSequenceItem[] = routePickupPoints.map(p => ({

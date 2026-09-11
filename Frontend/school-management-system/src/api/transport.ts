@@ -88,13 +88,13 @@ const setStoredMock = (key: string, data: any) => {
 
 // Persisted Mock Testing Store
 
-let localRoutes: RouteMaster[] = getStoredMock('route_masters', []);
-let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', []);
-let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', []);
-let localDrivers: DriverMaster[] = getStoredMock('driver_masters', []);
-let localVehicleAssignments: VehicleAssignment[] = getStoredMock('vehicle_assignments', []);
-let localStudentAssignments: StudentTransport[] = getStoredMock('student_transports', []);
-let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', []);
+let localRoutes: RouteMaster[] = getStoredMock('route_masters', initialRouteMasters);
+let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', initialPickupPoints);
+let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', initialVehicleMasters);
+let localDrivers: DriverMaster[] = getStoredMock('driver_masters', initialDriverMasters);
+let localVehicleAssignments: VehicleAssignment[] = getStoredMock('vehicle_assignments', initialVehicleAssignments);
+let localStudentAssignments: StudentTransport[] = getStoredMock('student_transports', initialStudentTransports);
+let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', initialVehicleMaintenances);
 
 // --- Routes ---
 
@@ -171,8 +171,17 @@ export const fetchPickupPointsApi = async (): Promise<PickupPoint[]> => {
     localPickupPoints = storedLocal;
   }
 
-  const res = await safeTransportApiCall<any>('/api/transport/pickup-points', { method: 'GET' }, localPickupPoints);
-  const items = Array.isArray(res) ? res : (res?.items || res?.data || []);
+  let items: any[] = [];
+  try {
+    const res = await safeTransportApiCall<any>('/api/transport/pickup-points', { method: 'GET' }, null);
+    items = Array.isArray(res) ? res : (res?.items || res?.data || []);
+    if (items.length === 0) {
+      const lookupRes = await safeTransportApiCall<any>('/api/transport/lookups/pickup-points', { method: 'GET' }, null);
+      items = Array.isArray(lookupRes) ? lookupRes : (lookupRes?.items || lookupRes?.data || []);
+    }
+  } catch (e) {
+    items = [];
+  }
 
   if (items.length === 0 && localPickupPoints.length > 0) {
     return localPickupPoints;
@@ -183,8 +192,26 @@ export const fetchPickupPointsApi = async (): Promise<PickupPoint[]> => {
   localPickupPoints.forEach(p => mergedMap.set(String(p.id), p));
   items.forEach((p: any) => {
     const ptId = (p.id || p.pickupPointId || p.pickupId || '').toString();
+    const ptRouteId = (p as any).routeId;
+    const isRouteIdValid = ptRouteId !== undefined && ptRouteId !== null && String(ptRouteId) !== '0' && String(ptRouteId) !== '';
     if (ptId) {
-      mergedMap.set(ptId, { ...mergedMap.get(ptId), ...p });
+      const existing = mergedMap.get(ptId);
+      const normalized: PickupPoint = {
+        ...existing,
+        ...p,
+        id: ptId,
+        pickupName: p.pickupName || (p as any).pickupPointName || (p as any).stopName || existing?.pickupName || '',
+        routeId: isRouteIdValid ? String(ptRouteId) : (existing?.routeId || ''),
+        routeName: p.routeName || (p as any).selectRoute || existing?.routeName || '',
+        sequenceNumber: Number(p.sequenceNumber !== undefined ? p.sequenceNumber : ((p as any).sequenceNo !== undefined ? (p as any).sequenceNo : (existing?.sequenceNumber || 1))),
+        distanceFromSchoolKm: Number(p.distanceFromSchoolKm !== undefined ? p.distanceFromSchoolKm : ((p as any).distanceFromStart !== undefined ? (p as any).distanceFromStart : (existing?.distanceFromSchoolKm || 0))),
+        arrivalTime: p.morningPickupTime || p.arrivalTime || (p as any).pickupTime || existing?.arrivalTime || '',
+        morningPickupTime: p.morningPickupTime || p.arrivalTime || (p as any).pickupTime || existing?.morningPickupTime || '',
+        eveningDropTime: p.eveningDropTime || (p as any).dropTime || existing?.eveningDropTime || '',
+        monthlyFee: Number(p.monthlyFee !== undefined ? p.monthlyFee : ((p as any).monthlyFare !== undefined ? (p as any).monthlyFare : (existing?.monthlyFee || 0))),
+        status: ((p.status as any) === true || String(p.status).toLowerCase() === 'true' || p.status === 'Active') ? 'Active' : (existing?.status || 'Inactive')
+      };
+      mergedMap.set(ptId, normalized);
     }
   });
 
@@ -200,17 +227,20 @@ export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint |
 };
 
 export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<PickupPoint> => {
+  const inputRouteId = (data as any).routeId;
+  const isInputRouteValid = inputRouteId !== undefined && inputRouteId !== null && String(inputRouteId) !== '0' && String(inputRouteId) !== '';
+
   const newPoint = {
     id: data.id || `PK-${Date.now()}`,
     pickupName: data.pickupName || (data as any).pickupPointName || '',
-    routeId: data.routeId || '',
+    routeId: isInputRouteValid ? String(inputRouteId) : '',
     routeName: data.routeName || '',
-    sequenceNumber: data.sequenceNumber || 1,
-    arrivalTime: data.arrivalTime || data.morningPickupTime || '',
-    morningPickupTime: data.morningPickupTime || data.arrivalTime || '',
-    eveningDropTime: data.eveningDropTime || '',
-    distanceFromSchoolKm: data.distanceFromSchoolKm || 0,
-    monthlyFee: data.monthlyFee || 0,
+    sequenceNumber: data.sequenceNumber || (data as any).sequenceNo || 1,
+    arrivalTime: data.arrivalTime || data.morningPickupTime || (data as any).pickupTime || '',
+    morningPickupTime: data.morningPickupTime || data.arrivalTime || (data as any).pickupTime || '',
+    eveningDropTime: data.eveningDropTime || (data as any).dropTime || '',
+    distanceFromSchoolKm: data.distanceFromSchoolKm || (data as any).distanceFromStart || 0,
+    monthlyFee: data.monthlyFee !== undefined ? data.monthlyFee : ((data as any).monthlyFare || 0),
     status: data.status || 'Active'
   } as unknown as PickupPoint;
 
@@ -229,7 +259,27 @@ export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<
       { method: 'POST', body: JSON.stringify(data) },
       newPoint
     );
-    return res || newPoint;
+    if (res && typeof res === 'object') {
+      const resRouteId = (res as any).routeId;
+      const isResRouteValid = resRouteId !== undefined && resRouteId !== null && String(resRouteId) !== '0' && String(resRouteId) !== '';
+
+      const normalized: PickupPoint = {
+        ...newPoint,
+        ...res,
+        id: String(res.id || (res as any).pickupPointId || newPoint.id),
+        routeId: isResRouteValid ? String(resRouteId) : newPoint.routeId,
+        routeName: res.routeName || newPoint.routeName,
+        pickupName: res.pickupName || (res as any).pickupPointName || newPoint.pickupName,
+        sequenceNumber: res.sequenceNumber || (res as any).sequenceNo || newPoint.sequenceNumber,
+        morningPickupTime: res.morningPickupTime || res.arrivalTime || (res as any).pickupTime || newPoint.morningPickupTime || '',
+        eveningDropTime: res.eveningDropTime || (res as any).dropTime || newPoint.eveningDropTime || '',
+        distanceFromSchoolKm: res.distanceFromSchoolKm || (res as any).distanceFromStart || newPoint.distanceFromSchoolKm,
+        monthlyFee: res.monthlyFee !== undefined ? res.monthlyFee : newPoint.monthlyFee,
+        status: ((res.status as any) === true || String(res.status).toLowerCase() === 'true' || res.status === 'Active') ? 'Active' : 'Inactive'
+      };
+      return normalized;
+    }
+    return newPoint;
   } catch (err) {
     return newPoint;
   }
@@ -420,8 +470,8 @@ export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]>
         driverName: a.driverName || "",
         attendantId: (a.attendantId || "").toString(),
         attendantName: a.attendantName || "Unassigned",
-        morningTripTime: a.morningTripTime || "07:00 AM",
-        eveningTripTime: a.eveningTripTime || "03:45 PM",
+        morningTripTime: a.morningTripTime || "",
+        eveningTripTime: a.eveningTripTime || "",
         status: a.status ? "Active" : (a.status === false ? "Inactive" : "Active"),
         effectiveFrom: a.effectiveFrom || new Date().toISOString().split('T')[0]
       }));

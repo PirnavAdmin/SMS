@@ -71,7 +71,12 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
       (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
     );
 
-    if (fromMaster) return fromMaster;
+    if (fromMaster) {
+      return {
+        ...fromMaster,
+        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : fromMaster.driverName
+      };
+    }
 
     // Try matching in staff
     const fromStaff = staff.find(s =>
@@ -83,7 +88,7 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
     if (fromStaff) {
       return {
         id: fromStaff.id,
-        driverName: `${fromStaff.firstName} ${fromStaff.lastName}`,
+        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : `${fromStaff.firstName} ${fromStaff.lastName}`,
         licenseNumber: (fromStaff as any).licenseNumber || 'DL-2026-9874',
         mobileNumber: fromStaff.phone || '+91-9878645565',
         employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`,
@@ -93,9 +98,9 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
     }
 
     // Fallback default driver so dashboard always displays the assigned vehicle
-    return driverMasters[0] || {
+    return {
       id: '1',
-      driverName: user?.name || 'Nag Sahoo',
+      driverName: user?.name || 'Sai Kiran V',
       licenseNumber: 'DL-2026-9874',
       mobileNumber: '+91-9878645565',
       employeeId: 'DRV-001',
@@ -466,10 +471,10 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
           </div>
           <div>
             <div className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'AP04 Z 4567'}
+              {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'Unassigned'}
             </div>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-              Reg: {assignedVehicle?.registrationNumber || 'REG-5646'} • {assignedVehicle?.vehicleType || 'Bus'}
+              Reg: {assignedVehicle?.registrationNumber || assignedVehicle?.vehicleNumber || 'N/A'} • {assignedVehicle?.vehicleType || 'Bus'}
             </div>
           </div>
           <div className="flex items-center justify-between pt-1.5 border-t border-sky-100 dark:border-sky-900/60 text-[11px] font-bold">

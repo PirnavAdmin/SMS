@@ -114,7 +114,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     // Uniform Sub-options
     { name: 'Uniform \u2192 Dashboard', module: 'uniform-dashboard' },
     { name: 'Uniform \u2192 Uniform Configuration', module: 'uniform-masters' },
-    { name: 'Uniform \u2192 Student Uniform Distribution', module: 'uniform-student-uniform' },
+    { name: 'Uniform → Uniform Distribution', module: 'uniform-student-uniform' },
     { name: 'Uniform \u2192 Uniform Reports', module: 'uniform-reports' },
     // Staff Sub-options (Teachers vs Admin)
     ...(userRole === 'teacher' ? [

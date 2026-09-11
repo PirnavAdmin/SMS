@@ -802,10 +802,14 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
               <div>
                 <FieldLabel label="PIN Code" required />
                 <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
                   value={form.address.pinCode}
                   placeholder="e.g. 560001"
                   onChange={e => {
-                    const pin = e.target.value;
+                    const pin = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
                     updateAddress('pinCode', pin);
                     if (!pin.trim()) {
                       setForm(prev => ({

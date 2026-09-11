@@ -338,7 +338,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "uniform-masters", label: "Uniform Configuration", icon: Shirt },
     {
       id: "uniform-student-uniform",
-      label: "Student Uniform Distribution",
+      label: "Uniform Distribution",
       icon: UserPlus,
     },
     { id: "uniform-reports", label: "Uniform Reports", icon: FileSpreadsheet },
@@ -369,9 +369,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: "driver-leave", label: "Leave Management", icon: FileText },
           { id: "driver-payslips", label: "My Payslips", icon: IndianRupee },
         ]
-      : role.toLowerCase() === "teacher" || role.toLowerCase().includes("warden") || role.toLowerCase().includes("accountant") || role.toLowerCase() === "finance"
+      : role.toLowerCase() === "teacher" || role.toLowerCase().includes("warden") || role.toLowerCase().includes("accountant") || role.toLowerCase() === "finance" || role.toLowerCase().includes("librarian")
       ? [
-          { id: "warden-profile", label: "My Profile", icon: User },
+          { id: "teacher-profile", label: "My Profile", icon: User },
           {
             id: "staff-attendance",
             label: "My Attendance",
@@ -457,6 +457,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label:
             role.toLowerCase() === "parent" || role.toLowerCase() === "student"
               ? "Teachers"
+              : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
+                  role.toLowerCase().includes(r)
+                ) &&
+                !role.toLowerCase().includes("admin") &&
+                !role.toLowerCase().includes("principal")
+              ? "My Details"
               : "Faculty & Staff",
           icon: Users,
         },
@@ -541,7 +547,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={`fixed top-0 left-0 bottom-0 z-40 bg-brand-50 dark:bg-brand-950 border-r border-slate-200/80 dark:border-slate-800 flex flex-col transition-all duration-300 ${
-        collapsed ? "w-20" : "w-64"
+        collapsed ? "w-20" : "w-56"
       }`}
     >
       {/* Brand Header */}
@@ -567,7 +573,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <div
-            className="flex items-center justify-center w-52 h-12 select-none cursor-pointer px-2 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
+            className="flex items-center justify-center w-48 h-12 select-none cursor-pointer px-2 py-1 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden"
             onClick={() => setActiveModule("dashboard")}
             title={schoolProfile?.name || "School Dashboard"}
           >
@@ -1288,7 +1294,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               setActiveModule("parent-teacher-info");
                             } else if (role.toLowerCase() === "driver") {
                               setActiveModule("driver-profile");
-                            } else if (role.toLowerCase() === "teacher") {
+                            } else if (
+                              role.toLowerCase() === "teacher" ||
+                              role.toLowerCase().includes("warden") ||
+                              role.toLowerCase().includes("librarian") ||
+                              role.toLowerCase().includes("accountant") ||
+                              role.toLowerCase() === "finance"
+                            ) {
                               setActiveModule("teacher-profile");
                             } else {
                               setActiveModule("staff-directory");
@@ -1314,6 +1326,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               {role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
                                 ? "Teachers"
+                                : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
+                                    role.toLowerCase().includes(r)
+                                  ) &&
+                                  !role.toLowerCase().includes("admin") &&
+                                  !role.toLowerCase().includes("principal")
+                                ? "My Details"
                                 : "Faculty & Staff"}
                             </span>
                           )}

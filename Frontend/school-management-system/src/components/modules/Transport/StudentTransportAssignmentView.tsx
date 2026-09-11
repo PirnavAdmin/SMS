@@ -653,11 +653,11 @@ export const StudentTransportAssignmentView: React.FC = () => {
                     </div>
                     <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
                       <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-500" /> Morning Pickup:</span>
-                      <span className="font-mono font-black text-emerald-600">{pickupObj?.morningPickupTime || pickupObj?.arrivalTime || '07:30 AM'}</span>
+                      <span className="font-mono font-black text-emerald-600">{pickupObj?.morningPickupTime || pickupObj?.arrivalTime || '-'}</span>
                     </div>
                     <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
                       <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-sky-500" /> Evening Drop:</span>
-                      <span className="font-mono font-black text-sky-600">{pickupObj?.eveningDropTime || '04:15 PM'}</span>
+                      <span className="font-mono font-black text-sky-600">{pickupObj?.eveningDropTime || '-'}</span>
                     </div>
                   </div>
                 </div>

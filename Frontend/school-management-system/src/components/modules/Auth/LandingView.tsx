@@ -233,6 +233,16 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       description: 'Access exam datesheets, homework submissions, digital library books, and notice circulars.',
       highlights: ['Timetables & Exam Dates', 'Homework & Assignments', 'Digital Library Catalog']
     },
+    {
+      id: 'Hostel Warden',
+      title: 'Hostel Warden Portal',
+      icon: BedDouble,
+      color: 'from-indigo-500 to-blue-700',
+      shadow: 'shadow-indigo-500/25',
+      badge: 'Residential Hub',
+      description: 'Hostel room allocations, occupancy tracking, student outpass & leave approvals, and campus safety.',
+      highlights: ['Outpass & Leave Approvals', 'Hostel Attendance Register', 'Room & Bed Allocations']
+    },
   ];
 
   const stats = [

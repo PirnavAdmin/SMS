@@ -106,13 +106,36 @@ export const PickupPointsView: React.FC = () => {
     status: 'Active'
   });
 
+  const isPointForRoute = (p: PickupPoint, r: any) => {
+    if (!p || !r) return false;
+    const pRouteId = String(p.routeId || '').trim().toLowerCase();
+    const rId = String(r.id || '').trim().toLowerCase();
+    const rCode = String(r.routeCode || '').trim().toLowerCase();
+    const rName = String(r.routeName || '').trim().toLowerCase();
+    const pRouteName = String(p.routeName || '').trim().toLowerCase();
+
+    if (pRouteId && pRouteId !== '0' && pRouteId !== 'undefined' && pRouteId !== 'null') {
+      if (pRouteId === rId || (rCode && pRouteId === rCode) || (rName && pRouteId === rName)) {
+        return true;
+      }
+    }
+    if (pRouteName && pRouteName !== 'undefined' && pRouteName !== 'null') {
+      if ((rName && pRouteName === rName) || (rCode && pRouteName === rCode)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const filteredPoints = pickupPoints.filter(p => {
-    const matchesQuery = p.pickupName.toLowerCase().includes(query.toLowerCase()) || p.routeName.toLowerCase().includes(query.toLowerCase());
-    const matchesRoute = selectedRouteFilter === 'All' || p.routeId == selectedRouteFilter;
+    const matchesQuery = (p.pickupName || '').toLowerCase().includes(query.toLowerCase()) || (p.routeName || '').toLowerCase().includes(query.toLowerCase());
+    const matchesRoute = selectedRouteFilter === 'All' || 
+      p.routeId == selectedRouteFilter || 
+      (selectedRouteFilter && routeMasters.some(r => r.id == selectedRouteFilter && isPointForRoute(p, r)));
     return matchesQuery && matchesRoute;
   }).sort((a, b) => {
-    const routeCompare = a.routeName.localeCompare(b.routeName);
-    return routeCompare !== 0 ? routeCompare : a.sequenceNumber - b.sequenceNumber;
+    const routeCompare = (a.routeName || '').localeCompare(b.routeName || '');
+    return routeCompare !== 0 ? routeCompare : (a.sequenceNumber || 0) - (b.sequenceNumber || 0);
   });
 
   const handleOpenAdd = () => {
@@ -180,7 +203,9 @@ export const PickupPointsView: React.FC = () => {
         routeName,
         sequenceNumber: seqNum,
         distanceFromSchoolKm: distKm,
-        arrivalTime: form.morningPickupTime || form.arrivalTime || '07:30 AM',
+        arrivalTime: form.morningPickupTime || form.arrivalTime || '',
+        morningPickupTime: form.morningPickupTime || form.arrivalTime || '',
+        eveningDropTime: form.eveningDropTime || '',
         monthlyFee: feeAmt
       } as Omit<PickupPoint, 'id'>;
 
@@ -216,8 +241,8 @@ export const PickupPointsView: React.FC = () => {
         const seqNum = maxSeq + index + 1;
         const distKm = Number(item.distance) || 0;
         const feeAmt = calculateFeeForDistance(form.routeId, distKm);
-        const morningTime12h = item.morningTime ? convertTo12Hour(item.morningTime) : '07:30 AM';
-        const eveningTime12h = item.eveningTime ? convertTo12Hour(item.eveningTime) : '04:15 PM';
+        const morningTime12h = item.morningTime ? convertTo12Hour(item.morningTime) : '';
+        const eveningTime12h = item.eveningTime ? convertTo12Hour(item.eveningTime) : '';
         
         const payload = {
           routeId: form.routeId,
@@ -340,23 +365,23 @@ export const PickupPointsView: React.FC = () => {
           {visibleRoutes
             .filter(r => {
               if (!query) return true;
-              const routePoints = pickupPoints.filter(p => p.routeId == r.id);
+              const routePoints = pickupPoints.filter(p => isPointForRoute(p, r));
               const matchesQueryStr = (p: PickupPoint) => 
-                p.pickupName.toLowerCase().includes(query.toLowerCase()) || 
-                p.routeName.toLowerCase().includes(query.toLowerCase());
-              return r.routeName.toLowerCase().includes(query.toLowerCase()) || 
-                     r.routeCode.toLowerCase().includes(query.toLowerCase()) || 
+                (p.pickupName || '').toLowerCase().includes(query.toLowerCase()) || 
+                (p.routeName || '').toLowerCase().includes(query.toLowerCase());
+              return (r.routeName || '').toLowerCase().includes(query.toLowerCase()) || 
+                     (r.routeCode || '').toLowerCase().includes(query.toLowerCase()) || 
                      routePoints.some(matchesQueryStr);
             })
             .map(route => {
               const routePoints = pickupPoints
-                .filter(p => p.routeId == route.id)
-                .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+                .filter(p => isPointForRoute(p, route))
+                .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
               
               const filteredRoutePoints = query
                 ? routePoints.filter(p => 
-                    p.pickupName.toLowerCase().includes(query.toLowerCase()) || 
-                    p.routeName.toLowerCase().includes(query.toLowerCase())
+                    (p.pickupName || '').toLowerCase().includes(query.toLowerCase()) || 
+                    (p.routeName || '').toLowerCase().includes(query.toLowerCase())
                   )
                 : routePoints;
 
@@ -425,12 +450,16 @@ export const PickupPointsView: React.FC = () => {
                                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white text-center">{p.pickupName}</td>
                                   <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{p.distanceFromSchoolKm} KM</td>
                                   <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400 text-center">
-                                    <div className="flex items-center justify-center gap-1">
-                                      <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime || '07:30 AM'}
-                                    </div>
+                                    {p.morningPickupTime || p.arrivalTime ? (
+                                      <div className="flex items-center justify-center gap-1">
+                                        <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400 font-normal">-</span>
+                                    )}
                                   </td>
                                   <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400 text-center">
-                                    {p.eveningDropTime || '04:15 PM'}
+                                    {p.eveningDropTime || <span className="text-slate-400 font-normal">-</span>}
                                   </td>
                                   <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-center">
                                     ₹{p.monthlyFee || calculateFeeForDistance(p.routeId, p.distanceFromSchoolKm)}/mo

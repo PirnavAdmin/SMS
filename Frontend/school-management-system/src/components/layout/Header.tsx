@@ -359,7 +359,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   return (
     <header
       className={`fixed top-0 right-0 z-40 h-16 bg-brand-50 dark:bg-brand-950 border-b border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
-        collapsed ? 'left-20' : 'left-64'
+        collapsed ? 'left-20' : 'left-56'
       }`}
     >
       <div className="flex items-center flex-1 min-w-0">

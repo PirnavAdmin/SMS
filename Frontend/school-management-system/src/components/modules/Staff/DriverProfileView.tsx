@@ -40,21 +40,24 @@ export const DriverProfileView: React.FC = () => {
       (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
     );
 
-    if (fromMaster) return fromMaster;
+    if (fromMaster) {
+      return {
+        ...fromMaster,
+        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : fromMaster.driverName
+      };
+    }
 
     // Match from staff
     const fromStaff = staff.find(s =>
       (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
       (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName) ||
-      (s.designation || '').toLowerCase().includes('driver') ||
-      (s.department || '').toLowerCase().includes('transport')
+      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
     );
 
     if (fromStaff) {
       return {
         id: fromStaff.id,
-        driverName: `${fromStaff.firstName} ${fromStaff.lastName}`.trim(),
+        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : `${fromStaff.firstName} ${fromStaff.lastName}`.trim(),
         licenseNumber: (fromStaff as any).licenseNumber || `DL-${fromStaff.empId || fromStaff.id}`,
         mobileNumber: fromStaff.phone || '',
         employeeId: fromStaff.empId || fromStaff.employeeId || `STF-${fromStaff.id}`,
@@ -71,7 +74,7 @@ export const DriverProfileView: React.FC = () => {
 
     return {
       id: user?.id || '1',
-      driverName: user?.name || 'Nag Sahoo',
+      driverName: user?.name || 'Sai Kiran V',
       licenseNumber: `DL-${user?.id || '2026-0003'}`,
       mobileNumber: user?.phone || '',
       employeeId: (user as any)?.empId || user?.id || 'STF-2026-0003',
@@ -316,7 +319,7 @@ export const DriverProfileView: React.FC = () => {
             <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 space-y-1">
               <span className="text-[10px] uppercase font-bold text-sky-700 dark:text-sky-300">Current Fleet Bus</span>
               <div className="font-black text-base text-slate-900 dark:text-white">
-                {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'AP04 Z 4567'}
+                {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'Unassigned'}
               </div>
             </div>
 
@@ -324,11 +327,11 @@ export const DriverProfileView: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-slate-400">Assigned Route</span>
               <div className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Route className="w-3.5 h-3.5 text-sky-600" />
-                <span>{assignedRoute?.routeName || currentAssignment?.routeName || 'RT-01 (South Campus Route)'}</span>
+                <span>{assignedRoute?.routeName || currentAssignment?.routeName || 'Unassigned'}</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
-                <span>Stops: <span className="font-bold text-slate-700 dark:text-slate-300">{routeStopsCount || 4}</span></span>
-                <span>Distance: <span className="font-bold text-slate-700 dark:text-slate-300">{assignedRoute?.totalDistanceKm || 18.5} km</span></span>
+                <span>Stops: <span className="font-bold text-slate-700 dark:text-slate-300">{routeStopsCount || 0}</span></span>
+                <span>Distance: <span className="font-bold text-slate-700 dark:text-slate-300">{assignedRoute?.totalDistanceKm ? `${assignedRoute.totalDistanceKm} km` : 'N/A'}</span></span>
               </div>
             </div>
           </div>

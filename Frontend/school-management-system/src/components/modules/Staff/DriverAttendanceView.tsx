@@ -48,7 +48,7 @@ export const DriverAttendanceView: React.FC = () => {
       };
     }
 
-    return driverMasters[0] || {
+    return {
       id: '1',
       driverName: user?.name || 'Nag Sahoo',
       employeeId: 'DRV-001'
@@ -173,31 +173,29 @@ export const DriverAttendanceView: React.FC = () => {
         (user?.email && s.email?.toLowerCase() === user.email.toLowerCase()) ||
         (user?.name && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === user.name.toLowerCase().trim()) ||
         String(s.id) === String(matchedDriver.id) ||
-        s.empId === matchedDriver.employeeId ||
-        (s.designation || '').toLowerCase().includes('driver') ||
-        (s.department || '').toLowerCase().includes('transport')
-      ) || staff[0];
+        s.empId === matchedDriver.employeeId
+      );
 
       const staffId = staffMember?.id || matchedDriver.id || '3';
       const staffEmpId = staffMember?.empId || staffMember?.employeeId || matchedDriver.employeeId || 'STF-2026-0003';
-      const staffFullName = staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Nag Sahoo');
+      const staffFullName = (user?.name && user.name.toLowerCase() !== 'user') ? user.name : (staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Sai Kiran V'));
 
       if (markAttendance) {
-        markAttendance({
+        markAttendance([{
           id: `ATT-DRV-${Date.now()}`,
-          entityId: staffId,
-          staffId: staffId,
-          employeeId: staffId,
-          empId: staffEmpId,
+          entityId: String(staffId),
+          staffId: String(staffId),
+          employeeId: String(staffId),
+          empId: String(staffEmpId),
           employeeName: staffFullName,
           entityType: 'Staff',
           date: todayStr,
           status: 'Present',
           inTime: formattedTime,
-          department: staffMember?.department || 'Transport Dept',
-          designation: staffMember?.designation || 'Driver',
+          department: staffMember?.department || matchedDriver?.department || 'Transport Dept',
+          designation: staffMember?.designation || matchedDriver?.designation || 'Driver',
           remarks: 'Driver Shift Check-In'
-        } as any);
+        }]);
       }
       addToast('success', 'Duty Check-In Marked', `Checked in successfully at ${formattedTime}`);
     } catch (err: any) {
@@ -220,32 +218,30 @@ export const DriverAttendanceView: React.FC = () => {
         (user?.email && s.email?.toLowerCase() === user.email.toLowerCase()) ||
         (user?.name && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === user.name.toLowerCase().trim()) ||
         String(s.id) === String(matchedDriver.id) ||
-        s.empId === matchedDriver.employeeId ||
-        (s.designation || '').toLowerCase().includes('driver') ||
-        (s.department || '').toLowerCase().includes('transport')
-      ) || staff[0];
+        s.empId === matchedDriver.employeeId
+      );
 
       const staffId = staffMember?.id || matchedDriver.id || '3';
       const staffEmpId = staffMember?.empId || staffMember?.employeeId || matchedDriver.employeeId || 'STF-2026-0003';
-      const staffFullName = staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Nag Sahoo');
+      const staffFullName = (user?.name && user.name.toLowerCase() !== 'user') ? user.name : (staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Sai Kiran V'));
 
       if (markAttendance) {
-        markAttendance({
+        markAttendance([{
           id: `ATT-DRV-${Date.now()}`,
-          entityId: staffId,
-          staffId: staffId,
-          employeeId: staffId,
-          empId: staffEmpId,
+          entityId: String(staffId),
+          staffId: String(staffId),
+          employeeId: String(staffId),
+          empId: String(staffEmpId),
           employeeName: staffFullName,
           entityType: 'Staff',
           date: todayStr,
           status: 'Present',
           inTime: checkInTime ? new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '08:00 AM',
           outTime: formattedTime,
-          department: staffMember?.department || 'Transport Dept',
-          designation: staffMember?.designation || 'Driver',
+          department: staffMember?.department || matchedDriver?.department || 'Transport Dept',
+          designation: staffMember?.designation || matchedDriver?.designation || 'Driver',
           remarks: 'Driver Shift Check-Out Completed'
-        } as any);
+        }]);
       }
       addToast('success', 'Duty Check-Out Marked', `Checked out successfully at ${formattedTime}`);
     } catch (err: any) {
