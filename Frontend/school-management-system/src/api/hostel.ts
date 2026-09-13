@@ -92,6 +92,8 @@ export interface NightAttendanceRecord {
   bedNumber: string;
   date: string;
   curfewStatus: string;
+  inTime?: string | null;
+  outTime?: string | null;
   remarks: string | null;
 }
 

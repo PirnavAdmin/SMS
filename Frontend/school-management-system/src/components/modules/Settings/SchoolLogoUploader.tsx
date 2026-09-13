@@ -45,7 +45,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
   const [urlInput, setUrlInput] = useState(value && !value.startsWith('data:') ? value : '');
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark' | 'header'>('light');
+  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark' | 'grid' | 'header'>('light');
   const [meta, setMeta] = useState<ImageMetadata | null>(null);
   const [validation, setValidation] = useState<ValidationState>({
     isValid: true,
@@ -57,12 +57,28 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+
+
   // Helper to format bytes
   const formatFileSize = (bytes?: number): string => {
     if (!bytes || bytes === 0) return 'N/A';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  // Helper to fetch file size for URLs when not provided
+  const fetchFileSizeForUrl = async (url: string): Promise<number | undefined> => {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      const sizeHeader = response.headers.get('content-length');
+      if (sizeHeader) {
+        return parseInt(sizeHeader, 10);
+      }
+    } catch (e) {
+      // Fallback ignore error if CORS prevents HEAD request
+    }
+    return undefined;
   };
 
   // Helper to determine aspect ratio description
@@ -79,7 +95,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
   };
 
   // Analyze loaded image element for dimensions and validation
-  const analyzeImage = useCallback((imgSrc: string, fileInfo?: { size?: number; format?: string; name?: string }) => {
+  const analyzeImage = useCallback(async (imgSrc: string, fileInfo?: { size?: number; format?: string; name?: string }) => {
     if (!imgSrc) {
       setMeta(null);
       setValidation({
@@ -94,6 +110,12 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
     }
 
     setIsLoading(true);
+
+    let calculatedSize = fileInfo?.size;
+    if (!calculatedSize && (imgSrc.startsWith('http') || imgSrc.startsWith('/'))) {
+      calculatedSize = await fetchFileSizeForUrl(imgSrc);
+    }
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
@@ -119,7 +141,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
         width,
         height,
         aspectRatio,
-        sizeBytes: fileInfo?.size,
+        sizeBytes: calculatedSize,
         format: detectedFormat,
         fileName: fileInfo?.name
       });
@@ -138,9 +160,9 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
         warnings.push(`Large dimensions (${width}×${height}px). It will be scaled down for display.`);
       }
 
-      const sizeValid = !fileInfo?.size || fileInfo.size <= MAX_FILE_SIZE_BYTES;
+      const sizeValid = !calculatedSize || calculatedSize <= MAX_FILE_SIZE_BYTES;
       if (!sizeValid) {
-        warnings.push(`File size (${formatFileSize(fileInfo?.size)}) exceeds the maximum limit of ${MAX_FILE_SIZE_MB}MB.`);
+        warnings.push(`File size (${formatFileSize(calculatedSize)}) exceeds the maximum limit of ${MAX_FILE_SIZE_MB}MB.`);
       }
 
       setValidation({
@@ -231,17 +253,16 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
           name: file.name
         });
 
-        // 4. Asynchronously upload to backend API & store image URL in database
         try {
-          const res = await uploadSchoolLogoFileApi(file);
-          if (res && res.logoUrl) {
-            onChange(res.logoUrl);
-            try {
-              localStorage.setItem("school_logo", res.logoUrl);
-              localStorage.setItem("logoUrl", res.logoUrl);
-              window.dispatchEvent(new Event("school_profile_updated"));
-            } catch {}
-          }
+          localStorage.setItem("school_logo", dataUrl);
+          localStorage.setItem("logoUrl", dataUrl);
+          localStorage.setItem("schoolLogo", dataUrl);
+          window.dispatchEvent(new Event("school_profile_updated"));
+        } catch {}
+
+        // Asynchronously notify backend API (in background, keeping dataUrl for display)
+        try {
+          await uploadSchoolLogoFileApi(file);
         } catch (apiErr) {
           console.warn("Backend logo file upload note:", apiErr);
         } finally {
@@ -337,11 +358,8 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
         <div>
           <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-            School Brand Logo
+            Custom Logo Upload & Pixel Inspection
           </label>
-          {/* <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Upload school crest or header banner (PNG, JPEG, WebP, SVG). Real-time pixel and quality check.
-          </p> */}
         </div>
 
         <div className="inline-flex p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 self-start sm:self-auto border border-slate-200 dark:border-slate-700">
@@ -502,6 +520,18 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
               </button>
               <button
                 type="button"
+                title="Checkerboard Grid Canvas (Transparent PNG/SVG)"
+                onClick={() => setPreviewTheme('grid')}
+                className={`px-2 py-1 rounded flex items-center gap-1 font-bold ${
+                  previewTheme === 'grid'
+                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white'
+                    : 'text-slate-500'
+                }`}
+              >
+                <ImageIcon className="w-3 h-3 text-emerald-500" /> Grid
+              </button>
+              <button
+                type="button"
                 title="Header Bar Simulation"
                 onClick={() => setPreviewTheme('header')}
                 className={`px-2 py-1 rounded flex items-center gap-1 font-bold ${
@@ -522,6 +552,8 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 ? 'bg-white border-slate-200'
                 : previewTheme === 'dark'
                 ? 'bg-slate-950 border-slate-800'
+                : previewTheme === 'grid'
+                ? 'bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:12px_12px] bg-slate-100 border-slate-300 dark:bg-[radial-gradient(#334155_1px,transparent_1px)] dark:bg-slate-900 dark:border-slate-700'
                 : 'bg-brand-900 border-brand-800'
             }`}
           >
@@ -530,18 +562,37 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 <RefreshCw className="w-4 h-4 animate-spin" /> Analyzing image pixels...
               </div>
             ) : previewTheme === 'header' ? (
-              <div className="flex items-center gap-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-lg border border-white/20">
-                <img
-                  src={value}
-                  alt="School Logo"
-                  className="max-h-10 max-w-[140px] object-contain"
-                />
-                <div className="border-l border-slate-300 dark:border-slate-700 pl-3">
-                  <div className="text-xs font-black italic tracking-wider text-sky-700 dark:text-sky-400">
-                    PIRNAV
-                  </div>
-                  <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                    School Header Preview
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-300 dark:text-slate-400 uppercase tracking-widest">
+                  Live Top-Left Sidebar Header Container Auto-Fit
+                </span>
+                <div className="flex items-center gap-3 bg-slate-100/40 dark:bg-slate-900/60 p-3 rounded-2xl border border-white/10">
+                  {meta && Math.abs(meta.width / meta.height - 1) < 0.3 ? (
+                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 shadow-md border border-sky-100 dark:border-sky-900 flex items-center justify-center p-1.5 transition-all">
+                      <img
+                        src={value}
+                        alt="School Crest Logo"
+                        className="max-h-9 max-w-9 object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl bg-white dark:bg-slate-900 shadow-md border border-sky-100 dark:border-sky-900 flex items-center justify-center transition-all">
+                      <img
+                        src={value}
+                        alt="School Wide Logo"
+                        className="max-h-9 max-w-full w-auto object-contain"
+                      />
+                    </div>
+                  )}
+                  <div className="border-l border-slate-300/40 dark:border-slate-700/60 pl-3 text-left">
+                    <div className="text-xs font-black tracking-wider text-white">
+                      Auto-Fit Container
+                    </div>
+                    <div className="text-[10px] font-bold text-sky-400">
+                      {meta && Math.abs(meta.width / meta.height - 1) < 0.3
+                        ? "Square / Circle Crest (Zero Side Margin)"
+                        : "Wide Banner (Horizontal Fill)"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -556,44 +607,58 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
 
           {/* Real-time Pixel & Format Inspection Grid */}
           {meta && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  Pixel Resolution
-                </p>
-                <p className="text-xs font-black text-slate-900 dark:text-white mt-0.5 font-mono">
-                  {meta.width} × {meta.height} px
-                </p>
-              </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    Pixel Resolution
+                  </p>
+                  <p className="text-xs font-black text-slate-900 dark:text-white mt-0.5 font-mono">
+                    {meta.width} × {meta.height} px
+                  </p>
+                </div>
 
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  Image Format
-                </p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800">
-                    {meta.format || 'IMAGE'}
-                  </span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    Image Format
+                  </p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800">
+                      {meta.format || 'IMAGE'}
+                    </span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    Aspect Ratio
+                  </p>
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate" title={meta.aspectRatio}>
+                    {meta.aspectRatio}
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    File Size
+                  </p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                    {formatFileSize(meta.sizeBytes)}
+                  </p>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  Aspect Ratio
-                </p>
-                <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate" title={meta.aspectRatio}>
-                  {meta.aspectRatio}
-                </p>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  File Size
-                </p>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                  {formatFileSize(meta.sizeBytes)}
-                </p>
+              {/* Auto-Fit Container Mode Banner */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-900/60 text-xs">
+                <span className="text-[11px] font-bold text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Top-Left Header Auto-Fit Mode:
+                </span>
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shadow-2xs">
+                  {Math.abs(meta.width / meta.height - 1) < 0.3
+                    ? "Compact Badge (Zero Side Margins Removed)"
+                    : "Wide Banner (Horizontal Fill)"}
+                </span>
               </div>
             </div>
           )}

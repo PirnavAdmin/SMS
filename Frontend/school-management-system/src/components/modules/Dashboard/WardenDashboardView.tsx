@@ -27,6 +27,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useData } from "../../../context/DataContext";
 import { useHostel } from "../../../context/HostelContext";
 import { useToast } from "../../../context/ToastContext";
+import { getHostelBlocks, getRooms, getAllocations } from "../../../api/hostel";
 
 interface WardenDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -138,9 +139,40 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
   onNavigate,
 }) => {
   const { user } = useAuth();
-  const { students = [], schoolProfile } = useData();
-  const { hostelBlocks = [], hostelRooms = [], hostelBeds = [] } = useHostel();
+  const { students = [], staff = [] } = useData();
+  const { hostelBlocks: contextBlocks = [], hostelRooms: contextRooms = [], hostelBeds: contextBeds = [] } = useHostel();
   const { addToast } = useToast();
+
+  const [blocks, setBlocks] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [allocations, setAllocations] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const [bData, rData, aData] = await Promise.all([
+          getHostelBlocks().catch(() => []),
+          getRooms().catch(() => []),
+          getAllocations().catch(() => [])
+        ]);
+        setBlocks(Array.isArray(bData) && bData.length > 0 ? bData : contextBlocks);
+        setRooms(Array.isArray(rData) && rData.length > 0 ? rData : contextRooms);
+        setAllocations(Array.isArray(aData) ? aData : []);
+      } catch (e) {
+        console.warn('Failed to load hostel metrics:', e);
+      }
+    };
+    fetchMetrics();
+    const handleSync = () => fetchMetrics();
+    window.addEventListener("hostel_outpasses_updated", handleSync);
+    window.addEventListener("residential_students_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("hostel_outpasses_updated", handleSync);
+      window.removeEventListener("residential_students_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [contextBlocks, contextRooms]);
 
   const greeting =
     new Date().getHours() < 12
@@ -149,33 +181,61 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
       ? "Good Afternoon"
       : "Good Evening";
 
-  // Hosteller Students
-  const hostellerStudents = useMemo(() => {
-    return students.filter(
-      (s) =>
-        s.status === "Active" &&
-        (s.studentType === "Residential" ||
-          s.studentType === "Hosteller" ||
-          (s as any).isResidential)
-    );
-  }, [students]);
+  // Matched assigned blocks for logged-in warden
+  const targetBlocks = useMemo(() => {
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
 
-  // Bed Occupancy Metrics
+    const allBlks = blocks.length > 0 ? blocks : contextBlocks;
+    const matched = allBlks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = allBlks.find(b =>
+      (b.hostelName || b.name || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || b.name || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || b.name || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (allBlks.length > 0 ? [allBlks[0]] : []);
+  }, [blocks, contextBlocks, user]);
+
+  const activeBlockIds = useMemo(() => {
+    return new Set(targetBlocks.map(b => String(b.hostelId || b.id)));
+  }, [targetBlocks]);
+
+  // Dynamic Bed Occupancy Metrics
+  const activeBlockRooms = useMemo(() => {
+    const allRooms = rooms.length > 0 ? rooms : contextRooms;
+    if (activeBlockIds.size === 0) return allRooms;
+    return allRooms.filter(r => r && activeBlockIds.has(String(r.hostelId || r.blockId)));
+  }, [rooms, contextRooms, activeBlockIds]);
+
   const totalBedsCount = useMemo(() => {
-    return hostelBeds.length > 0
-      ? hostelBeds.length
-      : hostelRooms.reduce((acc, r) => acc + (r.capacity || 2), 0) || 120;
-  }, [hostelBeds, hostelRooms]);
+    const roomsCap = activeBlockRooms.reduce((acc, r) => acc + (Number(r.bedCapacity) || Number(r.capacity) || 0), 0);
+    const blocksCap = targetBlocks.reduce((acc, b) => acc + (Number((b as any).totalCapacity) || Number((b as any).capacity) || 0), 0);
+    if (roomsCap > 0) return roomsCap;
+    if (blocksCap > 0) return blocksCap;
+    return contextBeds.length > 0 ? contextBeds.length : 12;
+  }, [activeBlockRooms, targetBlocks, contextBeds]);
 
   const occupiedBedsCount = useMemo(() => {
-    const fromBeds = hostelBeds.filter(
-      (b) => b.status === "Occupied" || b.studentId
-    ).length;
-    return fromBeds > 0 ? fromBeds : Math.min(hostellerStudents.length, totalBedsCount);
-  }, [hostelBeds, hostellerStudents, totalBedsCount]);
+    const validAllocs = allocations.filter(a =>
+      a && (a.status === 'Active' || !a.status) &&
+      (activeBlockIds.size === 0 || activeBlockIds.has(String(a.hostelId)) || activeBlockRooms.some(r => String(r.roomId) === String(a.roomId)))
+    );
+    return validAllocs.length;
+  }, [allocations, activeBlockIds, activeBlockRooms]);
 
   const vacantBedsCount = Math.max(0, totalBedsCount - occupiedBedsCount);
-  const bedOccupancyPct = Math.round((occupiedBedsCount / totalBedsCount) * 100) || 0;
+  const bedOccupancyPct = totalBedsCount > 0 ? Math.min(100, Math.round((occupiedBedsCount / totalBedsCount) * 100)) : 0;
 
   // Outpass Records State
   const [outpassRecords, setOutpassRecords] = useState<OutpassItem[]>(() => {
@@ -183,45 +243,10 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
       const saved = localStorage.getItem("edu_db_hostel_outpasses");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
-
-    return [
-      {
-        id: "OUT-101",
-        studentName: "Alexander Wright",
-        className: "Class 10-A",
-        roomNo: "Room 201",
-        outpassType: "Home Leave",
-        departureDate: "2026-08-25",
-        returnDate: "2026-08-28",
-        reason: "Family event at home",
-        status: "Pending",
-      },
-      {
-        id: "OUT-102",
-        studentName: "Sophia Chen",
-        className: "Class 9-B",
-        roomNo: "Room 104",
-        outpassType: "Local Outpass",
-        departureDate: "2026-08-25",
-        returnDate: "2026-08-25",
-        reason: "Medical consultation at Apollo Clinic",
-        status: "Pending",
-      },
-      {
-        id: "OUT-103",
-        studentName: "Rahul Sharma",
-        className: "Class 11-A",
-        roomNo: "Room 302",
-        outpassType: "Emergency Outpass",
-        departureDate: "2026-08-24",
-        returnDate: "2026-08-26",
-        reason: "Dentist appointment",
-        status: "Approved",
-      },
-    ];
+    return [];
   });
 
   useEffect(() => {
@@ -230,7 +255,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         const saved = localStorage.getItem("edu_db_hostel_outpasses");
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setOutpassRecords(parsed);
           }
         }
@@ -255,50 +280,14 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     return outpassRecords.filter((r) => r.status === "Pending").length;
   }, [outpassRecords]);
 
-  // Maintenance Tickets
-  const [maintenanceTickets] = useState([
-    {
-      id: "TKT-301",
-      roomNo: "Room 204 (Block A)",
-      issue: "Ceiling Fan Speed Regulator Fault",
-      priority: "High",
-      date: "2026-08-24",
-      status: "Pending",
-    },
-    {
-      id: "TKT-302",
-      roomNo: "Room 108 (Block B)",
-      issue: "Restroom Tap Leakage",
-      priority: "Medium",
-      date: "2026-08-23",
-      status: "In Progress",
-    },
-  ]);
-
-  const handleUpdateOutpassStatus = (
-    id: string | number,
-    newStatus: "Approved" | "Rejected"
-  ) => {
-    const updated = outpassRecords.map((r) =>
-      r.id === id ? { ...r, status: newStatus } : r
-    );
-    setOutpassRecords(updated);
-    try {
-      localStorage.setItem("edu_db_hostel_outpasses", JSON.stringify(updated));
-    } catch {}
-    addToast(
-      newStatus === "Approved" ? "success" : "info",
-      `Outpass ${newStatus}`,
-      `Outpass request marked as ${newStatus}.`
-    );
-  };
-
   // Block Occupancy Summary across ALL hostel blocks
   const blockSummary = useMemo(() => {
-    if (hostelBlocks.length > 0) {
-      return hostelBlocks.map((b) => {
-        const total = (b as any).totalCapacity || (b as any).capacity || ((b as any).totalRooms ? (b as any).totalRooms * 2 : 60);
-        const occupied = (b as any).occupiedBeds !== undefined ? (b as any).occupiedBeds : Math.round(total * 0.85);
+    const allBlks = blocks.length > 0 ? blocks : contextBlocks;
+    if (allBlks.length > 0) {
+      return allBlks.map((b) => {
+        const total = Number((b as any).totalCapacity) || Number((b as any).capacity) || 12;
+        const bAllocs = allocations.filter(a => String(a.hostelId) === String(b.hostelId || b.id) && (a.status === 'Active' || !a.status));
+        const occupied = bAllocs.length > 0 ? bAllocs.length : ((b as any).occupiedBeds !== undefined ? (b as any).occupiedBeds : 0);
         return {
           id: String(b.id || (b as any).hostelId || ''),
           name: b.name || (b as any).hostelName || `Hostel Block ${b.id}`,
@@ -310,63 +299,60 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
       });
     }
 
-    return [
-      {
-        id: "BLK-1",
-        name: "Ramachandra Bhavan (Block A)",
-        warden: user?.name || "VaraPrasad",
-        totalBeds: 60,
-        occupiedBeds: 52,
-        pct: 87,
-      },
-      {
-        id: "BLK-2",
-        name: "Vivekananda Hostel (Boys Block B)",
-        warden: "Kiran Kumar",
-        totalBeds: 40,
-        occupiedBeds: 34,
-        pct: 85,
-      },
-      {
-        id: "BLK-3",
-        name: "Saraswati Bhavan (Girls Block)",
-        warden: "Lakshmi Devi",
-        totalBeds: 50,
-        occupiedBeds: 44,
-        pct: 88,
-      },
-    ];
-  }, [hostelBlocks, user]);
+    return [];
+  }, [blocks, contextBlocks, allocations]);
 
   // Assigned block name for the logged-in warden
   const assignedBlockName = useMemo(() => {
-    const uName = (user?.name || "VaraPrasad").toLowerCase().trim();
-    const uFirst = uName.split(' ')[0];
-
-    const matched = (hostelBlocks || []).find(b => {
-      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
-      return wName && wName !== 'unassigned' && (wName.includes(uName) || uName.includes(wName) || (uFirst.length >= 3 && wName.includes(uFirst)));
-    });
-
-    if (matched) {
-      return matched.name || (matched as any).hostelName || 'Ramachandra Bhavan (Block A)';
+    if (targetBlocks.length > 0) {
+      return targetBlocks[0].name || (targetBlocks[0] as any).hostelName || 'Ramachandra Bhavan (Block A)';
     }
-
     return 'Ramachandra Bhavan (Block A)';
-  }, [hostelBlocks, user]);
+  }, [targetBlocks]);
+
+  const formatEmailToName = (email?: string): string => {
+    if (!email || !email.includes('@')) return '';
+    const username = email.split('@')[0];
+    const parts = username.split(/[._-]/);
+    return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  };
 
   const displayName = useMemo(() => {
+    // 1. Authentic user account name if set and NOT generic 'Administrator' / 'Admin'
     const rawName = (user?.name || '').trim();
     if (rawName && rawName.toLowerCase() !== 'administrator' && rawName.toLowerCase() !== 'admin' && rawName.toLowerCase() !== 'user') {
       return rawName;
     }
+
     const uEmail = (user?.email || '').toLowerCase().trim();
+
+    // 2. Match staff record by email in staff list from Admin login
     if (uEmail) {
-      const matchedBlock = (hostelBlocks || []).find(b => (b.email || (b as any).wardenEmail || '').toLowerCase().trim() === uEmail);
-      if (matchedBlock?.wardenName) return matchedBlock.wardenName;
+      const matchedStaff = (staff || []).find(s => s.email && s.email.toLowerCase().trim() === uEmail);
+      if (matchedStaff) {
+        const fullStaffName = `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim();
+        if (fullStaffName && !fullStaffName.toLowerCase().includes('admin')) return fullStaffName;
+      }
     }
-    return 'VaraPrasad';
-  }, [user, hostelBlocks]);
+
+    // 3. Match hostel block / warden record by email in hostel blocks / wardens list from Admin login
+    if (uEmail) {
+      const allBlks = blocks.length > 0 ? blocks : contextBlocks;
+      const matchedBlock = allBlks.find(b =>
+        (b.email || (b as any).wardenEmail || '').toLowerCase().trim() === uEmail ||
+        (b.wardenName && b.wardenName.toLowerCase().includes(uEmail.split('@')[0]))
+      );
+      if (matchedBlock?.wardenName && !matchedBlock.wardenName.toLowerCase().includes('admin')) return matchedBlock.wardenName;
+    }
+
+    // 4. Derivation from email (e.g. vishal@pirnav.com -> Vishal)
+    if (uEmail) {
+      const derived = formatEmailToName(uEmail);
+      if (derived && derived.toLowerCase() !== 'admin' && derived.toLowerCase() !== 'administrator') return derived;
+    }
+
+    return 'Hostel Warden';
+  }, [user, staff, blocks, contextBlocks]);
 
   return (
     <div className="space-y-6 animate-in fade-in pb-12">

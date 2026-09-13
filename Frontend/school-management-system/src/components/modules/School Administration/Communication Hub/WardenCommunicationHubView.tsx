@@ -165,7 +165,7 @@ export const WardenCommunicationHubView: React.FC = () => {
   const { hostelBlocks = [] } = useHostel();
   const { addToast } = useToast();
 
-  const wardenName = user?.name || "VaraPrasad (Hostel Warden)";
+  const wardenName = user?.name || (user as any)?.firstName || "Hostel Warden";
 
   // Active Tab: 'announcements' | 'parent-comm' | 'meetings' | 'requests'
   const [activeTab, setActiveTab] = useState<

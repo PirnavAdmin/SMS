@@ -163,11 +163,64 @@ namespace SMS.Api.Dtos
 
     public class HostelStudentAttendanceRecordDto
     {
+        private int _allocationId;
+        private int? _studentId;
+
         [JsonPropertyName("allocationId")]
-        public int AllocationId { get; set; }
+        public object? RawAllocationId
+        {
+            get => _allocationId;
+            set
+            {
+                if (value == null) return;
+                if (int.TryParse(value.ToString(), out int val))
+                {
+                    _allocationId = val;
+                }
+                else
+                {
+                    var digits = System.Text.RegularExpressions.Regex.Match(value.ToString() ?? "", @"\d+");
+                    if (digits.Success && int.TryParse(digits.Value, out int extracted))
+                    {
+                        _allocationId = extracted;
+                    }
+                }
+            }
+        }
+
+        public int AllocationId
+        {
+            get => _allocationId;
+            set => _allocationId = value;
+        }
 
         [JsonPropertyName("studentId")]
-        public int? StudentId { get; set; }
+        public object? RawStudentId
+        {
+            get => _studentId;
+            set
+            {
+                if (value == null) return;
+                if (int.TryParse(value.ToString(), out int val))
+                {
+                    _studentId = val;
+                }
+                else
+                {
+                    var digits = System.Text.RegularExpressions.Regex.Match(value.ToString() ?? "", @"\d+");
+                    if (digits.Success && int.TryParse(digits.Value, out int extracted))
+                    {
+                        _studentId = extracted;
+                    }
+                }
+            }
+        }
+
+        public int? StudentId
+        {
+            get => _studentId;
+            set => _studentId = value;
+        }
 
         [JsonPropertyName("curfewStatus")]
         public string CurfewStatus { get; set; } = "Present"; // Present, Absent, Half Day, Leave

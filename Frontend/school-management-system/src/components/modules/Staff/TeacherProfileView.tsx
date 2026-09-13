@@ -106,7 +106,7 @@ export const TeacherProfileView: React.FC = () => {
     }
 
     // 5. Fallback: Return dynamic profile object from logged in user
-    const rawName = user?.name || (isAccountant ? 'Sardhar Karthi' : isWarden ? 'VaraPrasad' : 'Faculty Member');
+    const rawName = user?.name || (isAccountant ? 'Sardhar Karthi' : isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
       id: user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001'),
@@ -221,6 +221,7 @@ export const TeacherProfileView: React.FC = () => {
 
   // Dynamically compute assigned classes with section suffixes (e.g. Class 9-A, Class 8-A)
   const dynamicAssignedClasses = useMemo(() => {
+    const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
     const uNameLower = (user?.name || '').toLowerCase().trim();
     const dbNameLower = (dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : '').toLowerCase();
     const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();
@@ -369,7 +370,7 @@ export const TeacherProfileView: React.FC = () => {
       ? user.name
       : (!isGenericAdminName && dbFullName)
       ? dbFullName
-      : (isAccountant ? 'Sardhar Karthi' : isWarden ? 'VaraPrasad' : 'Faculty Member');
+      : (isAccountant ? 'Sardhar Karthi' : isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : 'Faculty Member');
 
     const fallbackDept = isAccountant
       ? 'Finance & Accounts'
