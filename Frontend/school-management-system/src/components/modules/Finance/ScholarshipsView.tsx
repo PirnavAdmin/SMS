@@ -171,7 +171,7 @@ export const ScholarshipsView: React.FC = () => {
     setIsAllocModalOpen(true);
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
       addToast(
@@ -183,16 +183,16 @@ export const ScholarshipsView: React.FC = () => {
     }
 
     if (editingSch) {
-      updateScholarship(editingSch.id, formData);
+      await updateScholarship(editingSch.id, formData);
       addToast("success", "Scholarship Updated", `Updated ${formData.name}`);
     } else {
-      addScholarship(formData as Omit<Scholarship, "id">);
+      await addScholarship(formData as Omit<Scholarship, "id">);
       addToast("success", "Scholarship Created", `Created ${formData.name}`);
     }
     setIsModalOpen(false);
   };
 
-  const handleAllocSubmit = (e: React.SyntheticEvent) => {
+  const handleAllocSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!allocStudentId || !allocScholarshipId) {
       addToast(
@@ -202,7 +202,7 @@ export const ScholarshipsView: React.FC = () => {
       );
       return;
     }
-    assignScholarshipToStudent(allocStudentId, allocScholarshipId);
+    await assignScholarshipToStudent(allocStudentId, allocScholarshipId);
     addToast(
       "success",
       "Scholarship Awarded",
@@ -393,8 +393,8 @@ export const ScholarshipsView: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button
-                          onClick={() => {
-                            revokeStudentScholarship(ss.id);
+                          onClick={async () => {
+                            await revokeStudentScholarship(ss.id);
                             addToast(
                               "info",
                               "Scholarship Revoked",
@@ -761,9 +761,9 @@ export const ScholarshipsView: React.FC = () => {
         isOpen={!!deletingSch}
         title="Delete Scheme"
         message={`Are you sure you want to delete ${deletingSch?.name}?`}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletingSch) {
-            deleteScholarship(deletingSch.id);
+            await deleteScholarship(deletingSch.id);
             addToast("success", "Scholarship Scheme Deleted");
             setDeletingSch(null);
           }

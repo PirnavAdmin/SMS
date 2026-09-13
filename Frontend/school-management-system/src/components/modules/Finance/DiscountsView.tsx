@@ -147,7 +147,7 @@ export const DiscountsView: React.FC = () => {
     setIsAllocOpen(true);
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
       addToast("warning", "Validation Error", "Name and code are required.");
@@ -155,16 +155,16 @@ export const DiscountsView: React.FC = () => {
     }
 
     if (editingDisc) {
-      updateDiscount(editingDisc.id, formData);
+      await updateDiscount(editingDisc.id, formData);
       addToast("success", "Discount Updated", `Updated ${formData.name}`);
     } else {
-      addDiscount(formData as Omit<Discount, "id">);
+      await addDiscount(formData as Omit<Discount, "id">);
       addToast("success", "Discount Created", `Created ${formData.name}`);
     }
     setIsModalOpen(false);
   };
 
-  const handleAllocSubmit = (e: React.SyntheticEvent) => {
+  const handleAllocSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!allocStudentId || !allocDiscountId) {
       addToast(
@@ -174,7 +174,7 @@ export const DiscountsView: React.FC = () => {
       );
       return;
     }
-    assignDiscountToStudent(allocStudentId, allocDiscountId);
+    await assignDiscountToStudent(allocStudentId, allocDiscountId);
     addToast(
       "success",
       "Concession Granted",
@@ -358,8 +358,8 @@ export const DiscountsView: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <button
-                            onClick={() => {
-                              removeStudentDiscount(sd.id);
+                            onClick={async () => {
+                              await removeStudentDiscount(sd.id);
                               addToast(
                                 "info",
                                 "Concession Removed",
@@ -700,9 +700,9 @@ export const DiscountsView: React.FC = () => {
         isOpen={!!deletingDisc}
         title="Delete Discount"
         message={`Are you sure you want to delete ${deletingDisc?.name}?`}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletingDisc) {
-            deleteDiscount(deletingDisc.id);
+            await deleteDiscount(deletingDisc.id);
             addToast("success", "Discount Deleted");
             setDeletingDisc(null);
           }

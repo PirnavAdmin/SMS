@@ -9,6 +9,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 public class FinanceMasterRepository : IFinanceMasterRepository
@@ -23,10 +24,6 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     private static readonly ConcurrentDictionary<int, FeeRefundRequestDto> _refunds = new();
     private static FeeScheduleConfigDto _feeSchedule = new();
     private static FinanceSettingsDto _financeSettings = new();
-    private static readonly ConcurrentDictionary<int, ScholarshipMasterDto> _scholarships = new();
-    private static readonly ConcurrentDictionary<int, StudentScholarshipAwardDto> _studentScholarships = new();
-    private static readonly ConcurrentDictionary<int, DiscountRuleDto> _discounts = new();
-    private static readonly ConcurrentDictionary<int, StudentDiscountDto> _studentDiscounts = new();
     private static readonly ConcurrentDictionary<int, FineRuleDto> _fineRules = new();
     private static readonly ConcurrentDictionary<int, FinanceHostelConfigDto> _hostelFeeConfigs = new();
     private static readonly ConcurrentDictionary<int, FinanceUniformConfigDto> _uniformFeeConfigs = new();
@@ -350,19 +347,102 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     // 5. FINANCE SETUP & SETTINGS
     // =========================================================================
 
-    public Task<FeeScheduleConfigDto> GetFeeScheduleAsync(string? academicYear)
+    public async Task<FeeScheduleConfigDto> GetFeeScheduleAsync(string? academicYear)
     {
-        return Task.FromResult(_feeSchedule);
+        string ay = string.IsNullOrWhiteSpace(academicYear) ? "2026-2027" : academicYear.Trim();
+        var entity = await _context.FeeSchedules.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.AcademicYear == ay);
+
+        if (entity != null)
+        {
+            var terms = !string.IsNullOrEmpty(entity.TermsJson)
+                ? JsonSerializer.Deserialize<List<FeeScheduleTermDto>>(entity.TermsJson) ?? new()
+                : new();
+
+            var monthly = !string.IsNullOrEmpty(entity.MonthlyConfigJson)
+                ? JsonSerializer.Deserialize<MonthlyDueDateConfigDto>(entity.MonthlyConfigJson)
+                : null;
+
+            return new FeeScheduleConfigDto
+            {
+                Id = entity.Id,
+                AcademicYear = entity.AcademicYear,
+                NumberOfTerms = entity.NumberOfTerms,
+                Status = entity.Status,
+                AnnualDueDate = entity.AnnualDueDate,
+                OneTimeDueDate = entity.OneTimeDueDate,
+                Terms = terms,
+                MonthlyConfig = monthly
+            };
+        }
+
+        // Return standard 4-term default schedule if not yet configured in DB
+        return new FeeScheduleConfigDto
+        {
+            Id = $"SCH-{ay}",
+            AcademicYear = ay,
+            NumberOfTerms = 4,
+            Status = "Published",
+            AnnualDueDate = "2026-04-15",
+            OneTimeDueDate = "2026-04-15",
+            Terms = new List<FeeScheduleTermDto>
+            {
+                new FeeScheduleTermDto { Id = $"T1-{ay}", TermName = "Term 1", StartDate = "2026-04-01", EndDate = "2026-06-30", DueDate = "2026-04-15", Sequence = 1, Status = "Active" },
+                new FeeScheduleTermDto { Id = $"T2-{ay}", TermName = "Term 2", StartDate = "2026-07-01", EndDate = "2026-09-30", DueDate = "2026-07-15", Sequence = 2, Status = "Active" },
+                new FeeScheduleTermDto { Id = $"T3-{ay}", TermName = "Term 3", StartDate = "2026-10-01", EndDate = "2026-12-31", DueDate = "2026-10-15", Sequence = 3, Status = "Active" },
+                new FeeScheduleTermDto { Id = $"T4-{ay}", TermName = "Term 4", StartDate = "2027-01-01", EndDate = "2027-03-31", DueDate = "2027-01-15", Sequence = 4, Status = "Active" }
+            },
+            MonthlyConfig = new MonthlyDueDateConfigDto
+            {
+                ApplySameDayToAllMonths = true,
+                DueDay = 10,
+                MonthDueDates = new List<MonthDueDateItemDto>()
+            }
+        };
     }
 
-    public Task<bool> SaveFeeScheduleAsync(FeeScheduleConfigDto schedule)
+    public async Task<bool> SaveFeeScheduleAsync(FeeScheduleConfigDto schedule)
     {
-        if (schedule != null && schedule.Terms != null)
+        if (schedule == null) return false;
+        string ay = string.IsNullOrWhiteSpace(schedule.AcademicYear) ? "2026-2027" : schedule.AcademicYear.Trim();
+        string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
+
+        var existing = await _context.FeeSchedules.FirstOrDefaultAsync(s => s.AcademicYear == ay || s.Id == sId);
+
+        string termsJson = JsonSerializer.Serialize(schedule.Terms ?? new());
+        string? monthlyJson = schedule.MonthlyConfig != null ? JsonSerializer.Serialize(schedule.MonthlyConfig) : null;
+
+        if (existing != null)
         {
-            _feeSchedule = schedule;
-            return Task.FromResult(true);
+            existing.NumberOfTerms = schedule.NumberOfTerms;
+            existing.Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status;
+            existing.AnnualDueDate = schedule.AnnualDueDate ?? "2026-04-15";
+            existing.OneTimeDueDate = schedule.OneTimeDueDate ?? "2026-04-15";
+            existing.TermsJson = termsJson;
+            existing.MonthlyConfigJson = monthlyJson;
+            existing.UpdatedAt = DateTime.UtcNow;
+            _context.FeeSchedules.Update(existing);
         }
-        return Task.FromResult(false);
+        else
+        {
+            var newEntity = new FeeSchedule
+            {
+                Id = sId,
+                AcademicYear = ay,
+                NumberOfTerms = schedule.NumberOfTerms,
+                Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status,
+                AnnualDueDate = schedule.AnnualDueDate ?? "2026-04-15",
+                OneTimeDueDate = schedule.OneTimeDueDate ?? "2026-04-15",
+                TermsJson = termsJson,
+                MonthlyConfigJson = monthlyJson,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _context.FeeSchedules.AddAsync(newEntity);
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public Task<FinanceSettingsDto> GetFinanceSettingsAsync()
@@ -489,112 +569,217 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<ScholarshipMasterDto>> GetScholarshipsAsync(string? search, string? type, string? status)
     {
-        var list = _scholarships.Values.ToList();
+        var query = _context.Scholarships.AsNoTracking().AsQueryable();
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             string s = search.Trim().ToLower();
-            list = list.Where(x => x.Name.ToLower().Contains(s) || x.Code.ToLower().Contains(s)).ToList();
+            query = query.Where(x => x.Name.ToLower().Contains(s) || x.Code.ToLower().Contains(s));
         }
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.Type.Equals(type, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.Type == type);
         }
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.Status == status);
         }
-        return await Task.FromResult(list.OrderBy(x => x.Id).ToList());
+
+        var entities = await query.OrderBy(x => x.Id).ToListAsync();
+        return entities.Select(MapToScholarshipDto).ToList();
     }
 
     public async Task<ScholarshipMasterDto?> GetScholarshipByIdAsync(int id)
     {
-        _scholarships.TryGetValue(id, out var item);
-        return await Task.FromResult(item);
+        var entity = await _context.Scholarships.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        return entity == null ? null : MapToScholarshipDto(entity);
     }
 
-    public async Task<ScholarshipMasterDto> CreateScholarshipAsync(ScholarshipMasterDto scholarship)
+    public async Task<ScholarshipMasterDto> CreateScholarshipAsync(ScholarshipMasterDto dto)
     {
-        int newId = _scholarships.Count > 0 ? _scholarships.Keys.Max() + 1 : 1;
-        scholarship.Id = newId;
-        if (string.IsNullOrEmpty(scholarship.Code))
-            scholarship.Code = $"SCH-{newId:D3}";
-        _scholarships[newId] = scholarship;
-        return await Task.FromResult(scholarship);
+        var entity = new Scholarship
+        {
+            Name = dto.Name,
+            Code = string.IsNullOrWhiteSpace(dto.Code) ? $"SCH-{DateTime.UtcNow.Ticks % 10000:D4}" : dto.Code,
+            Type = string.IsNullOrWhiteSpace(dto.Type) ? "Merit" : dto.Type,
+            DiscountType = string.IsNullOrWhiteSpace(dto.DiscountType) ? "Percentage" : dto.DiscountType,
+            Percentage = dto.Percentage,
+            FixedAmount = dto.FixedAmount,
+            ApplicableFeeHeadIdsJson = JsonSerializer.Serialize(dto.ApplicableFeeHeadIds ?? new List<string>()),
+            ApplicableClassesJson = JsonSerializer.Serialize(dto.ApplicableClasses ?? new List<string>()),
+            StartDate = string.IsNullOrWhiteSpace(dto.StartDate) ? "2026-04-01" : dto.StartDate,
+            EndDate = string.IsNullOrWhiteSpace(dto.EndDate) ? "2027-03-31" : dto.EndDate,
+            Eligibility = dto.Eligibility ?? string.Empty,
+            Description = dto.Description ?? string.Empty,
+            Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.Scholarships.Add(entity);
+        await _context.SaveChangesAsync();
+        return MapToScholarshipDto(entity);
     }
 
-    public async Task<ScholarshipMasterDto?> UpdateScholarshipAsync(int id, ScholarshipMasterDto scholarship)
+    public async Task<ScholarshipMasterDto?> UpdateScholarshipAsync(int id, ScholarshipMasterDto dto)
     {
-        if (!_scholarships.ContainsKey(id)) return null;
-        scholarship.Id = id;
-        _scholarships[id] = scholarship;
-        return await Task.FromResult(scholarship);
+        var entity = await _context.Scholarships.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return null;
+
+        entity.Name = dto.Name;
+        if (!string.IsNullOrWhiteSpace(dto.Code)) entity.Code = dto.Code;
+        entity.Type = dto.Type;
+        entity.DiscountType = dto.DiscountType;
+        entity.Percentage = dto.Percentage;
+        entity.FixedAmount = dto.FixedAmount;
+        if (dto.ApplicableFeeHeadIds != null)
+            entity.ApplicableFeeHeadIdsJson = JsonSerializer.Serialize(dto.ApplicableFeeHeadIds);
+        if (dto.ApplicableClasses != null)
+            entity.ApplicableClassesJson = JsonSerializer.Serialize(dto.ApplicableClasses);
+        entity.StartDate = dto.StartDate;
+        entity.EndDate = dto.EndDate;
+        entity.Eligibility = dto.Eligibility;
+        entity.Description = dto.Description;
+        entity.Status = dto.Status;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return MapToScholarshipDto(entity);
     }
 
     public async Task<bool> DeleteScholarshipAsync(int id)
     {
-        return await Task.FromResult(_scholarships.TryRemove(id, out _));
+        var entity = await _context.Scholarships.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return false;
+
+        _context.Scholarships.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<List<StudentScholarshipAwardDto>> GetStudentScholarshipsAsync(string? search, string? className, int? scholarshipId)
     {
-        var list = _studentScholarships.Values.ToList();
+        var query = _context.StudentScholarships.AsNoTracking().AsQueryable();
+
         if (scholarshipId.HasValue && scholarshipId.Value > 0)
         {
-            list = list.Where(x => x.ScholarshipId == scholarshipId.Value).ToList();
+            query = query.Where(x => x.ScholarshipId == scholarshipId.Value);
         }
         if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.ClassName == className);
         }
         if (!string.IsNullOrWhiteSpace(search))
         {
             string s = search.Trim().ToLower();
-            list = list.Where(x => x.StudentName.ToLower().Contains(s) || x.AdmissionNo.ToLower().Contains(s)).ToList();
+            query = query.Where(x => x.StudentName.ToLower().Contains(s) || (x.AdmissionNo != null && x.AdmissionNo.ToLower().Contains(s)));
         }
-        return await Task.FromResult(list.OrderByDescending(x => x.Id).ToList());
+
+        var entities = await query.OrderByDescending(x => x.Id).ToListAsync();
+        return entities.Select(MapToStudentScholarshipAwardDto).ToList();
     }
 
     public async Task<StudentScholarshipAwardDto> AwardScholarshipToStudentAsync(AwardScholarshipRequestDto request)
     {
         int studentIdNum = int.TryParse(request.StudentId, out int sId) ? sId : 0;
         var student = await _context.Students
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
             .FirstOrDefaultAsync(s => s.StudentId == studentIdNum || s.AdmissionNumber == request.StudentId);
 
-        string clsName = "Class 1";
-        if (student != null)
-        {
-            var cls = await _context.Classes.FirstOrDefaultAsync(c => c.ClassId == student.ClassId);
-            if (cls != null && !string.IsNullOrEmpty(cls.ClassName))
-                clsName = cls.ClassName;
-        }
+        var sch = await _context.Scholarships.FirstOrDefaultAsync(x => x.Id == request.ScholarshipId);
 
-        _scholarships.TryGetValue(request.ScholarshipId, out var sch);
+        string clsName = student?.ClassGrade?.ClassName ?? "Class 1";
+        string secName = student?.ClassSection?.SectionName ?? "A";
+        string stName = student?.StudentName ?? "Student";
+        string admNo = student?.AdmissionNumber ?? $"ADM-{request.StudentId}";
 
-        int newId = _studentScholarships.Count > 0 ? _studentScholarships.Keys.Max() + 1 : 1;
-        var award = new StudentScholarshipAwardDto
+        var award = new StudentScholarship
         {
-            Id = newId,
             StudentId = student != null ? student.StudentId.ToString() : request.StudentId,
-            StudentName = student != null && !string.IsNullOrWhiteSpace(student.StudentName) ? student.StudentName : "Student",
-            AdmissionNo = student?.AdmissionNumber ?? $"ADM-{request.StudentId}",
+            StudentName = stName,
+            AdmissionNo = admNo,
             ClassName = clsName,
-            Section = "A",
+            Section = secName,
             ScholarshipId = request.ScholarshipId,
             ScholarshipName = sch?.Name ?? "Scholarship Grant",
             ScholarshipCode = sch?.Code ?? "SCH-000",
             DiscountType = sch?.DiscountType ?? "Percentage",
             DiscountValue = sch != null ? (sch.DiscountType == "Percentage" ? sch.Percentage : sch.FixedAmount) : 15m,
             AppliedDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            Status = "Active"
+            Status = "Active",
+            CreatedAt = DateTime.UtcNow
         };
 
-        _studentScholarships[newId] = award;
-        return award;
+        _context.StudentScholarships.Add(award);
+        await _context.SaveChangesAsync();
+        return MapToStudentScholarshipAwardDto(award);
     }
 
     public async Task<bool> RevokeStudentScholarshipAsync(int id)
     {
-        return await Task.FromResult(_studentScholarships.TryRemove(id, out _));
+        var entity = await _context.StudentScholarships.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return false;
+
+        _context.StudentScholarships.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private static ScholarshipMasterDto MapToScholarshipDto(Scholarship s)
+    {
+        List<string> feeHeads = new();
+        List<string> classes = new();
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(s.ApplicableFeeHeadIdsJson))
+                feeHeads = JsonSerializer.Deserialize<List<string>>(s.ApplicableFeeHeadIdsJson) ?? new();
+        }
+        catch { }
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(s.ApplicableClassesJson))
+                classes = JsonSerializer.Deserialize<List<string>>(s.ApplicableClassesJson) ?? new();
+        }
+        catch { }
+
+        return new ScholarshipMasterDto
+        {
+            Id = s.Id,
+            Name = s.Name,
+            Code = s.Code,
+            Type = s.Type,
+            DiscountType = s.DiscountType,
+            Percentage = s.Percentage,
+            FixedAmount = s.FixedAmount,
+            ApplicableFeeHeadIds = feeHeads,
+            ApplicableClasses = classes,
+            StartDate = s.StartDate,
+            EndDate = s.EndDate,
+            Eligibility = s.Eligibility ?? string.Empty,
+            Description = s.Description ?? string.Empty,
+            Status = s.Status
+        };
+    }
+
+    private static StudentScholarshipAwardDto MapToStudentScholarshipAwardDto(StudentScholarship ss)
+    {
+        return new StudentScholarshipAwardDto
+        {
+            Id = ss.Id,
+            StudentId = ss.StudentId,
+            StudentName = ss.StudentName,
+            AdmissionNo = ss.AdmissionNo ?? string.Empty,
+            ClassName = ss.ClassName ?? string.Empty,
+            Section = ss.Section ?? string.Empty,
+            ScholarshipId = ss.ScholarshipId,
+            ScholarshipName = ss.ScholarshipName,
+            ScholarshipCode = ss.ScholarshipCode,
+            DiscountType = ss.DiscountType,
+            DiscountValue = ss.DiscountValue,
+            AppliedDate = ss.AppliedDate,
+            Status = ss.Status
+        };
     }
 
     // =========================================================================
@@ -603,116 +788,194 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<DiscountRuleDto>> GetDiscountsAsync(string? search, string? type, string? mode, string? status)
     {
-        var list = _discounts.Values.ToList();
+        var query = _context.Discounts.AsNoTracking().AsQueryable();
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             string s = search.Trim().ToLower();
-            list = list.Where(x => x.Name.ToLower().Contains(s) || x.Code.ToLower().Contains(s)).ToList();
+            query = query.Where(x => x.Name.ToLower().Contains(s) || x.Code.ToLower().Contains(s));
         }
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.Type.Equals(type, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.Type.ToLower() == type.ToLower());
         }
         if (!string.IsNullOrWhiteSpace(mode) && !mode.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.Mode.Equals(mode, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.Mode.ToLower() == mode.ToLower());
         }
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.Status.ToLower() == status.ToLower());
         }
-        return await Task.FromResult(list.OrderBy(x => x.Id).ToList());
+
+        var entities = await query.OrderBy(x => x.Id).ToListAsync();
+        return entities.Select(MapToDiscountRuleDto).ToList();
     }
 
     public async Task<DiscountRuleDto?> GetDiscountByIdAsync(int id)
     {
-        _discounts.TryGetValue(id, out var item);
-        return await Task.FromResult(item);
+        var entity = await _context.Discounts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        return entity == null ? null : MapToDiscountRuleDto(entity);
     }
 
     public async Task<DiscountRuleDto> CreateDiscountAsync(DiscountRuleDto discount)
     {
-        int newId = _discounts.Count > 0 ? _discounts.Keys.Max() + 1 : 1;
-        discount.Id = newId;
-        if (string.IsNullOrEmpty(discount.Code))
-            discount.Code = $"DSC-{newId:D3}";
-        _discounts[newId] = discount;
-        return await Task.FromResult(discount);
+        string code = discount.Code;
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            int maxId = await _context.Discounts.MaxAsync(x => (int?)x.Id) ?? 0;
+            code = $"DSC-{maxId + 1:D3}";
+        }
+
+        var entity = new DiscountRule
+        {
+            Name = discount.Name,
+            Code = code,
+            Type = string.IsNullOrWhiteSpace(discount.Type) ? "Sibling Discount" : discount.Type,
+            Mode = string.IsNullOrWhiteSpace(discount.Mode) ? "Percentage" : discount.Mode,
+            Value = discount.Value,
+            Description = discount.Description ?? string.Empty,
+            Status = string.IsNullOrWhiteSpace(discount.Status) ? "Active" : discount.Status,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.Discounts.Add(entity);
+        await _context.SaveChangesAsync();
+        return MapToDiscountRuleDto(entity);
     }
 
     public async Task<DiscountRuleDto?> UpdateDiscountAsync(int id, DiscountRuleDto discount)
     {
-        if (!_discounts.ContainsKey(id)) return null;
-        discount.Id = id;
-        _discounts[id] = discount;
-        return await Task.FromResult(discount);
+        var entity = await _context.Discounts.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return null;
+
+        entity.Name = discount.Name;
+        if (!string.IsNullOrWhiteSpace(discount.Code))
+            entity.Code = discount.Code;
+        entity.Type = string.IsNullOrWhiteSpace(discount.Type) ? entity.Type : discount.Type;
+        entity.Mode = string.IsNullOrWhiteSpace(discount.Mode) ? entity.Mode : discount.Mode;
+        entity.Value = discount.Value;
+        entity.Description = discount.Description ?? entity.Description;
+        entity.Status = string.IsNullOrWhiteSpace(discount.Status) ? entity.Status : discount.Status;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return MapToDiscountRuleDto(entity);
     }
 
     public async Task<bool> DeleteDiscountAsync(int id)
     {
-        return await Task.FromResult(_discounts.TryRemove(id, out _));
+        var entity = await _context.Discounts.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return false;
+
+        _context.Discounts.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<List<StudentDiscountDto>> GetStudentDiscountsAsync(string? search, string? className, int? discountId)
     {
-        var list = _studentDiscounts.Values.ToList();
+        var query = _context.StudentDiscounts.AsNoTracking().AsQueryable();
+
         if (discountId.HasValue && discountId.Value > 0)
         {
-            list = list.Where(x => x.DiscountId == discountId.Value).ToList();
+            query = query.Where(x => x.DiscountId == discountId.Value);
         }
         if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(x => x.ClassName != null && x.ClassName.ToLower() == className.ToLower());
         }
         if (!string.IsNullOrWhiteSpace(search))
         {
             string s = search.Trim().ToLower();
-            list = list.Where(x => x.StudentName.ToLower().Contains(s) || x.AdmissionNo.ToLower().Contains(s)).ToList();
+            query = query.Where(x => x.StudentName.ToLower().Contains(s) || (x.AdmissionNo != null && x.AdmissionNo.ToLower().Contains(s)));
         }
-        return await Task.FromResult(list.OrderByDescending(x => x.Id).ToList());
+
+        var entities = await query.OrderByDescending(x => x.Id).ToListAsync();
+        return entities.Select(MapToStudentDiscountDto).ToList();
     }
 
     public async Task<StudentDiscountDto> GrantDiscountToStudentAsync(GrantDiscountRequestDto request)
     {
         int studentIdNum = int.TryParse(request.StudentId, out int sId) ? sId : 0;
         var student = await _context.Students
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
             .FirstOrDefaultAsync(s => s.StudentId == studentIdNum || s.AdmissionNumber == request.StudentId);
 
-        string clsName = "Class 1";
-        if (student != null)
-        {
-            var cls = await _context.Classes.FirstOrDefaultAsync(c => c.ClassId == student.ClassId);
-            if (cls != null && !string.IsNullOrEmpty(cls.ClassName))
-                clsName = cls.ClassName;
-        }
+        var disc = await _context.Discounts.FirstOrDefaultAsync(x => x.Id == request.DiscountId);
 
-        _discounts.TryGetValue(request.DiscountId, out var disc);
+        string clsName = student?.ClassGrade?.ClassName ?? "Class 1";
+        string secName = student?.ClassSection?.SectionName ?? "A";
+        string stName = student?.StudentName ?? "Student";
+        string admNo = student?.AdmissionNumber ?? $"ADM-{request.StudentId}";
 
-        int newId = _studentDiscounts.Count > 0 ? _studentDiscounts.Keys.Max() + 1 : 1;
-        var award = new StudentDiscountDto
+        var award = new StudentDiscount
         {
-            Id = newId,
             StudentId = student != null ? student.StudentId.ToString() : request.StudentId,
-            StudentName = student != null && !string.IsNullOrWhiteSpace(student.StudentName) ? student.StudentName : "Student",
-            AdmissionNo = student?.AdmissionNumber ?? $"ADM-{request.StudentId}",
+            StudentName = stName,
+            AdmissionNo = admNo,
             ClassName = clsName,
-            Section = "A",
+            Section = secName,
             DiscountId = request.DiscountId,
             DiscountName = disc?.Name ?? "Fee Concession",
             DiscountCode = disc?.Code ?? "DSC-000",
             Mode = disc?.Mode ?? "Percentage",
             Value = disc?.Value ?? 10m,
             AppliedDate = DateTime.Now.ToString("yyyy-MM-dd"),
-            Status = "Active"
+            Status = "Active",
+            CreatedAt = DateTime.UtcNow
         };
 
-        _studentDiscounts[newId] = award;
-        return award;
+        _context.StudentDiscounts.Add(award);
+        await _context.SaveChangesAsync();
+        return MapToStudentDiscountDto(award);
     }
 
     public async Task<bool> RemoveStudentDiscountAsync(int id)
     {
-        return await Task.FromResult(_studentDiscounts.TryRemove(id, out _));
+        var entity = await _context.StudentDiscounts.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return false;
+
+        _context.StudentDiscounts.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private static DiscountRuleDto MapToDiscountRuleDto(DiscountRule d)
+    {
+        return new DiscountRuleDto
+        {
+            Id = d.Id,
+            Name = d.Name,
+            Code = d.Code,
+            Type = d.Type,
+            Mode = d.Mode,
+            Value = d.Value,
+            Description = d.Description ?? string.Empty,
+            Status = d.Status
+        };
+    }
+
+    private static StudentDiscountDto MapToStudentDiscountDto(StudentDiscount sd)
+    {
+        return new StudentDiscountDto
+        {
+            Id = sd.Id,
+            StudentId = sd.StudentId,
+            StudentName = sd.StudentName,
+            AdmissionNo = sd.AdmissionNo ?? string.Empty,
+            ClassName = sd.ClassName ?? string.Empty,
+            Section = sd.Section ?? string.Empty,
+            DiscountId = sd.DiscountId,
+            DiscountName = sd.DiscountName,
+            DiscountCode = sd.DiscountCode,
+            Mode = sd.Mode,
+            Value = sd.Value,
+            AppliedDate = sd.AppliedDate,
+            Status = sd.Status
+        };
     }
 
     // =========================================================================

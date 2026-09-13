@@ -9,6 +9,7 @@ using SMS.Api.Repositories.Interfaces.FinanceManagement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 public class FeeCollectionRepository : IFeeCollectionRepository
@@ -95,26 +96,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             string cName = st.ClassGrade?.ClassName ?? "Class 10";
             string sName = st.ClassSection?.SectionName ?? "A";
 
-            decimal baseClassFee = 40500m;
+            decimal baseClassFee = 0m;
             var matchedStructure = feeStructures.FirstOrDefault(f => 
                 !string.IsNullOrEmpty(f.ClassName) && 
-                (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || cName.Contains(f.ClassName)));
+                (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || 
+                 cName.IndexOf(f.ClassName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 f.ClassName.IndexOf(cName, StringComparison.OrdinalIgnoreCase) >= 0) &&
+                (string.IsNullOrEmpty(f.Section) || f.Section.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Section.Equals(sName, StringComparison.OrdinalIgnoreCase)));
 
             if (matchedStructure != null && matchedStructure.TotalAmount > 0)
             {
                 baseClassFee = matchedStructure.TotalAmount;
-            }
-            else if (cName.Contains("10"))
-            {
-                baseClassFee = 78000m;
-            }
-            else if (cName.Contains("9") || cName.Contains("8"))
-            {
-                baseClassFee = 65000m;
-            }
-            else if (cName.Contains("Nursery") || cName.Contains("LKG") || cName.Contains("UKG"))
-            {
-                baseClassFee = 40500m;
             }
 
             var stPayments = payments.Where(p => p.StudentId == st.StudentId.ToString() || p.StudentId == st.AdmissionNumber).ToList();
@@ -188,94 +180,129 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
         var matchedStructure = feeStructures.FirstOrDefault(f => 
             !string.IsNullOrEmpty(f.ClassName) && 
-            (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || cName.Contains(f.ClassName)));
+            (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || 
+             cName.IndexOf(f.ClassName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+             f.ClassName.IndexOf(cName, StringComparison.OrdinalIgnoreCase) >= 0) &&
+            (string.IsNullOrEmpty(f.Section) || f.Section.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Section.Equals(sName, StringComparison.OrdinalIgnoreCase)));
 
         decimal totalExpectedFee = matchedStructure != null && matchedStructure.TotalAmount > 0 
             ? matchedStructure.TotalAmount 
-            : (cName.Contains("10") ? 78000m : 40500m);
+            : 0m;
 
         var lineItems = new List<FeeLineItemDto>();
-
-        decimal tuitionTotal = Math.Round(totalExpectedFee * 0.90m, 0);
-        decimal termAmt = Math.Round(tuitionTotal / 4m, 0);
-
-        var terms = new List<FeeTermItemDto>
-        {
-            new FeeTermItemDto { TermId = "term-1", TermNumber = 1, TermName = "Term 1 (Apr - Jun)", DueDate = "2026-04-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "OVERDUE", IsOverdue = true, DaysOverdue = 134 },
-            new FeeTermItemDto { TermId = "term-2", TermNumber = 2, TermName = "Term 2 (Jul - Sep)", DueDate = "2026-07-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "OVERDUE", IsOverdue = true, DaysOverdue = 45 },
-            new FeeTermItemDto { TermId = "term-3", TermNumber = 3, TermName = "Term 3 (Oct - Dec)", DueDate = "2026-10-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "PENDING", IsOverdue = false, DaysOverdue = 0 },
-            new FeeTermItemDto { TermId = "term-4", TermNumber = 4, TermName = "Term 4 (Jan - Mar)", DueDate = "2027-01-15", Amount = termAmt, PaidAmount = 0m, RemainingAmount = termAmt, Status = "PENDING", IsOverdue = false, DaysOverdue = 0 }
-        };
-
         decimal runningPaid = totalPaid;
-        foreach (var t in terms)
+
+        if (totalExpectedFee > 0m)
         {
-            if (runningPaid >= t.Amount)
+            List<FeeStructureItemDto>? parsedItems = null;
+            if (!string.IsNullOrEmpty(matchedStructure?.ItemsJson))
             {
-                t.PaidAmount = t.Amount;
-                t.RemainingAmount = 0m;
-                t.Status = "PAID";
-                t.IsOverdue = false;
-                runningPaid -= t.Amount;
+                try
+                {
+                    parsedItems = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(matchedStructure.ItemsJson);
+                }
+                catch { }
             }
-            else if (runningPaid > 0)
+
+            if (parsedItems != null && parsedItems.Count > 0)
             {
-                t.PaidAmount = runningPaid;
-                t.RemainingAmount = t.Amount - runningPaid;
-                t.Status = "PARTIAL";
-                runningPaid = 0;
+                foreach (var pi in parsedItems)
+                {
+                    decimal itemTotal = pi.Amount;
+                    decimal itemPaid = Math.Min(itemTotal, runningPaid);
+                    runningPaid -= itemPaid;
+                    decimal itemRemaining = Math.Max(0m, itemTotal - itemPaid);
+
+                    decimal termAmt = Math.Round(itemTotal / 4m, 0);
+                    decimal termRunningPaid = itemPaid;
+                    var itemTerms = new List<FeeTermItemDto>();
+                    for (int tIdx = 1; tIdx <= 4; tIdx++)
+                    {
+                        decimal thisTermAmt = (tIdx == 4) ? (itemTotal - termAmt * 3m) : termAmt;
+                        decimal thisTermPaid = Math.Min(thisTermAmt, termRunningPaid);
+                        termRunningPaid -= thisTermPaid;
+                        decimal thisTermRemaining = Math.Max(0m, thisTermAmt - thisTermPaid);
+                        bool isTermOverdue = thisTermRemaining > 0 && tIdx <= 2;
+                        itemTerms.Add(new FeeTermItemDto
+                        {
+                            TermId = $"term-{tIdx}",
+                            TermNumber = tIdx,
+                            TermName = $"Term {tIdx}",
+                            DueDate = tIdx switch { 1 => "2026-04-15", 2 => "2026-07-15", 3 => "2026-10-15", _ => "2027-01-15" },
+                            Amount = thisTermAmt,
+                            PaidAmount = thisTermPaid,
+                            RemainingAmount = thisTermRemaining,
+                            Status = thisTermRemaining == 0 ? "PAID" : (thisTermPaid > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
+                            IsOverdue = isTermOverdue,
+                            DaysOverdue = isTermOverdue ? (tIdx == 1 ? 134 : 45) : 0
+                        });
+                    }
+
+                    bool isOverdue = itemRemaining > 0 && itemTerms.Any(t => t.IsOverdue);
+                    lineItems.Add(new FeeLineItemDto
+                    {
+                        FeeHeadId = !string.IsNullOrEmpty(pi.FeeHeadId) ? pi.FeeHeadId : "head-default",
+                        HeadName = !string.IsNullOrEmpty(pi.FeeHeadName) ? pi.FeeHeadName : "School Fee",
+                        Frequency = "Term-Wise (4 Terms)",
+                        DueDate = "2026-04-15",
+                        TotalAmount = itemTotal,
+                        PaidAmount = itemPaid,
+                        RemainingAmount = itemRemaining,
+                        Status = itemRemaining == 0 ? "PAID" : (itemPaid > 0 ? "PARTIAL" : (isOverdue ? "OVERDUE" : "PENDING")),
+                        IsOverdue = isOverdue,
+                        DaysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0,
+                        Terms = itemTerms
+                    });
+                }
+            }
+            else
+            {
+                decimal itemTotal = totalExpectedFee;
+                decimal itemPaid = Math.Min(itemTotal, runningPaid);
+                runningPaid -= itemPaid;
+                decimal itemRemaining = Math.Max(0m, itemTotal - itemPaid);
+                decimal termAmt = Math.Round(itemTotal / 4m, 0);
+                decimal termRunningPaid = itemPaid;
+                var itemTerms = new List<FeeTermItemDto>();
+                for (int tIdx = 1; tIdx <= 4; tIdx++)
+                {
+                    decimal thisTermAmt = (tIdx == 4) ? (itemTotal - termAmt * 3m) : termAmt;
+                    decimal thisTermPaid = Math.Min(thisTermAmt, termRunningPaid);
+                    termRunningPaid -= thisTermPaid;
+                    decimal thisTermRemaining = Math.Max(0m, thisTermAmt - thisTermPaid);
+                    bool isTermOverdue = thisTermRemaining > 0 && tIdx <= 2;
+                    itemTerms.Add(new FeeTermItemDto
+                    {
+                        TermId = $"term-{tIdx}",
+                        TermNumber = tIdx,
+                        TermName = $"Term {tIdx}",
+                        DueDate = tIdx switch { 1 => "2026-04-15", 2 => "2026-07-15", 3 => "2026-10-15", _ => "2027-01-15" },
+                        Amount = thisTermAmt,
+                        PaidAmount = thisTermPaid,
+                        RemainingAmount = thisTermRemaining,
+                        Status = thisTermRemaining == 0 ? "PAID" : (thisTermPaid > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
+                        IsOverdue = isTermOverdue,
+                        DaysOverdue = isTermOverdue ? (tIdx == 1 ? 134 : 45) : 0
+                    });
+                }
+
+                bool isOverdue = itemRemaining > 0 && itemTerms.Any(t => t.IsOverdue);
+                lineItems.Add(new FeeLineItemDto
+                {
+                    FeeHeadId = "head-tuition",
+                    HeadName = "Academic Fee",
+                    Frequency = "Term-Wise (4 Terms)",
+                    DueDate = "2026-04-15",
+                    TotalAmount = itemTotal,
+                    PaidAmount = itemPaid,
+                    RemainingAmount = itemRemaining,
+                    Status = itemRemaining == 0 ? "PAID" : (itemPaid > 0 ? "PARTIAL" : (isOverdue ? "OVERDUE" : "PENDING")),
+                    IsOverdue = isOverdue,
+                    DaysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0,
+                    Terms = itemTerms
+                });
             }
         }
-
-        lineItems.Add(new FeeLineItemDto
-        {
-            FeeHeadId = "head-tuition",
-            HeadName = "Tuition Fee",
-            Frequency = "Term-Wise (4 Terms)",
-            DueDate = "2026-04-15",
-            TotalAmount = tuitionTotal,
-            PaidAmount = terms.Sum(t => t.PaidAmount),
-            RemainingAmount = terms.Sum(t => t.RemainingAmount),
-            Status = terms.All(t => t.Status == "PAID") ? "PAID" : "PENDING",
-            IsOverdue = terms.Any(t => t.IsOverdue),
-            DaysOverdue = terms.Max(t => t.DaysOverdue),
-            Terms = terms
-        });
-
-        decimal admissionFeeAmt = 3000m;
-        decimal admissionPaid = Math.Min(admissionFeeAmt, runningPaid);
-        runningPaid -= admissionPaid;
-
-        lineItems.Add(new FeeLineItemDto
-        {
-            FeeHeadId = "head-admission",
-            HeadName = "Admission Fee",
-            Frequency = "One Time",
-            DueDate = "2026-04-15",
-            TotalAmount = admissionFeeAmt,
-            PaidAmount = admissionPaid,
-            RemainingAmount = admissionFeeAmt - admissionPaid,
-            Status = admissionPaid >= admissionFeeAmt ? "PAID" : "OVERDUE",
-            IsOverdue = admissionPaid < admissionFeeAmt,
-            DaysOverdue = 134
-        });
-
-        decimal textbookAmt = 3000m;
-        decimal textbookPaid = Math.Min(textbookAmt, runningPaid);
-
-        lineItems.Add(new FeeLineItemDto
-        {
-            FeeHeadId = "head-textbook",
-            HeadName = "Textbook & Material Fee",
-            Frequency = "Annual",
-            DueDate = "2026-04-15",
-            TotalAmount = textbookAmt,
-            PaidAmount = textbookPaid,
-            RemainingAmount = textbookAmt - textbookPaid,
-            Status = textbookPaid >= textbookAmt ? "PAID" : "OVERDUE",
-            IsOverdue = textbookPaid < textbookAmt,
-            DaysOverdue = 134
-        });
 
         decimal totalOutstanding = lineItems.Sum(l => l.RemainingAmount);
 
@@ -309,9 +336,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             FineRule = new LateFineRuleDetailDto
             {
                 RuleName = "Standard Monthly Late Fine Rule",
-                DaysOverdue = 134,
-                CalculatedFineAmount = 1500m,
-                IsWaived = false
+                DaysOverdue = lineItems.Any(l => l.IsOverdue) ? lineItems.Max(l => l.DaysOverdue) : 0,
+                CalculatedFineAmount = 0m,
+                IsWaived = totalOutstanding == 0
             },
             AvailableScholarships = new List<ConcessionOptionDto>
             {

@@ -3043,16 +3043,91 @@ using (var scope = app.Services.CreateScope())
                     `Status` VARCHAR(50) NOT NULL DEFAULT 'Completed'
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-                DELETE FROM `feepayments`;
-                DELETE FROM `studentfeeassignments`;
-                DELETE FROM `dynamicfeestructures`;
-                DELETE FROM `feeheads`;
+                CREATE TABLE IF NOT EXISTS `fee_schedules` (
+                    `Id` VARCHAR(100) NOT NULL PRIMARY KEY,
+                    `AcademicYear` VARCHAR(50) NOT NULL,
+                    `NumberOfTerms` INT NOT NULL DEFAULT 4,
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Published',
+                    `AnnualDueDate` VARCHAR(50) NOT NULL DEFAULT '2026-04-15',
+                    `OneTimeDueDate` VARCHAR(50) NOT NULL DEFAULT '2026-04-15',
+                    `terms_json` LONGTEXT NULL,
+                    `monthly_config_json` LONGTEXT NULL,
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY `uk_fee_schedules_ay` (`AcademicYear`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `scholarships` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `Name` VARCHAR(150) NOT NULL,
+                    `Code` VARCHAR(50) NOT NULL UNIQUE,
+                    `Type` VARCHAR(50) NOT NULL DEFAULT 'Merit',
+                    `DiscountType` VARCHAR(30) NOT NULL DEFAULT 'Percentage',
+                    `Percentage` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `FixedAmount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `ApplicableFeeHeadIdsJson` LONGTEXT NULL,
+                    `ApplicableClassesJson` LONGTEXT NULL,
+                    `StartDate` VARCHAR(30) NOT NULL DEFAULT '2026-04-01',
+                    `EndDate` VARCHAR(30) NOT NULL DEFAULT '2027-03-31',
+                    `Eligibility` VARCHAR(255) NULL,
+                    `Description` LONGTEXT NULL,
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `student_scholarships` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `StudentId` VARCHAR(50) NOT NULL,
+                    `StudentName` VARCHAR(150) NOT NULL,
+                    `AdmissionNo` VARCHAR(50) NULL,
+                    `ClassName` VARCHAR(50) NULL,
+                    `Section` VARCHAR(20) NULL,
+                    `ScholarshipId` INT NOT NULL,
+                    `ScholarshipName` VARCHAR(150) NOT NULL,
+                    `ScholarshipCode` VARCHAR(50) NOT NULL,
+                    `DiscountType` VARCHAR(30) NOT NULL DEFAULT 'Percentage',
+                    `DiscountValue` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `AppliedDate` VARCHAR(30) NOT NULL,
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `discounts` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `Name` VARCHAR(150) NOT NULL,
+                    `Code` VARCHAR(50) NOT NULL UNIQUE,
+                    `Type` VARCHAR(50) NOT NULL DEFAULT 'Sibling Discount',
+                    `Mode` VARCHAR(30) NOT NULL DEFAULT 'Percentage',
+                    `Value` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `Description` LONGTEXT NULL,
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `student_discounts` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `StudentId` VARCHAR(50) NOT NULL,
+                    `StudentName` VARCHAR(150) NOT NULL,
+                    `AdmissionNo` VARCHAR(50) NULL,
+                    `ClassName` VARCHAR(50) NULL,
+                    `Section` VARCHAR(20) NULL,
+                    `DiscountId` INT NOT NULL,
+                    `DiscountName` VARCHAR(150) NOT NULL,
+                    `DiscountCode` VARCHAR(50) NOT NULL,
+                    `Mode` VARCHAR(30) NOT NULL DEFAULT 'Percentage',
+                    `Value` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `AppliedDate` VARCHAR(30) NOT NULL,
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
-            Console.WriteLine("[Finance Clean Slate] Wiped test finance records from MySQL database.");
+            Console.WriteLine("[Finance Init] Verified finance tables in MySQL database.");
         }
         catch (Exception finEx)
         {
-            Console.WriteLine($"[Finance Clean Slate] Note: {finEx.Message}");
+            Console.WriteLine($"[Finance Init] Note: {finEx.Message}");
         }
       }
     }

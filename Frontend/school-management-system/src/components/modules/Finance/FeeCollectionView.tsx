@@ -1657,7 +1657,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                           {isHosteller ? "Residential" : "Day Scholar"}
                         </span>
                       </td>
-                      <td className="p-3.5 text-right font-mono font-black text-rose-600 dark:text-rose-400 text-xs">
+                      <td
+                        className={`p-3.5 text-right font-mono text-xs ${
+                          dueAmt > 0
+                            ? "font-black text-rose-600 dark:text-rose-400"
+                            : "font-bold text-emerald-600 dark:text-emerald-400"
+                        }`}
+                      >
                         {formatCurrency(dueAmt)}
                       </td>
                       <td className="p-3.5 text-center pr-4">
