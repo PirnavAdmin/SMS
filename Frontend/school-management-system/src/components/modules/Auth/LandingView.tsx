@@ -136,11 +136,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           if (!isMounted) return;
           const data = res?.data || res;
           if (data) {
-            const backendLogo = data.logoUrl || data.logo || savedLogo || '';
-            const effectiveLogo =
-              savedLogo && (savedLogo.startsWith('data:') || savedLogo !== '/pirnav-school-logo.png')
-                ? savedLogo
-                : (backendLogo && backendLogo !== '/pirnav-school-logo.png' ? backendLogo : (savedLogo || backendLogo || ''));
+            const backendLogo = data.logoUrl || data.logo || '';
+            const effectiveLogo = backendLogo || savedLogo || schoolInfo.logoUrl;
 
             const updated: DynamicSchoolInfo = {
               name: data.schoolName || data.name || savedName || '',
