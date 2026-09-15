@@ -99,17 +99,17 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       isPackage: false
     });
     setPackageSizeStock({
-      'XS': 30,
-      'S': 50,
-      'M': 100,
-      'L': 80,
-      'XL': 40
+      'XS': 0,
+      'S': 0,
+      'M': 0,
+      'L': 0,
+      'XL': 0
     });
     setFabricStock({
-      '1.0m - 1.5m': 50,
-      '1.5m - 2.0m': 100,
-      '2.0m - 2.5m': 75,
-      '2.5m - 3.0m': 30
+      '1.0m - 1.5m': 0,
+      '1.5m - 2.0m': 0,
+      '2.0m - 2.5m': 0,
+      '2.5m - 3.0m': 0
     });
 
     const initMap: { [catName: string]: { selected: boolean, quantity: string } } = {};

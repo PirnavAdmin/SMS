@@ -131,10 +131,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
   });
 
   const filteredStudentIssues = studentUniformIssues.filter(i => {
-    const name = (i?.studentName || '').toLowerCase();
-    const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
-    const isDummy = name.includes('dummy') || name.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
-    if (isDummy) return false;
+    if (!i || !(i.studentName || i.studentId || i.admissionNo)) return false;
 
     if (filterClass !== 'All' && i.className !== filterClass) return false;
 
@@ -208,7 +205,8 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     if (reportType !== 'Additional Uniform Sales') {
       return filteredStudentIssues.map(i => {
         const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-        const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 5000 : 350));
+        const configPrice = getItemPriceFromConfig(i.itemCategory || i.itemName, financeUniformConfigs);
+        const unitPrice = i.price || (uItem ? uItem.price : 0) || configPrice || 0;
         return {
           id: i.id,
           studentName: i.studentName,
@@ -246,10 +244,8 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
       const normKey = (i.studentName || 'Student').toLowerCase().replace(/[^a-z0-9]/g, '');
       const cleanItemName = i.itemName.replace(/\s*\(Extra\)/gi, '').trim();
       const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-      let price = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 5000 : 350));
-      if (!price || price <= 0) {
-        price = getItemPriceFromConfig(i.itemCategory || i.itemName, financeUniformConfigs);
-      }
+      const configPrice = getItemPriceFromConfig(i.itemCategory || i.itemName, financeUniformConfigs);
+      const price = i.price || (uItem ? uItem.price : 0) || configPrice || 0;
       const itemTotal = price * (i.quantity || 1);
 
       const existing = map.get(normKey);
