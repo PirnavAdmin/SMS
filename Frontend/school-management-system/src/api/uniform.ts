@@ -1,11 +1,27 @@
 import { apiClient } from './client';
 
+const safeUniformApiCall = async <T>(endpoint: string, options?: RequestInit, fallbackData?: any): Promise<T> => {
+  try {
+    const res = await apiClient(endpoint, options);
+    if (res !== undefined && res !== null && !(res as any)?.error) {
+      return (res as any)?.data !== undefined ? (res as any).data : res;
+    }
+  } catch (err) {
+    const method = options?.method?.toUpperCase() || 'GET';
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      throw err;
+    }
+    console.warn(`Uniform API call failed for ${endpoint}:`, err);
+  }
+  return fallbackData as T;
+};
+
 // ============================
 // UNIFORM DASHBOARD
 // ============================
 
 export const fetchUniformDashboardApi = async () => {
-  return apiClient('/api/Uniform/dashboard', { method: 'GET' });
+  return safeUniformApiCall('/api/Uniform/dashboard', { method: 'GET' }, null);
 };
 
 // ============================
@@ -13,11 +29,11 @@ export const fetchUniformDashboardApi = async () => {
 // ============================
 
 export const fetchUniformTypesApi = async () => {
-  return apiClient('/api/Uniform/types', { method: 'GET' });
+  return safeUniformApiCall('/api/Uniform/types', { method: 'GET' }, []);
 };
 
 export const fetchUniformTypeByIdApi = async (id: number | string) => {
-  return apiClient(`/api/Uniform/types/${id}`, { method: 'GET' });
+  return safeUniformApiCall(`/api/Uniform/types/${id}`, { method: 'GET' }, null);
 };
 
 export const createUniformTypeApi = async (payload: any) => {
@@ -50,7 +66,7 @@ export const adjustUniformStockApi = async (id: number | string, payload: any) =
 // ============================
 
 export const fetchUniformCategoriesApi = async () => {
-  return apiClient('/api/Uniform/categories', { method: 'GET' });
+  return safeUniformApiCall('/api/Uniform/categories', { method: 'GET' }, []);
 };
 
 export const createUniformCategoryApi = async (payload: any) => {
@@ -76,7 +92,7 @@ export const deleteUniformCategoryApi = async (id: number | string) => {
 // ============================
 
 export const fetchUniformSizesApi = async () => {
-  return apiClient('/api/Uniform/sizes', { method: 'GET' });
+  return safeUniformApiCall('/api/Uniform/sizes', { method: 'GET' }, []);
 };
 
 export const createUniformSizeApi = async (payload: any) => {
@@ -102,7 +118,7 @@ export const deleteUniformSizeApi = async (id: number | string) => {
 // ============================
 
 export const fetchUniformSuppliersApi = async () => {
-  return apiClient('/api/Uniform/suppliers', { method: 'GET' });
+  return safeUniformApiCall('/api/Uniform/suppliers', { method: 'GET' }, []);
 };
 
 export const createUniformSupplierApi = async (payload: any) => {
@@ -132,7 +148,7 @@ export const fetchUniformDistributionsApi = async (search?: string, studentId?: 
   if (search) params.append('search', search);
   if (studentId) params.append('studentId', String(studentId));
   const query = params.toString();
-  return apiClient(`/api/Uniform/distributions${query ? `?${query}` : ''}`, { method: 'GET' });
+  return safeUniformApiCall(`/api/Uniform/distributions${query ? `?${query}` : ''}`, { method: 'GET' }, []);
 };
 
 export const issueUniformApi = async (payload: any) => {
@@ -165,5 +181,5 @@ export const exchangeUniformApi = async (id: number | string, payload: any) => {
 // ============================
 
 export const fetchUniformReportsApi = async () => {
-  return apiClient('/api/Uniform/reports', { method: 'GET' });
+  return safeUniformApiCall('/api/Uniform/reports', { method: 'GET' }, null);
 };

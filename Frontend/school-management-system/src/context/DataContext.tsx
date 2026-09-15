@@ -5318,17 +5318,82 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const types = extract(typeRes);
         const dists = extract(distRes);
         if (cats.length) {
-          setUniformCategories((prev) => prev);
+          const normalizedCats: UniformCategory[] = cats.map((c: any) => ({
+            id: String(c.id || c.categoryId || `UC-${Date.now()}`),
+            name: c.categoryName || c.name || '',
+            categoryName: c.categoryName || c.name || '',
+            description: c.description || '',
+            createdAt: c.createdAt || new Date().toISOString(),
+            branch: c.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformCategories((prev) => {
+            const apiIds = new Set(normalizedCats.map((c) => c.id));
+            const localOnly = (prev || []).filter((c) => !apiIds.has(c.id));
+            return [...normalizedCats, ...localOnly];
+          });
         }
         if (sizes.length) {
-          setUniformSizes((prev) => prev);
+          const normalizedSizes: UniformSize[] = sizes.map((s: any) => ({
+            id: String(s.id || s.sizeId || `US-${Date.now()}`),
+            sizeName: s.sizeName || s.sizeCodeName || '',
+            sizeCodeName: s.sizeName || s.sizeCodeName || '',
+            chest: s.chestSpec || s.chest || '',
+            waist: s.waistSpec || s.waist || '',
+            shoulder: s.shoulderSpec || s.shoulder || '',
+            ageGroup: s.ageBracket || s.ageGroup || '',
+            gender: s.gender || 'Unisex',
+            createdAt: s.createdAt || new Date().toISOString(),
+            branch: s.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformSizes((prev) => {
+            const apiIds = new Set(normalizedSizes.map((s) => s.id));
+            const localOnly = (prev || []).filter((s) => !apiIds.has(s.id));
+            return [...normalizedSizes, ...localOnly];
+          });
         }
         if (suppliers.length) {
-          setUniformSuppliers((prev) => prev);
+          const normalizedSuppliers: UniformSupplier[] = suppliers.map((s: any) => ({
+            id: String(s.id || s.supplierId || `SUP-${Date.now()}`),
+            supplierName: s.supplierName || s.companyName || '',
+            companyName: s.supplierName || s.companyName || '',
+            contactPerson: s.contactPerson || '',
+            mobile: s.phone || s.mobile || s.mobileNumber || '',
+            phone: s.phone || s.mobile || s.mobileNumber || '',
+            email: s.email || s.emailAddress || '',
+            gstNumber: s.gstNumber || s.gstRegistrationNo || '',
+            address: s.address || s.warehouseAddress || '',
+            status: s.status || 'Active',
+            createdAt: s.createdAt || new Date().toISOString(),
+            branch: s.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformSuppliers((prev) => {
+            const apiIds = new Set(normalizedSuppliers.map((s) => s.id));
+            const localOnly = (prev || []).filter((s) => !apiIds.has(s.id));
+            return [...normalizedSuppliers, ...localOnly];
+          });
         }
         if (types.length) {
-          setUniformInventory((prev) => prev);
-          setUniforms((prev) => prev);
+          const normalizedInventory: UniformInventoryItem[] = types.map((t: any) => ({
+            id: String(t.id || t.uniformTypeId || `UINV-${Date.now()}`),
+            itemId: String(t.id || t.uniformTypeId || ''),
+            itemName: t.itemName || t.name || '',
+            category: t.category || t.categoryName || 'Uniform Item',
+            size: t.sizeSpec || t.size || 'M',
+            color: t.color || 'Standard',
+            openingStock: Number(t.openingStock ?? t.stockQuantity ?? 100),
+            currentStock: Number(t.currentStock ?? t.stockQuantity ?? 0),
+            minimumStock: Number(t.minimumStock ?? t.minStockAlert ?? 10),
+            reorderPoint: Number(t.reorderPoint ?? 15),
+            unitPrice: Number(t.unitPrice || t.price || 0),
+            supplier: t.supplier || t.supplierName || 'Main Warehouse',
+            lastUpdated: t.lastUpdated || new Date().toISOString().split('T')[0],
+            status: t.status || ((Number(t.currentStock ?? t.stockQuantity ?? 0) <= (Number(t.minimumStock ?? 10))) ? 'Low Stock' : 'In Stock')
+          }));
+          setUniformInventory((prev) => {
+            const apiIds = new Set(normalizedInventory.map((i) => i.id));
+            const localOnly = (prev || []).filter((i) => !apiIds.has(i.id));
+            return [...normalizedInventory, ...localOnly];
+          });
         }
         if (dists.length) {
           const mappedDists = dists.map((d: any) => ({
