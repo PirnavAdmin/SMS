@@ -6081,11 +6081,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             "";
 
           setSchoolProfile((prev) => {
-            // Preserve user-customized logo from localStorage (especially Base64 data URLs)
             const effectiveLogo =
-              localCustomLogo && (localCustomLogo.startsWith("data:") || localCustomLogo !== "/pirnav-school-logo.png")
-                ? localCustomLogo
-                : (data.logoUrl && data.logoUrl !== "/pirnav-school-logo.png" ? data.logoUrl : (localCustomLogo || prev.logoUrl));
+              data.logoUrl !== undefined && data.logoUrl !== ""
+                ? data.logoUrl
+                : (localCustomLogo || prev.logoUrl);
 
             const next = {
               ...prev,
@@ -6115,6 +6114,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 localStorage.setItem("logoUrl", next.logoUrl);
                 localStorage.setItem("schoolLogo", next.logoUrl);
               }
+              window.dispatchEvent(new Event("school_profile_updated"));
             } catch (e) {}
             return next;
           });

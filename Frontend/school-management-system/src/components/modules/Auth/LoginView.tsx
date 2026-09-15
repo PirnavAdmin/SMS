@@ -65,10 +65,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
             localStorage.getItem('logoUrl') ||
             localStorage.getItem('schoolLogo');
           const backendLogo = data.logoUrl || data.logo || data.schoolLogo || data.logoData;
-          const effectiveLogo =
-            savedLogo && (savedLogo.startsWith('data:') || savedLogo !== '/pirnav-school-logo.png')
-              ? savedLogo
-              : (backendLogo && backendLogo !== '/pirnav-school-logo.png' ? backendLogo : (savedLogo || backendLogo || ''));
+          const effectiveLogo = backendLogo || savedLogo || pirnavLogo;
 
           if (effectiveLogo) {
             setDynamicLogo(effectiveLogo);
