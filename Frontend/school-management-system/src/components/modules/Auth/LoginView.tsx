@@ -37,6 +37,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   useEffect(() => {
     let isMounted = true;
 
+    const updateLogo = () => {
+      const savedLogo =
+        localStorage.getItem('school_logo') ||
+        localStorage.getItem('logoUrl') ||
+        localStorage.getItem('schoolLogo') ||
+        '';
+      if (savedLogo) {
+        setDynamicLogo(savedLogo);
+      }
+    };
+
+    updateLogo();
+
     fetchSchoolSettingsApi()
       .then((res: any) => {
         if (!isMounted) return;
@@ -47,17 +60,33 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
             setSchoolName(name);
             localStorage.setItem('school_name', name);
           }
-          const logo = data.logoUrl || data.logo || data.schoolLogo || data.logoData;
-          if (logo) {
-            setDynamicLogo(logo);
-            localStorage.setItem('school_logo', logo);
+          const savedLogo =
+            localStorage.getItem('school_logo') ||
+            localStorage.getItem('logoUrl') ||
+            localStorage.getItem('schoolLogo');
+          const backendLogo = data.logoUrl || data.logo || data.schoolLogo || data.logoData;
+          const effectiveLogo =
+            savedLogo && (savedLogo.startsWith('data:') || savedLogo !== '/pirnav-school-logo.png')
+              ? savedLogo
+              : (backendLogo && backendLogo !== '/pirnav-school-logo.png' ? backendLogo : (savedLogo || backendLogo || ''));
+
+          if (effectiveLogo) {
+            setDynamicLogo(effectiveLogo);
+            localStorage.setItem('school_logo', effectiveLogo);
+            localStorage.setItem('logoUrl', effectiveLogo);
+            localStorage.setItem('schoolLogo', effectiveLogo);
           }
         }
       })
       .catch(() => {});
 
+    window.addEventListener('school_profile_updated', updateLogo);
+    window.addEventListener('storage', updateLogo);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('school_profile_updated', updateLogo);
+      window.removeEventListener('storage', updateLogo);
     };
   }, []);
 

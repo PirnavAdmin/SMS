@@ -234,14 +234,14 @@ export const AttendanceView = () => {
   const periodOptions = useMemo(() => {
     const fromTimetable = (timetable || []).map((t: any) => t.timeSlot ? `${t.period || `Period ${t.periodNumber || 1}`} (${t.timeSlot})` : (t.period || t.periodName)).filter(Boolean);
     const standardPeriods = [
-      'Period 1 (08:30 AM - 09:15 AM)',
-      'Period 2 (09:15 AM - 10:00 AM)',
-      'Period 3 (10:15 AM - 11:00 AM)',
-      'Period 4 (11:00 AM - 11:45 AM)',
-      'Period 5 (11:45 AM - 12:30 PM)',
-      'Period 6 (01:15 PM - 02:00 PM)',
-      'Period 7 (02:00 PM - 02:45 PM)',
-      'Period 8 (02:45 PM - 03:30 PM)'
+      'Period 1 (08:30 AM - 09:20 AM)',
+      'Period 2 (09:20 AM - 10:10 AM)',
+      'Period 3 (10:25 AM - 11:15 AM)',
+      'Period 4 (11:15 AM - 12:05 PM)',
+      'Period 5 (12:50 PM - 01:40 PM)',
+      'Period 6 (01:40 PM - 02:30 PM)',
+      'Period 7 (02:45 PM - 03:35 PM)',
+      'Period 8 (03:35 PM - 04:25 PM)'
     ];
 
     const rawList = [...fromTimetable, ...standardPeriods];
@@ -258,6 +258,14 @@ export const AttendanceView = () => {
         result.push(item);
       }
     }
+
+    result.sort((a, b) => {
+      const numA = parseInt((a.match(/Period\s*(\d+)/i) || [])[1] || '999', 10);
+      const numB = parseInt((b.match(/Period\s*(\d+)/i) || [])[1] || '999', 10);
+      if (numA !== numB) return numA - numB;
+      return a.localeCompare(b);
+    });
+
     return result;
   }, [timetable]);
 
@@ -278,7 +286,7 @@ export const AttendanceView = () => {
   }, [isTeacher, teacherClasses, selectedClass]);
 
   const [selectedSubject, setSelectedSubject] = useState<string>('Select Subject');
-  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
+  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (08:30 AM - 09:20 AM)');
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -1105,7 +1113,6 @@ export const AttendanceView = () => {
               onChange={e => setSelectedSubject(e.target.value)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              <option value="Select">Select</option>
               {subjectOptions.map(sbj => (
                 <option key={sbj} value={sbj}>{sbj}</option>
               ))}
