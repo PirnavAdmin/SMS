@@ -188,6 +188,7 @@ namespace SMS.Api.Dtos
             }
         }
 
+        [JsonIgnore]
         public int AllocationId
         {
             get => _allocationId;
@@ -216,6 +217,7 @@ namespace SMS.Api.Dtos
             }
         }
 
+        [JsonIgnore]
         public int? StudentId
         {
             get => _studentId;

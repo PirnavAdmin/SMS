@@ -161,16 +161,25 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     };
     loadAllocationsData();
 
-    const handleSync = () => loadAllocationsData();
+    const handleSync = () => {
+      loadAllocationsData();
+      fetchStudents();
+    };
     window.addEventListener('hostel_outpasses_updated', handleSync);
+    window.addEventListener('hostel_allocations_updated', handleSync);
+    window.addEventListener('hostel_students_updated', handleSync);
     window.addEventListener('residential_students_updated', handleSync);
+    window.addEventListener('students_updated', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
       window.removeEventListener('hostel_outpasses_updated', handleSync);
+      window.removeEventListener('hostel_allocations_updated', handleSync);
+      window.removeEventListener('hostel_students_updated', handleSync);
       window.removeEventListener('residential_students_updated', handleSync);
+      window.removeEventListener('students_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
-  }, []);
+  }, [fetchStudents]);
 
   useEffect(() => {
     setApiStudents(students);
@@ -914,6 +923,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       if (a.studentName) allocatedStudentKeys.add(String(a.studentName).toLowerCase().trim());
     });
 
+    const otherBlockOrVacatedKeys = new Set<string>();
+    (allocations || []).forEach(a => {
+      if (!a) return;
+      const isTarget = (!activeBlockId || Number(a.hostelId) === Number(activeBlockId) || (a.hostelName || '').toLowerCase().includes(targetBlockName));
+      if (!isTarget || a.status === 'Vacated' || a.status === 'Inactive') {
+        if (a.studentId) otherBlockOrVacatedKeys.add(String(a.studentId).toLowerCase().trim());
+        if (a.admissionNo) otherBlockOrVacatedKeys.add(String(a.admissionNo).toLowerCase().trim());
+        if (a.studentName) otherBlockOrVacatedKeys.add(String(a.studentName).toLowerCase().trim());
+      }
+    });
+
     // Filter active students assigned to target block
     const activeHostellers = apiStudents.filter(s => {
       if (s.status === 'Completed' || s.status === 'Alumni') return false;
@@ -924,6 +944,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       const hBlock = String((s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || '').toLowerCase().trim();
 
       const hasDirectAllocation = allocatedStudentKeys.has(sId) || allocatedStudentKeys.has(sAdm) || allocatedStudentKeys.has(sName);
+      const isAllocatedElsewhereOrVacated = (sId && otherBlockOrVacatedKeys.has(sId)) || (sAdm && otherBlockOrVacatedKeys.has(sAdm)) || (sName && otherBlockOrVacatedKeys.has(sName));
+
+      if (isAllocatedElsewhereOrVacated && !hasDirectAllocation) {
+        return false;
+      }
+
       const isTargetBlockExplicit = targetBlockName && hBlock.includes(targetBlockName);
 
       if (targetAllocations.length > 0) {

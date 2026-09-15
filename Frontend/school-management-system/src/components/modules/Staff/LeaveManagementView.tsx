@@ -122,11 +122,11 @@ export const LeaveManagementView: React.FC = () => {
       if (byEmail) {
         return {
           ...byEmail,
-          firstName: isGenericAdminName ? (isWarden ? 'VaraPrasad' : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (byEmail.firstName || 'Staff')) : (byEmail.firstName || user?.name?.split(' ')[0] || 'Staff'),
-          lastName: isGenericAdminName ? (isWarden ? '' : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (byEmail.lastName || '')) : (byEmail.lastName || user?.name?.split(' ').slice(1).join(' ') || ''),
+          firstName: isGenericAdminName ? (isWarden ? (user?.name?.split(' ')[0] || byEmail.firstName || 'Warden') : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (byEmail.firstName || 'Staff')) : (byEmail.firstName || user?.name?.split(' ')[0] || 'Staff'),
+          lastName: isGenericAdminName ? (isWarden ? (user?.name?.split(' ').slice(1).join(' ') || '') : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (byEmail.lastName || '')) : (byEmail.lastName || user?.name?.split(' ').slice(1).join(' ') || ''),
           designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byEmail.designation || 'Teacher'),
           department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byEmail.department || 'Academic Dept'),
-          empId: isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (byEmail.empId || byEmail.id || 'STF-2026-0001')
+          empId: byEmail.empId || byEmail.id || uEmpId || uId || (isWarden ? `WRD-${user?.id || '102'}` : 'STF-2026-0001')
         };
       }
     }
@@ -143,7 +143,7 @@ export const LeaveManagementView: React.FC = () => {
           ...byName,
           designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byName.designation || 'Teacher'),
           department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byName.department || 'Academic Dept'),
-          empId: isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (byName.empId || byName.id || 'STF-2026-0001')
+          empId: byName.empId || byName.id || uEmpId || uId || (isWarden ? `WRD-${user?.id || '102'}` : 'STF-2026-0001')
         };
       }
     }
@@ -159,7 +159,7 @@ export const LeaveManagementView: React.FC = () => {
           ...byId,
           designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byId.designation || 'Teacher'),
           department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byId.department || 'Academic Dept'),
-          empId: isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (byId.empId || byId.id || 'STF-2026-0001')
+          empId: byId.empId || byId.id || uEmpId || uId || (isWarden ? `WRD-${user?.id || '102'}` : 'STF-2026-0001')
         };
       }
     }
@@ -177,7 +177,7 @@ export const LeaveManagementView: React.FC = () => {
           lastName: (isGenericAdminName || !byWarden.firstName) ? (user?.name?.split(' ').slice(1).join(' ') || 'Warden') : (byWarden.lastName || ''),
           designation: 'Hostel Warden',
           department: 'Hostel Management',
-          empId: (byWarden.empId && String(byWarden.empId) !== '358' && String(byWarden.empId) !== '90') ? byWarden.empId : 'WRD-102'
+          empId: (byWarden.empId && String(byWarden.empId) !== '358' && String(byWarden.empId) !== '90') ? byWarden.empId : (user?.id ? `WRD-${user.id}` : 'WRD-102')
         };
       }
     }
@@ -210,7 +210,7 @@ export const LeaveManagementView: React.FC = () => {
     // Fallback default profile
     const defaultFirstName = isWarden ? (user?.name?.split(' ')[0] || user?.firstName || 'Hostel') : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (user?.name?.split(' ')[0] || 'Staff');
     const defaultLastName = isWarden ? (user?.name?.split(' ').slice(1).join(' ') || 'Warden') : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (user?.name?.split(' ').slice(1).join(' ') || '');
-    const defaultEmpId = isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (user?.id || 'STF-2026-0001');
+    const defaultEmpId = isWarden ? (user?.id ? `WRD-${user.id}` : 'WRD-102') : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (user?.id || 'STF-2026-0001');
     const defaultDept = isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : 'Academic Dept';
     const defaultDesig = isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : 'Teacher';
 
@@ -237,13 +237,16 @@ export const LeaveManagementView: React.FC = () => {
     const loggedId = (loggedUserStaffMember.id || '').toString().toLowerCase().trim();
     const uId = user?.id ? String(user.id).toLowerCase().trim() : '';
     const uEmpId = (user as any)?.empId ? String((user as any).empId).toLowerCase().trim() : '';
-    const uFirst = (user?.name || loggedUserStaffMember.firstName || '').toLowerCase().trim().split(' ')[0];
+
+    const rawUserName = (user?.name || `${loggedUserStaffMember.firstName || ''} ${loggedUserStaffMember.lastName || ''}`).toLowerCase().trim();
+    const cleanUserName = rawUserName.replace(/^warden\s+/i, '').replace(/^mr\.?\s+/i, '').replace(/^dr\.?\s+/i, '').trim();
     const isGenericAdmin = !user?.name || user.name.toLowerCase().includes('admin');
 
     return leaveApplications.filter(a => {
       const appEmpId = (a.empId || '').toString().toLowerCase().trim();
       const appEmployeeId = (a.employeeId || '').toString().toLowerCase().trim();
-      const appName = (a.employeeName || '').toLowerCase().trim();
+      const rawAppName = (a.employeeName || '').toLowerCase().trim();
+      const cleanAppName = rawAppName.replace(/^warden\s+/i, '').replace(/^mr\.?\s+/i, '').replace(/^dr\.?\s+/i, '').trim();
 
       const isIdMatch = (
         (loggedEmpId && (appEmpId === loggedEmpId || appEmployeeId === loggedEmpId)) ||
@@ -252,9 +255,14 @@ export const LeaveManagementView: React.FC = () => {
         (uEmpId && (appEmpId === uEmpId || appEmployeeId === uEmpId))
       );
 
-      const isNameMatch = !isGenericAdmin && uFirst && uFirst.length > 2 && appName.includes(uFirst);
+      const isExactNameMatch = !isGenericAdmin && cleanUserName.length > 2 && (
+        cleanAppName === cleanUserName ||
+        (cleanAppName.length > 3 && cleanUserName.length > 3 && (
+          cleanAppName.includes(cleanUserName) || cleanUserName.includes(cleanAppName)
+        ))
+      );
 
-      return isIdMatch || isNameMatch;
+      return isIdMatch || isExactNameMatch;
     });
   }, [leaveApplications, isSelfServiceStaff, loggedUserStaffMember, user]);
 

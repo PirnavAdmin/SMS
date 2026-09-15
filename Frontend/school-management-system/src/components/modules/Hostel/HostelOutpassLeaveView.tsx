@@ -77,33 +77,147 @@ export const HostelOutpassLeaveView: React.FC = () => {
       }
     };
     loadHostelData();
-    return () => { isMounted = false; };
+
+    const handleSync = () => loadHostelData();
+    window.addEventListener('hostel_allocations_updated', handleSync);
+    window.addEventListener('hostel_students_updated', handleSync);
+    window.addEventListener('residential_students_updated', handleSync);
+    window.addEventListener('students_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('hostel_allocations_updated', handleSync);
+      window.removeEventListener('hostel_students_updated', handleSync);
+      window.removeEventListener('residential_students_updated', handleSync);
+      window.removeEventListener('students_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, []);
 
   const wardenAssignedBlocks = React.useMemo(() => {
-    if (!isWarden) return blocks;
-    const uName = (user?.name || '').toLowerCase().trim();
+    if (!blocks || blocks.length === 0) return [];
+
+    const uName = String(user?.name || (user as any)?.firstName || '').toLowerCase().trim();
     const uFirst = uName ? uName.split(' ')[0] : '';
-    const uEmail = (user?.email || '').toLowerCase().trim();
+    const uEmail = String(user?.email || '').toLowerCase().trim();
+    const uId = String(user?.id || '').toLowerCase().trim();
+    const uEmpId = String((user as any)?.empId || '').toLowerCase().trim();
 
-    const matched = blocks.filter(b => {
-      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
-      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
-      if (uEmail && wEmail && wEmail === uEmail) return true;
-      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
-      return false;
-    });
+    if (isWarden) {
+      const matched = blocks.filter(b => {
+        const wName = String(b.wardenName || (b as any).warden || (b as any).assignedWarden || '').toLowerCase().trim();
+        const wEmail = String(b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+        const wId = String((b as any).wardenId || (b as any).staffId || '').toLowerCase().trim();
 
-    if (matched.length > 0) return matched;
+        if (uEmail && wEmail && (wEmail === uEmail || wEmail.includes(uEmail) || uEmail.includes(wEmail))) return true;
+        if (uId && wId && wId === uId) return true;
+        if (uEmpId && wId && wId === uEmpId) return true;
+        if (uName && wName && (wName === uName || wName.includes(uName) || uName.includes(wName))) return true;
+        if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+        return false;
+      });
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
+      if (matched.length > 0) return matched;
+    }
+
+    // Default warden block fallback matching StudentList.tsx
+    const defaultBlock = blocks.find(b =>
+      (b.hostelName || (b as any).name || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || (b as any).name || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || (b as any).name || '').toLowerCase().includes('boys')
     );
 
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
-  }, [blocks, isWarden, user]);
+    return defaultBlock ? [defaultBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, allocations, isWarden, user]);
+
+  // Strictly filter residential hostellers allocated to assigned block
+  const displayStudentsList = React.useMemo(() => {
+    const targetBlocks = (wardenAssignedBlocks && wardenAssignedBlocks.length > 0)
+      ? wardenAssignedBlocks
+      : (blocks.length > 0 ? [blocks[0]] : []);
+
+    const targetBlockIds = new Set(targetBlocks.map(b => String(b.hostelId || (b as any).id)));
+    const targetBlockNames = targetBlocks.map(b => (b.hostelName || (b as any).name || '').toLowerCase().trim()).filter(Boolean);
+
+    // Active allocations specifically for target block(s)
+    const blockAllocations = (allocations || []).filter(a => {
+      if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
+      const aName = (a.hostelName || '').toLowerCase().trim();
+      const aId = String(a.hostelId || '');
+      const matchId = targetBlockIds.has(aId);
+      const matchName = targetBlockNames.some(tn => tn && (aName.includes(tn) || tn.includes(aName)));
+      return matchId || matchName;
+    });
+
+    const allocatedStudentIds = new Set(blockAllocations.map(a => String(a.studentId).toLowerCase().trim()));
+    const allocatedAdmNos = new Set(blockAllocations.map(a => (a.admissionNo || '').toLowerCase().trim()).filter(Boolean));
+    const allocatedNames = new Set(blockAllocations.map(a => (a.studentName || '').toLowerCase().trim()).filter(Boolean));
+
+    const otherBlockOrVacatedKeys = new Set<string>();
+    (allocations || []).forEach(a => {
+      if (!a) return;
+      const aName = (a.hostelName || '').toLowerCase().trim();
+      const aId = String(a.hostelId || '');
+      const matchId = targetBlockIds.has(aId);
+      const matchName = targetBlockNames.some(tn => tn && (aName.includes(tn) || tn.includes(aName)));
+      const isTarget = matchId || matchName;
+      if (!isTarget || a.status === 'Vacated' || a.status === 'Inactive') {
+        if (a.studentId) otherBlockOrVacatedKeys.add(String(a.studentId).toLowerCase().trim());
+        if (a.admissionNo) otherBlockOrVacatedKeys.add(String(a.admissionNo).toLowerCase().trim());
+        if (a.studentName) otherBlockOrVacatedKeys.add(String(a.studentName).toLowerCase().trim());
+      }
+    });
+
+    // Match context students against target block allocations OR direct student hostelBlock assignment
+    const matchedStudents = (students || []).filter(s => {
+      if (!s) return false;
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+      const sHostel = String((s as any).hostelBlock || (s as any).hostelName || (s as any).hostel || '').toLowerCase().trim();
+
+      const matchesAlloc = (sId && allocatedStudentIds.has(sId)) ||
+                           (sAdm && allocatedAdmNos.has(sAdm)) ||
+                           (sFullName && allocatedNames.has(sFullName));
+
+      const isAllocatedElsewhereOrVacated = (sId && otherBlockOrVacatedKeys.has(sId)) || (sAdm && otherBlockOrVacatedKeys.has(sAdm)) || (sFullName && otherBlockOrVacatedKeys.has(sFullName));
+
+      if (isAllocatedElsewhereOrVacated && !matchesAlloc) {
+        return false;
+      }
+
+      const matchesDirectHostelBlock = targetBlockNames.length > 0 && sHostel && targetBlockNames.some(tn => tn && (sHostel.includes(tn) || tn.includes(sHostel)));
+
+      return matchesAlloc || matchesDirectHostelBlock;
+    });
+
+    // Synthetic records for any blockAllocations not present in matchedStudents
+    const existingAdmNos = new Set(matchedStudents.map(s => String(s.admissionNo || '').toLowerCase().trim()));
+    const existingIds = new Set(matchedStudents.map(s => String(s.id || '').toLowerCase().trim()));
+    const existingNames = new Set(matchedStudents.map(s => `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim()));
+
+    const syntheticFromAllocations = blockAllocations
+      .filter(a => {
+        const aId = String(a.studentId || '').toLowerCase().trim();
+        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
+        const aName = String(a.studentName || '').toLowerCase().trim();
+        return !existingIds.has(aId) && (!aAdm || !existingAdmNos.has(aAdm)) && (!aName || !existingNames.has(aName));
+      })
+      .map(a => ({
+        id: a.studentId || a.allocationId || `alloc_${a.admissionNo}`,
+        firstName: a.studentName || 'Student',
+        lastName: '',
+        admissionNo: a.admissionNo || `ADM-${a.studentId}`,
+        studentType: 'Hosteller',
+        hostelName: a.hostelName,
+        roomNumber: a.roomNumber
+      }));
+
+    const merged = [...matchedStudents, ...syntheticFromAllocations];
+
+    return merged;
+  }, [students, wardenAssignedBlocks, blocks, allocations]);
 
   const [records, setRecords] = useState<OutpassRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -139,76 +253,6 @@ export const HostelOutpassLeaveView: React.FC = () => {
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [reason, setReason] = useState('');
-
-  // Strictly filter residential hostellers allocated to Warden's assigned block
-  const displayStudentsList = React.useMemo(() => {
-    const hostellers = (students || []).filter(s =>
-      s && (
-        s.studentType === 'Hosteller' ||
-        (s.studentType as any) === 'Residential' ||
-        (s.studentType as any) === 'Boarder' ||
-        (s.studentType as any) === 'Hostel' ||
-        (s as any).isHostelRequired === true ||
-        (s as any).facilityOpted === 'Hostel' ||
-        Boolean((s as any).hostelName)
-      )
-    );
-
-    if (!isWarden) {
-      return hostellers.length > 0 ? hostellers : (students || []);
-    }
-
-    const targetBlockIds = new Set(wardenAssignedBlocks.map(b => String(b.hostelId)));
-    const targetBlockNames = wardenAssignedBlocks.map(b => (b.hostelName || '').toLowerCase().trim());
-
-    // Allocations for Warden's block
-    const blockAllocations = allocations.filter(a => {
-      const matchId = targetBlockIds.has(String(a.hostelId));
-      const matchName = targetBlockNames.some(tn => tn && (a.hostelName || '').toLowerCase().includes(tn));
-      return matchId || matchName;
-    });
-
-    const allocatedStudentIds = new Set(blockAllocations.map(a => String(a.studentId)));
-    const allocatedAdmNos = new Set(blockAllocations.map(a => (a.admissionNo || '').toLowerCase().trim()).filter(Boolean));
-
-    // Match context students
-    const matchedStudents = hostellers.filter(s => {
-      const sId = String(s.id);
-      const sAdm = (s.admissionNo || '').toLowerCase().trim();
-      const sHostel = ((s as any).hostelName || (s as any).hostel || '').toLowerCase().trim();
-
-      if (allocatedStudentIds.has(sId)) return true;
-      if (sAdm && allocatedAdmNos.has(sAdm)) return true;
-      if (sHostel && targetBlockNames.some(tn => tn && sHostel.includes(tn))) return true;
-      return false;
-    });
-
-    // Synthetic list for any allocations not present in context students array
-    const existingAdmNos = new Set(matchedStudents.map(s => (s.admissionNo || '').toLowerCase().trim()));
-    const syntheticFromAllocations = blockAllocations
-      .filter(a => a.admissionNo && !existingAdmNos.has(a.admissionNo.toLowerCase().trim()))
-      .map(a => ({
-        id: a.studentId || a.allocationId,
-        firstName: a.studentName || 'Student',
-        lastName: '',
-        admissionNo: a.admissionNo,
-        studentType: 'Hosteller',
-        hostelName: a.hostelName,
-        roomNumber: a.roomNumber
-      }));
-
-    const merged = [...matchedStudents, ...syntheticFromAllocations];
-
-    // Fallback matching Ramachandra or Boys block if merged is empty
-    if (merged.length === 0) {
-      return hostellers.filter(s => {
-        const sHostel = ((s as any).hostelName || '').toLowerCase();
-        return sHostel.includes('ramachandra') || sHostel.includes('boys');
-      });
-    }
-
-    return merged;
-  }, [students, isWarden, wardenAssignedBlocks, allocations]);
 
   const handleOpenAdd = () => {
     setSelectedStudentId('');
@@ -308,10 +352,10 @@ export const HostelOutpassLeaveView: React.FC = () => {
             <SearchableSelect
               value={filterStatus}
               onChange={setFilterStatus}
-              placeholder="Select Option"
+              placeholder="Select"
               searchPlaceholder="Search status..."
               options={[
-                { value: '', label: 'Select Option' },
+                { value: '', label: 'Select' },
                 { value: 'All', label: 'All Statuses' },
                 { value: 'Approved', label: 'Approved' },
                 { value: 'Pending', label: 'Pending' },
