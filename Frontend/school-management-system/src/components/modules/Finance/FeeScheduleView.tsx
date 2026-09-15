@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ShieldAlert, Save, Clock, CalendarDays } from 'lucide-react';
+import { Calendar, ShieldAlert, Save, Clock, CalendarDays, Loader2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { AcademicYearFeeSchedule, FeeScheduleTerm, MonthlyDueDateConfig, MonthDueDateItem } from '../../../types';
 import { DateInput } from '../../common/DateInput';
+import { fetchFeeScheduleConfigApi, saveFeeScheduleConfigApi } from '../../../api/finance';
 
 export const MONTH_NAMES_ACADEMIC = [
   'April', 'May', 'June', 'July', 'August', 'September',
@@ -67,6 +68,8 @@ export const FeeScheduleView: React.FC = () => {
   );
   const [annualDueDate, setAnnualDueDate] = useState<string>('2026-04-15');
   const [oneTimeDueDate, setOneTimeDueDate] = useState<string>('2026-04-15');
+
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!activeAY) return;
@@ -133,7 +136,52 @@ export const FeeScheduleView: React.FC = () => {
       setAnnualDueDate(`${yearStart}-04-15`);
       setOneTimeDueDate(`${yearStart}-04-15`);
     }
-  }, [activeAY, academicYearFeeSchedules]);
+
+    // Always fetch latest persisted schedule from MySQL database
+    let isSubscribed = true;
+    fetchFeeScheduleConfigApi(activeAY)
+      .then((res: any) => {
+        if (!isSubscribed) return;
+        const apiData = res?.data || res;
+        if (apiData && apiData.terms && apiData.terms.length > 0) {
+          const loaded: AcademicYearFeeSchedule = {
+            id: apiData.id || `SCH-${activeAY}`,
+            academicYear: apiData.academicYear || activeAY,
+            numberOfTerms: apiData.numberOfTerms || 4,
+            status: apiData.status || 'Published',
+            annualDueDate: apiData.annualDueDate || `${yearStart}-04-15`,
+            oneTimeDueDate: apiData.oneTimeDueDate || `${yearStart}-04-15`,
+            terms: apiData.terms.map((t: any, idx: number) => ({
+              id: t.id || `T${idx + 1}-${activeAY}`,
+              termName: t.termName || `Term ${idx + 1}`,
+              startDate: t.startDate || `${yearStart}-04-01`,
+              endDate: t.endDate || `${yearStart}-06-30`,
+              dueDate: t.dueDate || `${yearStart}-04-15`,
+              sequence: t.sequence || idx + 1,
+              status: t.status || 'Active'
+            })),
+            monthlyConfig: apiData.monthlyConfig || buildDefaultMonthlyConfig(activeAY, 10)
+          };
+
+          setSchedule(loaded);
+          if (loaded.monthlyConfig) setMonthlyConfig(loaded.monthlyConfig);
+          if (loaded.annualDueDate) setAnnualDueDate(loaded.annualDueDate);
+          if (loaded.oneTimeDueDate) setOneTimeDueDate(loaded.oneTimeDueDate);
+
+          setAcademicYearFeeSchedules(prev => [
+            ...prev.filter(s => s.academicYear !== activeAY),
+            loaded
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch fee schedule from MySQL API:', err);
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [activeAY]);
 
   const handleNumTermsChange = (num: number) => {
     const currentTerms = schedule.terms || [];
@@ -318,9 +366,10 @@ export const FeeScheduleView: React.FC = () => {
     return true;
   };
 
-  const handleSaveSchedule = () => {
+  const handleSaveSchedule = async () => {
     if (!validateSchedule()) return;
 
+    setIsSaving(true);
     const finalSchedule: AcademicYearFeeSchedule = {
       id: schedule.id || `SCH-${activeAY}`,
       academicYear: activeAY,
@@ -332,12 +381,20 @@ export const FeeScheduleView: React.FC = () => {
       oneTimeDueDate
     };
 
-    setAcademicYearFeeSchedules(prev => [
-      ...prev.filter(s => s.academicYear !== activeAY),
-      finalSchedule
-    ]);
+    try {
+      await saveFeeScheduleConfigApi(finalSchedule);
+      setAcademicYearFeeSchedules(prev => [
+        ...prev.filter(s => s.academicYear !== activeAY),
+        finalSchedule
+      ]);
 
-    addToast('success', 'Fee Schedule Published', `Successfully published ${activeAY} academic year fee schedule with frequency due dates.`);
+      addToast('success', 'Fee Schedule Saved', `Successfully saved & published ${activeAY} academic year fee schedule to database.`);
+    } catch (err: any) {
+      console.error('Failed to persist fee schedule to MySQL:', err);
+      addToast('error', 'Save Failed', err?.message || 'Failed to save fee schedule to database. Please check your connection.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -537,9 +594,18 @@ export const FeeScheduleView: React.FC = () => {
           <button
             type="button"
             onClick={handleSaveSchedule}
-            className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 cursor-pointer transition-colors"
+            disabled={isSaving}
+            className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-black text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 cursor-pointer transition-colors"
           >
-            <Save className="w-4 h-4" /> Save & Publish Schedule
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Saving to Database...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" /> Save & Publish Schedule
+              </>
+            )}
           </button>
         </div>
       </div>

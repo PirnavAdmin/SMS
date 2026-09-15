@@ -350,6 +350,7 @@ public class DiscountRuleDto
     public string Type { get; set; } = "Sibling Discount";
     public string Mode { get; set; } = "Percentage"; // "Percentage" or "Fixed Amount"
     public decimal Value { get; set; } = 10m;
+    public string? Description { get; set; } = string.Empty;
     public string Status { get; set; } = "Active";
 }
 

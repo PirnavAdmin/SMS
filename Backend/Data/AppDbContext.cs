@@ -156,6 +156,11 @@ namespace SMS.Api.Data
         public DbSet<SMS.Api.Models.FinanceManagement.DynamicFeeStructure> DynamicFeeStructures { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.StudentFeeAssignment> StudentFeeAssignments { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.FeePayment> FeePayments { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeSchedule> FeeSchedules { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.Scholarship> Scholarships { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.StudentScholarship> StudentScholarships { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.DiscountRule> Discounts { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.StudentDiscount> StudentDiscounts { get; set; } = null!;
 
         //student
         public DbSet<Student> Students { get; set; } = null!;
@@ -1146,6 +1151,34 @@ namespace SMS.Api.Data
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentFeeAssignment>().ToTable("studentfeeassignments");
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeePayment>().ToTable("feepayments");
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeSchedule>(entity =>
+            {
+                entity.ToTable("fee_schedules");
+                entity.Property(x => x.TermsJson).HasColumnName("terms_json");
+                entity.Property(x => x.MonthlyConfigJson).HasColumnName("monthly_config_json");
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.Scholarship>(entity =>
+            {
+                entity.ToTable("scholarships");
+                entity.HasKey(x => x.Id);
+                entity.HasIndex(x => x.Code).IsUnique();
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentScholarship>(entity =>
+            {
+                entity.ToTable("student_scholarships");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.DiscountRule>(entity =>
+            {
+                entity.ToTable("discounts");
+                entity.HasKey(x => x.Id);
+                entity.HasIndex(x => x.Code).IsUnique();
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentDiscount>(entity =>
+            {
+                entity.ToTable("student_discounts");
+                entity.HasKey(x => x.Id);
+            });
         }
         private static void ConfigureAcademicYear(ModelBuilder modelBuilder)
         {

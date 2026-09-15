@@ -208,6 +208,20 @@ public class SubmitAdmissionDto
     [JsonPropertyName("scholarship")]
     public string? Scholarship { get; set; } = "None";
 
+    [JsonPropertyName("scholarshipId")]
+    public string? ScholarshipId
+    {
+        get => Scholarship;
+        set => Scholarship = value;
+    }
+
     [JsonPropertyName("discount")]
     public string? Discount { get; set; } = "None";
+
+    [JsonPropertyName("discountId")]
+    public string? DiscountId
+    {
+        get => Discount;
+        set => Discount = value;
+    }
 }

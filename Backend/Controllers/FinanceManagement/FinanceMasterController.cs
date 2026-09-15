@@ -237,7 +237,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("fee-schedules")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant,Staff")]
     public async Task<IActionResult> SaveFeeSchedule([FromBody] FeeScheduleConfigDto schedule)
     {
         var success = await _masterService.SaveFeeScheduleAsync(schedule);

@@ -66,10 +66,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { schoolProfile, admissions, students } = useData();
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
     return (
+      schoolProfile?.logoUrl ||
       localStorage.getItem("school_logo") ||
       localStorage.getItem("logoUrl") ||
       localStorage.getItem("schoolLogo") ||
-      schoolProfile?.logoUrl ||
       ""
     );
   });
@@ -79,10 +79,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   React.useEffect(() => {
     const updateLogo = () => {
       const activeLogo =
+        schoolProfile?.logoUrl ||
         localStorage.getItem("school_logo") ||
         localStorage.getItem("logoUrl") ||
         localStorage.getItem("schoolLogo") ||
-        schoolProfile?.logoUrl ||
         "";
       setCurrentLogoUrl(activeLogo);
       setLogoLoadError(false);

@@ -52,7 +52,7 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, teacherAssignments = [], timetable = [], fetchStudents } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -232,34 +232,63 @@ export const AttendanceView = () => {
 
   // Dynamic list of period options
   const periodOptions = useMemo(() => {
-    const fromTimetable = (timetable || []).map((t: any) => t.timeSlot ? `${t.period || `Period ${t.periodNumber || 1}`} (${t.timeSlot})` : (t.period || t.periodName)).filter(Boolean);
+    const periodMap = new Map<number, string>();
+
+    // 1. Gather active period settings from DataContext
+    const activeSettings = (periodSettings || []).filter((p: any) => p.status === 'Active' && !p.isBreak);
+    const classSpecific = activeSettings.filter((p: any) =>
+      selectedClass !== 'Select Class' && matchesClassName(p.className || '', selectedClass) && (!p.section || p.section === selectedSection)
+    );
+    const applicableSettings = classSpecific.length > 0 ? classSpecific : activeSettings;
+
+    applicableSettings.forEach((p: any) => {
+      const match = (p.periodName || '').match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && !periodMap.has(num)) {
+          const name = p.periodName.startsWith('Period') ? p.periodName : `Period ${p.periodName}`;
+          const slot = p.startTime && p.endTime ? ` (${p.startTime} - ${p.endTime})` : '';
+          periodMap.set(num, `${name}${slot}`);
+        }
+      }
+    });
+
+    // 2. Gather periods from timetable
+    (timetable || []).forEach((t: any) => {
+      const periodStr = t.period || t.periodName || (t.periodNumber ? `Period ${t.periodNumber}` : '');
+      const match = (periodStr || '').match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && !periodMap.has(num)) {
+          const name = periodStr.startsWith('Period') ? periodStr : `Period ${periodStr}`;
+          const timeSlot = t.timeSlot || (t.startTime && t.endTime ? `${t.startTime} - ${t.endTime}` : '');
+          const slot = timeSlot ? ` (${timeSlot})` : '';
+          periodMap.set(num, `${name}${slot}`);
+        }
+      }
+    });
+
+    // 3. Standard fallback periods if period number not present
     const standardPeriods = [
-      'Period 1 (08:30 AM - 09:15 AM)',
-      'Period 2 (09:15 AM - 10:00 AM)',
-      'Period 3 (10:15 AM - 11:00 AM)',
-      'Period 4 (11:00 AM - 11:45 AM)',
-      'Period 5 (11:45 AM - 12:30 PM)',
-      'Period 6 (01:15 PM - 02:00 PM)',
-      'Period 7 (02:00 PM - 02:45 PM)',
-      'Period 8 (02:45 PM - 03:30 PM)'
+      { num: 1, label: 'Period 1 (08:30 AM - 09:20 AM)' },
+      { num: 2, label: 'Period 2 (09:20 AM - 10:10 AM)' },
+      { num: 3, label: 'Period 3 (10:25 AM - 11:15 AM)' },
+      { num: 4, label: 'Period 4 (11:15 AM - 12:05 PM)' },
+      { num: 5, label: 'Period 5 (12:50 PM - 01:40 PM)' },
+      { num: 6, label: 'Period 6 (01:40 PM - 02:30 PM)' },
+      { num: 7, label: 'Period 7 (02:45 PM - 03:35 PM)' },
+      { num: 8, label: 'Period 8 (03:35 PM - 04:25 PM)' },
     ];
 
-    const rawList = [...fromTimetable, ...standardPeriods];
-    const seenPeriodNames = new Set<string>();
-    const result: string[] = [];
-
-    for (const item of rawList) {
-      if (!item) continue;
-      const match = item.match(/^(Period\s*\d+|Period\s*\w+|[^\(]+)/i);
-      const periodKey = match ? match[1].trim().toLowerCase() : item.trim().toLowerCase();
-
-      if (!seenPeriodNames.has(periodKey)) {
-        seenPeriodNames.add(periodKey);
-        result.push(item);
+    standardPeriods.forEach(sp => {
+      if (!periodMap.has(sp.num)) {
+        periodMap.set(sp.num, sp.label);
       }
-    }
-    return result;
-  }, [timetable]);
+    });
+
+    const sortedKeys = Array.from(periodMap.keys()).sort((a, b) => a - b);
+    return sortedKeys.map(key => periodMap.get(key)!);
+  }, [periodSettings, timetable, selectedClass, selectedSection]);
 
   // Auto-sync section when class changes
   useEffect(() => {
@@ -278,7 +307,7 @@ export const AttendanceView = () => {
   }, [isTeacher, teacherClasses, selectedClass]);
 
   const [selectedSubject, setSelectedSubject] = useState<string>('Select Subject');
-  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
+  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (08:30 AM - 09:20 AM)');
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -1105,7 +1134,6 @@ export const AttendanceView = () => {
               onChange={e => setSelectedSubject(e.target.value)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              <option value="Select">Select</option>
               {subjectOptions.map(sbj => (
                 <option key={sbj} value={sbj}>{sbj}</option>
               ))}

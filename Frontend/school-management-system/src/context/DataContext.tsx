@@ -794,13 +794,13 @@ interface DataContextType {
   revokeStudentScholarship: (id: string) => void;
 
   discounts: Discount[];
-  addDiscount: (disc: Omit<Discount, "id">) => void;
-  updateDiscount: (id: string, updates: Partial<Discount>) => void;
-  deleteDiscount: (id: string) => void;
+  addDiscount: (disc: Omit<Discount, "id">) => Promise<void> | void;
+  updateDiscount: (id: string, updates: Partial<Discount>) => Promise<void> | void;
+  deleteDiscount: (id: string) => Promise<void> | void;
 
   studentDiscounts: StudentDiscount[];
-  assignDiscountToStudent: (studentId: string, discountId: string) => void;
-  removeStudentDiscount: (id: string) => void;
+  assignDiscountToStudent: (studentId: string, discountId: string) => Promise<void> | void;
+  removeStudentDiscount: (id: string) => Promise<void> | void;
 
   fineRules: FineRule[];
   addFineRule: (rule: Omit<FineRule, "id">) => void;
@@ -2738,9 +2738,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<
     StudentFeeLedger[]
   >(() => {
-    const version = localStorage.getItem("edu_db_full_ledgers_v101");
+    const version = localStorage.getItem("edu_db_full_ledgers_v102_nomock");
     if (!version) {
-      localStorage.setItem("edu_db_full_ledgers_v101", "true");
+      localStorage.setItem("edu_db_full_ledgers_v102_nomock", "true");
       localStorage.removeItem("student_fee_ledgers");
       localStorage.removeItem("edu_db_student_fee_ledgers");
     }
@@ -5318,17 +5318,82 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const types = extract(typeRes);
         const dists = extract(distRes);
         if (cats.length) {
-          setUniformCategories((prev) => prev);
+          const normalizedCats: UniformCategory[] = cats.map((c: any) => ({
+            id: String(c.id || c.categoryId || `UC-${Date.now()}`),
+            name: c.categoryName || c.name || '',
+            categoryName: c.categoryName || c.name || '',
+            description: c.description || '',
+            createdAt: c.createdAt || new Date().toISOString(),
+            branch: c.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformCategories((prev) => {
+            const apiIds = new Set(normalizedCats.map((c) => c.id));
+            const localOnly = (prev || []).filter((c) => !apiIds.has(c.id));
+            return [...normalizedCats, ...localOnly];
+          });
         }
         if (sizes.length) {
-          setUniformSizes((prev) => prev);
+          const normalizedSizes: UniformSize[] = sizes.map((s: any) => ({
+            id: String(s.id || s.sizeId || `US-${Date.now()}`),
+            sizeName: s.sizeName || s.sizeCodeName || '',
+            sizeCodeName: s.sizeName || s.sizeCodeName || '',
+            chest: s.chestSpec || s.chest || '',
+            waist: s.waistSpec || s.waist || '',
+            shoulder: s.shoulderSpec || s.shoulder || '',
+            ageGroup: s.ageBracket || s.ageGroup || '',
+            gender: s.gender || 'Unisex',
+            createdAt: s.createdAt || new Date().toISOString(),
+            branch: s.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformSizes((prev) => {
+            const apiIds = new Set(normalizedSizes.map((s) => s.id));
+            const localOnly = (prev || []).filter((s) => !apiIds.has(s.id));
+            return [...normalizedSizes, ...localOnly];
+          });
         }
         if (suppliers.length) {
-          setUniformSuppliers((prev) => prev);
+          const normalizedSuppliers: UniformSupplier[] = suppliers.map((s: any) => ({
+            id: String(s.id || s.supplierId || `SUP-${Date.now()}`),
+            supplierName: s.supplierName || s.companyName || '',
+            companyName: s.supplierName || s.companyName || '',
+            contactPerson: s.contactPerson || '',
+            mobile: s.phone || s.mobile || s.mobileNumber || '',
+            phone: s.phone || s.mobile || s.mobileNumber || '',
+            email: s.email || s.emailAddress || '',
+            gstNumber: s.gstNumber || s.gstRegistrationNo || '',
+            address: s.address || s.warehouseAddress || '',
+            status: s.status || 'Active',
+            createdAt: s.createdAt || new Date().toISOString(),
+            branch: s.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformSuppliers((prev) => {
+            const apiIds = new Set(normalizedSuppliers.map((s) => s.id));
+            const localOnly = (prev || []).filter((s) => !apiIds.has(s.id));
+            return [...normalizedSuppliers, ...localOnly];
+          });
         }
         if (types.length) {
-          setUniformInventory((prev) => prev);
-          setUniforms((prev) => prev);
+          const normalizedInventory: UniformInventoryItem[] = types.map((t: any) => ({
+            id: String(t.id || t.uniformTypeId || `UINV-${Date.now()}`),
+            itemId: String(t.id || t.uniformTypeId || ''),
+            itemName: t.itemName || t.name || '',
+            category: t.category || t.categoryName || 'Uniform Item',
+            size: t.sizeSpec || t.size || 'M',
+            color: t.color || 'Standard',
+            openingStock: Number(t.openingStock ?? t.stockQuantity ?? 100),
+            currentStock: Number(t.currentStock ?? t.stockQuantity ?? 0),
+            minimumStock: Number(t.minimumStock ?? t.minStockAlert ?? 10),
+            reorderPoint: Number(t.reorderPoint ?? 15),
+            unitPrice: Number(t.unitPrice || t.price || 0),
+            supplier: t.supplier || t.supplierName || 'Main Warehouse',
+            lastUpdated: t.lastUpdated || new Date().toISOString().split('T')[0],
+            status: t.status || ((Number(t.currentStock ?? t.stockQuantity ?? 0) <= (Number(t.minimumStock ?? 10))) ? 'Low Stock' : 'In Stock')
+          }));
+          setUniformInventory((prev) => {
+            const apiIds = new Set(normalizedInventory.map((i) => i.id));
+            const localOnly = (prev || []).filter((i) => !apiIds.has(i.id));
+            return [...normalizedInventory, ...localOnly];
+          });
         }
         if (dists.length) {
           const mappedDists = dists.map((d: any) => ({
@@ -5489,6 +5554,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           accountsRes,
           catsRes,
           budgetsRes,
+          feeScheduleRes,
+          scholarshipsRes,
+          studentScholarshipsRes,
+          discountsRes,
+          studentDiscountsRes,
         ] = await Promise.allSettled([
           FinanceAPI.fetchFeeHeadsApi(),
           FinanceAPI.fetchDynamicFeeStructuresApi(),
@@ -5502,6 +5572,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchFinancialAccountsApi(),
           FinanceAPI.fetchFinancialCategoriesApi(),
           FinanceAPI.fetchFinancialBudgetsApi(),
+          FinanceAPI.fetchFeeScheduleConfigApi("2026-2027"),
+          FinanceAPI.fetchScholarshipsApi(),
+          FinanceAPI.fetchStudentScholarshipsApi(),
+          FinanceAPI.fetchDiscountsApi(),
+          FinanceAPI.fetchStudentDiscountsApi(),
         ]);
         const extract = (r: PromiseSettledResult<any>) =>
           r.status === "fulfilled"
@@ -5559,6 +5634,93 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             },
           }));
         }
+
+        const apiFeeSchedule =
+          feeScheduleRes.status === "fulfilled"
+            ? feeScheduleRes.value?.data || feeScheduleRes.value
+            : null;
+        if (apiFeeSchedule && apiFeeSchedule.terms && apiFeeSchedule.terms.length > 0) {
+          const ay = apiFeeSchedule.academicYear || "2026-2027";
+          const loadedSchedule: AcademicYearFeeSchedule = {
+            id: apiFeeSchedule.id || `SCH-${ay}`,
+            academicYear: ay,
+            numberOfTerms: apiFeeSchedule.numberOfTerms || 4,
+            status: apiFeeSchedule.status || "Active",
+            annualDueDate: apiFeeSchedule.annualDueDate || "2026-04-15",
+            oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "2026-04-15",
+            terms: apiFeeSchedule.terms,
+            monthlyConfig: apiFeeSchedule.monthlyConfig,
+          };
+          setAcademicYearFeeSchedules((prev) => [
+            ...prev.filter((s) => s.academicYear !== ay),
+            loadedSchedule,
+          ]);
+        }
+
+        const apiScholarships = extract(scholarshipsRes);
+        if (Array.isArray(apiScholarships) && apiScholarships.length > 0) {
+          const mappedScholarships: Scholarship[] = apiScholarships.map((s: any) => ({
+            id: String(s.id || s.code),
+            name: s.name || "",
+            code: s.code || `SCH-${s.id}`,
+            type: s.type || "Merit",
+            discountType: s.discountType || "Percentage",
+            percentage: Number(s.percentage || 0),
+            fixedAmount: Number(s.fixedAmount || 0),
+            applicableFeeHeadIds: Array.isArray(s.applicableFeeHeadIds) ? s.applicableFeeHeadIds : [],
+            applicableClasses: Array.isArray(s.applicableClasses) ? s.applicableClasses : [],
+            startDate: s.startDate || "2026-04-01",
+            endDate: s.endDate || "2027-03-31",
+            eligibility: s.eligibility || "",
+            description: s.description || "",
+            status: s.status || "Active",
+          }));
+          setScholarships(mappedScholarships);
+        }
+
+        const apiStudentScholarships = extract(studentScholarshipsRes);
+        if (Array.isArray(apiStudentScholarships)) {
+          const mappedStudentScholarships: StudentScholarship[] = apiStudentScholarships.map((ss: any) => ({
+            id: String(ss.id),
+            studentId: String(ss.studentId),
+            studentName: ss.studentName || "",
+            scholarshipId: String(ss.scholarshipId),
+            scholarshipName: ss.scholarshipName || "",
+            discountType: ss.discountType || "Percentage",
+            discountValue: Number(ss.discountValue || 0),
+            appliedDate: ss.appliedDate || "",
+            status: ss.status || "Active",
+          }));
+          setStudentScholarships(mappedStudentScholarships);
+        }
+
+        const apiDiscounts = extract(discountsRes);
+        if (Array.isArray(apiDiscounts) && apiDiscounts.length > 0) {
+          const mappedDiscounts: Discount[] = apiDiscounts.map((d: any) => ({
+            id: String(d.id || d.code),
+            name: d.name || "",
+            code: d.code || `DSC-${d.id}`,
+            type: d.type || "Sibling Discount",
+            mode: d.mode || "Percentage",
+            value: Number(d.value || 0),
+            description: d.description || "",
+            status: d.status || "Active",
+          }));
+          setDiscounts(mappedDiscounts);
+        }
+
+        const apiStudentDiscounts = extract(studentDiscountsRes);
+        if (Array.isArray(apiStudentDiscounts)) {
+          const mappedStudentDiscounts: StudentDiscount[] = apiStudentDiscounts.map((sd: any) => ({
+            id: String(sd.id),
+            studentId: String(sd.studentId),
+            discountId: String(sd.discountId),
+            discountName: sd.discountName || "",
+            appliedDate: sd.appliedDate || "",
+          }));
+          setStudentDiscounts(mappedStudentDiscounts);
+        }
+
         setFeeHeads(heads);
         setDynamicFeeStructures(structs);
         setDbAssignments(assignments);
@@ -5984,11 +6146,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             "";
 
           setSchoolProfile((prev) => {
-            // Preserve user-customized logo from localStorage (especially Base64 data URLs)
             const effectiveLogo =
-              localCustomLogo && (localCustomLogo.startsWith("data:") || localCustomLogo !== "/pirnav-school-logo.png")
-                ? localCustomLogo
-                : (data.logoUrl && data.logoUrl !== "/pirnav-school-logo.png" ? data.logoUrl : (localCustomLogo || prev.logoUrl));
+              data.logoUrl !== undefined && data.logoUrl !== ""
+                ? data.logoUrl
+                : (localCustomLogo || prev.logoUrl);
 
             const next = {
               ...prev,
@@ -6018,6 +6179,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 localStorage.setItem("logoUrl", next.logoUrl);
                 localStorage.setItem("schoolLogo", next.logoUrl);
               }
+              window.dispatchEvent(new Event("school_profile_updated"));
             } catch (e) {}
             return next;
           });
@@ -7457,7 +7619,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         allocatedBedId: appData.hostelBed || "N/A",
         branch: appData.branch || selectedBranch || "Main Campus",
         avatar: appData.avatar || "",
+        scholarship: appData.scholarshipId || "None",
         scholarshipId: appData.scholarshipId || "",
+        discount: appData.discountId || "None",
         discountId: appData.discountId || "",
         selectedOptionalFees: appData.selectedOptionalFees || [],
       };
@@ -8020,7 +8184,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           let discountAmount = 0;
           if (app.discountId) {
-            const dObj = discounts.find((d) => d.id === app.discountId);
+            const dObj = discounts.find(
+              (d) =>
+                d.id === app.discountId ||
+                d.code === app.discountId ||
+                d.name === app.discountId,
+            );
             if (dObj && dObj.status === "Active") {
               const tuitionFeeAmount =
                 assignedFeeHeads.find(
@@ -8228,6 +8397,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               joiningDate: new Date().toISOString().split("T")[0],
               status: "Active",
             });
+          }
+
+          // Auto-award scholarship to student upon admission enrollment
+          if (app.scholarshipId) {
+            assignScholarshipToStudent(newStudent.id, app.scholarshipId);
+          }
+
+          // Auto-grant discount concession to student upon admission enrollment
+          if (app.discountId) {
+            assignDiscountToStudent(newStudent.id, app.discountId);
           }
 
           // Automatically generate Student Fee Ledger for newly enrolled student
@@ -10175,34 +10354,97 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // 4. Scholarships CRUD
-  const addScholarship = (sch: Omit<Scholarship, "id">) => {
-    const id = "SCH-" + Math.floor(100 + Math.random() * 900);
-    const newSch: Scholarship = { ...sch, id };
-    setScholarships((prev) => [...prev, newSch]);
+  const addScholarship = async (sch: Omit<Scholarship, "id">) => {
+    let newSch: Scholarship = {
+      ...sch,
+      id: sch.code || ("SCH-" + Math.floor(100 + Math.random() * 900)),
+    };
+    try {
+      const res: any = await FinanceAPI.createScholarshipApi({
+        name: sch.name,
+        code: sch.code,
+        type: sch.type,
+        discountType: sch.discountType,
+        percentage: sch.percentage || 0,
+        fixedAmount: sch.fixedAmount || 0,
+        applicableFeeHeadIds: sch.applicableFeeHeadIds || [],
+        applicableClasses: sch.applicableClasses || [],
+        startDate: sch.startDate || "2026-04-01",
+        endDate: sch.endDate || "2027-03-31",
+        eligibility: sch.eligibility || "",
+        description: sch.description || "",
+        status: sch.status || "Active",
+      });
+      const data = res?.data || res;
+      if (data?.id) {
+        newSch = {
+          ...sch,
+          id: String(data.id),
+          code: data.code || sch.code,
+        };
+      }
+    } catch (err) {
+      console.warn("Could not persist scholarship to API:", err);
+    }
+    setScholarships((prev) => [
+      ...prev.filter((s) => s.id !== newSch.id && s.code !== newSch.code),
+      newSch,
+    ]);
     logActivity("Created Scholarship", `Added scholarship ${newSch.name}`);
   };
 
-  const updateScholarship = (id: string, updates: Partial<Scholarship>) => {
+  const updateScholarship = async (id: string, updates: Partial<Scholarship>) => {
     setScholarships((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     );
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.updateScholarshipApi(numId, updates);
+      }
+    } catch (err) {
+      console.warn("Could not update scholarship via API:", err);
+    }
   };
 
-  const deleteScholarship = (id: string) => {
+  const deleteScholarship = async (id: string) => {
     setScholarships((prev) => prev.filter((s) => s.id !== id));
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.deleteScholarshipApi(numId);
+      }
+    } catch (err) {
+      console.warn("Could not delete scholarship via API:", err);
+    }
   };
 
-  const assignScholarshipToStudent = (
+  const assignScholarshipToStudent = async (
     studentId: string,
     scholarshipId: string,
   ) => {
     const st = students.find((s) => s.id === studentId);
-    const sch = scholarships.find((s) => s.id === scholarshipId);
+    const sch = scholarships.find(
+      (s) => s.id === scholarshipId || s.code === scholarshipId,
+    );
     if (!st || !sch) return;
 
-    const id = "SSCH-" + Math.floor(100 + Math.random() * 900);
+    let awardId = "SSCH-" + Math.floor(100 + Math.random() * 900);
+    const numSchId = parseInt(sch.id, 10) || 1;
+    try {
+      const res: any = await FinanceAPI.awardStudentScholarshipApi({
+        studentId: st.admissionNo || st.id,
+        scholarshipId: numSchId,
+        remarks: "Awarded via Scholarship Management",
+      });
+      const data = res?.data || res;
+      if (data?.id) awardId = String(data.id);
+    } catch (err) {
+      console.warn("Could not award scholarship via API:", err);
+    }
+
     const newAlloc: StudentScholarship = {
-      id,
+      id: awardId,
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       scholarshipId: sch.id,
@@ -10230,42 +10472,113 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTimeout(() => recalculateStudentFeeLedger(studentId), 50);
   };
 
-  const revokeStudentScholarship = (id: string) => {
+  const revokeStudentScholarship = async (id: string) => {
     setStudentScholarships((prev) => prev.filter((s) => s.id !== id));
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.revokeStudentScholarshipApi(numId);
+      }
+    } catch (err) {
+      console.warn("Could not revoke scholarship via API:", err);
+    }
   };
 
   // 5. Discounts & Concessions CRUD
-  const addDiscount = (disc: Omit<Discount, "id">) => {
-    const id = "DSC-" + Math.floor(100 + Math.random() * 900);
-    const newDisc: Discount = { ...disc, id };
-    setDiscounts((prev) => [...prev, newDisc]);
+  const addDiscount = async (disc: Omit<Discount, "id">) => {
+    let newDisc: Discount = {
+      ...disc,
+      id: "DSC-" + Math.floor(100 + Math.random() * 900),
+    };
+    try {
+      const res: any = await FinanceAPI.createDiscountApi({
+        name: disc.name,
+        code: disc.code,
+        type: disc.type,
+        mode: disc.mode,
+        value: Number(disc.value || 0),
+        description: disc.description || "",
+        status: disc.status || "Active",
+      });
+      const data = res?.data || res;
+      if (data?.id) {
+        newDisc = {
+          ...disc,
+          id: String(data.id),
+          code: data.code || disc.code,
+        };
+      }
+    } catch (err) {
+      console.warn("Could not persist discount to API:", err);
+    }
+    setDiscounts((prev) => [
+      ...prev.filter((d) => d.id !== newDisc.id && d.code !== newDisc.code),
+      newDisc,
+    ]);
+    logActivity("Created Discount", `Added discount ${newDisc.name}`);
   };
 
-  const updateDiscount = (id: string, updates: Partial<Discount>) => {
+  const updateDiscount = async (id: string, updates: Partial<Discount>) => {
     setDiscounts((prev) =>
       prev.map((d) => (d.id === id ? { ...d, ...updates } : d)),
     );
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.updateDiscountApi(numId, updates);
+      }
+    } catch (err) {
+      console.warn("Could not update discount via API:", err);
+    }
   };
 
-  const deleteDiscount = (id: string) => {
+  const deleteDiscount = async (id: string) => {
     setDiscounts((prev) => prev.filter((d) => d.id !== id));
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.deleteDiscountApi(numId);
+      }
+    } catch (err) {
+      console.warn("Could not delete discount via API:", err);
+    }
   };
 
-  const assignDiscountToStudent = (studentId: string, discountId: string) => {
-    const disc = discounts.find((d) => d.id === discountId);
+  const assignDiscountToStudent = async (
+    studentId: string,
+    discountId: string,
+  ) => {
+    const disc = discounts.find(
+      (d) => d.id === discountId || d.code === discountId,
+    );
     if (!disc) return;
 
-    const id = "SDSC-" + Math.floor(100 + Math.random() * 900);
+    const st = students.find((s) => s.id === studentId);
+
+    let awardId = "SDSC-" + Math.floor(100 + Math.random() * 900);
+    const numDiscId = parseInt(disc.id, 10) || 1;
+    try {
+      const res: any = await FinanceAPI.grantStudentDiscountApi({
+        studentId: st ? st.admissionNo || st.id : studentId,
+        discountId: numDiscId,
+        remarks: "Granted via Discount Management",
+      });
+      const data = res?.data || res;
+      if (data?.id) awardId = String(data.id);
+    } catch (err) {
+      console.warn("Could not grant discount via API:", err);
+    }
+
     const newAlloc: StudentDiscount = {
-      id,
+      id: awardId,
       studentId,
-      discountId,
+      discountId: disc.id,
       discountName: disc.name,
       appliedDate: new Date().toISOString().split("T")[0],
     };
     setStudentDiscounts((prev) => [
       ...prev.filter(
-        (d) => d.studentId !== studentId || d.discountId !== discountId,
+        (d) => d.studentId !== studentId || d.discountId !== disc.id,
       ),
       newAlloc,
     ]);
@@ -10273,8 +10586,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTimeout(() => recalculateStudentFeeLedger(studentId), 50);
   };
 
-  const removeStudentDiscount = (id: string) => {
+  const removeStudentDiscount = async (id: string) => {
     setStudentDiscounts((prev) => prev.filter((d) => d.id !== id));
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.removeStudentDiscountApi(numId);
+      }
+    } catch (err) {
+      console.warn("Could not remove student discount via API:", err);
+    }
   };
 
   // 6. Fine Rules CRUD
@@ -12151,6 +12472,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             remarks: isSelected ? undefined : "Optional Fee - Not Selected at Admission",
           });
         });
+      } else if (dfs && dfs.totalAmount > 0) {
+        ledgerItems.push({
+          headId: "FH-BASE",
+          headName: "Academic & School Fee",
+          category: "Tuition Fee",
+          originalAmount: dfs.totalAmount,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: dfs.totalAmount,
+          isApplicable: true,
+          status: "Pending",
+        });
       } else {
         const applicableHeads = (feeHeads || []).filter((h) =>
           h.status === "Active" &&
@@ -12182,89 +12516,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         });
       }
-    }
-
-    // Ensure base academic fee heads exist if missing
-    const hasTuitionFeeHead = ledgerItems.some(
-      (item) =>
-        item.category === "Tuition Fee" ||
-        item.headName.toLowerCase().includes("tuition"),
-    );
-
-    if (!hasTuitionFeeHead) {
-      const defaultAcademicFeeHeads: LedgerFeeItem[] = [
-        {
-          headId: "FH-01",
-          headName: "Tuition Fee",
-          category: "Tuition Fee",
-          originalAmount: 25000,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 25000,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-02",
-          headName: "Admission Fee",
-          category: "Admission Fee",
-          originalAmount: 5000,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 5000,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-03",
-          headName: "Books & Stationery Fee",
-          category: "Books Fee",
-          originalAmount: 4500,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 4500,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-04",
-          headName: "Examination & Assessment Fee",
-          category: "Exam Fee",
-          originalAmount: 2500,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 2500,
-          isApplicable: true,
-          status: "Pending",
-        },
-        {
-          headId: "FH-05",
-          headName: "Science & Computer Lab Fee",
-          category: "Lab Fee",
-          originalAmount: 2000,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 2000,
-          isApplicable: true,
-          status: "Pending",
-        },
-      ];
-
-      defaultAcademicFeeHeads.forEach((dItem) => {
-        const exists = ledgerItems.some(
-          (item) =>
-            item.headId === dItem.headId ||
-            item.headName.toLowerCase() === dItem.headName.toLowerCase(),
-        );
-        if (!exists) {
-          ledgerItems.push({ ...dItem });
-        }
-      });
     }
 
     // Ensure Uniform Fee category amount matches config lookup
@@ -13090,9 +13341,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const activeAssignment = studentFeeAssignments.find(
         (a) => a.studentId === studentId && a.status === "Active",
       );
+      const matchedDfs =
+        dynamicFeeStructures.find(
+          (d) =>
+            matchesClassName(d.className, student.className) &&
+            (d.status === "Active" || !d.status),
+        ) ||
+        dynamicFeeStructures.find((d) =>
+          matchesClassName(d.className, student.className),
+        );
       const baseFee = activeAssignment
         ? activeAssignment.baseFeeTotal
-        : student.totalFee || 40500;
+        : student.totalFee && student.totalFee > 0
+          ? student.totalFee
+          : matchedDfs?.totalAmount ?? 0;
 
       let transportAssign = studentTransports.find(
         (t) => t.studentId === studentId && t.status === "Active",
@@ -13218,9 +13480,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const activeAssignment = studentFeeAssignments.find(
           (a) => a.studentId === studentId && a.status === "Active",
         );
+        const matchedDfs =
+          dynamicFeeStructures.find(
+            (d) =>
+              matchesClassName(d.className, student.className) &&
+              (d.status === "Active" || !d.status),
+          ) ||
+          dynamicFeeStructures.find((d) =>
+            matchesClassName(d.className, student.className),
+          );
         const baseFee = activeAssignment
           ? activeAssignment.baseFeeTotal
-          : l.totalOriginalAmount || student.totalFee || 40500;
+          : l.totalOriginalAmount && l.totalOriginalAmount > 0
+            ? l.totalOriginalAmount
+            : student.totalFee && student.totalFee > 0
+              ? student.totalFee
+              : matchedDfs?.totalAmount ?? 0;
 
         let transportAssign = studentTransports.find(
           (t) => t.studentId === studentId && t.status === "Active",
