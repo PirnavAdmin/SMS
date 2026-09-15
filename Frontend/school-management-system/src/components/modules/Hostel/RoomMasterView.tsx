@@ -27,6 +27,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   const [filterHostelState, setFilterHostelState] = useState('');
   const filterHostel = selectedHostelFilter !== undefined ? selectedHostelFilter : filterHostelState;
   const setFilterHostel = onHostelFilterChange || setFilterHostelState;
+  const [filterFloor, setFilterFloor] = useState('All Floors');
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,7 +152,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     }
   };
 
-  const wardenAssignedBlocks = useMemo(() => {
+  const wardenAssignedHostels = useMemo(() => {
     if (!isWarden) return blocks;
     const uName = (user?.name || '').toLowerCase().trim();
     const uFirst = uName ? uName.split(' ')[0] : '';
@@ -176,13 +177,30 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
   }, [blocks, isWarden, user]);
 
-  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
+  const targetBlocks = isWarden ? wardenAssignedHostels : blocks;
 
   useEffect(() => {
     if (isWarden && targetBlocks.length > 0 && !filterHostel) {
       setFilterHostel(String(targetBlocks[0].hostelId));
     }
   }, [isWarden, targetBlocks, filterHostel, setFilterHostel]);
+
+  const availableFloorOptions = useMemo(() => {
+    const floorsSet = new Set<string>();
+    (rooms || []).forEach(rm => {
+      const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === String(rm.hostelId));
+      const matchHostel = !filterHostel || filterHostel === 'All' || String(rm.hostelId) === String(filterHostel);
+      if (isBlockMatch && matchHostel && rm.floorLevel) {
+        floorsSet.add(rm.floorLevel);
+      }
+    });
+    const list = Array.from(floorsSet).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || (a.toLowerCase().includes('ground') ? 0 : 99);
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || (b.toLowerCase().includes('ground') ? 0 : 99);
+      return numA - numB;
+    });
+    return ['All Floors', ...list.length > 0 ? list : ['Ground Floor', '1st Floor', '2nd Floor', '3rd Floor']];
+  }, [rooms, isWarden, targetBlocks, filterHostel]);
 
   const handleDelete = async () => {
     if (deletingRoom) {
@@ -198,15 +216,27 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     }
   };
 
-  const filteredRooms = rooms.filter(rm => {
-    const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === String(rm.hostelId));
-    const matchQuery = !searchQuery.trim() ||
-                       rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       rm.hostelName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       rm.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchHostel = !filterHostel || filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
-    return isBlockMatch && matchQuery && matchHostel;
-  });
+  const filteredRooms = useMemo(() => {
+    const matched = rooms.filter(rm => {
+      const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === String(rm.hostelId));
+      const matchQuery = !searchQuery.trim() ||
+                         rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         rm.hostelName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         rm.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchHostel = !filterHostel || filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
+      const sFloor = rm.floorLevel || '';
+      const matchFloor = filterFloor === 'All Floors' || !sFloor || sFloor.toLowerCase().includes(filterFloor.toLowerCase());
+
+      return isBlockMatch && matchQuery && matchHostel && matchFloor;
+    });
+
+    return matched.sort((a, b) => {
+      const numA = parseInt((a.roomNumber || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt((b.roomNumber || '').replace(/\D/g, ''), 10) || 0;
+      if (numA !== numB) return numA - numB;
+      return (a.roomNumber || '').localeCompare(b.roomNumber || '', undefined, { numeric: true });
+    });
+  }, [rooms, isWarden, targetBlocks, searchQuery, filterHostel, filterFloor]);
 
   const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
   const paginatedRooms = filteredRooms.slice(
@@ -254,7 +284,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
           {isWarden ? (
             <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400">
@@ -281,6 +311,20 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 })}
             </select>
           )}
+
+          {/* Floor Filter */}
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+            <select
+              value={filterFloor}
+              onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+            >
+              {availableFloorOptions.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
