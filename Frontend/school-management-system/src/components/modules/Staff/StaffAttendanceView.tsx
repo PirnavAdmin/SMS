@@ -669,13 +669,23 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         }
       : null;
 
-    const teacherId = teacher?.id || dbTeacher?.id || "";
+    const teacherId = String(teacher?.id || "").toLowerCase().trim();
+    const dbId = dbTeacher?.id ? String(dbTeacher.id).toLowerCase().trim() : "";
+    const dbEmpId = dbTeacher?.empId ? String(dbTeacher.empId).toLowerCase().trim() : "";
+    const userId = user?.id ? String(user.id).toLowerCase().trim() : "";
+    const userEmpId = (user as any)?.empId ? String((user as any).empId).toLowerCase().trim() : "";
+
     const teacherRecords = (attendance || [])
       .filter((r) => {
         const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
         const isId =
-          String(r.entityId) === String(teacherId) ||
-          String((r as any).staffId) === String(teacherId);
+          (teacherId && rEntityId === teacherId) ||
+          (dbId && rEntityId === dbId) ||
+          (dbEmpId && rEntityId === dbEmpId) ||
+          (userId && rEntityId === userId) ||
+          (userEmpId && rEntityId === userEmpId);
+
         const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
         return isStaff && isId && rDate !== todayStr;
       })
@@ -1840,10 +1850,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Fetch monthly attendance logs from API when filters change
   useEffect(() => {
-    if (viewMode === "monthly" && fetchMonthlyAttendance) {
+    if ((viewMode === "monthly" || isPersonalView) && fetchMonthlyAttendance) {
       const activeDept =
         activeTab === "teaching" ? teachingDept : nonTeachingDept;
-      fetchMonthlyAttendance(regMonth + 1, regYear, activeDept);
+      const now = new Date();
+      const m = viewMode === "monthly" ? regMonth + 1 : now.getMonth() + 1;
+      const y = viewMode === "monthly" ? regYear : now.getFullYear();
+      fetchMonthlyAttendance(m, y, activeDept);
     }
   }, [
     regMonth,
@@ -1852,6 +1865,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     teachingDept,
     nonTeachingDept,
     viewMode,
+    isPersonalView,
     fetchMonthlyAttendance,
   ]);
 
@@ -1900,6 +1914,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         const isDateMatch = rDate === targetDate;
         const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
         const sFullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim();
+        const rEmpName = String((r as any).employeeName || (r as any).name || "").toLowerCase().trim();
+        const isNameMatch = !!sFullName && !!rEmpName && (sFullName === rEmpName || sFullName.includes(rEmpName) || rEmpName.includes(sFullName));
+        const isEmailMatch = !!s.email && !!(r as any).email && s.email.toLowerCase() === String((r as any).email).toLowerCase();
         const isIdMatch =
           String(r.entityId) === String(s.id) ||
           String(r.entityId) === String(s.empId) ||
@@ -1908,7 +1925,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           String((r as any).employeeId) === String(s.id) ||
           String((r as any).employeeId) === String(s.empId) ||
           (r.entityId && (String(r.entityId).toLowerCase().includes("drv") || String(r.entityId).toLowerCase().includes("driver")) && ((s.designation || "").toLowerCase().includes("driver") || (s.department || "").toLowerCase().includes("transport"))) ||
-          ((r as any).employeeName && String((r as any).employeeName).toLowerCase().trim() === sFullName);
+          isNameMatch ||
+          isEmailMatch;
         return isDateMatch && isStaffEntity && isIdMatch;
       });
 

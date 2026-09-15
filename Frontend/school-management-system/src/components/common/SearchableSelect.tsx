@@ -14,6 +14,7 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
+  showSearch?: boolean;
   disabled?: boolean;
   className?: string;
   error?: string;
@@ -23,8 +24,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
   value,
   onChange,
-  placeholder = 'Select option...',
+  placeholder = 'Select',
   searchPlaceholder = 'Search options...',
+  showSearch,
   disabled = false,
   className = '',
   error
@@ -42,10 +44,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     return opt;
   });
 
+  const isSearchVisible = showSearch !== undefined ? showSearch : normalizedOptions.length > 5;
+
   const selectedOption = normalizedOptions.find(o => o.value === value);
 
   // Filter options by search query
   const filteredOptions = normalizedOptions.filter(opt => {
+    if (!isSearchVisible) return true;
     const q = search.toLowerCase().trim();
     if (!q) return true;
     const labelMatch = opt.label.toLowerCase().includes(q);
@@ -67,12 +72,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   // Focus search input when opening
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
+    if (isOpen && isSearchVisible && searchInputRef.current) {
       setTimeout(() => searchInputRef.current?.focus(), 50);
     } else {
       setSearch('');
     }
-  }, [isOpen]);
+  }, [isOpen, isSearchVisible]);
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -115,28 +120,30 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       {isOpen && !disabled && (
         <div className="absolute z-50 left-0 right-0 mt-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-150">
           {/* Search Header */}
-          <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-brand-500"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
+          {isSearchVisible && (
+            <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-brand-500"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Options List - Exactly 5 items height scroll container */}
           <div className="max-h-44 overflow-y-auto p-1 space-y-0.5 custom-scrollbar">

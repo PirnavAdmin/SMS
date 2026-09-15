@@ -1,120 +1,11 @@
-// @ts-nocheck
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { getAllocations, vacateAllocation, createAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation } from '../../../api/hostel';
+import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
-
-interface ComboboxOption {
-  value: string;
-  label: string;
-  subLabel?: string;
-  disabled?: boolean;
-}
-
-const SearchableCombobox: React.FC<{
-  options: ComboboxOption[];
-  value: string;
-  onChange: (val: string) => void;
-  placeholder?: string;
-  searchPlaceholder?: string;
-  className?: string;
-}> = ({ options, value, onChange, placeholder = 'Select option...', className = '' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  const selectedOpt = options.find(o => String(o.value) === String(value));
-
-  React.useEffect(() => {
-    if (selectedOpt) {
-      setSearchText(selectedOpt.label);
-    } else if (value) {
-      setSearchText(value);
-    } else {
-      setSearchText('');
-    }
-  }, [value, selectedOpt]);
-
-  React.useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const filteredOptions = options.filter(opt => {
-    if (!searchText.trim()) return true;
-    if (selectedOpt && searchText === selectedOpt.label) return true;
-    const q = searchText.toLowerCase().trim();
-    return opt.label.toLowerCase().includes(q) || (opt.subLabel || '').toLowerCase().includes(q);
-  });
-
-  return (
-    <div ref={containerRef} className={`relative w-full ${className}`}>
-      <div className="relative cursor-pointer" onClick={() => setIsOpen(prev => !prev)}>
-        <input
-          type="text"
-          value={searchText}
-          onFocus={() => setIsOpen(true)}
-          onChange={e => {
-            const val = e.target.value;
-            setSearchText(val);
-            setIsOpen(true);
-            onChange(val);
-          }}
-          placeholder={placeholder}
-          className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
-        />
-        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer pointer-events-none" />
-      </div>
-
-      {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1 space-y-0.5 custom-scrollbar">
-          {filteredOptions.length === 0 ? (
-            <div className="px-3 py-2 text-xs font-bold text-sky-600 cursor-pointer" onClick={() => { onChange(searchText); setIsOpen(false); }}>
-              Use custom: "{searchText}"
-            </div>
-          ) : (
-            filteredOptions.map((opt, idx) => {
-              const isSelected = String(opt.value) === String(value);
-              return (
-                <button
-                  key={`combobox_opt_${opt.value}_${idx}`}
-                  type="button"
-                  disabled={opt.disabled}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (opt.disabled) return;
-                    onChange(opt.value);
-                    setSearchText(opt.label);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
-                    opt.disabled
-                      ? 'opacity-50 cursor-not-allowed text-slate-400'
-                      : isSelected
-                      ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
-                  }`}
-                >
-                  <span className="font-bold">{opt.label}</span>
-                  {isSelected && <span className="text-[10px] text-sky-600 font-bold">✓ Selected</span>}
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const SearchableSelect = SearchableCombobox;
 
 interface TransferRecord {
   id: number;
@@ -174,6 +65,171 @@ const DEFAULT_INITIAL_TRANSFERS: TransferRecord[] = [
 export const HostelTransferVacateView: React.FC = () => {
   const { students } = useData();
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+
+  const isWarden = Boolean(role && role.toLowerCase().includes('warden'));
+
+  const [blocks, setBlocks] = useState<any[]>([]);
+  const [allocations, setAllocations] = useState<any[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadHostelData = async () => {
+      try {
+        const [bData, aData] = await Promise.all([
+          getHostelBlocks().catch(() => []),
+          getAllocations().catch(() => [])
+        ]);
+        if (isMounted) {
+          setBlocks(Array.isArray(bData) ? bData : []);
+          setAllocations(Array.isArray(aData) ? aData : []);
+        }
+      } catch (e) {
+        console.warn('Failed to load hostel data for transfer view', e);
+      }
+    };
+    loadHostelData();
+
+    const handleSync = () => loadHostelData();
+    window.addEventListener('hostel_allocations_updated', handleSync);
+    window.addEventListener('hostel_students_updated', handleSync);
+    window.addEventListener('residential_students_updated', handleSync);
+    window.addEventListener('students_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('hostel_allocations_updated', handleSync);
+      window.removeEventListener('hostel_students_updated', handleSync);
+      window.removeEventListener('residential_students_updated', handleSync);
+      window.removeEventListener('students_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
+  const wardenAssignedBlocks = useMemo(() => {
+    if (!blocks || blocks.length === 0) return [];
+
+    const uName = String(user?.name || (user as any)?.firstName || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = String(user?.email || '').toLowerCase().trim();
+    const uId = String(user?.id || '').toLowerCase().trim();
+    const uEmpId = String((user as any)?.empId || '').toLowerCase().trim();
+
+    if (isWarden) {
+      const matched = blocks.filter(b => {
+        const wName = String(b.wardenName || (b as any).warden || (b as any).assignedWarden || '').toLowerCase().trim();
+        const wEmail = String(b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+        const wId = String(b.wardenId || (b as any).staffId || '').toLowerCase().trim();
+
+        if (uEmail && wEmail && (wEmail === uEmail || wEmail.includes(uEmail) || uEmail.includes(wEmail))) return true;
+        if (uId && wId && wId === uId) return true;
+        if (uEmpId && wId && wId === uEmpId) return true;
+        if (uName && wName && (wName === uName || wName.includes(uName) || uName.includes(wName))) return true;
+        if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+        return false;
+      });
+
+      if (matched.length > 0) return matched;
+    }
+
+    // Default warden block fallback matching StudentList.tsx
+    const defaultBlock = blocks.find(b =>
+      (b.hostelName || (b as any).name || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || (b as any).name || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || (b as any).name || '').toLowerCase().includes('boys')
+    );
+
+    return defaultBlock ? [defaultBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, allocations, isWarden, user]);
+
+  // Strictly filter residential hostellers allocated to assigned block
+  const displayStudentsList = useMemo(() => {
+    const targetBlocks = (wardenAssignedBlocks && wardenAssignedBlocks.length > 0)
+      ? wardenAssignedBlocks
+      : (blocks.length > 0 ? [blocks[0]] : []);
+
+    const targetBlockIds = new Set(targetBlocks.map(b => String(b.hostelId || b.id)));
+    const targetBlockNames = targetBlocks.map(b => (b.hostelName || b.name || '').toLowerCase().trim()).filter(Boolean);
+
+    // Active allocations specifically for target block(s)
+    const blockAllocations = (allocations || []).filter(a => {
+      if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
+      const aName = (a.hostelName || '').toLowerCase().trim();
+      const aId = String(a.hostelId || '');
+      const matchId = targetBlockIds.has(aId);
+      const matchName = targetBlockNames.some(tn => tn && (aName.includes(tn) || tn.includes(aName)));
+      return matchId || matchName;
+    });
+
+    const allocatedStudentIds = new Set(blockAllocations.map(a => String(a.studentId).toLowerCase().trim()));
+    const allocatedAdmNos = new Set(blockAllocations.map(a => (a.admissionNo || '').toLowerCase().trim()).filter(Boolean));
+    const allocatedNames = new Set(blockAllocations.map(a => (a.studentName || '').toLowerCase().trim()).filter(Boolean));
+
+    const otherBlockOrVacatedKeys = new Set<string>();
+    (allocations || []).forEach(a => {
+      if (!a) return;
+      const aName = (a.hostelName || '').toLowerCase().trim();
+      const aId = String(a.hostelId || '');
+      const matchId = targetBlockIds.has(aId);
+      const matchName = targetBlockNames.some(tn => tn && (aName.includes(tn) || tn.includes(aName)));
+      const isTarget = matchId || matchName;
+      if (!isTarget || a.status === 'Vacated' || a.status === 'Inactive') {
+        if (a.studentId) otherBlockOrVacatedKeys.add(String(a.studentId).toLowerCase().trim());
+        if (a.admissionNo) otherBlockOrVacatedKeys.add(String(a.admissionNo).toLowerCase().trim());
+        if (a.studentName) otherBlockOrVacatedKeys.add(String(a.studentName).toLowerCase().trim());
+      }
+    });
+
+    // Match context students against target block allocations OR direct student hostelBlock assignment
+    const matchedStudents = (students || []).filter(s => {
+      if (!s) return false;
+      const sId = String(s.id || '').toLowerCase().trim();
+      const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+      const sHostel = String((s as any).hostelBlock || (s as any).hostelName || (s as any).hostel || '').toLowerCase().trim();
+
+      const matchesAlloc = (sId && allocatedStudentIds.has(sId)) ||
+                           (sAdm && allocatedAdmNos.has(sAdm)) ||
+                           (sFullName && allocatedNames.has(sFullName));
+
+      const isAllocatedElsewhereOrVacated = (sId && otherBlockOrVacatedKeys.has(sId)) || (sAdm && otherBlockOrVacatedKeys.has(sAdm)) || (sFullName && otherBlockOrVacatedKeys.has(sFullName));
+
+      if (isAllocatedElsewhereOrVacated && !matchesAlloc) {
+        return false;
+      }
+
+      const matchesDirectHostelBlock = targetBlockNames.length > 0 && sHostel && targetBlockNames.some(tn => tn && (sHostel.includes(tn) || tn.includes(sHostel)));
+
+      return matchesAlloc || matchesDirectHostelBlock;
+    });
+
+    // Synthetic records for any blockAllocations not present in matchedStudents
+    const existingAdmNos = new Set(matchedStudents.map(s => String(s.admissionNo || '').toLowerCase().trim()));
+    const existingIds = new Set(matchedStudents.map(s => String(s.id || '').toLowerCase().trim()));
+    const existingNames = new Set(matchedStudents.map(s => `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim()));
+
+    const syntheticFromAllocations = blockAllocations
+      .filter(a => {
+        const aId = String(a.studentId || '').toLowerCase().trim();
+        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
+        const aName = String(a.studentName || '').toLowerCase().trim();
+        return !existingIds.has(aId) && (!aAdm || !existingAdmNos.has(aAdm)) && (!aName || !existingNames.has(aName));
+      })
+      .map(a => ({
+        id: a.studentId || a.allocationId || `alloc_${a.admissionNo}`,
+        firstName: a.studentName || 'Student',
+        lastName: '',
+        admissionNo: a.admissionNo || `ADM-${a.studentId}`,
+        studentType: 'Hosteller',
+        hostelName: a.hostelName,
+        roomNumber: a.roomNumber
+      }));
+
+    const merged = [...matchedStudents, ...syntheticFromAllocations];
+
+    return merged;
+  }, [students, wardenAssignedBlocks, blocks, allocations]);
 
   const [records, setRecords] = useState<TransferRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -241,19 +297,28 @@ export const HostelTransferVacateView: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const selectedSt = students.find(s => s.id.toString() === selectedStudentId);
+    const selectedSt = displayStudentsList.find(s => String(s.id) === String(selectedStudentId)) || students.find(s => String(s.id) === String(selectedStudentId));
     const stName = selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student';
     const admNo = selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`;
+    const fromHostel = (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || 'Ramachandra Bhavan Block');
+    const fromRoom = (selectedSt as any)?.roomNumber || '101';
 
-    // If Bed Vacate is chosen, trigger vacateAllocation in hostel API
-    if (actionType === 'Bed Vacate') {
+    if (actionType === 'Room Transfer') {
+      try {
+        const matchBlock = blocks.find(b => (b.hostelName || b.name || '').toLowerCase() === targetBlock.toLowerCase());
+        const targetBlockId = matchBlock?.hostelId || matchBlock?.id;
+        await updateStudentAllocationBlock(selectedStudentId, admNo, targetBlock, targetRoom, targetBlockId, stName);
+      } catch (err) {
+        console.error('Failed to update student allocation block:', err);
+      }
+    } else if (actionType === 'Bed Vacate') {
       try {
         const allocs = await getAllocations();
         const matchAlloc = allocs.find(a => String(a.studentId) === String(selectedStudentId) || a.admissionNo === admNo);
-        if (matchAlloc) {
-          await vacateAllocation(matchAlloc.allocationId);
-        }
-      } catch (err) {}
+        await vacateStudentAllocation(selectedStudentId, admNo, matchAlloc?.allocationId);
+      } catch (err) {
+        console.error('Failed to vacate student allocation:', err);
+      }
     }
 
     const newRecord: TransferRecord = {
@@ -261,8 +326,8 @@ export const HostelTransferVacateView: React.FC = () => {
       studentName: stName,
       admissionNo: admNo,
       actionType,
-      fromHostel: 'Ramachandra Bhavan Block',
-      fromRoom: '101',
+      fromHostel,
+      fromRoom,
       toHostel: actionType === 'Bed Vacate' ? 'N/A (Vacated)' : targetBlock,
       toRoom: actionType === 'Bed Vacate' ? 'N/A' : targetRoom,
       requestDate: new Date().toISOString().split('T')[0],
@@ -278,6 +343,12 @@ export const HostelTransferVacateView: React.FC = () => {
     };
 
     saveRecords([newRecord, ...records]);
+
+    try {
+      const freshAllocs = await getAllocations();
+      setAllocations(freshAllocs);
+    } catch (e) {}
+
     addToast(`${actionType} request processed. ${actionType === 'Bed Vacate' ? 'Bed released to available. Fee adjusted: ₹' + refundableBalance.toLocaleString() : 'Transferred to ' + targetBlock}`, 'success');
     setIsSubmitting(false);
     setIsModalOpen(false);
@@ -335,10 +406,10 @@ export const HostelTransferVacateView: React.FC = () => {
             <SearchableSelect
               value={filterAction}
               onChange={setFilterAction}
-              placeholder="Select Option"
+              placeholder="Select"
               searchPlaceholder="Search type..."
               options={[
-                { value: '', label: 'Select Option' },
+                { value: '', label: 'Select' },
                 { value: 'All', label: 'All Requests' },
                 { value: 'Room Transfer', label: 'Room Transfer' },
                 { value: 'Bed Vacate', label: 'Bed Vacate' }
@@ -445,27 +516,27 @@ export const HostelTransferVacateView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Resident Student <span className="text-rose-500">*</span></label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Select Resident Student <span className="text-rose-500">*</span></label>
                 <select
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
                   disabled={isSubmitting}
                   required
                 >
                   <option value="" disabled>Select Resident Student...</option>
-                  {(hostellers.length > 0 ? hostellers : students).map(st => (
+                  {displayStudentsList.map(st => (
                     <option key={st.id} value={st.id.toString()}>{st.firstName} {st.lastName} ({st.admissionNo})</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Action Type <span className="text-rose-500">*</span></label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Action Type <span className="text-rose-500">*</span></label>
                 <select
                   value={actionType}
                   onChange={e => setActionType(e.target.value as any)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
                   disabled={isSubmitting}
                 >
                   <option value="Room Transfer">Room Transfer (Change Room/Block)</option>
