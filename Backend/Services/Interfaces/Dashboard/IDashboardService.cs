@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Services.Interfaces.Dashboard;
+namespace SMS.Api.Services.Interfaces.Dashboard;
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,5 +9,6 @@ public interface IDashboardService
     Task<DashboardSummaryDto> GetDashboardSummaryAsync(
         string? branchContext,
         int? academicYearId,
+        string? academicYearContext = null,
         CancellationToken cancellationToken = default);
 }
