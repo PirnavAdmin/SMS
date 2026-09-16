@@ -6147,9 +6147,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           setSchoolProfile((prev) => {
             const effectiveLogo =
-              data.logoUrl !== undefined && data.logoUrl !== ""
-                ? data.logoUrl
-                : (localCustomLogo || prev.logoUrl);
+              localCustomLogo || (data.logoUrl && data.logoUrl !== "" ? data.logoUrl : prev.logoUrl);
 
             const next = {
               ...prev,

@@ -116,3 +116,71 @@ export const createOptimizedAvatarDataUrl = (file: File, maxSize: number = 256):
     reader.readAsDataURL(file);
   });
 };
+
+/**
+ * Resizes any uploaded logo image to fit within maxDimension (e.g. 800px) while maintaining
+ * exact aspect ratio and outputting a compressed PNG Data URL (~50KB-100KB).
+ * Prevents browser localStorage quota errors and HTTP 413 Payload Too Large errors.
+ */
+export const createOptimizedLogoDataUrl = (fileOrDataUrl: File | string, maxDimension: number = 800): Promise<string> => {
+  return new Promise((resolve) => {
+    const processImageSource = (src: string) => {
+      if (!src) {
+        resolve('');
+        return;
+      }
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (!width || !height) {
+            resolve(src);
+            return;
+          }
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(src);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/png');
+          resolve(compressed && compressed.length < src.length ? compressed : src);
+        } catch {
+          resolve(src);
+        }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    };
+
+    if (typeof fileOrDataUrl === 'string') {
+      processImageSource(fileOrDataUrl);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) processImageSource(result);
+        else resolve('');
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(fileOrDataUrl);
+    }
+  });
+};
