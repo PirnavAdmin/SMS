@@ -99,7 +99,12 @@ export const FeeHeadsView: React.FC = () => {
 
   const handleOpenEdit = (h: FeeHead) => {
     setEditingHead(h);
-    setFormData(h);
+    setFormData({
+      ...h,
+      mandatory: h.mandatory === true,
+      applicableClasses: h.applicableClasses && h.applicableClasses.length > 0 ? [...h.applicableClasses] : [...classOptions],
+      applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['Main Campus'],
+    });
     setIsModalOpen(true);
   };
 
@@ -116,10 +121,16 @@ export const FeeHeadsView: React.FC = () => {
     }
 
     if (editingHead) {
-      updateFeeHead(editingHead.id, formData);
+      updateFeeHead(editingHead.id, {
+        ...formData,
+        mandatory: formData.mandatory === true,
+      });
       addToast('success', 'Fee Head Updated', `Updated ${formData.name}`);
     } else {
-      addFeeHead(formData as Omit<FeeHead, 'id'>);
+      addFeeHead({
+        ...formData,
+        mandatory: formData.mandatory === true,
+      } as Omit<FeeHead, 'id'>);
       addToast('success', 'Fee Head Created', `Created ${formData.name}`);
     }
     setIsModalOpen(false);
@@ -399,15 +410,18 @@ export const FeeHeadsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">Mandatory Fee Type</span>
+              <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors">
+                <div>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">Mandatory Fee Type</span>
+                  <span className="text-[11px] text-slate-400">If checked, this fee is mandatory and included by default.</span>
+                </div>
                 <input
                   type="checkbox"
-                  checked={formData.mandatory}
+                  checked={formData.mandatory === true}
                   onChange={e => setFormData({ ...formData, mandatory: e.target.checked })}
-                  className="w-4 h-4 rounded text-sky-600"
+                  className="w-4 h-4 rounded text-sky-600 cursor-pointer"
                 />
-              </div>
+              </label>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>

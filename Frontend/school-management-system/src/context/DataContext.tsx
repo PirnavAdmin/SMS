@@ -5756,7 +5756,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setStudentDiscounts(mappedStudentDiscounts);
         }
 
-        setFeeHeads(heads);
+        const mappedHeads: FeeHead[] = (heads || []).map((h: any) => ({
+          id: String(h.id),
+          name: h.name || "",
+          code: h.code || `FH-${h.id}`,
+          category: (h.category as any) || "Tuition",
+          frequency: (h.frequency as any) || "Quarterly",
+          mandatory: h.mandatory === true,
+          applicableClasses: Array.isArray(h.applicableClasses) ? h.applicableClasses : [],
+          applicableBranches: Array.isArray(h.applicableBranches) ? h.applicableBranches : ["Main Campus"],
+          amount: Number(h.amount || h.defaultAmount || 0),
+          defaultAmount: Number(h.defaultAmount || h.amount || 0),
+          taxPercentage: Number(h.taxPercentage || 0),
+          displayOrder: Number(h.displayOrder || 1),
+          status: (h.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
+        }));
+        setFeeHeads(mappedHeads);
+        try {
+          localStorage.setItem("fee_heads", JSON.stringify(mappedHeads));
+        } catch (e) {}
         setDynamicFeeStructures(structs);
         setDbAssignments(assignments);
         setFeePayments(payments);
@@ -9972,15 +9990,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addFeeHead = async (head: Omit<FeeHead, "id">) => {
     try {
       const response = await FinanceAPI.createFeeHeadApi(head);
+      const resData = response?.data || response;
       const newHead: FeeHead = {
         ...head,
-        id: response?.id || "FH-" + Math.floor(100 + Math.random() * 900),
+        id: resData?.id ? String(resData.id) : "FH-" + Math.floor(100 + Math.random() * 900),
+        code: resData?.code || head.code,
         applicableBranches:
           head.applicableBranches && head.applicableBranches.length > 0
             ? head.applicableBranches
             : [selectedBranch || "Main Campus"],
       };
-      setFeeHeads((prev) => [...prev, newHead]);
+      setFeeHeads((prev) => {
+        const next = [...prev, newHead];
+        try {
+          localStorage.setItem("fee_heads", JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
       logActivity(
         "Created Fee Head",
         `Added ${newHead.name} (${(newHead as any).code || ""})`,
@@ -9996,7 +10022,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? head.applicableBranches
             : [selectedBranch || "Main Campus"],
       };
-      setFeeHeads((prev) => [...prev, newHead]);
+      setFeeHeads((prev) => {
+        const next = [...prev, newHead];
+        try {
+          localStorage.setItem("fee_heads", JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
       logActivity(
         "Created Fee Head",
         `Added ${newHead.name} (${(newHead as any).code || ""})`,
@@ -10004,26 +10036,95 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const updateFeeHead = (id: string, updates: Partial<FeeHead>) => {
-    setFeeHeads((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, ...updates } : f)),
-    );
+  const updateFeeHead = async (id: string, updates: Partial<FeeHead>) => {
+    const stringId = String(id);
+    const numId = Number(id);
+
+    setFeeHeads((prev) => {
+      const next: FeeHead[] = prev.map((f) => (String(f.id) === stringId ? { ...f, ...updates } : f));
+      try {
+        localStorage.setItem("fee_heads", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    try {
+      const existing = feeHeads.find((f) => String(f.id) === stringId);
+      const merged = { ...existing, ...updates };
+      const payload = {
+        id: !isNaN(numId) ? numId : 0,
+        name: merged.name || "",
+        code: merged.code || "",
+        category: merged.category || "Tuition",
+        frequency: merged.frequency || "Quarterly",
+        defaultAmount: Number(merged.defaultAmount ?? merged.amount ?? 0),
+        mandatory: merged.mandatory === true,
+        isRefundable: (merged as any).isRefundable ?? false,
+        isTaxable: (merged as any).isTaxable ?? ((merged.taxPercentage || 0) > 0),
+        taxPercentage: Number(merged.taxPercentage || 0),
+        displayOrder: Number(merged.displayOrder || 1),
+        status: merged.status || "Active",
+        description: (merged as any).description || "",
+        applicableClasses: Array.isArray(merged.applicableClasses) ? merged.applicableClasses : [],
+        applicableBranches: Array.isArray(merged.applicableBranches) ? merged.applicableBranches : ["Main Campus"],
+      };
+
+      if (!isNaN(numId) && numId > 0) {
+        await FinanceAPI.updateFeeHeadApi(numId, payload);
+      }
+    } catch (err) {
+      console.error("Failed to persist fee head update to backend:", err);
+    }
+
     logActivity("Updated Fee Head", `Updated Fee Head ID ${id}`);
   };
 
-  const deleteFeeHead = (id: string) => {
-    setFeeHeads((prev) => prev.filter((f) => f.id !== id));
+  const deleteFeeHead = async (id: string) => {
+    const stringId = String(id);
+    const numId = Number(id);
+
+    setFeeHeads((prev) => {
+      const next = prev.filter((f) => String(f.id) !== stringId);
+      try {
+        localStorage.setItem("fee_heads", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    try {
+      if (!isNaN(numId) && numId > 0) {
+        await FinanceAPI.deleteFeeHeadApi(numId);
+      }
+    } catch (err) {
+      console.error("Failed to delete fee head from backend:", err);
+    }
+
     logActivity("Deleted Fee Head", `Removed Fee Head ID ${id}`);
   };
 
-  const toggleFeeHeadStatus = (id: string) => {
-    setFeeHeads((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? { ...f, status: f.status === "Active" ? "Inactive" : "Active" }
+  const toggleFeeHeadStatus = async (id: string) => {
+    const stringId = String(id);
+    const numId = Number(id);
+
+    setFeeHeads((prev) => {
+      const next: FeeHead[] = prev.map((f) =>
+        String(f.id) === stringId
+          ? { ...f, status: (f.status === "Active" ? "Inactive" : "Active") as 'Active' | 'Inactive' }
           : f,
-      ),
-    );
+      );
+      try {
+        localStorage.setItem("fee_heads", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    try {
+      if (!isNaN(numId) && numId > 0) {
+        await FinanceAPI.toggleFeeHeadStatusApi(numId);
+      }
+    } catch (err) {
+      console.error("Failed to toggle fee head status on backend:", err);
+    }
   };
 
   // Helper to propagate fee structure changes to all students of the target class
