@@ -48,9 +48,10 @@ export const LeaveManagementView: React.FC = () => {
   const isTeacher = userRole === 'teacher' || userRole === 'class-teacher';
   const isDriver = userRole === 'driver';
   const isWarden = userRole.includes('warden');
+  const isLibrarian = userRole.includes('librarian');
   const isAccountant = userRole.includes('accountant') || userRole === 'finance';
   const hasApprovalPermission = ['admin', 'super admin', 'principal', 'hr', 'vice principal'].includes(userRole);
-  const isSelfServiceStaff = !hasApprovalPermission || isTeacher || isDriver || isWarden || isAccountant;
+  const isSelfServiceStaff = !hasApprovalPermission || isTeacher || isDriver || isWarden || isLibrarian || isAccountant;
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>(

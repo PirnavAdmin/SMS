@@ -120,13 +120,18 @@ export const ParentHomeworkView: React.FC = () => {
 
     if (!classMatch || !sectionMatch) return false;
 
-    // Show homework that is published (default to published if status is not set)
-    const isPublished = h.status === 'Published' || h.status === undefined;
+    // Show homework that is active/published/assigned (default to true if status is not set)
+    const isPublished = !h.status || ['Published', 'Active', 'Assigned', 'Completed'].includes(h.status);
     if (!isPublished) return false;
 
     // Show only if targeted to this student specifically or distributed to class-wide audience
     if (h.publishToType === 'Students') {
-      return h.publishedStudentIds?.includes(currentWard.id);
+      const wardId = String(currentWard?.id || '').trim();
+      const wardRoll = String(currentWard?.rollNo || '').trim();
+      return Array.isArray(h.publishedStudentIds) && h.publishedStudentIds.some((id: any) => {
+        const sId = String(id).trim();
+        return sId === wardId || (wardRoll && sId === wardRoll);
+      });
     }
 
     return true;

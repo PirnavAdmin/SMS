@@ -23,12 +23,25 @@ public class TeacherAttendanceController : ControllerBase
     [HttpGet("today")]
     public async Task<IActionResult> GetTodayAttendance()
     {
-        var email = GetTeacherEmail();
+        try
+        {
+            var email = GetTeacherEmail();
 
-        var attendance =
-            await _service.GetTodayAttendanceAsync(email);
+            var attendance =
+                await _service.GetTodayAttendanceAsync(email);
 
-        if (attendance == null)
+            if (attendance == null)
+            {
+                return Ok(new
+                {
+                    message = "Attendance has not been marked today.",
+                    attendance = (object?)null
+                });
+            }
+
+            return Ok(attendance);
+        }
+        catch (Exception)
         {
             return Ok(new
             {
@@ -36,8 +49,6 @@ public class TeacherAttendanceController : ControllerBase
                 attendance = (object?)null
             });
         }
-
-        return Ok(attendance);
     }
 
     // GET: api/teacher/attendance/history
@@ -129,14 +140,9 @@ public class TeacherAttendanceController : ControllerBase
         var email =
             User.FindFirstValue(ClaimTypes.Email) ??
             User.FindFirstValue("email") ??
-            User.FindFirstValue(ClaimTypes.Name);
+            User.FindFirstValue(ClaimTypes.Name) ??
+            User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            throw new UnauthorizedAccessException(
-                "Teacher email is missing from the login token.");
-        }
-
-        return email;
+        return email ?? string.Empty;
     }
 }
