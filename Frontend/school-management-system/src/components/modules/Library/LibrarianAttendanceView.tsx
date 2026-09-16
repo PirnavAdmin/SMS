@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CalendarCheck, CheckCircle2, Clock, Plus, Users, User, ShieldAlert, Search, Printer, Download, Sparkles } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -61,7 +61,7 @@ export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [];
 
 export const LibrarianAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff, markAttendance } = useData();
+  const { staff, attendance, markAttendance } = useData();
   const { addToast } = useToast();
 
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
@@ -118,7 +118,7 @@ export const LibrarianAttendanceView: React.FC = () => {
             staffId: item.staffId || item.employeeCode || currentStaffId,
             staffName: item.staffName || item.librarian || currentStaffName,
             role: item.role || 'Librarian',
-            date: item.date,
+            date: String(item.date || todayStr).split('T')[0],
             checkInTime: item.checkInTime || item.checkIn,
             checkOutTime: (item.checkOutTime || item.checkOut || '').replace('Active Shift', ''),
             workingHours: item.workingHours || item.hours,
@@ -130,21 +130,22 @@ export const LibrarianAttendanceView: React.FC = () => {
           // Merge backend API data with local state so local check-in records are NEVER overwritten or wiped out
           setLibrarianAttendance(prev => {
             const map = new Map<string, LibrarianAttendanceRecord>();
-            // Add existing local records first
             (prev || []).forEach(r => {
-              const key = `${r.date}_${r.staffId || r.staffName}`;
-              map.set(key, r);
+              const rDate = String(r.date || '').split('T')[0];
+              const key = `${rDate}_${r.staffId || r.staffName}`;
+              map.set(key, { ...r, date: rDate });
             });
-            // Merge fetched backend records
             mapped.forEach(r => {
-              const key = `${r.date}_${r.staffId || r.staffName}`;
+              const rDate = String(r.date || '').split('T')[0];
+              const key = `${rDate}_${r.staffId || r.staffName}`;
               if (!map.has(key)) {
-                map.set(key, r);
+                map.set(key, { ...r, date: rDate });
               } else {
                 const existing = map.get(key)!;
                 map.set(key, {
                   ...existing,
                   ...r,
+                  date: rDate,
                   checkInTime: existing.checkInTime || r.checkInTime,
                   checkOutTime: existing.checkOutTime || r.checkOutTime
                 });
@@ -160,27 +161,87 @@ export const LibrarianAttendanceView: React.FC = () => {
       }
     };
     loadAttendanceData();
-  }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth, currentStaffId, currentStaffName]);
+  }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth, currentStaffId, currentStaffName, todayStr]);
 
-  const todayRecord = librarianAttendance.find(r => 
-    r.date === todayStr && 
-    (
-      r.staffId === currentStaffId || 
-      (matchedStaff && (r.staffId === matchedStaff.empId || r.staffId === matchedStaff.id)) ||
-      r.staffName.toLowerCase() === currentStaffName.toLowerCase()
-    )
-  );
+  // Combined records from DataContext attendance & local librarian attendance
+  const allLibrarianAttendance = useMemo(() => {
+    const map = new Map<string, LibrarianAttendanceRecord>();
 
-  const filteredAttendance = librarianAttendance.filter(r => {
+    // 1. Add records from DataContext attendance (which Admin Staff Attendance updates)
+    (attendance || []).forEach((r: any) => {
+      const isStaff = !r.entityType || String(r.entityType).toLowerCase() === 'staff';
+      const rDate = String(r.date || '').split('T')[0];
+      if (!isStaff || !rDate) return;
+
+      const sMatch = matchedStaff && (
+        String(r.entityId) === String(matchedStaff.id) ||
+        String(r.entityId) === String(matchedStaff.empId) ||
+        String(r.staffId) === String(matchedStaff.id) ||
+        String(r.staffId) === String(matchedStaff.empId)
+      );
+      const isNameMatch = String(r.employeeName || r.name || r.staffName || '').toLowerCase().trim().includes(currentStaffName.toLowerCase().trim());
+      const isLibrarianMatch = String(r.department || r.role || '').toLowerCase().includes('library') || String(r.remarks || '').toLowerCase().includes('librarian');
+
+      if (sMatch || isNameMatch || isLibrarianMatch) {
+        const key = `${rDate}_${r.entityId || currentStaffId}`;
+        map.set(key, {
+          id: String(r.id || `ATT-LIB-${rDate}`),
+          staffId: String(r.entityId || currentStaffId),
+          staffName: r.employeeName || r.staffName || currentStaffName,
+          role: 'Librarian',
+          date: rDate,
+          checkInTime: r.inTime || r.checkInTime || '08:30 AM',
+          checkOutTime: (r.outTime || r.checkOutTime || '').replace('Active Shift', ''),
+          workingHours: r.workingHours || (r.inTime && r.outTime ? calculateWorkedHours(r.inTime, r.outTime) : '--'),
+          shift: 'Morning Shift (08:30 - 17:00)',
+          status: r.status === 'Present' || r.status === 'Late' || r.status === 'Absent' ? r.status : 'Present',
+          remarks: r.remarks || 'Daily Shift Attendance'
+        });
+      }
+    });
+
+    // 2. Add local librarianAttendance records (overwriting if local check-in exists)
+    (librarianAttendance || []).forEach(r => {
+      const rDate = String(r.date || '').split('T')[0];
+      const key = `${rDate}_${r.staffId || currentStaffId}`;
+      if (!map.has(key)) {
+        map.set(key, { ...r, date: rDate });
+      } else {
+        const existing = map.get(key)!;
+        map.set(key, {
+          ...existing,
+          ...r,
+          date: rDate,
+          checkInTime: r.checkInTime || existing.checkInTime,
+          checkOutTime: r.checkOutTime || existing.checkOutTime
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [librarianAttendance, attendance, matchedStaff, currentStaffId, currentStaffName]);
+
+  const todayRecord = allLibrarianAttendance.find(r => {
+    const rDate = String(r.date || '').split('T')[0];
+    const isDate = rDate === todayStr;
+    const isId = r.staffId === currentStaffId || (matchedStaff && (r.staffId === matchedStaff.empId || r.staffId === matchedStaff.id));
+    const isName = String(r.staffName || '').toLowerCase().trim().includes(currentStaffName.toLowerCase().trim());
+    return isDate && (isId || isName);
+  });
+
+  const filteredAttendance = allLibrarianAttendance.filter(r => {
+    const rDate = String(r.date || '').split('T')[0];
+    const targetDate = String(selectedAttendanceDate || '').split('T')[0];
+
     if (attendanceViewMode === 'daily') {
-      return r.date === selectedAttendanceDate;
+      return rDate === targetDate;
     } else if (attendanceViewMode === 'weekly') {
-      const rDate = new Date(r.date);
-      const selDate = new Date(selectedAttendanceDate);
-      const diffDays = Math.abs((selDate.getTime() - rDate.getTime()) / (1000 * 3600 * 24));
+      const d1 = new Date(rDate);
+      const d2 = new Date(targetDate);
+      const diffDays = Math.abs((d2.getTime() - d1.getTime()) / (1000 * 3600 * 24));
       return diffDays <= 7;
     } else {
-      return r.date.startsWith(selectedAttendanceMonth);
+      return rDate.startsWith(selectedAttendanceMonth);
     }
   });
 
