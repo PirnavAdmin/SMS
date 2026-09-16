@@ -31,6 +31,21 @@ public class FinanceRepository : IFinanceRepository
 
     public async Task<FeeHead> UpdateFeeHeadAsync(FeeHead feeHead)
     {
+        var existing = await _context.FeeHeads.FindAsync(feeHead.Id);
+        if (existing != null)
+        {
+            existing.Name = feeHead.Name;
+            existing.Category = feeHead.Category;
+            existing.Frequency = feeHead.Frequency;
+            existing.DefaultAmount = feeHead.DefaultAmount;
+            existing.IsRefundable = feeHead.IsRefundable;
+            existing.IsTaxable = feeHead.IsTaxable;
+            existing.Status = feeHead.Status;
+            existing.Description = feeHead.Description;
+            await _context.SaveChangesAsync();
+            return existing;
+        }
+
         _context.FeeHeads.Update(feeHead);
         await _context.SaveChangesAsync();
         return feeHead;

@@ -2292,6 +2292,43 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
       const success = await markAttendance(recordsToSave);
       if (success) {
+        // Sync Librarian attendance records to edu_db_librarian_attendance key for seamless 2-way sync
+        activeStaffCategoryList.forEach(s => {
+          const isLib = (s.designation || '').toLowerCase().includes('librarian') || (s.department || '').toLowerCase().includes('library');
+          if (isLib && typeof window !== 'undefined') {
+            try {
+              const existingLibStr = localStorage.getItem('edu_db_librarian_attendance') || '[]';
+              let existingLib = JSON.parse(existingLibStr);
+              if (!Array.isArray(existingLib)) existingLib = [];
+
+              const inVal = inTimeMap[s.id] || '08:30 AM';
+              const outVal = outTimeMap[s.id] || '';
+              const statusVal = normalizeStatus(attendanceMap[s.id]) || 'Present';
+
+              const libRecord = {
+                id: `ATT-LIB-${s.id}-${attendanceDate}`,
+                staffId: s.empId || s.id || 'NTS-2026-805',
+                staffName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Jammi Naidu',
+                role: 'Librarian',
+                date: attendanceDate,
+                checkInTime: inVal,
+                checkOutTime: outVal || undefined,
+                workingHours: inVal && outVal ? calculateWorkedHours(inVal, outVal) : '8 Hours',
+                shift: 'Morning Shift (08:30 - 17:00)',
+                status: statusVal,
+                remarks: remarksMap[s.id] || 'Recorded by Admin Staff Attendance'
+              };
+
+              const filtered = existingLib.filter((r: any) => String(r.date).split('T')[0] !== attendanceDate);
+              filtered.unshift(libRecord);
+              localStorage.setItem('edu_db_librarian_attendance', JSON.stringify(filtered));
+              window.dispatchEvent(new Event('librarian_attendance_updated'));
+            } catch (e) {
+              console.warn("Error syncing librarian attendance record:", e);
+            }
+          }
+        });
+
         setIsDirty(false);
         addToast(
           "success",
