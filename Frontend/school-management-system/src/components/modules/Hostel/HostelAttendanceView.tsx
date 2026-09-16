@@ -61,10 +61,16 @@ export const HostelAttendanceView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
-    if (isWarden && targetBlocks.length > 0) {
-      const assignedId = String(targetBlocks[0].hostelId);
-      if (!selectedBlockId || !targetBlocks.some(b => String(b.hostelId) === selectedBlockId)) {
-        setSelectedBlockId(assignedId);
+    if (targetBlocks.length > 0) {
+      if (isWarden) {
+        const assignedId = String(targetBlocks[0].hostelId);
+        if (!selectedBlockId || !targetBlocks.some(b => String(b.hostelId) === selectedBlockId)) {
+          setSelectedBlockId(assignedId);
+        }
+      } else {
+        if (!selectedBlockId) {
+          setSelectedBlockId(String(targetBlocks[0].hostelId));
+        }
       }
     }
   }, [isWarden, targetBlocks, selectedBlockId]);

@@ -12,13 +12,40 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const { user } = useAuth();
   const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, timetable, subjects, staff, studentFeeLedgers, meetings } = useData();
   
-  const currentWard = students.find(s => s.id === user?.id || (user?.email && s.email?.toLowerCase() === user.email.toLowerCase())) || students.find(s => s.status === 'Active') || students[0];
+  const userEmail = (user?.email || '').toLowerCase().trim();
+  const userPhone = (user?.phone || '').replace(/\D/g, '');
+  const userId = String(user?.id || '').trim();
+  const rawUserName = (user?.name || '').trim().toLowerCase();
+
+  const currentWard = students.find(s => {
+    if (userId && (String(s.id) === userId || s.admissionNo === userId || (s as any).rollNo === userId)) return true;
+    if (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) return true;
+    if (userPhone && userPhone.length >= 10) {
+      if (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) return true;
+      if ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) return true;
+      if (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) return true;
+    }
+    if (rawUserName && rawUserName !== 'student' && rawUserName !== 'user') {
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      if (sFullName === rawUserName || (s as any).name?.toLowerCase().trim() === rawUserName) return true;
+    }
+    return false;
+  }) || (students.length > 0 ? (students.find(s => s.status === 'Active') || students[0]) : null);
 
   if (!currentWard) {
-    return <div className="p-8 text-center text-xs text-slate-500">No student record found.</div>;
+    return (
+      <div className="p-12 text-center">
+        <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs text-slate-500 font-medium">Loading student records...</p>
+      </div>
+    );
   }
 
-  const studentDisplayName = (user?.name || `${currentWard.firstName} ${currentWard.lastName}`).trim();
+  const studentDisplayName = (
+    currentWard 
+      ? `${currentWard.firstName || ''} ${currentWard.lastName || ''}`.trim() || user?.name
+      : user?.name
+  ) || 'Student';
 
   // Attendance
   const wardId = String(currentWard?.id || '').trim();

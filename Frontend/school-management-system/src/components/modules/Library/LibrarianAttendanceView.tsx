@@ -96,6 +96,18 @@ export const LibrarianAttendanceView: React.FC = () => {
     }
   };
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const matchedStaff = (staff || []).find(s => 
+    (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+    (user?.empId && (String(s.empId || '').trim() === String(user.empId).trim() || String(s.id || '').trim() === String(user.empId).trim())) ||
+    (user?.name && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase().includes(user.name.toLowerCase().trim())) ||
+    (s.designation || '').toLowerCase().includes('librarian')
+  );
+
+  const currentStaffName = user?.name || (matchedStaff ? `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim() : 'Jammi Naidu');
+  const currentStaffId = user?.empId || matchedStaff?.empId || matchedStaff?.id || 'NTS-2026-805';
+
   useEffect(() => {
     const loadAttendanceData = async () => {
       try {
@@ -103,8 +115,8 @@ export const LibrarianAttendanceView: React.FC = () => {
         if (res?.success && Array.isArray(res.data)) {
           const mapped: LibrarianAttendanceRecord[] = res.data.map((item: any) => ({
             id: String(item.id || item.attendanceId || `ATT-LIB-${item.attendanceId}`),
-            staffId: item.staffId || item.employeeCode || 'EMP-LIB-01',
-            staffName: item.staffName || item.librarian || 'Bhanu Prakash',
+            staffId: item.staffId || item.employeeCode || currentStaffId,
+            staffName: item.staffName || item.librarian || currentStaffName,
             role: item.role || 'Librarian',
             date: item.date,
             checkInTime: item.checkInTime || item.checkIn,
@@ -115,19 +127,49 @@ export const LibrarianAttendanceView: React.FC = () => {
             remarks: item.remarks || item.dutyRemarks || ''
           }));
 
-          saveLibrarianAttendance(mapped);
+          // Merge backend API data with local state so local check-in records are NEVER overwritten or wiped out
+          setLibrarianAttendance(prev => {
+            const map = new Map<string, LibrarianAttendanceRecord>();
+            // Add existing local records first
+            (prev || []).forEach(r => {
+              const key = `${r.date}_${r.staffId || r.staffName}`;
+              map.set(key, r);
+            });
+            // Merge fetched backend records
+            mapped.forEach(r => {
+              const key = `${r.date}_${r.staffId || r.staffName}`;
+              if (!map.has(key)) {
+                map.set(key, r);
+              } else {
+                const existing = map.get(key)!;
+                map.set(key, {
+                  ...existing,
+                  ...r,
+                  checkInTime: existing.checkInTime || r.checkInTime,
+                  checkOutTime: existing.checkOutTime || r.checkOutTime
+                });
+              }
+            });
+            const merged = Array.from(map.values());
+            localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(merged));
+            return merged;
+          });
         }
       } catch (err) {
         console.warn("Librarian attendance API load notice:", err);
       }
     };
     loadAttendanceData();
-  }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth]);
+  }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth, currentStaffId, currentStaffName]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const currentStaffName = user?.name || 'Bhanu Prakash';
-  const currentStaffId = user?.empId || 'EMP-LIB-01';
-  const todayRecord = librarianAttendance.find(r => r.date === todayStr && r.staffId === currentStaffId);
+  const todayRecord = librarianAttendance.find(r => 
+    r.date === todayStr && 
+    (
+      r.staffId === currentStaffId || 
+      (matchedStaff && (r.staffId === matchedStaff.empId || r.staffId === matchedStaff.id)) ||
+      r.staffName.toLowerCase() === currentStaffName.toLowerCase()
+    )
+  );
 
   // Leave applications submitted by / for Librarian
   const myLeaveApplications = useMemo(() => {
@@ -299,6 +341,7 @@ export const LibrarianAttendanceView: React.FC = () => {
                     status: isLate ? 'Late' : 'Present',
                     remarks: isLate ? 'Late arrival check-in' : 'On-time shift arrival'
                   };
+
                   try {
                     const res: any = await LibraryAPI.logLibrarianAttendanceApi(newRec);
                     if (res?.success && res?.data) {
@@ -307,8 +350,31 @@ export const LibrarianAttendanceView: React.FC = () => {
                   } catch (e) {
                     console.warn("Check-in API notice:", e);
                   }
+
                   localStorage.setItem('teacher_check_in_time', now.toISOString());
-                  saveLibrarianAttendance([newRec, ...librarianAttendance]);
+                  saveLibrarianAttendance([newRec, ...librarianAttendance.filter(r => r.date !== todayStr || (r.staffId !== currentStaffId && r.staffName !== currentStaffName))]);
+
+                  // Sync to DataContext Daily Attendance so Admin Staff Attendance receives the record
+                  if (typeof markAttendance === 'function') {
+                    try {
+                      const staffEntityId = matchedStaff?.id || matchedStaff?.empId || currentStaffId;
+                      await markAttendance([
+                        {
+                          id: `ATT-STF-${Date.now()}`,
+                          entityId: staffEntityId,
+                          entityType: 'Staff',
+                          date: todayStr,
+                          status: isLate ? 'Late' : 'Present',
+                          inTime: timeStr,
+                          department: matchedStaff?.department || 'Library',
+                          remarks: isLate ? 'Late arrival check-in' : 'On-time shift arrival'
+                        }
+                      ]);
+                    } catch (err) {
+                      console.warn("DataContext markAttendance sync notice:", err);
+                    }
+                  }
+
                   addToast('success', 'Checked In', `Successfully checked in at ${timeStr}`);
                 }}
                 className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
@@ -331,6 +397,27 @@ export const LibrarianAttendanceView: React.FC = () => {
 
                   const updatedList = librarianAttendance.map(r => r.id === todayRecord.id ? updatedRec : r);
                   saveLibrarianAttendance(updatedList);
+
+                  // Sync check-out to DataContext Daily Attendance
+                  if (typeof markAttendance === 'function') {
+                    try {
+                      const staffEntityId = matchedStaff?.id || matchedStaff?.empId || currentStaffId;
+                      await markAttendance([
+                        {
+                          id: `ATT-STF-${Date.now()}`,
+                          entityId: staffEntityId,
+                          entityType: 'Staff',
+                          date: todayStr,
+                          status: todayRecord.status as any,
+                          inTime: todayRecord.checkInTime || '',
+                          outTime: timeStr,
+                          department: matchedStaff?.department || 'Library',
+                          remarks: updatedRemarks
+                        }
+                      ]);
+                    } catch (err) {}
+                  }
+
                   addToast('success', 'Checked Out', `Successfully checked out at ${timeStr}`);
 
                   try {

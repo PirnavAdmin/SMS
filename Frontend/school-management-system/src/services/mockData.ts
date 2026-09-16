@@ -4992,37 +4992,6 @@ export const initialStaff: Staff[] = [
     leaveBalance: { casual: 10, sick: 12, paid: 15 }
   },
   {
-    id: "STF-008",
-    empId: "EMP008",
-    employeeCategory: "Staff",
-    firstName: "Michael",
-    lastName: "Scott",
-    designation: "Transport Manager",
-    department: "Logistics & Transport",
-    email: "m.scott@pirnavschools.edu",
-    phone: "+1 555-888-008",
-    gender: "Male",
-    dob: "15/03/1978",
-    joiningDate: "2017-09-01",
-    qualification: "B.A. Public Administration",
-    experienceYears: 18,
-    salary: 5500,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
-    address: "99 Depot Avenue, Knowledge City, NY",
-    assignedClasses: [],
-    assignedSubjects: [],
-    documents: [],
-    bankDetails: {
-      accountHolderName: "Michael Scott",
-      accountNumber: "220918230192",
-      bankName: "Chase Bank",
-      branch: "Main City",
-      ifscCode: "CHAS002209"
-    },
-    leaveBalance: { casual: 10, sick: 10, paid: 15 }
-  },
-  {
     id: "STF-009",
     empId: "EMP009",
     employeeCategory: "Staff",
@@ -5456,8 +5425,8 @@ export const initialAdmissions: AdmissionApplication[] = [
 ];
 
 export const initialBuses: Bus[] = [
-  { id: "BUS-01", busNumber: "BUS-101", registrationNumber: "NY-99-AB-1001", routeName: "Route A - North Suburbs", driverName: "Michael Scott", driverPhone: "+1 555-333-111", capacity: 40, type: "AC", status: "Active" },
-  { id: "BUS-02", busNumber: "BUS-102", registrationNumber: "NY-99-AB-1002", routeName: "Route B - East Downtown", driverName: "Jim Halpert", driverPhone: "+1 555-333-222", capacity: 45, type: "Non-AC", status: "Active" }
+  { id: "BUS-01", busNumber: "BUS-101", registrationNumber: "NY-99-AB-1001", routeName: "Route A - North Suburbs", driverName: "", driverPhone: "", capacity: 40, type: "AC", status: "Active" },
+  { id: "BUS-02", busNumber: "BUS-102", registrationNumber: "NY-99-AB-1002", routeName: "Route B - East Downtown", driverName: "", driverPhone: "", capacity: 45, type: "Non-AC", status: "Active" }
 ];
 
 export const initialFeeStructures: FeeStructure[] = [];
@@ -11579,9 +11548,9 @@ export const initialTransportRoutes: TransportRoute[] = [
     vehicleNo: "BUS-101",
     vehicleNumber: "NY-99-AB-1001",
     vehicleName: "Tata Starbus AC 40-Seater",
-    driverName: "Michael Scott",
-    driverPhone: "+1 555-333-111",
-    driverMobile: "+1 555-333-111",
+    driverName: "",
+    driverPhone: "",
+    driverMobile: "",
     pickupPoint: "North Suburbs Stop 4",
     dropPoint: "Academy Main Gate",
     distanceKm: 12.5,
@@ -11889,34 +11858,7 @@ export const initialVehicleMasters: VehicleMaster[] = [
   }
 ];
 
-export const initialDriverMasters: DriverMaster[] = [
-  {
-    id: 'DRV-01',
-    employeeId: 'EMP-DRV-101',
-    driverName: 'Michael Scott',
-    mobileNumber: '+1 555-333-111',
-    email: 'm.scott@pirnavschools.edu',
-    licenseNumber: 'DL-NY-2020-99123',
-    licenseExpiryDate: '2028-05-20',
-    address: '42 Scranton Way, NY',
-    emergencyContact: '+1 555-333-999',
-    experienceYears: 12,
-    status: 'Active'
-  },
-  {
-    id: 'DRV-02',
-    employeeId: 'EMP-DRV-102',
-    driverName: 'Jim Halpert',
-    mobileNumber: '+1 555-333-222',
-    email: 'j.halpert@pirnavschools.edu',
-    licenseNumber: 'DL-NY-2021-88412',
-    licenseExpiryDate: '2029-08-15',
-    address: '88 Park Avenue, NY',
-    emergencyContact: '+1 555-333-888',
-    experienceYears: 8,
-    status: 'Active'
-  }
-];
+export const initialDriverMasters: DriverMaster[] = [];
 
 export const initialVehicleAssignments: VehicleAssignment[] = [];
 

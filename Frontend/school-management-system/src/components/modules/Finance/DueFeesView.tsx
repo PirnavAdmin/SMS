@@ -4,6 +4,7 @@ import { Clock, Search, AlertCircle, IndianRupee, Filter, Calendar } from 'lucid
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { matchesClassName } from '../../../utils/classSorter';
 
 interface DueFeesViewProps {
   onCollectStudentFee: (student: Student) => void;
@@ -16,7 +17,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
     academicClasses,
     academicYearFeeSchedules,
     feeHeads,
-    financeSettings
+    financeSettings,
+    dynamicFeeStructures,
+    studentFeeAssignments,
+    studentTransports,
+    studentHostels,
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
@@ -64,6 +69,25 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
       st.admissionNo.toLowerCase().includes(query.toLowerCase());
     if (!matchesQuery) return;
 
+    // Fast skip for students who have NO dynamic fee structure configured in MySQL,
+    // NO student fee assignment, and NO transport/hostel services assigned
+    const hasStructure = dynamicFeeStructures.some(
+      (d) => matchesClassName(d.className, st.className) && (d.status === "Active" || !d.status),
+    );
+    const hasAssignment = studentFeeAssignments.some(
+      (a) => a.studentId === st.id && a.status === "Active",
+    );
+    const hasTransport = studentTransports.some(
+      (t) => t.studentId === st.id && t.status === "Active",
+    );
+    const hasHostel = studentHostels.some(
+      (h) => h.studentId === st.id && h.status === "Active",
+    );
+
+    if (!hasStructure && !hasAssignment && !hasTransport && !hasHostel) {
+      return;
+    }
+
     const ledger = getStudentFeeLedger(st.id, selectedAY);
     if (!ledger || !ledger.installments || ledger.installments.length === 0) return;
 
@@ -73,6 +97,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
     const totalAmount = ledger.installments.reduce((sum, inst) => sum + inst.amount, 0);
     const totalPaid = ledger.installments.reduce((sum, inst) => sum + inst.paidAmount, 0);
     const totalOutstanding = unpaidInsts.reduce((sum, inst) => sum + inst.dueAmount, 0);
+    if (totalAmount <= 0 || totalOutstanding <= 0) return;
 
     const overdueInsts = unpaidInsts.filter((inst) => inst.dueDate <= todayStr);
     const overdueAmount = overdueInsts.reduce((sum, inst) => sum + inst.dueAmount, 0);
@@ -235,7 +260,8 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
                 <th className="py-3.5 px-4">Adm No</th>
                 <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Class</th>
+                <th className="py-3.5 px-4">Class & Section</th>
+                <th className="py-3.5 px-4">Student Type</th>
                 <th className="py-3.5 px-4">Earliest Due Date</th>
                 <th className="py-3.5 px-4 font-mono text-right">Total Fee</th>
                 <th className="py-3.5 px-4 font-mono text-right">Amount Paid</th>
@@ -248,18 +274,27 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {studentDueList.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400 text-xs font-bold italic">
+                  <td colSpan={11} className="py-8 text-center text-slate-400 text-xs font-bold italic">
                     No student due records found matching the configured filters.
                   </td>
                 </tr>
               ) : (
                 studentDueList.map((item) => {
                   const st = item.student;
+                  const isPrePrimary = /^(nursery|lkg|ukg|playgroup|pre-kg)/i.test(st.className || "");
                   const displayClassStr = st.className
-                    ? st.className.toLowerCase().startsWith("class")
+                    ? st.className.toLowerCase().startsWith("class") || isPrePrimary
                       ? `${st.className}-${st.section}`
                       : `Class ${st.className}-${st.section}`
                     : `Section ${st.section}`;
+
+                  const isHosteller =
+                    st.studentType === "Hosteller" ||
+                    st.studentType === "Residential" ||
+                    (st as any).residentialStatus === "Residential" ||
+                    (studentHostels || []).some(
+                      (h) => h.studentId === st.id && h.status === "Active",
+                    );
 
                   return (
                     <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -283,6 +318,17 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
                       </td>
                       <td className="py-3 px-4 text-slate-800 dark:text-slate-200 font-bold">
                         {displayClassStr}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            isHosteller
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                              : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                          }`}
+                        >
+                          {isHosteller ? "Residential" : "Day Scholar"}
+                        </span>
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-500">
                         <div className="flex items-center gap-1">

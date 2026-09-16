@@ -1909,7 +1909,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId ? getApprovedLeave(s.empId, targetDate) : undefined);
 
       // 2. Check Existing Recorded Attendance (flexible match on ID, entityType & date)
-      const existing = (attendance || []).find((r) => {
+      let existing = (attendance || []).find((r) => {
         const rDate = String(r.date || "").split("T")[0];
         const isDateMatch = rDate === targetDate;
         const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
@@ -1929,6 +1929,42 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           isEmailMatch;
         return isDateMatch && isStaffEntity && isIdMatch;
       });
+
+      // Fallback: Check Librarian Attendance storage key if not found in DataContext
+      if (!existing && typeof window !== "undefined") {
+        try {
+          const libStr = localStorage.getItem("edu_db_librarian_attendance");
+          if (libStr) {
+            const libList = JSON.parse(libStr);
+            if (Array.isArray(libList)) {
+              const sFullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim();
+              const libRec = libList.find((lr: any) => {
+                const lrDate = String(lr.date || "").split("T")[0];
+                const isDate = lrDate === targetDate;
+                const lrName = String(lr.staffName || lr.name || "").toLowerCase().trim();
+                const isNameMatch = !!sFullName && !!lrName && (sFullName === lrName || sFullName.includes(lrName) || lrName.includes(sFullName));
+                const isIdMatch =
+                  String(lr.staffId || "").toLowerCase() === String(s.id || "").toLowerCase() ||
+                  String(lr.staffId || "").toLowerCase() === String(s.empId || "").toLowerCase();
+                return isDate && (isIdMatch || isNameMatch);
+              });
+
+              if (libRec) {
+                existing = {
+                  id: libRec.id,
+                  entityId: s.id,
+                  entityType: "Staff",
+                  date: libRec.date,
+                  status: libRec.status || "Present",
+                  inTime: libRec.checkInTime || "08:30 AM",
+                  outTime: libRec.checkOutTime || "",
+                  remarks: libRec.remarks || "Librarian shift check-in",
+                } as any;
+              }
+            }
+          }
+        } catch (e) {}
+      }
 
       // 3. Check if this staff is the logged in teacher and has checked in today
       const isCurrentLoggedInTeacher =

@@ -302,7 +302,19 @@ export const FinanceHostelConfigView: React.FC = () => {
   const [deletingConfig, setDeletingConfig] =
     useState<FinanceHostelConfig | null>(null);
 
-  const [form, setForm] = useState<Partial<FinanceHostelConfig>>({
+  const [form, setForm] = useState<{
+    hostelId?: string;
+    hostelName?: string;
+    roomTypeId?: string;
+    roomTypeName?: string;
+    roomId?: string;
+    roomNo?: string;
+    feePlan?: string;
+    hostelFee: number | string;
+    securityDeposit: number | string;
+    effectiveFrom?: string;
+    status?: string;
+  }>({
     hostelId: "",
     hostelName: "",
     roomTypeId: "",
@@ -310,11 +322,31 @@ export const FinanceHostelConfigView: React.FC = () => {
     roomId: "",
     roomNo: "All Rooms",
     feePlan: "Annual",
-    hostelFee: 40000,
-    securityDeposit: 5000,
+    hostelFee: "40000",
+    securityDeposit: "5000",
     effectiveFrom: new Date().toISOString().split("T")[0],
     status: "Active",
   });
+
+  const handleFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === "") {
+      setForm((prev) => ({ ...prev, hostelFee: "" }));
+      return;
+    }
+    const clean = raw.replace(/[^0-9]/g, "");
+    setForm((prev) => ({ ...prev, hostelFee: clean }));
+  };
+
+  const handleDepositChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === "") {
+      setForm((prev) => ({ ...prev, securityDeposit: "" }));
+      return;
+    }
+    const clean = raw.replace(/[^0-9]/g, "");
+    setForm((prev) => ({ ...prev, securityDeposit: clean }));
+  };
 
   const handleOpenAdd = async () => {
     setEditingConfig(null);
@@ -333,8 +365,8 @@ export const FinanceHostelConfigView: React.FC = () => {
       roomId: "",
       roomNo: "All Rooms",
       feePlan: "Annual",
-      hostelFee: 40000,
-      securityDeposit: 5000,
+      hostelFee: "40000",
+      securityDeposit: "5000",
       effectiveFrom: new Date().toISOString().split("T")[0],
       status: "Active",
     });
@@ -344,17 +376,30 @@ export const FinanceHostelConfigView: React.FC = () => {
   const handleOpenEdit = async (c: FinanceHostelConfig) => {
     await loadLiveMasters();
     setEditingConfig(c);
-    setForm(c);
+    setForm({
+      ...c,
+      hostelFee:
+        c.hostelFee !== undefined && c.hostelFee !== null
+          ? String(c.hostelFee)
+          : "",
+      securityDeposit:
+        c.securityDeposit !== undefined && c.securityDeposit !== null
+          ? String(c.securityDeposit)
+          : "",
+    });
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.hostelId || !form.hostelFee) {
+    const parsedFee = Number(form.hostelFee);
+    const parsedDeposit = Number(form.securityDeposit || 0);
+
+    if (!form.hostelId || isNaN(parsedFee) || parsedFee <= 0) {
       addToast(
         "error",
         "Validation Error",
-        "Please select a hostel block and enter a valid hostel fee",
+        "Please select a hostel block and enter a valid hostel fee greater than 0",
       );
       return;
     }
@@ -366,13 +411,19 @@ export const FinanceHostelConfigView: React.FC = () => {
       (rt) => String(rt.id) === String(form.roomTypeId),
     );
 
-    const configData = {
+    const configData: Omit<FinanceHostelConfig, "id"> = {
       ...form,
+      hostelFee: parsedFee,
+      securityDeposit: isNaN(parsedDeposit) ? 0 : parsedDeposit,
       hostelId: String(form.hostelId),
       hostelName: hObj?.hostelName || form.hostelName || "Hostel Block",
       roomTypeId: String(form.roomTypeId),
       roomTypeName: rtObj?.roomTypeName || form.roomTypeName || "Standard Room",
       roomNo: "All Rooms",
+      feePlan: (form.feePlan as any) || "Annual",
+      effectiveFrom:
+        form.effectiveFrom || new Date().toISOString().split("T")[0],
+      status: (form.status as any) || "Active",
     };
 
     if (editingConfig) {
@@ -383,7 +434,7 @@ export const FinanceHostelConfigView: React.FC = () => {
         "Hostel fee configuration saved",
       );
     } else {
-      addFinanceHostelConfig(configData as Omit<FinanceHostelConfig, "id">);
+      addFinanceHostelConfig(configData);
       addToast(
         "success",
         "Configuration Created",
@@ -621,35 +672,47 @@ export const FinanceHostelConfigView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Hostel Fee (₹) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    value={form.hostelFee}
-                    onChange={(e) =>
-                      setForm({ ...form, hostelFee: Number(e.target.value) })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 font-extrabold outline-none"
-                  />
+                    Hostel Fee (₹) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs pointer-events-none">
+                      ₹
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      placeholder="Enter amount (e.g. 40000)"
+                      value={form.hostelFee ?? ""}
+                      onFocus={(e) => {
+                        if (e.target.value === "0") e.target.select();
+                      }}
+                      onChange={handleFeeChange}
+                      className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 font-extrabold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Security Deposit
+                    Security Deposit (₹)
                   </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.securityDeposit}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        securityDeposit: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs pointer-events-none">
+                      ₹
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter deposit (e.g. 5000)"
+                      value={form.securityDeposit ?? ""}
+                      onFocus={(e) => {
+                        if (e.target.value === "0") e.target.select();
+                      }}
+                      onChange={handleDepositChange}
+                      className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
                 </div>
               </div>
 

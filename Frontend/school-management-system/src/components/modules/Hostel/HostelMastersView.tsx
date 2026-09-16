@@ -49,26 +49,17 @@ export const HostelMastersView: React.FC = () => {
         })}
       </div>
 
-      {/* Render Active View while preserving state */}
+      {/* Render Active View */}
       <div>
-        <div className={activeSubTab === 'blocks' ? 'block' : 'hidden'}>
-          <HostelMasterView />
-        </div>
-
-        <div className={activeSubTab === 'room-types' ? 'block' : 'hidden'}>
-          <RoomTypeMasterView />
-        </div>
-
-        <div className={activeSubTab === 'rooms' ? 'block' : 'hidden'}>
+        {activeSubTab === 'blocks' && <HostelMasterView />}
+        {activeSubTab === 'room-types' && <RoomTypeMasterView />}
+        {activeSubTab === 'rooms' && (
           <RoomMasterView
             selectedHostelFilter={sharedHostelFilter}
             onHostelFilterChange={setSharedHostelFilter}
           />
-        </div>
-
-        <div className={activeSubTab === 'wardens' ? 'block' : 'hidden'}>
-          <WardenMasterView />
-        </div>
+        )}
+        {activeSubTab === 'wardens' && <WardenMasterView />}
       </div>
     </div>
   );

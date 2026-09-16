@@ -167,6 +167,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [selectedMember, setSelectedMember] = useState<LibraryMember | null>(null);
   const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
 
+  // Modal Member Search Combobox States
+  const [modalMemberRoleFilter, setModalMemberRoleFilter] = useState<'All' | 'Student' | 'Staff'>('All');
+  const [modalMemberClassFilter, setModalMemberClassFilter] = useState<string>('All');
+  const [modalMemberSearchQuery, setModalMemberSearchQuery] = useState<string>('');
+  const [selectedModalMemberId, setSelectedModalMemberId] = useState<string>('');
+  const [showModalMemberDropdown, setShowModalMemberDropdown] = useState<boolean>(false);
+
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [showBookDropdown, setShowBookDropdown] = useState<boolean>(false);
@@ -335,6 +342,42 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     });
   }, [mergedMembersList, memberRoleFilter, memberClassFilter, memberSearchQuery]);
 
+  const filteredModalMembers = useMemo(() => {
+    return mergedMembersList.filter(m => {
+      if (modalMemberRoleFilter === 'Student' && m.role !== 'Student') return false;
+      if (modalMemberRoleFilter === 'Staff' && m.role === 'Student') return false;
+
+      if (modalMemberClassFilter !== 'All') {
+        if (modalMemberRoleFilter === 'Student' || m.role === 'Student') {
+          const clsLower = (m.className || '').toLowerCase();
+          const targetLower = modalMemberClassFilter.toLowerCase();
+          if (!clsLower.includes(targetLower)) return false;
+        } else if (modalMemberRoleFilter === 'Staff' || m.role !== 'Student') {
+          if (modalMemberClassFilter !== 'Staff') return false;
+        }
+      }
+
+      if (modalMemberSearchQuery.trim()) {
+        const q = modalMemberSearchQuery.trim().toLowerCase();
+        const nameMatch = m.name.toLowerCase().includes(q);
+        const idMatch = (m.memberId || '').toLowerCase().includes(q);
+        const phoneMatch = (m.phone || '').toLowerCase().includes(q);
+        const classMatch = (m.className || '').toLowerCase().includes(q);
+        return nameMatch || idMatch || phoneMatch || classMatch;
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (!modalMemberSearchQuery.trim()) return 0;
+      const q = modalMemberSearchQuery.trim().toLowerCase();
+      const aStartsWith = a.name.toLowerCase().startsWith(q) || (a.memberId || '').toLowerCase().startsWith(q);
+      const bStartsWith = b.name.toLowerCase().startsWith(q) || (b.memberId || '').toLowerCase().startsWith(q);
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [mergedMembersList, modalMemberRoleFilter, modalMemberClassFilter, modalMemberSearchQuery]);
+
   const filteredBooksForIssue = useMemo(() => {
     if (!bookSearchQuery.trim()) return books;
     const q = bookSearchQuery.trim().toLowerCase();
@@ -485,6 +528,27 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             description: c.description || '',
             totalBooksCount: c.count || c.totalBooksCount || 0
           })));
+        }
+      }
+
+      if (membersRes.status === 'fulfilled') {
+        const fetchedMembers = extractArray(membersRes.value);
+        if (fetchedMembers.length > 0) {
+          const formatted = fetchedMembers.map((m: any) => ({
+            id: String(m.id || m.memberId || `MEM-${Math.random()}`),
+            memberId: String(m.memberId || m.id || ''),
+            name: m.name || m.memberName || '',
+            role: (m.role || 'Student') as any,
+            email: m.email || `${(m.name || 'member').toLowerCase().replace(/\s+/g, '')}@school.edu`,
+            phone: m.phone || '9876543210',
+            className: m.classOrDept || m.className || (m.role === 'Student' ? 'Class Student' : 'Staff'),
+            maxLimit: m.role === 'Staff' || m.role === 'Teacher' ? 6 : 3,
+            issuedCount: Number(m.issued) || 0,
+            fineBalance: Number(m.fineDue) || 0,
+            joinedDate: m.joinedDate || '2026-06-01',
+            status: m.status || 'Active'
+          }));
+          setMembers(formatted);
         }
       }
 
@@ -1812,7 +1876,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Clock className="w-4 h-4 text-amber-500" /> Book Reservation Queue</h3>
             {!isReadOnlyAccess && (
-              <button onClick={() => setModalType('addReservation')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+              <button onClick={() => { setModalMemberSearchQuery(''); setSelectedModalMemberId(''); setShowModalMemberDropdown(false); setModalType('addReservation'); }} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Reserve Book
               </button>
             )}
@@ -1986,7 +2050,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Lost / Damaged Books Registry</h3>
             {!isReadOnlyAccess && (
-              <button onClick={() => setModalType('addLostDamaged')} className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+              <button onClick={() => { setModalMemberSearchQuery(''); setSelectedModalMemberId(''); setShowModalMemberDropdown(false); setModalType('addLostDamaged'); }} className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Report Issue
               </button>
             )}
@@ -2918,18 +2982,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
       {modalType === 'addReservation' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-          <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Reserve Book Copy</h3>
+          <div className="glass-card max-w-lg w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Reserve Book Copy</h3>
+              <button type="button" onClick={() => setModalType(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
-              const targetBk = books.find(b => b.id === f.bookId.value);
-              const targetMem = members.find(m => m.memberId === f.memberId.value) || { name: f.memberId.value, role: 'Student' };
+              const memVal = selectedModalMemberId || f.memberId.value;
+              if (!memVal) {
+                addToast('warning', 'Validation Error', 'Please select a member.');
+                return;
+              }
+              const targetBk = books.find(b => String(b.id) === String(f.bookId.value));
+              const targetMem = mergedMembersList.find(m => String(m.memberId) === String(memVal) || String(m.id) === String(memVal)) || { name: memVal, role: 'Student' };
               const newRes: BookReservation = {
                 id: `RES-${Date.now()}`,
                 bookId: f.bookId.value,
                 bookTitle: targetBk?.title || 'Library Book',
-                memberId: f.memberId.value,
+                memberId: memVal,
                 memberName: targetMem.name,
                 memberRole: targetMem.role as any,
                 requestDate: new Date().toISOString().split('T')[0],
@@ -2939,10 +3013,179 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               saveReservations([...reservations, newRes]);
               addToast('success', 'Book Reserved', `Reserved "${newRes.bookTitle}" for ${newRes.memberName}`);
               setModalType(null);
-            }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Select Member <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="memberId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Member...</option>{members.map(m => <option key={m.id} value={m.memberId}>{m.name} ({m.memberId})</option>)}</select></div>
-              <div><label className="block font-bold mb-1">Select Book <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="bookId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Book...</option>{books.map(b => <option key={b.id} value={b.id}>{b.title} (Author: {b.author})</option>)}</select></div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Reservation</button></div>
+            }} className="space-y-4 text-xs">
+
+              {/* Searchable Member Input with Filters Container (Matching 2nd Screenshot) */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  {/* Role Filter Tabs */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-slate-500 mr-1">Filter Member:</span>
+                    {(['All', 'Student', 'Staff'] as const).map(roleOption => (
+                      <button
+                        key={roleOption}
+                        type="button"
+                        onClick={() => {
+                          setModalMemberRoleFilter(roleOption);
+                          setSelectedModalMemberId('');
+                          setModalMemberSearchQuery('');
+                          setShowModalMemberDropdown(true);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                          modalMemberRoleFilter === roleOption
+                            ? 'bg-sky-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-slate-900 border text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {roleOption === 'All' ? 'All Members' : roleOption === 'Student' ? 'Students Only' : 'Staff Only'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Class Filter Dropdown */}
+                  {(modalMemberRoleFilter === 'All' || modalMemberRoleFilter === 'Student') && (
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Filter Class:</label>
+                      <select
+                        value={modalMemberClassFilter}
+                        onChange={e => {
+                          setModalMemberClassFilter(e.target.value);
+                          setSelectedModalMemberId('');
+                          setModalMemberSearchQuery('');
+                          setShowModalMemberDropdown(true);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                      >
+                        <option value="All">All Classes</option>
+                        {availableClassOptions.map(cls => (
+                          <option key={cls} value={cls}>{cls}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Searchable Member Input with Auto-complete Dropdown */}
+                <div className="relative">
+                  <label className="block font-bold mb-1.5 text-xs text-slate-700 dark:text-slate-300">
+                    Select Member (Search by Name, Student Adm No, or Staff Emp Code) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={modalMemberSearchQuery}
+                      onChange={e => {
+                        setModalMemberSearchQuery(e.target.value);
+                        setSelectedModalMemberId('');
+                        setShowModalMemberDropdown(true);
+                      }}
+                      onFocus={() => setShowModalMemberDropdown(true)}
+                      placeholder="Type starting letter or code e.g. 'B', 'ADM', 'EMP'..."
+                      className="w-full px-3.5 py-2.5 pl-9 pr-8 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs shadow-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    />
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    {modalMemberSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalMemberSearchQuery('');
+                          setSelectedModalMemberId('');
+                          setShowModalMemberDropdown(true);
+                        }}
+                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Auto-complete Dropdown matching Screenshots 4 & 5 */}
+                  {showModalMemberDropdown && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1 space-y-1">
+                      {filteredModalMembers.length === 0 ? (
+                        <div className="p-3 text-center text-slate-400 text-xs font-semibold">
+                          No matching member found for selected filters.
+                        </div>
+                      ) : (
+                        filteredModalMembers.slice(0, 20).map(m => (
+                          <button
+                            key={m.id || m.memberId}
+                            type="button"
+                            onClick={() => {
+                              setSelectedModalMemberId(m.memberId);
+                              setModalMemberSearchQuery(`${m.name} (${m.memberId})`);
+                              setShowModalMemberDropdown(false);
+                            }}
+                            className="w-full text-left p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors group cursor-pointer"
+                          >
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 dark:text-white text-xs">{m.name}</span>
+                                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                                  {m.role === 'Student' ? 'ADM' : 'EMP'}: {m.memberId}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {m.role} • {m.className} • Phone: {m.phone || 'N/A'}
+                              </p>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[11px] font-extrabold group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                              Select
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {/* Selected Member Indicator */}
+                  {selectedModalMemberId && (() => {
+                    const sel = mergedMembersList.find(m => m.memberId === selectedModalMemberId);
+                    if (!sel) return null;
+                    return (
+                      <div className="mt-2 p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white font-extrabold text-[10px]">
+                            {sel.role}
+                          </span>
+                          <span className="font-extrabold text-slate-900 dark:text-white">{sel.name}</span>
+                          <span className="font-mono text-sky-700 dark:text-sky-300 font-bold">({sel.memberId})</span>
+                          {sel.className && (
+                            <span className="text-[11px] text-slate-500">• {sel.className}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Select Book <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-sky-500">
+                  <option value="">Select Book...</option>
+                  {books.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.title} (Author: {b.author})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold shadow-md cursor-pointer">
+                  Save Reservation
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -2950,18 +3193,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
       {modalType === 'addLostDamaged' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-          <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Report Lost / Damaged Book</h3>
+          <div className="glass-card max-w-lg w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Report Lost / Damaged Book</h3>
+              <button type="button" onClick={() => setModalType(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
-              const targetBk = books.find(b => b.id === f.bookId.value);
-              const targetMem = members.find(m => m.memberId === f.memberId.value) || { name: f.memberId.value, role: 'Student' };
+              const memVal = selectedModalMemberId || f.memberId.value;
+              if (!memVal) {
+                addToast('warning', 'Validation Error', 'Please select a member.');
+                return;
+              }
+              const targetBk = books.find(b => String(b.id) === String(f.bookId.value));
+              const targetMem = mergedMembersList.find(m => String(m.memberId) === String(memVal) || String(m.id) === String(memVal)) || { name: memVal, role: 'Student' };
               const newLD: LostDamagedBook = {
                 id: `LD-${Date.now()}`,
                 bookId: f.bookId.value,
                 bookTitle: targetBk?.title || 'Book',
-                memberId: f.memberId.value,
+                memberId: memVal,
                 memberName: targetMem.name,
                 memberRole: targetMem.role as any,
                 issueType: f.issueType.value as any,
@@ -2974,13 +3227,143 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               saveLostDamaged([...lostDamagedList, newLD]);
               addToast('success', 'Issue Logged', `Logged ${newLD.issueType} report for "${newLD.bookTitle}"`);
               setModalType(null);
-            }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Select Member <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="memberId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Member...</option>{members.map(m => <option key={m.id} value={m.memberId}>{m.name} ({m.memberId})</option>)}</select></div>
-              <div><label className="block font-bold mb-1">Select Book <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="bookId" required className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="">Select Book...</option>{books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select></div>
-              <div><label className="block font-bold mb-1">Issue Type <span className="text-rose-500 font-bold ml-0.5">*</span></label><select name="issueType" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="Damaged">Damaged</option><option value="Lost">Lost</option></select></div>
-              <div><label className="block font-bold mb-1">Replacement Cost (₹)</label><input type="number" name="replacementCost" defaultValue={350} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
-              <div><label className="block font-bold mb-1">Fine Penalty Amount (₹)</label><input type="number" name="fineAmount" defaultValue={50} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-rose-600 text-white font-extrabold">Log Report</button></div>
+            }} className="space-y-4 text-xs">
+
+              {/* Searchable Member Input with Auto-complete Dropdown */}
+              <div className="space-y-1.5 relative">
+                <label className="block font-bold text-slate-700 dark:text-slate-300">
+                  Select Member (Search by Name, Student Adm No, or Staff Emp Code) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={modalMemberSearchQuery}
+                    onChange={e => {
+                      setModalMemberSearchQuery(e.target.value);
+                      setShowModalMemberDropdown(true);
+                    }}
+                    onFocus={() => setShowModalMemberDropdown(true)}
+                    placeholder="Type starting letter or code e.g. 'B', 'ADM', 'EMP'..."
+                    className="w-full px-3.5 py-2.5 pl-9 pr-8 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs shadow-xs focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  {modalMemberSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalMemberSearchQuery('');
+                        setSelectedModalMemberId('');
+                        setShowModalMemberDropdown(false);
+                      }}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* Auto-complete Dropdown */}
+                  {showModalMemberDropdown && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1 space-y-1">
+                      {filteredModalMembers.length === 0 ? (
+                        <div className="p-3 text-center text-slate-400 text-xs font-semibold">
+                          No matching member found. Try selecting from dropdown below.
+                        </div>
+                      ) : (
+                        filteredModalMembers.slice(0, 15).map(m => (
+                          <button
+                            key={m.id || m.memberId}
+                            type="button"
+                            onClick={() => {
+                              setSelectedModalMemberId(m.memberId);
+                              setModalMemberSearchQuery(`${m.name} (${m.memberId})`);
+                              setShowModalMemberDropdown(false);
+                            }}
+                            className="w-full text-left p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors group cursor-pointer"
+                          >
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 dark:text-white text-xs">{m.name}</span>
+                                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                                  {m.role === 'Student' ? 'ADM' : 'EMP'}: {m.memberId}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {m.role} • {m.className} • Phone: {m.phone || 'N/A'}
+                              </p>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 text-[11px] font-extrabold group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                              Select
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Dropdown Select Sync */}
+                <select
+                  name="memberId"
+                  required
+                  value={selectedModalMemberId}
+                  onChange={e => {
+                    setSelectedModalMemberId(e.target.value);
+                    const found = mergedMembersList.find(m => m.memberId === e.target.value);
+                    if (found) setModalMemberSearchQuery(`${found.name} (${found.memberId})`);
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-rose-500"
+                >
+                  <option value="">-- Or Select Member from Full List ({mergedMembersList.length} Available) --</option>
+                  {mergedMembersList.map(m => (
+                    <option key={m.id || m.memberId} value={m.memberId}>
+                      {m.name} ({m.memberId}) • {m.role} ({m.className})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Select Book <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-900 dark:text-white cursor-pointer">
+                  <option value="">Select Book...</option>
+                  {books.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Issue Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <select name="issueType" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-900 dark:text-white cursor-pointer">
+                  <option value="Damaged">Damaged</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Replacement Cost (₹)</label>
+                <input type="number" name="replacementCost" defaultValue={350} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white" />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Fine Penalty Amount (₹)</label>
+                <input type="number" name="fineAmount" defaultValue={50} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white" />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold shadow-md cursor-pointer">
+                  Log Report
+                </button>
+              </div>
             </form>
           </div>
         </div>

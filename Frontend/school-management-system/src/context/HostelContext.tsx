@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 import {
@@ -67,53 +67,60 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     refreshHostelData();
   }, [refreshHostelData]);
 
-  // Map to legacy models
-  const hostelBlocks: HostelBlock[] = (blocks || [])
-    .filter(b => b != null)
-    .map(b => ({
-      id: String(b.hostelId ?? (b as any).id ?? ''),
-      name: b.hostelName || (b as any).name || 'Hostel Block',
-      wardenName: b.wardenName || 'Unassigned',
-      wardenPhone: b.primaryMobileNumber || 'N/A'
-    }));
+// Map to legacy models
+  const hostelBlocks: HostelBlock[] = useMemo(() => {
+    return (blocks || [])
+      .filter(b => b != null)
+      .map(b => ({
+        id: String(b.hostelId ?? (b as any).id ?? ''),
+        name: b.hostelName || (b as any).name || 'Hostel Block',
+        wardenName: b.wardenName || 'Unassigned',
+        wardenPhone: b.primaryMobileNumber || 'N/A'
+      }));
+  }, [blocks]);
 
-  const hostelRooms: HostelRoom[] = (rooms || [])
-    .filter(r => r != null)
-    .map(r => ({
-      id: String(r.roomId ?? (r as any).id ?? ''),
-      blockId: String(r.hostelId ?? (r as any).blockId ?? ''),
-      roomNo: r.roomNumber || (r as any).roomNo || '',
-      capacity: r.bedCapacity ?? (r as any).capacity ?? 0,
-      occupiedBeds: r.occupiedBeds ?? 0,
-      status: r.status === 'Active' ? ((r.vacantBeds ?? 0) > 0 ? 'Available' : 'Full') : 'Maintenance'
-    }));
+  const hostelRooms: HostelRoom[] = useMemo(() => {
+    return (rooms || [])
+      .filter(r => r != null)
+      .map(r => ({
+        id: String(r.roomId ?? (r as any).id ?? ''),
+        blockId: String(r.hostelId ?? (r as any).blockId ?? ''),
+        roomNo: r.roomNumber || (r as any).roomNo || '',
+        capacity: r.bedCapacity ?? (r as any).capacity ?? 0,
+        occupiedBeds: r.occupiedBeds ?? 0,
+        status: r.status === 'Active' ? ((r.vacantBeds ?? 0) > 0 ? 'Available' : 'Full') : 'Maintenance'
+      }));
+  }, [rooms]);
 
   // Dynamically generate beds based on room capacities and allocations
-  const hostelBeds: HostelBed[] = [];
-  (rooms || []).filter(r => r != null).forEach(r => {
-    const cap = r.bedCapacity || 0;
-    for (let i = 1; i <= cap; i++) {
-      const bedNo = `Bed ${i}`;
-      // Check if this specific bed is allocated
-      const isOccupied = (allocations || []).some(
-        a => a && a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
-      );
-      // Find occupying student name if any
-      const studentName = (allocations || []).find(
-        a => a && a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
-      )?.studentName;
+  const hostelBeds: HostelBed[] = useMemo(() => {
+    const beds: HostelBed[] = [];
+    (rooms || []).filter(r => r != null).forEach(r => {
+      const cap = r.bedCapacity || 0;
+      for (let i = 1; i <= cap; i++) {
+        const bedNo = `Bed ${i}`;
+        // Check if this specific bed is allocated
+        const isOccupied = (allocations || []).some(
+          a => a && a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
+        );
+        // Find occupying student name if any
+        const studentName = (allocations || []).find(
+          a => a && a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
+        )?.studentName;
 
-      hostelBeds.push({
-        id: `bed_${r.roomId || '0'}_${i}`,
-        roomId: String(r.roomId ?? ''),
-        bedNo,
-        status: isOccupied ? 'Occupied' : 'Available',
-        studentName
-      });
-    }
-  });
+        beds.push({
+          id: `bed_${r.roomId || '0'}_${i}`,
+          roomId: String(r.roomId ?? ''),
+          bedNo,
+          status: isOccupied ? 'Occupied' : 'Available',
+          studentName
+        });
+      }
+    });
+    return beds;
+  }, [rooms, allocations]);
 
-  const handleAddHostelBlock = async (blockData: Omit<HostelBlock, 'id'>) => {
+  const handleAddHostelBlock = useCallback(async (blockData: Omit<HostelBlock, 'id'>) => {
     try {
       await createHostelBlock({
         hostelName: blockData.name,
@@ -129,9 +136,9 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err: any) {
       addToast('error', 'API Error', err.message || 'Failed to add hostel block.');
     }
-  };
+  }, [addToast, refreshHostelData]);
 
-  const handleUpdateHostelBlock = async (id: string, updates: Partial<HostelBlock>) => {
+  const handleUpdateHostelBlock = useCallback(async (id: string, updates: Partial<HostelBlock>) => {
     try {
       const numericId = parseInt(id);
       const original = blocks.find(b => b.hostelId === numericId);
@@ -151,9 +158,9 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err: any) {
       addToast('error', 'API Error', err.message || 'Failed to update hostel block.');
     }
-  };
+  }, [blocks, addToast, refreshHostelData]);
 
-  const handleDeleteHostelBlock = async (id: string) => {
+  const handleDeleteHostelBlock = useCallback(async (id: string) => {
     try {
       const numericId = parseInt(id);
       await deleteHostelBlock(numericId);
@@ -162,28 +169,39 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err: any) {
       addToast('error', 'API Error', err.message || 'Failed to delete hostel block.');
     }
-  };
+  }, [addToast, refreshHostelData]);
 
   // No-op stubs for beds CRUD as they are managed via rooms/room-types on backend
-  const addHostelBed = () => {};
-  const updateHostelBed = () => {};
-  const deleteHostelBed = () => {};
+  const addHostelBed = useCallback(() => {}, []);
+  const updateHostelBed = useCallback(() => {}, []);
+  const deleteHostelBed = useCallback(() => {}, []);
+
+  const contextValue = useMemo(() => ({
+    hostelBlocks,
+    hostelRooms,
+    hostelBeds,
+    addHostelBlock: handleAddHostelBlock,
+    updateHostelBlock: handleUpdateHostelBlock,
+    deleteHostelBlock: handleDeleteHostelBlock,
+    addHostelBed,
+    updateHostelBed,
+    deleteHostelBed,
+    refreshHostelData
+  }), [
+    hostelBlocks,
+    hostelRooms,
+    hostelBeds,
+    handleAddHostelBlock,
+    handleUpdateHostelBlock,
+    handleDeleteHostelBlock,
+    addHostelBed,
+    updateHostelBed,
+    deleteHostelBed,
+    refreshHostelData
+  ]);
 
   return (
-    <HostelContext.Provider
-      value={{
-        hostelBlocks,
-        hostelRooms,
-        hostelBeds,
-        addHostelBlock: handleAddHostelBlock,
-        updateHostelBlock: handleUpdateHostelBlock,
-        deleteHostelBlock: handleDeleteHostelBlock,
-        addHostelBed,
-        updateHostelBed,
-        deleteHostelBed,
-        refreshHostelData
-      }}
-    >
+    <HostelContext.Provider value={contextValue}>
       {children}
     </HostelContext.Provider>
   );

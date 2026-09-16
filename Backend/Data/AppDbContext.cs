@@ -157,6 +157,8 @@ namespace SMS.Api.Data
         public DbSet<SMS.Api.Models.FinanceManagement.StudentFeeAssignment> StudentFeeAssignments { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.FeePayment> FeePayments { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.FeeSchedule> FeeSchedules { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeScheduleTerm> FeeScheduleTerms { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeScheduleMonthlyDate> FeeScheduleMonthlyDates { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.Scholarship> Scholarships { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.StudentScholarship> StudentScholarships { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.DiscountRule> Discounts { get; set; } = null!;
@@ -1154,8 +1156,30 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeSchedule>(entity =>
             {
                 entity.ToTable("fee_schedules");
+                entity.HasKey(x => x.Id);
+                entity.HasIndex(x => x.AcademicYear).IsUnique();
                 entity.Property(x => x.TermsJson).HasColumnName("terms_json");
                 entity.Property(x => x.MonthlyConfigJson).HasColumnName("monthly_config_json");
+                entity.HasMany(x => x.Terms)
+                    .WithOne(t => t.FeeSchedule)
+                    .HasForeignKey(t => t.FeeScheduleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(x => x.MonthlyDates)
+                    .WithOne(m => m.FeeSchedule)
+                    .HasForeignKey(m => m.FeeScheduleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeScheduleTerm>(entity =>
+            {
+                entity.ToTable("fee_schedule_terms");
+                entity.HasKey(x => x.Id);
+            });
+
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeScheduleMonthlyDate>(entity =>
+            {
+                entity.ToTable("fee_schedule_monthly_dates");
+                entity.HasKey(x => x.Id);
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.Scholarship>(entity =>
             {

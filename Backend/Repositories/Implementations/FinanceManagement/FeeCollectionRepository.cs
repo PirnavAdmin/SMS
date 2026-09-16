@@ -21,6 +21,37 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         _context = context;
     }
 
+    private static string NormalizeGrade(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        string lower = name.Trim().ToLowerInvariant();
+
+        if (lower.Contains("playgroup") || lower.Contains("play group") || lower.Contains("pg")) return "playgroup";
+        if (lower.Contains("nursery") || lower.Contains("nurs")) return "nursery";
+        if (lower.Contains("lkg") || lower.Contains("l.k.g")) return "lkg";
+        if (lower.Contains("ukg") || lower.Contains("u.k.g")) return "ukg";
+        if (lower.Contains("prep")) return "prep";
+
+        var match = System.Text.RegularExpressions.Regex.Match(lower, @"(?:class|grade)?\s*(\d+)");
+        if (match.Success)
+        {
+            return match.Groups[1].Value;
+        }
+
+        string clean = System.Text.RegularExpressions.Regex.Replace(lower, @"^class\s+", "");
+        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"[-\s][a-z]$", "");
+        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"(st|nd|rd|th)$", "");
+        return clean.Trim();
+    }
+
+    private static bool MatchesClassName(string? classA, string? classB)
+    {
+        string gA = NormalizeGrade(classA);
+        string gB = NormalizeGrade(classB);
+        if (string.IsNullOrEmpty(gA) || string.IsNullOrEmpty(gB)) return false;
+        return gA.Equals(gB, StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<FeeCollectionStudentRosterResponseDto> GetStudentRosterAsync(
         string? search, string? className, string? sectionName, string? studentType, int page, int pageSize)
     {
@@ -35,7 +66,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             string cleanClass = className.Trim();
             query = query.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName != null && 
-                (s.ClassGrade.ClassName == cleanClass || s.ClassGrade.ClassName.Contains(cleanClass)));
+                (s.ClassGrade.ClassName == cleanClass || 
+                 s.ClassGrade.ClassName.StartsWith(cleanClass + " ") || 
+                 s.ClassGrade.ClassName.StartsWith(cleanClass + "-")));
         }
 
         if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("ALL", StringComparison.OrdinalIgnoreCase))
@@ -99,9 +132,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             decimal baseClassFee = 0m;
             var matchedStructure = feeStructures.FirstOrDefault(f => 
                 !string.IsNullOrEmpty(f.ClassName) && 
-                (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || 
-                 cName.IndexOf(f.ClassName, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                 f.ClassName.IndexOf(cName, StringComparison.OrdinalIgnoreCase) >= 0) &&
+                MatchesClassName(f.ClassName, cName) &&
                 (string.IsNullOrEmpty(f.Section) || f.Section.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Section.Equals(sName, StringComparison.OrdinalIgnoreCase)));
 
             if (matchedStructure != null && matchedStructure.TotalAmount > 0)
@@ -180,9 +211,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
         var matchedStructure = feeStructures.FirstOrDefault(f => 
             !string.IsNullOrEmpty(f.ClassName) && 
-            (f.ClassName.Equals(cName, StringComparison.OrdinalIgnoreCase) || 
-             cName.IndexOf(f.ClassName, StringComparison.OrdinalIgnoreCase) >= 0 ||
-             f.ClassName.IndexOf(cName, StringComparison.OrdinalIgnoreCase) >= 0) &&
+            MatchesClassName(f.ClassName, cName) &&
             (string.IsNullOrEmpty(f.Section) || f.Section.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Section.Equals(sName, StringComparison.OrdinalIgnoreCase)));
 
         decimal totalExpectedFee = matchedStructure != null && matchedStructure.TotalAmount > 0 
