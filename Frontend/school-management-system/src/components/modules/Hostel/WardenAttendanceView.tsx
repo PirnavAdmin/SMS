@@ -8,6 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
+import { teacherCheckInApi, teacherCheckOutApi } from '../../../api/attendance';
 
 export interface WardenAttendanceRecord {
   id: string;
@@ -54,7 +55,7 @@ export const calculateWorkedDutyHours = (checkIn?: string, checkOut?: string): s
 
 export const WardenAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff = [] } = useData();
+  const { staff = [], markAttendance } = useData();
   const { addToast } = useToast();
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -78,7 +79,8 @@ export const WardenAttendanceView: React.FC = () => {
       name: userName,
       empId: (matchedStaff as any)?.employeeId || matchedStaff?.empId || 'WRD-102',
       email: userEmail,
-      designation: 'Hostel Warden',
+      designation: matchedStaff?.designation || 'Hostel Warden',
+      department: matchedStaff?.department || 'Hostel Management',
       branch: user?.branch || 'Main Campus',
       avatar: user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
     };
@@ -198,27 +200,110 @@ export const WardenAttendanceView: React.FC = () => {
   }, [checkInTime, checkOutTime, isCheckedOut, todayStr, wardenInfo.id, wardenInfo.name]);
 
   // Handle Check In Action
-  const handleCheckIn = () => {
+  const handleCheckIn = async () => {
+    try {
+      try { await teacherCheckInApi(); } catch {}
+    } catch {}
+
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     setCheckInTime(timeNow);
     setIsCheckedOut(false);
+
     localStorage.setItem('warden_check_in_time', timeNow);
     localStorage.removeItem('warden_check_out_time');
     localStorage.setItem('warden_is_checked_out', 'false');
     localStorage.setItem('warden_attendance_date', todayStr);
+
+    // Sync to staff attendance keys across all possible ID forms so StaffAttendanceView reads check-in
+    const activeWardenId = wardenInfo.id;
+    const wardenEmpId = wardenInfo.empId || (user as any)?.empId || user?.id || "410";
+    const keysToSet = Array.from(new Set([activeWardenId, wardenEmpId, user?.id, (user as any)?.empId].filter(Boolean)));
+
+    keysToSet.forEach(k => {
+      localStorage.setItem(`teacher_attendance_date_${k}`, todayStr);
+      localStorage.setItem(`teacher_check_in_time_${k}`, timeNow);
+      localStorage.removeItem(`teacher_check_out_time_${k}`);
+      localStorage.setItem(`teacher_is_checked_out_${k}`, "false");
+    });
+
+    const now = new Date();
+    const checkInHour = now.getHours();
+    const checkInMinute = now.getMinutes();
+    const computedStatus = (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) ? "Late" : "Present";
+
+    if (markAttendance && activeWardenId) {
+      try {
+        await markAttendance([{
+          id: `ATT-${Date.now()}-${activeWardenId}`,
+          date: todayStr,
+          entityType: "Staff",
+          entityId: String(activeWardenId),
+          staffId: String(activeWardenId),
+          employeeId: String(wardenInfo.empId),
+          employeeName: wardenInfo.name,
+          status: computedStatus,
+          inTime: timeNow,
+          outTime: "",
+          remarks: "Warden Duty Check-In",
+          department: wardenInfo.department || "Hostel Management",
+          designation: wardenInfo.designation || "Hostel Warden"
+        } as any]);
+      } catch (e) {
+        console.error("Warden markAttendance error:", e);
+      }
+    }
+
     addToast('success', 'Duty Check-In Success', `Hostel Warden check-in recorded at ${timeNow}.`);
   };
 
   // Handle Check Out Action
-  const handleCheckOut = () => {
+  const handleCheckOut = async () => {
     if (!checkInTime) return;
+    try {
+      try { await teacherCheckOutApi(); } catch {}
+    } catch {}
+
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     const workedHrs = calculateWorkedDutyHours(checkInTime, timeNow);
     setCheckOutTime(timeNow);
     setIsCheckedOut(true);
+
     localStorage.setItem('warden_check_out_time', timeNow);
     localStorage.setItem('warden_is_checked_out', 'true');
     localStorage.setItem('warden_attendance_date', todayStr);
+
+    const activeWardenId = wardenInfo.id;
+    const wardenEmpId = wardenInfo.empId || (user as any)?.empId || user?.id || "410";
+    const keysToSet = Array.from(new Set([activeWardenId, wardenEmpId, user?.id, (user as any)?.empId].filter(Boolean)));
+
+    keysToSet.forEach(k => {
+      localStorage.setItem(`teacher_attendance_date_${k}`, todayStr);
+      localStorage.setItem(`teacher_check_out_time_${k}`, timeNow);
+      localStorage.setItem(`teacher_is_checked_out_${k}`, "true");
+    });
+
+    if (markAttendance && activeWardenId) {
+      try {
+        await markAttendance([{
+          id: `ATT-${Date.now()}-${activeWardenId}`,
+          date: todayStr,
+          entityType: "Staff",
+          entityId: String(activeWardenId),
+          staffId: String(activeWardenId),
+          employeeId: String(wardenInfo.empId),
+          employeeName: wardenInfo.name,
+          status: "Present",
+          inTime: checkInTime,
+          outTime: timeNow,
+          remarks: "Warden Duty Completed",
+          department: wardenInfo.department || "Hostel Management",
+          designation: wardenInfo.designation || "Hostel Warden"
+        } as any]);
+      } catch (e) {
+        console.error("Warden markAttendance error:", e);
+      }
+    }
+
     addToast('success', 'Duty Check-Out Success', `Shift completed at ${timeNow}. Total duty time: ${workedHrs}.`);
   };
 

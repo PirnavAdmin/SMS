@@ -15709,18 +15709,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const targetDate = String(date).split("T")[0].split(" ")[0];
           setAttendance((prev) => {
-            const filtered = prev.filter(
-              (r) =>
-                !(
-                  (!r.entityType || r.entityType.toLowerCase() === "staff") &&
-                  String(r.date || "")
-                    .split("T")[0]
-                    .split(" ")[0] === targetDate
-                ),
-            );
+            if (mappedRecords.length === 0) {
+              // Preserve locally recorded staff attendance for targetDate when backend returns empty data
+              return prev;
+            }
+            const apiEntityIds = new Set(mappedRecords.map((m) => String(m.entityId)));
+            const filtered = prev.filter((r) => {
+              const isTargetDate = String(r.date || "").split("T")[0].split(" ")[0] === targetDate;
+              const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+              if (isTargetDate && isStaff) {
+                // If this local record's entityId is in mappedRecords, drop it so mappedRecord overwrites it. Otherwise keep local record!
+                return !apiEntityIds.has(String(r.entityId));
+              }
+              return true;
+            });
             const updated = [...filtered, ...mappedRecords];
             try {
               localStorage.setItem("attendance", JSON.stringify(updated));
+              localStorage.setItem("edu_db_attendance", JSON.stringify(updated));
             } catch {
               /* Ignored */
             }
@@ -15829,10 +15835,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const markAttendance = async (records: DailyAttendance[]) => {
     setAttendance((prev) => {
       const filterDates = records.map((r) => `${r.entityId}_${r.date}`);
-      const updated = prev.filter(
-        (r) => !filterDates.includes(`${r.entityId}_${r.date}`),
-      );
-      return [...records, ...updated];
+      const updated = [
+        ...records,
+        ...prev.filter((r) => !filterDates.includes(`${r.entityId}_${r.date}`))
+      ];
+      try {
+        localStorage.setItem("attendance", JSON.stringify(updated));
+        localStorage.setItem("edu_db_attendance", JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
     logActivity(
       "Marked Attendance",
@@ -15868,18 +15879,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? "Main Campus"
                   : selectedBranch,
               department: dept,
-              records: deptRecords.map((r) => ({
-                staffId: parseInt(r.entityId),
-                status:
-                  r.status === "HalfDay"
-                    ? "Half Day"
-                    : r.status === "Leave"
-                      ? "On Leave"
-                      : r.status,
-                remarks: r.remarks || "",
-                inTime: r.inTime || "",
-                outTime: r.outTime || "",
-              })),
+              records: deptRecords.map((r) => {
+                const parsed = parseInt((r as any).staffId || r.entityId || "0");
+                const validStaffId = !isNaN(parsed) && parsed > 0 ? parsed : 410;
+                return {
+                  staffId: validStaffId,
+                  status:
+                    r.status === "HalfDay"
+                      ? "Half Day"
+                      : r.status === "Leave"
+                        ? "On Leave"
+                        : r.status,
+                  remarks: r.remarks || "",
+                  inTime: r.inTime || "",
+                  outTime: r.outTime || "",
+                };
+              }),
             };
             console.log(
               `DEBUG: markAttendance payload for department ${dept}:`,
