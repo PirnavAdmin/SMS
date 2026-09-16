@@ -88,13 +88,13 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     }
 
     return {
-      id: '1',
-      driverName: user?.name || 'Nag Sahoo',
-      licenseNumber: 'DL-2026-9874',
-      mobileNumber: '+91-9878645565',
-      employeeId: 'DRV-001',
+      id: user?.id || '1',
+      driverName: user?.name || user?.email || 'Driver',
+      licenseNumber: '',
+      mobileNumber: (user as any)?.phone || '',
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || 'DRV-001',
       status: 'Active' as const,
-      experienceYears: 8
+      experienceYears: 0
     };
   }, [user, driverMasters, staff]);
 

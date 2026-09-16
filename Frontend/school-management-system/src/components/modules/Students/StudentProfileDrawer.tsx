@@ -853,7 +853,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                     const stPay = (feePayments || []).filter((p) => p.studentId === student.id && p.academicYear === h.academicYear);
                     const paidAmt = stPay.reduce((sum, p) => sum + ((p as any).amount || (p as any).paidAmount || 0), 0);
                     const stAssign = (studentFeeAssignments || []).find((a) => a.studentId === student.id && a.academicYear === h.academicYear);
-                    const totalFee = (stAssign as any)?.finalAmount || 45000;
+                    const totalFee = (stAssign as any)?.finalAmount || 0;
                     const dueAmt = Math.max(0, totalFee - paidAmt);
 
                     return (

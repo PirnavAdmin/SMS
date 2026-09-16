@@ -40,12 +40,19 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
 
     const userEmail = (user.email || '').toLowerCase().trim();
+    const userPhone = (user.phone || '').replace(/\D/g, '');
+    const userId = String(user.id || (user as any)?.empId || '').trim();
+
     if (userEmail) {
       const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
       if (emailMatch) return emailMatch;
     }
 
-    const userId = String(user.id || (user as any)?.empId || '').trim();
+    if (userPhone && userPhone.length >= 10) {
+      const phoneMatch = staff.find(s => s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone));
+      if (phoneMatch) return phoneMatch;
+    }
+
     if (userId) {
       const idMatch = staff.find(s => {
         const matchesId = (s.id && String(s.id).trim() === userId) || (s.empId && String(s.empId).trim() === userId);
@@ -62,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     if (userRole === 'driver') {
       const driverMatch = (driverMasters || []).find(d =>
         (userEmail && d.email?.toLowerCase().trim() === userEmail) ||
-        (user.phone && d.mobileNumber?.replace(/\D/g, '') === user.phone.replace(/\D/g, '')) ||
+        (userPhone && d.mobileNumber && d.mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
         (userId && (d.employeeId?.toLowerCase() === userId.toLowerCase() || String(d.id) === userId))
       );
       if (driverMatch && driverMatch.driverName) {
@@ -84,29 +91,40 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (staffName) return staffName;
     }
 
+    const userRole = (role || user?.role || '').toLowerCase();
+
     // 2. If matching student found, use student's name
-    if (user?.email) {
-      const userEmail = user.email.toLowerCase().trim();
-      const matchedStudent = (students || []).find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+    if (userRole === 'student') {
+      const userEmail = (user?.email || '').toLowerCase().trim();
+      const userPhone = (user?.phone || '').replace(/\D/g, '');
+      const userId = String(user?.id || '').trim();
+      const matchedStudent = (students || []).find(s => 
+        (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+        (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
+        (userPhone && userPhone.length >= 10 && (
+          (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+        ))
+      );
       if (matchedStudent) {
         const studentName = `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim();
         if (studentName) return studentName;
       }
     }
 
-    // 3. Authentic user account name if available (and not generic)
+    // 3. Authentic user account name if available (and not generic 'User')
     const rawName = (user?.name || '').trim();
-    if (rawName && rawName.toLowerCase() !== 'user' && rawName.toLowerCase() !== 'administrator') {
+    if (rawName && rawName.toLowerCase() !== 'user') {
       return rawName;
     }
 
     // 4. Derive from email (e.g. driver@pirnav.com -> Driver)
-    if (user?.email) {
+    if (user?.email && user.email.includes('@')) {
       const derived = formatEmailToName(user.email);
-      if (derived) return derived;
+      if (derived && derived.toLowerCase() !== 'user') return derived;
     }
 
-    const userRole = (role || user?.role || '').toLowerCase();
     if (['admin', 'super admin', 'superadmin'].includes(userRole)) {
       return rawName || 'Administrator';
     }

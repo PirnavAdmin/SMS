@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { formatCurrency } from "../../../utils/currency";
 import {
   getUniformPackageFeeByClass,
@@ -41,10 +41,14 @@ import { Badge } from "../../common/Badge";
 
 interface FeeCollectionViewProps {
   onPrintReceipt: (payment: FeePayment) => void;
+  initialStudent?: Student | null;
+  onClearInitialStudent?: () => void;
 }
 
 export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   onPrintReceipt,
+  initialStudent,
+  onClearInitialStudent,
 }) => {
   const {
     students,
@@ -64,6 +68,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     getStudentFeeLedger,
     getStudentFeeOutstandingSummary,
     getStudentInstallmentSummary,
+    fetchFinanceData,
     scholarships,
     discounts,
     applyScholarshipToStudent,
@@ -260,102 +265,66 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     }
   };
 
-  // Combine students master roster with admissions array to guarantee 100% student availability in Finance
+  // Use real enrolled students master roster, supplementing with non-duplicated admissions if any
   const allEnrolledStudents = React.useMemo(() => {
     const map = new Map<string, Student>();
 
-    (admissions || [])
-      .filter((adm) => adm.status === "Enrolled")
-      .forEach((adm) => {
-      const admId = adm.id || adm.applicationNo;
-      const admNo = adm.applicationNo || adm.id;
-      const nameParts = (adm.applicantName || "").trim().split(" ");
-      let fName = adm.firstName || nameParts[0] || "Student";
-      let lName = adm.lastName || nameParts.slice(1).join(" ") || "";
-      if (
-        admNo === "REG-1008" ||
-        `${fName} ${lName}`.toLowerCase().includes("raju teja")
-      ) {
-        fName = "Gokul";
-        lName = "Raj";
-      }
-      const targetCls =
-        adm.appliedClass || adm.targetClass || adm.className || "Class 10";
-      const key = admNo.toLowerCase();
-
-      map.set(key, {
-        id: admId,
-        firstName: fName,
-        lastName: lName,
-        admissionNo: admNo,
-        className: targetCls,
-        section: adm.section || "A",
-        gender: adm.gender || "Male",
-        studentType:
-          adm.residentialStatus === "Residential" ||
-          adm.studentType === "Residential"
-            ? "Hosteller"
-            : "Day Scholar",
-        joiningDate:
-          adm.admissionDate || new Date().toISOString().split("T")[0],
-        dueFee: 0,
-        paidFee: 0,
-        totalFee: 0,
-        rollNo: "0",
-        fatherName: adm.parentName || "",
-        motherName: adm.motherName || "",
-        mobile: adm.mobile || "",
-        email: adm.email || "",
-        address: adm.address || "",
-        status: "Active",
-        academicYear: adm.academicYear || "2026-2027",
-        branch: adm.branch || "Main Campus",
-      } as unknown as Student);
-    });
-
+    // 1. Primary source: Active students from database
     (students || [])
       .filter((s) => !s.status || s.status === "Active" || s.status === "Enrolled")
       .forEach((s) => {
-      if (!s) return;
-      const sAdmNo = s.admissionNo || s.id || "";
-      let sfName = s.firstName || "";
-      let slName = s.lastName || "";
-      if (
-        sAdmNo === "REG-1008" ||
-        `${sfName} ${slName}`.toLowerCase().includes("raju teja")
-      ) {
-        sfName = "Gokul";
-        slName = "Raj";
-      }
-      const sObj =
-        sAdmNo === "REG-1008" ||
-        `${s.firstName || ""} ${s.lastName || ""}`
-          .toLowerCase()
-          .includes("raju teja")
-          ? { ...s, firstName: "Gokul", lastName: "Raj" }
-          : s;
-      const nameKey = `${sfName} ${slName}`.toLowerCase().trim();
-
-      const alreadyInMap = Array.from(map.values()).some((a) => {
-        if (!a) return false;
-        const aAdmNo = a.admissionNo || a.id || "";
-        const afName = (a.firstName || "").toLowerCase();
-        const alName = (a.lastName || "").toLowerCase();
-        const aNameKey = `${afName} ${alName}`.trim();
-
-        return (
-          (aAdmNo && sAdmNo && aAdmNo.toLowerCase() === sAdmNo.toLowerCase()) ||
-          (a.id && s.id && a.id.toLowerCase() === s.id.toLowerCase()) ||
-          (nameKey && aNameKey && aNameKey === nameKey)
-        );
+        if (!s) return;
+        const key = (s.admissionNo || s.id || "").toLowerCase().trim();
+        if (key) {
+          map.set(key, s);
+        }
       });
-      if (!alreadyInMap) {
-        map.set(
-          (sAdmNo || s.id || Math.random().toString()).toLowerCase(),
-          sObj,
-        );
-      }
-    });
+
+    // 2. Secondary source: Any enrolled admission applications not yet in students
+    (admissions || [])
+      .filter((adm) => adm.status === "Enrolled")
+      .forEach((adm) => {
+        const admId = adm.id || adm.applicationNo;
+        const admNo = adm.applicationNo || adm.id;
+        if (!admNo) return;
+        const key = admNo.toLowerCase().trim();
+        if (map.has(key)) return;
+
+        const nameParts = (adm.applicantName || "").trim().split(" ");
+        const fName = adm.firstName || nameParts[0] || "Student";
+        const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
+        const targetCls =
+          adm.appliedClass || adm.targetClass || adm.className || "Class 1";
+
+        map.set(key, {
+          id: admId,
+          firstName: fName,
+          lastName: lName,
+          admissionNo: admNo,
+          className: targetCls,
+          section: adm.section || "A",
+          gender: adm.gender || "Male",
+          studentType:
+            adm.residentialStatus === "Residential" ||
+            adm.studentType === "Residential"
+              ? "Hosteller"
+              : "Day Scholar",
+          joiningDate:
+            adm.admissionDate || new Date().toISOString().split("T")[0],
+          dueFee: 0,
+          paidFee: 0,
+          totalFee: 0,
+          rollNo: "0",
+          fatherName: adm.parentName || "",
+          motherName: adm.motherName || "",
+          mobile: adm.mobile || "",
+          email: adm.email || "",
+          address: adm.address || "",
+          status: "Active",
+          academicYear: adm.academicYear || "2026-2027",
+          branch: adm.branch || "Main Campus",
+        } as unknown as Student);
+      });
 
     return Array.from(map.values());
   }, [students, admissions]);
@@ -392,7 +361,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
       const classMatch =
         selectedClass === "ALL" ||
-        String(s.className || "").toLowerCase() === selectedClass.toLowerCase();
+        matchesClassName(s.className, selectedClass);
 
       const sectionMatch =
         selectedSection === "ALL" ||
@@ -419,7 +388,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       const dfs = (dynamicFeeStructures || []).find((d) =>
         matchesClassName(d.className, stObj?.className),
       );
-      const feeVal = stObj?.totalFee ?? dfs?.totalAmount ?? 0;
+      const feeVal = dfs?.totalAmount ?? 0;
       calc = {
         baseFee: feeVal,
         transportFee: 0,
@@ -433,8 +402,24 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     }
 
     if (ledger && calc) {
-      const scholarshipAmt = ledger.scholarshipAmount || 0;
-      const discountAmt = ledger.discountAmount || 0;
+      const scholarshipAmt =
+        ledger.scholarshipAmount || ledger.totalScholarship || 0;
+      const discountAmt = ledger.discountAmount || ledger.totalDiscount || 0;
+
+      const fineAmt = isFineWaived ? 0 : (calc.fineAmount || 0);
+      const grossAmt =
+        (calc.baseFee || 0) +
+        (calc.transportFee || 0) +
+        (calc.hostelFee || 0) +
+        (calc.uniformFee || 0);
+      const updatedTotalPayable = Math.max(
+        0,
+        grossAmt + fineAmt - scholarshipAmt - discountAmt,
+      );
+      const updatedDueBalance = Math.max(
+        0,
+        updatedTotalPayable - (calc.paidAmount || 0),
+      );
 
       calc = {
         ...calc,
@@ -446,6 +431,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         discountName: ledger.discountName,
         discountDescription: ledger.discountDescription,
         discountDeduction: discountAmt,
+        totalPayable: updatedTotalPayable,
+        dueBalance: updatedDueBalance,
       };
     }
     setCalcResult(calc);
@@ -464,6 +451,27 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setCustomCollectionAmounts({});
     updateCalculation(st.id);
   };
+
+  const lastInitialStudentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (initialStudent && (initialStudent.id || initialStudent.admissionNo)) {
+      const studentKey = initialStudent.id || initialStudent.admissionNo;
+      if (lastInitialStudentIdRef.current !== studentKey) {
+        lastInitialStudentIdRef.current = studentKey;
+        const matched =
+          allEnrolledStudents.find(
+            (s) =>
+              s.id === initialStudent.id ||
+              (initialStudent.admissionNo &&
+                s.admissionNo === initialStudent.admissionNo),
+          ) || initialStudent;
+        handleSelectStudent(matched);
+      }
+    } else if (!initialStudent) {
+      lastInitialStudentIdRef.current = null;
+    }
+  }, [initialStudent, allEnrolledStudents]);
 
   const handleApplyScholarship = (scholarshipId: string) => {
     if (!selectedStudent || !calcResult) return;
@@ -649,14 +657,38 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       selectedInstallments.forEach((instId) => {
         if (instId.startsWith("INST-UNIF-EXTRA-")) {
           const rawIssueId = instId.replace("INST-UNIF-EXTRA-", "");
-          updateStudentUniformIssue(rawIssueId, { status: "Paid" as any });
-        } else if (instId.startsWith("INST-UNIF-BASE-") || instId.startsWith("INST-UNIF-")) {
+          updateStudentUniformIssue(rawIssueId, {
+            status: "Paid" as any,
+            notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
+          });
+        } else if (instId.startsWith("INST-UNIF-BASE-") || instId.startsWith("INST-UNIF-") || instId === "FH-04" || instId === "FH-UNI-BASE") {
           const cleanId = instId.replace("INST-UNIF-BASE-", "").replace("INST-UNIF-", "").split("-")[0];
           const baseIssue = (studentUniformIssues || []).find(
             (i) => i.id === cleanId || i.studentId === selectedStudent.id || (selectedStudent.admissionNo && i.admissionNo === selectedStudent.admissionNo)
           );
           if (baseIssue) {
-            updateStudentUniformIssue(baseIssue.id, { status: "Partial" as any });
+            updateStudentUniformIssue(baseIssue.id, {
+              status: "Paid" as any,
+              notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
+            });
+          } else if (addStudentUniformIssue) {
+            addStudentUniformIssue({
+              studentId: selectedStudent.id,
+              studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
+              admissionNo: selectedStudent.admissionNo || "ADM2026-000",
+              className: selectedStudent.className || "Class 4",
+              section: selectedStudent.section || "A",
+              itemId: `pkg_${selectedStudent.className}`,
+              itemName: `${selectedStudent.gender === 'Female' ? 'Girls' : 'Boys'} Base Package (Admission Kit)`,
+              size: "M",
+              quantity: 1,
+              issueDate: new Date().toISOString().split("T")[0],
+              status: "Paid" as any,
+              academicYear: selectedAcademicYear || financeSettings.academicYear || "2026-2027",
+              type: "Base Package",
+              price: paidAmount,
+              notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
+            });
           }
         }
       });
@@ -701,11 +733,35 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     );
     onPrintReceipt(payment);
 
-    const updatedStudent =
-      students.find((s) => s.id === selectedStudent.id) || selectedStudent;
-    setSelectedStudent({ ...updatedStudent });
+    fetchFinanceData().catch(() => {});
+
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
+
+    // Immediate reactive feedback on calcResult
+    if (calcResult) {
+      const newPaid = (calcResult.paidAmount || 0) + numericAmount;
+      const newDue = Math.max(0, (calcResult.dueBalance ?? calcResult.totalPayable ?? 0) - numericAmount);
+      setCalcResult({
+        ...calcResult,
+        paidAmount: newPaid,
+        dueBalance: newDue,
+      });
+    }
+
+    const updatedStudent =
+      students.find(
+        (s) =>
+          s.id === selectedStudent.id ||
+          (selectedStudent.admissionNo &&
+            s.admissionNo === selectedStudent.admissionNo),
+      ) || selectedStudent;
+    setSelectedStudent({
+      ...updatedStudent,
+      paidFee: (updatedStudent.paidFee || 0) + numericAmount,
+      dueFee: Math.max(0, (updatedStudent.dueFee ?? calcResult?.dueBalance ?? numericAmount) - numericAmount),
+    });
+
     updateCalculation(selectedStudent.id);
 
     setPaymentMode("");
@@ -715,6 +771,24 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setBankName("");
     setRemarks("");
   };
+
+  useEffect(() => {
+    if (selectedStudent) {
+      const freshCalc = calculateStudentPayableFee(selectedStudent.id);
+      if (freshCalc) {
+        setCalcResult((prev) => {
+          if (!prev) return freshCalc;
+          return {
+            ...prev,
+            paidAmount: freshCalc.paidAmount,
+            dueBalance: freshCalc.dueBalance,
+            totalPayable: freshCalc.totalPayable,
+            paymentHistory: freshCalc.paymentHistory,
+          };
+        });
+      }
+    }
+  }, [feePayments, selectedStudent?.id]);
 
   const getInstallmentStatus = (dueAmount: number, dueDate: string) => {
     if (dueAmount <= 0) return "PAID";
@@ -739,26 +813,41 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       ledger?.feeItems &&
       ledger.feeItems.length > 0
     ) {
+      let remainingPaid = (feePayments || [])
+        .filter((p) => {
+          const pSid = String(p.studentId || "").trim().toLowerCase();
+          const sId = String(selectedStudent.id || "").trim().toLowerCase();
+          const admNo = String(selectedStudent.admissionNo || "").trim().toLowerCase();
+          return pSid === sId || (admNo && pSid === admNo);
+        })
+        .reduce((sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0), 0);
+
       ledgerInstallments = ledger.feeItems
         .filter((item) => item.isApplicable && item.finalAmount > 0)
-        .map((item, idx) => ({
-          id: `INST-FEE-${selectedStudent.id}-${item.headId || idx}`,
-          studentId: selectedStudent.id,
-          academicYear: currentYear,
-          feeAssignmentId: `FA-LEAD-${selectedStudent.id}`,
-          feeHeadId: item.headId || `FH-${idx}`,
-          feeHeadName: item.headName,
-          frequency: "One Time",
-          termName: item.category || item.headName,
-          dueDate: new Date().toISOString().split("T")[0],
-          amount: item.originalAmount,
-          paidAmount: 0,
-          dueAmount:
-            item.finalAmount > 0 ? item.finalAmount : item.originalAmount,
-          status: "Pending",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }));
+        .map((item, idx) => {
+          const itemAmt = item.finalAmount > 0 ? item.finalAmount : item.originalAmount;
+          const paidForThis = Math.min(itemAmt, remainingPaid);
+          remainingPaid = Math.max(0, remainingPaid - paidForThis);
+          const dueForThis = Math.max(0, itemAmt - paidForThis);
+
+          return {
+            id: `INST-FEE-${selectedStudent.id}-${item.headId || idx}`,
+            studentId: selectedStudent.id,
+            academicYear: currentYear,
+            feeAssignmentId: `FA-LEAD-${selectedStudent.id}`,
+            feeHeadId: item.headId || `FH-${idx}`,
+            feeHeadName: item.headName,
+            frequency: "One Time",
+            termName: item.category || item.headName,
+            dueDate: new Date().toISOString().split("T")[0],
+            amount: item.originalAmount,
+            paidAmount: paidForThis,
+            dueAmount: dueForThis,
+            status: dueForThis === 0 ? "Paid" : paidForThis > 0 ? "Partial" : "Pending",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        });
     }
 
     const isResidentStudent =
@@ -840,7 +929,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         selectedStudent.gender,
         financeUniformConfigs,
         feeStructures,
-      ) || 10000;
+      ) || getUniformPackageFeeByClass(selectedStudent.className) || 0;
 
     // Update any existing ledger uniform installments with the exact configured uniform fee amount for the student's class
     if (expectedBaseFee && expectedBaseFee > 0) {
@@ -882,12 +971,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const itemTitle = isFabricCloth ? (issue.itemName || issue.itemCategory || "Uniform Cloth") : (isBasePkg ? "Admission Kit" : (issue.itemCategory || issue.itemName || "Uniform Item"));
 
         const finalSizeStr = issue.size?.includes('->') ? issue.size.split('->')[1].trim() : (issue.size || 'M');
-        const configuredItemFee = calculateClothOrItemPrice(
-          issue.itemName || issue.itemCategory,
-          finalSizeStr,
-          issue.price || issue.unitPrice,
-          financeUniformConfigs,
-        );
+        const configuredItemFee = (isBasePkg && expectedBaseFee > 0)
+          ? expectedBaseFee
+          : calculateClothOrItemPrice(
+              issue.itemName || issue.itemCategory,
+              finalSizeStr,
+              issue.price || issue.unitPrice,
+              financeUniformConfigs,
+              selectedStudent.className,
+              selectedStudent.gender,
+            );
 
         const amt = configuredItemFee * (issue.quantity || 1);
         const unitFee = configuredItemFee;
@@ -951,10 +1044,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       // No explicit uniform issues yet recorded — check if opted at admission
       const admRecord = (admissions || []).find(a => a.id === selectedStudent.id || a.applicationNo === selectedStudent.id || (selectedStudent.admissionNo && (a.id === selectedStudent.admissionNo || a.applicationNo === selectedStudent.admissionNo)));
       const optList = admRecord ? admRecord.selectedOptionalFees : null;
-      const isOptedAtAdmission = Boolean(
-        (optList && Array.isArray(optList) && optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit'))) ||
-        (admRecord as any)?.isUniformOpted === true ||
-        (selectedStudent as any)?.isUniformOpted === true
+      const isExplicitlyOptedOut = Boolean(
+        (admRecord as any)?.uniformOpted === false ||
+        (admRecord as any)?.isUniformOpted === false ||
+        (selectedStudent as any)?.uniformOpted === false ||
+        (selectedStudent as any)?.isUniformOpted === false ||
+        (Array.isArray(optList) && optList.length > 0 && !optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit')))
       );
 
       const hasPaidBaseInFinance = (feePayments || []).some((p) => {
@@ -971,8 +1066,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         return false;
       });
 
-      if (isOptedAtAdmission && !hasPaidBaseInFinance) {
-        const baseUnitFee = (expectedBaseFee && expectedBaseFee > 0) ? expectedBaseFee : 7000;
+      const shouldIncludeUniformFee = !isExplicitlyOptedOut && expectedBaseFee > 0;
+
+      if (shouldIncludeUniformFee && !hasPaidBaseInFinance) {
+        const baseUnitFee = (expectedBaseFee && expectedBaseFee > 0) ? expectedBaseFee : 5000;
         const calcQty = (expectedBaseFee > 0 && expectedBaseFee % baseUnitFee === 0 && expectedBaseFee > baseUnitFee)
           ? Math.round(expectedBaseFee / baseUnitFee)
           : 1;
@@ -1033,8 +1130,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             updatedAt: new Date().toISOString(),
           });
         }
-      } else {
-        // Remove pending base uniform package fee charge if not opted / paid
+      } else if (isExplicitlyOptedOut) {
+        // Remove pending base uniform package fee charge ONLY if explicitly opted out
         for (let i = combined.length - 1; i >= 0; i--) {
           const c = combined[i];
           if (!c.id.startsWith("INST-UNIF-")) {
@@ -1614,9 +1711,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   const dfs = (dynamicFeeStructures || []).find((d) =>
                     matchesClassName(d.className, st.className),
                   );
-                  const dueAmt = dueSummary
+                  const dueAmt = dueSummary !== null && dueSummary !== undefined
                     ? dueSummary.totalOutstanding
-                    : (st.totalFee ?? dfs?.totalAmount ?? 0);
+                    : (dfs?.totalAmount ?? 0);
 
                   const displayClassStr = st.className
                     ? st.className.toLowerCase().startsWith("class")
@@ -1697,7 +1794,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setSelectedStudent(null)}
+                onClick={() => {
+                  setSelectedStudent(null);
+                  if (onClearInitialStudent) {
+                    onClearInitialStudent();
+                  }
+                }}
                 className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-xs"
               >
                 <ArrowLeft className="w-4 h-4 text-sky-500" /> Back to Student

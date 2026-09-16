@@ -74,7 +74,7 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
     if (fromMaster) {
       return {
         ...fromMaster,
-        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : fromMaster.driverName
+        driverName: fromMaster.driverName || user?.name || 'Driver'
       };
     }
 
@@ -82,15 +82,17 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
     const fromStaff = staff.find(s =>
       (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
       (userEmail && s.email?.toLowerCase() === userEmail) ||
+      (userPhone && s.phone && s.phone.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
       (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
     );
 
     if (fromStaff) {
+      const staffName = `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim();
       return {
         id: fromStaff.id,
-        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : `${fromStaff.firstName} ${fromStaff.lastName}`,
+        driverName: staffName || user?.name || 'Driver',
         licenseNumber: (fromStaff as any).licenseNumber || 'DL-2026-9874',
-        mobileNumber: fromStaff.phone || '+91-9878645565',
+        mobileNumber: fromStaff.phone || user?.phone || '+91-9878645565',
         employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`,
         status: 'Active' as const,
         experienceYears: 6
@@ -99,11 +101,11 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
 
     // Fallback default driver so dashboard always displays the assigned vehicle
     return {
-      id: '1',
-      driverName: user?.name || 'Sai Kiran V',
+      id: user?.id || '1',
+      driverName: user?.name || 'Driver',
       licenseNumber: 'DL-2026-9874',
-      mobileNumber: '+91-9878645565',
-      employeeId: 'DRV-001',
+      mobileNumber: user?.phone || '+91-9878645565',
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || 'DRV-001',
       status: 'Active' as const,
       experienceYears: 8
     };

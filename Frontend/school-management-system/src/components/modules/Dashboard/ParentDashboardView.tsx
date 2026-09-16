@@ -255,10 +255,18 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   } else {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
 
     const localMatches = students.filter(s => 
       s.status === 'Active' && 
       (
+        (userPhone && userPhone.length >= 10 && (
+          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
+        )) ||
         (userEmail && (
           s.guardianEmail?.toLowerCase() === userEmail || 
           s.guardianPhone?.toLowerCase() === userEmail || 
@@ -267,10 +275,11 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
           s.fatherPhone?.toLowerCase() === userEmail ||
           s.motherPhone?.toLowerCase() === userEmail
         )) ||
-        (userName && (
-          s.fatherName?.toLowerCase() === userName ||
-          s.motherName?.toLowerCase() === userName ||
-          s.guardianName?.toLowerCase() === userName
+        (userName && userName !== 'parent' && userName !== 'user' && (
+          (s.fatherName && (s.fatherName.toLowerCase() === userName || s.fatherName.toLowerCase().includes(userName) || userName.includes(s.fatherName.toLowerCase()))) ||
+          (s.motherName && (s.motherName.toLowerCase() === userName || s.motherName.toLowerCase().includes(userName) || userName.includes(s.motherName.toLowerCase()))) ||
+          ((s as any).parentName && ((s as any).parentName.toLowerCase() === userName || (s as any).parentName.toLowerCase().includes(userName))) ||
+          (s.guardianName && s.guardianName.toLowerCase() === userName)
         ))
       )
     );

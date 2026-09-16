@@ -117,7 +117,7 @@ export const AcademicHistoryView: React.FC = () => {
     const stPayments = feePayments.filter((p) => p.studentId === studentId && p.academicYear === ay);
     const totalPaid = stPayments.reduce((sum, p) => sum + ((p as any).amount || (p as any).paidAmount || (p as any).totalAmount || 0), 0);
     const stAssignment = studentFeeAssignments.find((a) => a.studentId === studentId && a.academicYear === ay);
-    const totalFee = (stAssignment as any)?.finalAmount || (stAssignment as any)?.netPayable || 45000;
+    const totalFee = (stAssignment as any)?.finalAmount || (stAssignment as any)?.netPayable || 0;
     const dueFee = Math.max(0, totalFee - totalPaid);
 
     return { attendancePct, examPct, dueFee };

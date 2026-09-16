@@ -195,7 +195,17 @@ export const HomeworkView: React.FC = () => {
     }
     if (role === 'Student' || role === 'Parent') {
       const userEmail = (user?.email || '').toLowerCase().trim();
-      const currentStudent = students.find(s => s.email && s.email.toLowerCase().trim() === userEmail) || students[0];
+      const userPhone = (user?.phone || '').replace(/\D/g, '');
+      const userId = String(user?.id || '').trim();
+      const currentStudent = students.find(s => 
+        (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+        (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
+        (userPhone && userPhone.length >= 10 && (
+          (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+        ))
+      ) || (students.length > 0 ? (students.find(s => s.status === 'Active') || students[0]) : null);
       if (!currentStudent) return homework;
       const sCls = cleanClassName(currentStudent.className);
       return homework.filter(h => cleanClassName(h.className) === sCls);
