@@ -10,6 +10,7 @@ import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { BRANCHES } from '../../utils/validation';
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
+import { fetchBranchesApi, fetchAcademicYearsApi } from '../../api/settings';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -187,6 +188,28 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     };
     window.addEventListener('branches_updated', handleBranchesUpdate);
     window.addEventListener('storage', handleBranchesUpdate);
+
+    // Initial background load from backend if available
+    const loadSettingsData = async () => {
+      try {
+        const bRes: any = await fetchBranchesApi();
+        if (bRes?.success && Array.isArray(bRes.data) && bRes.data.length > 0) {
+          const names = bRes.data.map((c: any) => c.name || c.branchName).filter(Boolean);
+          if (names.length > 0) {
+            setManagedBranches(prev => Array.from(new Set([...prev, ...names])));
+            localStorage.setItem('managed_branches', JSON.stringify(Array.from(new Set([...managedBranches, ...names]))));
+          }
+        }
+      } catch {}
+      try {
+        const ayRes: any = await fetchAcademicYearsApi();
+        if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
+          localStorage.setItem('edu_db_academic_years', JSON.stringify(ayRes.data));
+        }
+      } catch {}
+    };
+    loadSettingsData();
+
     return () => {
       window.removeEventListener('branches_updated', handleBranchesUpdate);
       window.removeEventListener('storage', handleBranchesUpdate);
@@ -198,35 +221,26 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     'Teacher', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'
   ];
 
-  const getAuthorizedBranches = (currentRole: string, userBranch?: string) => {
-    if (currentRole === 'Super Admin' || currentRole === 'Admin') {
-      return ['Main Campus', 'North Branch', 'West Campus'];
-    }
-    if (currentRole === 'Principal') {
-      return [userBranch || 'North Branch'];
-    }
-    if (currentRole === 'Accountant') {
-      return ['Main Campus'];
-    }
-    if (currentRole === 'Teacher') {
-      return ['West Campus', 'Main Campus'];
-    }
-    return [userBranch || 'Main Campus'];
-  };
-
   const canViewBranch = ['Super Admin', 'Admin', 'Principal', 'Accountant', 'Teacher', 'Receptionist', 'HR', 'Transport Manager', 'Hostel Warden'].includes(role);
   const canCreateBranch = ['Super Admin', 'Admin'].includes(role);
   const canManageBranch = ['Super Admin', 'Admin'].includes(role);
 
   const branchOptions = useMemo(() => {
+    let savedCampuses: any[] = [];
+    try {
+      const sc = localStorage.getItem('school_campuses');
+      if (sc) savedCampuses = JSON.parse(sc);
+    } catch {}
+
     const sourceBranches = [
       ...(managedBranches || []),
-      ...(students || []).map(s => s.branch || 'Main Campus'),
-      ...(admissions || []).map(a => a.branch || 'Main Campus'),
-      ...(academicClasses || []).map(c => (c as any).branch || 'Main Campus'),
-      ...(dynamicFeeStructures || []).map(f => f.branch || 'Main Campus'),
-      ...(routeMasters || []).map(r => (r as any).branch || 'Main Campus'),
-      ...(hostelMasters || []).map(h => (h as any).branch || 'Main Campus')
+      ...(savedCampuses || []).filter((c: any) => c.status !== 'Inactive').map((c: any) => c.name),
+      ...(students || []).map(s => s.branch).filter(Boolean),
+      ...(admissions || []).map(a => a.branch).filter(Boolean),
+      ...(academicClasses || []).map(c => (c as any).branch).filter(Boolean),
+      ...(dynamicFeeStructures || []).map(f => f.branch).filter(Boolean),
+      ...(routeMasters || []).map(r => (r as any).branch).filter(Boolean),
+      ...(hostelMasters || []).map(h => (h as any).branch).filter(Boolean)
     ];
     return Array.from(new Set(sourceBranches))
       .filter(branch => branch && !(inactiveBranches || []).includes(branch))
@@ -234,17 +248,15 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   }, [managedBranches, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, inactiveBranches]);
 
   const authorizedBranches = useMemo(() => {
-    const roleBranches = getAuthorizedBranches(role, user?.branch);
-    if (role === 'Super Admin' || role === 'Admin') return branchOptions;
-    return roleBranches.filter(branch => branchOptions.includes(branch));
-  }, [role, user?.branch, branchOptions]);
+    return branchOptions;
+  }, [branchOptions]);
 
   const filteredBranchOptions = authorizedBranches.filter(branch =>
     branch.toLowerCase().includes(branchSearch.toLowerCase())
   );
 
   useEffect(() => {
-    if (authorizedBranches.length > 0 && !authorizedBranches.includes(selectedBranch)) {
+    if (authorizedBranches.length > 0 && (!selectedBranch || !authorizedBranches.includes(selectedBranch))) {
       setSelectedBranch(authorizedBranches[0]);
     }
   }, [selectedBranch, authorizedBranches, setSelectedBranch]);
@@ -310,37 +322,65 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const ayOptions = useMemo(() => {
-    const allYears = new Set<string>();
+    const allYears = new Map<string, { id: string; academicYear: string; isCurrent: boolean; status?: string }>();
 
+    // 1. Prioritize academic years configured in Settings / DataContext
     if (academicYears && academicYears.length > 0) {
       academicYears.forEach(ay => {
         const val = ay.academicYear || (ay as any).year;
-        if (val && String(val).length >= 7) allYears.add(String(val));
+        if (val && String(val).trim().length >= 4) {
+          const yearStr = String(val).trim();
+          allYears.set(yearStr, {
+            id: ay.id || `AY-${yearStr}`,
+            academicYear: yearStr,
+            isCurrent: Boolean(ay.isCurrentAcademicYear || ay.status === 'Active'),
+            status: ay.status
+          });
+        }
       });
     }
 
-    (students || []).forEach(s => {
-      (s.academicHistory || []).forEach(h => {
-        if (h.academicYear && String(h.academicYear).length >= 7) allYears.add(String(h.academicYear));
-      });
-    });
+    // 2. Also inspect local storage if any
+    try {
+      const storedAYs = localStorage.getItem('edu_db_academic_years') || localStorage.getItem('academic_years');
+      if (storedAYs) {
+        const parsed = JSON.parse(storedAYs);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((ay: any) => {
+            const val = ay.academicYear || ay.year;
+            if (val && String(val).trim().length >= 4) {
+              const yearStr = String(val).trim();
+              if (!allYears.has(yearStr)) {
+                allYears.set(yearStr, {
+                  id: ay.id || `AY-${yearStr}`,
+                  academicYear: yearStr,
+                  isCurrent: Boolean(ay.isCurrentAcademicYear || ay.status === 'Active'),
+                  status: ay.status
+                });
+              }
+            }
+          });
+        }
+      }
+    } catch {}
 
-    ['2024-2025', '2025-2026', '2026-2027', '2027-2028'].forEach(y => allYears.add(y));
-
-    const list = Array.from(allYears).map(y => ({
-      id: `AY-${y}`,
-      academicYear: y,
-      isCurrent: y === '2026-2027'
-    }));
-
-    return list.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+    return Array.from(allYears.values()).sort((a, b) => b.academicYear.localeCompare(a.academicYear));
   }, [academicYears, students]);
+
+  useEffect(() => {
+    if (ayOptions.length > 0 && (!selectedAcademicYear || !ayOptions.some(a => a.academicYear === selectedAcademicYear))) {
+      const current = ayOptions.find(a => a.isCurrent) || ayOptions[0];
+      if (current) {
+        setSelectedAcademicYear(current.academicYear);
+      }
+    }
+  }, [ayOptions, selectedAcademicYear, setSelectedAcademicYear]);
 
   const confirmDeactivateBranch = () => {
     if (!deactivatingBranch || !canManageBranch) return;
     setInactiveBranches(prev => Array.from(new Set([...(prev || []), deactivatingBranch])));
     if (selectedBranch === deactivatingBranch) {
-      const fallback = branchOptions.find(branch => branch !== deactivatingBranch) || 'Main Campus';
+      const fallback = branchOptions.find(branch => branch !== deactivatingBranch) || '';
       setSelectedBranch(fallback);
     }
     setDeactivatingBranch(null);
@@ -400,14 +440,16 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           </button>
 
         {/* Global Branch Selector with Permissions */}
-        {canViewBranch && authorizedBranches.length > 0 && (
+        {canViewBranch && (
           <div className="relative animate-in fade-in" ref={branchRef}>
             <button
               onClick={() => setShowBranchMenu(!showBranchMenu)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50/80 dark:bg-brand-950/60 border border-brand-200/70 dark:border-brand-800 text-brand-700 dark:text-brand-300 text-xs font-bold hover:bg-brand-100 dark:hover:bg-brand-900 transition-colors h-9"
             >
               <Building2 className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
-              <span className="max-w-32 truncate text-brand-900 dark:text-brand-100">{selectedBranch}</span>
+              <span className="max-w-32 truncate text-brand-900 dark:text-brand-100">
+                {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Select Campus")}
+              </span>
               <ChevronDown className="w-3.5 h-3.5 shrink-0" />
             </button>
 
@@ -428,7 +470,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
                 <div className="max-h-64 overflow-y-auto space-y-1">
                   {filteredBranchOptions.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-xs text-slate-500">No campuses configured.</div>
+                    <div className="px-3 py-6 text-center text-xs text-slate-500">No campuses configured in Settings.</div>
                   ) : filteredBranchOptions.map(branch => {
                     const isSelected = selectedBranch === branch;
                     return (
@@ -461,33 +503,39 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           >
             <Calendar className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
             <span className="text-brand-600 dark:text-brand-400 font-medium hidden md:inline">Academic Year:</span>
-            <span className="truncate text-brand-900 dark:text-brand-100">{formatAYDisplay(selectedAcademicYear)}</span>
+            <span className="truncate text-brand-900 dark:text-brand-100">
+              {selectedAcademicYear ? formatAYDisplay(selectedAcademicYear) : (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select Academic Year")}
+            </span>
             <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           </button>
 
           {showAYMenu && (
             <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
               <div className="max-h-64 overflow-y-auto space-y-1">
-                {ayOptions.map(ay => {
-                  const isSelected = selectedAcademicYear === ay.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(ay.academicYear);
-                  return (
-                    <button
-                      key={ay.id}
-                      onClick={() => {
-                        setSelectedAcademicYear(ay.academicYear);
-                        setShowAYMenu(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                        isSelected
-                          ? 'bg-brand-600 text-white font-bold'
-                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <span className="truncate">{formatAYDisplay(ay.academicYear)}</span>
-                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-2" />}
-                    </button>
-                  );
-                })}
+                {ayOptions.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-xs text-slate-500">No academic years configured in Settings.</div>
+                ) : (
+                  ayOptions.map(ay => {
+                    const isSelected = selectedAcademicYear === ay.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(ay.academicYear);
+                    return (
+                      <button
+                        key={ay.id}
+                        onClick={() => {
+                          setSelectedAcademicYear(ay.academicYear);
+                          setShowAYMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                          isSelected
+                            ? 'bg-brand-600 text-white font-bold'
+                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="truncate">{formatAYDisplay(ay.academicYear)}</span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

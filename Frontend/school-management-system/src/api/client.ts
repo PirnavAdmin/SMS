@@ -1,7 +1,7 @@
 export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');
-  const branch = localStorage.getItem('auth_branch') || 'Main Campus';
-  const academicYear = localStorage.getItem('auth_academic_year') || '2026-2027';
+  const branch = localStorage.getItem('auth_branch') || '';
+  const academicYear = localStorage.getItem('auth_academic_year') || '';
 
   let userRole = '';
   try {
@@ -25,10 +25,10 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   if (token && token !== 'null' && token !== 'undefined' && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  if (branch) {
+  if (branch && branch !== 'All Branches' && branch !== 'All') {
     headers.set('X-Branch-Id', branch);
   }
-  if (academicYear) {
+  if (academicYear && academicYear !== 'All') {
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
