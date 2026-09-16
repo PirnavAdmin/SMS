@@ -1,6 +1,6 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
-import { CalendarCheck, CheckCircle2, Clock, Plus, Users, User, ShieldAlert, Search, Printer, Download, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, CalendarCheck, CheckCircle2, XCircle, Clock, Plus, Users, User, ShieldAlert, Search, Printer, Download, Sparkles } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -61,7 +61,7 @@ export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [];
 
 export const LibrarianAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff } = useData();
+  const { staff, leaveApplications = [], addLeaveApplication } = useData();
   const { addToast } = useToast();
 
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
@@ -129,7 +129,45 @@ export const LibrarianAttendanceView: React.FC = () => {
   const currentStaffId = user?.empId || 'EMP-LIB-01';
   const todayRecord = librarianAttendance.find(r => r.date === todayStr && r.staffId === currentStaffId);
 
-  const filteredAttendance = librarianAttendance.filter(r => {
+  // Leave applications submitted by / for Librarian
+  const myLeaveApplications = useMemo(() => {
+    return (leaveApplications || []).filter(app => {
+      const isLibRole = (app.role || '').toLowerCase().includes('librarian') || (app.department || '').toLowerCase().includes('library');
+      const isIdMatch = (app.employeeId && (String(app.employeeId) === String(currentStaffId) || String(app.employeeId) === 'EMP-LIB-01')) ||
+                        ((app as any).empId && (String((app as any).empId) === String(currentStaffId) || String((app as any).empId) === 'EMP-LIB-01'));
+      const isNameMatch = app.employeeName && (user?.name ? app.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0]) : true);
+      return isLibRole || isIdMatch || isNameMatch;
+    }).sort((a, b) => new Date(b.startDate || b.appliedOn || 0).getTime() - new Date(a.startDate || a.appliedOn || 0).getTime());
+  }, [leaveApplications, currentStaffId, user?.name]);
+
+  // Combine attendance log records with Admin-approved leave applications
+  const allLibrarianAttendance = useMemo(() => {
+    const combined = [...librarianAttendance];
+    myLeaveApplications.forEach(app => {
+      if (app.status === 'Approved' && app.startDate) {
+        const leaveDate = app.startDate;
+        const exists = combined.some(r => r.date === leaveDate && (r.staffId === app.employeeId || r.staffId === (app as any).empId || r.staffId === currentStaffId));
+        if (!exists) {
+          combined.unshift({
+            id: `ATT-LIB-LV-${app.id || Date.now()}`,
+            staffId: app.employeeId || (app as any).empId || currentStaffId || 'EMP-LIB-01',
+            staffName: app.employeeName || currentStaffName || 'Jammi Naidu',
+            role: 'Librarian',
+            date: leaveDate,
+            checkInTime: '--',
+            checkOutTime: '--',
+            workingHours: '0 Hours',
+            shift: 'Morning Shift (08:30 - 17:00)',
+            status: 'On Leave',
+            remarks: `Approved Leave [${app.leaveType}]: ${app.reason || 'Approved by Admin'}`
+          });
+        }
+      }
+    });
+    return combined;
+  }, [librarianAttendance, myLeaveApplications, currentStaffId, currentStaffName]);
+
+  const filteredAttendance = allLibrarianAttendance.filter(r => {
     if (attendanceViewMode === 'daily') {
       return r.date === selectedAttendanceDate;
     } else if (attendanceViewMode === 'weekly') {
@@ -365,25 +403,46 @@ export const LibrarianAttendanceView: React.FC = () => {
 
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
           {!isReadOnlyAccess && (
-            <button
-              onClick={() => {
-                setModalData({
-                  staffId: 'EMP-LIB-01',
-                  staffName: 'Bhanu Prakash',
-                  date: todayStr,
-                  checkInTime: '',
-                  checkOutTime: '',
-                  workingHours: '',
-                  shift: 'Morning Shift (08:30 - 17:00)',
-                  status: 'Present',
-                  remarks: ''
-                });
-                setModalType('addAttendance');
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all"
-            >
-              <Plus className="w-4 h-4" /> Mark Attendance
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setModalData({
+                    staffId: currentStaffId,
+                    staffName: currentStaffName,
+                    date: todayStr,
+                    checkInTime: '',
+                    checkOutTime: '',
+                    workingHours: '',
+                    shift: 'Morning Shift (08:30 - 17:00)',
+                    status: 'Present',
+                    remarks: ''
+                  });
+                  setModalType('addAttendance');
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all"
+              >
+                <Plus className="w-4 h-4" /> Mark Attendance
+              </button>
+              <button
+                onClick={() => {
+                  setModalData({
+                    staffId: currentStaffId,
+                    staffName: currentStaffName,
+                    date: todayStr,
+                    startDate: todayStr,
+                    endDate: todayStr,
+                    leaveType: 'Casual Leave',
+                    shift: 'Morning Shift (08:30 - 17:00)',
+                    status: 'On Leave',
+                    remarks: ''
+                  });
+                  setModalType('applyLeave');
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all"
+              >
+                <CalendarCheck className="w-4 h-4" /> Apply Leave
+              </button>
+            </>
           )}
           <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs">
             Present: {totalPresent}
@@ -451,6 +510,73 @@ export const LibrarianAttendanceView: React.FC = () => {
             label="attendance logs"
           />
         </div>
+      </div>
+
+      {/* My Leave Applications & Approval Tracker */}
+      <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-rose-500" /> My Leave Applications & Approval Status
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium">
+              Track real-time leave requests submitted for Admin approval.
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-extrabold text-[11px] text-slate-700 dark:text-slate-300">
+            Total Requests: {myLeaveApplications.length}
+          </span>
+        </div>
+
+        {myLeaveApplications.length === 0 ? (
+          <div className="p-6 text-center text-xs text-slate-500 font-medium bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-dashed">
+            No leave requests submitted yet. Use the <span className="font-bold text-rose-600">"+ Apply Leave"</span> button above to apply.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] text-slate-500 border-b">
+                <tr>
+                  <th className="py-3 px-3">APPLIED DATE</th>
+                  <th className="py-3 px-3">LEAVE DATES</th>
+                  <th className="py-3 px-3">LEAVE TYPE</th>
+                  <th className="py-3 px-3">REASON</th>
+                  <th className="py-3 px-3 text-center">APPROVAL STATUS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {myLeaveApplications.map((app: any) => (
+                  <tr key={app.id || Math.random()} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+                    <td className="py-3 px-3 font-mono font-bold text-slate-600 dark:text-slate-400">
+                      {app.appliedOn || app.startDate}
+                    </td>
+                    <td className="py-3 px-3 font-mono font-extrabold text-slate-900 dark:text-white">
+                      {app.startDate} {app.endDate && app.endDate !== app.startDate ? `to ${app.endDate}` : ''}
+                    </td>
+                    <td className="py-3 px-3 font-bold text-rose-600 dark:text-rose-400">
+                      {app.leaveType}
+                    </td>
+                    <td className="py-3 px-3 font-medium text-slate-600 dark:text-slate-400">
+                      {app.reason || 'Leave requested'}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase tracking-wider inline-flex items-center gap-1 ${
+                        app.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300' :
+                        app.status === 'Rejected' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300' :
+                        'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300'
+                      }`}>
+                        {app.status === 'Approved' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                        {app.status === 'Rejected' && <ShieldAlert className="w-3 h-3 text-rose-600" />}
+                        {(!app.status || app.status === 'Pending') && <Clock className="w-3 h-3 text-amber-600 animate-pulse" />}
+                        {app.status || 'Pending'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Add Punch Entry Modal */}
@@ -566,6 +692,145 @@ export const LibrarianAttendanceView: React.FC = () => {
                 </button>
                 <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold cursor-pointer shadow-md">
                   Save Attendance Entry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Apply Leave Modal */}
+      {modalType === 'applyLeave' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border max-w-md w-full space-y-4 shadow-2xl">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <CalendarCheck className="w-5 h-5 text-rose-500" /> Apply Leave
+            </h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const leaveDate = modalData?.date || modalData?.startDate || new Date().toISOString().split('T')[0];
+              const leaveType = modalData?.leaveType || 'Casual Leave';
+              const userReason = modalData?.remarks || 'Applied for leave';
+              
+              // 1. Submit leave application to global DataContext state for Admin review & approval
+              const leaveApp: any = {
+                id: `LV-LIB-${Date.now()}`,
+                employeeId: modalData?.staffId || currentStaffId || 'EMP-LIB-01',
+                empId: modalData?.staffId || currentStaffId || 'EMP-LIB-01',
+                employeeName: modalData?.staffName || currentStaffName || 'Jammi Naidu',
+                applicantName: modalData?.staffName || currentStaffName || 'Jammi Naidu',
+                role: 'Librarian',
+                department: 'Library',
+                leaveType: leaveType,
+                startDate: leaveDate,
+                endDate: leaveDate,
+                reason: userReason,
+                status: 'Pending',
+                appliedOn: new Date().toISOString().split('T')[0]
+              };
+
+              if (addLeaveApplication) {
+                try {
+                  addLeaveApplication(leaveApp);
+                } catch (err) {
+                  console.warn('addLeaveApplication error:', err);
+                }
+              }
+
+              // 2. Log locally in API/storage
+              const newRec: LibrarianAttendanceRecord = {
+                id: `ATT-LIB-LV-${Date.now()}`,
+                staffId: modalData?.staffId || currentStaffId || 'EMP-LIB-01',
+                staffName: modalData?.staffName || currentStaffName || 'Jammi Naidu',
+                role: 'Librarian',
+                date: leaveDate,
+                checkInTime: '--',
+                checkOutTime: '--',
+                workingHours: '0 Hours',
+                shift: modalData?.shift || 'Morning Shift (08:30 - 17:00)',
+                status: 'On Leave',
+                remarks: `Pending Admin Approval [${leaveType}]: ${userReason}`
+              };
+              try { await LibraryAPI.logLibrarianAttendanceApi(newRec); } catch (err) {}
+              saveLibrarianAttendance([newRec, ...librarianAttendance]);
+              addToast('success', 'Leave Application Sent to Admin', `Leave request for ${newRec.staffName} on ${leaveDate} submitted for Admin approval.`);
+              setModalType(null);
+            }} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Staff Member <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <select
+                    value={modalData?.staffId}
+                    onChange={e => {
+                      const selected = e.target.value;
+                      const sObj = staff.find(st => st.id === selected || st.empId === selected);
+                      setModalData({
+                        ...modalData,
+                        staffId: selected,
+                        staffName: sObj ? `${sObj.firstName} ${sObj.lastName}` : (user?.name || 'Jammi Naidu')
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  >
+                    <option value="EMP-LIB-01">Jammi Naidu / Bhanu Prakash (Librarian)</option>
+                    <option value="EMP-LIB-02">Rachel Green (Assistant Librarian)</option>
+                    <option value="EMP-LIB-03">Sarah Jenkins (Library Attendant)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Leave Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <select
+                    value={modalData?.leaveType}
+                    onChange={e => setModalData({ ...modalData, leaveType: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  >
+                    <option value="Casual Leave">Casual Leave (CL)</option>
+                    <option value="Sick Leave">Sick Leave (SL)</option>
+                    <option value="Earned Leave">Earned Leave (EL)</option>
+                    <option value="Duty Leave">Duty Leave (DL)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Leave Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input
+                    type="date"
+                    value={modalData?.date || modalData?.startDate}
+                    onChange={e => setModalData({ ...modalData, date: e.target.value, startDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Shift</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={modalData?.shift || 'Morning Shift (08:30 - 05:00)'}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 border font-medium text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Reason / Remarks <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="State the reason for leave..."
+                  value={modalData?.remarks}
+                  onChange={e => setModalData({ ...modalData, remarks: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold cursor-pointer shadow-md">
+                  Submit Leave Request
                 </button>
               </div>
             </form>
