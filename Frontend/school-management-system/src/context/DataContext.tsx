@@ -12,6 +12,12 @@ import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
 import { publishTimetableApi } from "../api/academic";
 import {
+  createAcademicYearApi,
+  updateAcademicYearApi,
+  deleteAcademicYearApi,
+  fetchAcademicYearsApi,
+} from "../api/settings";
+import {
   generateNextStudentId,
   generateNextAdmissionNo,
   generateNextEmployeeId,
@@ -465,6 +471,8 @@ export interface AcademicClass {
   weeklyPeriods?: Record<string, number>;
   sectionDetails?: Record<string, any>;
   status?: string;
+  campusLocation?: string;
+  branch?: string;
 }
 
 const initialClasses: AcademicClass[] = [
@@ -1863,7 +1871,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("profile", initialSchoolProfile),
   );
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() =>
-    getStored("academic_years", initialAcademicYears),
+    getStored("academic_years", []),
   );
   const [certificateTemplates, setCertificateTemplates] = useState<
     CertificateTemplateConfig[]
@@ -2808,7 +2816,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     () => getStored("financial_budgets", initialFinancialBudgets),
   );
 
-  const addAcademicYear = (ayData: Omit<AcademicYearMaster, "id">) => {
+  const addAcademicYear = async (ayData: Omit<AcademicYearMaster, "id">) => {
     const id = `AY-${ayData.academicYear.replace(/\s+/g, "") || Date.now()}`;
     const newAY: AcademicYearMaster = { id, ...ayData };
     setAcademicYears((prev) => {
@@ -2817,11 +2825,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updated = updated.map((a) => ({ ...a, isCurrentAcademicYear: false }));
         setSelectedAcademicYear(newAY.academicYear);
       }
-      return [...updated, newAY];
+      const next = [...updated, newAY];
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
+        localStorage.setItem("academic_years", JSON.stringify(next));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return next;
     });
+
+    try {
+      await createAcademicYearApi(newAY);
+    } catch (err) {
+      console.warn("Failed to create academic year on backend:", err);
+    }
   };
 
-  const updateAcademicYear = (
+  const updateAcademicYear = async (
     id: string,
     updates: Partial<AcademicYearMaster>,
   ) => {
@@ -2840,12 +2860,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         if (target) setSelectedAcademicYear(target.academicYear);
       }
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(updated));
+        localStorage.setItem("academic_years", JSON.stringify(updated));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
       return updated;
     });
+
+    try {
+      await updateAcademicYearApi(id, updates);
+    } catch (err) {
+      console.warn("Failed to update academic year on backend:", err);
+    }
   };
 
-  const deleteAcademicYear = (id: string) => {
-    setAcademicYears((prev) => prev.filter((a) => a.id !== id));
+  const deleteAcademicYear = async (id: string) => {
+    setAcademicYears((prev) => {
+      const next = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
+        localStorage.setItem("academic_years", JSON.stringify(next));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return next;
+    });
+
+    try {
+      await deleteAcademicYearApi(id);
+    } catch (err) {
+      console.warn("Failed to delete academic year on backend:", err);
+    }
   };
 
   const setCurrentAcademicYear = (id: string) => {
@@ -2853,12 +2898,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const target = prev.find((a) => a.id === id);
       if (!target) return prev;
       setSelectedAcademicYear(target.academicYear);
-      return prev.map((a) => ({
+      const next: AcademicYearMaster[] = prev.map((a) => ({
         ...a,
         isCurrentAcademicYear: a.id === id,
-        status:
-          a.id === id ? "Active" : a.status === "Active" ? "Closed" : a.status,
+        status: (a.id === id ? "Active" : a.status === "Active" ? "Closed" : a.status) as ("Upcoming" | "Active" | "Closed"),
       }));
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
+        localStorage.setItem("academic_years", JSON.stringify(next));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return next;
     });
   };
 
@@ -2871,6 +2921,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(academicYears),
     );
   }, [academicYears]);
+  useEffect(() => {
+    const syncAcademicYearsFromApi = async () => {
+      try {
+        const res: any = await fetchAcademicYearsApi();
+        if (res?.success && Array.isArray(res.data)) {
+          setAcademicYears(res.data);
+          localStorage.setItem("edu_db_academic_years", JSON.stringify(res.data));
+          localStorage.setItem("academic_years", JSON.stringify(res.data));
+        }
+      } catch {}
+    };
+    syncAcademicYearsFromApi();
+
+    const handleAYUpdate = () => {
+      try {
+        const stored = localStorage.getItem("edu_db_academic_years") || localStorage.getItem("academic_years");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setAcademicYears(parsed);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener("academic_years_updated", handleAYUpdate);
+    window.addEventListener("storage", handleAYUpdate);
+
+    return () => {
+      window.removeEventListener("academic_years_updated", handleAYUpdate);
+      window.removeEventListener("storage", handleAYUpdate);
+    };
+  }, []);
   useEffect(() => {
     try {
       const lightweightStudents = (students || []).map((s) => {
@@ -4575,6 +4657,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ...backendWeeklyPeriods,
                 },
                 sectionDetails: secDetails,
+                campusLocation: c.campusLocation || c.CampusLocation || localCls?.campusLocation || localCls?.branch || "All",
+                branch: c.campusLocation || c.CampusLocation || c.branch || localCls?.branch || localCls?.campusLocation || "All",
               };
             });
             mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
@@ -5130,7 +5214,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               experienceRecords:
                 item.experienceRecords || existing?.experienceRecords || [],
               documents: item.documents || existing?.documents || [],
-              branch: item.branchName || existing?.branch || "Main Campus",
+              branch: item.branchName || item.branch || existing?.branch || "",
             };
           });
           setStaff(mappedStaff);
@@ -5208,7 +5292,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               className: s.className || s.class || "",
               section: s.sectionName || s.section || "",
               academicYear: s.academicYearName || s.academicYear || "",
-              branch: s.branchName || s.branch || "Main Campus",
+              branch: s.branchName || s.branch || "",
               status: s.status || "Active",
               studentType: s.studentType || "Day Scholar",
               parentName,
@@ -19995,22 +20079,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Check branch
       let branchMatch = true;
-      if (selectedBranch && selectedBranch !== "All Branches") {
+      if (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All") {
+        const itemBranch =
+          anyItem.branch ||
+          anyItem.branchName ||
+          anyItem.campusLocation ||
+          anyItem.CampusLocation ||
+          anyItem.branchFilter ||
+          anyItem.campus;
+
         if (
           anyItem.applicableBranches &&
           Array.isArray(anyItem.applicableBranches)
         ) {
           branchMatch =
             anyItem.applicableBranches.includes(selectedBranch) ||
-            anyItem.applicableBranches.includes("All Branches");
-        } else if (anyItem.branch) {
+            anyItem.applicableBranches.includes("All Branches") ||
+            anyItem.applicableBranches.includes("All");
+        } else if (itemBranch) {
+          const itemB = String(itemBranch).toLowerCase().trim();
+          const selB = String(selectedBranch).toLowerCase().trim();
           branchMatch =
-            anyItem.branch === "All Branches" ||
-            anyItem.branch.toLowerCase() === selectedBranch.toLowerCase() ||
-            selectedBranch
-              .toLowerCase()
-              .includes(anyItem.branch.toLowerCase()) ||
-            anyItem.branch.toLowerCase().includes(selectedBranch.toLowerCase());
+            itemB === "all branches" ||
+            itemB === "all" ||
+            itemB === selB ||
+            selB.includes(itemB) ||
+            itemB.includes(selB);
         }
       }
 
@@ -20042,7 +20136,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const filteredStudents = useMemo(() => {
     return filterByBranch(students);
-  }, [students, selectedBranch]);
+  }, [students, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);

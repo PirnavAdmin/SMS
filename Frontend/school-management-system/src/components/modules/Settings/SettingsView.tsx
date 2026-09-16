@@ -84,38 +84,7 @@ export interface CampusItem {
   status: "Active" | "Inactive";
 }
 
-const defaultCampuses: CampusItem[] = [
-  {
-    id: "CMP-01",
-    name: "Main Campus",
-    code: "MAIN",
-    address:
-      "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-    phone: "+91 9123456789",
-    email: "main@pirnavschools.edu",
-    status: "Active",
-  },
-  {
-    id: "CMP-02",
-    name: "North Branch",
-    code: "NORTH",
-    address:
-      "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-    phone: "+91 9123456789",
-    email: "north@pirnavschools.edu",
-    status: "Active",
-  },
-  {
-    id: "CMP-03",
-    name: "West Campus",
-    code: "WEST",
-    address:
-      "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-    phone: "+91 9123456789",
-    email: "west@pirnavschools.edu",
-    status: "Active",
-  },
-];
+const defaultCampuses: CampusItem[] = [];
 
 const defaultCertificateTemplates: CertificateTemplateConfig[] = [
   {
@@ -760,9 +729,14 @@ export const SettingsView: React.FC = () => {
     const loadBackendData = async () => {
       try {
         const res: any = await fetchBranchesApi();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res?.success && Array.isArray(res.data)) {
           setCampuses(res.data);
           localStorage.setItem("school_campuses", JSON.stringify(res.data));
+          const allActive = res.data.filter((c: any) => c.status === "Active").map((c: any) => c.name);
+          const allInactive = res.data.filter((c: any) => c.status === "Inactive").map((c: any) => c.name);
+          const allManaged = res.data.map((c: any) => c.name);
+          localStorage.setItem("managed_branches", JSON.stringify(allManaged));
+          localStorage.setItem("inactive_branches", JSON.stringify(allInactive));
           window.dispatchEvent(new Event("branches_updated"));
         }
       } catch (err) {
@@ -773,13 +747,17 @@ export const SettingsView: React.FC = () => {
         const ayRes: any = await fetchAcademicYearsApi();
         if (
           ayRes?.success &&
-          Array.isArray(ayRes.data) &&
-          ayRes.data.length > 0
+          Array.isArray(ayRes.data)
         ) {
           localStorage.setItem(
             "edu_db_academic_years",
             JSON.stringify(ayRes.data),
           );
+          localStorage.setItem(
+            "academic_years",
+            JSON.stringify(ayRes.data),
+          );
+          window.dispatchEvent(new Event("academic_years_updated"));
         }
       } catch (err) {
         console.warn("Backend academic years load notice:", err);

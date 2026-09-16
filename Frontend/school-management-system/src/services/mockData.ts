@@ -29,30 +29,7 @@ export const initialSchoolProfile: SchoolProfile = {
   logoUrl: "/pirnav-school-logo.png"
 };
 
-export const initialAcademicYears: AcademicYearMaster[] = [
-  {
-    id: 'AY-2026-2027',
-    academicYear: '2026-2027',
-    startDate: '2026-04-01',
-    endDate: '2027-03-31',
-    status: 'Active',
-    description: 'Current academic cycle',
-    isCurrentAcademicYear: true,
-    createdAt: '2026-03-01T09:00:00.000Z',
-    updatedAt: '2026-07-31T09:00:00.000Z'
-  },
-  {
-    id: 'AY-2027-2028',
-    academicYear: '2027-2028',
-    startDate: '2027-04-01',
-    endDate: '2028-03-31',
-    status: 'Upcoming',
-    description: 'Planned next academic cycle',
-    isCurrentAcademicYear: false,
-    createdAt: '2026-07-01T09:00:00.000Z',
-    updatedAt: '2026-07-01T09:00:00.000Z'
-  }
-];
+export const initialAcademicYears: AcademicYearMaster[] = [];
 
 export const initialStudents: Student[] = [
   {

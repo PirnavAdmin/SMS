@@ -221,7 +221,7 @@ const PremiumDonutChart: React.FC<{
 };
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
-  const { user, selectedAcademicYear } = useAuth();
+  const { user, selectedAcademicYear, selectedBranch } = useAuth();
   const {
     students, staff, announcements, holidays, schoolEvents,
     schoolProfile, admissions, leaveApplications, attendance,
@@ -237,11 +237,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [summaryLoading, setSummaryLoading] = useState<boolean>(true);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  const loadSummaryData = async () => {
+  const loadSummaryData = async (branch?: string, ay?: string) => {
     try {
       setSummaryLoading(true);
       setSummaryError(null);
-      const res = await fetchDashboardSummaryApi();
+      const targetBranch = branch !== undefined ? branch : selectedBranch;
+      const targetAY = ay !== undefined ? ay : selectedAcademicYear;
+      const res = await fetchDashboardSummaryApi(targetBranch, targetAY);
       if (res && res.success && res.data) {
         setSummaryData(res.data);
       } else if (res && (res as any).totalStudents !== undefined) {
@@ -266,7 +268,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       try {
         setLoading(true);
         await Promise.all([
-          loadSummaryData(),
+          loadSummaryData(selectedBranch, selectedAcademicYear),
           fetchStudents(),
           typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
           fetchAdmissions(),
@@ -280,7 +282,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     };
     loadDashboardData();
-  }, [userRole, selectedAcademicYear]);
+  }, [userRole, selectedAcademicYear, selectedBranch]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
