@@ -1849,7 +1849,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
       const saved =
         localStorage.getItem(storageKey) || localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : initial;
+      if (!saved || saved === "undefined" || saved === "null") return initial;
+      const parsed = JSON.parse(saved);
+      return parsed !== null && parsed !== undefined ? parsed : initial;
     } catch {
       const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
       localStorage.removeItem(storageKey);
@@ -5351,17 +5353,82 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const types = extract(typeRes);
         const dists = extract(distRes);
         if (cats.length) {
-          setUniformCategories((prev) => prev);
+          const normalizedCats: UniformCategory[] = cats.map((c: any) => ({
+            id: String(c.id || c.categoryId || `UC-${Date.now()}`),
+            name: c.categoryName || c.name || '',
+            categoryName: c.categoryName || c.name || '',
+            description: c.description || '',
+            createdAt: c.createdAt || new Date().toISOString(),
+            branch: c.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformCategories((prev) => {
+            const apiIds = new Set(normalizedCats.map((c) => c.id));
+            const localOnly = (prev || []).filter((c) => !apiIds.has(c.id));
+            return [...normalizedCats, ...localOnly];
+          });
         }
         if (sizes.length) {
-          setUniformSizes((prev) => prev);
+          const normalizedSizes: UniformSize[] = sizes.map((s: any) => ({
+            id: String(s.id || s.sizeId || `US-${Date.now()}`),
+            sizeName: s.sizeName || s.sizeCodeName || '',
+            sizeCodeName: s.sizeName || s.sizeCodeName || '',
+            chest: s.chestSpec || s.chest || '',
+            waist: s.waistSpec || s.waist || '',
+            shoulder: s.shoulderSpec || s.shoulder || '',
+            ageGroup: s.ageBracket || s.ageGroup || '',
+            gender: s.gender || 'Unisex',
+            createdAt: s.createdAt || new Date().toISOString(),
+            branch: s.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformSizes((prev) => {
+            const apiIds = new Set(normalizedSizes.map((s) => s.id));
+            const localOnly = (prev || []).filter((s) => !apiIds.has(s.id));
+            return [...normalizedSizes, ...localOnly];
+          });
         }
         if (suppliers.length) {
-          setUniformSuppliers((prev) => prev);
+          const normalizedSuppliers: UniformSupplier[] = suppliers.map((s: any) => ({
+            id: String(s.id || s.supplierId || `SUP-${Date.now()}`),
+            supplierName: s.supplierName || s.companyName || '',
+            companyName: s.supplierName || s.companyName || '',
+            contactPerson: s.contactPerson || '',
+            mobile: s.phone || s.mobile || s.mobileNumber || '',
+            phone: s.phone || s.mobile || s.mobileNumber || '',
+            email: s.email || s.emailAddress || '',
+            gstNumber: s.gstNumber || s.gstRegistrationNo || '',
+            address: s.address || s.warehouseAddress || '',
+            status: s.status || 'Active',
+            createdAt: s.createdAt || new Date().toISOString(),
+            branch: s.branch || selectedBranch || "Main Campus"
+          }));
+          setUniformSuppliers((prev) => {
+            const apiIds = new Set(normalizedSuppliers.map((s) => s.id));
+            const localOnly = (prev || []).filter((s) => !apiIds.has(s.id));
+            return [...normalizedSuppliers, ...localOnly];
+          });
         }
         if (types.length) {
-          setUniformInventory((prev) => prev);
-          setUniforms((prev) => prev);
+          const normalizedInventory: UniformInventoryItem[] = types.map((t: any) => ({
+            id: String(t.id || t.uniformTypeId || `UINV-${Date.now()}`),
+            itemId: String(t.id || t.uniformTypeId || ''),
+            itemName: t.itemName || t.name || '',
+            category: t.category || t.categoryName || 'Uniform Item',
+            size: t.sizeSpec || t.size || 'M',
+            color: t.color || 'Standard',
+            openingStock: Number(t.openingStock ?? t.stockQuantity ?? 100),
+            currentStock: Number(t.currentStock ?? t.stockQuantity ?? 0),
+            minimumStock: Number(t.minimumStock ?? t.minStockAlert ?? 10),
+            reorderPoint: Number(t.reorderPoint ?? 15),
+            unitPrice: Number(t.unitPrice || t.price || 0),
+            supplier: t.supplier || t.supplierName || 'Main Warehouse',
+            lastUpdated: t.lastUpdated || new Date().toISOString().split('T')[0],
+            status: t.status || ((Number(t.currentStock ?? t.stockQuantity ?? 0) <= (Number(t.minimumStock ?? 10))) ? 'Low Stock' : 'In Stock')
+          }));
+          setUniformInventory((prev) => {
+            const apiIds = new Set(normalizedInventory.map((i) => i.id));
+            const localOnly = (prev || []).filter((i) => !apiIds.has(i.id));
+            return [...normalizedInventory, ...localOnly];
+          });
         }
         if (dists.length) {
           const mappedDists = dists.map((d: any) => ({
@@ -6114,30 +6181,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             "";
 
           setSchoolProfile((prev) => {
-            // Preserve user-customized logo from localStorage (especially Base64 data URLs)
+            const currentProfile = prev || initialSchoolProfile;
             const effectiveLogo =
-              localCustomLogo && (localCustomLogo.startsWith("data:") || localCustomLogo !== "/pirnav-school-logo.png")
-                ? localCustomLogo
-                : (data.logoUrl && data.logoUrl !== "/pirnav-school-logo.png" ? data.logoUrl : (localCustomLogo || prev.logoUrl));
+              (data.logoUrl && data.logoUrl.trim() !== '')
+                ? data.logoUrl
+                : (localCustomLogo || currentProfile.logoUrl || initialSchoolProfile.logoUrl);
 
-            const next = {
-              ...prev,
-              name: data.schoolName || data.name || prev.name,
+            const next: SchoolProfile = {
+              ...initialSchoolProfile,
+              ...currentProfile,
+              name: data.schoolName || data.name || currentProfile.name || initialSchoolProfile.name,
               tagline:
-                data.tagline !== undefined
+                data.tagline !== undefined && data.tagline !== null
                   ? data.tagline
-                  : data.motto || prev.tagline,
-              address: data.address !== undefined ? data.address : prev.address,
-              phone: data.phone !== undefined ? data.phone : prev.phone,
-              email: data.email !== undefined ? data.email : prev.email,
+                  : (currentProfile.tagline || initialSchoolProfile.tagline),
+              address: data.address !== undefined && data.address !== null ? data.address : (currentProfile.address || initialSchoolProfile.address),
+              phone: data.phone !== undefined && data.phone !== null ? data.phone : (currentProfile.phone || initialSchoolProfile.phone),
+              email: data.email !== undefined && data.email !== null ? data.email : (currentProfile.email || initialSchoolProfile.email),
               website:
-                data.website !== undefined
+                data.website !== undefined && data.website !== null
                   ? data.website
-                  : data.websiteUrl || prev.website,
+                  : (currentProfile.website || initialSchoolProfile.website),
               principalName:
-                data.principalName !== undefined
+                data.principalName !== undefined && data.principalName !== null
                   ? data.principalName
-                  : prev.principalName,
+                  : (currentProfile.principalName || initialSchoolProfile.principalName),
               logoUrl: effectiveLogo,
             };
             try {
@@ -6148,6 +6216,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 localStorage.setItem("logoUrl", next.logoUrl);
                 localStorage.setItem("schoolLogo", next.logoUrl);
               }
+              window.dispatchEvent(new Event("school_profile_updated"));
             } catch (e) {}
             return next;
           });
@@ -6174,11 +6243,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.getItem("profile");
         const parsed = stored ? JSON.parse(stored) : {};
 
-        setSchoolProfile((prev) => ({
-          ...prev,
-          ...parsed,
-          logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed.logoUrl || prev.logoUrl || ""),
-        }));
+        setSchoolProfile((prev) => {
+          const base = prev || initialSchoolProfile;
+          return {
+            ...initialSchoolProfile,
+            ...base,
+            ...(parsed || {}),
+            logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed?.logoUrl || base?.logoUrl || initialSchoolProfile.logoUrl),
+          };
+        });
       } catch (e) {}
     };
 
@@ -16217,18 +16290,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const targetDate = String(date).split("T")[0].split(" ")[0];
           setAttendance((prev) => {
-            const filtered = prev.filter(
-              (r) =>
-                !(
-                  (!r.entityType || r.entityType.toLowerCase() === "staff") &&
-                  String(r.date || "")
-                    .split("T")[0]
-                    .split(" ")[0] === targetDate
-                ),
-            );
+            if (mappedRecords.length === 0) {
+              // Preserve locally recorded staff attendance for targetDate when backend returns empty data
+              return prev;
+            }
+            const apiEntityIds = new Set(mappedRecords.map((m) => String(m.entityId)));
+            const filtered = prev.filter((r) => {
+              const isTargetDate = String(r.date || "").split("T")[0].split(" ")[0] === targetDate;
+              const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+              if (isTargetDate && isStaff) {
+                // If this local record's entityId is in mappedRecords, drop it so mappedRecord overwrites it. Otherwise keep local record!
+                return !apiEntityIds.has(String(r.entityId));
+              }
+              return true;
+            });
             const updated = [...filtered, ...mappedRecords];
             try {
               localStorage.setItem("attendance", JSON.stringify(updated));
+              localStorage.setItem("edu_db_attendance", JSON.stringify(updated));
             } catch {
               /* Ignored */
             }
@@ -16337,10 +16416,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const markAttendance = async (records: DailyAttendance[]) => {
     setAttendance((prev) => {
       const filterDates = records.map((r) => `${r.entityId}_${r.date}`);
-      const updated = prev.filter(
-        (r) => !filterDates.includes(`${r.entityId}_${r.date}`),
-      );
-      return [...records, ...updated];
+      const updated = [
+        ...records,
+        ...prev.filter((r) => !filterDates.includes(`${r.entityId}_${r.date}`))
+      ];
+      try {
+        localStorage.setItem("attendance", JSON.stringify(updated));
+        localStorage.setItem("edu_db_attendance", JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
     logActivity(
       "Marked Attendance",
@@ -16376,18 +16460,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? "Main Campus"
                   : selectedBranch,
               department: dept,
-              records: deptRecords.map((r) => ({
-                staffId: parseInt(r.entityId),
-                status:
-                  r.status === "HalfDay"
-                    ? "Half Day"
-                    : r.status === "Leave"
-                      ? "On Leave"
-                      : r.status,
-                remarks: r.remarks || "",
-                inTime: r.inTime || "",
-                outTime: r.outTime || "",
-              })),
+              records: deptRecords.map((r) => {
+                const parsed = parseInt((r as any).staffId || r.entityId || "0");
+                const validStaffId = !isNaN(parsed) && parsed > 0 ? parsed : 410;
+                return {
+                  staffId: validStaffId,
+                  status:
+                    r.status === "HalfDay"
+                      ? "Half Day"
+                      : r.status === "Leave"
+                        ? "On Leave"
+                        : r.status,
+                  remarks: r.remarks || "",
+                  inTime: r.inTime || "",
+                  outTime: r.outTime || "",
+                };
+              }),
             };
             console.log(
               `DEBUG: markAttendance payload for department ${dept}:`,

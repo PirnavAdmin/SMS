@@ -136,9 +136,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           if (!isMounted) return;
           const data = res?.data || res;
           if (data) {
+            const backendLogo = data.logoUrl || data.logo || '';
+            const effectiveLogo = backendLogo || savedLogo || schoolInfo.logoUrl;
+
             const updated: DynamicSchoolInfo = {
               name: data.schoolName || data.name || savedName || '',
-              logoUrl: data.logoUrl || data.logo || savedLogo || '',
+              logoUrl: effectiveLogo,
               address: data.address || data.schoolAddress || savedAddr || '',
               email: data.email || data.contactEmail || '',
               phone: data.phone || data.contactPhone || '',
@@ -148,7 +151,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             };
             setSchoolInfo(updated);
             if (updated.name) localStorage.setItem('school_name', updated.name);
-            if (updated.logoUrl) localStorage.setItem('school_logo', updated.logoUrl);
+            if (updated.logoUrl) {
+              localStorage.setItem('school_logo', updated.logoUrl);
+              localStorage.setItem('logoUrl', updated.logoUrl);
+              localStorage.setItem('schoolLogo', updated.logoUrl);
+            }
             if (updated.address) localStorage.setItem('school_address', updated.address);
           }
         })

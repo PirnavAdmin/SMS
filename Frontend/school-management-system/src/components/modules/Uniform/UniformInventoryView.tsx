@@ -69,7 +69,7 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
           minimumStock: 10,
           reorderPoint: 15,
           status: stock > 10 ? 'In Stock' : (stock > 0 ? 'Low Stock' : 'Out of Stock'),
-          lastRestockedDate: '2026-08-21'
+          lastRestockedDate: (u as any).lastRestockedDate || new Date().toISOString().split('T')[0]
         });
       } else {
         const existing = map.get(key)!;

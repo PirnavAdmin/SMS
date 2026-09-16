@@ -66,10 +66,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { schoolProfile, admissions, students } = useData();
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
     return (
+      schoolProfile?.logoUrl ||
       localStorage.getItem("school_logo") ||
       localStorage.getItem("logoUrl") ||
       localStorage.getItem("schoolLogo") ||
-      schoolProfile?.logoUrl ||
       ""
     );
   });
@@ -79,10 +79,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   React.useEffect(() => {
     const updateLogo = () => {
       const activeLogo =
+        schoolProfile?.logoUrl ||
         localStorage.getItem("school_logo") ||
         localStorage.getItem("logoUrl") ||
         localStorage.getItem("schoolLogo") ||
-        schoolProfile?.logoUrl ||
         "";
       setCurrentLogoUrl(activeLogo);
       setLogoLoadError(false);
@@ -110,16 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSidebarLogoError = () => {
-    const fallbackLogo =
-      localStorage.getItem("school_logo") ||
-      localStorage.getItem("logoUrl") ||
-      localStorage.getItem("schoolLogo");
-
-    if (fallbackLogo && fallbackLogo !== currentLogoUrl && fallbackLogo.startsWith("data:")) {
-      setCurrentLogoUrl(fallbackLogo);
-    } else {
-      setLogoLoadError(true);
-    }
+    setLogoLoadError(true);
   };
 
   let isHosteller = true;
@@ -595,9 +586,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: "School Administration",
       items: [
+        { id: "training", label: "Faculty Training", icon: GraduationCap },
         { id: "communication", label: "Communication Hub", icon: Megaphone },
         { id: "events", label: "Events & Holidays", icon: Calendar },
-        { id: "training", label: "Faculty Training", icon: GraduationCap },
         { id: "reports", label: "School Reports", icon: BarChart3 },
         // { id: 'users', label: 'Roles', icon: ShieldCheck },
         { id: "settings", label: "Settings", icon: Settings },
@@ -631,7 +622,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {currentLogoUrl && !logoLoadError ? (
               <img
                 src={resolveMediaUrl(currentLogoUrl)}
-                alt="School Logo"
+                alt=""
                 onError={handleSidebarLogoError}
                 onLoad={handleSidebarLogoLoad}
                 className="max-h-8 max-w-8 object-contain"
@@ -653,7 +644,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {currentLogoUrl && !logoLoadError ? (
               <img
                 src={resolveMediaUrl(currentLogoUrl)}
-                alt="School Logo"
+                alt=""
                 onError={handleSidebarLogoError}
                 onLoad={handleSidebarLogoLoad}
                 className={`object-contain ${

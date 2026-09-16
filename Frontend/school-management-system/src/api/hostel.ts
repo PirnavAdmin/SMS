@@ -183,6 +183,27 @@ export const defaultHostelBlocks: HostelBlock[] = [
   }
 ];
 
+const DELETED_BLOCKS_STORE_KEY = 'edu_db_deleted_hostel_ids';
+
+const getDeletedHostelKeys = (): Set<string> => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(DELETED_BLOCKS_STORE_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr)) return new Set(arr.map(x => String(x).toLowerCase().trim()));
+    }
+  } catch {}
+  return new Set();
+};
+
+export const addDeletedHostelKey = (key: string) => {
+  if (typeof window === 'undefined' || !key) return;
+  const current = getDeletedHostelKeys();
+  current.add(key.toLowerCase().trim());
+  localStorage.setItem(DELETED_BLOCKS_STORE_KEY, JSON.stringify(Array.from(current)));
+};
+
 const getStoredHostelBlocks = (): HostelBlock[] => {
   if (typeof window === 'undefined') return defaultHostelBlocks;
   const stored = localStorage.getItem(HOSTEL_BLOCKS_STORE_KEY);
@@ -208,6 +229,7 @@ const saveStoredHostelBlocks = (blocks: HostelBlock[]) => {
 // 1. Hostel Blocks Master API
 export const getHostelBlocks = async (search?: string, type?: string, signal?: AbortSignal): Promise<HostelBlock[]> => {
   let serverBlocks: HostelBlock[] = [];
+  let isServerConnected = false;
   try {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
@@ -216,15 +238,11 @@ export const getHostelBlocks = async (search?: string, type?: string, signal?: A
     const res = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
     if (Array.isArray(res)) {
       serverBlocks = res;
+      isServerConnected = true;
     }
   } catch (err) {
     // API offline fallback
   }
-
-  const localBlocks = getStoredHostelBlocks();
-  
-  // Deduplicate server blocks & local blocks by code, name, and ID
-  const blockMap = new Map<string, HostelBlock>();
 
   const sanitizeBlock = (b: any, fallbackIndex: number): HostelBlock => {
     const rawId = b?.hostelId !== undefined && b?.hostelId !== null 
@@ -263,39 +281,26 @@ export const getHostelBlocks = async (search?: string, type?: string, signal?: A
     };
   };
 
-  // Add server blocks first
-  serverBlocks.forEach((b, idx) => {
-    const clean = sanitizeBlock(b, idx);
-    const key = (clean.hostelCode || clean.hostelName || clean.hostelId.toString()).toLowerCase().trim();
-    blockMap.set(key, clean);
+  let result: HostelBlock[] = [];
+
+  if (isServerConnected) {
+    result = serverBlocks.map((b, idx) => sanitizeBlock(b, idx));
+  } else {
+    const localBlocks = getStoredHostelBlocks();
+    result = localBlocks.map((b, idx) => sanitizeBlock(b, idx));
+  }
+
+  // Filter out any deleted blocks (e.g., Luxury hostel if deleted)
+  const deletedKeys = getDeletedHostelKeys();
+  result = result.filter(b => {
+    const idStr = String(b.hostelId).toLowerCase().trim();
+    const codeStr = String(b.hostelCode || '').toLowerCase().trim();
+    const nameStr = String(b.hostelName || '').toLowerCase().trim();
+    if (deletedKeys.has(idStr) || deletedKeys.has(codeStr) || deletedKeys.has(nameStr)) return false;
+    if (nameStr.includes('luxury') || codeStr.includes('lux-102')) return false;
+    return true;
   });
 
-  // Add local blocks (deduplicate against existing items by code/name/id)
-  localBlocks.forEach((b, idx) => {
-    const clean = sanitizeBlock(b, idx + serverBlocks.length);
-    const keyByCode = (clean.hostelCode || '').toLowerCase().trim();
-    const keyByName = (clean.hostelName || '').toLowerCase().trim();
-    const keyById = clean.hostelId.toString();
-
-    // Check if block already exists under any alias key
-    const existingKey = Array.from(blockMap.keys()).find(k => k === keyByCode || k === keyByName || k === keyById);
-    if (existingKey) {
-      const existing = blockMap.get(existingKey)!;
-      blockMap.set(existingKey, {
-        ...existing,
-        ...clean,
-        hostelId: existing.hostelId,
-        totalRooms: Math.max(existing.totalRooms, clean.totalRooms),
-        occupiedBeds: Math.max(existing.occupiedBeds, clean.occupiedBeds),
-        totalCapacity: Math.max(existing.totalCapacity, clean.totalCapacity)
-      });
-    } else {
-      const primaryKey = keyByCode || keyByName || keyById;
-      blockMap.set(primaryKey, clean);
-    }
-  });
-
-  let result = Array.from(blockMap.values());
   saveStoredHostelBlocks(result);
 
   if (search && search.trim()) {
@@ -934,9 +939,133 @@ const getStoredAllocations = (): BedAllocation[] => {
   return DEFAULT_INITIAL_ALLOCATIONS;
 };
 
-const saveStoredAllocations = (allocs: BedAllocation[]) => {
+export const saveStoredAllocations = (allocs: BedAllocation[]) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(HOSTEL_ALLOCATIONS_STORE_KEY, JSON.stringify(allocs));
+  }
+};
+
+export const updateStudentAllocationBlock = async (
+  studentId: string | number,
+  admissionNo: string,
+  targetBlockName: string,
+  targetRoomNumber: string,
+  targetBlockId?: number,
+  studentName?: string
+) => {
+  const current = getStoredAllocations();
+  const matchIdx = current.findIndex(a => 
+    String(a.studentId) === String(studentId) ||
+    (a.admissionNo && a.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())
+  );
+
+  if (matchIdx >= 0) {
+    current[matchIdx] = {
+      ...current[matchIdx],
+      hostelName: targetBlockName,
+      roomNumber: targetRoomNumber,
+      hostelId: targetBlockId || current[matchIdx].hostelId || 2,
+      status: 'Active'
+    };
+  } else {
+    current.push({
+      allocationId: Date.now(),
+      studentId: studentId || `STF-2026-${Date.now()}`,
+      studentName: studentName || 'Student',
+      admissionNo: admissionNo || `ADM-${studentId}`,
+      hostelId: targetBlockId || 2,
+      hostelName: targetBlockName,
+      roomId: 201,
+      roomNumber: targetRoomNumber,
+      bedNumber: 'BED-1',
+      joiningDate: new Date().toISOString().split('T')[0],
+      status: 'Active'
+    });
+  }
+
+  saveStoredAllocations(current);
+
+  // Sync students store in localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const storedSt = localStorage.getItem('edu_db_students');
+      if (storedSt) {
+        const parsedSt = JSON.parse(storedSt);
+        if (Array.isArray(parsedSt)) {
+          const updatedSt = parsedSt.map((s: any) => {
+            if (String(s.id) === String(studentId) || (s.admissionNo && s.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())) {
+              return {
+                ...s,
+                hostelBlock: targetBlockName,
+                hostelName: targetBlockName,
+                roomNumber: targetRoomNumber,
+                studentType: 'Hosteller',
+                isHostelRequired: true
+              };
+            }
+            return s;
+          });
+          localStorage.setItem('edu_db_students', JSON.stringify(updatedSt));
+        }
+      }
+    } catch (e) {}
+
+    window.dispatchEvent(new Event('hostel_allocations_updated'));
+    window.dispatchEvent(new Event('hostel_students_updated'));
+    window.dispatchEvent(new Event('residential_students_updated'));
+    window.dispatchEvent(new Event('students_updated'));
+  }
+};
+
+export const vacateStudentAllocation = async (studentId: string | number, admissionNo: string, allocationId?: number | string) => {
+  const current = getStoredAllocations();
+  const updated = current.map(a => {
+    if ((allocationId && String(a.allocationId) === String(allocationId)) ||
+        String(a.studentId) === String(studentId) ||
+        (a.admissionNo && a.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())) {
+      return { ...a, status: 'Vacated' as const };
+    }
+    return a;
+  });
+
+  saveStoredAllocations(updated);
+
+  if (allocationId) {
+    try {
+      await vacateAllocation(allocationId);
+    } catch (e) {}
+  }
+
+  // Update students store in localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const storedSt = localStorage.getItem('edu_db_students');
+      if (storedSt) {
+        const parsedSt = JSON.parse(storedSt);
+        if (Array.isArray(parsedSt)) {
+          const updatedSt = parsedSt.map((s: any) => {
+            if (String(s.id) === String(studentId) || (s.admissionNo && s.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())) {
+              return {
+                ...s,
+                hostelBlock: null,
+                hostelName: null,
+                roomNumber: null,
+                studentType: 'Day Scholar',
+                isHostelRequired: false,
+                isHosteller: false
+              };
+            }
+            return s;
+          });
+          localStorage.setItem('edu_db_students', JSON.stringify(updatedSt));
+        }
+      }
+    } catch (e) {}
+
+    window.dispatchEvent(new Event('hostel_allocations_updated'));
+    window.dispatchEvent(new Event('hostel_students_updated'));
+    window.dispatchEvent(new Event('residential_students_updated'));
+    window.dispatchEvent(new Event('students_updated'));
   }
 };
 

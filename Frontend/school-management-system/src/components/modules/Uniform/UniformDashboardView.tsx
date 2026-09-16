@@ -27,131 +27,49 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
   } = useData();
 
   const totalItems = React.useMemo(() => {
-    const uniqueCategories = new Set<string>();
-    (uniforms || []).forEach(u => {
-      const cat = u.category || u.name;
-      if (!cat) return;
-      const lower = cat.toLowerCase().trim();
-      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-      const norm = normalizeUniformCategoryName(cat);
-      if (norm) uniqueCategories.add(norm);
-    });
-    (uniformInventory || []).forEach(inv => {
-      const cat = inv.itemName || inv.category;
-      if (!cat) return;
-      const lower = cat.toLowerCase().trim();
-      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-      const norm = normalizeUniformCategoryName(cat);
-      if (norm) uniqueCategories.add(norm);
-    });
-    return uniqueCategories.size;
-  }, [uniforms, uniformInventory]);
+    if (uniformCategories && uniformCategories.length > 0) {
+      return uniformCategories.length;
+    }
+    const unique = new Set((uniformInventory || []).map(i => normalizeUniformCategoryName(i.category || i.itemName)).filter(Boolean));
+    return unique.size || (uniforms || []).length || 0;
+  }, [uniformCategories, uniformInventory, uniforms]);
+
   const validStudentUniformIssues = React.useMemo(() => {
     if (!studentUniformIssues || studentUniformIssues.length === 0) return [];
-    return (studentUniformIssues || []).filter(i => {
-      if (!i) return false;
-      const name = (i.studentName || '').toLowerCase();
-      const adm = (i.admissionNo || i.studentId || '').toUpperCase();
-      const isDummy = name.includes('dummy') || name.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022';
-      return !isDummy;
-    });
+    return (studentUniformIssues || []).filter(i => Boolean(i && (i.studentName || i.studentId || i.admissionNo)));
   }, [studentUniformIssues]);
 
   const categoryStockSummary = React.useMemo(() => {
-    const categoriesSet = new Set<string>();
+    const map = new Map<string, { category: string; stock: number; total: number }>();
 
     (uniformInventory || []).forEach(inv => {
       if (!inv) return;
-      const catName = inv.itemName || inv.category || '';
-      if (!catName) return;
-      const lower = catName.toLowerCase();
-      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-      categoriesSet.add(normalizeUniformCategoryName(catName));
-    });
+      const cat = normalizeUniformCategoryName(inv.category || inv.itemName || 'General');
+      const curStock = Number(inv.currentStock) || 0;
+      const openStock = Number(inv.openingStock) || curStock;
 
-    (uniforms || []).forEach(u => {
-      if (!u) return;
-      const cat = u.category || u.name;
-      if (!cat) return;
-      const lower = cat.toLowerCase();
-      if (lower.includes('polo') || lower === 'winter blazer' || ((lower === 'uniform package' || lower === 'package') && !lower.includes('boys') && !lower.includes('girls'))) return;
-      categoriesSet.add(normalizeUniformCategoryName(cat));
-    });
-
-    const isDummyIssue = (issue: any) => {
-      if (!issue) return true;
-      const name = (issue.studentName || '').toLowerCase();
-      const adm = (issue.admissionNo || issue.studentId || '').toUpperCase();
-      return name.includes('dummy') || name.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
-    };
-
-    const activeIssues = (() => {
-      const rawActive = (studentUniformIssues || []).filter(
-        i => i && !isDummyIssue(i) && i.status !== 'Returned' && !(i.notes || '').toLowerCase().includes('returned')
-      );
-      const seenBaseStudents = new Set<string>();
-      const deduplicated: typeof rawActive = [];
-      for (const issue of rawActive) {
-        const issueCat = (issue.itemName || (issue as any).itemCategory || '').toLowerCase();
-        const isPkg = issue.type === 'Base Package' || (issueCat.includes('package') && !issueCat.includes('additional') && !(issue.notes || '').toLowerCase().includes('additional'));
-        const stdKey = (issue.admissionNo || issue.studentId || '').toLowerCase().trim();
-        if (isPkg) {
-          if (seenBaseStudents.has(stdKey)) continue;
-          seenBaseStudents.add(stdKey);
-        }
-        deduplicated.push(issue);
+      const existing = map.get(cat);
+      if (existing) {
+        existing.stock += curStock;
+        existing.total += openStock;
+      } else {
+        map.set(cat, { category: cat, stock: curStock, total: openStock });
       }
-      return deduplicated;
-    })();
-
-    const cleanNorm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    const grouped = Array.from(categoriesSet).map(category => {
-      const catNormKey = cleanNorm(category);
-      const isCloth = catNormKey.includes('cloth') || catNormKey.includes('fabric');
-      const opening = isCloth ? 400 : 300;
-
-      const activeIssuedUnits = activeIssues.reduce((acc, issue) => {
-        const issueNameNorm = cleanNorm(issue.itemName || (issue as any).itemCategory || '');
-        const isPkgItem = catNormKey.includes('package') || catNormKey.includes('admission') || catNormKey.includes('kit');
-        const isPkgIssue = issue.type === 'Base Package' || issue.type === 'Additional Base Package' || issueNameNorm.includes('package') || issueNameNorm.includes('admission') || issueNameNorm.includes('kit');
-
-        let isMatch = false;
-        if (isPkgItem) {
-          if (isPkgIssue) {
-            if (catNormKey.includes('girl') || catNormKey.includes('female')) isMatch = issueNameNorm.includes('girl') || issueNameNorm.includes('female');
-            else if (catNormKey.includes('boy') || catNormKey.includes('male')) isMatch = issueNameNorm.includes('boy') || issueNameNorm.includes('male');
-            else isMatch = true;
-          }
-        } else if (!isPkgIssue) {
-          if ((catNormKey.includes('cloth') || catNormKey.includes('fabric')) && (issueNameNorm.includes('cloth') || issueNameNorm.includes('fabric'))) isMatch = true;
-          else if (catNormKey.includes('shoe') && issueNameNorm.includes('shoe')) isMatch = true;
-          else if ((catNormKey.includes('sport') || catNormKey.includes('track')) && (issueNameNorm.includes('sport') || issueNameNorm.includes('track'))) isMatch = true;
-          else if (catNormKey.includes('cap') && issueNameNorm.includes('cap')) isMatch = true;
-          else if (catNormKey.includes('sock') && issueNameNorm.includes('sock')) isMatch = true;
-          else if (catNormKey.includes('tie') && issueNameNorm.includes('tie')) isMatch = true;
-          else if (catNormKey.includes('belt') && issueNameNorm.includes('belt')) isMatch = true;
-          else if (catNormKey === 'shirt' || catNormKey === 'phant' || catNormKey === 'pant' || catNormKey === 'trouser' || catNormKey === 'skirt') {
-            isMatch = issueNameNorm === catNormKey || issueNameNorm.startsWith(catNormKey);
-          } else {
-            isMatch = issueNameNorm === catNormKey;
-          }
-        }
-
-        return isMatch ? acc + (Number(issue.quantity) || 1) : acc;
-      }, 0);
-
-      const stock = Math.max(0, opening - activeIssuedUnits);
-      return { category, stock, total: opening };
     });
 
-    const totalAvailable = grouped.reduce((acc, c) => acc + c.stock, 0);
+    const categories = Array.from(map.values());
+    const totalAvailable = categories.reduce((sum, c) => sum + c.stock, 0);
 
-    return { categories: grouped, totalAvailable };
-  }, [uniformInventory, uniforms, studentUniformIssues]);
+    return { categories, totalAvailable };
+  }, [uniformInventory]);
 
-  const totalStock = categoryStockSummary.totalAvailable;
-  const lowStockItems = (uniformInventory || []).filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
+  const totalStock = React.useMemo(() => {
+    return (uniformInventory || []).reduce((sum, i) => sum + (Number(i.currentStock) || 0), 0);
+  }, [uniformInventory]);
+
+  const lowStockItems = React.useMemo(() => {
+    return (uniformInventory || []).filter(x => Number(x.currentStock) <= Number(x.minimumStock || 10)).length;
+  }, [uniformInventory]);
 
   // Combine students master roster with admissions array to guarantee 100% student availability (matching StudentUniformView 1:1)
   const allEnrolledStudents = React.useMemo(() => {
@@ -179,119 +97,23 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     return Array.from(map.values());
   }, [students, admissions]);
 
-  const { uniformsIssuedCount, uniformsReturnedCount } = React.useMemo(() => {
-    if (!studentUniformIssues || studentUniformIssues.length === 0) {
-      return { uniformsIssuedCount: 0, uniformsReturnedCount: 0 };
-    }
-    const groupedMap = new Map<string, {
-      studentId: string;
-      studentName: string;
-      admissionNo: string;
-      className: string;
-      section: string;
-      gender: string;
-      status?: string;
-      items: StudentUniformIssue[];
-      basePackage?: StudentUniformIssue;
-      extraItems: StudentUniformIssue[];
-    }>();
+  const uniformsIssued = React.useMemo(() => {
+    return (studentUniformIssues || [])
+      .filter(i => i && i.status !== 'Returned' && i.status !== 'Cancelled')
+      .reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+  }, [studentUniformIssues]);
 
-    (studentUniformIssues || []).forEach(issue => {
-      if (!issue) return;
-      const stMatch = (allEnrolledStudents || []).find(s => 
-        (issue.studentId && s.id === issue.studentId) ||
-        (issue.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === issue.admissionNo.toLowerCase()) ||
-        (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (issue.studentName || '').trim().toLowerCase())
-      );
-
-      let stdName = stMatch ? `${stMatch.firstName} ${stMatch.lastName}`.trim() : (issue.studentName || 'Student');
-      if (stdName.toLowerCase().includes('nagaraj')) stdName = 'sarath chinta';
-      if (stdName.toLowerCase().includes('saranya')) stdName = 'Surya Teja';
-      if (stdName.toLowerCase().includes('raju teja') || issue.admissionNo === 'REG-1008') stdName = 'Gokul Raj';
-
-      const isFemaleName = /sruthi|laya|priya|ananya|kavya|divya|pooja|sneha|swati|meena|radha|lakshmi/i.test(stdName || '');
-      const admNo = (stMatch?.admissionNo || (stMatch as any)?.applicationNo || stMatch?.id || issue.admissionNo || issue.studentId || '').trim();
-      const stdId = (stMatch?.id || issue.studentId || '').trim();
-
-      let rawClass = issue.className || (stMatch ? stMatch.className : 'Class 1');
-      let rawSec = issue.section || (stMatch ? stMatch.section : 'A');
-      if (rawClass.includes('-')) {
-        const parts = rawClass.split('-');
-        rawClass = parts[0].trim();
-        if (!issue.section && parts[1]) rawSec = parts[1].trim();
-      }
-      const clsName = rawClass;
-      const secName = rawSec.replace(/^Section\s*/i, '').trim();
-
-      const normKey = (stdName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const isExplicitBasePkg = issue.type === 'Base Package' || (issue.itemName && issue.itemName.includes('Package') && !issue.itemName.includes('(Extra)') && !issue.type?.includes('Additional') && !issue.notes?.includes('Additional'));
-
-      const existing = groupedMap.get(normKey);
-      if (existing) {
-        if (!existing.items.some(i => i.id === issue.id)) existing.items.push(issue);
-        if (isExplicitBasePkg && !existing.basePackage) existing.basePackage = issue;
-        else if (!existing.extraItems.some(e => e.id === issue.id)) existing.extraItems.push(issue);
-      } else {
-        groupedMap.set(normKey, {
-          studentId: stdId,
-          studentName: stdName,
-          admissionNo: admNo,
-          className: clsName,
-          section: secName,
-          gender: stMatch?.gender || (isFemaleName ? 'Female' : 'Male'),
-          status: issue.status,
-          items: [issue],
-          basePackage: isExplicitBasePkg ? issue : undefined,
-          extraItems: isExplicitBasePkg ? [] : [issue]
-        });
-      }
-    });
-
-    const validGroups = Array.from(groupedMap.values()).filter(g => {
-      const lower = (g.studentName || '').toLowerCase();
-      const adm = (g.admissionNo || g.studentId || '').toUpperCase();
-      const isDummy = lower.includes('dummy') || lower.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
-      return !isDummy;
-    });
-
-    let activeIssuedTotal = 0;
-    let returnedItemsTotal = 0;
-
-    validGroups.forEach(g => {
-      const feeStat = getStudentUniformFeeStatus(g.studentId, g.admissionNo, g.className, g.gender, admissions, studentUniformIssues, feePayments, financeUniformConfigs);
-      const hasActiveBasePackage = Boolean(g.basePackage && g.basePackage.status !== 'Returned' && !(g.basePackage.notes || '').toLowerCase().includes('returned'));
-
-      const activeExtras = (g.extraItems || []).filter(i => i.status !== 'Returned' && !(i.notes || '').toLowerCase().includes('returned'));
-
-      const isAllReturned = !hasActiveBasePackage && activeExtras.length === 0 && g.items.length > 0 && g.items.every(i => i.status === 'Returned' || (i.notes || '').toLowerCase().includes('returned'));
-      const isOverallReturned = (g.status === 'Returned' && !hasActiveBasePackage) || isAllReturned;
-
-      if (!isOverallReturned) {
-        const activeBaseQty = hasActiveBasePackage ? 1 : 0;
-        const activeExtrasQty = activeExtras.reduce((sum, i) => sum + (i.quantity || 1), 0);
-        activeIssuedTotal += (activeBaseQty + activeExtrasQty);
-      }
-
-      // Returned items calculation: count returned items matching returned status
-      const returnedItemsInGroup = g.items.filter(i => i.status === 'Returned');
-      returnedItemsTotal += returnedItemsInGroup.length;
-    });
-
-    return {
-      uniformsIssuedCount: activeIssuedTotal,
-      uniformsReturnedCount: returnedItemsTotal
-    };
-  }, [studentUniformIssues, allEnrolledStudents, admissions, feePayments, financeUniformConfigs]);
-
-  const uniformsIssued = uniformsIssuedCount;
-  const uniformsReturned = uniformsReturnedCount;
+  const uniformsReturned = React.useMemo(() => {
+    return (studentUniformIssues || [])
+      .filter(i => i && (i.status === 'Returned' || (i.notes || '').toLowerCase().includes('returned')))
+      .reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+  }, [studentUniformIssues]);
 
   // Helper to get expected uniform fee amount for student's class
   const getStudentUniformFeeAmount = (className: string) => {
     const config = (financeUniformConfigs || []).find(c => c.className === className || className.includes(c.className));
     if (config && config.feeAmount) return config.feeAmount;
-    if (className.includes('9') || className.includes('10') || className.includes('11') || className.includes('12')) return 3500;
-    return 3000;
+    return 0;
   };
 
   const extraItemsSalesValue = React.useMemo(() => {
@@ -490,17 +312,11 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
           </div>
 
           <div className="space-y-3">
-            {uniformInventory.filter(x => {
-              const name = (x.itemName || x.category || '').toLowerCase();
-              return x.currentStock > 0 && x.currentStock <= x.minimumStock && !name.includes('polo') && name !== 'winter blazer';
-            }).length === 0 ? (
+            {uniformInventory.filter(x => Number(x.currentStock) <= Number(x.minimumStock || 10)).length === 0 ? (
               <p className="text-xs text-slate-400 py-6 text-center">All uniform inventory items are comfortably stocked.</p>
             ) : (
-              uniformInventory.filter(x => {
-                const name = (x.itemName || x.category || '').toLowerCase();
-                return x.currentStock > 0 && x.currentStock <= x.minimumStock && !name.includes('polo') && name !== 'winter blazer';
-              }).map(item => {
-                const percent = Math.round((item.currentStock / item.openingStock) * 100) || 0;
+              uniformInventory.filter(x => Number(x.currentStock) <= Number(x.minimumStock || 10)).map(item => {
+                const percent = Math.round((Number(item.currentStock) / (Number(item.openingStock) || Number(item.currentStock) || 1)) * 100) || 0;
                 return (
                   <div key={item.id} className="space-y-1">
                     <div className="flex justify-between text-xs font-semibold">

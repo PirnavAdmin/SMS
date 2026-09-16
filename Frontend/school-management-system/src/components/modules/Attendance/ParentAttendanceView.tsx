@@ -7,7 +7,8 @@ import { DailyAttendance } from '../../../types';
 import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentAttendanceView: React.FC = () => {
-  const { students, attendance } = useData();
+  const { students = [], studentAttendance = [], attendance: rawAttendance } = useData();
+  const attendance = rawAttendance || studentAttendance || [];
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);

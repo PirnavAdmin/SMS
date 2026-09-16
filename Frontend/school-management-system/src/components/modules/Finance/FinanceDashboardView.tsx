@@ -89,30 +89,12 @@ export const FinanceDashboardView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Header with 5-min Auto Refresh Status & Refresh Button */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-sky-500" /> Finance Dashboard
           </h2>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-            <Clock className="w-3.5 h-3.5 text-sky-500" />
-            <span>Auto-refresh: 5 min</span>
-            <span className="text-slate-400 dark:text-slate-500">• {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-          </div>
-
-          <button
-            onClick={() => loadDashboardData(true)}
-            disabled={isLoading}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all disabled:opacity-60"
-            title="Refresh dashboard metrics"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            <span>{isLoading ? "Refreshing..." : "Refresh"}</span>
-          </button>
         </div>
       </div>
 

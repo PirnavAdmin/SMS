@@ -97,6 +97,17 @@ const StudentInlineCombobox: React.FC<{
                       <span>{st.name}</span>
                       <span className="font-mono text-[10px] text-slate-400">({st.className}-${st.section} • {st.admissionNo})</span>
                     </div>
+                    {st.isAllocated ? (
+                      <div className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block"></span>
+                        <span>Already Allocated: {st.allocatedBlock || 'Hostel Block'} (Room #{st.allocatedRoom || '101'})</span>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                        <span>Available for Allocation</span>
+                      </div>
+                    )}
                   </div>
                   {st.isResidential ? (
                     <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">★ Residential</span>
@@ -253,13 +264,38 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
     const list = Array.from(map.values());
     
+    const activeAllocs = (allocations || []).filter(a => a && (a.status === 'Active' || !a.status));
+
+    list.forEach((st: any) => {
+      const sId = String(st.id || '').toLowerCase().trim();
+      const sAdm = String(st.admissionNo || '').toLowerCase().trim();
+      const sName = String(st.name || '').toLowerCase().trim();
+
+      const matchedAlloc = activeAllocs.find(a => {
+        const aId = String(a.studentId || '').toLowerCase().trim();
+        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
+        const aName = String(a.studentName || '').toLowerCase().trim();
+        return (sId && aId === sId) || (sAdm && aAdm === sAdm) || (sName && aName === sName) || (sName && aName.includes(sName));
+      });
+
+      if (matchedAlloc) {
+        st.isAllocated = true;
+        st.allocatedBlock = matchedAlloc.hostelName || 'Hostel Block';
+        st.allocatedRoom = matchedAlloc.roomNumber || '101';
+        st.allocatedBed = matchedAlloc.bedNumber || 'BED-1';
+        st.allocationStatus = matchedAlloc.status || 'Active';
+      } else {
+        st.isAllocated = false;
+      }
+    });
+
     // Sort so Residential/Hosteller students appear FIRST at the top, followed by Day Scholars
     return list.sort((a, b) => {
       if (a.isResidential && !b.isResidential) return -1;
       if (!a.isResidential && b.isResidential) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [dataContext?.students, dataContext?.admissions]);
+  }, [dataContext?.students, dataContext?.admissions, allocations]);
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedHostelId, setSelectedHostelId] = useState('');
@@ -811,15 +847,6 @@ export const StudentHostelAssignmentView: React.FC = () => {
                       </div>
                     );
                   })()}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300 block">
-                  Automatically Inherited Non-Teaching Staff Warden
-                </span>
-                <div className="flex items-center justify-between font-bold text-xs text-slate-800 dark:text-slate-200">
-                  <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-sky-600" /> Non-Teaching Warden: <strong>{inheritedWardenName}</strong></span>
                 </div>
               </div>
 

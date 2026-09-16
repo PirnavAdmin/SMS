@@ -513,17 +513,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (issue.studentName || '').trim().toLowerCase())
     );
 
-    let stdName = stMatch ? `${stMatch.firstName} ${stMatch.lastName}`.trim() : (issue.studentName || 'Student');
-    if (stdName.toLowerCase().includes('nagaraj')) {
-      stdName = 'sarath chinta';
-    }
-    if (stdName.toLowerCase().includes('saranya')) {
-      stdName = 'Surya Teja';
-    }
-    if (stdName.toLowerCase().includes('raju teja') || issue.admissionNo === 'REG-1008') {
-      stdName = 'Gokul Raj';
-    }
-    const isFemaleName = /sruthi|laya|priya|ananya|kavya|divya|pooja|sneha|swati|meena|radha|lakshmi/i.test(stdName || '');
+    const stdName = stMatch ? `${stMatch.firstName} ${stMatch.lastName}`.trim() : (issue.studentName || 'Student');
     const admNo = (stMatch?.admissionNo || (stMatch as any)?.applicationNo || stMatch?.id || issue.admissionNo || issue.studentId || '').trim();
     const stdId = (stMatch?.id || issue.studentId || '').trim();
 
@@ -585,7 +575,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         admissionNo: admNo,
         className: clsName,
         section: secName,
-        gender: stMatch?.gender || (isFemaleName ? 'Female' : 'Male'),
+        gender: stMatch?.gender || (issue as any).gender || 'Unisex',
         issueDate: issue.issueDate,
         academicYear: issue.academicYear,
         status: issue.status,
@@ -597,16 +587,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     }
   });
 
-
-
   // Table strictly displays actual logged uniform issue records only
   const allGroupedList = Array.from(groupedMap.values())
-    .filter(g => {
-      const lower = (g.studentName || '').toLowerCase();
-      const adm = (g.admissionNo || g.studentId || '').toUpperCase();
-      const isDummy = lower.includes('dummy') || lower.includes('test student') || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1014';
-      return !isDummy;
-    })
+    .filter(g => Boolean(g && (g.studentName || g.studentId || g.admissionNo)))
     .sort((a, b) => {
     // Sort by maximum issue ID / creation timestamp descending so newly issued items are ALWAYS AT THE VERY TOP
     const getMaxTimestamp = (g: typeof a) => {
@@ -635,6 +618,23 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const dateB = new Date(b.issueDate || '2026-01-01').getTime();
     return dateB - dateA;
   });
+
+  const availableSections = React.useMemo(() => {
+    const secSet = new Set<string>();
+    (academicClasses || []).forEach(c => {
+      (c.sections || []).forEach((s: any) => {
+        const name = typeof s === 'string' ? s : s.name;
+        if (name) secSet.add(name);
+      });
+    });
+    (students || []).forEach(st => {
+      if (st && st.section) secSet.add(st.section);
+    });
+    (studentUniformIssues || []).forEach(i => {
+      if (i && i.section) secSet.add(i.section);
+    });
+    return Array.from(secSet).sort();
+  }, [academicClasses, students, studentUniformIssues]);
 
   // Helper functions for clean class & section matching and exchanged item detection
   const cleanClassStr = (cStr: string) => (cStr || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -2140,10 +2140,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer w-full sm:w-36"
           >
             <option value="All">All Sections</option>
-            <option value="A">Section A</option>
-            <option value="B">Section B</option>
-            <option value="C">Section C</option>
-            <option value="D">Section D</option>
+            {availableSections.map(sec => (
+              <option key={sec} value={sec}>{sec.startsWith('Section') ? sec : `Section ${sec}`}</option>
+            ))}
           </select>
 
           <select
@@ -2217,9 +2216,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                         (g.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === g.admissionNo.toLowerCase()) ||
                         (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (g.studentName || '').trim().toLowerCase())
                       );
-                      const isFemaleName = /sruthi|laya|priya|ananya|kavya|divya|pooja|sneha|swati|meena|radha|lakshmi/i.test(g.studentName || '');
-                      const rawGender = stMatch?.gender || (isFemaleName ? 'Female' : 'Male');
-                      const studentGender = rawGender.toLowerCase().includes('female') || rawGender.toLowerCase().includes('girl') ? 'Female' : 'Male';
+                      const rawGender = stMatch?.gender || (g as any).gender || '';
+                      const studentGender = rawGender ? (rawGender.toLowerCase().includes('female') || rawGender.toLowerCase().includes('girl') ? 'Female' : 'Male') : 'Unspecified';
                       
                       const returnedItems = g.items.filter(item => item.status === 'Returned' || item.notes?.toLowerCase().includes('returned'));
                       const exchangedItems = g.items.filter(item => 
@@ -4273,16 +4271,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
         const displayReturnStudentName = (() => {
           const rawName = currentReturnStudent?.studentName || '';
-          if (rawName.toLowerCase().includes('nagaraj')) return 'sarath chinta';
-          if (rawName.toLowerCase().includes('saranya')) return 'Surya Teja';
           const match = (allEnrolledStudents || []).find(s => 
             (currentReturnStudent.studentId && s.id === currentReturnStudent.studentId) ||
             (currentReturnStudent.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === currentReturnStudent.admissionNo.toLowerCase())
           );
           if (match) {
-            const mName = `${match.firstName} ${match.lastName}`.trim();
-            if (mName.toLowerCase().includes('nagaraj')) return 'sarath chinta';
-            return mName;
+            return `${match.firstName} ${match.lastName}`.trim();
           }
           return rawName || 'Student';
         })();
@@ -4533,16 +4527,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
         const displayExStudentName = (() => {
           const rawName = currentExStudent?.studentName || '';
-          if (rawName.toLowerCase().includes('nagaraj')) return 'sarath chinta';
-          if (rawName.toLowerCase().includes('saranya')) return 'Surya Teja';
           const match = (allEnrolledStudents || []).find(s => 
             (currentExStudent.studentId && s.id === currentExStudent.studentId) ||
             (currentExStudent.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === currentExStudent.admissionNo.toLowerCase())
           );
           if (match) {
-            const mName = `${match.firstName} ${match.lastName}`.trim();
-            if (mName.toLowerCase().includes('nagaraj')) return 'sarath chinta';
-            return mName;
+            return `${match.firstName} ${match.lastName}`.trim();
           }
           return rawName || 'Student';
         })();

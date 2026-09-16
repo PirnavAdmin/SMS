@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   User, Mail, Phone, Building, GraduationCap, Briefcase, MapPin, Calendar, 
-  Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2
+  Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2, Upload, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -828,14 +828,53 @@ export const TeacherProfileView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Profile Photo URL</label>
-                <input
-                  type="text"
-                  value={formData.profilePhoto}
-                  onChange={(e) => setFormData({ ...formData, profilePhoto: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none"
-                />
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Profile Photo</label>
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  {formData.profilePhoto ? (
+                    <img
+                      src={formData.profilePhoto}
+                      alt="Profile Preview"
+                      className="w-14 h-14 rounded-xl object-cover ring-2 ring-sky-500/20 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
+                      <User className="w-7 h-7" />
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs cursor-pointer flex items-center gap-1.5 transition">
+                        <Upload className="w-3.5 h-3.5" /> Upload Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setFormData((prev: any) => ({ ...prev, profilePhoto: reader.result as string }));
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {formData.profilePhoto && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev: any) => ({ ...prev, profilePhoto: "" }))}
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 hover:bg-rose-100 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium">Supports JPG, PNG, WEBP files (Max 2MB)</p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
