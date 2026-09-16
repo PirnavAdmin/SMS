@@ -115,9 +115,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       localStorage.getItem("logoUrl") ||
       localStorage.getItem("schoolLogo");
 
-    if (fallbackLogo && fallbackLogo !== currentLogoUrl && fallbackLogo.startsWith("data:")) {
+    if (fallbackLogo && fallbackLogo !== currentLogoUrl) {
       setCurrentLogoUrl(fallbackLogo);
-    } else {
+      setLogoLoadError(false);
+    } else if (!currentLogoUrl) {
       setLogoLoadError(true);
     }
   };

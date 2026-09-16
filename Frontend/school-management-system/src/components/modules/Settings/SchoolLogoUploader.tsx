@@ -5,6 +5,7 @@ import {
   FileImage, Info, Sparkles, Sun, Moon, Check, X
 } from 'lucide-react';
 import { uploadSchoolLogoFileApi, uploadSchoolLogoApi } from '../../../api/settings';
+import { createOptimizedLogoDataUrl } from '../../../utils/mediaUtils';
 
 interface SchoolLogoUploaderProps {
   value: string;
@@ -240,48 +241,42 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
       return;
     }
 
-    // 3. Read file as Data URL for instant preview & analyze
+    // 3. Read file as Data URL, optimize dimensions & size for instant preview & analyze
     setIsLoading(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        onChange(dataUrl);
-        analyzeImage(dataUrl, {
-          size: file.size,
-          format: fileExt.toUpperCase(),
-          name: file.name
-        });
+    createOptimizedLogoDataUrl(file, 800)
+      .then(async (optimizedDataUrl) => {
+        const finalUrl = optimizedDataUrl || '';
+        if (finalUrl) {
+          onChange(finalUrl);
+          analyzeImage(finalUrl, {
+            size: file.size,
+            format: fileExt.toUpperCase(),
+            name: file.name
+          });
 
-        try {
-          localStorage.setItem("school_logo", dataUrl);
-          localStorage.setItem("logoUrl", dataUrl);
-          localStorage.setItem("schoolLogo", dataUrl);
-          window.dispatchEvent(new Event("school_profile_updated"));
-        } catch {}
+          try {
+            localStorage.setItem("school_logo", finalUrl);
+            localStorage.setItem("logoUrl", finalUrl);
+            localStorage.setItem("schoolLogo", finalUrl);
+            window.dispatchEvent(new Event("school_profile_updated"));
+          } catch (e) {
+            console.warn("localStorage quota note:", e);
+          }
 
-        // Asynchronously notify backend API (in background, keeping dataUrl for display)
-        try {
-          await uploadSchoolLogoFileApi(file);
-        } catch (apiErr) {
-          console.warn("Backend logo file upload note:", apiErr);
-        } finally {
-          setIsLoading(false);
+          // Asynchronously notify backend API (in background)
+          try {
+            await uploadSchoolLogoFileApi(file);
+          } catch (apiErr) {
+            console.warn("Backend logo file upload note:", apiErr);
+          }
         }
-      }
-    };
-    reader.onerror = () => {
-      setIsLoading(false);
-      setValidation({
-        isValid: false,
-        formatValid: false,
-        sizeValid: true,
-        dimensionQuality: 'unknown',
-        errorMessage: 'Failed to read file from disk.',
-        warnings: []
+      })
+      .catch((err) => {
+        console.warn("Image optimization error:", err);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
