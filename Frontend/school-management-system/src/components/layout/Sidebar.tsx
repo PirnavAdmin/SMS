@@ -110,17 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSidebarLogoError = () => {
-    const fallbackLogo =
-      localStorage.getItem("school_logo") ||
-      localStorage.getItem("logoUrl") ||
-      localStorage.getItem("schoolLogo");
-
-    if (fallbackLogo && fallbackLogo !== currentLogoUrl) {
-      setCurrentLogoUrl(fallbackLogo);
-      setLogoLoadError(false);
-    } else if (!currentLogoUrl) {
-      setLogoLoadError(true);
-    }
+    setLogoLoadError(true);
   };
 
   let isHosteller = true;
@@ -616,7 +606,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {currentLogoUrl && !logoLoadError ? (
               <img
                 src={resolveMediaUrl(currentLogoUrl)}
-                alt="School Logo"
+                alt=""
                 onError={handleSidebarLogoError}
                 onLoad={handleSidebarLogoLoad}
                 className="max-h-8 max-w-8 object-contain"
@@ -638,7 +628,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {currentLogoUrl && !logoLoadError ? (
               <img
                 src={resolveMediaUrl(currentLogoUrl)}
-                alt="School Logo"
+                alt=""
                 onError={handleSidebarLogoError}
                 onLoad={handleSidebarLogoLoad}
                 className={`object-contain ${
