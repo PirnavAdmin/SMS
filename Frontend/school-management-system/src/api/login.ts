@@ -1,8 +1,8 @@
 import { apiClient } from './client';
-export const loginApi = async (emailOrPhone: string, password?: string) => {
+export const loginApi = async (emailOrPhone: string, password?: string, portal?: string) => {
   return apiClient('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ emailOrPhone, password })
+    body: JSON.stringify({ emailOrPhone, password, portal })
   });
 };
 

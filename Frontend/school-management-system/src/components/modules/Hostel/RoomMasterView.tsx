@@ -72,12 +72,43 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     };
 
     window.addEventListener('room_types_updated', handleRoomTypesUpdated);
-    window.addEventListener('storage', handleRoomTypesUpdated);
     return () => {
       window.removeEventListener('room_types_updated', handleRoomTypesUpdated);
-      window.removeEventListener('storage', handleRoomTypesUpdated);
     };
   }, [fetchData]);
+
+  const wardenAssignedBlocks = useMemo(() => {
+    if (!isWarden) return blocks;
+    const uName = (user?.name || '').toLowerCase().trim();
+    const uFirst = uName ? uName.split(' ')[0] : '';
+    const uEmail = (user?.email || '').toLowerCase().trim();
+
+    const matched = blocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultWardenBlock = blocks.find(b =>
+      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+      (b.hostelName || '').toLowerCase().includes('bhanu') ||
+      (b.hostelName || '').toLowerCase().includes('boys')
+    );
+
+    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+  }, [blocks, isWarden, user]);
+
+  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
+
+  useEffect(() => {
+    if (isWarden && targetBlocks.length > 0 && !filterHostel) {
+      setFilterHostel(String(targetBlocks[0].hostelId));
+    }
+  }, [isWarden, targetBlocks, filterHostel, setFilterHostel]);
 
   const handleOpenAdd = async () => {
     setEditingRoom(null);
@@ -150,39 +181,6 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
       setIsSubmitting(false);
     }
   };
-
-  const wardenAssignedBlocks = useMemo(() => {
-    if (!isWarden) return blocks;
-    const uName = (user?.name || '').toLowerCase().trim();
-    const uFirst = uName ? uName.split(' ')[0] : '';
-    const uEmail = (user?.email || '').toLowerCase().trim();
-
-    const matched = blocks.filter(b => {
-      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
-      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
-      if (uEmail && wEmail && wEmail === uEmail) return true;
-      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
-      return false;
-    });
-
-    if (matched.length > 0) return matched;
-
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
-  }, [blocks, isWarden, user]);
-
-  const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
-
-  useEffect(() => {
-    if (isWarden && targetBlocks.length > 0 && !filterHostel) {
-      setFilterHostel(String(targetBlocks[0].hostelId));
-    }
-  }, [isWarden, targetBlocks, filterHostel, setFilterHostel]);
 
   const handleDelete = async () => {
     if (deletingRoom) {

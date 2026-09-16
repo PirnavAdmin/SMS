@@ -21,9 +21,9 @@ public class FeeBreakdownItemDto
 
 public class StudentFeeDetailsResponseDto
 {
-    public decimal TotalAmount { get; set; } = 57000;
+    public decimal TotalAmount { get; set; } = 0;
     public string FormattedTotalAmount => $"₹{TotalAmount:N0}";
-    public decimal DueAmount { get; set; } = 45000;
+    public decimal DueAmount { get; set; } = 0;
     public string FormattedDueAmount => $"₹{DueAmount:N0}";
     public string Currency { get; set; } = "₹";
     public List<FeeBreakdownItemDto> FeeBreakdown { get; set; } = new List<FeeBreakdownItemDto>();

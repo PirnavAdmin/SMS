@@ -7,7 +7,6 @@ import { FeeCollectionView } from './FeeCollectionView';
 import { FeeReceiptsView } from './FeeReceiptsView';
 import { DueFeesView } from './DueFeesView';
 import { PromotedStudentsDuesView } from '../FeeManagement/PromotedStudentsDuesView';
-import { FeeCollectModal } from '../FeeManagement/FeeCollectModal';
 
 interface FeeCollectionContainerViewProps {
   onPrintReceipt: (payment: FeePayment) => void;
@@ -20,7 +19,7 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
 }) => {
   const { students, feePayments, getStudentFeeOutstandingSummary, getPromotedStudentsWithPreviousDues } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'collect' | 'due' | 'promoted_dues' | 'receipts'>('collect');
-  const [collectModalStudent, setCollectModalStudent] = useState<Student | null>(null);
+  const [selectedStudentForCollection, setSelectedStudentForCollection] = useState<Student | null>(null);
 
   useEffect(() => {
     if (initialSubTab === 'promoted_dues' || initialSubTab === 'promoted-dues') {
@@ -47,21 +46,34 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
   ];
 
   const handleCollectStudentFee = (student: Student) => {
-    setCollectModalStudent(student);
+    setSelectedStudentForCollection(student);
+    setActiveSubTab('collect');
   };
 
   const renderSubTabContent = () => {
     switch (activeSubTab) {
       case 'collect':
-        return <FeeCollectionView onPrintReceipt={onPrintReceipt} />;
+        return (
+          <FeeCollectionView
+            onPrintReceipt={onPrintReceipt}
+            initialStudent={selectedStudentForCollection}
+            onClearInitialStudent={() => setSelectedStudentForCollection(null)}
+          />
+        );
       case 'due':
         return <DueFeesView onCollectStudentFee={handleCollectStudentFee} />;
       case 'promoted_dues':
-        return <PromotedStudentsDuesView onCollectDue={(student) => setCollectModalStudent(student)} />;
+        return <PromotedStudentsDuesView onCollectDue={handleCollectStudentFee} />;
       case 'receipts':
         return <FeeReceiptsView />;
       default:
-        return <FeeCollectionView onPrintReceipt={onPrintReceipt} />;
+        return (
+          <FeeCollectionView
+            onPrintReceipt={onPrintReceipt}
+            initialStudent={selectedStudentForCollection}
+            onClearInitialStudent={() => setSelectedStudentForCollection(null)}
+          />
+        );
     }
   };
 
@@ -106,7 +118,12 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
+              onClick={() => {
+                if (tab.id === 'collect' && activeSubTab !== 'collect') {
+                  setSelectedStudentForCollection(null);
+                }
+                setActiveSubTab(tab.id as any);
+              }}
               className={`px-4.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all cursor-pointer ${
                 isActive
                   ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
@@ -133,19 +150,6 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
 
       {/* Render Active View */}
       <div>{renderSubTabContent()}</div>
-
-      {/* Fee Collect Modal */}
-      {collectModalStudent && (
-        <FeeCollectModal
-          isOpen={!!collectModalStudent}
-          onClose={() => setCollectModalStudent(null)}
-          student={collectModalStudent}
-          onReceiptGenerated={(payment) => {
-            onPrintReceipt(payment);
-            setCollectModalStudent(null);
-          }}
-        />
-      )}
     </div>
   );
 };

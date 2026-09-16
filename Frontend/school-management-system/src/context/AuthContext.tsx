@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          if (localProfile?.name) {
+          if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
             parsed.name = localProfile.name;
           } else if (!parsed.name && parsed.email) {
             parsed.name = formatEmailToName(parsed.email);
@@ -197,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
     try {
-      const response = await loginApi(emailOrPhone, password);
+      const response = await loginApi(emailOrPhone, password, chosenRole);
       const realToken = response?.token;
       if (!realToken) {
         throw new Error('No authentication token received.');
@@ -263,12 +263,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);
       let userAvatar = response?.avatar || savedProfile?.avatar || '';
 
+      const userPhone = response?.mobileNumber || response?.phone || (!emailOrPhone.includes('@') ? emailOrPhone : '') || savedProfile?.phone || '';
+
       const loggedUser: User = {
         id: userIdStr,
         name: userName,
-        email: loginEmail || emailOrPhone,
-        phone: savedProfile?.phone || response?.mobileNumber || response?.phone || '',
-        branch: savedProfile?.branch || response?.branch || selectedBranch || 'Main Campus',
+        email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
+        phone: userPhone,
+        branch: response?.branch || savedProfile?.branch || selectedBranch || 'Main Campus',
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),

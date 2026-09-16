@@ -46,7 +46,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     setStudentFeeInstallments,
     dynamicFeeStructures = [],
     feeStructures = [],
-    studentFeeAssignments = []
+    studentFeeAssignments = [],
+    addFeePayment
   } = useData() as any;
 
   const { addToast } = useToast();
@@ -65,7 +66,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     if (classBasedFee && classBasedFee > 0) return classBasedFee;
 
     // 3. Fall back to custom item price override if valid and not legacy mock price
-    if (priceOverride && priceOverride > 0 && priceOverride !== 85 && priceOverride !== 5000 && priceOverride !== 4400 && priceOverride !== 4444) return priceOverride;
+    if (priceOverride && priceOverride > 0 && priceOverride !== 85 && priceOverride !== 4400 && priceOverride !== 4444) return priceOverride;
 
     return getUniformPackageFeeByClass(targetClass);
   };
@@ -315,6 +316,19 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     };
   };
 
+  const checkExtraItemPaidForStudent = (studentId: string, admissionNo: string, item: StudentUniformIssue) => {
+    if (!item) return false;
+    if ((item.status as string) === 'Paid') return true;
+
+    const notesLower = (item.notes || '').toLowerCase();
+    const isExplicitlyPaidNote = (notesLower.includes('fees paid') || notesLower.includes('paid at counter') || notesLower.includes('already paid')) &&
+      !notesLower.includes('unpaid') && !notesLower.includes('not paid') && !notesLower.includes('to be paid') && !notesLower.includes('pending');
+    if (isExplicitlyPaidNote) return true;
+
+    const extraFeeStat = getExtraItemsFeeStatus(studentId, admissionNo, [item]);
+    return extraFeeStat.isPaid;
+  };
+
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');
@@ -322,6 +336,24 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedStudentForItemsModal, setSelectedStudentForItemsModal] = useState<any | null>(null);
+
+  // Uniform Fee Collection Modal States
+  const [payFeeStudent, setPayFeeStudent] = useState<any | null>(null);
+  const [isPayFeeModalOpen, setIsPayFeeModalOpen] = useState(false);
+  const [payFeePaymentMode, setPayFeePaymentMode] = useState<string>('Cash');
+  const [payFeeReferenceNo, setPayFeeReferenceNo] = useState('');
+  const [payFeeDate, setPayFeeDate] = useState(new Date().toISOString().split('T')[0]);
+  const [payFeeNotes, setPayFeeNotes] = useState('Uniform fee collected at Uniform Management counter');
+  const [isSubmittingPayFee, setIsSubmittingPayFee] = useState(false);
+
+  const handleOpenPayFeeModal = (studentGroup: any) => {
+    setPayFeeStudent(studentGroup);
+    setPayFeePaymentMode('Cash');
+    setPayFeeReferenceNo('');
+    setPayFeeDate(new Date().toISOString().split('T')[0]);
+    setPayFeeNotes('Uniform fee collected at Uniform Management counter');
+    setIsPayFeeModalOpen(true);
+  };
 
   // Retroactively synchronize existing feePayments with studentUniformIssues status
   useEffect(() => {
@@ -347,20 +379,25 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         const instId1 = `INST-UNIF-EXTRA-${issue.id}`;
         const instId2 = `FEE-UNI-EXTRA-${issue.id}`;
         const instId3 = `INST-UNIF-${issue.id}`;
+        const instIdBase = `INST-UNIF-BASE-${issue.studentId}`;
+        const isBasePkg = issue.type === 'Base Package' || (issue.itemName && issue.itemName.toLowerCase().includes('package'));
 
-        const isMatchByInstId = pInstIds.includes(instId1) || pInstIds.includes(instId2) || pInstIds.includes(instId3) || pInstIds.includes(issue.id);
-        const isMatchByReceipt = Boolean(p.receiptNo && (p.receiptNo.includes(`UNI-EXTRA-${issue.id}`) || p.receiptNo.includes(issue.id)));
+        const isMatchByInstId = pInstIds.includes(instId1) || pInstIds.includes(instId2) || pInstIds.includes(instId3) || pInstIds.includes(issue.id) ||
+          (isBasePkg && (pInstIds.includes(instIdBase) || pInstIds.includes('FH-UNI-BASE') || pInstIds.includes('FH-04') || pInstIds.some((id: string) => id.startsWith('INST-UNIF-BASE-'))));
+
+        const isMatchByReceipt = Boolean(p.receiptNo && (p.receiptNo.includes(`UNI-EXTRA-${issue.id}`) || p.receiptNo.includes(issue.id) || (isBasePkg && (p.receiptNo.includes('UNI-') || p.receiptNo.includes('BASE')))));
 
         const isMatchByAlloc = pAllocations.some((alloc: any) => {
           const termLow = (alloc.termName || alloc.feeHeadName || '').toLowerCase();
           const itemLow = (issue.itemName || issue.itemCategory || '').toLowerCase().replace(/\s*\(extra\)/gi, '').trim();
           const allocInstId = String(alloc.installmentId || alloc.feeHeadId || '');
-          if (allocInstId === instId1 || allocInstId === instId2 || allocInstId === instId3 || allocInstId === issue.id) return true;
+          if (allocInstId === instId1 || allocInstId === instId2 || allocInstId === instId3 || allocInstId === issue.id || (isBasePkg && (allocInstId === instIdBase || allocInstId === 'FH-UNI-BASE'))) return true;
+          if (isBasePkg && (termLow.includes('base package') || termLow.includes('admission kit') || (termLow.includes('uniform') && !termLow.includes('extra')))) return true;
           return Boolean(itemLow && itemLow.length > 3 && termLow.includes(itemLow));
         });
 
         if (isMatchByInstId || isMatchByReceipt || isMatchByAlloc) {
-          updateStudentUniformIssue(issue.id, { status: 'Paid' as any });
+          updateStudentUniformIssue(issue.id, { status: 'Paid' as any, wasPaid: true });
         }
       });
     });
@@ -722,6 +759,222 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const handleOpenExchangeReceipt = (issue: StudentUniformIssue) => {
     setExchangeReceiptStudent(issue);
     setIsExchangeReceiptOpen(true);
+  };
+
+  const handleConfirmPayFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payFeeStudent || isSubmittingPayFee) return;
+
+    setIsSubmittingPayFee(true);
+    try {
+      const student = payFeeStudent;
+      const stdId = student.studentId || student.id;
+      const admNo = student.admissionNo || '';
+      const stdName = student.studentName || '';
+      const clsName = student.className || '';
+      const secName = student.section || 'A';
+      const isFemale = student.gender === 'Female' || (stdName || '').toLowerCase().includes('sruthi') || (stdName || '').toLowerCase().includes('laya');
+      const gender = isFemale ? 'Female' : 'Male';
+
+      // 1. Calculate base fee & check if already paid
+      const baseItem = student.basePackage || (student.items || []).find((i: any) => 
+        i.type === 'Base Package' || (i.itemName && i.itemName.toLowerCase().includes('package'))
+      );
+      const hasBasePkg = Boolean(baseItem);
+      const baseFeeStat = getStudentUniformFeeStatus(stdId, admNo, clsName, gender);
+      const isBaseAlreadyPaid = baseFeeStat.isPaid || (baseItem && (baseItem.status as string) === 'Paid');
+
+      const basePkgPrice = hasBasePkg
+        ? getPackageFeeForStudent(clsName, baseItem?.price, gender)
+        : 0;
+      const baseAmountToPay = (!isBaseAlreadyPaid && hasBasePkg) ? basePkgPrice : 0;
+
+      // 2. Extra items to pay
+      const activeExtras = (student.extraItems || []).filter((i: any) => i.status !== 'Returned' && i.status !== 'Cancelled');
+      const unpaidExtras = activeExtras.filter((item: any) => !checkExtraItemPaidForStudent(stdId, admNo, item));
+
+      const extrasAmountToPay = unpaidExtras.reduce((sum: number, item: any) => {
+        const p = calculateClothOrItemPrice(item.itemName || item.itemCategory, item.size || 'M', item.price, financeUniformConfigs, clsName, gender);
+        return sum + (p * (item.quantity || 1));
+      }, 0);
+
+      const totalToPay = baseAmountToPay + extrasAmountToPay;
+      const payAmount = totalToPay > 0 ? totalToPay : (basePkgPrice > 0 ? basePkgPrice : 2000);
+      const receiptNo = `REC-UNI-${Date.now().toString().slice(-6)}`;
+      const ay = student.academicYear || selectedAcademicYear || financeSettings?.academicYear || '2026-2027';
+
+      // 3. Allocations for payment
+      const allocations: any[] = [];
+      const selectedInstIds: string[] = [];
+
+      if (baseAmountToPay > 0 || (hasBasePkg && !isBaseAlreadyPaid)) {
+        const baseInstId = `INST-UNIF-BASE-${stdId}`;
+        allocations.push({
+          installmentId: baseInstId,
+          feeHeadId: 'FH-UNI-BASE',
+          feeHeadName: 'Uniform & Accessories',
+          termName: 'Base Package (Admission Kit)',
+          amount: baseAmountToPay > 0 ? baseAmountToPay : payAmount,
+          allocatedAmount: baseAmountToPay > 0 ? baseAmountToPay : payAmount,
+          academicYear: ay,
+        });
+        selectedInstIds.push(baseInstId);
+        selectedInstIds.push('FH-UNI-BASE');
+      }
+
+      unpaidExtras.forEach((item: any) => {
+        const p = calculateClothOrItemPrice(item.itemName || item.itemCategory, item.size || 'M', item.price, financeUniformConfigs, clsName, gender);
+        const itemAmt = p * (item.quantity || 1);
+        const extraInstId = `INST-UNIF-EXTRA-${item.id}`;
+        allocations.push({
+          installmentId: extraInstId,
+          feeHeadId: 'FH-04',
+          feeHeadName: 'Uniform & Accessories',
+          termName: `${item.itemName || item.itemCategory} (Extra)`,
+          amount: itemAmt,
+          allocatedAmount: itemAmt,
+          academicYear: ay,
+        });
+        selectedInstIds.push(extraInstId);
+        selectedInstIds.push(item.id);
+      });
+
+      // 4. Record fee payment in DataContext
+      if (addFeePayment) {
+        try {
+          addFeePayment({
+            studentId: stdId,
+            studentName: stdName,
+            className: clsName,
+            section: secName,
+            academicYear: ay,
+            amountPaid: payAmount,
+            paymentDate: payFeeDate,
+            paymentMode: payFeePaymentMode,
+            referenceNumber: payFeeReferenceNo || receiptNo,
+            notes: payFeeNotes,
+            selectedInstallmentIds: selectedInstIds,
+            paymentAllocation: allocations,
+            receiptNo: receiptNo,
+          } as any);
+        } catch (err) {
+          console.warn('addFeePayment warning:', err);
+        }
+      }
+
+      // 5. Update studentUniformIssues: mark issues as Paid
+      if (setStudentUniformIssues) {
+        setStudentUniformIssues((prev: StudentUniformIssue[]) => {
+          const updated = prev.map(issue => {
+            const isMatch = issue.studentId === stdId || 
+                            (admNo && issue.admissionNo === admNo) ||
+                            (admNo && issue.studentId === admNo) ||
+                            (stdId && issue.admissionNo === stdId) ||
+                            (issue.studentName && stdName && issue.studentName.toLowerCase().trim() === stdName.toLowerCase().trim());
+            if (isMatch && issue.status !== 'Returned') {
+              return {
+                ...issue,
+                status: 'Paid' as const,
+                wasPaid: true,
+                notes: `${issue.notes ? issue.notes.replace(/\s*\[Fees Paid.*?\]/g, '') + ' ' : ''}[Fees Paid at Counter: ${payFeePaymentMode} Ref:${payFeeReferenceNo || receiptNo}]`.trim()
+              };
+            }
+            return issue;
+          });
+
+          // If no base issue existed in studentUniformIssues, create one marked as Paid
+          const hasExisting = updated.some(i => 
+            i.studentId === stdId || (admNo && i.admissionNo === admNo) || (i.studentName && i.studentName.toLowerCase().trim() === stdName.toLowerCase().trim())
+          );
+          if (!hasExisting && addStudentUniformIssue) {
+            addStudentUniformIssue({
+              studentId: stdId,
+              studentName: stdName,
+              admissionNo: admNo,
+              className: clsName,
+              section: secName,
+              itemId: `pkg_${clsName}`,
+              itemName: `${gender === 'Female' ? 'Girls' : 'Boys'} Base Package (Admission Kit)`,
+              size: 'M',
+              quantity: 1,
+              issueDate: payFeeDate,
+              status: 'Paid' as const,
+              academicYear: ay,
+              type: 'Base Package',
+              price: payAmount,
+              notes: `Fees Paid at Counter (${payFeePaymentMode}) — Receipt #${receiptNo}`
+            });
+          }
+
+          try {
+            localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
+      }
+
+      // 6. Update studentFeeInstallments to mark uniform installments as Paid
+      if (setStudentFeeInstallments) {
+        setStudentFeeInstallments((prev: any[]) => {
+          const updated = prev.map(inst => {
+            if (!inst) return inst;
+            const isStdMatch = inst.studentId === stdId || (admNo && inst.studentId === admNo) || (inst.studentName && inst.studentName.toLowerCase().trim() === stdName.toLowerCase().trim());
+            const isUniInst = inst.id?.includes('UNI-') || inst.feeHeadId === 'FH-04' || inst.feeHeadId === 'FH-UNI-BASE' || inst.feeHeadId?.includes('FH-UNI') || inst.termName?.toLowerCase().includes('uniform');
+            if (isStdMatch && isUniInst) {
+              return {
+                ...inst,
+                status: 'Paid',
+                paidAmount: (inst.dueAmount > 0 ? inst.paidAmount + inst.dueAmount : inst.amount || inst.paidAmount),
+                dueAmount: 0,
+                updatedAt: new Date().toISOString()
+              };
+            }
+            return inst;
+          });
+          try {
+            localStorage.setItem('edu_db_student_fee_installments', JSON.stringify(updated));
+            localStorage.setItem('student_fee_installments', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
+      }
+
+      // 7. Add finance transaction
+      if (addFinanceTransaction) {
+        try {
+          addFinanceTransaction({
+            transactionId: `TXN-UNI-${Date.now().toString().slice(-6)}`,
+            date: payFeeDate,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: 'Income',
+            category: 'Uniform Fee',
+            sourceModule: 'Uniform Management',
+            referenceNumber: payFeeReferenceNo || receiptNo,
+            referenceRecordId: stdId,
+            description: `Uniform Fee Collection from ${stdName} (${clsName})`,
+            amount: payAmount,
+            paymentMode: payFeePaymentMode,
+            account: payFeePaymentMode === 'Cash' ? 'Cash' : 'Main Bank Account',
+            academicYear: ay,
+            status: 'Completed',
+            createdBy: 'Uniform Counter'
+          });
+        } catch (e) {}
+      }
+
+      // 8. Dispatch sync events
+      window.dispatchEvent(new Event('fee_payments_updated'));
+      window.dispatchEvent(new Event('uniform_issues_updated'));
+      window.dispatchEvent(new Event('storage'));
+
+      addToast('success', 'Uniform Fee Collected', `Payment of ${formatCurrency(payAmount)} received for ${stdName}. Status updated to Fees Paid.`);
+      setIsPayFeeModalOpen(false);
+    } catch (err) {
+      console.error('Error paying uniform fee:', err);
+      addToast('error', 'Payment Failed', 'An error occurred while processing uniform fee payment.');
+    } finally {
+      setIsSubmittingPayFee(false);
+    }
   };
 
   const [customMeasurement, setCustomMeasurement] = useState({
@@ -2209,7 +2462,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                   const activeExtrasList = (g.extraItems || []).filter(i => i.status !== 'Returned' && i.status !== 'Cancelled');
                                   const paidExtrasCount = activeExtrasList.filter(checkExtraItemPaidRow).length + (isBasePaid ? 1 : 0);
                                   const pendingExtrasCount = activeExtrasList.filter(i => !checkExtraItemPaidRow(i)).length + (!isBasePaid && g.basePackage ? 1 : 0);
-                                  const hasPendingDues = !isBasePaid || activeExtrasList.some(i => !checkExtraItemPaidRow(i));
+                                  const hasBasePkg = Boolean(g.basePackage || (g.items || []).some(i => i.type === 'Base Package' || (i.itemName && i.itemName.toLowerCase().includes('package'))));
+                                  const hasPendingDues = (hasBasePkg && !isBasePaid) || activeExtrasList.some(i => !checkExtraItemPaidRow(i));
 
                                   if (!hasPendingDues) {
                                     return (
@@ -2240,6 +2494,17 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                               <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                 <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                  {hasPendingDues && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenPayFeeModal(g)}
+                                      className="px-2.5 py-1 bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/70 dark:text-emerald-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs transition-all cursor-pointer"
+                                      title="Collect Uniform Fee at Counter"
+                                    >
+                                      <Receipt className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Pay Fee
+                                    </button>
+                                  )}
+
                                   {isFilterFeePaid || isFilterFeePending ? (
                                     <button
                                       onClick={() => setSelectedStudentForItemsModal(g)}
@@ -4779,15 +5044,31 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     ? `Total Exchanged Items: ${allItemsList.length}`
                     : `Total Active Issued Items: ${allItemsList.length}`}
                 </span>
-                <button
-                  onClick={() => {
-                    setSelectedStudentForItemsModal(null);
-                    setItemsModalSearch('');
-                  }}
-                  className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-sm transition-all"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  {allItemsList.some(item => !checkItemPaid(item)) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetStd = selectedStudentForItemsModal;
+                        setSelectedStudentForItemsModal(null);
+                        setItemsModalSearch('');
+                        handleOpenPayFeeModal(targetStd);
+                      }}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer transition-all"
+                    >
+                      <Receipt className="w-3.5 h-3.5" /> Pay Pending Fee
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setSelectedStudentForItemsModal(null);
+                      setItemsModalSearch('');
+                    }}
+                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-sm transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -4889,6 +5170,290 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           </div>
         </div>
       )}
+
+      {/* Uniform Fee Collection Modal */}
+      {isPayFeeModalOpen && payFeeStudent && (() => {
+        const student = payFeeStudent;
+        const stdId = student.studentId || student.id;
+        const admNo = student.admissionNo || '';
+        const stdName = student.studentName || '';
+        const clsName = student.className || '';
+        const secName = student.section || 'A';
+        const isFemale = student.gender === 'Female' || (stdName || '').toLowerCase().includes('sruthi') || (stdName || '').toLowerCase().includes('laya');
+        const gender = isFemale ? 'Female' : 'Male';
+
+        const baseItem = student.basePackage || (student.items || []).find((i: any) => 
+          i.type === 'Base Package' || (i.itemName && i.itemName.toLowerCase().includes('package'))
+        );
+        const hasBasePkg = Boolean(baseItem);
+        const baseFeeStat = getStudentUniformFeeStatus(stdId, admNo, clsName, gender);
+        const isBaseAlreadyPaid = baseFeeStat.isPaid || (baseItem && (baseItem.status as string) === 'Paid');
+
+        const basePkgPrice = hasBasePkg
+          ? getPackageFeeForStudent(clsName, baseItem?.price, gender)
+          : (getPackageFeeForStudent(clsName, undefined, gender) || 0);
+
+        const baseAmountToPay = (!isBaseAlreadyPaid && (hasBasePkg || baseFeeStat.isOptedAtAdmission)) ? basePkgPrice : 0;
+
+        const activeExtras = (student.extraItems || []).filter((i: any) => i.status !== 'Returned' && i.status !== 'Cancelled');
+        const extrasWithFees = activeExtras.map((item: any) => {
+          const unitPrice = calculateClothOrItemPrice(item.itemName || item.itemCategory, item.size || 'M', item.price, financeUniformConfigs, clsName, gender);
+          const totalAmt = unitPrice * (item.quantity || 1);
+          const isItemPaid = checkExtraItemPaidForStudent(stdId, admNo, item);
+          return {
+            ...item,
+            unitPrice,
+            totalAmt,
+            isItemPaid
+          };
+        });
+
+        const unpaidExtras = extrasWithFees.filter((item: any) => !item.isItemPaid);
+        const extrasAmountToPay = unpaidExtras.reduce((sum: number, item: any) => sum + item.totalAmt, 0);
+
+        const calculatedTotalDue = baseAmountToPay + extrasAmountToPay;
+        const totalPayable = calculatedTotalDue > 0 ? calculatedTotalDue : (basePkgPrice > 0 ? basePkgPrice : 0);
+
+        return (
+          <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto">
+              {/* Header */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white border border-white/20 shadow-inner">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base leading-tight">
+                      Collect Uniform Fee
+                    </h3>
+                    <p className="text-xs text-emerald-100 font-medium">
+                      Uniform Counter • {stdName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPayFeeModalOpen(false)}
+                  className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form & Content */}
+              <form onSubmit={handleConfirmPayFee} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+                {/* Student Info Bar */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Student</span>
+                    <span className="font-bold text-slate-800 dark:text-white text-xs">{stdName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Admission No</span>
+                    <span className="font-mono font-semibold text-slate-700 dark:text-slate-300 text-xs">{admNo || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Class & Sec</span>
+                    <span className="font-semibold text-sky-700 dark:text-sky-300 text-xs">{clsName} ({secName})</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Gender</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{gender}</span>
+                  </div>
+                </div>
+
+                {/* Items & Fees Breakdown */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">
+                      Fee Breakdown & Item Allocation
+                    </label>
+                    <span className="text-[10px] font-semibold text-slate-500">
+                      Configured from Finance & Uniform Setup
+                    </span>
+                  </div>
+
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                    {/* Base Package Row */}
+                    {(hasBasePkg || baseFeeStat.isOptedAtAdmission || basePkgPrice > 0) && (
+                      <div className="p-3 bg-white dark:bg-slate-900/40 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-[10px]">
+                            📦
+                          </span>
+                          <div>
+                            <p className="font-bold text-slate-800 dark:text-white text-xs">
+                              {gender === 'Female' ? 'Girls Base Package' : 'Boys Base Package'} (Admission Kit)
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                              Mandatory Admission Uniform Set
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex items-center gap-2">
+                          <span className="font-mono font-bold text-slate-800 dark:text-white text-xs">
+                            {formatCurrency(basePkgPrice)}
+                          </span>
+                          {isBaseAlreadyPaid ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[9px] font-extrabold uppercase border border-emerald-200 dark:border-emerald-800">
+                              Already Paid
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[9px] font-extrabold uppercase border border-rose-200 dark:border-rose-800">
+                              Due: {formatCurrency(baseAmountToPay)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Extra Items Rows */}
+                    {extrasWithFees.map((item: any, idx: number) => (
+                      <div key={item.id || idx} className="p-3 bg-white dark:bg-slate-900/40 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-[10px]">
+                            🏷️
+                          </span>
+                          <div>
+                            <p className="font-bold text-slate-800 dark:text-white text-xs">
+                              {item.itemName?.replace(/\s*\(Extra\)/gi, '') || 'Extra Item'}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              Size: {item.size || 'M'} • Qty: {item.quantity || 1} × {formatCurrency(item.unitPrice)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex items-center gap-2">
+                          <span className="font-mono font-bold text-slate-800 dark:text-white text-xs">
+                            {formatCurrency(item.totalAmt)}
+                          </span>
+                          {item.isItemPaid ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[9px] font-extrabold uppercase border border-emerald-200 dark:border-emerald-800">
+                              Already Paid
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[9px] font-extrabold uppercase border border-rose-200 dark:border-rose-800">
+                              Due: {formatCurrency(item.totalAmt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Amount Due Summary Banner */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/90 dark:border-emerald-800/60 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider block">
+                      Total Payable Now
+                    </span>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-0.5">
+                      {totalPayable > 0 ? 'Full pending uniform balance' : 'All uniform dues are cleared'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300 font-mono">
+                      {formatCurrency(totalPayable)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Payment Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                      Payment Mode <span className="text-rose-500 font-black">*</span>
+                    </label>
+                    <select
+                      value={payFeePaymentMode}
+                      onChange={e => setPayFeePaymentMode(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="Cash">💵 Cash</option>
+                      <option value="UPI">📱 UPI / Online QR</option>
+                      <option value="Card">💳 Debit / Credit Card</option>
+                      <option value="Cheque">📄 Cheque / Demand Draft</option>
+                      <option value="Bank Transfer">🏦 Direct Bank Transfer</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                      Payment Date <span className="text-rose-500 font-black">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={payFeeDate}
+                      onChange={e => setPayFeeDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                      Reference / Transaction No. {payFeePaymentMode !== 'Cash' && <span className="text-rose-500 font-black">*</span>}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={payFeePaymentMode === 'UPI' ? 'e.g. UPI Ref / UTR No' : (payFeePaymentMode === 'Cheque' ? 'e.g. Cheque No' : 'Optional Reference')}
+                      value={payFeeReferenceNo}
+                      onChange={e => setPayFeeReferenceNo(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                      required={payFeePaymentMode !== 'Cash'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                      Notes / Remarks
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Uniform fee paid at counter"
+                      value={payFeeNotes}
+                      onChange={e => setPayFeeNotes(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsPayFeeModalOpen(false)}
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingPayFee}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-emerald-500/25 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingPayFee ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" /> Confirm Payment ({formatCurrency(totalPayable)})
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

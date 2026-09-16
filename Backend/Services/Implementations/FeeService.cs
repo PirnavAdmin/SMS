@@ -1,7 +1,9 @@
 namespace SMS.Api.Services.Implementations;
 
+using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
+using SMS.Api.Models.FinanceManagement;
 using SMS.Api.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -17,94 +19,163 @@ public class FeeService : IFeeService
         _context = context;
     }
 
-    public Task<FeeDropdownOptionsDto> GetFeeDropdownOptionsAsync()
+    public async Task<FeeDropdownOptionsDto> GetFeeDropdownOptionsAsync()
     {
-        var options = new FeeDropdownOptionsDto
-        {
-            AcademicYears = new List<string> { "2027-28", "2026-27", "2025-26" },
-            HistoryAcademicYears = new List<string> { "All Academic Years", "2026-2027", "2025-2026" }
-        };
+        var years = await _context.DynamicFeeStructures.AsNoTracking()
+            .Where(d => !string.IsNullOrEmpty(d.AcademicYear))
+            .Select(d => d.AcademicYear)
+            .Distinct()
+            .ToListAsync();
 
-        return Task.FromResult(options);
+        if (!years.Contains("2026-2027"))
+        {
+            years.Insert(0, "2026-2027");
+        }
+
+        var historyYears = new List<string> { "All Academic Years" };
+        historyYears.AddRange(years);
+
+        return new FeeDropdownOptionsDto
+        {
+            AcademicYears = years,
+            HistoryAcademicYears = historyYears
+        };
     }
 
-    public Task<StudentFeeDetailsResponseDto> GetStudentFeeDetailsAsync(int? studentId, string? academicYear = "2027-28")
+    public async Task<StudentFeeDetailsResponseDto> GetStudentFeeDetailsAsync(int? studentId, string? academicYear = "2026-2027")
     {
-        var breakdown = new List<FeeBreakdownItemDto>
+        if (studentId == null)
         {
-            new FeeBreakdownItemDto
+            return new StudentFeeDetailsResponseDto
             {
-                FeeId = "fee-tuition-term2",
-                Title = "Term 2 Tuition Fee",
-                DueDate = "2026-07-28",
-                Amount = 45000,
-                IsDue = true,
-                Selected = false
-            },
-            new FeeBreakdownItemDto
+                TotalAmount = 0,
+                DueAmount = 0,
+                Currency = "₹",
+                FeeBreakdown = new List<FeeBreakdownItemDto>()
+            };
+        }
+
+        var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == studentId);
+        if (student == null)
+        {
+            return new StudentFeeDetailsResponseDto
             {
-                FeeId = "fee-trans-q3",
-                Title = "Transport Fee (Q3)",
-                DueDate = "2026-10-15",
-                Amount = 12000,
-                IsDue = false,
-                Selected = false
+                TotalAmount = 0,
+                DueAmount = 0,
+                Currency = "₹",
+                FeeBreakdown = new List<FeeBreakdownItemDto>()
+            };
+        }
+
+        var cls = await _context.Classes.AsNoTracking().FirstOrDefaultAsync(c => c.ClassId == student.ClassId);
+        string className = cls?.ClassName ?? string.Empty;
+
+        var assignment = await _context.StudentFeeAssignments.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.StudentId == student.StudentId.ToString() && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+
+        DynamicFeeStructure? matchedStructure = null;
+        if (assignment != null && assignment.DynamicFeeStructureId.HasValue)
+        {
+            matchedStructure = await _context.DynamicFeeStructures.AsNoTracking().FirstOrDefaultAsync(d => d.Id == assignment.DynamicFeeStructureId.Value);
+        }
+        if (matchedStructure == null && !string.IsNullOrEmpty(className))
+        {
+            matchedStructure = await _context.DynamicFeeStructures.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.ClassName == className && (d.Status == "Active" || string.IsNullOrEmpty(d.Status)));
+        }
+
+        // If no structure and no assignment is configured for this student/class, dues are 0
+        if (matchedStructure == null && assignment == null)
+        {
+            return new StudentFeeDetailsResponseDto
+            {
+                TotalAmount = 0,
+                DueAmount = 0,
+                Currency = "₹",
+                FeeBreakdown = new List<FeeBreakdownItemDto>()
+            };
+        }
+
+        var sidStr = student.StudentId.ToString();
+        var admNo = student.AdmissionNumber ?? string.Empty;
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.StudentId == sidStr || (!string.IsNullOrEmpty(admNo) && p.StudentId == admNo))
+            .ToListAsync();
+
+        decimal paid = payments.Sum(p => p.Amount);
+        decimal total = assignment?.TotalAmount ?? matchedStructure?.TotalAmount ?? 0m;
+        decimal due = Math.Max(0m, total - paid);
+
+        var terms = await _context.FeeScheduleTerms.AsNoTracking()
+            .OrderBy(t => t.Sequence)
+            .ToListAsync();
+
+        var breakdown = new List<FeeBreakdownItemDto>();
+        if (terms.Any() && total > 0)
+        {
+            decimal sharePerTerm = Math.Round(total / terms.Count, 2);
+            decimal remainingDue = due;
+            foreach (var term in terms)
+            {
+                bool isTermDue = remainingDue > 0;
+                breakdown.Add(new FeeBreakdownItemDto
+                {
+                    FeeId = term.Id,
+                    Title = $"{term.TermName} Tuition Fee",
+                    DueDate = term.DueDate,
+                    Amount = sharePerTerm,
+                    IsDue = isTermDue,
+                    Selected = false
+                });
+                remainingDue = Math.Max(0m, remainingDue - sharePerTerm);
             }
-        };
-
-        decimal totalAmount = breakdown.Sum(b => b.Amount);
-        decimal dueAmount = breakdown.Where(b => b.IsDue).Sum(b => b.Amount);
-
-        var result = new StudentFeeDetailsResponseDto
+        }
+        else if (total > 0)
         {
-            TotalAmount = totalAmount,
-            DueAmount = dueAmount,
+            breakdown.Add(new FeeBreakdownItemDto
+            {
+                FeeId = "fee-base",
+                Title = "Academic & School Fee",
+                DueDate = "2026-04-15",
+                Amount = total,
+                IsDue = due > 0,
+                Selected = false
+            });
+        }
+
+        return new StudentFeeDetailsResponseDto
+        {
+            TotalAmount = total,
+            DueAmount = due,
             Currency = "₹",
             FeeBreakdown = breakdown
         };
-
-        return Task.FromResult(result);
     }
 
-    public Task<List<PaymentReceiptDto>> GetStudentReceiptRegisterAsync(int? studentId, string? academicYear = "All Academic Years")
+    public async Task<List<PaymentReceiptDto>> GetStudentReceiptRegisterAsync(int? studentId, string? academicYear = "All Academic Years")
     {
-        var receipts = new List<PaymentReceiptDto>
-        {
-            new PaymentReceiptDto
-            {
-                ReceiptNo = "REC-2026-781",
-                FeeHeadTerm = "Term 2 Tuition Fee",
-                Date = "2026-08-04",
-                Mode = "Online (Credit Card)",
-                Amount = 45000,
-                AcademicYear = "2026-2027"
-            },
-            new PaymentReceiptDto
-            {
-                ReceiptNo = "REC-2026-001",
-                FeeHeadTerm = "Term 1 Tuition Fee",
-                Date = "2026-06-10",
-                Mode = "Online",
-                Amount = 45000,
-                AcademicYear = "2026-2027"
-            },
-            new PaymentReceiptDto
-            {
-                ReceiptNo = "REC-2026-042",
-                FeeHeadTerm = "Transport Fee (Q1 & Q2)",
-                Date = "2026-06-15",
-                Mode = "Online",
-                Amount = 12000,
-                AcademicYear = "2026-2027"
-            }
-        };
+        if (studentId == null) return new List<PaymentReceiptDto>();
 
-        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All Academic Years", StringComparison.OrdinalIgnoreCase))
-        {
-            receipts = receipts.Where(r => r.AcademicYear.Equals(academicYear, StringComparison.OrdinalIgnoreCase) || r.AcademicYear.Contains(academicYear)).ToList();
-        }
+        var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == studentId);
+        string sidStr = studentId.ToString()!;
+        string admNo = student?.AdmissionNumber ?? string.Empty;
 
-        return Task.FromResult(receipts);
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.StudentId == sidStr || (!string.IsNullOrEmpty(admNo) && p.StudentId == admNo))
+            .OrderByDescending(p => p.PaymentDate)
+            .ToListAsync();
+
+        var receipts = payments.Select(p => new PaymentReceiptDto
+        {
+            ReceiptNo = p.ReceiptNo ?? $"REC-{p.Id}",
+            FeeHeadTerm = "Fee Payment",
+            Date = p.PaymentDate.ToString("yyyy-MM-dd"),
+            Mode = p.PaymentMethod ?? "Cash",
+            Amount = p.Amount,
+            AcademicYear = academicYear ?? "2026-2027"
+        }).ToList();
+
+        return receipts;
     }
 
     public Task<bool> ProcessFeePaymentAsync(ProcessFeePaymentDto dto)

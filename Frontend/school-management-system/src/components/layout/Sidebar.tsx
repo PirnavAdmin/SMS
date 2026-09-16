@@ -128,13 +128,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   if (role.toLowerCase() === "student" || role.toLowerCase() === "parent") {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
+    const userId = String(user?.id || '').trim();
 
     const parentWards = students.filter(
           (s) =>
             s.status === "Active" &&
             (role.toLowerCase() === "student"
-              ? (s.id === user?.id || s.email === user?.email)
+              ? (
+                  (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+                  (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
+                  (userPhone && userPhone.length >= 10 && (
+                    (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+                    ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
+                    (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+                  ))
+                )
               : (
+                  (userPhone && userPhone.length >= 10 && (
+                    (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+                    (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+                    ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+                    (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone))
+                  )) ||
                   (userEmail && (
                     s.guardianEmail?.toLowerCase() === userEmail || 
                     s.guardianPhone?.toLowerCase() === userEmail || 

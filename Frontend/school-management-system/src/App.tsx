@@ -72,7 +72,7 @@ import { TrainingContainerView } from "./components/modules/School Administratio
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user, setUser } = useAuth();
-  const { staff } = useData();
+  const { staff, driverMasters, students } = useData();
   const [activeModule, setActiveModuleState] = useState<string>(() => {
     try {
       const saved = localStorage.getItem("active_module");
@@ -95,21 +95,69 @@ const MainLayout: React.FC = () => {
   const [selectedPortalRole, setSelectedPortalRole] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    // Only match staff if the user is a staff/teacher role, NEVER overwrite an Admin, Super Admin, Student, or Parent!
-    if (
-      user &&
-      user.role !== "Admin" &&
-      user.role !== "Super Admin" &&
-      user.role !== "Student" &&
-      user.role !== "Parent" &&
-      staff &&
-      staff.length > 0
-    ) {
-      const matched = staff.find(
-        (s) => s.email && s.email.toLowerCase().trim() === user.email?.toLowerCase().trim()
+    if (!user) return;
+    const userRole = (user.role || "").toLowerCase();
+
+    // 1. Never overwrite Admin or Super Admin
+    if (["admin", "super admin", "superadmin"].includes(userRole)) {
+      return;
+    }
+
+    // 2. Student sync
+    if (userRole === "student" && students && students.length > 0) {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userPhone = (user.phone || "").replace(/\D/g, "");
+      const userId = String(user.id || "").trim();
+      const matched = students.find(s => 
+        (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+        (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
+        (userPhone && userPhone.length >= 10 && (
+          (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+        ))
       );
       if (matched) {
-        const fullName = `${matched.firstName} ${matched.lastName}`.trim();
+        const studentFullName = `${matched.firstName || ""} ${matched.lastName || ""}`.trim();
+        if (studentFullName && user.name !== studentFullName) {
+          const updated = { ...user, name: studentFullName };
+          setUser(updated);
+          localStorage.setItem("auth_user", JSON.stringify(updated));
+        }
+      }
+      return;
+    }
+
+    // 3. Driver sync
+    if (userRole === "driver" && driverMasters && driverMasters.length > 0) {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userPhone = (user.phone || "").replace(/\D/g, "");
+      const userId = String(user.id || "").trim();
+      const matched = driverMasters.find(d => 
+        (userEmail && d.email && d.email.toLowerCase().trim() === userEmail) ||
+        (userPhone && d.mobileNumber && d.mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
+        (userId && (d.employeeId?.toLowerCase() === userId.toLowerCase() || String(d.id) === userId))
+      );
+      if (matched && matched.driverName && user.name !== matched.driverName) {
+        const updated = { ...user, name: matched.driverName };
+        setUser(updated);
+        localStorage.setItem("auth_user", JSON.stringify(updated));
+      }
+      return;
+    }
+
+    // 4. Staff / Teacher / Non-teaching sync
+    if (staff && staff.length > 0 && userRole !== "parent") {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userPhone = (user.phone || "").replace(/\D/g, "");
+      const userId = String(user.id || "").trim();
+      const matched = staff.find(s => 
+        (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
+        (userPhone && userPhone.length >= 10 && s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+        (userId && (String(s.id) === userId || s.empId === userId))
+      );
+      if (matched) {
+        const fullName = `${matched.firstName || ""} ${matched.lastName || ""}`.trim();
         if (fullName && user.name !== fullName) {
           const updated = { ...user, name: fullName };
           setUser(updated);
@@ -117,7 +165,7 @@ const MainLayout: React.FC = () => {
         }
       }
     }
-  }, [user, staff, setUser]);
+  }, [user, staff, driverMasters, students, setUser]);
   const [collapsed, setCollapsedState] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("sidebar_collapsed");

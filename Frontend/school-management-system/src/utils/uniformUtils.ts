@@ -259,8 +259,8 @@ export const getUniformFeeForClass = (
       return !isSingleItem;
     });
 
-    const isTargetFemale = targetGender.includes('female') || targetGender.includes('girl');
-    const isTargetMale = targetGender.includes('male') || targetGender.includes('boy');
+    const isTargetFemale = targetGender.includes('female') || targetGender.includes('girl') || targetGender === 'f';
+    const isTargetMale = targetGender.includes('male') || targetGender.includes('boy') || targetGender === 'm';
 
     // 1a. Exact class match + gender match
     const exactClassAndGender = activeConfigs.find(c => {
@@ -271,8 +271,8 @@ export const getUniformFeeForClass = (
       const cGender = (c.gender || '').toLowerCase().trim();
       const cPkg = (c.uniformPackage || '').toLowerCase();
 
-      if (isTargetFemale) return cGender.includes('female') || cGender.includes('girl') || cPkg.includes('girls') || cGender === 'unisex' || cGender === 'all' || !cGender;
-      if (isTargetMale) return cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys') || cGender === 'unisex' || cGender === 'all' || !cGender;
+      if (isTargetFemale) return cGender.includes('female') || cGender.includes('girl') || cGender === 'f' || cPkg.includes('girls') || cGender === 'unisex' || cGender === 'all' || !cGender;
+      if (isTargetMale) return cGender.includes('male') || cGender.includes('boy') || cGender === 'm' || cPkg.includes('boys') || cGender === 'unisex' || cGender === 'all' || !cGender;
       return true;
     });
     if (exactClassAndGender && exactClassAndGender.feeAmount && Number(exactClassAndGender.feeAmount) > 0) {
@@ -470,7 +470,14 @@ export const calculateClothOrItemPrice = (
     }
   }
 
-  // 1. If explicit unit price was saved on transaction/item, prioritize it!
+  // 1. If cleanItemName is a base package or admission kit, check if Finance configured a package fee for this class & gender
+  const isBasePkg = cleanItemName.includes('base') || cleanItemName.includes('package') || cleanItemName.includes('admission kit') || cleanItemName.includes('kit');
+  if (isBasePkg && Array.isArray(financeConfigs) && financeConfigs.length > 0) {
+    const pkgFee = getUniformFeeForClass(className, gender, financeConfigs);
+    if (pkgFee > 0) return pkgFee;
+  }
+
+  // 2. If explicit unit price was saved on transaction/item, prioritize it!
   if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
     return currentUnitPrice;
   }
