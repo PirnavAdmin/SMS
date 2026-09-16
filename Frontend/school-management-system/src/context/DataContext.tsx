@@ -1849,7 +1849,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
       const saved =
         localStorage.getItem(storageKey) || localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : initial;
+      if (!saved || saved === "undefined" || saved === "null") return initial;
+      const parsed = JSON.parse(saved);
+      return parsed !== null && parsed !== undefined ? parsed : initial;
     } catch {
       const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
       localStorage.removeItem(storageKey);
@@ -6146,27 +6148,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             "";
 
           setSchoolProfile((prev) => {
+            const currentProfile = prev || initialSchoolProfile;
             const effectiveLogo =
-              localCustomLogo || (data.logoUrl && data.logoUrl !== "" ? data.logoUrl : prev.logoUrl);
+              (data.logoUrl && data.logoUrl.trim() !== '')
+                ? data.logoUrl
+                : (localCustomLogo || currentProfile.logoUrl || initialSchoolProfile.logoUrl);
 
-            const next = {
-              ...prev,
-              name: data.schoolName || data.name || prev.name,
+            const next: SchoolProfile = {
+              ...initialSchoolProfile,
+              ...currentProfile,
+              name: data.schoolName || data.name || currentProfile.name || initialSchoolProfile.name,
               tagline:
-                data.tagline !== undefined
+                data.tagline !== undefined && data.tagline !== null
                   ? data.tagline
-                  : data.motto || prev.tagline,
-              address: data.address !== undefined ? data.address : prev.address,
-              phone: data.phone !== undefined ? data.phone : prev.phone,
-              email: data.email !== undefined ? data.email : prev.email,
+                  : (currentProfile.tagline || initialSchoolProfile.tagline),
+              address: data.address !== undefined && data.address !== null ? data.address : (currentProfile.address || initialSchoolProfile.address),
+              phone: data.phone !== undefined && data.phone !== null ? data.phone : (currentProfile.phone || initialSchoolProfile.phone),
+              email: data.email !== undefined && data.email !== null ? data.email : (currentProfile.email || initialSchoolProfile.email),
               website:
-                data.website !== undefined
+                data.website !== undefined && data.website !== null
                   ? data.website
-                  : data.websiteUrl || prev.website,
+                  : (currentProfile.website || initialSchoolProfile.website),
               principalName:
-                data.principalName !== undefined
+                data.principalName !== undefined && data.principalName !== null
                   ? data.principalName
-                  : prev.principalName,
+                  : (currentProfile.principalName || initialSchoolProfile.principalName),
               logoUrl: effectiveLogo,
             };
             try {
@@ -6204,11 +6210,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.getItem("profile");
         const parsed = stored ? JSON.parse(stored) : {};
 
-        setSchoolProfile((prev) => ({
-          ...prev,
-          ...parsed,
-          logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed.logoUrl || prev.logoUrl || ""),
-        }));
+        setSchoolProfile((prev) => {
+          const base = prev || initialSchoolProfile;
+          return {
+            ...initialSchoolProfile,
+            ...base,
+            ...(parsed || {}),
+            logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed?.logoUrl || base?.logoUrl || initialSchoolProfile.logoUrl),
+          };
+        });
       } catch (e) {}
     };
 
