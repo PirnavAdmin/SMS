@@ -8,7 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
-import { teacherCheckInApi, teacherCheckOutApi } from '../../../api/attendance';
+import { teacherCheckInApi, teacherCheckOutApi, fetchTeacherTodayAttendanceApi } from '../../../api/attendance';
 
 export interface WardenAttendanceRecord {
   id: string;
@@ -110,6 +110,36 @@ export const WardenAttendanceView: React.FC = () => {
     if (storedDate && storedDate !== todayStr) return false;
     return localStorage.getItem('warden_is_checked_out') === 'true';
   });
+
+  // Load today's check-in status from backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadTodayStatus = async () => {
+      try {
+        const res: any = await fetchTeacherTodayAttendanceApi();
+        if (isMounted && res) {
+          const attendanceData = res?.attendance || res;
+          if (attendanceData && attendanceData.inTime) {
+            const inTimeStr = attendanceData.inTime;
+            setCheckInTime(inTimeStr);
+            localStorage.setItem('warden_check_in_time', inTimeStr);
+            localStorage.setItem('warden_attendance_date', todayStr);
+            if (attendanceData.outTime) {
+              const outTimeStr = attendanceData.outTime;
+              setCheckOutTime(outTimeStr);
+              localStorage.setItem('warden_check_out_time', outTimeStr);
+              localStorage.setItem('warden_is_checked_out', 'true');
+              setIsCheckedOut(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load today warden attendance from server", err);
+      }
+    };
+    loadTodayStatus();
+    return () => { isMounted = false; };
+  }, [todayStr]);
 
   // 3. Attendance Logs List State
   const [attendanceLogs, setAttendanceLogs] = useState<WardenAttendanceRecord[]>(() => {

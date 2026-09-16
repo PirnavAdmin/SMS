@@ -567,9 +567,18 @@ public class StaffService : IStaffService
         foreach (var rec in dto.Records)
         {
             var staff = await _schoolRepository.GetStaffByIdAsync(rec.StaffId);
+            if (staff == null)
+            {
+                var staffIdStr = rec.StaffId.ToString();
+                staff = await _context.Staff.FirstOrDefaultAsync(s =>
+                    s.StaffId == rec.StaffId ||
+                    (s.EmployeeId != null && (s.EmployeeId == staffIdStr || s.EmployeeId.EndsWith(staffIdStr))));
+            }
             if (staff == null) continue;
 
-            if (existingMap.TryGetValue(rec.StaffId, out var existing))
+            int targetStaffId = staff.StaffId;
+
+            if (existingMap.TryGetValue(targetStaffId, out var existing))
             {
                 existing.Status = rec.Status;
                 existing.Remarks = rec.Remarks;
@@ -584,7 +593,7 @@ public class StaffService : IStaffService
             {
                 var newRec = new StaffAttendance
                 {
-                    StaffId = staff.StaffId,
+                    StaffId = targetStaffId,
                     Date = parsedDate,
                     Status = rec.Status,
                     AcademicYear = dto.AcademicYear ?? "2026-2027",
@@ -596,6 +605,7 @@ public class StaffService : IStaffService
                     OutTime = rec.OutTime
                 };
                 await _context.StaffAttendances.AddAsync(newRec);
+                existingMap[targetStaffId] = newRec;
             }
         }
 

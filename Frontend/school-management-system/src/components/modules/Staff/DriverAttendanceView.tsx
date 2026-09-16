@@ -49,9 +49,9 @@ export const DriverAttendanceView: React.FC = () => {
     }
 
     return {
-      id: '1',
-      driverName: user?.name || 'Nag Sahoo',
-      employeeId: 'DRV-001'
+      id: user?.id || '1',
+      driverName: user?.name || user?.email || 'Driver',
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || 'DRV-001'
     };
   }, [user, driverMasters, staff]);
 

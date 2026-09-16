@@ -303,7 +303,21 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         wardAttendance: []
       };
     }
-    const wardAtt = attendance.filter(a => a.entityType === 'Student' && a.entityId === currentWard.id);
+    const wardId = String(currentWard?.id || '').trim();
+    const wardRoll = String(currentWard?.rollNo || '').trim();
+    const wardAdm = String(currentWard?.admissionNo || '').trim();
+
+    const wardAtt = (attendance || []).filter(a => {
+      const isStudentEntity = !a.entityType || a.entityType === 'Student';
+      if (!isStudentEntity) return false;
+
+      const recId = String(a.studentId || a.entityId || '').trim();
+      return recId && (
+        recId === wardId ||
+        (wardRoll && recId === wardRoll) ||
+        (wardAdm && recId === wardAdm)
+      );
+    });
     let present = 0;
     let absent = 0;
     let late = 0;
@@ -415,7 +429,19 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const wardAttendance = wardAttendanceStats.wardAttendance;
   const attPercentage = wardAttendanceStats.presentPct;
 
-  const pendingHomework = homework.filter(h => currentWard && h.className === currentWard.className && h.section === currentWard.section && new Date(h.dueDate) >= new Date()).length;
+  const normClsP = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
+  const wClsNormP = normClsP(currentWard?.className);
+  const wSecNormP = normClsP(currentWard?.section);
+
+  const pendingHomework = (homework || []).filter(h => {
+    if (!currentWard) return false;
+    const hClsNorm = normClsP(h.className);
+    const hSecNorm = normClsP(h.section);
+    const matchesClass = hClsNorm === wClsNormP || hClsNorm.includes(wClsNormP) || wClsNormP.includes(hClsNorm);
+    const matchesSec = !wSecNormP || !hSecNorm || hSecNorm === wSecNormP;
+    const isFutureOrToday = !h.dueDate || new Date(h.dueDate) >= new Date();
+    return matchesClass && matchesSec && isFutureOrToday;
+  }).length;
 
   // Real data for notices
   const recentNotices = [
