@@ -42,47 +42,54 @@ public class StudentTransportService : IStudentTransportService
             // Fallback gracefully if database is unreachable
         }
 
+        var student = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(s => s.AdmissionId == targetStudentId);
+        var driver = await _context.Staff.AsNoTracking().FirstOrDefaultAsync(s => s.Designation != null && s.Designation.ToLower().Contains("driver"));
+
+        string sName = student != null ? (student.StudentName ?? string.Empty).Trim() : string.Empty;
+        string cName = string.Empty;
+        string admNo = student?.ApplicationNo ?? string.Empty;
+
         // Strict Requirement: If student is registered as a hosteller, she/he should NOT appear in transport tab
         if (isHosteller)
         {
             return new StudentTransportResponseDto
             {
                 StudentId = targetStudentId,
-                StudentName = "Alexander Wright",
-                ClassName = "Class 10-A",
-                AdmissionNo = "ADM2024-001",
+                StudentName = sName,
+                ClassName = cName,
+                AdmissionNo = admNo,
                 StudentType = "Residential",
                 IsHosteller = true,
                 HasTransportAccess = false,
-                Message = "Alexander is registered as a Residential student and does not use school transport facilities."
+                Message = $"{sName} is registered as a Residential student and does not use school transport facilities."
             };
         }
 
-        // Return transport details matching the UI screenshots
+        // Return transport details dynamically
         return new StudentTransportResponseDto
         {
             StudentId = targetStudentId,
-            StudentName = "Alexander Wright",
-            ClassName = "Class 10-A",
-            AdmissionNo = "ADM2024-001",
+            StudentName = sName,
+            ClassName = cName,
+            AdmissionNo = admNo,
             StudentType = "Non-Residential",
             IsHosteller = false,
             HasTransportAccess = true,
             Message = "Student is assigned to campus transport facilities.",
             RfidBoarded = true,
-            RfidBoardingStatus = "Boarded (07:22 AM via RFID)",
-            EtaMinutes = "6 Mins",
-            RouteNumber = "R-NORTH-101",
-            RouteName = "Route A - North Suburbs Express",
-            PickupStop = "Miyapur Junction",
-            MorningPickupTime = "07:15 AM",
-            EveningDropTime = "04:15 PM",
-            BusNumber = "BUS-101",
-            RegistrationNumber = "NY-99-AB-1001",
-            DriverName = "Michael Scott",
-            DriverPhone = "+1 555-333-111",
-            AttendantName = "Mary Smith",
-            AttendantPhone = "+1 (555) 019-8274",
+            RfidBoardingStatus = "Boarded via RFID",
+            EtaMinutes = string.Empty,
+            RouteNumber = string.Empty,
+            RouteName = string.Empty,
+            PickupStop = string.Empty,
+            MorningPickupTime = string.Empty,
+            EveningDropTime = string.Empty,
+            BusNumber = string.Empty,
+            RegistrationNumber = string.Empty,
+            DriverName = driver != null ? $"{driver.FirstName} {driver.LastName}".Trim() : string.Empty,
+            DriverPhone = driver?.Phone ?? string.Empty,
+            AttendantName = string.Empty,
+            AttendantPhone = string.Empty,
             GpsStatus = "Live GPS Active"
         };
     }

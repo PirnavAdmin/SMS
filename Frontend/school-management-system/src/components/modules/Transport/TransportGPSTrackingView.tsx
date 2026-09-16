@@ -553,7 +553,7 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
                 </div>
                 <div className="flex justify-between items-center p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 text-[11px]">Assigned Driver</span>
-                  <span className="font-bold text-sky-600 text-[11px]">{selectedVehicle.driver?.driverName || 'Nag Sahoo'}</span>
+                  <span className="font-bold text-sky-600 text-[11px]">{selectedVehicle.driver?.driverName || 'Unassigned'}</span>
                 </div>
                 <div className="flex justify-between items-center p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 text-[11px]">Bus Attendant</span>

@@ -6,30 +6,30 @@ public class StudentTransportResponseDto
 {
     public int StudentId { get; set; }
     public string StudentName { get; set; } = string.Empty;
-    public string ClassName { get; set; } = "Class 10-A";
-    public string AdmissionNo { get; set; } = "ADM2024-001";
+    public string ClassName { get; set; } = string.Empty;
+    public string AdmissionNo { get; set; } = string.Empty;
     public string StudentType { get; set; } = "Non-Residential";
     public bool IsHosteller { get; set; } = false;
     public bool HasTransportAccess { get; set; } = true;
     public string Message { get; set; } = string.Empty;
 
-    public bool RfidBoarded { get; set; } = true;
-    public string RfidBoardingStatus { get; set; } = "Boarded (07:22 AM via RFID)";
-    public string EtaMinutes { get; set; } = "6 Mins";
+    public bool RfidBoarded { get; set; } = false;
+    public string RfidBoardingStatus { get; set; } = string.Empty;
+    public string EtaMinutes { get; set; } = string.Empty;
 
-    public string RouteNumber { get; set; } = "R-NORTH-101";
-    public string RouteName { get; set; } = "Route A - North Suburbs Express";
-    public string PickupStop { get; set; } = "Miyapur Junction";
-    public string MorningPickupTime { get; set; } = "07:15 AM";
-    public string EveningDropTime { get; set; } = "04:15 PM";
+    public string RouteNumber { get; set; } = string.Empty;
+    public string RouteName { get; set; } = string.Empty;
+    public string PickupStop { get; set; } = string.Empty;
+    public string MorningPickupTime { get; set; } = string.Empty;
+    public string EveningDropTime { get; set; } = string.Empty;
 
-    public string BusNumber { get; set; } = "BUS-101";
-    public string RegistrationNumber { get; set; } = "NY-99-AB-1001";
-    public string DriverName { get; set; } = "Michael Scott";
-    public string DriverPhone { get; set; } = "+1 555-333-111";
-    public string AttendantName { get; set; } = "Mary Smith";
-    public string AttendantPhone { get; set; } = "+1 (555) 019-8274";
-    public string GpsStatus { get; set; } = "Live GPS Active";
+    public string BusNumber { get; set; } = string.Empty;
+    public string RegistrationNumber { get; set; } = string.Empty;
+    public string DriverName { get; set; } = string.Empty;
+    public string DriverPhone { get; set; } = string.Empty;
+    public string AttendantName { get; set; } = string.Empty;
+    public string AttendantPhone { get; set; } = string.Empty;
+    public string GpsStatus { get; set; } = string.Empty;
 }
 
 public class TransportDropdownOptionsDto
