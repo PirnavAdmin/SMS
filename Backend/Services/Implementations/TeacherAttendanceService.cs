@@ -18,7 +18,17 @@ public class TeacherAttendanceService : ITeacherAttendanceService
     public async Task<TeacherAttendanceDto?>
         GetTodayAttendanceAsync(string teacherEmail)
     {
-        var teacher = await GetTeacherAsync(teacherEmail);
+        if (string.IsNullOrWhiteSpace(teacherEmail))
+        {
+            return null;
+        }
+
+        var normalizedEmail = teacherEmail.Trim();
+        var teacher = await _repository.GetTeacherByEmailAsync(normalizedEmail);
+        if (teacher == null)
+        {
+            return null;
+        }
 
         var attendance =
             await _repository.GetTodayAttendanceAsync(
