@@ -138,7 +138,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterHostel, setFilterHostel] = useState('');
+  const [filterHostel, setFilterHostel] = useState('All');
 
   const wardenAssignedBlocks = React.useMemo(() => {
     if (!isWarden) return blocks;
@@ -168,7 +168,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
 
   useEffect(() => {
-    if (isWarden && targetBlocks.length > 0 && !filterHostel) {
+    if (isWarden && targetBlocks.length > 0 && (!filterHostel || filterHostel === 'All')) {
       setFilterHostel(String(targetBlocks[0].hostelId));
     }
   }, [isWarden, targetBlocks, filterHostel]);

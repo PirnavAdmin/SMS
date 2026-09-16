@@ -27,7 +27,7 @@ export const HostelReportsView: React.FC = () => {
   const students = Array.isArray(dataContext?.students) ? dataContext.students : [];
   const admissions = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
 
-  const [selectedReport, setSelectedReport] = useState<string>(''); // Default empty prompt
+  const [selectedReport, setSelectedReport] = useState<string>('Block Report');
   const [manualReportInput, setManualReportInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHostel, setFilterHostel] = useState('');

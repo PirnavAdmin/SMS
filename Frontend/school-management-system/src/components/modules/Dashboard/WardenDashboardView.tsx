@@ -166,13 +166,11 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     const handleSync = () => fetchMetrics();
     window.addEventListener("hostel_outpasses_updated", handleSync);
     window.addEventListener("residential_students_updated", handleSync);
-    window.addEventListener("storage", handleSync);
     return () => {
       window.removeEventListener("hostel_outpasses_updated", handleSync);
       window.removeEventListener("residential_students_updated", handleSync);
-      window.removeEventListener("storage", handleSync);
     };
-  }, [contextBlocks, contextRooms]);
+  }, []);
 
   const greeting =
     new Date().getHours() < 12
@@ -325,8 +323,17 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     }
 
     const uEmail = (user?.email || '').toLowerCase().trim();
+    const uPhone = (user?.phone || '').replace(/\D/g, '');
 
-    // 2. Match staff record by email in staff list from Admin login
+    // 2. Match staff record by email or phone in staff list
+    if (uPhone && uPhone.length >= 10) {
+      const matchedStaff = (staff || []).find(s => s.phone && s.phone.replace(/\D/g, '').endsWith(uPhone));
+      if (matchedStaff) {
+        const fullStaffName = `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim();
+        if (fullStaffName && !fullStaffName.toLowerCase().includes('admin')) return fullStaffName;
+      }
+    }
+
     if (uEmail) {
       const matchedStaff = (staff || []).find(s => s.email && s.email.toLowerCase().trim() === uEmail);
       if (matchedStaff) {

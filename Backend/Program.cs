@@ -3050,11 +3050,41 @@ using (var scope = app.Services.CreateScope())
                     `Status` VARCHAR(50) NOT NULL DEFAULT 'Published',
                     `AnnualDueDate` VARCHAR(50) NOT NULL DEFAULT '2026-04-15',
                     `OneTimeDueDate` VARCHAR(50) NOT NULL DEFAULT '2026-04-15',
+                    `ApplySameDayToAllMonths` TINYINT(1) NOT NULL DEFAULT 1,
+                    `MonthlyDueDay` INT NOT NULL DEFAULT 5,
                     `terms_json` LONGTEXT NULL,
                     `monthly_config_json` LONGTEXT NULL,
                     `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     UNIQUE KEY `uk_fee_schedules_ay` (`AcademicYear`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `fee_schedule_terms` (
+                    `Id` VARCHAR(100) NOT NULL PRIMARY KEY,
+                    `FeeScheduleId` VARCHAR(100) NOT NULL,
+                    `Sequence` INT NOT NULL DEFAULT 1,
+                    `TermName` VARCHAR(100) NOT NULL,
+                    `StartDate` VARCHAR(50) NOT NULL,
+                    `EndDate` VARCHAR(50) NOT NULL,
+                    `DueDate` VARCHAR(50) NOT NULL,
+                    `PercentageShare` DECIMAL(5,2) NOT NULL DEFAULT 25.00,
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_fst_feeschedule` (`FeeScheduleId`),
+                    CONSTRAINT `fk_fst_feeschedule` FOREIGN KEY (`FeeScheduleId`) REFERENCES `fee_schedules` (`Id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `fee_schedule_monthly_dates` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `FeeScheduleId` VARCHAR(100) NOT NULL,
+                    `MonthIndex` INT NOT NULL,
+                    `MonthName` VARCHAR(50) NOT NULL,
+                    `DueDate` VARCHAR(50) NOT NULL,
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_fsmd_feeschedule` (`FeeScheduleId`),
+                    CONSTRAINT `fk_fsmd_feeschedule` FOREIGN KEY (`FeeScheduleId`) REFERENCES `fee_schedules` (`Id`) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
                 CREATE TABLE IF NOT EXISTS `scholarships` (

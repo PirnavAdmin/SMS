@@ -4,5 +4,6 @@ namespace SMS.Api.Dtos.Auth;
 
 public record LoginRequestDto(
     [Required] string EmailOrPhone,
-    [Required] string Password
+    [Required] string Password,
+    string? Portal = null
 );

@@ -20,9 +20,17 @@ public class FeeSchedule
 
     public string OneTimeDueDate { get; set; } = "2026-04-15";
 
+    public bool ApplySameDayToAllMonths { get; set; } = true;
+
+    public int MonthlyDueDay { get; set; } = 5;
+
     public string? TermsJson { get; set; }
 
     public string? MonthlyConfigJson { get; set; }
+
+    public List<FeeScheduleTerm> Terms { get; set; } = new();
+
+    public List<FeeScheduleMonthlyDate> MonthlyDates { get; set; } = new();
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

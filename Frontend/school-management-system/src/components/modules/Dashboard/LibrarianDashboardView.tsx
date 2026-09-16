@@ -132,7 +132,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-                <span>{greeting}, {user?.name || 'Bhanu Prakash'}</span>
+                <span>{greeting}, {user?.name || 'Librarian'}</span>
                 <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
               </h1>
             </div>
@@ -247,7 +247,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-3 text-xs">
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-slate-500 font-medium">Logged-in Account:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{user?.name || 'Bhanu Prakash'}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{user?.name || 'Librarian'}</span>
               </div>
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-slate-500 font-medium">Desk Duty Hours:</span>

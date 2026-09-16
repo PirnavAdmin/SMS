@@ -351,17 +351,47 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     {
         string ay = string.IsNullOrWhiteSpace(academicYear) ? "2026-2027" : academicYear.Trim();
         var entity = await _context.FeeSchedules.AsNoTracking()
+            .Include(s => s.Terms)
+            .Include(s => s.MonthlyDates)
             .FirstOrDefaultAsync(s => s.AcademicYear == ay);
 
         if (entity != null)
         {
-            var terms = !string.IsNullOrEmpty(entity.TermsJson)
-                ? JsonSerializer.Deserialize<List<FeeScheduleTermDto>>(entity.TermsJson) ?? new()
-                : new();
+            var terms = entity.Terms != null && entity.Terms.Count > 0
+                ? entity.Terms.OrderBy(t => t.Sequence).Select(t => new FeeScheduleTermDto
+                {
+                    Id = t.Id,
+                    Sequence = t.Sequence,
+                    TermName = t.TermName,
+                    StartDate = t.StartDate,
+                    EndDate = t.EndDate,
+                    DueDate = t.DueDate,
+                    Status = t.Status,
+                    PercentageShare = (double)t.PercentageShare
+                }).ToList()
+                : (!string.IsNullOrEmpty(entity.TermsJson)
+                    ? JsonSerializer.Deserialize<List<FeeScheduleTermDto>>(entity.TermsJson) ?? new()
+                    : new());
 
-            var monthly = !string.IsNullOrEmpty(entity.MonthlyConfigJson)
-                ? JsonSerializer.Deserialize<MonthlyDueDateConfigDto>(entity.MonthlyConfigJson)
-                : null;
+            MonthlyDueDateConfigDto? monthly = null;
+            if (entity.MonthlyDates != null && entity.MonthlyDates.Count > 0)
+            {
+                monthly = new MonthlyDueDateConfigDto
+                {
+                    ApplySameDayToAllMonths = entity.ApplySameDayToAllMonths,
+                    DueDay = entity.MonthlyDueDay,
+                    MonthDueDates = entity.MonthlyDates.OrderBy(m => m.MonthIndex).Select(m => new MonthDueDateItemDto
+                    {
+                        MonthIndex = m.MonthIndex,
+                        MonthName = m.MonthName,
+                        DueDate = m.DueDate
+                    }).ToList()
+                };
+            }
+            else if (!string.IsNullOrEmpty(entity.MonthlyConfigJson))
+            {
+                monthly = JsonSerializer.Deserialize<MonthlyDueDateConfigDto>(entity.MonthlyConfigJson);
+            }
 
             return new FeeScheduleConfigDto
             {
@@ -387,10 +417,10 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             OneTimeDueDate = "2026-04-15",
             Terms = new List<FeeScheduleTermDto>
             {
-                new FeeScheduleTermDto { Id = $"T1-{ay}", TermName = "Term 1", StartDate = "2026-04-01", EndDate = "2026-06-30", DueDate = "2026-04-15", Sequence = 1, Status = "Active" },
-                new FeeScheduleTermDto { Id = $"T2-{ay}", TermName = "Term 2", StartDate = "2026-07-01", EndDate = "2026-09-30", DueDate = "2026-07-15", Sequence = 2, Status = "Active" },
-                new FeeScheduleTermDto { Id = $"T3-{ay}", TermName = "Term 3", StartDate = "2026-10-01", EndDate = "2026-12-31", DueDate = "2026-10-15", Sequence = 3, Status = "Active" },
-                new FeeScheduleTermDto { Id = $"T4-{ay}", TermName = "Term 4", StartDate = "2027-01-01", EndDate = "2027-03-31", DueDate = "2027-01-15", Sequence = 4, Status = "Active" }
+                new FeeScheduleTermDto { Id = $"T1-{ay}", TermName = "Term 1", StartDate = "2026-04-01", EndDate = "2026-06-30", DueDate = "2026-04-15", Sequence = 1, Status = "Active", PercentageShare = 25.0 },
+                new FeeScheduleTermDto { Id = $"T2-{ay}", TermName = "Term 2", StartDate = "2026-07-01", EndDate = "2026-09-30", DueDate = "2026-07-15", Sequence = 2, Status = "Active", PercentageShare = 25.0 },
+                new FeeScheduleTermDto { Id = $"T3-{ay}", TermName = "Term 3", StartDate = "2026-10-01", EndDate = "2026-12-31", DueDate = "2026-10-15", Sequence = 3, Status = "Active", PercentageShare = 25.0 },
+                new FeeScheduleTermDto { Id = $"T4-{ay}", TermName = "Term 4", StartDate = "2027-01-01", EndDate = "2027-03-31", DueDate = "2027-01-15", Sequence = 4, Status = "Active", PercentageShare = 25.0 }
             },
             MonthlyConfig = new MonthlyDueDateConfigDto
             {
@@ -407,10 +437,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         string ay = string.IsNullOrWhiteSpace(schedule.AcademicYear) ? "2026-2027" : schedule.AcademicYear.Trim();
         string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
 
-        var existing = await _context.FeeSchedules.FirstOrDefaultAsync(s => s.AcademicYear == ay || s.Id == sId);
+        var existing = await _context.FeeSchedules
+            .Include(s => s.Terms)
+            .Include(s => s.MonthlyDates)
+            .FirstOrDefaultAsync(s => s.AcademicYear == ay || s.Id == sId);
 
-        string termsJson = JsonSerializer.Serialize(schedule.Terms ?? new());
-        string? monthlyJson = schedule.MonthlyConfig != null ? JsonSerializer.Serialize(schedule.MonthlyConfig) : null;
+        bool applySameDay = schedule.MonthlyConfig?.ApplySameDayToAllMonths ?? true;
+        int monthlyDueDay = schedule.MonthlyConfig?.DueDay ?? 5;
 
         if (existing != null)
         {
@@ -418,14 +451,16 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             existing.Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status;
             existing.AnnualDueDate = schedule.AnnualDueDate ?? "2026-04-15";
             existing.OneTimeDueDate = schedule.OneTimeDueDate ?? "2026-04-15";
-            existing.TermsJson = termsJson;
-            existing.MonthlyConfigJson = monthlyJson;
+            existing.ApplySameDayToAllMonths = applySameDay;
+            existing.MonthlyDueDay = monthlyDueDay;
+            existing.TermsJson = null;
+            existing.MonthlyConfigJson = null;
             existing.UpdatedAt = DateTime.UtcNow;
             _context.FeeSchedules.Update(existing);
         }
         else
         {
-            var newEntity = new FeeSchedule
+            existing = new FeeSchedule
             {
                 Id = sId,
                 AcademicYear = ay,
@@ -433,12 +468,68 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status,
                 AnnualDueDate = schedule.AnnualDueDate ?? "2026-04-15",
                 OneTimeDueDate = schedule.OneTimeDueDate ?? "2026-04-15",
-                TermsJson = termsJson,
-                MonthlyConfigJson = monthlyJson,
+                ApplySameDayToAllMonths = applySameDay,
+                MonthlyDueDay = monthlyDueDay,
+                TermsJson = null,
+                MonthlyConfigJson = null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            await _context.FeeSchedules.AddAsync(newEntity);
+            await _context.FeeSchedules.AddAsync(existing);
+        }
+
+        // 1. Sync Terms in child table fee_schedule_terms
+        var oldTerms = await _context.FeeScheduleTerms.Where(t => t.FeeScheduleId == sId).ToListAsync();
+        if (oldTerms.Count > 0)
+        {
+            _context.FeeScheduleTerms.RemoveRange(oldTerms);
+        }
+
+        if (schedule.Terms != null && schedule.Terms.Count > 0)
+        {
+            foreach (var t in schedule.Terms)
+            {
+                string termId = string.IsNullOrWhiteSpace(t.Id) ? $"T{t.Sequence}-{ay}" : t.Id;
+                var termEntity = new FeeScheduleTerm
+                {
+                    Id = termId,
+                    FeeScheduleId = sId,
+                    Sequence = t.Sequence,
+                    TermName = string.IsNullOrWhiteSpace(t.TermName) ? $"Term {t.Sequence}" : t.TermName,
+                    StartDate = t.StartDate ?? "2026-04-01",
+                    EndDate = t.EndDate ?? "2026-06-30",
+                    DueDate = t.DueDate ?? "2026-04-15",
+                    PercentageShare = (decimal)t.PercentageShare,
+                    Status = string.IsNullOrWhiteSpace(t.Status) ? "Active" : t.Status,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await _context.FeeScheduleTerms.AddAsync(termEntity);
+            }
+        }
+
+        // 2. Sync Monthly Dates in child table fee_schedule_monthly_dates
+        var oldMonths = await _context.FeeScheduleMonthlyDates.Where(m => m.FeeScheduleId == sId).ToListAsync();
+        if (oldMonths.Count > 0)
+        {
+            _context.FeeScheduleMonthlyDates.RemoveRange(oldMonths);
+        }
+
+        if (schedule.MonthlyConfig?.MonthDueDates != null && schedule.MonthlyConfig.MonthDueDates.Count > 0)
+        {
+            foreach (var m in schedule.MonthlyConfig.MonthDueDates)
+            {
+                var monthEntity = new FeeScheduleMonthlyDate
+                {
+                    FeeScheduleId = sId,
+                    MonthIndex = m.MonthIndex,
+                    MonthName = m.MonthName ?? string.Empty,
+                    DueDate = m.DueDate ?? string.Empty,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await _context.FeeScheduleMonthlyDates.AddAsync(monthEntity);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -537,6 +628,9 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var classes = await _context.Classes.AsNoTracking().ToListAsync();
         var students = await _context.Students.AsNoTracking().Where(s => !s.IsDeleted && s.Status == "Active").ToListAsync();
         var payments = await _context.FeePayments.AsNoTracking().ToListAsync();
+        var structures = await _context.DynamicFeeStructures.AsNoTracking()
+            .Where(s => s.Status == "Active" || string.IsNullOrEmpty(s.Status))
+            .ToListAsync();
 
         var result = new List<ClassWiseCollectionReportRowDto>();
         foreach (var cls in classes)
@@ -547,7 +641,14 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
             var classPayments = payments.Where(p => studentIds.Contains(p.StudentId) || admNos.Contains(p.StudentId)).ToList();
             decimal collected = classPayments.Sum(p => p.Amount);
-            decimal expected = classStudents.Count * 45000m;
+
+            var matchedStructure = structures.FirstOrDefault(s =>
+                !string.IsNullOrEmpty(s.ClassName) &&
+                (s.ClassName.Equals(cls.ClassName, StringComparison.OrdinalIgnoreCase) ||
+                 s.ClassName.Replace(" ", "").Equals(cls.ClassName?.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)));
+
+            decimal feePerStudent = matchedStructure?.TotalAmount ?? 0m;
+            decimal expected = classStudents.Count * feePerStudent;
             decimal dues = Math.Max(0m, expected - collected);
 
             result.Add(new ClassWiseCollectionReportRowDto

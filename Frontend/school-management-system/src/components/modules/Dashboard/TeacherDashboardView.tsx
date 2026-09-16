@@ -99,6 +99,31 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       }
     }
 
+    // Direct phone match in teaching staff
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
+    if (userPhone && userPhone.length >= 10) {
+      const byPhone = teachingStaff.find(s => s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone));
+      if (byPhone) {
+        return byPhone;
+      }
+    }
+
+    // Construct dynamic profile from logged-in user context if name is present
+    const rawName = (user?.name || '').trim();
+    if (rawName && rawName.toLowerCase() !== 'teacher' && rawName.toLowerCase() !== 'user') {
+      const nameParts = rawName.split(' ');
+      const firstName = nameParts[0] || 'Teacher';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      return {
+        id: user?.id || 'STF-TEACHER',
+        empId: (user as any)?.empId || user?.id || 'STF-TEACHER',
+        firstName,
+        lastName,
+        department: 'Academic',
+        designation: 'Teacher'
+      };
+    }
+
     // Dynamic fallback matching logged-in user context
     const fallback = teachingStaff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || teachingStaff[0];
     if (fallback) {
@@ -110,16 +135,16 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     }
 
     // Construct dynamic profile from logged-in user context
-    const rawName = user?.name || 'Robert Teacher';
-    const nameParts = rawName.split(' ');
-    const firstName = nameParts[0] || 'Robert';
-    const lastName = nameParts.slice(1).join(' ') || 'Teacher';
+    const defaultName = rawName || 'Robert Teacher';
+    const nameParts = defaultName.split(' ');
+    const defaultFirstName = nameParts[0] || 'Robert';
+    const defaultLastName = nameParts.slice(1).join(' ') || 'Teacher';
 
     return {
       id: user?.id || 'STF-2026-0009',
       empId: (user as any)?.empId || 'STF-2026-0009',
-      firstName,
-      lastName,
+      firstName: defaultFirstName,
+      lastName: defaultLastName,
       department: 'Social Studies',
       designation: 'Junior Teacher'
     };

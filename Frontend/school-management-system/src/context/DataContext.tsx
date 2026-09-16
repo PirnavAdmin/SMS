@@ -2726,9 +2726,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeInstallments, setStudentFeeInstallments] = useState<
     StudentFeeInstallment[]
   >(() => {
-    const version = localStorage.getItem("edu_db_clear_extra_paid_v100");
+    const version = localStorage.getItem("edu_db_full_ledgers_v110_dynamic_only");
     if (!version) {
-      localStorage.setItem("edu_db_clear_extra_paid_v100", "true");
+      localStorage.setItem("edu_db_full_ledgers_v110_dynamic_only", "true");
       localStorage.removeItem("student_fee_installments");
       localStorage.removeItem("edu_db_student_fee_installments");
       return [];
@@ -2740,11 +2740,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<
     StudentFeeLedger[]
   >(() => {
-    const version = localStorage.getItem("edu_db_full_ledgers_v102_nomock");
+    const version = localStorage.getItem("edu_db_full_ledgers_v112_exact_classes");
     if (!version) {
-      localStorage.setItem("edu_db_full_ledgers_v102_nomock", "true");
+      localStorage.setItem("edu_db_full_ledgers_v112_exact_classes", "true");
       localStorage.removeItem("student_fee_ledgers");
       localStorage.removeItem("edu_db_student_fee_ledgers");
+      localStorage.removeItem("student_fee_installments");
+      localStorage.removeItem("edu_db_student_fee_installments");
+      localStorage.removeItem("edu_db_fee_payments");
+      localStorage.removeItem("fee_payments");
+      localStorage.removeItem("edu_db_full_ledgers_v110_dynamic_only");
+      localStorage.removeItem("edu_db_full_ledgers_v105_realmysql");
+      localStorage.removeItem("edu_db_full_ledgers_v106_strictly_dynamic");
+      localStorage.removeItem("edu_db_full_ledgers_v107_strictly_dynamic");
+      localStorage.removeItem("edu_db_clear_extra_paid_v100");
+      return [];
     }
     const stored = getStored("student_fee_ledgers", initialStudentFeeLedgers);
     return stored.map((ledger) => {
@@ -4211,6 +4221,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(studentFeeLedgers),
     );
   }, [studentFeeLedgers]);
+
+  // Synchronize studentFeeLedgers with dynamicFeeStructures from MySQL:
+  // Immediately reset any ledger whose class has no active fee structure and no student assignment
+  useEffect(() => {
+    if (!dynamicFeeStructures || dynamicFeeStructures.length === 0) return;
+    setStudentFeeLedgers((prev) => {
+      let changed = false;
+      const next = prev.map((ledger) => {
+        const hasAssign = studentFeeAssignments.some(
+          (a) => a.studentId === ledger.studentId && a.status === "Active",
+        );
+        const hasDfs = dynamicFeeStructures.some(
+          (d) => matchesClassName(d.className, ledger.className) && (d.status === "Active" || !d.status),
+        );
+        if (!hasAssign && !hasDfs && (ledger.totalPayable > 0 || ledger.grossAmount > 0 || ledger.feeItems.length > 0)) {
+          changed = true;
+          return buildStudentFeeLedgerObject(ledger.studentId, undefined, ledger.academicYear);
+        }
+        return ledger;
+      });
+      return changed ? next : prev;
+    });
+  }, [dynamicFeeStructures, studentFeeAssignments]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -7991,49 +8024,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           let baseItems: any[] = [];
           if (dfs && dfs.items && dfs.items.length > 0) {
             baseItems = [...dfs.items];
-          } else {
-            // Find active fee heads applicable to this class from master fee heads
-            const applicableHeads = (feeHeads || []).filter((h) =>
-              h.status === "Active" &&
-              (!h.applicableClasses ||
-                h.applicableClasses.length === 0 ||
-                h.applicableClasses.some((c) => matchesClassName(c, clsName)) ||
-                h.applicableClasses.includes("All")),
-            );
-            baseItems = applicableHeads.map((h) => ({
-              feeHeadId: h.id,
-              feeHeadName: h.name,
-              category: h.category,
-              amount: h.amount || 0,
-            }));
-          }
-
-          if (
-            baseItems.length === 0 ||
-            !baseItems.some(
-              (i) =>
-                (i.feeHeadName || i.name || "").toLowerCase().includes("tuition") ||
-                (i.category || "").toLowerCase().includes("tuition"),
-            )
-          ) {
-            const defaultAcademicHeads = [
-              { feeHeadId: "FH-01", feeHeadName: "Tuition Fee", category: "Tuition Fee", amount: 25000 },
-              { feeHeadId: "FH-02", feeHeadName: "Admission Fee", category: "Admission Fee", amount: 5000 },
-              { feeHeadId: "FH-03", feeHeadName: "Books & Stationery Fee", category: "Books Fee", amount: 4500 },
-              { feeHeadId: "FH-04", feeHeadName: "Examination & Assessment Fee", category: "Exam Fee", amount: 2500 },
-              { feeHeadId: "FH-05", feeHeadName: "Science & Computer Lab Fee", category: "Lab Fee", amount: 2000 },
+          } else if (dfs && dfs.totalAmount > 0) {
+            baseItems = [
+              {
+                feeHeadId: "FH-BASE",
+                feeHeadName: "School Fee",
+                category: "Tuition Fee",
+                amount: dfs.totalAmount,
+              },
             ];
-            defaultAcademicHeads.forEach((d) => {
-              if (
-                !baseItems.some(
-                  (b) =>
-                    b.feeHeadId === d.feeHeadId ||
-                    (b.feeHeadName || "").toLowerCase() === d.feeHeadName.toLowerCase(),
-                )
-              ) {
-                baseItems.push(d);
-              }
-            });
+          } else {
+            baseItems = [];
           }
 
           const selectedOptional = app.selectedOptionalFees || [];
@@ -8129,7 +8130,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ? (pObj.monthlyFee ?? 0)
                 : ftc
                   ? ftc.feeAmount
-                  : 5500;
+                  : 0;
             additionalFees += pFee;
           } else if (
             (app.studentType === "Hosteller" ||
@@ -8163,7 +8164,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 financeHostelConfigs.find((c) => c.status === "Active") ||
                 financeHostelConfigs[0];
             }
-            additionalFees += fhc ? fhc.hostelFee : 40000;
+            additionalFees += fhc ? fhc.hostelFee : 0;
             if (fhc && fhc.securityDeposit !== undefined)
               additionalFees += fhc.securityDeposit;
           }
@@ -8178,7 +8179,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     i.feeHeadId === "FH-001" ||
                     i.feeHeadName === "Tuition Fee" ||
                     i.feeHeadId === "FH-01",
-                )?.amount || 25000;
+                )?.amount || 0;
               const sVal =
                 sObj.discountType === "Percentage"
                   ? sObj.percentage || 0
@@ -8205,7 +8206,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     i.feeHeadId === "FH-001" ||
                     i.feeHeadName === "Tuition Fee" ||
                     i.feeHeadId === "FH-01",
-                )?.amount || 25000;
+                )?.amount || 0;
               discountAmount =
                 dObj.mode === "Percentage"
                   ? (tuitionFeeAmount * dObj.value) / 100
@@ -9257,14 +9258,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addFeePayment = (
     paymentData: Omit<FeePayment, "id" | "receiptNo">,
   ): FeePayment => {
-    FinanceAPI.createFeePaymentApi(paymentData).catch((err) => {
-      console.warn("Fee payment API failed, continuing with local state", err);
-    });
-    const id = "PAY-" + Math.floor(100 + Math.random() * 900);
     const receiptNo =
+      (paymentData as any).receiptNo ||
       financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
+    const id = "PAY-" + Math.floor(100 + Math.random() * 900);
     const activeAY =
       selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+
+    FinanceAPI.createFeePaymentApi({ ...paymentData, receiptNo } as any)
+      .then(() => {
+        fetchFinanceData().catch(() => {});
+      })
+      .catch((err) => {
+        console.warn("Fee payment API failed, continuing with local state", err);
+      });
 
     let remainingAmountToAllocate = paymentData.amountPaid;
     const allocations: PaymentAllocationItem[] = [];
@@ -9508,6 +9515,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
+    const student = students.find(
+      (s) =>
+        s.id === paymentData.studentId ||
+        (s.admissionNo && s.admissionNo.toLowerCase() === paymentData.studentId.toLowerCase()),
+    );
+
+    // Ensure student's active ledger exists in nextLedgers and reflects the new payment
+    const ledgerIndex = nextLedgers.findIndex(
+      (l) =>
+        (l.studentId === paymentData.studentId ||
+          (student && l.studentId === student.id) ||
+          (student?.admissionNo && l.admissionNo === student.admissionNo)) &&
+        l.academicYear === activeAY,
+    );
+
+    if (ledgerIndex !== -1) {
+      const ledger = { ...nextLedgers[ledgerIndex] };
+      const newPaid = (ledger.paidAmount || 0) + paymentData.amountPaid;
+      const payable = ledger.totalPayable || ledger.grossAmount || 0;
+      ledger.paidAmount = newPaid;
+      ledger.dueBalance = Math.max(0, payable - newPaid);
+      ledger.updatedAt = new Date().toISOString().split("T")[0];
+      nextLedgers[ledgerIndex] = ledger;
+    } else {
+      const freshLedger = getStudentFeeLedger(paymentData.studentId, activeAY);
+      const newPaid = (freshLedger.paidAmount || 0) + paymentData.amountPaid;
+      const payable = freshLedger.totalPayable || freshLedger.grossAmount || 0;
+      const updatedFresh = {
+        ...freshLedger,
+        paidAmount: newPaid,
+        dueBalance: Math.max(0, payable - newPaid),
+        updatedAt: new Date().toISOString().split("T")[0],
+      };
+      nextLedgers.push(updatedFresh);
+    }
+
     setStudentFeeInstallments(nextInstallments);
     localStorage.setItem(
       "edu_db_student_fee_installments",
@@ -9522,12 +9565,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Synchronize Student Balance from updated ledgers
     const remainingTotalDue = nextLedgers
-      .filter((l) => l.studentId === paymentData.studentId)
+      .filter(
+        (l) =>
+          l.studentId === paymentData.studentId ||
+          (student && l.studentId === student.id) ||
+          (student?.admissionNo && l.admissionNo === student.admissionNo),
+      )
       .reduce((sum, l) => sum + (l.dueBalance || 0), 0);
 
     setStudents((prev) =>
       prev.map((s) => {
-        if (s.id === paymentData.studentId) {
+        const isTarget =
+          s.id === paymentData.studentId ||
+          (student && s.id === student.id) ||
+          (s.admissionNo &&
+            s.admissionNo.toLowerCase() === paymentData.studentId.toLowerCase()) ||
+          (student?.admissionNo &&
+            s.admissionNo?.toLowerCase() === student.admissionNo.toLowerCase());
+
+        if (isTarget) {
           const newPaidTotal = (s.paidFee || 0) + paymentData.amountPaid;
           return {
             ...s,
@@ -11790,10 +11846,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     // overlay existing payments allocations
-    const studentPayments = feePayments
+    const isPaymentForThisStudent = (p: FeePayment) => {
+      if (!p) return false;
+      const pSid = String(p.studentId || "").trim().toLowerCase();
+      const sId = String(studentId || "").trim().toLowerCase();
+      if (pSid === sId) return true;
+      const st = students.find((s) => s.id === studentId || (s.admissionNo && s.admissionNo.toLowerCase() === studentId.toLowerCase()));
+      if (st?.id && pSid === String(st.id).trim().toLowerCase()) return true;
+      if (st?.admissionNo && pSid === String(st.admissionNo).trim().toLowerCase()) return true;
+      return false;
+    };
+
+    const studentPayments = (feePayments || [])
       .filter(
         (p) =>
-          p.studentId === studentId &&
+          isPaymentForThisStudent(p) &&
           (p.academicYear === academicYear || !p.academicYear),
       )
       .sort(
@@ -11804,22 +11871,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     studentPayments.forEach((payment) => {
       if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
         payment.paymentAllocation.forEach((alloc) => {
-          if (alloc.academicYear === academicYear) {
+          if (alloc.academicYear === academicYear || !alloc.academicYear) {
             let remaining = alloc.amount;
-            installments
-              .filter((inst) => inst.dueAmount > 0)
-              .forEach((inst) => {
-                if (remaining <= 0) return;
-                const pay = Math.min(inst.dueAmount, remaining);
-                inst.paidAmount += pay;
-                inst.dueAmount -= pay;
-                inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+            if (alloc.installmentId) {
+              const matchedInst = installments.find(
+                (inst) => inst.id === alloc.installmentId && inst.dueAmount > 0,
+              );
+              if (matchedInst) {
+                const pay = Math.min(matchedInst.dueAmount, remaining);
+                matchedInst.paidAmount += pay;
+                matchedInst.dueAmount -= pay;
+                matchedInst.status = matchedInst.dueAmount === 0 ? "Paid" : "Partial";
                 remaining -= pay;
-              });
+              }
+            }
+            if (remaining > 0) {
+              installments
+                .filter((inst) => inst.dueAmount > 0)
+                .forEach((inst) => {
+                  if (remaining <= 0) return;
+                  const pay = Math.min(inst.dueAmount, remaining);
+                  inst.paidAmount += pay;
+                  inst.dueAmount -= pay;
+                  inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+                  remaining -= pay;
+                });
+            }
           }
         });
       } else {
-        let remaining = payment.amountPaid;
+        let remaining = Number(payment.amountPaid ?? (payment as any).amount) || 0;
         installments
           .filter((inst) => inst.dueAmount > 0)
           .forEach((inst) => {
@@ -12282,7 +12363,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         student?.gender || "Male",
         financeUniformConfigs,
         dynamicFeeStructures,
-      ) || 10000;
+      ) || 0;
 
     // Helper to identify uniform fee heads
     const isUniformHead = (headName: string) => {
@@ -12337,9 +12418,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       assignment.assignedFeeHeads.forEach((h) => {
         const isUni = isUniformHead(h.feeHeadName);
         const isSelected = isUni
-          ? selectedOptional !== null
-            ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName)
-            : false
+          ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName)
           : true;
         const uniFee = isUni
           ? getUniformFeeForClass(
@@ -12395,9 +12474,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!exists) {
           const isUni = isUniformHead(i.feeHeadName);
           const isSelected = isUni
-            ? selectedOptional !== null
-              ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName)
-              : false
+            ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName)
             : true;
           const uniFee = isUni
             ? getUniformFeeForClass(
@@ -12452,9 +12529,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         dfs.items.forEach((di) => {
           const isUni = isUniformHead(di.feeHeadName);
           const isSelected = isUni
-            ? selectedOptional !== null
-              ? isUniformOpted(selectedOptional, di.feeHeadId, di.feeHeadName)
-              : false
+            ? isUniformOpted(selectedOptional, di.feeHeadId, di.feeHeadName)
             : true;
           const uniFee = isUni
             ? getUniformFeeForClass(
@@ -12494,35 +12569,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: "Pending",
         });
       } else {
-        const applicableHeads = (feeHeads || []).filter((h) =>
-          h.status === "Active" &&
-          (!h.applicableClasses ||
-            h.applicableClasses.length === 0 ||
-            h.applicableClasses.some((c) => matchesClassName(c, clsName)) ||
-            h.applicableClasses.includes("All")),
-        );
-        applicableHeads.forEach((h) => {
-          const isUni = isUniformHead(h.name);
-          const isSelected = isUni
-            ? selectedOptional !== null
-              ? isUniformOpted(selectedOptional, h.id, h.name)
-              : false
-            : true;
-          const itemAmount = h.amount || 0;
-          ledgerItems.push({
-            headId: h.id,
-            headName: h.name,
-            category: h.category || "General Fee",
-            originalAmount: itemAmount,
-            scholarshipDeduction: 0,
-            discountDeduction: 0,
-            fineAmount: 0,
-            finalAmount: isSelected ? itemAmount : 0,
-            isApplicable: isSelected,
-            status: "Pending",
-            remarks: isSelected ? undefined : "Optional Fee - Not Selected at Admission",
-          });
-        });
+        // No assignment and no dynamic fee structure configured for this class in MySQL.
+        // Do NOT inject synthetic mock fee heads. Leave ledgerItems empty so dues remain 0.
       }
     }
 
@@ -12588,32 +12636,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (isTransportRequired && hasPickupPoint) {
-        transportApplicable = true;
-        if (!activeTransportAssign) {
-          activeTransportAssign = {
-            id: `STRP-AUTO-${studentId}`,
-            studentId,
-            studentName:
-              `${student?.firstName || admApp?.firstName || "Student"} ${student?.lastName || admApp?.lastName || ""}`.trim(),
-            admissionNo:
-              student?.admissionNo || admApp?.applicationNo || "ADM-001",
-            routeId:
-              (student as any)?.routeId || (admApp as any)?.routeId || "RM-01",
-            routeName:
-              (student as any)?.busRoute ||
-              (admApp as any)?.busRoute ||
-              (admApp as any)?.routeName ||
-              "Route 1",
-            pickupPoint:
-              (student as any)?.pickupPoint ||
-              (admApp as any)?.pickupPoint ||
-              "Main Stop",
-            feePlan: "Monthly",
-            feeAmount: 5500,
-            effectiveFrom:
-              student?.joiningDate || admApp?.admissionDate || "2026-04-01",
-            status: "Active",
-          };
+        const configuredTransportFee =
+          Number(activeTransportAssign?.feeAmount) ||
+          Number((student as any)?.transportFee) ||
+          Number((admApp as any)?.transportFee) ||
+          0;
+
+        if (configuredTransportFee > 0) {
+          transportApplicable = true;
+          if (!activeTransportAssign) {
+            activeTransportAssign = {
+              id: `STRP-AUTO-${studentId}`,
+              studentId,
+              studentName:
+                `${student?.firstName || admApp?.firstName || "Student"} ${student?.lastName || admApp?.lastName || ""}`.trim(),
+              admissionNo:
+                student?.admissionNo || admApp?.applicationNo || "ADM-001",
+              routeId:
+                (student as any)?.routeId || (admApp as any)?.routeId || "RM-01",
+              routeName:
+                (student as any)?.busRoute ||
+                (admApp as any)?.busRoute ||
+                (admApp as any)?.routeName ||
+                "Route 1",
+              pickupPoint:
+                (student as any)?.pickupPoint ||
+                (admApp as any)?.pickupPoint ||
+                "Main Stop",
+              feePlan: "Monthly",
+              feeAmount: configuredTransportFee,
+              effectiveFrom:
+                student?.joiningDate || admApp?.admissionDate || "2026-04-01",
+              status: "Active",
+            };
+          }
         }
       }
     }
@@ -12834,31 +12890,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     // 3. Deductions: Scholarships & Discounts
+    const tuitionItem =
+      ledgerItems.find((i) => i.category === "Tuition Fee") || ledgerItems[0];
+    const baseAmountForPercent = tuitionItem ? tuitionItem.originalAmount : 0;
+
+    const isStudentMatchForDeduction = (idToCheck?: string) => {
+      if (!idToCheck) return false;
+      const chk = String(idToCheck).trim().toLowerCase();
+      return (
+        chk === sIdStr ||
+        (student?.id && chk === String(student.id).trim().toLowerCase()) ||
+        (student?.admissionNo && chk === String(student.admissionNo).trim().toLowerCase()) ||
+        (admApp?.applicationNo && chk === String(admApp.applicationNo).trim().toLowerCase())
+      );
+    };
+
     const appliedSchs = studentScholarships.filter(
-      (s) => s.studentId === studentId && s.status === "Active",
+      (s) => isStudentMatchForDeduction(s.studentId) && s.status === "Active",
     );
     let totalSchDeduction = 0;
     appliedSchs.forEach((sch) => {
       totalSchDeduction +=
         sch.discountType === "Percentage"
-          ? (25000 * sch.discountValue) / 100
+          ? (baseAmountForPercent * sch.discountValue) / 100
           : sch.discountValue;
     });
 
     const appliedDiscs = studentDiscounts.filter(
-      (d) => d.studentId === studentId,
+      (d) => isStudentMatchForDeduction(d.studentId),
     );
     let totalDiscDeduction = 0;
     appliedDiscs.forEach((sd) => {
       const dObj = discounts.find((d) => d.id === sd.discountId);
-      if (dObj && dObj.status === "Active") {
+      if (dObj && (dObj.status === "Active" || !dObj.status)) {
         totalDiscDeduction +=
-          dObj.mode === "Percentage" ? (25000 * dObj.value) / 100 : dObj.value;
+          dObj.mode === "Percentage" ? (baseAmountForPercent * (dObj.value || 0)) / 100 : (dObj.value || 0);
       }
     });
 
-    const tuitionItem =
-      ledgerItems.find((i) => i.category === "Tuition Fee") || ledgerItems[0];
     if (tuitionItem) {
       tuitionItem.scholarshipDeduction = totalSchDeduction;
       tuitionItem.discountDeduction = totalDiscDeduction;
@@ -12877,13 +12946,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       0,
     );
 
-    const existingPayments = feePayments.filter(
+    const isPaymentForThisStudent = (p: FeePayment) => {
+      if (!p) return false;
+      const pSid = String(p.studentId || "").trim().toLowerCase();
+      const sId = String(studentId || "").trim().toLowerCase();
+      if (pSid === sId) return true;
+      if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
+      if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+      return false;
+    };
+
+    const existingPayments = (feePayments || []).filter(
       (p) =>
-        p.studentId === studentId &&
+        isPaymentForThisStudent(p) &&
         (p.academicYear === targetYear || !p.academicYear),
     );
-    const paidAmt = existingPayments.reduce((acc, p) => acc + p.amountPaid, 0);
+    const paidAmt = Math.max(
+      existingPayments.reduce((acc, p) => acc + (Number(p.amountPaid ?? (p as any).amount) || 0), 0),
+      student?.paidFee || 0,
+    );
     const dueBal = Math.max(0, totalPayable - paidAmt);
+
+    let schId: string | undefined = undefined;
+    let schName = "";
+    let schDesc = "";
+    if (appliedSchs.length > 0) {
+      const firstSch = appliedSchs[0];
+      const schMaster = scholarships.find((s) => s.id === firstSch.scholarshipId || s.code === firstSch.scholarshipId);
+      schId = firstSch.scholarshipId;
+      schName = firstSch.scholarshipName || schMaster?.name || "";
+      schDesc = schMaster?.description || "";
+    }
+
+    let discId: string | undefined = undefined;
+    let discName = "";
+    let discDesc = "";
+    if (appliedDiscs.length > 0) {
+      const firstDisc = appliedDiscs[0];
+      const discMaster = discounts.find((d) => d.id === firstDisc.discountId || d.code === firstDisc.discountId);
+      discId = firstDisc.discountId;
+      discName = firstDisc.discountName || discMaster?.name || "";
+      discDesc = discMaster?.description || "";
+    }
 
     const newLedger: StudentFeeLedger = {
       id: `LED-${targetYear}-${studentId}`,
@@ -12905,7 +13009,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       dueBalance: dueBal,
       createdAt: new Date().toISOString().split("T")[0],
       updatedAt: new Date().toISOString().split("T")[0],
+      scholarshipId: schId,
+      scholarshipName: schName,
+      scholarshipDescription: schDesc,
       scholarshipAmount: totalSchDeduction,
+      discountId: discId,
+      discountName: discName,
+      discountDescription: discDesc,
       discountAmount: totalDiscDeduction,
       fineAmount: 0,
       previousDue: 0,
@@ -13123,8 +13233,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       targetYear = targetAcademicYear;
     }
 
+    const sIdStr = String(studentId || "").trim().toLowerCase();
+    const resolvedStudent =
+      optStudent && "className" in optStudent
+        ? (optStudent as Student)
+        : students.find(
+            (s) =>
+              String(s.id).trim().toLowerCase() === sIdStr ||
+              (s.admissionNo &&
+                String(s.admissionNo).trim().toLowerCase() === sIdStr),
+          );
+
     const existing = studentFeeLedgers.find(
-      (l) => l.studentId === studentId && l.academicYear === targetYear,
+      (l) =>
+        (String(l.studentId).trim().toLowerCase() === sIdStr ||
+          (resolvedStudent &&
+            String(l.studentId).trim().toLowerCase() ===
+              String(resolvedStudent.id).trim().toLowerCase()) ||
+          (resolvedStudent?.admissionNo &&
+            (String(l.studentId).trim().toLowerCase() ===
+              String(resolvedStudent.admissionNo).trim().toLowerCase() ||
+              String(l.admissionNo).trim().toLowerCase() ===
+                String(resolvedStudent.admissionNo).trim().toLowerCase()))) &&
+        l.academicYear === targetYear,
     );
 
     const isUniform = (name: string) => {
@@ -13184,7 +13315,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           h.feeHeadId === "FH-004",
       );
 
-      const clsName = existing.className;
+      const student = optStudent && "className" in optStudent
+        ? (optStudent as Student)
+        : students.find((s) => s.id === studentId || s.admissionNo === studentId);
+      const clsName = existing.className || student?.className || (optStudent as any)?.className || "";
       const dfs =
         dynamicFeeStructures.find(
           (d) => matchesClassName(d.className, clsName) && (d.status === "Active" || !d.status),
@@ -13192,6 +13326,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         dynamicFeeStructures.find(
           (d) => matchesClassName(d.className, clsName),
         );
+
+      // STRICT DYNAMIC VALIDATION:
+      // If student has NO active fee assignment and NO dynamic fee structure in MySQL for their class,
+      // any existing ledger with tuition/school fees is STALE mock data and MUST NOT be used!
+      if (!assignment && !dfs) {
+        return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
+      }
+
+      if (assignment && existing.grossAmount !== assignment.baseFeeTotal) {
+        return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
+      }
 
       if (dfs && dfs.items && dfs.items.length > 0) {
         const hasMissingHead = dfs.items.some((di) => {
@@ -13213,9 +13358,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return matchingFi && matchingFi.originalAmount !== di.amount;
         });
 
+        const hasExtraHead = existing.feeItems.some((fi) => {
+          if (fi.headId === "FH-TRP" || fi.category === "Transport Fee") return false;
+          if (fi.headId === "FH-HST" || fi.category === "Hostel Fee") return false;
+          if (fi.headId === "FH-UNI-EXTRA" || fi.category === "Additional Uniform Purchase") return false;
+          return !dfs.items.some(
+            (di) =>
+              di.feeHeadId === fi.headId ||
+              di.feeHeadName.toLowerCase().trim() === fi.headName.toLowerCase().trim(),
+          );
+        });
+
         if (
           hasMissingHead ||
           hasAmountMismatch ||
+          hasExtraHead ||
           existing.grossAmount !== dfs.totalAmount
         ) {
           return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
@@ -13281,6 +13438,67 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      let finalSchAmount = existing.scholarshipAmount || existing.totalScholarship || 0;
+      let finalDiscAmount = existing.discountAmount || existing.totalDiscount || 0;
+      let finalSchId = existing.scholarshipId;
+      let finalSchName = existing.scholarshipName;
+      let finalSchDesc = existing.scholarshipDescription;
+      let finalDiscId = existing.discountId;
+      let finalDiscName = existing.discountName;
+      let finalDiscDesc = existing.discountDescription;
+
+      const isStudentMatchForDeduction = (idToCheck?: string) => {
+        if (!idToCheck) return false;
+        const chk = String(idToCheck).trim().toLowerCase();
+        return (
+          chk === sIdStr ||
+          (student?.id && chk === String(student.id).trim().toLowerCase()) ||
+          (student?.admissionNo && chk === String(student.admissionNo).trim().toLowerCase())
+        );
+      };
+
+      const appliedSchs = studentScholarships.filter(
+        (s) => isStudentMatchForDeduction(s.studentId) && s.status === "Active",
+      );
+      if (finalSchAmount === 0 && appliedSchs.length > 0) {
+        const activeSch = appliedSchs[0];
+        const schMaster = scholarships.find((s) => s.id === activeSch.scholarshipId || s.code === activeSch.scholarshipId);
+        const tuitionItem = itemsToReturn.find((i) => i.category === "Tuition Fee") || itemsToReturn[0];
+        const baseAmt = tuitionItem ? tuitionItem.originalAmount : 0;
+        finalSchAmount =
+          activeSch.discountType === "Percentage"
+            ? (baseAmt * (activeSch.discountValue || 0)) / 100
+            : activeSch.discountValue || 0;
+        finalSchId = activeSch.scholarshipId;
+        finalSchName = activeSch.scholarshipName || schMaster?.name || "";
+        finalSchDesc = schMaster?.description || "";
+        if (tuitionItem && finalSchAmount > 0) {
+          tuitionItem.scholarshipDeduction = finalSchAmount;
+          tuitionItem.finalAmount = Math.max(0, tuitionItem.originalAmount - finalSchAmount - (tuitionItem.discountDeduction || 0));
+        }
+      }
+
+      const appliedDiscs = studentDiscounts.filter(
+        (d) => isStudentMatchForDeduction(d.studentId),
+      );
+      if (finalDiscAmount === 0 && appliedDiscs.length > 0) {
+        const activeDisc = appliedDiscs[0];
+        const discMaster = discounts.find((d) => d.id === activeDisc.discountId || d.code === activeDisc.discountId);
+        const tuitionItem = itemsToReturn.find((i) => i.category === "Tuition Fee") || itemsToReturn[0];
+        const baseAmt = tuitionItem ? tuitionItem.originalAmount : 0;
+        finalDiscAmount =
+          discMaster?.mode === "Percentage"
+            ? (baseAmt * (discMaster.value || 0)) / 100
+            : discMaster?.value || 0;
+        finalDiscId = activeDisc.discountId;
+        finalDiscName = activeDisc.discountName || discMaster?.name || "";
+        finalDiscDesc = discMaster?.description || "";
+        if (tuitionItem && finalDiscAmount > 0) {
+          tuitionItem.discountDeduction = finalDiscAmount;
+          tuitionItem.finalAmount = Math.max(0, tuitionItem.originalAmount - (tuitionItem.scholarshipDeduction || 0) - finalDiscAmount);
+        }
+      }
+
       const totalOrig = itemsToReturn.reduce(
         (acc, i) => acc + (i.isApplicable ? i.originalAmount : 0),
         0,
@@ -13289,7 +13507,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (acc, i) => acc + (i.isApplicable ? i.finalAmount : 0),
         0,
       );
-      const dueBal = Math.max(0, totalPay - (existing.paidAmount || 0));
+      const isPaymentForThisStudent = (p: FeePayment) => {
+        if (!p) return false;
+        const pSid = String(p.studentId || "").trim().toLowerCase();
+        const sId = String(studentId || "").trim().toLowerCase();
+        if (pSid === sId) return true;
+        if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
+        if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+        return false;
+      };
+
+      const yearPayments = (feePayments || []).filter(
+        (p) =>
+          isPaymentForThisStudent(p) &&
+          (p.academicYear === targetYear || !p.academicYear),
+      );
+      const paidFromPayments = yearPayments.reduce(
+        (sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0),
+        0,
+      );
+      const effectivePaid = Math.max(
+        existing.paidAmount || 0,
+        paidFromPayments,
+        student?.paidFee || 0,
+      );
+      const dueBal = Math.max(0, totalPay - effectivePaid);
 
       const updatedLedger: StudentFeeLedger = {
         ...existing,
@@ -13297,7 +13539,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         totalOriginalAmount: totalOrig,
         grossAmount: totalOrig,
         totalPayable: totalPay,
+        paidAmount: effectivePaid,
         dueBalance: dueBal,
+        scholarshipId: finalSchId,
+        scholarshipName: finalSchName,
+        scholarshipDescription: finalSchDesc,
+        scholarshipAmount: finalSchAmount,
+        totalScholarship: finalSchAmount,
+        discountId: finalDiscId,
+        discountName: finalDiscName,
+        discountDescription: finalDiscDesc,
+        discountAmount: finalDiscAmount,
+        totalDiscount: finalDiscAmount,
       };
 
       updatedLedger.installments = generateInstallmentsForStudent(
@@ -13317,13 +13570,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const getStudentFeeOutstandingSummary = (
     studentId: string,
   ): StudentFeeOutstandingSummary => {
-    const student = students.find((s) => s.id === studentId);
+    const student = students.find((s) => s.id === studentId || (s.admissionNo && s.admissionNo === studentId));
     const activeAcademicYear =
       selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
+    const isPaymentForThisStudent = (p: FeePayment) => {
+      if (!p) return false;
+      const pSid = String(p.studentId || "").trim().toLowerCase();
+      const sId = String(studentId || "").trim().toLowerCase();
+      if (pSid === sId) return true;
+      if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
+      if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+      return false;
+    };
+
+    const studentPayments = (feePayments || []).filter(isPaymentForThisStudent);
+    const currentYearPayments = studentPayments.filter(
+      (p) => p.academicYear === activeAcademicYear || !p.academicYear,
+    );
+    const totalPaidCurrentYear = currentYearPayments.reduce(
+      (sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0),
+      0,
+    );
+
     // All ledgers for this student
     let studentLedgers = studentFeeLedgers.filter(
-      (l) => l.studentId === studentId,
+      (l) => l.studentId === studentId || (student && l.studentId === student.id) || (student?.admissionNo && l.admissionNo === student.admissionNo),
     );
 
     // If student has a single ledger matching their current class, align its academicYear with activeAcademicYear
@@ -13360,32 +13632,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       const baseFee = activeAssignment
         ? activeAssignment.baseFeeTotal
-        : student.totalFee && student.totalFee > 0
-          ? student.totalFee
-          : matchedDfs?.totalAmount ?? 0;
+        : matchedDfs?.totalAmount ?? 0;
 
       let transportAssign = studentTransports.find(
         (t) => t.studentId === studentId && t.status === "Active",
       );
-      if (
-        !transportAssign &&
-        student &&
-        (student.transportRequired || (student as any).busRoute)
-      ) {
-        transportAssign = {
-          id: `STRP-AUTO-${studentId}`,
-          studentId,
-          studentName: `${student.firstName} ${student.lastName}`,
-          admissionNo: student.admissionNo,
-          routeId: (student as any).routeId || "RM-01",
-          routeName: (student as any).busRoute || "Chennai",
-          pickupPoint: (student as any).pickupPoint || "chennai",
-          feePlan: "Monthly",
-          feeAmount: 5500,
-          effectiveFrom: student.joiningDate || "2026-04-01",
-          status: "Active",
-        };
-      }
       const transportFee =
         (student.studentType === "Day Scholar" ||
           student.studentType === "Non-Residential") &&
@@ -13407,9 +13658,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         )
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
-      const gross = baseFee + transportFee + pendingUniformExtrasSynth;
-      const paid = student.paidFee || 0;
-      const due = Math.max(0, gross - paid);
+      const isStudentMatchForDeduction = (idToCheck?: string) => {
+        if (!idToCheck) return false;
+        const chk = String(idToCheck).trim().toLowerCase();
+        const sId = String(studentId).trim().toLowerCase();
+        return (
+          chk === sId ||
+          (student?.id && chk === String(student.id).trim().toLowerCase()) ||
+          (student?.admissionNo && chk === String(student.admissionNo).trim().toLowerCase())
+        );
+      };
+
+      const appliedSchs = studentScholarships.filter(
+        (s) => isStudentMatchForDeduction(s.studentId) && s.status === "Active",
+      );
+      let totalSch = 0;
+      appliedSchs.forEach((sch) => {
+        totalSch +=
+          sch.discountType === "Percentage"
+            ? (baseFee * sch.discountValue) / 100
+            : sch.discountValue;
+      });
+
+      const appliedDiscs = studentDiscounts.filter(
+        (d) => isStudentMatchForDeduction(d.studentId),
+      );
+      let totalDisc = 0;
+      appliedDiscs.forEach((sd) => {
+        const dObj = discounts.find((d) => d.id === sd.discountId);
+        if (dObj && (dObj.status === "Active" || !dObj.status)) {
+          totalDisc +=
+            dObj.mode === "Percentage" ? (baseFee * (dObj.value || 0)) / 100 : (dObj.value || 0);
+        }
+      });
+
+      const originalGross = baseFee + transportFee + pendingUniformExtrasSynth;
+      const netPayable = Math.max(0, originalGross - totalSch - totalDisc);
+      const paid = Math.max(totalPaidCurrentYear, student.paidFee || 0);
+      const due = Math.max(0, netPayable - paid);
 
       const synthesizedCurrentLedger: StudentFeeLedger = {
         id: `LED-${activeAcademicYear}-${studentId}`,
@@ -13426,10 +13712,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             headName: "Tuition & Academic Fee",
             category: "Tuition Fee",
             originalAmount: baseFee,
-            scholarshipDeduction: 0,
-            discountDeduction: 0,
+            scholarshipDeduction: totalSch,
+            discountDeduction: totalDisc,
             fineAmount: 0,
-            finalAmount: baseFee,
+            finalAmount: Math.max(0, baseFee - totalSch - totalDisc),
             isApplicable: true,
             status: (due === 0 ? "Paid" : "Pending") as "Paid" | "Pending",
           },
@@ -13452,18 +13738,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ]
             : []),
         ],
-        totalOriginalAmount: gross,
-        grossAmount: gross,
-        totalScholarship: 0,
-        totalDiscount: 0,
+        totalOriginalAmount: originalGross,
+        grossAmount: originalGross,
+        totalScholarship: totalSch,
+        totalDiscount: totalDisc,
         totalFine: 0,
-        totalPayable: gross,
+        totalPayable: netPayable,
         paidAmount: paid,
         dueBalance: due,
         createdAt: new Date().toISOString().split("T")[0],
         updatedAt: new Date().toISOString().split("T")[0],
-        scholarshipAmount: 0,
-        discountAmount: 0,
+        scholarshipAmount: totalSch,
+        discountAmount: totalDisc,
         fineAmount: 0,
         previousDue: 0,
       };
@@ -13481,10 +13767,67 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let previousYearsDue = 0;
 
     ledgersToProcess.forEach((l) => {
-      let gross = l.totalPayable || l.grossAmount || l.totalOriginalAmount;
+      const isCurrentYr = l.academicYear === activeAcademicYear;
+
+      let schDeduction = l.scholarshipAmount || l.totalScholarship || 0;
+      let discDeduction = l.discountAmount || l.totalDiscount || 0;
+
+      // Fallback check against active student scholarships and discounts
+      if (isCurrentYr && schDeduction === 0) {
+        const isStudentMatchForDeduction = (idToCheck?: string) => {
+          if (!idToCheck) return false;
+          const chk = String(idToCheck).trim().toLowerCase();
+          const sId = String(studentId).trim().toLowerCase();
+          return (
+            chk === sId ||
+            (student?.id && chk === String(student.id).trim().toLowerCase()) ||
+            (student?.admissionNo && chk === String(student.admissionNo).trim().toLowerCase())
+          );
+        };
+        const appliedSchs = studentScholarships.filter(
+          (s) => isStudentMatchForDeduction(s.studentId) && s.status === "Active",
+        );
+        if (appliedSchs.length > 0) {
+          const activeSch = appliedSchs[0];
+          const tuitionItem = l.feeItems?.find((i) => i.category === "Tuition Fee") || l.feeItems?.[0];
+          const baseAmt = tuitionItem ? tuitionItem.originalAmount : (l.totalOriginalAmount || l.grossAmount || 0);
+          schDeduction =
+            activeSch.discountType === "Percentage"
+              ? (baseAmt * (activeSch.discountValue || 0)) / 100
+              : activeSch.discountValue || 0;
+        }
+      }
+
+      if (isCurrentYr && discDeduction === 0) {
+        const isStudentMatchForDeduction = (idToCheck?: string) => {
+          if (!idToCheck) return false;
+          const chk = String(idToCheck).trim().toLowerCase();
+          const sId = String(studentId).trim().toLowerCase();
+          return (
+            chk === sId ||
+            (student?.id && chk === String(student.id).trim().toLowerCase()) ||
+            (student?.admissionNo && chk === String(student.admissionNo).trim().toLowerCase())
+          );
+        };
+        const appliedDiscs = studentDiscounts.filter(
+          (d) => isStudentMatchForDeduction(d.studentId),
+        );
+        if (appliedDiscs.length > 0) {
+          const activeDisc = appliedDiscs[0];
+          const discMaster = discounts.find((d) => d.id === activeDisc.discountId || d.code === activeDisc.discountId);
+          const tuitionItem = l.feeItems?.find((i) => i.category === "Tuition Fee") || l.feeItems?.[0];
+          const baseAmt = tuitionItem ? tuitionItem.originalAmount : (l.totalOriginalAmount || l.grossAmount || 0);
+          discDeduction =
+            discMaster?.mode === "Percentage"
+              ? (baseAmt * (discMaster.value || 0)) / 100
+              : discMaster?.value || 0;
+        }
+      }
+
+      let grossOriginal = l.grossAmount || l.totalOriginalAmount || l.totalPayable || 0;
 
       // For the active academic year, dynamically recalculate gross to include active transport/hostel fees
-      if (l.academicYear === activeAcademicYear && student) {
+      if (isCurrentYr && student) {
         const activeAssignment = studentFeeAssignments.find(
           (a) => a.studentId === studentId && a.status === "Active",
         );
@@ -13499,34 +13842,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         const baseFee = activeAssignment
           ? activeAssignment.baseFeeTotal
-          : l.totalOriginalAmount && l.totalOriginalAmount > 0
-            ? l.totalOriginalAmount
-            : student.totalFee && student.totalFee > 0
-              ? student.totalFee
-              : matchedDfs?.totalAmount ?? 0;
+          : (matchedDfs?.totalAmount ?? 0);
 
         let transportAssign = studentTransports.find(
           (t) => t.studentId === studentId && t.status === "Active",
         );
-        if (
-          !transportAssign &&
-          student &&
-          (student.transportRequired || (student as any).busRoute)
-        ) {
-          transportAssign = {
-            id: `STRP-AUTO-${studentId}`,
-            studentId,
-            studentName: `${student.firstName} ${student.lastName}`,
-            admissionNo: student.admissionNo,
-            routeId: (student as any).routeId || "RM-01",
-            routeName: (student as any).busRoute || "Chennai",
-            pickupPoint: (student as any).pickupPoint || "chennai",
-            feePlan: "Monthly",
-            feeAmount: 5500,
-            effectiveFrom: student.joiningDate || "2026-04-01",
-            status: "Active",
-          };
-        }
         const transportFee =
           (student.studentType === "Day Scholar" ||
             student.studentType === "Non-Residential") &&
@@ -13547,19 +13867,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         // Include pending Uniform extra purchase dues (added via Uniform Distribution module)
         const pendingUniformExtras = getPendingUniformExtraDues(studentId);
 
-        const computedGross =
+        const computedBaseGross =
           baseFee + transportFee + hostelFee + pendingUniformExtras;
-        gross = Math.max(
-          gross,
-          computedGross -
-            (l.totalScholarship || 0) -
-            (l.totalDiscount || 0) +
-            (l.totalFine || 0),
-        );
+        grossOriginal = Math.max(grossOriginal, computedBaseGross);
       }
 
-      const paid = l.paidAmount || 0;
-      const due = Math.max(0, gross - paid);
+      // Net payable after subtracting concessions (scholarships & discounts) and adding fine
+      const netPayable =
+        l.totalPayable !== undefined && l.totalPayable < grossOriginal
+          ? l.totalPayable
+          : Math.max(0, grossOriginal - schDeduction - discDeduction + (l.totalFine || 0));
+
+      let paid = l.paidAmount || 0;
+      if (isCurrentYr) {
+        paid = Math.max(paid, totalPaidCurrentYear, student?.paidFee || 0);
+      } else {
+        const yrPayments = studentPayments.filter((p) => p.academicYear === l.academicYear);
+        if (yrPayments.length > 0) {
+          const yrPaid = yrPayments.reduce((sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0), 0);
+          paid = Math.max(paid, yrPaid);
+        }
+      }
+
+      const due = Math.max(0, netPayable - paid);
       const status: "Paid" | "Partial" | "Pending" =
         due === 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
 
@@ -13567,13 +13897,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         academicYear: l.academicYear,
         ledgerId: l.id,
         className: l.className,
-        gross,
+        gross: netPayable,
         paid,
         due,
         status,
       });
 
-      if (l.academicYear === activeAcademicYear) {
+      if (isCurrentYr) {
         currentYearDue += due;
       } else if (l.academicYear < activeAcademicYear) {
         previousYearsDue += due;
@@ -15168,31 +15498,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ? ledger.totalOriginalAmount
       : assignment
         ? assignment.baseFeeTotal
-        : student.totalFee || (dfs?.totalAmount ?? 0);
+        : (dfs?.totalAmount ?? 0);
     const assignedFeeHeads = assignment ? assignment.assignedFeeHeads : [];
 
     let transportAssign = studentTransports.find(
       (t) => t.studentId === studentId && t.status === "Active",
     );
-    if (
-      !transportAssign &&
-      student &&
-      (student.transportRequired || (student as any).busRoute)
-    ) {
-      transportAssign = {
-        id: `STRP-AUTO-${studentId}`,
-        studentId,
-        studentName: `${student.firstName} ${student.lastName}`,
-        admissionNo: student.admissionNo,
-        routeId: (student as any).routeId || "RM-01",
-        routeName: (student as any).busRoute || "Chennai",
-        pickupPoint: (student as any).pickupPoint || "chennai",
-        feePlan: "Monthly",
-        feeAmount: 5500,
-        effectiveFrom: student.joiningDate || "2026-04-01",
-        status: "Active",
-      };
-    }
     let transportFee = 0;
     if (
       (student.studentType === "Day Scholar" ||
@@ -15214,15 +15525,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const previousDue = Math.max(0, student.dueFee || 0);
 
+    const isStudentMatchForDeduction = (idToCheck?: string) => {
+      if (!idToCheck) return false;
+      const chk = String(idToCheck).trim().toLowerCase();
+      const sId = String(studentId).trim().toLowerCase();
+      return (
+        chk === sId ||
+        (student?.id && chk === String(student.id).trim().toLowerCase()) ||
+        (student?.admissionNo && chk === String(student.admissionNo).trim().toLowerCase())
+      );
+    };
+
     const appliedScholarships = studentScholarships.filter(
-      (s) => s.studentId === studentId && s.status === "Active",
+      (s) => isStudentMatchForDeduction(s.studentId) && s.status === "Active",
     );
-    let scholarshipDeduction = ledger ? ledger.totalScholarship : 0;
+    let scholarshipDeduction = ledger
+      ? ledger.scholarshipAmount || ledger.totalScholarship || 0
+      : 0;
 
     const appliedDiscounts = studentDiscounts.filter(
-      (d) => d.studentId === studentId,
+      (d) => isStudentMatchForDeduction(d.studentId),
     );
-    let discountDeduction = ledger ? ledger.totalDiscount : 0;
+    let discountDeduction = ledger
+      ? ledger.discountAmount || ledger.totalDiscount || 0
+      : 0;
 
     let scholarshipId: string | undefined = undefined;
     let scholarshipName = "";
@@ -15239,24 +15565,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       discountId = ledger.discountId;
       discountName = ledger.discountName || "";
       discountDescription = ledger.discountDescription || "";
-    } else {
-      const studentScholarshipId =
-        student.scholarshipId || appliedScholarships[0]?.scholarshipId;
-      const sObj = studentScholarshipId
-        ? scholarships.find((s) => s.id === studentScholarshipId)
-        : undefined;
-      scholarshipId = studentScholarshipId;
-      scholarshipName = sObj?.name || "";
-      scholarshipDescription = sObj?.description || "";
+    }
 
-      const studentDiscountId =
-        student.discountId || appliedDiscounts[0]?.discountId;
-      const dObj = studentDiscountId
-        ? discounts.find((d) => d.id === studentDiscountId)
-        : undefined;
-      discountId = studentDiscountId;
-      discountName = dObj?.name || "";
-      discountDescription = dObj?.description || "";
+    if (scholarshipDeduction === 0 && appliedScholarships.length > 0) {
+      const activeSch = appliedScholarships[0];
+      const schMaster = scholarships.find(
+        (s) => s.id === activeSch.scholarshipId || s.code === activeSch.scholarshipId,
+      );
+      scholarshipDeduction =
+        activeSch.discountType === "Percentage"
+          ? (baseFee * (activeSch.discountValue || 0)) / 100
+          : activeSch.discountValue || 0;
+      scholarshipId = activeSch.scholarshipId;
+      scholarshipName = activeSch.scholarshipName || schMaster?.name || "";
+      scholarshipDescription = schMaster?.description || "";
+    }
+
+    if (discountDeduction === 0 && appliedDiscounts.length > 0) {
+      const activeDisc = appliedDiscounts[0];
+      const discMaster = discounts.find(
+        (d) => d.id === activeDisc.discountId || d.code === activeDisc.discountId,
+      );
+      discountDeduction =
+        discMaster?.mode === "Percentage"
+          ? (baseFee * (discMaster.value || 0)) / 100
+          : discMaster?.value || 0;
+      discountId = activeDisc.discountId;
+      discountName = discMaster?.name || "";
+      discountDescription = discMaster?.description || "";
     }
 
     let fineAmount = 0;
@@ -15380,27 +15716,55 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ),
     );
 
+    const configuredUniformBaseFee = getUniformFeeForClass(
+      student?.className || "",
+      student?.gender || "Male",
+      financeUniformConfigs,
+      dynamicFeeStructures,
+    ) || 0;
+
+    const baseUniformLedgerAmt = ledger
+      ? (ledger.feeItems || [])
+          .filter((i) => (i.headName || "").toLowerCase().includes("uniform") && i.isApplicable !== false)
+          .reduce((sum, i) => sum + (i.finalAmount || 0), 0)
+      : configuredUniformBaseFee;
+
+    const totalUniformFee = baseUniformLedgerAmt + pendingUniformExtras;
+
     const gross = ledger
       ? (ledger.grossAmount || ledger.totalOriginalAmount) + pendingLibraryFines
       : baseFee +
         transportFee +
         hostelFee +
-        pendingUniformExtras +
+        totalUniformFee +
         pendingLibraryFines;
-    const sch = ledger ? ledger.scholarshipAmount || 0 : scholarshipDeduction;
-    const disc = ledger ? ledger.discountAmount || 0 : discountDeduction;
+    const sch = scholarshipDeduction;
+    const disc = discountDeduction;
     const totalPayable = Math.max(0, gross + fineAmount - sch - disc);
     const activeYr =
       selectedAcademicYear || financeSettings.academicYear || "2026-2027";
-    const studentPaymentItems = feePayments.filter(
-      (p) => p.studentId === studentId,
-    );
+    const isPaymentForThisStudent = (p: FeePayment) => {
+      if (!p) return false;
+      const pSid = String(p.studentId || "").trim().toLowerCase();
+      const sId = String(studentId || "").trim().toLowerCase();
+      if (pSid === sId) return true;
+      if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
+      if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+      return false;
+    };
+    const studentPaymentItems = (feePayments || []).filter(isPaymentForThisStudent);
     const currentYearPayments = studentPaymentItems.filter(
       (p) => p.academicYear === activeYr || !p.academicYear,
     );
-    const paidAmount = ledger
-      ? ledger.paidAmount
-      : currentYearPayments.reduce((acc, p) => acc + p.amountPaid, 0);
+    const sumCurrentPayments = currentYearPayments.reduce(
+      (acc, p) => acc + (Number(p.amountPaid ?? (p as any).amount) || 0),
+      0,
+    );
+    const paidAmount = Math.max(
+      ledger ? (ledger.paidAmount || 0) : 0,
+      sumCurrentPayments,
+      student?.paidFee || 0,
+    );
     const dueBalance = Math.max(0, totalPayable - paidAmount);
 
     return {
@@ -15412,11 +15776,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       transportDetails: transportAssign,
       hostelFee,
       hostelDetails: hostelAssign,
-      uniformFee: pendingUniformExtras,
+      uniformFee: totalUniformFee,
       previousDue,
-      scholarshipDeduction,
+      scholarshipDeduction: sch,
       scholarshipsApplied: appliedScholarships,
-      discountDeduction,
+      discountDeduction: disc,
       discountsApplied: appliedDiscounts,
       fineAmount,
       fineDetails,
@@ -15437,11 +15801,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     studentId: string,
     scholarshipId: string,
   ) => {
-    const ledger = studentFeeLedgers.find((l) => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error("Fee Ledger not found for student.");
-    }
-    const sch = scholarships.find((s) => s.id === scholarshipId);
+    const student = students.find(
+      (s) =>
+        s.id === studentId ||
+        (s.admissionNo && s.admissionNo.toLowerCase() === studentId.toLowerCase()),
+    );
+    const ledger = getStudentFeeLedger(studentId);
+    const sch = scholarships.find(
+      (s) => s.id === scholarshipId || s.code === scholarshipId,
+    );
     if (!sch) {
       throw new Error("Scholarship not found.");
     }
@@ -15449,113 +15817,214 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const tuitionItem =
       ledger.feeItems.find((i) => i.category === "Tuition Fee") ||
       ledger.feeItems[0];
-    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
+    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 0;
     const waiver =
       sch.discountType === "Percentage"
         ? (tuitionAmount * (sch.percentage || 0)) / 100
         : sch.fixedAmount || 0;
 
-    const updatedLedger: StudentFeeLedger = {
+    const existingDiscDeduction = ledger.discountAmount || 0;
+
+    const updatedFeeItems = ledger.feeItems.map((item) => {
+      if (
+        item.category === "Tuition Fee" ||
+        item.headId === (tuitionItem?.headId || "")
+      ) {
+        const finalAmt = Math.max(
+          0,
+          item.originalAmount - waiver - existingDiscDeduction,
+        );
+        return {
+          ...item,
+          scholarshipDeduction: waiver,
+          finalAmount: finalAmt,
+        };
+      }
+      return item;
+    });
+
+    const totalOriginal = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.originalAmount : 0),
+      0,
+    );
+    const totalPayable = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.finalAmount : 0),
+      0,
+    );
+    const dueBalance = Math.max(0, totalPayable - (ledger.paidAmount || 0));
+
+    let updatedLedger: StudentFeeLedger = {
       ...ledger,
       scholarshipId: sch.id,
       scholarshipName: sch.name,
       scholarshipDescription: sch.description,
       scholarshipAmount: waiver,
       totalScholarship: waiver,
-      feeItems: ledger.feeItems.map((item) => {
-        if (
-          item.category === "Tuition Fee" ||
-          item.headId === (tuitionItem?.headId || "")
-        ) {
-          const finalAmt = Math.max(
-            0,
-            item.originalAmount - waiver - item.discountDeduction,
-          );
-          return {
-            ...item,
-            scholarshipDeduction: waiver,
-            finalAmount: finalAmt,
-          };
-        }
-        return item;
-      }),
+      feeItems: updatedFeeItems,
+      totalOriginalAmount: totalOriginal,
+      grossAmount: totalOriginal,
+      totalPayable,
+      dueBalance,
+      updatedAt: new Date().toISOString().split("T")[0],
     };
 
-    updatedLedger.totalPayable = Math.max(
-      0,
-      updatedLedger.grossAmount -
-        updatedLedger.scholarshipAmount -
-        updatedLedger.discountAmount +
-        updatedLedger.fineAmount +
-        updatedLedger.previousDue,
+    const assignment = studentFeeAssignments.find(
+      (a) =>
+        (a.studentId === studentId ||
+          (student && a.studentId === student.id) ||
+          (student?.admissionNo && a.studentId === student.admissionNo)) &&
+        a.status === "Active",
     );
-    updatedLedger.dueBalance = Math.max(
-      0,
-      updatedLedger.totalPayable - updatedLedger.paidAmount,
+    updatedLedger.installments = generateInstallmentsForStudent(
+      studentId,
+      updatedLedger.academicYear,
+      assignment,
+      updatedLedger,
     );
 
-    setStudentFeeLedgers((prev) =>
-      prev.map((l) => (l.studentId === studentId ? updatedLedger : l)),
-    );
+    setStudentFeeLedgers((prev) => {
+      const idx = prev.findIndex(
+        (l) =>
+          l.studentId === studentId ||
+          (student && l.studentId === student.id) ||
+          (student?.admissionNo && l.admissionNo === student.admissionNo),
+      );
+      let next: StudentFeeLedger[];
+      if (idx !== -1) {
+        next = [...prev];
+        next[idx] = updatedLedger;
+      } else {
+        next = [...prev, updatedLedger];
+      }
+      localStorage.setItem("edu_db_student_fee_ledgers", JSON.stringify(next));
+      return next;
+    });
+
+    setStudentFeeInstallments((prev) => {
+      const other = prev.filter(
+        (i) =>
+          !(
+            i.studentId === studentId ||
+            (student && i.studentId === student.id) ||
+            (student?.admissionNo && i.studentId === student.admissionNo)
+          ),
+      );
+      const next = [...other, ...(updatedLedger.installments || [])];
+      localStorage.setItem("edu_db_student_fee_installments", JSON.stringify(next));
+      return next;
+    });
+
     assignScholarshipToStudent(studentId, scholarshipId);
     return updatedLedger;
   };
 
   const removeScholarshipFromStudent = (studentId: string) => {
-    const ledger = studentFeeLedgers.find((l) => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error("Fee Ledger not found for student.");
-    }
+    const student = students.find(
+      (s) =>
+        s.id === studentId ||
+        (s.admissionNo && s.admissionNo.toLowerCase() === studentId.toLowerCase()),
+    );
+    const ledger = getStudentFeeLedger(studentId);
 
     const tuitionItem =
       ledger.feeItems.find((i) => i.category === "Tuition Fee") ||
       ledger.feeItems[0];
 
-    const updatedLedger: StudentFeeLedger = {
+    const existingDiscDeduction = ledger.discountAmount || 0;
+
+    const updatedFeeItems = ledger.feeItems.map((item) => {
+      if (
+        item.category === "Tuition Fee" ||
+        item.headId === (tuitionItem?.headId || "")
+      ) {
+        const finalAmt = Math.max(
+          0,
+          item.originalAmount - existingDiscDeduction,
+        );
+        return {
+          ...item,
+          scholarshipDeduction: 0,
+          finalAmount: finalAmt,
+        };
+      }
+      return item;
+    });
+
+    const totalOriginal = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.originalAmount : 0),
+      0,
+    );
+    const totalPayable = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.finalAmount : 0),
+      0,
+    );
+    const dueBalance = Math.max(0, totalPayable - (ledger.paidAmount || 0));
+
+    let updatedLedger: StudentFeeLedger = {
       ...ledger,
       scholarshipId: undefined,
       scholarshipName: "",
       scholarshipDescription: "",
       scholarshipAmount: 0,
       totalScholarship: 0,
-      feeItems: ledger.feeItems.map((item) => {
-        if (
-          item.category === "Tuition Fee" ||
-          item.headId === (tuitionItem?.headId || "")
-        ) {
-          const finalAmt = Math.max(
-            0,
-            item.originalAmount - item.discountDeduction,
-          );
-          return {
-            ...item,
-            scholarshipDeduction: 0,
-            finalAmount: finalAmt,
-          };
-        }
-        return item;
-      }),
+      feeItems: updatedFeeItems,
+      totalOriginalAmount: totalOriginal,
+      grossAmount: totalOriginal,
+      totalPayable,
+      dueBalance,
+      updatedAt: new Date().toISOString().split("T")[0],
     };
 
-    updatedLedger.totalPayable = Math.max(
-      0,
-      updatedLedger.grossAmount -
-        updatedLedger.scholarshipAmount -
-        updatedLedger.discountAmount +
-        updatedLedger.fineAmount +
-        updatedLedger.previousDue,
+    const assignment = studentFeeAssignments.find(
+      (a) =>
+        (a.studentId === studentId ||
+          (student && a.studentId === student.id) ||
+          (student?.admissionNo && a.studentId === student.admissionNo)) &&
+        a.status === "Active",
     );
-    updatedLedger.dueBalance = Math.max(
-      0,
-      updatedLedger.totalPayable - updatedLedger.paidAmount,
+    updatedLedger.installments = generateInstallmentsForStudent(
+      studentId,
+      updatedLedger.academicYear,
+      assignment,
+      updatedLedger,
     );
 
-    setStudentFeeLedgers((prev) =>
-      prev.map((l) => (l.studentId === studentId ? updatedLedger : l)),
-    );
+    setStudentFeeLedgers((prev) => {
+      const idx = prev.findIndex(
+        (l) =>
+          l.studentId === studentId ||
+          (student && l.studentId === student.id) ||
+          (student?.admissionNo && l.admissionNo === student.admissionNo),
+      );
+      let next: StudentFeeLedger[];
+      if (idx !== -1) {
+        next = [...prev];
+        next[idx] = updatedLedger;
+      } else {
+        next = [...prev, updatedLedger];
+      }
+      localStorage.setItem("edu_db_student_fee_ledgers", JSON.stringify(next));
+      return next;
+    });
+
+    setStudentFeeInstallments((prev) => {
+      const other = prev.filter(
+        (i) =>
+          !(
+            i.studentId === studentId ||
+            (student && i.studentId === student.id) ||
+            (student?.admissionNo && i.studentId === student.admissionNo)
+          ),
+      );
+      const next = [...other, ...(updatedLedger.installments || [])];
+      localStorage.setItem("edu_db_student_fee_installments", JSON.stringify(next));
+      return next;
+    });
+
     const currentSch = studentScholarships.find(
       (s) =>
-        s.studentId === studentId && s.scholarshipId === ledger.scholarshipId,
+        (s.studentId === studentId || (student && s.studentId === student.id) || (student?.admissionNo && s.studentId === student.admissionNo)) &&
+        (s.scholarshipId === ledger.scholarshipId || s.status === "Active"),
     );
     if (currentSch) {
       revokeStudentScholarship(currentSch.id);
@@ -15564,11 +16033,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const applyDiscountToStudent = (studentId: string, discountId: string) => {
-    const ledger = studentFeeLedgers.find((l) => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error("Fee Ledger not found for student.");
-    }
-    const d = discounts.find((x) => x.id === discountId);
+    const student = students.find(
+      (s) =>
+        s.id === studentId ||
+        (s.admissionNo && s.admissionNo.toLowerCase() === studentId.toLowerCase()),
+    );
+    const ledger = getStudentFeeLedger(studentId);
+    const d = discounts.find((x) => x.id === discountId || x.code === discountId);
     if (!d) {
       throw new Error("Discount not found.");
     }
@@ -15576,110 +16047,212 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const tuitionItem =
       ledger.feeItems.find((i) => i.category === "Tuition Fee") ||
       ledger.feeItems[0];
-    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
+    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 0;
     const discountAmount =
-      d.mode === "Percentage" ? (tuitionAmount * d.value) / 100 : d.value;
+      d.mode === "Percentage" ? (tuitionAmount * (d.value || 0)) / 100 : d.value || 0;
 
-    const updatedLedger: StudentFeeLedger = {
+    const existingSchDeduction = ledger.scholarshipAmount || 0;
+
+    const updatedFeeItems = ledger.feeItems.map((item) => {
+      if (
+        item.category === "Tuition Fee" ||
+        item.headId === (tuitionItem?.headId || "")
+      ) {
+        const finalAmt = Math.max(
+          0,
+          item.originalAmount - existingSchDeduction - discountAmount,
+        );
+        return {
+          ...item,
+          discountDeduction: discountAmount,
+          finalAmount: finalAmt,
+        };
+      }
+      return item;
+    });
+
+    const totalOriginal = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.originalAmount : 0),
+      0,
+    );
+    const totalPayable = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.finalAmount : 0),
+      0,
+    );
+    const dueBalance = Math.max(0, totalPayable - (ledger.paidAmount || 0));
+
+    let updatedLedger: StudentFeeLedger = {
       ...ledger,
       discountId: d.id,
       discountName: d.name,
       discountDescription: d.description,
       discountAmount: discountAmount,
       totalDiscount: discountAmount,
-      feeItems: ledger.feeItems.map((item) => {
-        if (
-          item.category === "Tuition Fee" ||
-          item.headId === (tuitionItem?.headId || "")
-        ) {
-          const finalAmt = Math.max(
-            0,
-            item.originalAmount - ledger.scholarshipAmount - discountAmount,
-          );
-          return {
-            ...item,
-            discountDeduction: discountAmount,
-            finalAmount: finalAmt,
-          };
-        }
-        return item;
-      }),
+      feeItems: updatedFeeItems,
+      totalOriginalAmount: totalOriginal,
+      grossAmount: totalOriginal,
+      totalPayable,
+      dueBalance,
+      updatedAt: new Date().toISOString().split("T")[0],
     };
 
-    updatedLedger.totalPayable = Math.max(
-      0,
-      updatedLedger.grossAmount -
-        updatedLedger.scholarshipAmount -
-        updatedLedger.discountAmount +
-        updatedLedger.fineAmount +
-        updatedLedger.previousDue,
+    const assignment = studentFeeAssignments.find(
+      (a) =>
+        (a.studentId === studentId ||
+          (student && a.studentId === student.id) ||
+          (student?.admissionNo && a.studentId === student.admissionNo)) &&
+        a.status === "Active",
     );
-    updatedLedger.dueBalance = Math.max(
-      0,
-      updatedLedger.totalPayable - updatedLedger.paidAmount,
+    updatedLedger.installments = generateInstallmentsForStudent(
+      studentId,
+      updatedLedger.academicYear,
+      assignment,
+      updatedLedger,
     );
 
-    setStudentFeeLedgers((prev) =>
-      prev.map((l) => (l.studentId === studentId ? updatedLedger : l)),
-    );
+    setStudentFeeLedgers((prev) => {
+      const idx = prev.findIndex(
+        (l) =>
+          l.studentId === studentId ||
+          (student && l.studentId === student.id) ||
+          (student?.admissionNo && l.admissionNo === student.admissionNo),
+      );
+      let next: StudentFeeLedger[];
+      if (idx !== -1) {
+        next = [...prev];
+        next[idx] = updatedLedger;
+      } else {
+        next = [...prev, updatedLedger];
+      }
+      localStorage.setItem("edu_db_student_fee_ledgers", JSON.stringify(next));
+      return next;
+    });
+
+    setStudentFeeInstallments((prev) => {
+      const other = prev.filter(
+        (i) =>
+          !(
+            i.studentId === studentId ||
+            (student && i.studentId === student.id) ||
+            (student?.admissionNo && i.studentId === student.admissionNo)
+          ),
+      );
+      const next = [...other, ...(updatedLedger.installments || [])];
+      localStorage.setItem("edu_db_student_fee_installments", JSON.stringify(next));
+      return next;
+    });
+
     assignDiscountToStudent(studentId, discountId);
     return updatedLedger;
   };
 
   const removeDiscountFromStudent = (studentId: string) => {
-    const ledger = studentFeeLedgers.find((l) => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error("Fee Ledger not found for student.");
-    }
+    const student = students.find(
+      (s) =>
+        s.id === studentId ||
+        (s.admissionNo && s.admissionNo.toLowerCase() === studentId.toLowerCase()),
+    );
+    const ledger = getStudentFeeLedger(studentId);
 
     const tuitionItem =
       ledger.feeItems.find((i) => i.category === "Tuition Fee") ||
       ledger.feeItems[0];
 
-    const updatedLedger: StudentFeeLedger = {
+    const existingSchDeduction = ledger.scholarshipAmount || 0;
+
+    const updatedFeeItems = ledger.feeItems.map((item) => {
+      if (
+        item.category === "Tuition Fee" ||
+        item.headId === (tuitionItem?.headId || "")
+      ) {
+        const finalAmt = Math.max(
+          0,
+          item.originalAmount - existingSchDeduction,
+        );
+        return {
+          ...item,
+          discountDeduction: 0,
+          finalAmount: finalAmt,
+        };
+      }
+      return item;
+    });
+
+    const totalOriginal = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.originalAmount : 0),
+      0,
+    );
+    const totalPayable = updatedFeeItems.reduce(
+      (acc, i) => acc + (i.isApplicable ? i.finalAmount : 0),
+      0,
+    );
+    const dueBalance = Math.max(0, totalPayable - (ledger.paidAmount || 0));
+
+    let updatedLedger: StudentFeeLedger = {
       ...ledger,
       discountId: undefined,
       discountName: "",
       discountDescription: "",
       discountAmount: 0,
       totalDiscount: 0,
-      feeItems: ledger.feeItems.map((item) => {
-        if (
-          item.category === "Tuition Fee" ||
-          item.headId === (tuitionItem?.headId || "")
-        ) {
-          const finalAmt = Math.max(
-            0,
-            item.originalAmount - item.scholarshipDeduction,
-          );
-          return {
-            ...item,
-            discountDeduction: 0,
-            finalAmount: finalAmt,
-          };
-        }
-        return item;
-      }),
+      feeItems: updatedFeeItems,
+      totalOriginalAmount: totalOriginal,
+      grossAmount: totalOriginal,
+      totalPayable,
+      dueBalance,
+      updatedAt: new Date().toISOString().split("T")[0],
     };
 
-    updatedLedger.totalPayable = Math.max(
-      0,
-      updatedLedger.grossAmount -
-        updatedLedger.scholarshipAmount -
-        updatedLedger.discountAmount +
-        updatedLedger.fineAmount +
-        updatedLedger.previousDue,
+    const assignment = studentFeeAssignments.find(
+      (a) =>
+        (a.studentId === studentId ||
+          (student && a.studentId === student.id) ||
+          (student?.admissionNo && a.studentId === student.admissionNo)) &&
+        a.status === "Active",
     );
-    updatedLedger.dueBalance = Math.max(
-      0,
-      updatedLedger.totalPayable - updatedLedger.paidAmount,
+    updatedLedger.installments = generateInstallmentsForStudent(
+      studentId,
+      updatedLedger.academicYear,
+      assignment,
+      updatedLedger,
     );
 
-    setStudentFeeLedgers((prev) =>
-      prev.map((l) => (l.studentId === studentId ? updatedLedger : l)),
-    );
+    setStudentFeeLedgers((prev) => {
+      const idx = prev.findIndex(
+        (l) =>
+          l.studentId === studentId ||
+          (student && l.studentId === student.id) ||
+          (student?.admissionNo && l.admissionNo === student.admissionNo),
+      );
+      let next: StudentFeeLedger[];
+      if (idx !== -1) {
+        next = [...prev];
+        next[idx] = updatedLedger;
+      } else {
+        next = [...prev, updatedLedger];
+      }
+      localStorage.setItem("edu_db_student_fee_ledgers", JSON.stringify(next));
+      return next;
+    });
+
+    setStudentFeeInstallments((prev) => {
+      const other = prev.filter(
+        (i) =>
+          !(
+            i.studentId === studentId ||
+            (student && i.studentId === student.id) ||
+            (student?.admissionNo && i.studentId === student.admissionNo)
+          ),
+      );
+      const next = [...other, ...(updatedLedger.installments || [])];
+      localStorage.setItem("edu_db_student_fee_installments", JSON.stringify(next));
+      return next;
+    });
+
     const currentDisc = studentDiscounts.find(
-      (d) => d.studentId === studentId && d.discountId === ledger.discountId,
+      (d) =>
+        (d.studentId === studentId || (student && d.studentId === student.id) || (student?.admissionNo && d.studentId === student.admissionNo)) &&
+        (d.discountId === ledger.discountId || Boolean(d.discountId)),
     );
     if (currentDisc) {
       removeStudentDiscount(currentDisc.id);
@@ -19919,7 +20492,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           row.academicYear || row.AcademicYear || row.academic_year || "",
         ).trim();
         const totalPayable = parseFloat(
-          row.totalPayable || row.TotalPayable || "45000",
+          row.totalPayable || row.TotalPayable || "0",
         );
 
         const targetStudent = students.find(
