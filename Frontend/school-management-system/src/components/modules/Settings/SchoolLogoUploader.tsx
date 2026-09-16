@@ -349,106 +349,14 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Header & Mode Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
-        <div>
-          <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-            Custom Logo Upload & Pixel Inspection
-          </label>
-        </div>
-
-        <div className="inline-flex p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 self-start sm:self-auto border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => setSourceMode('upload')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              sourceMode === 'upload'
-                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Upload className="w-3.5 h-3.5" /> Upload File
-          </button>
-          <button
-            type="button"
-            onClick={() => setSourceMode('url')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              sourceMode === 'url'
-                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <LinkIcon className="w-3.5 h-3.5" /> Image URL
-          </button>
-        </div>
-      </div>
-
-      {/* Input Area: Upload Drag & Drop vs URL */}
-      {sourceMode === 'upload' ? (
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
-          className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
-            isDragging
-              ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/30 scale-[0.99]'
-              : 'border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-brand-400 hover:bg-slate-50 dark:hover:bg-slate-800/70'
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
-            onChange={handleFileInputChange}
-            className="hidden"
-          />
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-brand-100 dark:bg-brand-950 text-brand-600 dark:text-brand-400 flex items-center justify-center shadow-inner">
-              <Upload className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Click to browse or drag & drop school logo
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Supported formats: <strong className="text-slate-700 dark:text-slate-300">PNG, JPG, JPEG, WEBP, SVG</strong> (Max {MAX_FILE_SIZE_MB}MB)
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="url"
-                placeholder="https://example.com/school-logo.png"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleApplyUrl();
-                  }
-                }}
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-slate-100"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleApplyUrl}
-              className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1 cursor-pointer"
-            >
-              <Check className="w-3.5 h-3.5" /> Apply
-            </button>
-          </div>
-          <p className="text-[10px] text-slate-500">
-            Paste a public direct link to an image file (PNG, JPG, SVG, WebP).
-          </p>
-        </div>
-      )}
+      {/* Hidden file input for file selection */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
 
       {/* Real-time Validation Error Banner */}
       {validation.errorMessage && (
@@ -476,12 +384,112 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
         </div>
       )}
 
-      {/* Active Logo Details, Real-time Pixels & Live Preview */}
-      {value && (
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-4">
+      {/* CASE 1: NO LOGO UPLOADED (Show Add / Upload Dropzone) */}
+      {!value ? (
+        <div className="space-y-3 animate-in fade-in duration-200">
+          {/* Top Header & Mode Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Upload School Crest / Logo
+              </label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Click or drag & drop to add an official school crest or banner logo.
+              </p>
+            </div>
+
+            <div className="inline-flex p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 self-start sm:self-auto border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setSourceMode('upload')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  sourceMode === 'upload'
+                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" /> Upload File
+              </button>
+              <button
+                type="button"
+                onClick={() => setSourceMode('url')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  sourceMode === 'url'
+                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <LinkIcon className="w-3.5 h-3.5" /> Image URL
+              </button>
+            </div>
+          </div>
+
+          {/* Input Area: Upload Drag & Drop vs URL */}
+          {sourceMode === 'upload' ? (
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-2xl p-7 text-center cursor-pointer transition-all ${
+                isDragging
+                  ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/30 scale-[0.99]'
+                  : 'border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-sky-400 hover:bg-slate-50 dark:hover:bg-slate-800/70'
+              }`}
+            >
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-inner">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Click to browse or drag & drop school logo
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Supported formats: <strong className="text-slate-700 dark:text-slate-300">PNG, JPG, JPEG, WEBP, SVG</strong> (Max {MAX_FILE_SIZE_MB}MB)
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="url"
+                    placeholder="https://example.com/school-logo.png"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyUrl();
+                      }
+                    }}
+                    className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyUrl}
+                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold text-xs shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" /> Apply
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Paste a public direct link to an image file (PNG, JPG, SVG, WebP).
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* CASE 2: LOGO IS UPLOADED (Show Live Inspector & Options) */
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in duration-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileImage className="w-4 h-4 text-brand-600" />
+              <FileImage className="w-4 h-4 text-sky-600" />
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                 Live Image Inspector & Real-time Dimensions
               </span>
@@ -493,7 +501,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 type="button"
                 title="Light Background Canvas"
                 onClick={() => setPreviewTheme('light')}
-                className={`px-2 py-1 rounded flex items-center gap-1 font-bold ${
+                className={`px-2 py-1 rounded flex items-center gap-1 font-bold cursor-pointer ${
                   previewTheme === 'light'
                     ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white'
                     : 'text-slate-500'
@@ -505,7 +513,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 type="button"
                 title="Dark Background Canvas"
                 onClick={() => setPreviewTheme('dark')}
-                className={`px-2 py-1 rounded flex items-center gap-1 font-bold ${
+                className={`px-2 py-1 rounded flex items-center gap-1 font-bold cursor-pointer ${
                   previewTheme === 'dark'
                     ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white'
                     : 'text-slate-500'
@@ -517,7 +525,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 type="button"
                 title="Checkerboard Grid Canvas (Transparent PNG/SVG)"
                 onClick={() => setPreviewTheme('grid')}
-                className={`px-2 py-1 rounded flex items-center gap-1 font-bold ${
+                className={`px-2 py-1 rounded flex items-center gap-1 font-bold cursor-pointer ${
                   previewTheme === 'grid'
                     ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white'
                     : 'text-slate-500'
@@ -529,9 +537,9 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 type="button"
                 title="Header Bar Simulation"
                 onClick={() => setPreviewTheme('header')}
-                className={`px-2 py-1 rounded flex items-center gap-1 font-bold ${
+                className={`px-2 py-1 rounded flex items-center gap-1 font-bold cursor-pointer ${
                   previewTheme === 'header'
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-sky-600 text-white'
                     : 'text-slate-500'
                 }`}
               >
@@ -549,7 +557,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                 ? 'bg-slate-950 border-slate-800'
                 : previewTheme === 'grid'
                 ? 'bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:12px_12px] bg-slate-100 border-slate-300 dark:bg-[radial-gradient(#334155_1px,transparent_1px)] dark:bg-slate-900 dark:border-slate-700'
-                : 'bg-brand-900 border-brand-800'
+                : 'bg-slate-900 border-slate-800'
             }`}
           >
             {isLoading ? (
@@ -618,7 +626,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                     Image Format
                   </p>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
                       {meta.format || 'IMAGE'}
                     </span>
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
@@ -658,29 +666,20 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
             </div>
           )}
 
-          {/* Action Buttons: Replace / Reset / Remove */}
+          {/* Action Buttons: Change Image / Remove Logo */}
           <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Upload className="w-3.5 h-3.5 text-brand-600" /> Change Image
-              </button>
-              <button
-                type="button"
-                onClick={handleResetDefault}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-slate-500" /> Reset Default
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5 text-sky-600" /> Change Image
+            </button>
 
             <button
               type="button"
               onClick={handleClear}
-              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" /> Remove Logo
             </button>
