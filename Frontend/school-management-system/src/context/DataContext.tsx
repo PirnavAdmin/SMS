@@ -16461,8 +16461,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   : selectedBranch,
               department: dept,
               records: deptRecords.map((r) => {
-                const parsed = parseInt((r as any).staffId || r.entityId || "0");
-                const validStaffId = !isNaN(parsed) && parsed > 0 ? parsed : 410;
+                const sIdStr = String((r as any).staffId || r.entityId || "");
+                const staffMember = staff.find((s) =>
+                  String(s.id) === sIdStr ||
+                  String(s.empId) === sIdStr ||
+                  String((s as any).staffId) === sIdStr ||
+                  `${s.firstName || ""}`.toLowerCase() === String((r as any).name || (r as any).employeeName || "").trim().toLowerCase() ||
+                  `${s.firstName || ""} ${s.lastName || ""}`.trim().toLowerCase() === String((r as any).name || (r as any).employeeName || "").trim().toLowerCase()
+                );
+
+                let validStaffId = 0;
+                if (staffMember) {
+                  const parsedNum = parseInt(String((staffMember as any).staffId || staffMember.id || "0"));
+                  if (!isNaN(parsedNum) && parsedNum > 0) validStaffId = parsedNum;
+                  else if (staffMember.empId) {
+                    const digits = staffMember.empId.replace(/\D/g, "");
+                    if (digits) validStaffId = parseInt(digits);
+                  }
+                }
+                if (!validStaffId) {
+                  const digits = sIdStr.replace(/\D/g, "");
+                  if (digits) validStaffId = parseInt(digits);
+                  else validStaffId = 1;
+                }
+
                 return {
                   staffId: validStaffId,
                   status:

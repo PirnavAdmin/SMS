@@ -469,8 +469,33 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Load today's check-in / check-out from backend on mount for personal view
   useEffect(() => {
-    // Today's shift reset for fresh user testing
-  }, [isPersonalView, todayDateStr, inKey, outKey, isOutKey, dateKey]);
+    let isMounted = true;
+    const loadBackendTodayAttendance = async () => {
+      try {
+        const res: any = await fetchTeacherTodayAttendanceApi();
+        if (isMounted && res) {
+          const attendanceData = res?.attendance || res;
+          if (attendanceData && attendanceData.inTime) {
+            const inTimeStr = attendanceData.inTime;
+            setPersCheckInTime(inTimeStr);
+            localStorage.setItem(inKey, inTimeStr);
+            localStorage.setItem(dateKey, todayDateStr);
+            if (attendanceData.outTime) {
+              const outTimeStr = attendanceData.outTime;
+              setPersCheckOutTime(outTimeStr);
+              localStorage.setItem(outKey, outTimeStr);
+              localStorage.setItem(isOutKey, "true");
+              setPersIsCheckedOut(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load today's attendance from server", err);
+      }
+    };
+    loadBackendTodayAttendance();
+    return () => { isMounted = false; };
+  }, [inKey, outKey, isOutKey, dateKey, todayDateStr]);
 
   const handlePersCheckIn = async () => {
     try {
