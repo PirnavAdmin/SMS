@@ -111,8 +111,21 @@ export const ParentAttendanceView: React.FC = () => {
 
   // Filter real attendance for the selected child and the selected month/year/day
   const rawWardAttendance = useMemo(() => {
+    const wardId = String(currentWard?.id || '').trim();
+    const wardRoll = String(currentWard?.rollNo || '').trim();
+    const wardAdm = String(currentWard?.admissionNo || '').trim();
+
     return attendance.filter(a => {
-      if (a.entityType !== 'Student' || a.entityId !== currentWard.id) return false;
+      const isStudentEntity = !a.entityType || a.entityType === 'Student';
+      if (!isStudentEntity) return false;
+
+      const recId = String(a.studentId || a.entityId || '').trim();
+      const isChildMatch = recId && (
+        recId === wardId ||
+        (wardRoll && recId === wardRoll) ||
+        (wardAdm && recId === wardAdm)
+      );
+      if (!isChildMatch) return false;
       
       if (filterType === 'Month') {
         const recordDate = new Date(a.date);
@@ -126,7 +139,7 @@ export const ParentAttendanceView: React.FC = () => {
       }
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [attendance, currentWard.id, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
+  }, [attendance, currentWard, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
 
   const wardAttendance = rawWardAttendance;
 

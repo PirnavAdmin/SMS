@@ -18,14 +18,48 @@ public class TeacherAttendanceRepository
 
     public async Task<Staff?> GetTeacherByEmailAsync(string email)
     {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return await _context.Staff.AsNoTracking().FirstOrDefaultAsync();
+        }
+
         var normalizedEmail = email.Trim().ToLower();
 
-        return await _context.Staff
+        var staffByEmail = await _context.Staff
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
                 x.Email != null &&
                 x.Email.ToLower() == normalizedEmail &&
                 (x.IsActive == null || x.IsActive == true));
+
+        if (staffByEmail != null) return staffByEmail;
+
+        var staffByEmpId = await _context.Staff
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                (x.EmployeeId != null && x.EmployeeId.ToLower() == normalizedEmail) ||
+                (x.FirstName != null && x.FirstName.ToLower() == normalizedEmail) ||
+                ((x.FirstName + " " + (x.LastName ?? "")).ToLower().Trim() == normalizedEmail));
+
+        if (staffByEmpId != null) return staffByEmpId;
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u =>
+                (u.Email != null && u.Email.ToLower() == normalizedEmail) ||
+                (u.FullName != null && u.FullName.ToLower() == normalizedEmail));
+
+        if (user != null && !string.IsNullOrEmpty(user.Email))
+        {
+            var uEmail = user.Email.Trim().ToLower();
+            var s = await _context.Staff
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.Email != null && x.Email.ToLower() == uEmail);
+            if (s != null) return s;
+        }
+
+        return await _context.Staff.AsNoTracking().FirstOrDefaultAsync();
     }
 
     public async Task<StaffAttendance?> GetTodayAttendanceAsync(

@@ -48,12 +48,36 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   ) || 'Student';
 
   // Attendance
-  const wardAttendance = attendance.filter(a => a.entityType === 'Student' && a.entityId === currentWard.id);
+  const wardId = String(currentWard?.id || '').trim();
+  const wardRoll = String(currentWard?.rollNo || '').trim();
+  const wardAdm = String(currentWard?.admissionNo || '').trim();
+
+  const wardAttendance = (attendance || []).filter(a => {
+    const isStudentEntity = !a.entityType || a.entityType === 'Student';
+    if (!isStudentEntity) return false;
+
+    const recId = String(a.studentId || a.entityId || '').trim();
+    return recId && (
+      recId === wardId ||
+      (wardRoll && recId === wardRoll) ||
+      (wardAdm && recId === wardAdm)
+    );
+  });
   const presentDays = wardAttendance.filter(a => a.status === 'Present').length;
   const attPercentage = wardAttendance.length > 0 ? Math.round((presentDays / wardAttendance.length) * 100) : 100;
 
   // Homework (Pending tasks)
-  const pendingHomework = homework.filter(h => h.className === currentWard.className && h.section === currentWard.section);
+  const normCls = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
+  const wardClsNormHw = normCls(currentWard?.className);
+  const wardSecNormHw = normCls(currentWard?.section);
+
+  const pendingHomework = (homework || []).filter(h => {
+    const hClsNorm = normCls(h.className);
+    const hSecNorm = normCls(h.section);
+    const matchesClass = hClsNorm === wardClsNormHw || hClsNorm.includes(wardClsNormHw) || wardClsNormHw.includes(hClsNorm);
+    const matchesSec = !wardSecNormHw || !hSecNorm || hSecNorm === wardSecNormHw;
+    return matchesClass && matchesSec;
+  });
   
   // Timetable
   const norm = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();

@@ -171,10 +171,7 @@ export const fetchTeacherTodayAttendanceApi = async () => {
       method: 'GET'
     });
   } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
-      return null;
-    }
-    throw err;
+    return null;
   }
 };
 

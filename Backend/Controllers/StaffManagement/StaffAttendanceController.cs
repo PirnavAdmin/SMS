@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/staff/attendance")]
-[Authorize(Roles = "Admin,Teacher")]
+[Authorize]
 [Tags("Staff Attendance Management")]
 public class StaffAttendanceController : ControllerBase
 {
