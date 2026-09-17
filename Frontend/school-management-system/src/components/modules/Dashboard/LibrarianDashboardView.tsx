@@ -8,6 +8,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import * as LibraryAPI from '../../../api/library';
 
+import { deriveAttendanceStatus } from '../Library/LibrarianAttendanceView';
+
 interface LibrarianDashboardViewProps {
   onNavigate?: (module: string) => void;
 }
@@ -19,7 +21,9 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
     bookIssues = [], 
     announcements = [],
     holidays = [],
-    schoolEvents = []
+    schoolEvents = [],
+    attendance = [],
+    timetable = []
   } = useData();
 
   const [liveBooks, setLiveBooks] = React.useState<any[]>(books);
@@ -68,6 +72,124 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
     }
   };
 
+  const [attVersion, setAttVersion] = React.useState(0);
+
+  React.useEffect(() => {
+    const handleUpdate = () => setAttVersion(v => v + 1);
+    window.addEventListener('librarian_attendance_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('librarian_attendance_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // Compute Today's Shift & Attendance Status dynamically
+  const todayAttendance = useMemo(() => {
+    const loggedName = (user?.name || 'Jammi Naidu').trim();
+    const loggedFirstName = loggedName.split(' ')[0].toLowerCase();
+    const loggedEmpId = (user as any)?.empId || 'NTS-2026-805';
+
+    const map = new Map<string, any>();
+
+    const processRecord = (r: any) => {
+      const isStaff = !r.entityType || String(r.entityType).toLowerCase() === 'staff';
+      const rDate = String(r.date || '').split('T')[0];
+      if (!isStaff || rDate !== todayStr) return;
+
+      const recStaffId = String(r.staffId || r.empId || r.entityId || loggedEmpId).trim();
+      const recStaffName = String(r.staffName || r.employeeName || r.name || loggedName).trim();
+      const recStaffNameLower = recStaffName.toLowerCase();
+      const isLibrarian = String(r.designation || r.department || r.role || '').toLowerCase().includes('librar');
+      const isUserMatch = (loggedEmpId && recStaffId === loggedEmpId) || (loggedFirstName && recStaffNameLower.includes(loggedFirstName)) || isLibrarian;
+
+      if (!isUserMatch) return;
+
+      const nameKey = recStaffNameLower.replace(/\s+/g, '') || loggedFirstName;
+      const key = `${rDate}_${nameKey}`;
+
+      const inTime = r.checkInTime || r.inTime || r.timeIn || r.time;
+      const outTime = r.checkOutTime || r.outTime || r.timeOut;
+      const status = r.status;
+      const hours = r.workingHours;
+      const statusVal = deriveAttendanceStatus(inTime, status);
+
+      map.set(key, {
+        id: String(r.id || `ATT-LIB-${rDate}`),
+        staffId: recStaffId || loggedEmpId,
+        staffName: recStaffName || loggedName,
+        role: 'Librarian',
+        date: rDate,
+        checkInTime: inTime,
+        checkOutTime: outTime,
+        workingHours: hours,
+        shift: r.shift || 'Morning Shift (08:30 - 17:00)',
+        status: statusVal,
+        remarks: r.remarks || ''
+      });
+    };
+
+    // 1. DataContext attendance records (Primary Source)
+    (attendance || []).forEach(processRecord);
+
+    // 2. localStorage edu_db_attendance
+    if (typeof window !== 'undefined') {
+      try {
+        const storedAtt = localStorage.getItem('edu_db_attendance') || localStorage.getItem('attendance');
+        if (storedAtt) {
+          const parsed = JSON.parse(storedAtt);
+          if (Array.isArray(parsed)) parsed.forEach(processRecord);
+        }
+      } catch (e) {}
+    }
+
+    // 3. Merge localStorage edu_db_librarian_attendance (Latest Librarian punches take precedence)
+    if (typeof window !== 'undefined') {
+      try {
+        const s = localStorage.getItem('edu_db_librarian_attendance');
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((r: any) => {
+              const rDate = String(r.date || '').split('T')[0];
+              if (rDate !== todayStr) return;
+
+              const recStaffName = String(r.staffName || r.name || r.employeeName || loggedName).trim();
+              const recStaffNameLower = recStaffName.toLowerCase();
+              const nameKey = recStaffNameLower.replace(/\s+/g, '') || loggedFirstName;
+              const key = `${rDate}_${nameKey}`;
+              const existing = map.get(key);
+
+              const inTime = r.checkInTime || r.inTime || r.timeIn || r.time;
+              const outTime = r.checkOutTime || r.outTime || r.timeOut;
+              const statusVal = deriveAttendanceStatus(inTime, r.status);
+
+              map.set(key, {
+                ...existing,
+                ...r,
+                date: rDate,
+                staffId: r.staffId || loggedEmpId,
+                staffName: recStaffName,
+                checkInTime: inTime || existing?.checkInTime,
+                checkOutTime: outTime || existing?.checkOutTime,
+                status: statusVal,
+                workingHours: r.workingHours || existing?.workingHours
+              });
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    const matched = Array.from(map.values()).find(r => 
+      String(r.staffName || '').toLowerCase().includes(loggedFirstName)
+    );
+
+    return matched || Array.from(map.values())[0] || null;
+  }, [attendance, user?.name, (user as any)?.empId, todayStr, attVersion]);
+
   // Metrics
   const totalBooksCount = useMemo(() => {
     const source = liveBooks.length > 0 ? liveBooks : books;
@@ -96,12 +218,38 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
     return 'Good Evening';
   }, []);
 
-  // Today's reading periods preview
-  const todayReadingPeriods = [
-    { period: 'Period 2', time: '09:30 AM - 10:15 AM', className: 'Class 8 - Sec A', teacher: 'Srinivas Rao', topic: 'Science Research & Journal Reading' },
-    { period: 'Period 4', time: '11:15 AM - 12:00 PM', className: 'Class 10 - Sec B', teacher: 'Robert Teacher', topic: 'Literature Classics Review' },
-    { period: 'Period 6', time: '02:00 PM - 02:45 PM', className: 'Class 6 - Sec C', teacher: 'Anitha Sharma', topic: 'Library Reading Club Session' }
-  ];
+  const todayDayName = useMemo(() => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const today = days[new Date().getDay()];
+    return today === 'Sunday' ? 'Monday' : today;
+  }, []);
+
+  // Today's reading periods dynamic preview from timetable
+  const todayReadingPeriods = useMemo(() => {
+    const periods = (timetable || []).filter((s: any) => {
+      const isToday = (s.day || s.dayName || '').toLowerCase() === todayDayName.toLowerCase();
+      const subj = (s.subject || '').toLowerCase();
+      const room = (s.roomNo || '').toLowerCase();
+      const tName = (s.teacherName || '').toLowerCase();
+      return isToday && (subj.includes('library') || subj.includes('reading') || subj.includes('reference') || room.includes('library') || tName.includes('librar'));
+    });
+
+    if (periods.length === 0) {
+      return [
+        { period: 'Period 2', time: '09:15 AM - 10:00 AM', className: 'Class 8 - Sec A', teacher: 'Srinivas Rao', topic: 'Science Research & Journal Reading' },
+        { period: 'Period 4', time: '11:00 AM - 11:45 AM', className: 'Class 10 - Sec B', teacher: 'Robert Teacher', topic: 'Literature Classics Review' },
+        { period: 'Period 6', time: '01:15 PM - 02:00 PM', className: 'Class 6 - Sec C', teacher: 'Anitha Sharma', topic: 'Library Reading Club Session' }
+      ];
+    }
+
+    return periods.slice(0, 3).map((p: any, idx: number) => ({
+      period: p.period ? `Period ${p.period}` : `Slot ${idx + 1}`,
+      time: p.time || p.periodTime || (idx === 0 ? '09:15 AM - 10:00 AM' : idx === 1 ? '11:00 AM - 11:45 AM' : '01:15 PM - 02:00 PM'),
+      className: p.className || p.class || 'Class 8',
+      teacher: p.teacherName || p.teacher || 'Subject Teacher',
+      topic: p.subject || 'Library Reading Session'
+    }));
+  }, [timetable, todayDayName]);
 
   // Latest School Announcements
   const recentNotices = useMemo(() => {
@@ -150,7 +298,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
         </div>
       </div>
 
-      {/* 2. Separate Summary Metric Cards (Clickable to Navigate directly to specific data tab) */}
+      {/* 2. Separate Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Books */}
         <div 
@@ -190,7 +338,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
           </div>
         </div>
 
-        {/* Card 3: Issued Books (Borrowed) */}
+        {/* Card 3: Issued Books */}
         <div 
           onClick={() => handleNavigate('library-issue')}
           className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-sky-900/50 shadow-xs hover:shadow-md hover:border-sky-300 transition-all cursor-pointer group flex flex-col justify-between"
@@ -229,7 +377,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
         </div>
       </div>
 
-      {/* 3. Middle Section: Shift & Timetable Schedule (50/50 Equal Width & Height) */}
+      {/* 3. Middle Section: Shift & Timetable Schedule */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
         {/* Left: Librarian Daily Shift & Desk Duty */}
@@ -239,23 +387,56 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
               <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-emerald-500" /> Daily Shift & Attendance Status
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Shift
-              </span>
+              {todayAttendance?.checkInTime && todayAttendance?.checkOutTime ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Shift Completed
+                </span>
+              ) : todayAttendance?.checkInTime ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-300 dark:border-sky-800 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Shift
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-600" /> Not Checked In
+                </span>
+              )}
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-3 text-xs">
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-slate-500 font-medium">Logged-in Account:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{user?.name || 'Librarian'}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{user?.name || 'Jammi Naidu'}</span>
               </div>
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
-                <span className="text-slate-500 font-medium">Desk Duty Hours:</span>
+                <span className="text-slate-500 font-medium">Shift Timmings:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">08:30 AM - 05:00 PM</span>
               </div>
+              <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-slate-500 font-medium">Check-in:</span>
+                {todayAttendance?.checkInTime ? (
+                  <div className="flex items-center gap-1.5">
+                    {todayAttendance.status === 'Late' && (
+                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                        Late
+                      </span>
+                    )}
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      {todayAttendance.checkInTime}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">Not Checked In Yet</span>
+                )}
+              </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Today's Punch-in:</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">08:28 AM (On Time)</span>
+                <span className="text-slate-500 font-medium">Check-out:</span>
+                {todayAttendance?.checkOutTime ? (
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {todayAttendance.checkOutTime}
+                  </span>
+                ) : (
+                  <span className="font-mono font-bold text-slate-400 dark:text-slate-500">Not Checked Out Yet</span>
+                )}
               </div>
             </div>
           </div>
