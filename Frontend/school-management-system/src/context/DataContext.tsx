@@ -456,6 +456,7 @@ import {
   deleteMeetingApi,
 } from "../api/communication";
 import {
+  fetchBranchesApi,
   fetchSchoolSettingsApi,
   updateSchoolSettingsApi,
   fetchIdSequenceSettingsApi,
@@ -706,6 +707,8 @@ interface DataContextType {
   fetchLeaveBalances: () => Promise<void>;
   fetchSalaryStructures: () => Promise<void>;
   fetchSalaryAssignments: () => Promise<void>;
+  fetchBranches: () => Promise<void>;
+  branches: any[];
 
   academicClasses: AcademicClass[];
   rawClasses: any[];
@@ -1873,6 +1876,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() =>
     getStored("academic_years", []),
   );
+  const [branches, setBranches] = useState<any[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<
     CertificateTemplateConfig[]
   >(() => {
@@ -5116,6 +5120,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const res: any = await fetchBranchesApi();
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      if (Array.isArray(list)) {
+        setBranches(list);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch branches from API", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchBranches();
+    const handleBranchesUpdated = () => {
+      fetchBranches();
+    };
+    window.addEventListener("branches_updated", handleBranchesUpdated);
+    return () => {
+      window.removeEventListener("branches_updated", handleBranchesUpdated);
+    };
+  }, []);
+
   const fetchStaff = async () => {
     if (activeRequests.current["staff"]) {
       return activeRequests.current["staff"];
@@ -5214,7 +5241,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               experienceRecords:
                 item.experienceRecords || existing?.experienceRecords || [],
               documents: item.documents || existing?.documents || [],
-              branch: item.branchName || item.branch || existing?.branch || "",
+              branch: item.branchName || item.branch || existing?.branch || "Main Campus",
             };
           });
           setStaff(mappedStaff);
@@ -7060,7 +7087,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       accountHolderName: staffData.bankDetails?.accountHolderName || "",
       accountNumber: staffData.bankDetails?.accountNumber || "",
       bankName: staffData.bankDetails?.bankName || "",
-      branchName: staffData.bankDetails?.branch || "",
+      branchName: staffData.branch || selectedBranch || staffData.bankDetails?.branch || "Main Campus",
       ifscCode: staffData.bankDetails?.ifscCode || "",
       upiId: staffData.bankDetails?.upiId || "",
       assignedClasses: staffData.assignedClasses || [],
@@ -7176,7 +7203,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
           accountNumber: fullStaff.bankDetails?.accountNumber || "",
           bankName: fullStaff.bankDetails?.bankName || "",
-          branchName: fullStaff.bankDetails?.branch || "",
+          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || "Main Campus",
           ifscCode: fullStaff.bankDetails?.ifscCode || "",
           upiId: fullStaff.bankDetails?.upiId || "",
           isActive: fullStaff.status === "Active",
@@ -20774,6 +20801,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         schoolProfile,
         updateSchoolProfile,
         academicYears,
+        branches,
+        fetchBranches,
         addAcademicYear,
         updateAcademicYear,
         deleteAcademicYear,

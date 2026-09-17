@@ -27,8 +27,18 @@ public class StaffController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
-    public async Task<IActionResult> GetAllStaff([FromQuery] string? search, [FromQuery] string? department) =>
-        Ok(new { success = true, data = await _staffService.GetAllStaffAsync(search, department) });
+    public async Task<IActionResult> GetAllStaff(
+        [FromQuery] string? search,
+        [FromQuery] string? department,
+        [FromQuery] string? branch,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch)
+    {
+        string? effectiveBranch = !string.IsNullOrWhiteSpace(branch)
+            ? branch
+            : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+
+        return Ok(new { success = true, data = await _staffService.GetAllStaffAsync(search, department, effectiveBranch) });
+    }
 
     [HttpGet("{id:int}")]
     [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]

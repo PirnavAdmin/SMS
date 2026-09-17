@@ -8,9 +8,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { useData } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { BRANCHES } from '../../utils/validation';
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
-import { fetchBranchesApi, fetchAcademicYearsApi } from '../../api/settings';
+import { fetchBranchesApi, fetchAcademicYearsApi, createBranchApi, updateBranchApi } from '../../api/settings';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -23,7 +22,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass, onNavigate }) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, driverMasters = [], academicYears } = useData();
+  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, driverMasters = [], academicYears, branches = [], fetchBranches } = useData();
 
   const formatEmailToName = (email?: string): string => {
     if (!email || !email.includes('@')) return '';
@@ -139,14 +138,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [showAYMenu, setShowAYMenu] = useState(false);
   const [branchSearch, setBranchSearch] = useState('');
-  const [managedBranches, setManagedBranches] = useState<string[]>(() => {
-    const saved = localStorage.getItem('managed_branches');
-    return saved ? JSON.parse(saved) : [...BRANCHES];
-  });
-  const [inactiveBranches, setInactiveBranches] = useState<string[]>(() => {
-    const saved = localStorage.getItem('inactive_branches');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [managedBranches, setManagedBranches] = useState<string[]>([]);
+  const [inactiveBranches, setInactiveBranches] = useState<string[]>([]);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [branchDraftName, setBranchDraftName] = useState('');
   const [editingBranchName, setEditingBranchName] = useState<string | null>(null);
@@ -180,26 +173,9 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   }, [showNotifMenu, showBranchMenu, showAYMenu, showUserMenu]);
 
   useEffect(() => {
-    const handleBranchesUpdate = () => {
-      const savedManaged = localStorage.getItem('managed_branches');
-      if (savedManaged) setManagedBranches(JSON.parse(savedManaged));
-      const savedInactive = localStorage.getItem('inactive_branches');
-      if (savedInactive) setInactiveBranches(JSON.parse(savedInactive));
-    };
-    window.addEventListener('branches_updated', handleBranchesUpdate);
-    window.addEventListener('storage', handleBranchesUpdate);
-
-    // Initial background load from backend if available
     const loadSettingsData = async () => {
       try {
-        const bRes: any = await fetchBranchesApi();
-        if (bRes?.success && Array.isArray(bRes.data) && bRes.data.length > 0) {
-          const names = bRes.data.map((c: any) => c.name || c.branchName).filter(Boolean);
-          if (names.length > 0) {
-            setManagedBranches(prev => Array.from(new Set([...prev, ...names])));
-            localStorage.setItem('managed_branches', JSON.stringify(Array.from(new Set([...managedBranches, ...names]))));
-          }
-        }
+        if (fetchBranches) await fetchBranches();
       } catch {}
       try {
         const ayRes: any = await fetchAcademicYearsApi();
@@ -209,12 +185,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       } catch {}
     };
     loadSettingsData();
-
-    return () => {
-      window.removeEventListener('branches_updated', handleBranchesUpdate);
-      window.removeEventListener('storage', handleBranchesUpdate);
-    };
-  }, []);
+  }, [fetchBranches]);
 
   const roles: UserRole[] = [
     'Super Admin', 'Admin', 'Principal', 'HR', 'Accountant',
@@ -226,15 +197,17 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const canManageBranch = ['Super Admin', 'Admin'].includes(role);
 
   const branchOptions = useMemo(() => {
-    let savedCampuses: any[] = [];
-    try {
-      const sc = localStorage.getItem('school_campuses');
-      if (sc) savedCampuses = JSON.parse(sc);
-    } catch {}
+    const fromApi = (branches || [])
+      .filter((b: any) => b.status !== 'Inactive')
+      .map((b: any) => b.name || b.branchName)
+      .filter(Boolean);
+
+    if (fromApi.length > 0) {
+      return Array.from(new Set(fromApi)).sort();
+    }
 
     const sourceBranches = [
       ...(managedBranches || []),
-      ...(savedCampuses || []).filter((c: any) => c.status !== 'Inactive').map((c: any) => c.name),
       ...(students || []).map(s => s.branch).filter(Boolean),
       ...(admissions || []).map(a => a.branch).filter(Boolean),
       ...(academicClasses || []).map(c => (c as any).branch).filter(Boolean),
@@ -245,7 +218,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     return Array.from(new Set(sourceBranches))
       .filter(branch => branch && !(inactiveBranches || []).includes(branch))
       .sort();
-  }, [managedBranches, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, inactiveBranches]);
+  }, [branches, managedBranches, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, inactiveBranches]);
 
   const authorizedBranches = useMemo(() => {
     return branchOptions;
@@ -260,14 +233,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       setSelectedBranch(authorizedBranches[0]);
     }
   }, [selectedBranch, authorizedBranches, setSelectedBranch]);
-
-  useEffect(() => {
-    localStorage.setItem('managed_branches', JSON.stringify(managedBranches));
-  }, [managedBranches]);
-
-  useEffect(() => {
-    localStorage.setItem('inactive_branches', JSON.stringify(inactiveBranches));
-  }, [inactiveBranches]);
 
   const selectBranch = (branch: string) => {
     if (!canViewBranch || !authorizedBranches.includes(branch)) return;
@@ -291,9 +256,25 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     setBranchModalOpen(true);
   };
 
-  const saveBranch = () => {
+  const saveBranch = async () => {
     const nextName = branchDraftName.trim();
     if (!nextName) return;
+
+    try {
+      if (editingBranchName) {
+        const existing = (branches || []).find((b: any) => (b.name || b.branchName) === editingBranchName);
+        if (existing) {
+          await updateBranchApi(existing.id, { ...existing, name: nextName });
+        }
+      } else {
+        await createBranchApi({ name: nextName, code: nextName.slice(0, 4).toUpperCase(), status: 'Active' });
+      }
+      if (fetchBranches) await fetchBranches();
+      window.dispatchEvent(new Event('branches_updated'));
+    } catch (err) {
+      console.warn('Failed to save branch from header:', err);
+    }
+
     setManagedBranches(prev => {
       const withoutEdited = editingBranchName ? prev.filter(branch => branch !== editingBranchName) : prev;
       return Array.from(new Set([...withoutEdited, nextName]));

@@ -564,10 +564,7 @@ export const SettingsView: React.FC = () => {
   });
 
   // Campus Configuration States
-  const [campuses, setCampuses] = useState<CampusItem[]>(() => {
-    const saved = localStorage.getItem("school_campuses");
-    return saved ? JSON.parse(saved) : defaultCampuses;
-  });
+  const [campuses, setCampuses] = useState<CampusItem[]>([]);
 
   const [campusSearch, setCampusSearch] = useState("");
   const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
@@ -626,22 +623,9 @@ export const SettingsView: React.FC = () => {
     return found || certificateTemplates[0] || defaultCertificateTemplates[0];
   }, [certificateTemplates, selectedTemplateId]);
 
-  // Sync campuses to localStorage and trigger Header sync event
+  // Sync campuses to backend and trigger Header sync event
   const syncCampuses = async (updated: CampusItem[]) => {
     setCampuses(updated);
-    localStorage.setItem("school_campuses", JSON.stringify(updated));
-
-    const allActive = updated
-      .filter((c) => c.status === "Active")
-      .map((c) => c.name);
-    const allInactive = updated
-      .filter((c) => c.status === "Inactive")
-      .map((c) => c.name);
-    const allManaged = updated.map((c) => c.name);
-
-    localStorage.setItem("managed_branches", JSON.stringify(allManaged));
-    localStorage.setItem("inactive_branches", JSON.stringify(allInactive));
-
     window.dispatchEvent(new Event("branches_updated"));
 
     try {
@@ -731,12 +715,6 @@ export const SettingsView: React.FC = () => {
         const res: any = await fetchBranchesApi();
         if (res?.success && Array.isArray(res.data)) {
           setCampuses(res.data);
-          localStorage.setItem("school_campuses", JSON.stringify(res.data));
-          const allActive = res.data.filter((c: any) => c.status === "Active").map((c: any) => c.name);
-          const allInactive = res.data.filter((c: any) => c.status === "Inactive").map((c: any) => c.name);
-          const allManaged = res.data.map((c: any) => c.name);
-          localStorage.setItem("managed_branches", JSON.stringify(allManaged));
-          localStorage.setItem("inactive_branches", JSON.stringify(allInactive));
           window.dispatchEvent(new Event("branches_updated"));
         }
       } catch (err) {

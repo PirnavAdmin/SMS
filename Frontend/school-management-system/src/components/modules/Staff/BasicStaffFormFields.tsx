@@ -1,7 +1,9 @@
 // @ts-nocheck
 import React, { useState } from 'react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { fetchBranchesApi } from '../../../api/settings';
 import {
   BasicStaffFormState,
   branchOptions,
@@ -162,9 +164,57 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   onCancel,
   staffToEdit
 }) => {
-  const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [] } = useData();
+  const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [], branches = [] } = useData();
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
   const normalizedCategory = normalizeStaffType(value.employeeCategory);
+
+  const [dynamicBranches, setDynamicBranches] = useState<string[]>(() => {
+    return (branches || [])
+      .filter((b: any) => b.status !== 'Inactive')
+      .map((b: any) => b.name || b.branchName)
+      .filter(Boolean);
+  });
+
+  React.useEffect(() => {
+    if (branches && branches.length > 0) {
+      const names = branches
+        .filter((b: any) => b.status !== 'Inactive')
+        .map((b: any) => b.name || b.branchName)
+        .filter(Boolean);
+      if (names.length > 0) {
+        setDynamicBranches(Array.from(new Set(names)));
+        return;
+      }
+    }
+    fetchBranchesApi()
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        if (Array.isArray(list)) {
+          const names = list
+            .filter((b: any) => b.status !== 'Inactive')
+            .map((b: any) => b.name || b.branchName)
+            .filter(Boolean);
+          setDynamicBranches(Array.from(new Set(names)));
+        }
+      })
+      .catch(() => {});
+  }, [branches]);
+
+  const branchList = React.useMemo(() => {
+    return Array.from(new Set(dynamicBranches)).filter(Boolean).sort();
+  }, [dynamicBranches]);
+
+  React.useEffect(() => {
+    if ((!value.branch || !branchList.includes(value.branch)) && branchList.length > 0) {
+      const defaultBranch = (selectedBranch && branchList.includes(selectedBranch))
+        ? selectedBranch
+        : branchList[0];
+      if (defaultBranch) {
+        parentOnChange('branch', defaultBranch);
+      }
+    }
+  }, [branchList, value.branch, selectedBranch]);
 
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors = { ...parentErrors, ...localErrors };
@@ -1115,12 +1165,23 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   Branch / Campus <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative mt-1.5">
-                  <select value={value.branch} onChange={e => onChange('branch', e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10">
-                    {branchOptions.map(branch => (
-                      <option key={branch} value={branch}>
-                        {branch}
-                      </option>
-                    ))}
+                  <select
+                    value={value.branch || ''}
+                    onChange={e => onChange('branch', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                  >
+                    {branchList.length === 0 ? (
+                      <option value="">No Campuses Configured (Add in Settings)</option>
+                    ) : (
+                      <>
+                        {!value.branch && <option value="">Select Branch / Campus</option>}
+                        {branchList.map(branch => (
+                          <option key={branch} value={branch}>
+                            {branch}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

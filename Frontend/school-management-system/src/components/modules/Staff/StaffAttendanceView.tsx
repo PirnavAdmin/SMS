@@ -76,7 +76,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     driverMasters = []
   } = useData();
   const { addToast } = useToast();
-  const { user, role } = useAuth();
+  const { user, role, selectedBranch } = useAuth();
 
   const userRole = role?.toLowerCase() || "";
   const canMarkAttendance = [
@@ -2051,6 +2051,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const teachingStaffList = useMemo(() => {
     return staff.filter((s) => {
       if (!isTeachingStaff(s) || s.status === "Inactive") return false;
+      if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
+        const staffBranch = (s.branch || "Main Campus").trim().toLowerCase();
+        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+      }
       const deptMatch =
         teachingDept === "All" ||
         (s.department || "").toLowerCase() === teachingDept.toLowerCase();
@@ -2065,7 +2069,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [staff, teachingDept, teachingDesignation, teachingQuery]);
+  }, [staff, selectedBranch, teachingDept, teachingDesignation, teachingQuery]);
 
   // Filter Active Non-Teaching Staff
   const nonTeachingStaffList = useMemo(() => {
@@ -2079,7 +2083,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       email: d.email || '',
       phone: d.mobileNumber || '',
       status: d.status || 'Active',
-      employeeCategory: 'Non-Teaching'
+      employeeCategory: 'Non-Teaching',
+      branch: (d as any).branch || 'Main Campus'
     }));
 
     const combinedStaff = [...staff];
@@ -2097,6 +2102,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
     return combinedStaff.filter((s) => {
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
+      if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
+        const staffBranch = (s.branch || "Main Campus").trim().toLowerCase();
+        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+      }
       const deptMatch =
         nonTeachingDept === "All" ||
         (s.department || "").toLowerCase() === nonTeachingDept.toLowerCase();
@@ -2111,7 +2120,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [staff, driverMasters, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
+  }, [staff, driverMasters, selectedBranch, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
 
   // Active working staff list for currently selected tab
   const currentTabStaffList =

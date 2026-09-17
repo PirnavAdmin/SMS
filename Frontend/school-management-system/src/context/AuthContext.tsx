@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi } from '../api/login';
 import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActiveUserKey } from '../api/profile';
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
+import { fetchBranchesApi } from '../api/settings';
 
 interface AuthContextType {
   user: User | null;
@@ -141,18 +142,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    const handleSync = () => {
+    const handleSync = async () => {
       const storedBranch = localStorage.getItem('selected_branch');
       if (storedBranch) {
         setSelectedBranchState(storedBranch);
       } else {
         try {
-          const managed = localStorage.getItem('managed_branches');
-          const sc = localStorage.getItem('school_campuses');
-          const branches = managed ? JSON.parse(managed) : (sc ? JSON.parse(sc).map((c: any) => c.name) : []);
-          if (Array.isArray(branches) && branches.length > 0) {
-            setSelectedBranchState(branches[0]);
-            localStorage.setItem('selected_branch', branches[0]);
+          const res: any = await fetchBranchesApi();
+          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+            const firstActive = res.data.find((b: any) => b.status !== 'Inactive') || res.data[0];
+            const name = firstActive?.name || firstActive?.branchName;
+            if (name) {
+              setSelectedBranchState(name);
+              localStorage.setItem('selected_branch', name);
+            }
           }
         } catch {}
       }

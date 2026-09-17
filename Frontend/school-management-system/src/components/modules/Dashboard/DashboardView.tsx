@@ -331,8 +331,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return rawName || (isLibrarian ? 'Librarian' : 'Administrator');
   }, [user, isLibrarian]);
   
-  const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
-  const nonTeachingStaff = useMemo(() => staff.filter(s => !teachingStaff.includes(s)), [staff, teachingStaff]);
+  const isBranchMatch = useMemo(() => {
+    return (s: any) => {
+      if (!selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses') return true;
+      return (s.branch || 'Main Campus').trim().toLowerCase() === selectedBranch.trim().toLowerCase();
+    };
+  }, [selectedBranch]);
+
+  const teachingStaff = useMemo(() => staff.filter(s => {
+    const isTeacher = s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic';
+    return isTeacher && isBranchMatch(s);
+  }), [staff, isBranchMatch]);
+
+  const nonTeachingStaff = useMemo(() => staff.filter(s => {
+    const isTeacher = s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic';
+    return !isTeacher && isBranchMatch(s);
+  }), [staff, isBranchMatch]);
 
   // Real-Time Student Attendance from Backend Summary
   const attendanceStats = useMemo(() => {
@@ -636,6 +650,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }> = [];
 
     staff.forEach(s => {
+      if (!isBranchMatch(s)) return;
       if (!s.dob) return;
       
       // Parse dob string (expected YYYY-MM-DD or DD/MM/YYYY)
@@ -686,7 +701,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     // Sort by days until birthday
     results.sort((a, b) => a.daysUntil - b.daysUntil);
     return results;
-  }, [staff]);
+  }, [staff, isBranchMatch]);
 
   if (loading) {
     return <DashboardShimmer />;

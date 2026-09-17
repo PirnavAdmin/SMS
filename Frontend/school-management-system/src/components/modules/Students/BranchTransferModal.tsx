@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Building2 } from 'lucide-react';
 import { Student, BranchTransferDetails } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { BRANCHES } from '../../../utils/validation';
 
 interface BranchTransferModalProps {
   student: Student;
@@ -18,13 +18,35 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { branchTransferStudent } = useData();
+  const { branchTransferStudent, branches = [] } = useData();
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
+  const availableBranches = useMemo(() => {
+    const list = (branches || [])
+      .filter((b: any) => b.status !== 'Inactive')
+      .map((b: any) => b.name || b.branchName)
+      .filter(Boolean);
+    if (selectedBranch && !list.includes(selectedBranch)) {
+      list.push(selectedBranch);
+    }
+    return Array.from(new Set(list));
+  }, [branches, selectedBranch]);
+
+  const targetBranches = useMemo(() => {
+    return availableBranches.filter(b => b && b.toLowerCase() !== (student.branch || '').toLowerCase());
+  }, [availableBranches, student.branch]);
+
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [toBranch, setToBranch] = useState<string>(BRANCHES.find(b => b !== student.branch) || 'North Branch');
+  const [toBranch, setToBranch] = useState<string>(() => targetBranches[0] || '');
   const [reason, setReason] = useState<string>('Internal Organizational Allocation / Parent Request');
   const [remarks, setRemarks] = useState<string>('');
+
+  React.useEffect(() => {
+    if (!toBranch && targetBranches.length > 0) {
+      setToBranch(targetBranches[0]);
+    }
+  }, [targetBranches, toBranch]);
 
   if (!isOpen) return null;
 
@@ -33,7 +55,7 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
 
     const details: BranchTransferDetails = {
       transferDate: date,
-      fromBranch: student.branch || 'Main Campus',
+      fromBranch: student.branch || selectedBranch || '',
       toBranch,
       reason,
       remarks
@@ -75,16 +97,20 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
             </div>
             <div>
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Current Branch</label>
-              <input type="text" value={student.branch || 'Main Campus'} disabled className="w-full px-3 py-2 rounded-xl border bg-slate-100 dark:bg-slate-900 font-bold text-slate-500" />
+              <input type="text" value={student.branch || selectedBranch || 'Unassigned'} disabled className="w-full px-3 py-2 rounded-xl border bg-slate-100 dark:bg-slate-900 font-bold text-slate-500" />
             </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Target Destination Branch <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select value={toBranch} onChange={e => setToBranch(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold">
-              {BRANCHES.filter(b => b !== student.branch).map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
+              {targetBranches.length === 0 ? (
+                <option value="">No other branches configured</option>
+              ) : (
+                targetBranches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))
+              )}
             </select>
           </div>
 

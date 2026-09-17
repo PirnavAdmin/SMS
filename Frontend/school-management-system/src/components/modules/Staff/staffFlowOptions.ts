@@ -17,13 +17,8 @@ export const employmentTypeOptions: EmploymentType[] = [
   "Contract",
   "Part Time",
 ];
-export const branchOptions = [
-  "Main Campus",
-  "North Campus",
-  "South Campus",
-  "West Campus",
-  "City Center",
-];
+export const getDynamicBranchOptions = (): string[] => [];
+export const branchOptions: string[] = [];
 
 // Department mappings per Staff Type
 export const staffTypeDepartmentMap: Record<StaffType, string[]> = {
@@ -833,7 +828,7 @@ export const defaultBasicStaffFormState = (
   pinCode: "",
   country: "India",
 
-  branch: "Main Campus",
+  branch: "",
   department: "",
   designation: "",
   joiningDate: new Date().toISOString().split("T")[0],
