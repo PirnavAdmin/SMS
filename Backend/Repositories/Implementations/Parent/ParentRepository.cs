@@ -27,20 +27,6 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 {
                     identifier = identifier.Trim().ToLowerInvariant();
 
-                    // Specifically for Kumar Parent / portal parent user, resolve its ward (pawankalyan konidela)
-                    if (identifier == "parent@pirnavschools.com" || identifier == "parent@pirnav.com" || identifier.Contains("kumar") || identifier == "9876543223")
-                    {
-                        var kumarWards = await _context.Students
-                            .Include(s => s.ClassGrade)
-                            .Include(s => s.ClassSection)
-                            .AsNoTracking()
-                            .Where(s => !s.IsDeleted && s.Status == "Active")
-                            .Where(s => s.FatherMobile == "9876543223" || (s.FatherName != null && s.FatherName.ToLower().Contains("kumar parent")))
-                            .ToListAsync();
-
-                        if (kumarWards.Any())
-                            return kumarWards;
-                    }
 
                     // 1. Direct match on Father/Mother mobile, parent email, or father/mother full name
                     var exactParentMatch = await _context.Students
