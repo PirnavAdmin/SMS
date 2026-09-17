@@ -911,145 +911,67 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Settings Navigation Tabs */}
-      <div className="flex items-stretch gap-2 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth">
-        {/* Tab 1: My Profile */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("my-profile")}
-          className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-            activeTab === "my-profile"
-              ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-              : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-          }`}
-        >
-          <span>
-            My Profile
-            <br />
-            (Basic Details)
-          </span>
-        </button>
-
-        {isAdminOrSuperAdmin && (
-          <>
-            {/* Tab 2: School Branding Profile */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("profile")}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "profile"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                School
-                <br />
-                Branding Profile
-              </span>
-            </button>
-
-            {/* Tab 3: Campus Configuration */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("campus")}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "campus"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                Campus
-                <br />
-                Configuration ({campuses.length})
-              </span>
-            </button>
-
-            {/* Tab 4: Academic Year Configuration */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("academic-year")}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "academic-year"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                Academic Year
-                <br />
-                Configuration ({(academicYears || []).length})
-              </span>
-            </button>
-
-            {/* Tab 5: Certificate Templates */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("certificates")}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "certificates"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                Certificate
-                <br />
-                Templates ({certificateTemplates.length})
-              </span>
-            </button>
-
-            {/* Tab 6: Automated ID Settings */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("automated-ids")}
-              className={`flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "automated-ids"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                Automated
-                <br />
-                ID Settings
-              </span>
-            </button>
-
-            {/* Tab 7: Backup & Restore */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("backup")}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "backup"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                Backup &<br />
-                Restore
-              </span>
-            </button>
-
-            {/* Tab 8: System Audit Logs */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("audit")}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] text-center leading-tight shrink-0 ${
-                activeTab === "audit"
-                  ? "bg-[#0088cc] text-white shadow-sm shadow-sky-500/25 border border-[#0088cc] font-extrabold"
-                  : "bg-white dark:bg-slate-900 text-[#475569] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs"
-              }`}
-            >
-              <span>
-                System
-                <br />
-                Audit Logs ({auditLogs.length})
-              </span>
-            </button>
-          </>
-        )}
+      <div className="p-1 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-sky-200/90 dark:border-sky-850/80 shadow-xs">
+        {[
+          {
+            id: "my-profile",
+            label: "My Profile",
+            visible: true,
+          },
+          {
+            id: "profile",
+            label: "School Branding Profile",
+            visible: isAdminOrSuperAdmin,
+          },
+          {
+            id: "campus",
+            label: "Campus Configuration",
+            visible: isAdminOrSuperAdmin,
+          },
+          {
+            id: "academic-year",
+            label: "Academic Year Configuration",
+            visible: isAdminOrSuperAdmin,
+          },
+          {
+            id: "certificates",
+            label: "Certificate Templates",
+            visible: isAdminOrSuperAdmin,
+          },
+          {
+            id: "automated-ids",
+            label: "Automated ID Settings",
+            visible: isAdminOrSuperAdmin,
+          },
+          {
+            id: "backup",
+            label: "Backup & Restore",
+            visible: isAdminOrSuperAdmin,
+          },
+          {
+            id: "audit",
+            label: "System Audit Logs",
+            visible: isAdminOrSuperAdmin,
+          },
+        ]
+          .filter((t) => t.visible)
+          .map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 text-center ${
+                  isActive
+                    ? "bg-sky-50 dark:bg-sky-950/60 text-[#0088cc] dark:text-sky-400 shadow-2xs border border-sky-300 dark:border-sky-800 font-black"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-bold border border-transparent"
+                }`}
+              >
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
       </div>
 
       {/* TAB 0: PERSONAL BASIC DETAILS & PHOTO (FOR ALL ROLES INCLUDING WARDEN & ADMIN) */}
