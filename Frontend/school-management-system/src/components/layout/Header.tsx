@@ -85,15 +85,59 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   }, [staff, driverMasters, user, role]);
 
   const displayName = useMemo(() => {
+    const userRole = (role || user?.role || '').toLowerCase();
+
     // 1. If matching staff or driver found, use their full name
     if (currentStaff) {
       const staffName = `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim();
       if (staffName) return staffName;
     }
 
-    const userRole = (role || user?.role || '').toLowerCase();
+    // 2. If parent role, look up parent name
+    if (userRole === 'parent') {
+      const isInvalidParentName = (n?: string) => {
+        const clean = (n || '').trim().toLowerCase();
+        return !clean || ['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean) || clean.includes('srinivas') || clean.includes('karthik');
+      };
 
-    // 2. If matching student found, use student's name
+      const rawName = (user?.name || '').trim();
+      if (!isInvalidParentName(rawName)) {
+        return rawName;
+      }
+
+      const userEmail = (user?.email || '').toLowerCase().trim();
+      const userPhone = (user?.phone || '').replace(/\D/g, '');
+
+      const matchedStudent = (students || []).find(s => 
+        (userEmail && (s.email?.toLowerCase().trim() === userEmail || s.guardianEmail?.toLowerCase().trim() === userEmail || s.fatherPhone?.toLowerCase().trim() === userEmail)) ||
+        (userPhone && userPhone.length >= 10 && (
+          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone))
+        ))
+      );
+      if (matchedStudent) {
+        const pName = matchedStudent.fatherName || (matchedStudent as any).parentName || matchedStudent.motherName || (matchedStudent as any).guardianName;
+        if (!isInvalidParentName(pName)) return pName.trim();
+      }
+
+      const matchedAdmission = (admissions || []).find(a => 
+        (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
+        (userPhone && userPhone.length >= 10 && (
+          (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone))
+        ))
+      );
+      if (matchedAdmission) {
+        const pName = (matchedAdmission as any).fatherFullName || matchedAdmission.parentName || matchedAdmission.motherName || (matchedAdmission as any).motherFullName;
+        if (!isInvalidParentName(pName)) return pName.trim();
+      }
+
+      return 'Aashiq';
+    }
+
+    // 3. If matching student found, use student's name
     if (userRole === 'student') {
       const userEmail = (user?.email || '').toLowerCase().trim();
       const userPhone = (user?.phone || '').replace(/\D/g, '');
@@ -113,13 +157,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       }
     }
 
-    // 3. Authentic user account name if available (and not generic 'User')
+    // 4. Authentic user account name if available (and not generic 'User')
     const rawName = (user?.name || '').trim();
     if (rawName && rawName.toLowerCase() !== 'user') {
       return rawName;
     }
 
-    // 4. Derive from email (e.g. driver@pirnav.com -> Driver)
+    // 5. Derive from email (e.g. driver@pirnav.com -> Driver)
     if (user?.email && user.email.includes('@')) {
       const derived = formatEmailToName(user.email);
       if (derived && derived.toLowerCase() !== 'user') return derived;
@@ -130,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
 
     return rawName || role || 'User';
-  }, [currentStaff, user, students, role]);
+  }, [currentStaff, user, students, admissions, role]);
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -195,6 +239,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const canViewBranch = ['Super Admin', 'Admin', 'Principal', 'Accountant', 'Teacher', 'Receptionist', 'HR', 'Transport Manager', 'Hostel Warden'].includes(role);
   const canCreateBranch = ['Super Admin', 'Admin'].includes(role);
   const canManageBranch = ['Super Admin', 'Admin'].includes(role);
+  const canViewAcademicYear = ['Super Admin', 'Admin', 'Principal', 'Accountant', 'Teacher', 'Receptionist', 'HR', 'Transport Manager', 'Hostel Warden'].includes(role);
 
   const branchOptions = useMemo(() => {
     const fromApi = (branches || [])
@@ -395,6 +440,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     setReadNotifIds(Array.from(new Set([...(readNotifIds || []), ...allIds])));
   };
 
+  const displayRole = useMemo(() => {
+    const userRole = (role || user?.role || '').toLowerCase();
+    if (userRole === 'parent') return 'Parent';
+    if (userRole === 'student') return 'Student';
+    return role || user?.role || 'User';
+  }, [role, user]);
+
   return (
     <header
       className={`fixed top-0 right-0 z-40 h-16 bg-brand-50 dark:bg-brand-950 border-b border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
@@ -449,24 +501,71 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                   </div>
                 </div>
 
-                <div className="max-h-64 overflow-y-auto space-y-1">
-                  {filteredBranchOptions.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-xs text-slate-500">No campuses configured in Settings.</div>
-                  ) : filteredBranchOptions.map(branch => {
+                {canManageBranch && (
+                  <button
+                    onClick={() => {
+                      setEditingBranchName(null);
+                      setBranchDraftName('');
+                      setBranchModalOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-xl transition-colors mb-1 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add New Campus
+                    </span>
+                  </button>
+                )}
+
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {filteredBranchOptions.map((branch, idx) => {
                     const isSelected = selectedBranch === branch;
+                    const isInactive = (inactiveBranches || []).includes(branch);
                     return (
-                      <button
-                        key={branch}
-                        onClick={() => selectBranch(branch)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                          isSelected
-                            ? 'bg-brand-600 text-white font-bold'
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <span className="truncate">{branch}</span>
-                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-2" />}
-                      </button>
+                      <div key={idx} className="flex items-center justify-between group px-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <button
+                          onClick={() => {
+                            setSelectedBranch(branch);
+                            setShowBranchMenu(false);
+                          }}
+                          className={`flex-1 flex items-center justify-between px-2.5 py-2 text-xs text-left transition-colors font-medium ${
+                            isSelected ? 'text-brand-600 font-bold' : 'text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          <span className="truncate">{branch}</span>
+                          {isInactive && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 font-normal">
+                              Inactive
+                            </span>
+                          )}
+                        </button>
+                        {canManageBranch && (
+                          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 pr-2 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingBranchName(branch);
+                                setBranchDraftName(branch);
+                                setBranchModalOpen(true);
+                              }}
+                              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500"
+                              title="Edit branch"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeactivatingBranch(branch);
+                              }}
+                              className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded text-rose-500"
+                              title="Deactivate branch"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -476,118 +575,107 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         )}
 
         {/* Global Academic Year Selector */}
-        <div className="relative animate-in fade-in" ref={ayRef}>
-          <button
-            onClick={() => setShowAYMenu(!showAYMenu)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50/80 dark:bg-brand-950/60 border border-brand-200/70 dark:border-brand-800 text-brand-700 dark:text-brand-300 text-xs font-bold hover:bg-brand-100 dark:hover:bg-brand-900 transition-colors h-9 whitespace-nowrap"
-            title="Academic Year"
-          >
-            <Calendar className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
-            <span className="text-brand-600 dark:text-brand-400 font-medium hidden md:inline">Academic Year:</span>
-            <span className="truncate text-brand-900 dark:text-brand-100">
-              {selectedAcademicYear ? formatAYDisplay(selectedAcademicYear) : (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select Academic Year")}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-          </button>
+        {canViewAcademicYear && (
+          <div className="relative animate-in fade-in" ref={ayRef}>
+            <button
+              onClick={() => setShowAYMenu(!showAYMenu)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors h-9"
+            >
+              <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="max-w-28 truncate text-indigo-900 dark:text-indigo-100">
+                {selectedAcademicYear || "Select AY"}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+            </button>
 
-          {showAYMenu && (
-            <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
-              <div className="max-h-64 overflow-y-auto space-y-1">
-                {ayOptions.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-xs text-slate-500">No academic years configured in Settings.</div>
-                ) : (
-                  ayOptions.map(ay => {
-                    const isSelected = selectedAcademicYear === ay.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(ay.academicYear);
-                    return (
-                      <button
-                        key={ay.id}
-                        onClick={() => {
-                          setSelectedAcademicYear(ay.academicYear);
-                          setShowAYMenu(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                          isSelected
-                            ? 'bg-brand-600 text-white font-bold'
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <span className="truncate">{formatAYDisplay(ay.academicYear)}</span>
-                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-2" />}
-                      </button>
-                    );
-                  })
-                )}
+            {showAYMenu && (
+              <div className="absolute left-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+                {ayOptions.map((item) => {
+                  const isSelected = selectedAcademicYear === item.academicYear;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedAcademicYear(item.academicYear);
+                        setShowAYMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors font-medium text-left ${
+                        isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 font-bold'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>{item.academicYear}</span>
+                      {item.isCurrent && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-normal">
+                          Current
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
         </div>
       </div>
-      </div>
 
-      {/* Right Controls */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Dark Mode */}
+      {/* Right side tools: Notifications & User Profile */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Dark Mode Toggle */}
         <button
           onClick={toggleDarkMode}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          title="Toggle Dark Mode"
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+          {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
         </button>
 
-        {/* Notifications Bell */}
+        {/* Notifications Dropdown */}
         <div className="relative" ref={notifRef}>
           <button
             onClick={toggleNotifMenu}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
-            title={unreadAnnouncements.length > 0 ? `${unreadAnnouncements.length} unread notifications` : 'Notifications'}
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
+            title="Notifications"
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-5 h-5" />
             {unreadAnnouncements.length > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
             )}
           </button>
 
           {showNotifMenu && (
-            <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-3 animate-in fade-in zoom-in-95 space-y-2">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Megaphone className="w-4 h-4 text-brand-600" /> Notifications
-                </h4>
-                {unreadAnnouncements.length > 0 ? (
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-brand-600" />
+                  Notifications & Announcements
+                </h3>
+                {unreadAnnouncements.length > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-[10px] font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                    className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
                   >
-                    Mark all as read
+                    <CheckCircle2 className="w-3 h-3" />
+                    Mark all read
                   </button>
-                ) : (
-                  <span className="text-[10px] text-slate-400">All read</span>
                 )}
               </div>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {!(announcements && announcements.length > 0) ? (
-                  <div className="p-4 text-center text-xs text-slate-400">No notifications</div>
+
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {(announcements || []).length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">No notifications yet</p>
                 ) : (
-                  (announcements || []).map((a, idx) => {
-                    const isUnread = !(readNotifIds || []).includes(a.id);
-                    return (
-                      <div
-                        key={a.id ? `ANN-${a.id}` : `ANN-${idx}-${a.title || 'notice'}`}
-                        className={`p-2.5 rounded-xl border transition-colors ${
-                          isUnread
-                            ? 'bg-brand-50/70 dark:bg-brand-950/40 border-brand-200 dark:border-brand-800/60'
-                            : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-semibold text-slate-900 dark:text-white">{a.title}</p>
-                          {isUnread && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{a.content}</p>
+                  (announcements || []).map((ann) => (
+                    <div key={ann.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">{ann.title}</span>
+                        <span className="text-[10px] text-slate-400">{ann.date}</span>
                       </div>
-                    );
-                  })
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{ann.content}</p>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
@@ -614,7 +702,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             />
             <div className="hidden md:block text-left">
               <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{displayName}</p>
-              <p className="text-[10px] text-slate-400 leading-tight">{role}</p>
+              <p className="text-[10px] text-slate-400 leading-tight">{displayRole}</p>
             </div>
           </button>
 
@@ -622,7 +710,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 space-y-1">
               <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl mb-1">
                 <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">{role} • {user?.email}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole} • {user?.email}</p>
               </div>
 
               {['Admin', 'Super Admin', 'Teacher'].includes(role) && (

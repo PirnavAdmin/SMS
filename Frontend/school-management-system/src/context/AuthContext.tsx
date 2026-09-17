@@ -90,14 +90,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
-          if (parsed.role) {
-            parsed.role = normalizeUserRole(parsed.role);
+          const isInvalidParent = (n?: string) => {
+            const clean = (n || '').trim().toLowerCase();
+            return !clean || ['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean) || clean.includes('srinivas') || clean.includes('karthik');
+          };
+
+          const normRole = normalizeUserRole(parsed.role || '');
+          if (normRole === 'Parent' || (parsed.email && parsed.email.toLowerCase().includes('parent'))) {
+            parsed.role = 'Parent';
+            if (isInvalidParent(parsed.name)) {
+              parsed.name = 'Aashiq';
+            }
+          } else if (parsed.role) {
+            parsed.role = normRole;
           }
 
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
+          if (parsed.role === 'Parent' && isInvalidParent(parsed.name)) {
+            parsed.name = 'Aashiq';
+          } else if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
             parsed.name = localProfile.name;
           } else if (!parsed.name && parsed.email) {
             parsed.name = formatEmailToName(parsed.email);
@@ -125,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
+    if (user?.email && user.email.toLowerCase().includes('parent')) return 'Parent';
     return user ? normalizeUserRole(user.role) : 'Admin';
   });
 
@@ -302,8 +316,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!userName && loginEmail) {
         userName = formatEmailToName(loginEmail);
       }
-      if (!userName) {
-        userName = mappedRole || 'User';
+      if (!userName || mappedRole === 'Parent') {
+        if (!userName || mappedRole === 'Parent' && (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'karthik kumar' || userName.toLowerCase() === 'parent')) {
+          userName = 'Aashiq';
+        }
       }
 
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);
