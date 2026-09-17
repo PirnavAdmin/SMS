@@ -80,13 +80,19 @@ export const deriveAttendanceStatus = (inTime?: string, status?: string): string
   return status || 'Present';
 };
 
+export const getAttendanceMapKey = (dateStr: string, nameStr: string) => {
+  const normDate = String(dateStr || '').split('T')[0].trim();
+  const normName = String(nameStr || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `${normDate}_${normName}`;
+};
+
 export const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
 
 export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [];
 
 export const LibrarianAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff, attendance = [], leaveApplications = [], addLeaveApplication } = useData();
+  const { staff, attendance = [], leaveApplications = [], addLeaveApplication, markAttendance } = useData();
   const { addToast } = useToast();
 
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
@@ -152,31 +158,29 @@ export const LibrarianAttendanceView: React.FC = () => {
             remarks: item.remarks || item.dutyRemarks || ''
           }));
 
-          // Merge backend API data with local state so local check-in records are NEVER overwritten or wiped out
+          // Merge backend API data with local state so local check-in records take absolute priority
           setLibrarianAttendance(prev => {
             const map = new Map<string, LibrarianAttendanceRecord>();
             (prev || []).forEach(r => {
-              const rDate = String(r.date || '').split('T')[0];
-              const sId = r.staffId || currentStaffId;
-              const sName = (r.staffName || currentStaffName).toLowerCase().replace(/\s+/g, '');
-              const key = `${rDate}_${sId}_${sName}`;
+              const rDate = String(r.date || todayStr).split('T')[0];
+              const key = getAttendanceMapKey(rDate, r.staffName || currentStaffName);
               map.set(key, { ...r, date: rDate });
             });
             mapped.forEach(r => {
-              const rDate = String(r.date || '').split('T')[0];
-              const sId = r.staffId || currentStaffId;
-              const sName = (r.staffName || currentStaffName).toLowerCase().replace(/\s+/g, '');
-              const key = `${rDate}_${sId}_${sName}`;
+              const rDate = String(r.date || todayStr).split('T')[0];
+              const key = getAttendanceMapKey(rDate, r.staffName || currentStaffName);
               if (!map.has(key)) {
                 map.set(key, { ...r, date: rDate });
               } else {
                 const existing = map.get(key)!;
                 map.set(key, {
-                  ...existing,
                   ...r,
+                  ...existing,
                   date: rDate,
                   checkInTime: existing.checkInTime || r.checkInTime,
-                  checkOutTime: existing.checkOutTime || r.checkOutTime
+                  checkOutTime: existing.checkOutTime || r.checkOutTime,
+                  status: existing.status || r.status,
+                  workingHours: existing.workingHours || r.workingHours
                 });
               }
             });
@@ -293,7 +297,7 @@ export const LibrarianAttendanceView: React.FC = () => {
         if (isMatch) {
           const recStaffId = String(r.staffId || r.entityId || currentStaffId);
           const recStaffName = String(r.staffName || r.employeeName || r.name || currentStaffName);
-          const key = `${rDate}_${recStaffId}_${recStaffName.toLowerCase().replace(/\s+/g, '')}`;
+          const key = getAttendanceMapKey(rDate, recStaffName);
           const checkInTimeVal = r.checkInTime || r.inTime || r.timeIn || r.time || (r.status === 'Present' || r.status === 'Late' ? '08:30 AM' : '--');
           const statusVal = deriveAttendanceStatus(checkInTimeVal, r.status);
 
@@ -329,34 +333,33 @@ export const LibrarianAttendanceView: React.FC = () => {
       } catch (e) {}
     }
 
-    // 3. Add/Override with local librarian attendance (punches from Librarian login)
+    // 3. Add/Override with local librarian attendance (punches from Librarian login take absolute priority!)
     (librarianAttendance || []).forEach((r) => {
       const rDate = String(r.date || '').split('T')[0];
       const recStaffId = String(r.staffId || currentStaffId);
       const recStaffName = String(r.staffName || currentStaffName);
-      const key = `${rDate}_${recStaffId}_${recStaffName.toLowerCase().replace(/\s+/g, '')}`;
+      const key = getAttendanceMapKey(rDate, recStaffName);
       const existing = map.get(key);
-      if (!existing) {
-        map.set(key, {
-          ...r,
-          date: rDate,
-          staffId: recStaffId,
-          staffName: recStaffName
-        });
-      } else {
-        const hasDataContextTimes = existing.checkInTime && existing.checkInTime !== '--' && existing.checkInTime !== '08:30 AM';
-        map.set(key, {
-          ...existing,
-          ...r,
-          date: rDate,
-          staffId: recStaffId,
-          staffName: recStaffName,
-          checkInTime: hasDataContextTimes ? existing.checkInTime : (r.checkInTime || existing.checkInTime),
-          checkOutTime: (existing.checkOutTime && existing.checkOutTime !== '05:00 PM') ? existing.checkOutTime : (r.checkOutTime || existing.checkOutTime),
-          status: existing.status || r.status,
-          workingHours: existing.workingHours || r.workingHours
-        });
-      }
+
+      const localIn = r.checkInTime || existing?.checkInTime;
+      const localOut = r.checkOutTime || existing?.checkOutTime;
+      const statusVal = deriveAttendanceStatus(localIn, r.status || existing?.status);
+
+      map.set(key, {
+        id: r.id || existing?.id || `ATT-LIB-${rDate}`,
+        shift: r.shift || existing?.shift || 'Morning Shift (08:30 - 17:00)',
+        role: r.role || existing?.role || 'Librarian',
+        remarks: r.remarks || existing?.remarks || '',
+        ...existing,
+        ...r,
+        date: rDate,
+        staffId: recStaffId,
+        staffName: recStaffName,
+        checkInTime: localIn,
+        checkOutTime: localOut,
+        status: statusVal as any,
+        workingHours: r.workingHours || (localIn && localOut ? calculateWorkedHours(localIn, localOut) : (existing?.workingHours || '8 Hours'))
+      });
     });
 
     // 4. Add approved leave applications
@@ -365,7 +368,7 @@ export const LibrarianAttendanceView: React.FC = () => {
         const leaveDate = String(app.startDate).split('T')[0];
         const recStaffId = String(app.employeeId || (app as any).empId || currentStaffId);
         const recStaffName = String(app.employeeName || currentStaffName);
-        const key = `${leaveDate}_${recStaffId}_${recStaffName.toLowerCase().replace(/\s+/g, '')}`;
+        const key = getAttendanceMapKey(leaveDate, recStaffName);
         if (!map.has(key)) {
           map.set(key, {
             id: `ATT-LIB-LV-${app.id || Date.now()}`,
