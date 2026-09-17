@@ -9,8 +9,7 @@ using System.Threading.Tasks;
 
 public interface ISchoolRepository
 {
-    // Staff & Teacher Operations
-    Task<List<Staff>> GetAllStaffAsync(string? search, string? department);
+    Task<List<Staff>> GetAllStaffAsync(string? search, string? department, string? branch = null);
     Task<Staff?> GetStaffByIdAsync(int id);
     Task<List<Staff>> GetTeachersForDropdownAsync(string? search);
     Task<List<Staff>> GetAllTeachersAsync(string? search, string? subject);

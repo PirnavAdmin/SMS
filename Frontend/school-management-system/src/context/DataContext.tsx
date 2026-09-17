@@ -12,6 +12,12 @@ import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
 import { publishTimetableApi } from "../api/academic";
 import {
+  createAcademicYearApi,
+  updateAcademicYearApi,
+  deleteAcademicYearApi,
+  fetchAcademicYearsApi,
+} from "../api/settings";
+import {
   generateNextStudentId,
   generateNextAdmissionNo,
   generateNextEmployeeId,
@@ -450,6 +456,7 @@ import {
   deleteMeetingApi,
 } from "../api/communication";
 import {
+  fetchBranchesApi,
   fetchSchoolSettingsApi,
   updateSchoolSettingsApi,
   fetchIdSequenceSettingsApi,
@@ -465,6 +472,8 @@ export interface AcademicClass {
   weeklyPeriods?: Record<string, number>;
   sectionDetails?: Record<string, any>;
   status?: string;
+  campusLocation?: string;
+  branch?: string;
 }
 
 const initialClasses: AcademicClass[] = [
@@ -698,6 +707,8 @@ interface DataContextType {
   fetchLeaveBalances: () => Promise<void>;
   fetchSalaryStructures: () => Promise<void>;
   fetchSalaryAssignments: () => Promise<void>;
+  fetchBranches: () => Promise<void>;
+  branches: any[];
 
   academicClasses: AcademicClass[];
   rawClasses: any[];
@@ -1863,8 +1874,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("profile", initialSchoolProfile),
   );
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() =>
-    getStored("academic_years", initialAcademicYears),
+    getStored("academic_years", []),
   );
+  const [branches, setBranches] = useState<any[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<
     CertificateTemplateConfig[]
   >(() => {
@@ -1982,26 +1994,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
     const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
-    const cleaned = (stored || []).filter((p) => {
-      if (!p) return false;
-      const notesLower = (p.notes || "").toLowerCase();
-      const recLower = (p.receiptNo || "").toLowerCase();
-      const hasAlloc =
-        p.paymentAllocation &&
-        p.paymentAllocation.some((a) =>
-          (a.feeHeadName || a.termName || "").toLowerCase().includes("uniform"),
-        );
-      const isUniformPayment =
-        notesLower.includes("uniform") || recLower.includes("uni") || hasAlloc;
-      return !isUniformPayment;
-    });
-
+    
     if (!localStorage.getItem(versionKey)) {
+      const cleaned = (stored || []).filter((p) => {
+        if (!p) return false;
+        const notesLower = (p.notes || "").toLowerCase();
+        const recLower = (p.receiptNo || "").toLowerCase();
+        const hasAlloc =
+          p.paymentAllocation &&
+          p.paymentAllocation.some((a) =>
+            (a.feeHeadName || a.termName || "").toLowerCase().includes("uniform"),
+          );
+        const isUniformPayment =
+          notesLower.includes("uniform") || recLower.includes("uni") || hasAlloc;
+        return !isUniformPayment;
+      });
+
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_fee_payments", JSON.stringify(cleaned));
       localStorage.setItem("fee_payments", JSON.stringify(cleaned));
+      return cleaned;
     }
-    return cleaned;
+    return stored;
   });
   const [attendance, setAttendance] = useState<DailyAttendance[]>(() =>
     getStored("attendance", []),
@@ -2329,9 +2343,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
-    const versionKey = "edu_db_student_uniform_issues_wipe_v100002_no_nagaraj_zero_strict";
+    const versionKey = "edu_db_student_uniform_issues_wipe_v100004_split_qty";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
+      
+      try {
+        const saved =
+          localStorage.getItem("edu_db_student_uniform_issues") ||
+          localStorage.getItem("student_uniform_issues");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const splitData: StudentUniformIssue[] = [];
+            parsed.forEach((issue) => {
+              const qty = issue.quantity || 1;
+              const nameLower = (issue.itemName || issue.itemCategory || "").toLowerCase();
+              const isCloth = nameLower.includes("cloth") || nameLower.includes("fabric") || nameLower.includes("unstitched");
+              if (!isCloth && qty > 1) {
+                for (let i = 0; i < qty; i++) {
+                  splitData.push({
+                    ...issue,
+                    status: issue.status === 'Paid' ? 'Partial' : issue.status,
+                    id: `${issue.id}-P${i + 1}`,
+                    itemName: `${issue.itemName} (#${i + 1})`,
+                    quantity: 1,
+                    totalAmount: issue.price || 0
+                  });
+                }
+              } else {
+                splitData.push(issue);
+              }
+            });
+            localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(splitData));
+            localStorage.setItem("student_uniform_issues", JSON.stringify(splitData));
+            return splitData;
+          }
+        }
+      } catch (e) {}
+      
       localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
       localStorage.setItem("student_uniform_issues", JSON.stringify([]));
       return [];
@@ -2360,12 +2409,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const map = new Map<string, FinanceUniformConfig>();
+          (initialFinanceUniformConfigs || []).forEach(c => map.set(c.id, c));
+          parsed.forEach(c => {
+            if (c && c.id) {
+              map.set(c.id, c);
+            }
+          });
+          return Array.from(map.values());
         }
       }
     } catch (e) {}
 
-    return [];
+    return initialFinanceUniformConfigs || [];
   });
 
 
@@ -2808,7 +2864,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     () => getStored("financial_budgets", initialFinancialBudgets),
   );
 
-  const addAcademicYear = (ayData: Omit<AcademicYearMaster, "id">) => {
+  const addAcademicYear = async (ayData: Omit<AcademicYearMaster, "id">) => {
     const id = `AY-${ayData.academicYear.replace(/\s+/g, "") || Date.now()}`;
     const newAY: AcademicYearMaster = { id, ...ayData };
     setAcademicYears((prev) => {
@@ -2817,11 +2873,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updated = updated.map((a) => ({ ...a, isCurrentAcademicYear: false }));
         setSelectedAcademicYear(newAY.academicYear);
       }
-      return [...updated, newAY];
+      const next = [...updated, newAY];
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
+        localStorage.setItem("academic_years", JSON.stringify(next));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return next;
     });
+
+    try {
+      await createAcademicYearApi(newAY);
+    } catch (err) {
+      console.warn("Failed to create academic year on backend:", err);
+    }
   };
 
-  const updateAcademicYear = (
+  const updateAcademicYear = async (
     id: string,
     updates: Partial<AcademicYearMaster>,
   ) => {
@@ -2840,12 +2908,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         if (target) setSelectedAcademicYear(target.academicYear);
       }
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(updated));
+        localStorage.setItem("academic_years", JSON.stringify(updated));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
       return updated;
     });
+
+    try {
+      await updateAcademicYearApi(id, updates);
+    } catch (err) {
+      console.warn("Failed to update academic year on backend:", err);
+    }
   };
 
-  const deleteAcademicYear = (id: string) => {
-    setAcademicYears((prev) => prev.filter((a) => a.id !== id));
+  const deleteAcademicYear = async (id: string) => {
+    setAcademicYears((prev) => {
+      const next = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
+        localStorage.setItem("academic_years", JSON.stringify(next));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return next;
+    });
+
+    try {
+      await deleteAcademicYearApi(id);
+    } catch (err) {
+      console.warn("Failed to delete academic year on backend:", err);
+    }
   };
 
   const setCurrentAcademicYear = (id: string) => {
@@ -2853,12 +2946,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const target = prev.find((a) => a.id === id);
       if (!target) return prev;
       setSelectedAcademicYear(target.academicYear);
-      return prev.map((a) => ({
+      const next: AcademicYearMaster[] = prev.map((a) => ({
         ...a,
         isCurrentAcademicYear: a.id === id,
-        status:
-          a.id === id ? "Active" : a.status === "Active" ? "Closed" : a.status,
+        status: (a.id === id ? "Active" : a.status === "Active" ? "Closed" : a.status) as ("Upcoming" | "Active" | "Closed"),
       }));
+      try {
+        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
+        localStorage.setItem("academic_years", JSON.stringify(next));
+      } catch (e) {}
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return next;
     });
   };
 
@@ -2871,6 +2969,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(academicYears),
     );
   }, [academicYears]);
+  useEffect(() => {
+    const syncAcademicYearsFromApi = async () => {
+      try {
+        const res: any = await fetchAcademicYearsApi();
+        if (res?.success && Array.isArray(res.data)) {
+          setAcademicYears(res.data);
+          localStorage.setItem("edu_db_academic_years", JSON.stringify(res.data));
+          localStorage.setItem("academic_years", JSON.stringify(res.data));
+        }
+      } catch {}
+    };
+    syncAcademicYearsFromApi();
+
+    const handleAYUpdate = () => {
+      try {
+        const stored = localStorage.getItem("edu_db_academic_years") || localStorage.getItem("academic_years");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setAcademicYears(parsed);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener("academic_years_updated", handleAYUpdate);
+    window.addEventListener("storage", handleAYUpdate);
+
+    return () => {
+      window.removeEventListener("academic_years_updated", handleAYUpdate);
+      window.removeEventListener("storage", handleAYUpdate);
+    };
+  }, []);
   useEffect(() => {
     try {
       const lightweightStudents = (students || []).map((s) => {
@@ -4575,6 +4705,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ...backendWeeklyPeriods,
                 },
                 sectionDetails: secDetails,
+                campusLocation: c.campusLocation || c.CampusLocation || localCls?.campusLocation || localCls?.branch || "All",
+                branch: c.campusLocation || c.CampusLocation || c.branch || localCls?.branch || localCls?.campusLocation || "All",
               };
             });
             mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
@@ -5032,6 +5164,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchBranches = useCallback(async () => {
+    try {
+      const res: any = await fetchBranchesApi();
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      if (Array.isArray(list)) {
+        setBranches(list);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch branches from API", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBranches();
+    const handleBranchesUpdated = () => {
+      fetchBranches();
+    };
+    window.addEventListener("branches_updated", handleBranchesUpdated);
+    return () => {
+      window.removeEventListener("branches_updated", handleBranchesUpdated);
+    };
+  }, [fetchBranches]);
+
   const fetchStaff = async () => {
     if (activeRequests.current["staff"]) {
       return activeRequests.current["staff"];
@@ -5130,7 +5285,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               experienceRecords:
                 item.experienceRecords || existing?.experienceRecords || [],
               documents: item.documents || existing?.documents || [],
-              branch: item.branchName || existing?.branch || "Main Campus",
+              branch: item.branchName || item.branch || existing?.branch || "Main Campus",
             };
           });
           setStaff(mappedStaff);
@@ -5208,7 +5363,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               className: s.className || s.class || "",
               section: s.sectionName || s.section || "",
               academicYear: s.academicYearName || s.academicYear || "",
-              branch: s.branchName || s.branch || "Main Campus",
+              branch: s.branchName || s.branch || "",
               status: s.status || "Active",
               studentType: s.studentType || "Day Scholar",
               parentName,
@@ -5816,14 +5971,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
             const combined = [...prev];
             apiMapped.forEach((apiCfg) => {
-              const exists = combined.some(
-                (c) =>
-                  c.id === apiCfg.id ||
-                  (c.className?.toLowerCase().trim() === apiCfg.className?.toLowerCase().trim() &&
-                    c.uniformPackage?.toLowerCase().trim() === apiCfg.uniformPackage?.toLowerCase().trim() &&
-                    c.gender === apiCfg.gender &&
-                    ((c as any).fabricMeterage || "").toLowerCase().trim() === ((apiCfg as any).fabricMeterage || "").toLowerCase().trim()),
-              );
+              const exists = combined.some((c) => c && c.id === apiCfg.id);
               if (!exists) {
                 combined.push(apiCfg);
               }
@@ -6976,7 +7124,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       accountHolderName: staffData.bankDetails?.accountHolderName || "",
       accountNumber: staffData.bankDetails?.accountNumber || "",
       bankName: staffData.bankDetails?.bankName || "",
-      branchName: staffData.bankDetails?.branch || "",
+      branchName: staffData.branch || selectedBranch || staffData.bankDetails?.branch || "Main Campus",
       ifscCode: staffData.bankDetails?.ifscCode || "",
       upiId: staffData.bankDetails?.upiId || "",
       assignedClasses: staffData.assignedClasses || [],
@@ -7092,7 +7240,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
           accountNumber: fullStaff.bankDetails?.accountNumber || "",
           bankName: fullStaff.bankDetails?.bankName || "",
-          branchName: fullStaff.bankDetails?.branch || "",
+          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || "Main Campus",
           ifscCode: fullStaff.bankDetails?.ifscCode || "",
           upiId: fullStaff.bankDetails?.upiId || "",
           isActive: fullStaff.status === "Active",
@@ -12476,31 +12624,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     };
 
-    const selectedOptional = admApp ? admApp.selectedOptionalFees || [] : null;
+    const selectedOptional = admApp ? admApp.selectedOptionalFees || [] : (student as any)?.selectedOptionalFees || null;
+
+    const hasUniformIssued = (studentUniformIssues || []).some((issue) => {
+      if (!issue) return false;
+      const iId = String(issue.studentId || "").trim().toLowerCase();
+      const iAdm = String(issue.admissionNo || "").trim().toLowerCase();
+      const rId = String(studentId || "").trim().toLowerCase();
+      const rAdm = student?.admissionNo ? String(student.admissionNo).trim().toLowerCase() : "";
+      const isMatch = (rId && (iId === rId || iAdm === rId)) || (rAdm && (iId === rAdm || iAdm === rAdm));
+      return isMatch && (issue.status as string) !== "Returned" && (issue.status as string) !== "Cancelled";
+    });
 
     const isUniformOpted = (
       optList: string[] | null | undefined,
       hId?: string,
       hName?: string,
     ) => {
-      if (optList === null || optList === undefined) return true;
-      if (Array.isArray(optList) && optList.length === 0) return false;
-      if (hId && optList.includes(hId)) return true;
+      if (hasUniformIssued) return true;
+      if ((admApp as any)?.uniformOpted === true || (admApp as any)?.isUniformOpted === true || (student as any)?.uniformOpted === true || (student as any)?.isUniformOpted === true) {
+        return true;
+      }
+      if ((admApp as any)?.uniformOpted === false || (admApp as any)?.isUniformOpted === false || (student as any)?.uniformOpted === false || (student as any)?.isUniformOpted === false) {
+        return false;
+      }
+      const persistedOpt = getPersistedOptionalFees(studentId) || (student?.admissionNo ? getPersistedOptionalFees(student.admissionNo) : null);
+      const listToUse = (optList && Array.isArray(optList) && optList.length > 0) ? optList : (persistedOpt || []);
+      if (!listToUse || !Array.isArray(listToUse) || listToUse.length === 0) return false;
+      if (hId && listToUse.includes(hId)) return true;
       if (
         hName &&
-        optList.some(
+        listToUse.some(
           (id) =>
-            id.toLowerCase().includes("uniform") ||
-            id.toLowerCase().includes("kit"),
+            String(id).toLowerCase().includes("uniform") ||
+            String(id).toLowerCase().includes("kit"),
         )
       )
         return true;
-      return optList.some(
-        (id) =>
-          id === "FH-04" ||
-          id === "FH-004" ||
-          id.includes("UNI") ||
-          id.includes("04"),
+      return listToUse.some(
+        (id) => {
+          const s = String(id).toLowerCase();
+          return s === "fh-04" || s === "fh-004" || s === "fh-uni-base" || s.includes("uniform") || s.includes("kit");
+        }
       );
     };
 
@@ -13370,39 +13535,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const admApp = admissions.find(
         (a) =>
           a.id === studentId ||
-          a.applicationNo === existing.admissionNo ||
+          (existing.admissionNo && a.applicationNo === existing.admissionNo) ||
+          (existing.admissionNo && a.registrationNo === existing.admissionNo) ||
           (a.applicantName &&
             existing.studentName &&
             a.applicantName.trim().toLowerCase() ===
-              existing.studentName.trim().toLowerCase()),
+              existing.studentName.trim().toLowerCase()) ||
+          (resolvedStudent && (a.id === resolvedStudent.id || a.applicationNo === resolvedStudent.admissionNo || a.registrationNo === resolvedStudent.admissionNo)),
       );
       const selectedOptional = admApp
         ? admApp.selectedOptionalFees || []
-        : null;
+        : (resolvedStudent as any)?.selectedOptionalFees || null;
 
       const isUniformOpted = (
         optList: string[] | null | undefined,
         hId?: string,
         hName?: string,
       ) => {
-        if (optList === null || optList === undefined) return true;
-        if (Array.isArray(optList) && optList.length === 0) return false;
-        if (hId && optList.includes(hId)) return true;
+        if ((admApp as any)?.uniformOpted === true || (admApp as any)?.isUniformOpted === true || (resolvedStudent as any)?.uniformOpted === true || (resolvedStudent as any)?.isUniformOpted === true) {
+          return true;
+        }
+        if ((admApp as any)?.uniformOpted === false || (admApp as any)?.isUniformOpted === false || (resolvedStudent as any)?.uniformOpted === false || (resolvedStudent as any)?.isUniformOpted === false) {
+          return false;
+        }
+        const persistedOpt = getPersistedOptionalFees(studentId) || (resolvedStudent?.admissionNo ? getPersistedOptionalFees(resolvedStudent.admissionNo) : null);
+        const listToUse = (optList && Array.isArray(optList) && optList.length > 0) ? optList : (persistedOpt || []);
+        if (!listToUse || !Array.isArray(listToUse) || listToUse.length === 0) return false;
+        if (hId && listToUse.includes(hId)) return true;
         if (
           hName &&
-          optList.some(
+          listToUse.some(
             (id) =>
-              id.toLowerCase().includes("uniform") ||
-              id.toLowerCase().includes("kit"),
+              String(id).toLowerCase().includes("uniform") ||
+              String(id).toLowerCase().includes("kit"),
           )
         )
           return true;
-        return optList.some(
-          (id) =>
-            id === "FH-04" ||
-            id === "FH-004" ||
-            id.includes("UNI") ||
-            id.includes("04"),
+        return listToUse.some(
+          (id) => {
+            const s = String(id).toLowerCase();
+            return s === "fh-04" || s === "fh-004" || s === "fh-uni-base" || s.includes("uniform") || s.includes("kit");
+          }
         );
       };
 
@@ -13480,26 +13653,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      const hasUniformIssued = (studentUniformIssues || []).some((issue) => {
+        if (!issue) return false;
+        const iId = String(issue.studentId || "").trim().toLowerCase();
+        const iAdm = String(issue.admissionNo || "").trim().toLowerCase();
+        const rId = String(studentId || "").trim().toLowerCase();
+        const rAdm = resolvedStudent?.admissionNo ? String(resolvedStudent.admissionNo).trim().toLowerCase() : "";
+        const isMatch = (rId && (iId === rId || iAdm === rId)) || (rAdm && (iId === rAdm || iAdm === rAdm));
+        return isMatch && (issue.status as string) !== "Returned" && (issue.status as string) !== "Cancelled";
+      });
+
       const sanitizedItems = existing.feeItems.map((fi) => {
         if (
           isUniform(fi.headName) &&
           fi.category !== "Additional Uniform Purchase"
         ) {
-          const isOptedInApp =
-            selectedOptional !== null
-              ? isUniformOpted(selectedOptional, fi.headId, fi.headName)
-              : true;
-          const shouldBeApplicable =
-            selectedOptional !== null
-              ? isOptedInApp
-              : Boolean(hasUniformInAssignment);
+          const isOptedInApp = isUniformOpted(selectedOptional, fi.headId, fi.headName);
+          const shouldBeApplicable = isOptedInApp || hasUniformIssued;
+
           return {
             ...fi,
             isApplicable: shouldBeApplicable,
             finalAmount: shouldBeApplicable ? fi.originalAmount : 0,
             status: fi.status || ("Pending" as const),
             remarks: shouldBeApplicable
-              ? undefined
+              ? fi.remarks
               : "Optional Fee - Not Selected at Admission",
           };
         }
@@ -18665,7 +18843,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addFinanceUniformConfig = async (
     cData: Omit<FinanceUniformConfig, "id">,
   ) => {
-    let assignedId = "FUC-" + Date.now();
+    let assignedId = `FUC-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     try {
       const apiRes: any = await FinanceAPI.createUniformFeeConfigApi({
         academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
@@ -18678,8 +18856,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         effectiveFrom: cData.effectiveFrom,
         status: cData.status || "Active",
       });
-      if (apiRes && apiRes.success && apiRes.data && apiRes.data.id) {
-        assignedId = String(apiRes.data.id);
+      if (apiRes?.success && apiRes?.data?.id) {
+        const candidateId = String(apiRes.data.id);
+        // Only accept candidateId if it starts with FUC- and does NOT collide with any existing config
+        if (candidateId.startsWith("FUC-") && !financeUniformConfigs.some(c => c && c.id === candidateId)) {
+          assignedId = candidateId;
+        }
       }
     } catch (e) {
       console.warn("API createUniformFeeConfig failed, saving locally:", e);
@@ -18695,16 +18877,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setFinanceUniformConfigs((prev) => {
       const current = Array.isArray(prev) ? prev : [];
-      const filtered = current.filter(
-        (c) =>
-          !(
-            c.id === newConfig.id ||
-            (c.className?.toLowerCase().trim() === (newConfig.className || "").toLowerCase().trim() &&
-              c.gender === newConfig.gender &&
-              c.uniformPackage?.toLowerCase().trim() === (newConfig.uniformPackage || "").toLowerCase().trim() &&
-              ((c as any).fabricMeterage || "").toLowerCase().trim() === ((newConfig as any).fabricMeterage || "").toLowerCase().trim())
-          ),
-      );
+      const filtered = current.filter((c) => c && c.id !== newConfig.id);
       const updated = [newConfig, ...filtered];
       try {
         localStorage.setItem(
@@ -19995,22 +20168,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Check branch
       let branchMatch = true;
-      if (selectedBranch && selectedBranch !== "All Branches") {
+      if (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All") {
+        const itemBranch =
+          anyItem.branch ||
+          anyItem.branchName ||
+          anyItem.campusLocation ||
+          anyItem.CampusLocation ||
+          anyItem.branchFilter ||
+          anyItem.campus;
+
         if (
           anyItem.applicableBranches &&
           Array.isArray(anyItem.applicableBranches)
         ) {
           branchMatch =
             anyItem.applicableBranches.includes(selectedBranch) ||
-            anyItem.applicableBranches.includes("All Branches");
-        } else if (anyItem.branch) {
+            anyItem.applicableBranches.includes("All Branches") ||
+            anyItem.applicableBranches.includes("All");
+        } else if (itemBranch) {
+          const itemB = String(itemBranch).toLowerCase().trim();
+          const selB = String(selectedBranch).toLowerCase().trim();
           branchMatch =
-            anyItem.branch === "All Branches" ||
-            anyItem.branch.toLowerCase() === selectedBranch.toLowerCase() ||
-            selectedBranch
-              .toLowerCase()
-              .includes(anyItem.branch.toLowerCase()) ||
-            anyItem.branch.toLowerCase().includes(selectedBranch.toLowerCase());
+            itemB === "all branches" ||
+            itemB === "all" ||
+            itemB === selB ||
+            selB.includes(itemB) ||
+            itemB.includes(selB);
         }
       }
 
@@ -20042,7 +20225,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const filteredStudents = useMemo(() => {
     return filterByBranch(students);
-  }, [students, selectedBranch]);
+  }, [students, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);
@@ -20680,6 +20863,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         schoolProfile,
         updateSchoolProfile,
         academicYears,
+        branches,
+        fetchBranches,
         addAcademicYear,
         updateAcademicYear,
         deleteAcademicYear,

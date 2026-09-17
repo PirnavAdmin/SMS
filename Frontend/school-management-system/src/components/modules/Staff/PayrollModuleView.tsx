@@ -113,7 +113,7 @@ const payrollTabs: { id: PayrollTabId; label: string; icon: React.ComponentType<
 ];
 
 const monthOptions = ['July 2026', 'June 2026', 'May 2026', 'April 2026', 'March 2026'];
-const branchOptions = ['All Branches', 'Main Campus', 'North Campus', 'South Campus', 'West Campus'];
+const getDynamicBranchFilterOptions = () => ['All Branches'];
 const departmentOptions = ['All Departments', 'Academics', 'Science', 'Mathematics', 'Administration', 'Accounts', 'Library', 'Computer Science'];
 const categoryOptions = ['All Categories', 'Teacher', 'Staff'];
 const statusOptions = ['All Status', 'Active', 'Inactive', 'Pending', 'Processed', 'HR Review', 'Accounts Review', 'Principal Approval', 'Locked'];
@@ -867,6 +867,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
+  const branchOptions = useMemo(() => getDynamicBranchFilterOptions(), [selectedBranch]);
   const sampleEmployees = useMemo(() => staff.slice(0, 5), [staff]);
 
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);

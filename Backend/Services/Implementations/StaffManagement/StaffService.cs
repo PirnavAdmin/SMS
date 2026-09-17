@@ -69,9 +69,9 @@ public class StaffService : IStaffService
         return $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
     }
 
-    public async Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department)
+    public async Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department, string? branch = null)
     {
-        var list = await _schoolRepository.GetAllStaffAsync(search, department);
+        var list = await _schoolRepository.GetAllStaffAsync(search, department, branch);
         return list.Select(s => MapToStaffResponseDto(s)).ToList();
     }
 

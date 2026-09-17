@@ -22,12 +22,13 @@ public class DashboardService : IDashboardService
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(
         string? branchContext,
         int? academicYearId,
+        string? academicYearContext = null,
         CancellationToken cancellationToken = default)
     {
         int? targetBranchId = null;
         string? targetBranchName = null;
 
-        if (!string.IsNullOrWhiteSpace(branchContext) && !branchContext.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(branchContext) && !branchContext.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !branchContext.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
             if (int.TryParse(branchContext, out int bId))
             {
@@ -49,11 +50,25 @@ public class DashboardService : IDashboardService
         }
 
         // Academic Year resolution
-        var defaultYear = await _context.AcademicYears.AsNoTracking()
-            .FirstOrDefaultAsync(a => !a.IsDeleted, cancellationToken);
-        int? effectiveYearId = (academicYearId.HasValue && academicYearId.Value > 0)
-            ? academicYearId.Value
-            : defaultYear?.AcademicYearId;
+        int? effectiveYearId = null;
+        if (academicYearId.HasValue && academicYearId.Value > 0)
+        {
+            effectiveYearId = academicYearId.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(academicYearContext) && !academicYearContext.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(academicYearContext, out int yId))
+            {
+                effectiveYearId = yId;
+            }
+            else
+            {
+                var cleanYear = academicYearContext.Trim();
+                var ayObj = await _context.AcademicYears.AsNoTracking()
+                    .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AcademicYearName == cleanYear || a.AcademicYearName.Contains(cleanYear) || cleanYear.Contains(a.AcademicYearName)), cancellationToken);
+                effectiveYearId = ayObj?.AcademicYearId;
+            }
+        }
 
         // 1. Total Active Students (matches Student Directory query)
         var studentQuery = _context.Students.AsNoTracking()
@@ -62,6 +77,10 @@ public class DashboardService : IDashboardService
         if (targetBranchId.HasValue)
         {
             studentQuery = studentQuery.Where(s => s.BranchId == targetBranchId.Value);
+        }
+        else if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            studentQuery = studentQuery.Where(s => s.Branch != null && s.Branch.BranchName == targetBranchName);
         }
 
         if (effectiveYearId.HasValue && effectiveYearId.Value > 0)
@@ -75,21 +94,21 @@ public class DashboardService : IDashboardService
         var staffQuery = _context.Staff.AsNoTracking()
             .Where(s => s.IsActive == true);
 
-        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            staffQuery = staffQuery.Where(s => s.BranchName == targetBranchName || s.BranchName == null || s.BranchName == "");
+            staffQuery = staffQuery.Where(s => s.BranchName != null && s.BranchName.ToLower() == targetBranchName.ToLower());
         }
 
-        int teachingStaff = await staffQuery.CountAsync(s => s.Department == "Teaching" || s.EmployeeCategory == "Teaching Staff", cancellationToken);
-        int nonTeachingStaff = await staffQuery.CountAsync(s => s.Department != "Teaching" && s.EmployeeCategory != "Teaching Staff", cancellationToken);
+        int teachingStaff = await staffQuery.CountAsync(s => s.Department == "Teaching" || s.EmployeeCategory == "Teaching Staff" || s.EmployeeCategory == "Teacher", cancellationToken);
+        int nonTeachingStaff = await staffQuery.CountAsync(s => s.Department != "Teaching" && s.EmployeeCategory != "Teaching Staff" && s.EmployeeCategory != "Teacher", cancellationToken);
 
         // 3. Total Active Classes
         var classQuery = _context.Classes.AsNoTracking()
             .Where(c => c.Status == "Active");
 
-        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            classQuery = classQuery.Where(c => c.CampusLocation == targetBranchName || c.CampusLocation == "All" || c.CampusLocation == null || c.CampusLocation == "");
+            classQuery = classQuery.Where(c => c.CampusLocation == targetBranchName || c.CampusLocation == "All" || c.CampusLocation == "All Branches");
         }
 
         int totalClasses = await classQuery.CountAsync(cancellationToken);
@@ -98,7 +117,7 @@ public class DashboardService : IDashboardService
         var admQuery = _context.AdmissionApplications.AsNoTracking()
             .Where(a => !a.IsDeleted && a.Status != "Deleted");
 
-        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
             admQuery = admQuery.Where(a => a.BranchName == targetBranchName);
         }
@@ -142,9 +161,13 @@ public class DashboardService : IDashboardService
         var staffAttQuery = _context.StaffAttendances.AsNoTracking()
             .Where(sa => sa.Date.Date == today);
 
-        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        if (targetBranchId.HasValue)
         {
-            staffAttQuery = staffAttQuery.Where(sa => sa.Branch == targetBranchName || sa.Branch == null || sa.Branch == "");
+            staffAttQuery = staffAttQuery.Where(sa => sa.Branch == targetBranchName);
+        }
+        else if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            staffAttQuery = staffAttQuery.Where(sa => sa.Branch == targetBranchName);
         }
 
         var staffRecords = await staffAttQuery.ToListAsync(cancellationToken);

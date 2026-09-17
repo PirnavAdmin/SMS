@@ -221,11 +221,11 @@ const PremiumDonutChart: React.FC<{
 };
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
-  const { user, selectedAcademicYear } = useAuth();
+  const { user, selectedAcademicYear, selectedBranch } = useAuth();
   const {
-    students, staff, announcements, holidays, schoolEvents,
-    schoolProfile, admissions, leaveApplications, attendance,
-    academicClasses, departments, birthdays, exams,
+    students = [], staff = [], announcements = [], holidays = [], schoolEvents = [],
+    schoolProfile, admissions = [], leaveApplications = [], attendance = [],
+    academicClasses = [], departments = [], birthdays = [], exams = [],
     fetchStudents, fetchAdmissions, fetchAcademicClasses,
     totalStudentCount, todayStudentAttendanceSummary, fetchTodayStudentAttendanceSummary
   } = useData();
@@ -237,11 +237,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [summaryLoading, setSummaryLoading] = useState<boolean>(true);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  const loadSummaryData = async () => {
+  const loadSummaryData = async (branch?: string, ay?: string) => {
     try {
       setSummaryLoading(true);
       setSummaryError(null);
-      const res = await fetchDashboardSummaryApi();
+      const targetBranch = branch !== undefined ? branch : selectedBranch;
+      const targetAY = ay !== undefined ? ay : selectedAcademicYear;
+      const res = await fetchDashboardSummaryApi(targetBranch, targetAY);
       if (res && res.success && res.data) {
         setSummaryData(res.data);
       } else if (res && (res as any).totalStudents !== undefined) {
@@ -266,7 +268,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       try {
         setLoading(true);
         await Promise.all([
-          loadSummaryData(),
+          loadSummaryData(selectedBranch, selectedAcademicYear),
           fetchStudents(),
           typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
           fetchAdmissions(),
@@ -280,7 +282,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     };
     loadDashboardData();
-  }, [userRole, selectedAcademicYear]);
+  }, [userRole, selectedAcademicYear, selectedBranch]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
@@ -329,8 +331,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return rawName || (isLibrarian ? 'Librarian' : 'Administrator');
   }, [user, isLibrarian]);
   
-  const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
-  const nonTeachingStaff = useMemo(() => staff.filter(s => !teachingStaff.includes(s)), [staff, teachingStaff]);
+  const isBranchMatch = useMemo(() => {
+    return (s: any) => {
+      if (!selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses') return true;
+      return (s.branch || 'Main Campus').trim().toLowerCase() === selectedBranch.trim().toLowerCase();
+    };
+  }, [selectedBranch]);
+
+  const teachingStaff = useMemo(() => (staff || []).filter(s => {
+    const isTeacher = s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic';
+    return isTeacher && isBranchMatch(s);
+  }), [staff, isBranchMatch]);
+
+  const nonTeachingStaff = useMemo(() => (staff || []).filter(s => {
+    const isTeacher = s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic';
+    return !isTeacher && isBranchMatch(s);
+  }), [staff, isBranchMatch]);
 
   // Real-Time Student Attendance from Backend Summary
   const attendanceStats = useMemo(() => {
@@ -634,6 +650,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }> = [];
 
     staff.forEach(s => {
+      if (!isBranchMatch(s)) return;
       if (!s.dob) return;
       
       // Parse dob string (expected YYYY-MM-DD or DD/MM/YYYY)
@@ -684,7 +701,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     // Sort by days until birthday
     results.sort((a, b) => a.daysUntil - b.daysUntil);
     return results;
-  }, [staff]);
+  }, [staff, isBranchMatch]);
 
   if (loading) {
     return <DashboardShimmer />;
@@ -839,7 +856,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.teachingStaff : teachingStaff.length).toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{teachingStaff.length.toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-200 dark:border-emerald-800">
             <UserCheck className="w-5 h-5" />
@@ -850,7 +867,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff-non-teaching')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Non-Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.nonTeachingStaff : nonTeachingStaff.length).toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{nonTeachingStaff.length.toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-200 dark:border-rose-800">
             <Users className="w-5 h-5" />
@@ -1068,7 +1085,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               >
                 <span className="font-bold text-slate-800 dark:text-slate-300">Staff Requests</span>
                 <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-450 border border-amber-200">
-                  {staff.filter(s => s.profileStatus === 'Incomplete').length || 3}
+                  {(staff || []).filter(s => s.profileStatus === 'Incomplete').length || 3}
                 </span>
               </div>
               <div 

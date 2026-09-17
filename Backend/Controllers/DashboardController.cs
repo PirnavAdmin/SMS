@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Controllers;
+namespace SMS.Api.Controllers;
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +23,7 @@ public class DashboardController : ControllerBase
     [HttpGet("summary")]
     public async Task<ActionResult<DashboardSummaryDto>> GetSummary(
         [FromQuery] string? branch,
+        [FromQuery] string? academicYear,
         [FromQuery] int? academicYearId,
         [FromHeader(Name = "X-Branch-Id")] string? headerBranch,
         [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear,
@@ -33,19 +34,25 @@ public class DashboardController : ControllerBase
             ? branch
             : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
 
-        // Academic Year precedence: Query parameter -> Request Header parsed
+        // Academic Year precedence: Query parameter -> Request Header
+        string? effectiveAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+            ? academicYear
+            : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+
         int? effectiveYearId = academicYearId;
-        if (!effectiveYearId.HasValue && !string.IsNullOrWhiteSpace(headerAcademicYear))
+        if (!effectiveYearId.HasValue && !string.IsNullOrWhiteSpace(effectiveAcademicYear))
         {
-            if (int.TryParse(headerAcademicYear, out int parsedYearId))
+            if (int.TryParse(effectiveAcademicYear, out int parsedYearId))
             {
                 effectiveYearId = parsedYearId;
+                effectiveAcademicYear = null;
             }
         }
 
         var result = await _dashboardService.GetDashboardSummaryAsync(
             effectiveBranch,
             effectiveYearId,
+            effectiveAcademicYear,
             cancellationToken);
 
         return Ok(new

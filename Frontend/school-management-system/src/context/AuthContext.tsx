@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi } from '../api/login';
 import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActiveUserKey } from '../api/profile';
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
+import { fetchBranchesApi } from '../api/settings';
 
 interface AuthContextType {
   user: User | null;
@@ -57,9 +58,9 @@ const defaultAuthContextValue: AuthContextType = {
   role: 'Admin',
   token: null,
   isAuthenticated: false,
-  selectedBranch: 'Main Campus',
+  selectedBranch: '',
   setSelectedBranch: () => {},
-  selectedAcademicYear: '2026-2027',
+  selectedAcademicYear: '',
   setSelectedAcademicYear: () => {},
   login: async () => false,
   logout: () => {},
@@ -80,13 +81,6 @@ const formatEmailToName = (email: string): string => {
   return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
 };
 
-const getDefaultAcademicYear = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const startYear = now.getMonth() >= 3 ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -96,14 +90,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
-          if (parsed.role) {
-            parsed.role = normalizeUserRole(parsed.role);
+          const isInvalidParent = (n?: string) => {
+            const clean = (n || '').trim().toLowerCase();
+            return !clean || ['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean) || clean.includes('srinivas') || clean.includes('karthik');
+          };
+
+          const normRole = normalizeUserRole(parsed.role || '');
+          if (normRole === 'Parent' || (parsed.email && parsed.email.toLowerCase().includes('parent'))) {
+            parsed.role = 'Parent';
+            if (isInvalidParent(parsed.name)) {
+              parsed.name = 'Aashiq';
+            }
+          } else if (parsed.role) {
+            parsed.role = normRole;
           }
 
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
+          if (parsed.role === 'Parent' && isInvalidParent(parsed.name)) {
+            parsed.name = 'Aashiq';
+          } else if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
             parsed.name = localProfile.name;
           } else if (!parsed.name && parsed.email) {
             parsed.name = formatEmailToName(parsed.email);
@@ -131,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
+    if (user?.email && user.email.toLowerCase().includes('parent')) return 'Parent';
     return user ? normalizeUserRole(user.role) : 'Admin';
   });
 
@@ -140,12 +148,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [selectedBranch, setSelectedBranchState] = useState<string>(() => {
-    return localStorage.getItem('selected_branch') || 'Main Campus';
+    return localStorage.getItem('selected_branch') || '';
   });
 
   const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>(() => {
-    return localStorage.getItem('selected_academic_year') || getDefaultAcademicYear();
+    return localStorage.getItem('selected_academic_year') || '';
   });
+
+  useEffect(() => {
+    const handleSync = async () => {
+      const storedBranch = localStorage.getItem('selected_branch');
+      if (storedBranch) {
+        setSelectedBranchState(storedBranch);
+      } else {
+        try {
+          const res: any = await fetchBranchesApi();
+          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+            const firstActive = res.data.find((b: any) => b.status !== 'Inactive') || res.data[0];
+            const name = firstActive?.name || firstActive?.branchName;
+            if (name) {
+              setSelectedBranchState(name);
+              localStorage.setItem('selected_branch', name);
+            }
+          }
+        } catch {}
+      }
+
+      const storedAY = localStorage.getItem('selected_academic_year');
+      if (storedAY) {
+        setSelectedAcademicYearState(storedAY);
+      } else {
+        try {
+          const stored = localStorage.getItem('edu_db_academic_years') || localStorage.getItem('academic_years');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const active = parsed.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || parsed[0];
+              const val = active?.academicYear || active?.year;
+              if (val) {
+                setSelectedAcademicYearState(val);
+                localStorage.setItem('selected_academic_year', val);
+              }
+            }
+          }
+        } catch {}
+      }
+    };
+
+    handleSync();
+    window.addEventListener('branches_updated', handleSync);
+    window.addEventListener('academic_years_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('branches_updated', handleSync);
+      window.removeEventListener('academic_years_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);
@@ -256,8 +316,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!userName && loginEmail) {
         userName = formatEmailToName(loginEmail);
       }
-      if (!userName) {
-        userName = mappedRole || 'User';
+      if (!userName || mappedRole === 'Parent') {
+        if (!userName || mappedRole === 'Parent' && (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'karthik kumar' || userName.toLowerCase() === 'parent')) {
+          userName = 'Aashiq';
+        }
       }
 
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);

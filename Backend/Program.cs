@@ -1989,25 +1989,6 @@ using (var scope = app.Services.CreateScope())
         // Mock portal users seeder removed - users are managed directly in the database.
 
         // =================================================
-        // SEED BRANCHES
-        // =================================================
-        var branchesToSeed = new[] { "Main Campus", "North Branch", "Hyderabad", "West Campus" };
-        foreach (var branchName in branchesToSeed)
-        {
-            var exists = await context.Branches.AnyAsync(b => b.BranchName == branchName);
-            if (!exists)
-            {
-                await context.Branches.AddAsync(new Branch 
-                { 
-                    BranchName = branchName,
-                    BranchCode = branchName.Length > 5 ? branchName.Substring(0, 5).Trim().ToUpper() : branchName.Trim().ToUpper(),
-                    Status = "Active"
-                });
-            }
-        }
-        await context.SaveChangesAsync();
-
-        // =================================================
         // SEED DEPARTMENTS
         // =================================================
 
