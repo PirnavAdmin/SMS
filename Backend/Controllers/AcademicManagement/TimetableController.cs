@@ -211,9 +211,9 @@ namespace SMS.Api.Controllers.AcademicManagement
 
                 var query = _context.TimetableSlots
                     .Include(s => s.Header)
-                        .ThenInclude(h => h.ClassGrade)
+                        .ThenInclude(h => h!.ClassGrade)
                     .Include(s => s.Header)
-                        .ThenInclude(h => h.ClassSection)
+                        .ThenInclude(h => h!.ClassSection)
                     .Include(s => s.Subject)
                     .Include(s => s.Teacher)
                     .Include(s => s.Period)
@@ -571,7 +571,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                     .Include(h => h.ClassGrade)
                     .Include(h => h.ClassSection)
                     .Include(h => h.Slots)
-                    .Where(h => (h.ClassGrade != null && (h.ClassGrade.ClassName.ToLower().Trim().Replace("class", "").Trim() == cleanClass || h.ClassGrade.ClassId.ToString() == cleanClass)) &&
+                    .Where(h => (h.ClassGrade != null && ((h.ClassGrade.ClassName != null && h.ClassGrade.ClassName.ToLower().Trim().Replace("class", "").Trim() == cleanClass) || h.ClassGrade.ClassId.ToString() == cleanClass)) &&
                                 (h.ClassSection != null && (h.ClassSection.SectionName.ToLower().Trim().Replace("section", "").Trim() == cleanSec || h.ClassSection.SectionId.ToString() == cleanSec)))
                     .ToListAsync();
 

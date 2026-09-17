@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos.Parent;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces.Parent;
 
 namespace SMS.Api.Repositories.Implementations.Parent

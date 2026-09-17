@@ -68,7 +68,7 @@ public class TeacherProfileControllerTests
             new StaffResponseDto { StaffId = 2, FirstName = "Teacher", LastName = "Two", Department = "Math" }
         };
 
-        _staffServiceMock.Setup(s => s.GetAllStaffAsync(It.IsAny<string?>(), It.IsAny<string?>()))
+        _staffServiceMock.Setup(s => s.GetAllStaffAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(expectedStaff);
 
         var result = await _adminStaffController.GetAllStaff(null, null);

@@ -50,7 +50,7 @@ namespace Backend.Tests.Services
                 }
             };
 
-            _repoMock.Setup(r => r.GetAllStaffAsync(null, null)).ReturnsAsync(staffList);
+            _repoMock.Setup(r => r.GetAllStaffAsync(null, null, null)).ReturnsAsync(staffList);
 
             var result = await _service.GetAllStaffAsync(null, null);
 

@@ -28,10 +28,10 @@ public class StaffController : ControllerBase
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
     public async Task<IActionResult> GetAllStaff(
-        [FromQuery] string? search,
-        [FromQuery] string? department,
-        [FromQuery] string? branch,
-        [FromHeader(Name = "X-Branch-Id")] string? headerBranch)
+        [FromQuery] string? search = null,
+        [FromQuery] string? department = null,
+        [FromQuery] string? branch = null,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null)
     {
         string? effectiveBranch = !string.IsNullOrWhiteSpace(branch)
             ? branch
