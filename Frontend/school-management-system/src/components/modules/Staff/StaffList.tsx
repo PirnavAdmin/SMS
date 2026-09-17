@@ -100,13 +100,13 @@ export const StaffList: React.FC<{
   }
 
   const {
-    staff,
+    staff = [],
     addStaff,
     updateStaff,
     deleteStaff,
-    subjects,
-    departments,
-    designations,
+    subjects = [],
+    departments = [],
+    designations = [],
   } = useData();
   const { addToast } = useToast();
 
@@ -209,7 +209,7 @@ export const StaffList: React.FC<{
     setIsAddOpen(true);
   };
 
-  const categoryStaffList = staff.filter(
+  const categoryStaffList = (staff || []).filter(
     (s) => getStaffCategory(s) === activeCategory,
   );
 
@@ -675,7 +675,7 @@ export const StaffList: React.FC<{
           },
         ].map((tab) => {
           const Icon = tab.icon;
-          const count = staff.filter(
+          const count = (staff || []).filter(
             (s) => {
               if (getStaffCategory(s) !== tab.key) return false;
               if (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches" || selectedBranch === "All Campuses") return true;

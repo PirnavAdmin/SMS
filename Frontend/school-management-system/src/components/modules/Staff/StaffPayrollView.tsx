@@ -519,12 +519,12 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
     };
   };
 
-  const eligibleStaff = useMemo(() => data.staff.filter(s => {
-    const existing = data.payrollRuns.find(r => r.employeeId === s.id && r.payrollMonth === payrollMonth);
+  const eligibleStaff = useMemo(() => (data?.staff || []).filter(s => {
+    const existing = (data?.payrollRuns || []).find(r => r.employeeId === s.id && r.payrollMonth === payrollMonth);
     return (department === 'All' || s.department === department) &&
       (employeeType === 'All' || s.employeeCategory === employeeType) &&
       (statusFilter === 'All' || (existing?.status || 'Pending') === statusFilter);
-  }), [data.staff, data.payrollRuns, department, employeeType, payrollMonth, statusFilter]);
+  }), [data?.staff, data?.payrollRuns, department, employeeType, payrollMonth, statusFilter]);
 
   const ensureAllowed = (allowed: boolean, action: string) => {
     if (!allowed) addToast('error', 'Permission denied', `Your role cannot ${action}.`);
@@ -2776,10 +2776,10 @@ const AssignmentPanel = ({
     }
   }, [structures, bulkStructureId]);
 
-  const departments = Array.from(new Set(staff.map(s => s.department || 'General')));
+  const departments = Array.from(new Set((staff || []).map(s => s.department || 'General')));
 
   // Filter employees
-  const filteredStaff = staff.filter(s => {
+  const filteredStaff = (staff || []).filter(s => {
     const matchesSearch = `${s.firstName} ${s.lastName} ${s.empId}`.toLowerCase().includes(search.toLowerCase());
     const matchesDept = deptFilter === 'All' || s.department === deptFilter;
     const matchesCat = catFilter === 'All' || s.employeeCategory === catFilter;

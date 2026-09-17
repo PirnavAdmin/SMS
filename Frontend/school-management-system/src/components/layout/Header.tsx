@@ -185,7 +185,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       } catch {}
     };
     loadSettingsData();
-  }, [fetchBranches]);
+  }, []);
 
   const roles: UserRole[] = [
     'Super Admin', 'Admin', 'Principal', 'HR', 'Accountant',

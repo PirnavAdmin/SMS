@@ -5164,7 +5164,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res: any = await fetchBranchesApi();
       const list = Array.isArray(res) ? res : (res?.data || []);
@@ -5174,7 +5174,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch branches from API", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBranches();
@@ -5185,7 +5185,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       window.removeEventListener("branches_updated", handleBranchesUpdated);
     };
-  }, []);
+  }, [fetchBranches]);
 
   const fetchStaff = async () => {
     if (activeRequests.current["staff"]) {

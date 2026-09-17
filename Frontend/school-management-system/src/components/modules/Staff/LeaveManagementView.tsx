@@ -25,10 +25,10 @@ const DEFAULT_LEAVE_TYPES: LeaveType[] = [
 
 export const LeaveManagementView: React.FC = () => {
   const {
-    staff,
-    leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType,
-    leaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
-    holidays, addHoliday, updateHoliday, deleteHoliday,
+    staff = [],
+    leaveTypes = [], addLeaveType, updateLeaveType, deleteLeaveType,
+    leaveApplications = [], addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
+    holidays = [], addHoliday, updateHoliday, deleteHoliday,
     fetchLeaveTypes, fetchLeaveApplications, fetchLeaveBalances,
     schoolProfile
   } = useData();
@@ -44,7 +44,7 @@ export const LeaveManagementView: React.FC = () => {
   const { user, role, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
-  const userRole = (role || user?.role || '').toLowerCase();
+  const userRole = role?.toLowerCase() || '';
   const isTeacher = userRole === 'teacher' || userRole === 'class-teacher';
   const isDriver = userRole === 'driver';
   const isWarden = userRole.includes('warden');
@@ -59,7 +59,7 @@ export const LeaveManagementView: React.FC = () => {
   );
 
   // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors) for teachers
-  const teachingStaff = staff.filter(s => {
+  const teachingStaff = (staff || []).filter(s => {
     const des = (s.designation || '').toLowerCase();
     const dept = (s.department || '').toLowerCase();
     const cat = (s.employeeCategory || '').toLowerCase();
@@ -70,7 +70,7 @@ export const LeaveManagementView: React.FC = () => {
     (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
     (s.phone && user?.phone && s.phone === user.phone) ||
     (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
-  ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || staff[0];
+  ) || teachingStaff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || teachingStaff[0] || (staff || [])[0];
 
   const driverStaffMember = useMemo(() => {
     const uEmail = user?.email?.toLowerCase().trim();
@@ -295,7 +295,7 @@ export const LeaveManagementView: React.FC = () => {
 
   const filteredStaffForBalance = useMemo(() => {
     if (isSelfServiceStaff) {
-      const selfMatches = staff.filter(s =>
+      const selfMatches = (staff || []).filter(s =>
         (loggedUserStaffMember && (s.id === loggedUserStaffMember.id || s.empId === loggedUserStaffMember.empId)) ||
         (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
         (user?.name && !user.name.toLowerCase().includes('admin') && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
@@ -312,7 +312,7 @@ export const LeaveManagementView: React.FC = () => {
       );
     };
 
-    return staff.filter(s => {
+    return (staff || []).filter(s => {
       const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
       
       let matchesCategory = true;
