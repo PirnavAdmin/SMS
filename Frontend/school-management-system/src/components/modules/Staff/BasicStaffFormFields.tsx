@@ -1269,6 +1269,56 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
             </div>
 
+            {/* Driver / Transport Driving License Credentials */}
+            {((value.designation || '').toLowerCase().includes('driver') || (value.department || '').toLowerCase().includes('transport')) && (
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">Driving License & Transport Credentials</h4>
+                </div>
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Driving License Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. DL-2026-0073"
+                      value={value.licenseNumber || ''}
+                      onChange={e => onChange('licenseNumber', e.target.value)}
+                      className={fieldClass + ' font-mono'}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      License Type
+                    </label>
+                    <select
+                      value={value.licenseType || 'Commercial (HMV)'}
+                      onChange={e => onChange('licenseType', e.target.value)}
+                      className={fieldClass + ' cursor-pointer'}
+                    >
+                      <option value="Commercial (HMV)">Commercial (HMV)</option>
+                      <option value="Heavy Motor Vehicle">Heavy Motor Vehicle</option>
+                      <option value="Light Motor Vehicle">Light Motor Vehicle (LMV)</option>
+                      <option value="Transport Vehicle">Transport Vehicle</option>
+                      <option value="Commercial (LMV)">Commercial (LMV)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      License Expiry Date
+                    </label>
+                    <DateInput
+                      value={value.licenseExpiryDate || ''}
+                      onChange={e => onChange('licenseExpiryDate', e.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {normalizedCategory === 'Teaching Staff' && (
               <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
                 <h4 className="font-black text-slate-900 dark:text-white text-[11px] uppercase tracking-wider mb-3">

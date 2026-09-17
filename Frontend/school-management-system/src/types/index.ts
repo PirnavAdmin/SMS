@@ -1696,6 +1696,8 @@ export interface DriverMaster {
   address: string;
   emergencyContact: string;
   experienceYears: number;
+  licenseType?: string;
+  safetyRecord?: string;
   status: 'Active' | 'Inactive' | 'On Leave';
 }
 

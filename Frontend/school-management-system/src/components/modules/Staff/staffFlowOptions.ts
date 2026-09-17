@@ -791,6 +791,11 @@ export interface BasicStaffFormState {
   assignedSubjects?: string[];
   isClassTeacher?: "Yes" | "No";
 
+  // Driver / Transport Credentials
+  licenseNumber?: string;
+  licenseExpiryDate?: string;
+  licenseType?: string;
+
   // SECTION 3: QUALIFICATIONS
   qualifications: StaffQualificationItem[];
 
@@ -841,6 +846,10 @@ export const defaultBasicStaffFormState = (
   assignedSections: [],
   assignedSubjects: [],
   isClassTeacher: "No",
+
+  licenseNumber: "",
+  licenseExpiryDate: "",
+  licenseType: "Commercial (HMV)",
 
   qualifications: [],
   experiences: [],
@@ -957,6 +966,9 @@ export function buildBasicStaffCreatePayload(
     avatar:
       form.photoUrl ||
       "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80",
+    licenseNumber: form.licenseNumber || "",
+    licenseExpiryDate: form.licenseExpiryDate || "",
+    licenseType: form.licenseType || "Commercial (HMV)",
     address: form.presentAddress || "",
     presentAddress: form.presentAddress || "",
     permanentAddress: form.permanentAddress || "",

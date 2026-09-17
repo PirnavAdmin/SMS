@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Plus, Search, Calendar, User, Users, ShoppingBag, RefreshCw, Undo2, Trash2, X, Printer, ShieldCheck, Receipt, AlertTriangle, CheckCircle2, ChevronDown, CreditCard, Shirt, Package, Clock } from 'lucide-react';
+import { UserPlus, Plus, Search, Calendar, User, Users, ShoppingBag, RefreshCw, Undo2, Trash2, X, XCircle, Printer, ShieldCheck, Receipt, AlertTriangle, CheckCircle2, ChevronDown, CreditCard, Shirt, Package, Clock } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -288,8 +288,32 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         const instId1 = `INST-UNIF-EXTRA-${issue.id}`;
         const instId2 = `FEE-UNI-EXTRA-${issue.id}`;
         const instId3 = `INST-UNIF-${issue.id}`;
+        
+        let isLegacyMatch = false;
+        const match = issue.id.match(/-P(\d+)$/);
+        if (match) {
+          const strippedId = issue.id.replace(/-P\d+$/, '');
+          const idx = parseInt(match[1], 10);
+          const coversLegacy = p.amountPaid >= (issue.price || 0) * idx;
+          if (coversLegacy && (
+            p.selectedInstallmentIds?.includes(`INST-UNIF-EXTRA-${strippedId}`) ||
+            p.selectedInstallmentIds?.includes(`FEE-UNI-EXTRA-${strippedId}`) ||
+            p.selectedInstallmentIds?.includes(`INST-UNIF-${strippedId}`) ||
+            p.selectedInstallmentIds?.includes(strippedId) ||
+            (p.receiptNo && (p.receiptNo.includes(`UNI-EXTRA-${strippedId}`) || p.receiptNo.includes(strippedId)))
+          )) {
+            isLegacyMatch = true;
+          }
+        }
 
-        if (p.selectedInstallmentIds?.includes(instId1) || p.selectedInstallmentIds?.includes(instId2) || p.selectedInstallmentIds?.includes(instId3) || p.selectedInstallmentIds?.includes(issue.id) || (p.receiptNo && (p.receiptNo.includes(`UNI-EXTRA-${issue.id}`) || p.receiptNo.includes(issue.id)))) {
+        if (
+          p.selectedInstallmentIds?.includes(instId1) || 
+          p.selectedInstallmentIds?.includes(instId2) || 
+          p.selectedInstallmentIds?.includes(instId3) || 
+          p.selectedInstallmentIds?.includes(issue.id) || 
+          (p.receiptNo && (p.receiptNo.includes(`UNI-EXTRA-${issue.id}`) || p.receiptNo.includes(issue.id))) ||
+          isLegacyMatch
+        ) {
           return true;
         }
 
@@ -356,17 +380,26 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   };
 
   // Retroactively synchronize existing feePayments with studentUniformIssues status
+  // IMPORTANT: Use a ref for feePayments so this effect runs only ONCE on mount.
+  // If feePayments is in the deps array, navigating to Finance & Fees triggers this effect
+  // again, which overwrites Returned/Cancelled statuses back to Paid.
+  const feePaymentsRef = React.useRef(feePayments);
+  feePaymentsRef.current = feePayments;
+  const hasSyncedRef = React.useRef(false);
   useEffect(() => {
-    if (!feePayments || feePayments.length === 0 || !studentUniformIssues || studentUniformIssues.length === 0 || !updateStudentUniformIssue) return;
+    if (hasSyncedRef.current) return;
+    const fp = feePaymentsRef.current;
+    if (!fp || fp.length === 0 || !studentUniformIssues || studentUniformIssues.length === 0 || !updateStudentUniformIssue) return;
+    hasSyncedRef.current = true;
 
-    feePayments.forEach(p => {
+    fp.forEach(p => {
       if (!p.amountPaid || p.amountPaid <= 0) return;
 
       const pAllocations = p.paymentAllocation || [];
       const pInstIds = p.selectedInstallmentIds || [];
 
       studentUniformIssues.forEach(issue => {
-        if (issue.status === 'Paid') return;
+        if (['Paid', 'Returned', 'Cancelled', 'Exchanged', 'Replaced'].includes(issue.status as string) || issue.notes?.toLowerCase().includes('returned') || issue.notes?.toLowerCase().includes('exchanged') || issue.replacementDate) return;
 
         const isStdMatch =
           p.studentId === issue.studentId ||
@@ -401,7 +434,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         }
       });
     });
-  }, [feePayments, studentUniformIssues, updateStudentUniformIssue]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [itemsModalSearch, setItemsModalSearch] = useState('');
   const [selectedReturnItem, setSelectedReturnItem] = useState<StudentUniformIssue | null>(null);
   const [returnReason, setReturnReason] = useState<string>('Wrong Size / Fitting Issue');
@@ -414,11 +448,17 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   }, [initialStatusFilter]);
 
   // Clean up any primary base packages that accidentally inherited replacementDate/notes from an extra item exchange
+  // NOTE: Run only once on mount to avoid cascading re-renders with [studentUniformIssues] dep
+  const hasCleanedUpRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasCleanedUpRef.current) return;
     if (!studentUniformIssues || studentUniformIssues.length === 0 || !updateStudentUniformIssue) return;
+    hasCleanedUpRef.current = true;
     studentUniformIssues.forEach(issue => {
       const isPrimaryBase = (issue.type === 'Base Package' || (issue.itemName && issue.itemName.toLowerCase().includes('package') && !issue.notes?.includes('Kit 2'))) && !issue.notes?.toLowerCase().includes('additional') && issue.type !== 'Additional Purchase' && issue.type !== 'Additional Base Package';
-      if (isPrimaryBase && issue.replacementDate) {
+      // Only clean up if the base package item name does NOT suggest it was directly exchanged (e.g. Cloth)
+      const wasDirectlyExchanged = issue.notes?.toLowerCase().includes('exchanged size from');
+      if (isPrimaryBase && issue.replacementDate && !wasDirectlyExchanged) {
         const hasAdditionalExchanged = studentUniformIssues.some(other => 
           other.id !== issue.id &&
           (other.studentId === issue.studentId || (issue.admissionNo && other.admissionNo === issue.admissionNo)) &&
@@ -433,60 +473,30 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         }
       }
     });
-  }, [studentUniformIssues, updateStudentUniformIssue]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Combine students master roster with admissions array to guarantee 100% student availability
   const allEnrolledStudents = React.useMemo(() => {
     const map = new Map<string, Student>();
 
-    const getStdKey = (admNo?: string, fullName?: string, id?: string) => {
-      const cleanAdm = (admNo || '').toLowerCase().trim();
-      if (cleanAdm && (cleanAdm.startsWith('reg-') || cleanAdm.startsWith('adm-'))) {
-        return cleanAdm;
-      }
-      const cleanName = (fullName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (cleanName && cleanName !== 'student') {
-        return cleanName;
-      }
-      return (cleanAdm || id || '').toLowerCase().trim();
-    };
+    // 1. Primary source for enrolled students: Enrolled admissions (e.g. REG-2044)
+    (admissions || [])
+      .filter((adm) => adm && (adm.status === "Enrolled" || adm.status === "Approved"))
+      .forEach((adm) => {
+        const admId = adm.id || adm.applicationNo || adm.registrationNo;
+        const admNo = adm.registrationNo || adm.applicationNo || adm.id;
+        if (!admNo) return;
+        const fullName = (adm.applicantName || adm.studentName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
+        if (!fullName) return;
 
-    // 1. Master students list
-    (students || []).forEach(st => {
-      if (!st) return;
-      const fName = st.firstName || '';
-      const lName = st.lastName || '';
-      const fullName = `${fName} ${lName}`.trim() || (st as any).studentName || '';
-      const admNo = st.admissionNo || (st as any).admissionNumber || (st as any).applicationNo || '';
-      const key = getStdKey(admNo, fullName, String(st.id));
-      if (!key) return;
+        const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nameParts = fullName.split(' ');
+        const fName = adm.firstName || nameParts[0] || 'Student';
+        const lName = adm.lastName || nameParts.slice(1).join(' ') || '';
+        const targetCls = adm.appliedClass || adm.className || adm.targetClass || 'Class 1';
 
-      map.set(key, {
-        ...st,
-        firstName: fName || fullName.split(' ')[0] || 'Student',
-        lastName: lName || fullName.split(' ').slice(1).join(' ') || '',
-        admissionNo: admNo || String(st.id),
-        className: st.className || 'Class 1',
-        section: st.section || 'A'
-      });
-    });
-
-    // 2. Admissions list
-    (admissions || []).forEach(adm => {
-      if (!adm) return;
-      const admId = adm.id || adm.applicationNo || adm.registrationNo;
-      const admNo = adm.applicationNo || adm.registrationNo || adm.id;
-      const fullName = (adm.applicantName || adm.studentName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
-      const nameParts = fullName.split(' ');
-      const fName = adm.firstName || nameParts[0] || 'Student';
-      const lName = adm.lastName || nameParts.slice(1).join(' ') || '';
-      const targetCls = adm.appliedClass || adm.className || adm.targetClass || 'Class 1';
-
-      const key = getStdKey(admNo, fullName, String(admId));
-      if (!key) return;
-
-      if (!map.has(key)) {
-        map.set(key, {
+        map.set(nameKey, {
           id: String(admId),
           firstName: fName,
           lastName: lName,
@@ -510,15 +520,32 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           branch: adm.branch || 'Main Campus',
           selectedOptionalFees: adm.selectedOptionalFees || []
         } as unknown as Student);
-      } else {
-        const existing = map.get(key)!;
-        if ((!existing.className || existing.className === 'Class 1') && targetCls) {
-          existing.className = targetCls;
-        }
-        if (!existing.selectedOptionalFees && adm.selectedOptionalFees) {
-          (existing as any).selectedOptionalFees = adm.selectedOptionalFees;
-        }
-      }
+      });
+
+    // 2. Master enrolled students list, skipping legacy mock ADM-2026-2020 or students already added
+    (students || []).forEach((st) => {
+      if (!st) return;
+      const admNoUpper = (st.admissionNo || st.id || '').toUpperCase();
+      if (admNoUpper === 'ADM-2026-2020') return;
+
+      const fName = st.firstName || '';
+      const lName = st.lastName || '';
+      const fullName = `${fName} ${lName}`.trim() || (st as any).studentName || '';
+      if (!fullName) return;
+
+      const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (nameKey && map.has(nameKey)) return;
+
+      const cleanAdm = st.admissionNo || (st as any).admissionNumber || (st as any).applicationNo || String(st.id);
+
+      map.set(nameKey, {
+        ...st,
+        firstName: fName || fullName.split(' ')[0] || 'Student',
+        lastName: lName || fullName.split(' ').slice(1).join(' ') || '',
+        admissionNo: cleanAdm,
+        className: st.className || 'Class 1',
+        section: st.section || 'A'
+      });
     });
 
     return Array.from(map.values());
@@ -565,8 +592,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const clsName = rawClass;
     const secName = rawSec.replace(/^Section\s*/i, '').trim();
 
-    const normKey = (admNo && (admNo.toLowerCase().startsWith('reg-') || admNo.toLowerCase().startsWith('adm-')))
+    const normKey = (admNo && admNo !== 'n/a' && admNo !== 'null' && admNo !== 'undefined')
       ? admNo.toLowerCase().trim()
+      : (stdId && stdId !== 'n/a')
+      ? `id_${stdId.toLowerCase().trim()}`
       : (stdName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     const catalogItem = uniforms.find(u => u.category === issue.itemName || u.name === issue.itemName);
@@ -589,14 +618,14 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           : getItemFeeFromFinanceConfig(clsName, issue.itemName, stMatch?.gender, financeUniformConfigs, catalogItem?.price));
 
     let existing = groupedMap.get(normKey);
-    if (!existing) {
-      const altKey = (stdName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      existing = groupedMap.get(altKey);
-    }
-    if (!existing && admNo) {
+    if (!existing && admNo && admNo !== 'n/a') {
       existing = Array.from(groupedMap.values()).find(g =>
-        (g.admissionNo && g.admissionNo.toLowerCase() === admNo.toLowerCase()) ||
-        (stdId && g.studentId && g.studentId === stdId)
+        g.admissionNo && g.admissionNo.toLowerCase().trim() === admNo.toLowerCase().trim()
+      );
+    }
+    if (!existing && stdId && stdId !== 'n/a') {
+      existing = Array.from(groupedMap.values()).find(g =>
+        g.studentId && String(g.studentId).toLowerCase().trim() === String(stdId).toLowerCase().trim()
       );
     }
 
@@ -640,20 +669,22 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     if (!st) return;
     const stdName = `${st.firstName || ''} ${st.lastName || ''}`.trim() || (st as any).studentName || 'Student';
     const admNo = (st.admissionNo || (st as any).applicationNo || (st as any).registrationNo || String(st.id || '')).trim();
-    const normKey = (admNo && (admNo.toLowerCase().startsWith('reg-') || admNo.toLowerCase().startsWith('adm-')))
+    const stIdStr = String(st.id || '').trim();
+    const normKey = (admNo && admNo !== 'n/a' && admNo !== 'null' && admNo !== 'undefined')
       ? admNo.toLowerCase().trim()
+      : (stIdStr && stIdStr !== 'n/a')
+      ? `id_${stIdStr.toLowerCase()}`
       : (stdName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     let existing = groupedMap.get(normKey);
-    if (!existing) {
-      const altKey = (stdName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      existing = groupedMap.get(altKey);
-    }
-    if (!existing && admNo) {
+    if (!existing && admNo && admNo !== 'n/a') {
       existing = Array.from(groupedMap.values()).find(g =>
-        (g.admissionNo && g.admissionNo.toLowerCase() === admNo.toLowerCase()) ||
-        (st.id && g.studentId && String(g.studentId) === String(st.id)) ||
-        ((g.studentName || '').trim().toLowerCase() === stdName.toLowerCase())
+        g.admissionNo && g.admissionNo.toLowerCase().trim() === admNo.toLowerCase().trim()
+      );
+    }
+    if (!existing && stIdStr && stIdStr !== 'n/a') {
+      existing = Array.from(groupedMap.values()).find(g =>
+        g.studentId && String(g.studentId).toLowerCase().trim() === stIdStr.toLowerCase()
       );
     }
 
@@ -691,35 +722,55 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const allGroupedList = Array.from(groupedMap.values())
     .filter(g => Boolean(g && (g.studentName || g.studentId || g.admissionNo)))
     .sort((a, b) => {
-    // Sort by maximum issue ID / creation timestamp descending so newly issued items are ALWAYS AT THE VERY TOP
-    const getMaxTimestamp = (g: typeof a) => {
-      const tsList = g.items.map(i => {
-        if (!i) return 0;
-        const uisMatch = (i.id || '').match(/UIS-(\d+)/i);
-        if (uisMatch && uisMatch[1]) {
-          return parseInt(uisMatch[1], 10);
-        }
-        if (i.issueDate) {
-          const t = new Date(i.issueDate).getTime();
-          if (!isNaN(t) && t > 0) return t;
-        }
-        const digits = (i.id || '').replace(/\D/g, '').slice(0, 13);
-        const numOnly = parseInt(digits, 10);
-        if (numOnly > 0) return numOnly;
-        return 0;
-      });
-      return Math.max(...tsList, 0);
-    };
-    const tsA = getMaxTimestamp(a);
-    const tsB = getMaxTimestamp(b);
-    if (tsA !== tsB) return tsB - tsA;
+      // Sort by maximum issue ID / creation timestamp descending so newly issued items are ALWAYS AT THE VERY TOP
+      const getMaxTimestamp = (g: typeof a) => {
+        if (!g.items || g.items.length === 0) return 0;
+        const tsList = g.items.map(i => {
+          if (!i) return 0;
+          let maxItemTs = 0;
 
-    const dateA = new Date(a.issueDate || '2026-01-01').getTime();
-    const dateB = new Date(b.issueDate || '2026-01-01').getTime();
-    if (dateB !== dateA) return dateB - dateA;
+          // Extract timestamp from UIS-178955... style IDs
+          const uisMatch = (i.id || '').match(/UIS-(\d+)/i);
+          if (uisMatch && uisMatch[1]) {
+            const parsed = parseInt(uisMatch[1], 10);
+            if (!isNaN(parsed) && parsed > maxItemTs) maxItemTs = parsed;
+          }
 
-    return (a.admissionNo || a.studentName || '').localeCompare(b.admissionNo || b.studentName || '', undefined, { numeric: true });
-  });
+          // Extract timestamp from dates
+          const dateFields = [i.updatedAt, i.createdAt, i.replacementDate, i.issueDate];
+          for (const dStr of dateFields) {
+            if (dStr) {
+              const t = new Date(dStr).getTime();
+              if (!isNaN(t) && t > maxItemTs) maxItemTs = t;
+            }
+          }
+
+          // Fallback to numeric digits in ID
+          const digits = (i.id || '').replace(/\D/g, '');
+          if (digits.length >= 10) {
+            const parsed = parseInt(digits.slice(0, 13), 10);
+            if (!isNaN(parsed) && parsed > 1600000000000 && parsed > maxItemTs) maxItemTs = parsed;
+          }
+
+          return maxItemTs;
+        });
+        return Math.max(...tsList, 0);
+      };
+
+      const tsA = getMaxTimestamp(a);
+      const tsB = getMaxTimestamp(b);
+      if (tsA !== tsB) return tsB - tsA;
+
+      const hasItemsA = a.items && a.items.length > 0 ? 1 : 0;
+      const hasItemsB = b.items && b.items.length > 0 ? 1 : 0;
+      if (hasItemsA !== hasItemsB) return hasItemsB - hasItemsA;
+
+      const dateA = new Date(a.issueDate || '2026-01-01').getTime();
+      const dateB = new Date(b.issueDate || '2026-01-01').getTime();
+      if (dateB !== dateA) return dateB - dateA;
+
+      return (a.admissionNo || a.studentName || '').localeCompare(b.admissionNo || b.studentName || '', undefined, { numeric: true });
+    });
 
   const availableSections = React.useMemo(() => {
     const secSet = new Set<string>();
@@ -1230,7 +1281,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           uName,
           selStudentObj?.gender || '',
           financeUniformConfigs,
-          u.price || 350
+          u.price || 0
         );
 
         const inv = uniformInventory.find(x => x.itemId === u.id || x.itemName.toLowerCase().trim() === key);
@@ -1506,13 +1557,15 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const studentClass = issue.className || '';
     const studentGender = issue.gender || 'Male';
 
-    let unitPrice = (issue.price && issue.price > 0 && issue.price !== 35 && issue.price !== 85) ? issue.price : (issue.price === 35 ? 350 : 0);
+    // Use the stored price first — most accurate. Strip (#N) suffix for finance config lookup.
+    let unitPrice = (issue.price && issue.price > 0 && issue.price !== 35 && issue.price !== 85) ? issue.price : 0;
     if (unitPrice <= 0) {
       if (isPkg) {
-        unitPrice = getPackageFeeForStudent(studentClass, issue.price, studentGender);
+        unitPrice = getPackageFeeForStudent(studentClass, issue.price, studentGender) || 0;
       } else {
-        const catItem = uniforms.find(u => u.category === issue.itemName || u.name === issue.itemName);
-        unitPrice = getItemFeeFromFinanceConfig(studentClass, issue.itemName, studentGender, financeUniformConfigs, catItem?.price) || 350;
+        const cleanItemName = (issue.itemName || '').replace(/\(#\d+\)/g, '').trim();
+        const catItem = uniforms.find(u => u.category === cleanItemName || u.name === cleanItemName);
+        unitPrice = getItemFeeFromFinanceConfig(studentClass, cleanItemName, studentGender, financeUniformConfigs, catItem?.price) || 0;
       }
     }
 
@@ -2157,6 +2210,19 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           replacementDate: todayStr,
           notes: exchangedNote
         });
+
+        // Direct localStorage backup — ensures exchange data persists across module navigation
+        // even if other useEffects trigger setStudentUniformIssues with stale closures
+        try {
+          const stored = JSON.parse(localStorage.getItem('edu_db_student_uniform_issues') || '[]');
+          const backupUpdated = stored.map((item: any) =>
+            item.id === selectedIssue.id
+              ? { ...item, status: 'Issued', size: finalSize, price: newUnitPrice, replacementDate: todayStr, notes: exchangedNote }
+              : item
+          );
+          localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(backupUpdated));
+          localStorage.setItem('student_uniform_issues', JSON.stringify(backupUpdated));
+        } catch (e) {}
       }
 
       // Also update the linked fee installment in Finance & Fees if the price changed
@@ -2445,6 +2511,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                         ? exchangedItems.reduce((sum, item) => sum + (item.quantity || 1), 0)
                         : tabBasePkgQty + tabExtrasQty;
 
+                      const activeExtrasListRow = (g.extraItems || []).filter(i => i.status !== 'Returned' && i.status !== 'Cancelled');
+                      const hasBasePkgRow = Boolean(g.basePackage || (g.items || []).some(i => i.type === 'Base Package' || (i.itemName && i.itemName.toLowerCase().includes('package'))));
+                      const hasPendingDuesRow = (hasBasePkgRow && !isBasePaid) || activeExtrasListRow.some(i => !checkExtraItemPaidRow(i));
+
                       return (
                         <tr key={g.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors divide-x divide-slate-100 dark:divide-slate-800/70">
                           <td className="py-2.5 px-4 whitespace-nowrap">
@@ -2591,49 +2661,33 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                     );
                                   }
 
-                                  if (!tabBasePackage && g.items.length === 0) {
-                                    if (isBasePaid) {
-                                      return (
-                                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-center gap-1" title="Uniform Fee Paid at Finance — Awaiting Issuance">
-                                          <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                          Fees Paid
-                                        </span>
-                                      );
-                                    }
-                                    if (feeStatus.isOptedAtAdmission) {
-                                      return (
-                                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-center gap-1" title="Uniform Opted at Admission — Fee Pending">
-                                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                          Fee Pending
-                                        </span>
-                                      );
-                                    }
+                                  const admRec = (admissions || []).find(a => a.id === g.studentId || a.applicationNo === g.studentId || (g.admissionNo && (a.id === g.admissionNo || a.applicationNo === g.admissionNo)));
+                                  const optList = admRec ? admRec.selectedOptionalFees : null;
+                                  const isOptedAtAdmission = Boolean(
+                                    (admRec as any)?.uniformOpted === true ||
+                                    (admRec as any)?.isUniformOpted === true ||
+                                    (g as any)?.uniformOpted === true ||
+                                    (g as any)?.isUniformOpted === true ||
+                                    (Array.isArray(optList) && optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit')))
+                                  );
+
+                                  const activeExtrasList = (g.extraItems || []).filter(i => i.status !== 'Returned' && i.status !== 'Cancelled');
+                                  const hasAnyIssuedItems = Boolean(g.basePackage || activeExtrasList.length > 0);
+
+                                  if (!isOptedAtAdmission && !hasAnyIssuedItems) {
                                     return (
                                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
-                                        Not Issued
+                                        <XCircle className="w-3 h-3 text-slate-400 shrink-0" />
+                                        Not Opted
                                       </span>
                                     );
                                   }
 
-                                  if (isFilterFeePaid) {
-                                    return (
-                                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-center gap-1">
-                                        <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                        Fees Paid
-                                      </span>
-                                    );
-                                  }
+                                  const paidExtrasCount = activeExtrasList.filter(checkExtraItemPaidRow).length + (isBasePaid ? 1 : 0);
+                                  const pendingExtrasCount = activeExtrasList.filter(i => !checkExtraItemPaidRow(i)).length + (!isBasePaid && g.basePackage ? 1 : 0);
+                                  const totalItemCount = paidExtrasCount + pendingExtrasCount;
 
-                                  if (isFilterFeePending) {
-                                    return (
-                                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/60 flex items-center justify-center gap-1">
-                                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                        Pending
-                                      </span>
-                                    );
-                                  }
-
-                                  if (!hasPendingDues) {
+                                  if (pendingExtrasCount === 0 && totalItemCount > 0) {
                                     return (
                                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-center gap-1">
                                         <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -2662,16 +2716,6 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                               <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                 <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                  {hasPendingDues && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenPayFeeModal(g)}
-                                      className="px-2.5 py-1 bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/70 dark:text-emerald-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs transition-all cursor-pointer"
-                                      title="Collect Uniform Fee at Counter"
-                                    >
-                                      <Receipt className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Pay Fee
-                                    </button>
-                                  )}
 
                                   {(!tabBasePackage && g.items.length === 0) ? (
                                     <button
@@ -3721,36 +3765,17 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     const selCatLower = (selectedUniformObj ? (selectedUniformObj.category || selectedUniformObj.name) : '').toLowerCase();
                     const isFabric = selCatLower.includes('cloth') || selCatLower.includes('fabric') || selCatLower.includes('unstitched') || (form.itemId && form.itemId.toLowerCase().includes('cloth'));
 
-                    let fabricPrice = 600;
+                    let fabricPrice = 0;
                     if (isFabric) {
-                      const normSize = (form.size || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-                      const selClassLower = (selStudentObj?.className || '').toLowerCase().trim();
-
-                      const cfgMatch = (financeUniformConfigs || []).find(c => {
-                        if (!c || !c.feeAmount) return false;
-                        const pkgLower = (c.uniformPackage || '').toLowerCase();
-                        const isClothPkg = pkgLower.includes('cloth') || pkgLower.includes('fabric') || pkgLower.includes('unstitched');
-                        if (!isClothPkg) return false;
-
-                        const cMeterNorm = ((c as any).fabricMeterage || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-                        const isMeterMatch = !normSize || !cMeterNorm || normSize === cMeterNorm || normSize.includes(cMeterNorm) || cMeterNorm.includes(normSize);
-                        const cClassLower = (c.className || '').toLowerCase().trim();
-                        const isClassMatch = cClassLower === 'all classes' || cClassLower === selClassLower || cClassLower.includes(selClassLower) || selClassLower.includes(cClassLower);
-
-                        return isMeterMatch && isClassMatch;
-                      }) || (financeUniformConfigs || []).find(c => {
-                        if (!c || !c.feeAmount) return false;
-                        const pkgLower = (c.uniformPackage || '').toLowerCase();
-                        if (!pkgLower.includes('cloth') && !pkgLower.includes('fabric')) return false;
-                        const cMeterNorm = ((c as any).fabricMeterage || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-                        return normSize && cMeterNorm && (normSize === cMeterNorm || normSize.includes(cMeterNorm) || cMeterNorm.includes(normSize));
-                      }) || (financeUniformConfigs || []).find(c => {
-                        if (!c || !c.feeAmount) return false;
-                        const pkgLower = (c.uniformPackage || '').toLowerCase();
-                        return pkgLower.includes('cloth') || pkgLower.includes('fabric');
-                      });
-
-                      fabricPrice = cfgMatch?.feeAmount !== undefined ? Number(cfgMatch.feeAmount) : (selectedUniformObj?.price !== undefined && selectedUniformObj.price > 0 ? Number(selectedUniformObj.price) : 600);
+                      // Use the centralized cloth price calculator for consistent pricing
+                      fabricPrice = calculateClothOrItemPrice(
+                        selectedUniformObj ? (selectedUniformObj.category || selectedUniformObj.name) : '',
+                        form.size || '',
+                        selectedUniformObj?.price,
+                        financeUniformConfigs,
+                        selStudentObj?.className || '',
+                        selStudentObj?.gender || ''
+                      );
                     }
 
                     let baseCharge = 0;
@@ -4930,6 +4955,17 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             (student.studentName && i.studentName && i.studentName.toLowerCase().trim() === student.studentName.toLowerCase().trim())
           );
 
+          // DEBUG: Trace cloth data in modal
+          const clothDbg = rawStudentIssues.filter(i => (i.itemName || '').toLowerCase().includes('cloth'));
+          if (clothDbg.length > 0) {
+            console.log('[DEBUG-CLOTH] React state:', clothDbg.map(i => ({ id: i.id, size: i.size, price: i.price, qty: i.quantity, status: i.status, notes: (i.notes || '').substring(0, 80), replacementDate: i.replacementDate })));
+            try {
+              const lsData = JSON.parse(localStorage.getItem('edu_db_student_uniform_issues') || '[]');
+              const lsCloth = lsData.filter((x: any) => (x.itemName || '').toLowerCase().includes('cloth') && (x.studentId === student.studentId || (student.admissionNo && x.admissionNo === student.admissionNo)));
+              console.log('[DEBUG-CLOTH] localStorage:', lsCloth.map((x: any) => ({ id: x.id, size: x.size, price: x.price, qty: x.quantity, status: x.status, notes: (x.notes || '').substring(0, 80), replacementDate: x.replacementDate })));
+            } catch(e) {}
+          }
+
           const list: StudentUniformIssue[] = rawStudentIssues.length > 0 ? rawStudentIssues : (() => {
             const fallback: StudentUniformIssue[] = [];
             if (student.basePackage) fallback.push(student.basePackage);
@@ -5114,15 +5150,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                             <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
                               {(() => {
                                 const currentSizeStr = item.size || 'M';
-                                const itemNameLower = (item.itemName || item.itemCategory || '').toLowerCase();
-                                const isClothItem = itemNameLower.includes('cloth') || itemNameLower.includes('fabric') || itemNameLower.includes('unstitched');
-                                // For cloth: always recalculate from finance config using current size
-                                // so exchanged sizes always show the correct price from Finance & Fees setup
-                                const effUnitPrice = isClothItem
-                                  ? calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs, student.className, student.gender)
-                                  : (item.price !== undefined && item.price > 0 && item.price !== 35 && item.price !== 85)
-                                    ? item.price
-                                    : calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs, student.className, student.gender);
+                                const effUnitPrice = calculateClothOrItemPrice(item.itemName || item.itemCategory, currentSizeStr, item.price, financeUniformConfigs, student.className, student.gender);
                                 return formatCurrency(effUnitPrice * (item.quantity || 1));
                               })()}
                             </td>
@@ -5169,7 +5197,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                 return (
                                   <span className={`font-semibold text-[11px] flex items-center gap-1 ${isItemPaid ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                     {isItemPaid ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
-                                    {isItemPaid ? 'Fees Paid' : 'Pay Fees'}
+                                    {isItemPaid ? 'Fees Paid' : 'Fee Pending'}
                                   </span>
                                 );
                               })()}
@@ -5185,7 +5213,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
                                       : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700'
                                   }`}>
-                                    {isPaid ? '↩ Refunded' : '↩ Returned'}
+                                    {isPaid ? '↩️ Refunded' : '↩️ Returned'}
                                   </span>
                                 );
                               })() : isExchanged ? (
@@ -5218,20 +5246,6 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     : `Total Active Issued Items: ${allItemsList.length}`}
                 </span>
                 <div className="flex items-center gap-2">
-                  {allItemsList.some(item => !checkItemPaid(item)) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const targetStd = selectedStudentForItemsModal;
-                        setSelectedStudentForItemsModal(null);
-                        setItemsModalSearch('');
-                        handleOpenPayFeeModal(targetStd);
-                      }}
-                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer transition-all"
-                    >
-                      <Receipt className="w-3.5 h-3.5" /> Pay Pending Fee
-                    </button>
-                  )}
                   <button
                     onClick={() => {
                       setSelectedStudentForItemsModal(null);
@@ -5631,3 +5645,4 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   );
 };
 export default StudentUniformView;
+
