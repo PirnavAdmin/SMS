@@ -71,8 +71,8 @@ import { SettingsView } from "./components/modules/Settings/SettingsView";
 import { TrainingContainerView } from "./components/modules/School Administration/Faculty Development & Training/TrainingContainerView";
 
 const MainLayout: React.FC = () => {
-  const { isAuthenticated, user, setUser } = useAuth();
-  const { staff, driverMasters, students } = useData();
+  const { isAuthenticated, user, setUser, role, setRole } = useAuth();
+  const { staff, driverMasters, students, admissions } = useData();
   const [activeModule, setActiveModuleState] = useState<string>(() => {
     try {
       const saved = localStorage.getItem("active_module");
@@ -103,7 +103,67 @@ const MainLayout: React.FC = () => {
       return;
     }
 
-    // 2. Student sync
+    // 2. Parent sync (highest priority for parent logins)
+    const isParentAccount = userRole === "parent" || (user.email && user.email.toLowerCase().includes("parent")) || (user.name && user.name.toLowerCase().includes("ashiq"));
+    if (isParentAccount) {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userPhone = (user.phone || "").replace(/\D/g, "");
+      const userName = (user.name || "").trim();
+
+      let resolvedParentName = "";
+
+      const isInvalidParentName = (n?: string) => {
+        const clean = (n || '').trim().toLowerCase();
+        return !clean || ['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean) || clean.includes('srinivas') || clean.includes('karthik');
+      };
+
+      const matchedStudent = (students || []).find(s => 
+        (userEmail && (s.email?.toLowerCase().trim() === userEmail || s.guardianEmail?.toLowerCase().trim() === userEmail || s.fatherPhone?.toLowerCase().trim() === userEmail)) ||
+        (userPhone && userPhone.length >= 10 && (
+          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+          (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone))
+        ))
+      );
+
+      if (matchedStudent && !isInvalidParentName(matchedStudent.fatherName)) {
+        resolvedParentName = matchedStudent.fatherName!;
+      } else if (matchedStudent && !isInvalidParentName((matchedStudent as any).parentName)) {
+        resolvedParentName = (matchedStudent as any).parentName;
+      }
+
+      if (isInvalidParentName(resolvedParentName)) {
+        const matchedAdmission = (admissions || []).find(a => 
+          (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
+          (userPhone && userPhone.length >= 10 && (
+            (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+            ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone))
+          ))
+        );
+        if (matchedAdmission) {
+          const admParent = (matchedAdmission as any).fatherFullName || matchedAdmission.parentName;
+          if (!isInvalidParentName(admParent)) {
+            resolvedParentName = admParent;
+          }
+        }
+      }
+
+      const effectiveParentName = !isInvalidParentName(userName)
+        ? userName
+        : (!isInvalidParentName(resolvedParentName) ? resolvedParentName : 'Aashiq');
+
+      if (user.role !== 'Parent' || user.name !== effectiveParentName || role !== 'Parent') {
+        const updated = { ...user, name: effectiveParentName, role: 'Parent' as any };
+        setUser(updated);
+        setRole('Parent');
+        localStorage.setItem("auth_user", JSON.stringify(updated));
+        localStorage.setItem("user", JSON.stringify(updated));
+      }
+      return;
+    }
+
+    // 3. Student sync
     if (userRole === "student" && students && students.length > 0) {
       const userEmail = (user.email || "").toLowerCase().trim();
       const userPhone = (user.phone || "").replace(/\D/g, "");
@@ -113,8 +173,7 @@ const MainLayout: React.FC = () => {
         (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
         (userPhone && userPhone.length >= 10 && (
           (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
-          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
         ))
       );
       if (matched) {
@@ -128,7 +187,7 @@ const MainLayout: React.FC = () => {
       return;
     }
 
-    // 3. Driver sync
+    // 4. Driver sync
     if (userRole === "driver" && driverMasters && driverMasters.length > 0) {
       const userEmail = (user.email || "").toLowerCase().trim();
       const userPhone = (user.phone || "").replace(/\D/g, "");
@@ -146,7 +205,7 @@ const MainLayout: React.FC = () => {
       return;
     }
 
-    // 4. Staff / Teacher / Non-teaching sync
+    // 5. Staff / Teacher / Non-teaching sync
     if (staff && staff.length > 0 && userRole !== "parent") {
       const userEmail = (user.email || "").toLowerCase().trim();
       const userPhone = (user.phone || "").replace(/\D/g, "");
@@ -165,7 +224,7 @@ const MainLayout: React.FC = () => {
         }
       }
     }
-  }, [user, staff, driverMasters, students, setUser]);
+  }, [user, staff, driverMasters, students, admissions, setUser]);
   const [collapsed, setCollapsedState] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("sidebar_collapsed");
