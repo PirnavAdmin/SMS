@@ -56,14 +56,14 @@ export interface DashboardSummaryResponse {
 
 export const fetchDashboardSummaryApi = async (
   branch?: string,
-  academicYearId?: number
+  academicYear?: string | number
 ): Promise<{ success: boolean; data: DashboardSummaryResponse }> => {
   const params = new URLSearchParams();
-  if (branch && branch !== 'All Branches') {
+  if (branch && branch !== 'All Branches' && branch !== 'All') {
     params.append('branch', branch);
   }
-  if (academicYearId) {
-    params.append('academicYearId', academicYearId.toString());
+  if (academicYear && academicYear !== 'All') {
+    params.append('academicYear', academicYear.toString());
   }
 
   const queryString = params.toString() ? `?${params.toString()}` : '';

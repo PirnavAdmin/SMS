@@ -62,12 +62,12 @@ type AttendanceTab = "teaching" | "non-teaching";
 
 export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
-    staff,
-    attendance,
+    staff = [],
+    attendance = [],
     markAttendance,
-    leaveApplications,
-    holidays,
-    schoolEvents,
+    leaveApplications = [],
+    holidays = [],
+    schoolEvents = [],
     schoolProfile,
     fetchDailyAttendance,
     fetchMonthlyAttendance,
@@ -76,7 +76,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     driverMasters = []
   } = useData();
   const { addToast } = useToast();
-  const { user, role } = useAuth();
+  const { user, role, selectedBranch } = useAuth();
 
   const userRole = role?.toLowerCase() || "";
   const canMarkAttendance = [
@@ -107,14 +107,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const isGenericAdmin = uName.includes("administrator") || uName.includes("admin");
 
     if (uEmail) {
-      const byEmail = staff.find(
+      const byEmail = (staff || []).find(
         (s) => s.email && s.email.toLowerCase().trim() === uEmail
       );
       if (byEmail) return byEmail;
     }
 
     if (uName && !isGenericAdmin) {
-      const byName = staff.find((s) => {
+      const byName = (staff || []).find((s) => {
         const full = `${s.firstName || ""} ${s.lastName || ""}`
           .toLowerCase()
           .trim();
@@ -125,7 +125,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
 
     if ((uId || uEmpId) && uId !== '358' && uId !== '1' && uId !== '90') {
-      const byId = staff.find(
+      const byId = (staff || []).find(
         (s) =>
           ((uId && (String(s.id) === uId || String(s.empId) === uId)) ||
            (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))) &&
@@ -135,7 +135,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
 
     if (userRole === "driver") {
-      const byDriver = staff.find(
+      const byDriver = (staff || []).find(
         (s) =>
           (s.designation || "").toLowerCase().includes("driver") ||
           (s.department || "").toLowerCase().includes("transport")
@@ -144,7 +144,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
 
     if (userRole.includes("warden")) {
-      const byWarden = staff.find(
+      const byWarden = (staff || []).find(
         (s) =>
           (s.designation || "").toLowerCase().includes("warden") ||
           (s.department || "").toLowerCase().includes("hostel")
@@ -153,7 +153,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
 
     if (userRole.includes("accountant") || userRole === "finance") {
-      const byAccountant = staff.find(
+      const byAccountant = (staff || []).find(
         (s) =>
           (s.designation || "").toLowerCase().includes("accountant") ||
           (s.department || "").toLowerCase().includes("finance")
@@ -1760,7 +1760,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Derive unique lists for dropdowns
   const teachingDepts = useMemo(() => {
-    const list = staff
+    const list = (staff || [])
       .filter((s) => isTeachingStaff(s))
       .map((s) => s.department)
       .filter(Boolean);
@@ -1779,7 +1779,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [staff]);
 
   const teachingDesignations = useMemo(() => {
-    const list = staff
+    const list = (staff || [])
       .filter((s) => isTeachingStaff(s))
       .map((s) => s.designation)
       .filter(Boolean);
@@ -1798,7 +1798,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [staff]);
 
   const nonTeachingDesignations = useMemo(() => {
-    const list = staff
+    const list = (staff || [])
       .filter((s) => !isTeachingStaff(s))
       .map((s) => s.designation)
       .filter(Boolean);
@@ -2049,8 +2049,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
-    return staff.filter((s) => {
+    return (staff || []).filter((s) => {
       if (!isTeachingStaff(s) || s.status === "Inactive") return false;
+      if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
+        const staffBranch = (s.branch || "Main Campus").trim().toLowerCase();
+        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+      }
       const deptMatch =
         teachingDept === "All" ||
         (s.department || "").toLowerCase() === teachingDept.toLowerCase();
@@ -2065,7 +2069,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [staff, teachingDept, teachingDesignation, teachingQuery]);
+  }, [staff, selectedBranch, teachingDept, teachingDesignation, teachingQuery]);
 
   // Filter Active Non-Teaching Staff
   const nonTeachingStaffList = useMemo(() => {
@@ -2079,7 +2083,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       email: d.email || '',
       phone: d.mobileNumber || '',
       status: d.status || 'Active',
-      employeeCategory: 'Non-Teaching'
+      employeeCategory: 'Non-Teaching',
+      branch: (d as any).branch || 'Main Campus'
     }));
 
     const combinedStaff = [...staff];
@@ -2097,6 +2102,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
     return combinedStaff.filter((s) => {
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
+      if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
+        const staffBranch = (s.branch || "Main Campus").trim().toLowerCase();
+        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+      }
       const deptMatch =
         nonTeachingDept === "All" ||
         (s.department || "").toLowerCase() === nonTeachingDept.toLowerCase();
@@ -2111,7 +2120,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [staff, driverMasters, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
+  }, [staff, driverMasters, selectedBranch, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
 
   // Active working staff list for currently selected tab
   const currentTabStaffList =
@@ -2272,7 +2281,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const executeSaveAttendance = async () => {
     setIsSaving(true);
     try {
-      const activeStaffCategoryList = staff.filter((s) => {
+      const activeStaffCategoryList = (staff || []).filter((s) => {
         const isTeacher = isTeachingStaff(s);
         const isCorrectCategory = activeTab === "teaching" ? isTeacher : !isTeacher;
         return isCorrectCategory && s.status !== "Inactive";
@@ -2525,7 +2534,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       const savePromises = Object.entries(editsByDate).map(
         async ([dateStr, staffEdits]) => {
           // Find all active staff in the current category
-          const activeStaffListForCategory = staff.filter((s) => {
+          const activeStaffListForCategory = (staff || []).filter((s) => {
             const isTeacher = isTeachingStaff(s);
             const isCorrectCategory =
               activeTab === "teaching" ? isTeacher : !isTeacher;
@@ -2704,7 +2713,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [regYear, regMonth, regFromDate, regToDate]);
 
   const registerStaffList = useMemo(() => {
-    return staff.filter((s) => {
+    return (staff || []).filter((s) => {
       const isTeacher = isTeachingStaff(s);
       if (activeTab === "teaching" && !isTeacher) return false;
       if (activeTab === "non-teaching" && isTeacher) return false;

@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi } from '../api/login';
 import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActiveUserKey } from '../api/profile';
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
+import { fetchBranchesApi } from '../api/settings';
 
 interface AuthContextType {
   user: User | null;
@@ -57,9 +58,9 @@ const defaultAuthContextValue: AuthContextType = {
   role: 'Admin',
   token: null,
   isAuthenticated: false,
-  selectedBranch: 'Main Campus',
+  selectedBranch: '',
   setSelectedBranch: () => {},
-  selectedAcademicYear: '2026-2027',
+  selectedAcademicYear: '',
   setSelectedAcademicYear: () => {},
   login: async () => false,
   logout: () => {},
@@ -78,13 +79,6 @@ const formatEmailToName = (email: string): string => {
   const username = email.split('@')[0];
   const parts = username.split(/[._-]/);
   return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-};
-
-const getDefaultAcademicYear = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const startYear = now.getMonth() >= 3 ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -140,12 +134,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [selectedBranch, setSelectedBranchState] = useState<string>(() => {
-    return localStorage.getItem('selected_branch') || 'Main Campus';
+    return localStorage.getItem('selected_branch') || '';
   });
 
   const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>(() => {
-    return localStorage.getItem('selected_academic_year') || getDefaultAcademicYear();
+    return localStorage.getItem('selected_academic_year') || '';
   });
+
+  useEffect(() => {
+    const handleSync = async () => {
+      const storedBranch = localStorage.getItem('selected_branch');
+      if (storedBranch) {
+        setSelectedBranchState(storedBranch);
+      } else {
+        try {
+          const res: any = await fetchBranchesApi();
+          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+            const firstActive = res.data.find((b: any) => b.status !== 'Inactive') || res.data[0];
+            const name = firstActive?.name || firstActive?.branchName;
+            if (name) {
+              setSelectedBranchState(name);
+              localStorage.setItem('selected_branch', name);
+            }
+          }
+        } catch {}
+      }
+
+      const storedAY = localStorage.getItem('selected_academic_year');
+      if (storedAY) {
+        setSelectedAcademicYearState(storedAY);
+      } else {
+        try {
+          const stored = localStorage.getItem('edu_db_academic_years') || localStorage.getItem('academic_years');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const active = parsed.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || parsed[0];
+              const val = active?.academicYear || active?.year;
+              if (val) {
+                setSelectedAcademicYearState(val);
+                localStorage.setItem('selected_academic_year', val);
+              }
+            }
+          }
+        } catch {}
+      }
+    };
+
+    handleSync();
+    window.addEventListener('branches_updated', handleSync);
+    window.addEventListener('academic_years_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('branches_updated', handleSync);
+      window.removeEventListener('academic_years_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);

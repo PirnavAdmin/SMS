@@ -21,25 +21,10 @@ namespace SMS.Api.Controllers
             _context = context;
         }
 
-        private async Task EnsureDefaultAcademicYearsAsync()
-        {
-            if (!await _context.AcademicYears.AnyAsync())
-            {
-                var defaults = new List<AcademicYear>
-                {
-                    new AcademicYear { AcademicYearName = "2026–27", StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2027, 4, 30), IsCurrent = true, IsActive = true },
-                    new AcademicYear { AcademicYearName = "2025–26", StartDate = new DateTime(2025, 6, 1), EndDate = new DateTime(2026, 4, 30), IsCurrent = false, IsActive = true }
-                };
-                _context.AcademicYears.AddRange(defaults);
-                await _context.SaveChangesAsync();
-            }
-        }
-
         // GET: api/AcademicYears
         [HttpGet]
         public async Task<IActionResult> GetAcademicYears()
         {
-            await EnsureDefaultAcademicYearsAsync();
             var list = await _context.AcademicYears
                 .Where(ay => !ay.IsDeleted)
                 .OrderByDescending(ay => ay.IsCurrent)

@@ -84,38 +84,7 @@ export interface CampusItem {
   status: "Active" | "Inactive";
 }
 
-const defaultCampuses: CampusItem[] = [
-  {
-    id: "CMP-01",
-    name: "Main Campus",
-    code: "MAIN",
-    address:
-      "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-    phone: "+91 9123456789",
-    email: "main@pirnavschools.edu",
-    status: "Active",
-  },
-  {
-    id: "CMP-02",
-    name: "North Branch",
-    code: "NORTH",
-    address:
-      "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-    phone: "+91 9123456789",
-    email: "north@pirnavschools.edu",
-    status: "Active",
-  },
-  {
-    id: "CMP-03",
-    name: "West Campus",
-    code: "WEST",
-    address:
-      "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-    phone: "+91 9123456789",
-    email: "west@pirnavschools.edu",
-    status: "Active",
-  },
-];
+const defaultCampuses: CampusItem[] = [];
 
 const defaultCertificateTemplates: CertificateTemplateConfig[] = [
   {
@@ -595,10 +564,7 @@ export const SettingsView: React.FC = () => {
   });
 
   // Campus Configuration States
-  const [campuses, setCampuses] = useState<CampusItem[]>(() => {
-    const saved = localStorage.getItem("school_campuses");
-    return saved ? JSON.parse(saved) : defaultCampuses;
-  });
+  const [campuses, setCampuses] = useState<CampusItem[]>([]);
 
   const [campusSearch, setCampusSearch] = useState("");
   const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
@@ -657,22 +623,9 @@ export const SettingsView: React.FC = () => {
     return found || certificateTemplates[0] || defaultCertificateTemplates[0];
   }, [certificateTemplates, selectedTemplateId]);
 
-  // Sync campuses to localStorage and trigger Header sync event
+  // Sync campuses to backend and trigger Header sync event
   const syncCampuses = async (updated: CampusItem[]) => {
     setCampuses(updated);
-    localStorage.setItem("school_campuses", JSON.stringify(updated));
-
-    const allActive = updated
-      .filter((c) => c.status === "Active")
-      .map((c) => c.name);
-    const allInactive = updated
-      .filter((c) => c.status === "Inactive")
-      .map((c) => c.name);
-    const allManaged = updated.map((c) => c.name);
-
-    localStorage.setItem("managed_branches", JSON.stringify(allManaged));
-    localStorage.setItem("inactive_branches", JSON.stringify(allInactive));
-
     window.dispatchEvent(new Event("branches_updated"));
 
     try {
@@ -760,9 +713,8 @@ export const SettingsView: React.FC = () => {
     const loadBackendData = async () => {
       try {
         const res: any = await fetchBranchesApi();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res?.success && Array.isArray(res.data)) {
           setCampuses(res.data);
-          localStorage.setItem("school_campuses", JSON.stringify(res.data));
           window.dispatchEvent(new Event("branches_updated"));
         }
       } catch (err) {
@@ -773,13 +725,17 @@ export const SettingsView: React.FC = () => {
         const ayRes: any = await fetchAcademicYearsApi();
         if (
           ayRes?.success &&
-          Array.isArray(ayRes.data) &&
-          ayRes.data.length > 0
+          Array.isArray(ayRes.data)
         ) {
           localStorage.setItem(
             "edu_db_academic_years",
             JSON.stringify(ayRes.data),
           );
+          localStorage.setItem(
+            "academic_years",
+            JSON.stringify(ayRes.data),
+          );
+          window.dispatchEvent(new Event("academic_years_updated"));
         }
       } catch (err) {
         console.warn("Backend academic years load notice:", err);

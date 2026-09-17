@@ -234,6 +234,7 @@ export const FinanceUniformConfigView: React.FC = () => {
     }
     setQuery('');
     setFilterClass('All');
+    setCurrentPage(1);
     setIsModalOpen(false);
   };
 

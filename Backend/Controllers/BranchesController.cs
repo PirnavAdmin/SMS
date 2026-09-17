@@ -21,26 +21,10 @@ namespace SMS.Api.Controllers
             _context = context;
         }
 
-        private async Task EnsureDefaultBranchesAsync()
-        {
-            if (!await _context.Branches.AnyAsync())
-            {
-                var defaults = new List<Branch>
-                {
-                    new Branch { BranchName = "Main Campus", BranchCode = "MAIN", Address = "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081", Phone = "+91 9123456789", Email = "main@pirnavschools.edu", Status = "Active" },
-                    new Branch { BranchName = "North Branch", BranchCode = "NORTH", Address = "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081", Phone = "+91 9123456789", Email = "north@pirnavschools.edu", Status = "Active" },
-                    new Branch { BranchName = "West Campus", BranchCode = "WEST", Address = "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081", Phone = "+91 9123456789", Email = "west@pirnavschools.edu", Status = "Active" }
-                };
-                _context.Branches.AddRange(defaults);
-                await _context.SaveChangesAsync();
-            }
-        }
-
         // GET: api/Branches
         [HttpGet]
         public async Task<IActionResult> GetBranches()
         {
-            await EnsureDefaultBranchesAsync();
             var list = await _context.Branches
                 .OrderBy(b => b.BranchId)
                 .Select(b => new BranchDto

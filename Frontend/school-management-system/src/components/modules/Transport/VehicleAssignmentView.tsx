@@ -95,6 +95,7 @@ export const VehicleAssignmentView: React.FC = () => {
     driverMasters,
     studentTransports = [],
     busAttendants = [],
+    branches = [],
     assignVehicleRouteDriver,
     removeVehicleAssignment,
     updateVehicleAssignment
@@ -260,12 +261,16 @@ export const VehicleAssignmentView: React.FC = () => {
     return list;
   }, [driverMasters]);
 
-  const branchOptions = Array.from(new Set([
-    selectedBranch || 'Main Campus',
-    'Main Campus',
-    'North Branch',
-    'West Campus'
-  ]));
+  const branchOptions = useMemo(() => {
+    const list = (branches || [])
+      .filter((b: any) => b.status !== 'Inactive')
+      .map((b: any) => b.name || b.branchName)
+      .filter(Boolean);
+    if (selectedBranch && !list.includes(selectedBranch)) {
+      list.push(selectedBranch);
+    }
+    return Array.from(new Set(list));
+  }, [branches, selectedBranch]);
 
   const academicYear = getCurrentAcademicYear();
   const academicYearOptions = Array.from(new Set([

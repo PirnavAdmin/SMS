@@ -3,6 +3,7 @@ import { X, CheckCircle2, Users, Edit3 } from "lucide-react";
 import { Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
+import { useAuth } from "../../../context/AuthContext";
 import { Badge } from "../../common/Badge";
 import {
   BasicStaffFormState,
@@ -30,11 +31,16 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   defaultCategory = "Teaching Staff",
 }) => {
   const { staff, addStaff, updateStaff, departments, designations } = useData();
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
-  const [form, setForm] = useState<BasicStaffFormState>(() =>
-    defaultBasicStaffFormState(defaultCategory),
-  );
+  const [form, setForm] = useState<BasicStaffFormState>(() => {
+    const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
+    return {
+      ...defaultBasicStaffFormState(defaultCategory),
+      branch: initBranch,
+    };
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,7 +80,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         state: staffToEdit.state || "",
         pinCode: staffToEdit.pinCode || "",
         country: staffToEdit.country || "India",
-        branch: staffToEdit.branch || "Main Campus",
+        branch: staffToEdit.branch || "",
         department: staffToEdit.department || "",
         designation: staffToEdit.designation || "",
         joiningDate:
@@ -114,14 +120,16 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         })),
       });
     } else {
+      const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
       setForm({
         ...defaultBasicStaffFormState(defaultCategory),
+        branch: initBranch,
         empId: getNextEmployeeId(staff, defaultCategory),
       });
     }
 
     setErrors({});
-  }, [isOpen, staffToEdit, defaultCategory, staff]);
+  }, [isOpen, staffToEdit, defaultCategory, staff, selectedBranch]);
 
   const handleChange = (field: keyof BasicStaffFormState, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));

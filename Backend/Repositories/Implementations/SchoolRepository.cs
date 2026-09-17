@@ -21,13 +21,21 @@ public class SchoolRepository : ISchoolRepository
     }
 
     // --- STAFF ---
-    public async Task<List<Staff>> GetAllStaffAsync(string? search, string? department)
+    public async Task<List<Staff>> GetAllStaffAsync(string? search, string? department, string? branch = null)
     {
         var query = _context.Staff.AsNoTracking()
             .Include(s => s.Documents)
             .Include(s => s.Qualifications)
             .Include(s => s.ExperienceRecords)
             .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(branch) && 
+            !branch.Equals("All", System.StringComparison.OrdinalIgnoreCase) && 
+            !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase) && 
+            !branch.Equals("All Campuses", System.StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(s => s.BranchName != null && s.BranchName.ToLower() == branch.ToLower());
+        }
 
         if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
             query = query.Where(s => s.Department != null && s.Department.ToLower() == department.ToLower());

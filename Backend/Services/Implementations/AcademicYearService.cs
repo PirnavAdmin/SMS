@@ -19,26 +19,8 @@ public class AcademicYearService : IAcademicYearService
         _context = context;
     }
 
-    private async Task EnsureDefaultAcademicYearsAsync()
-    {
-        if (!await _context.AcademicYears.AnyAsync())
-        {
-            var now = DateTime.UtcNow;
-            int startYear = now.Month >= 6 ? now.Year : now.Year - 1;
-            var defaults = new List<AcademicYear>
-            {
-                new AcademicYear { AcademicYearName = $"{startYear}-{startYear + 1}", StartDate = new DateTime(startYear, 6, 1), EndDate = new DateTime(startYear + 1, 4, 30), IsCurrent = true, IsActive = true },
-                new AcademicYear { AcademicYearName = $"{startYear - 1}-{startYear}", StartDate = new DateTime(startYear - 1, 6, 1), EndDate = new DateTime(startYear, 4, 30), IsCurrent = false, IsActive = true }
-            };
-            _context.AcademicYears.AddRange(defaults);
-            await _context.SaveChangesAsync();
-        }
-    }
-
     public async Task<string> GetCurrentAcademicYearAsync()
     {
-        await EnsureDefaultAcademicYearsAsync();
-
         var activeYear = await _context.AcademicYears
             .AsNoTracking()
             .Where(ay => !ay.IsDeleted && ay.IsActive && ay.IsCurrent)
@@ -62,15 +44,11 @@ public class AcademicYearService : IAcademicYearService
             return latestYear;
         }
 
-        var now = DateTime.UtcNow;
-        int currentStart = now.Month >= 6 ? now.Year : now.Year - 1;
-        return $"{currentStart}-{currentStart + 1}";
+        return string.Empty;
     }
 
     public async Task<List<AcademicYearDto>> GetAllAcademicYearsAsync()
     {
-        await EnsureDefaultAcademicYearsAsync();
-
         return await _context.AcademicYears
             .AsNoTracking()
             .Where(ay => !ay.IsDeleted)
