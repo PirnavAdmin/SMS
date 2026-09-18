@@ -8,7 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import * as LibraryAPI from '../../../api/library';
 
-import { deriveAttendanceStatus } from '../Library/LibrarianAttendanceView';
+import { deriveAttendanceStatus, calculateWorkedHours } from '../Library/LibrarianAttendanceView';
 
 interface LibrarianDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -166,6 +166,9 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
               const outTime = r.checkOutTime || r.outTime || r.timeOut;
               const statusVal = deriveAttendanceStatus(inTime, r.status);
 
+              const rawOut = outTime !== undefined ? outTime : existing?.checkOutTime;
+              const finalOut = rawOut === '05:00 PM' && !r.checkOutTime ? undefined : rawOut;
+
               map.set(key, {
                 ...existing,
                 ...r,
@@ -173,9 +176,9 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
                 staffId: r.staffId || loggedEmpId,
                 staffName: recStaffName,
                 checkInTime: inTime || existing?.checkInTime,
-                checkOutTime: outTime || existing?.checkOutTime,
+                checkOutTime: finalOut,
                 status: statusVal,
-                workingHours: r.workingHours || existing?.workingHours
+                workingHours: r.workingHours && r.workingHours !== '23.2 Hours' ? r.workingHours : (inTime && finalOut ? calculateWorkedHours(inTime, finalOut) : '--')
               });
             });
           }

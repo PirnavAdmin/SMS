@@ -310,11 +310,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
             {/* SINGLE LOGIN FORM FOR ALL USERS */}
             {mode === 'login' && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div className="text-left pb-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    <span className="text-red-500 font-bold">*</span> Indicates required field
+                  </p>
+                </div>
                 
                 {/* Email / Phone Identifier */}
                 <div className="space-y-1.5 text-left">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Email Address or Phone Number
+                    Email Address or Phone Number <span className="text-red-500">*</span>
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500">
@@ -328,6 +333,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       onClick={handleInputFocus}
                       placeholder="Enter registered email or phone"
                       required
+                      aria-required="true"
                       className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium"
                     />
                   </div>
@@ -336,7 +342,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 {/* Password */}
                 <div className="space-y-1.5 text-left">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Password
+                    Password <span className="text-red-500">*</span>
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500">
@@ -350,6 +356,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       onClick={handleInputFocus}
                       placeholder="Enter your password"
                       required
+                      aria-required="true"
                       className="w-full pl-11 pr-11 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium"
                     />
                     <button
@@ -417,7 +424,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Email or Phone</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Email or Phone <span className="text-red-500">*</span></label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Mail className="w-4.5 h-4.5" />
@@ -428,6 +435,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       onChange={e => setForgotIdentifier(e.target.value)}
                       placeholder="Enter registered email or phone"
                       required
+                      aria-required="true"
                       className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all font-medium"
                     />
                   </div>
@@ -467,13 +475,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Verification Code</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Verification Code <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={otp}
                     onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
                     required
+                    aria-required="true"
                     maxLength={6}
                     className="w-full px-4 py-3 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
                   />
@@ -514,25 +523,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
                 <div className="space-y-3 text-left">
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">New Password</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">New Password <span className="text-red-500">*</span></label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder="••••••••"
                       required
+                      aria-required="true"
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Confirm Password</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Confirm Password <span className="text-red-500">*</span></label>
                     <input
                       type="password"
                       value={confirmNewPassword}
                       onChange={e => setConfirmNewPassword(e.target.value)}
                       placeholder="••••••••"
                       required
+                      aria-required="true"
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
                     />
                   </div>

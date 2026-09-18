@@ -300,6 +300,7 @@ export const LibrarianAttendanceView: React.FC = () => {
           const key = getAttendanceMapKey(rDate, recStaffName);
           const checkInTimeVal = r.checkInTime || r.inTime || r.timeIn || r.time || (r.status === 'Present' || r.status === 'Late' ? '08:30 AM' : '--');
           const statusVal = deriveAttendanceStatus(checkInTimeVal, r.status);
+          const checkOutVal = r.checkOutTime || r.outTime || r.timeOut;
 
           if (!map.has(key)) {
             map.set(key, {
@@ -309,8 +310,8 @@ export const LibrarianAttendanceView: React.FC = () => {
               role: 'Librarian',
               date: rDate,
               checkInTime: checkInTimeVal,
-              checkOutTime: r.checkOutTime || r.outTime || r.timeOut || (r.status === 'Present' || r.status === 'Late' ? '05:00 PM' : undefined),
-              workingHours: r.workingHours || (checkInTimeVal && (r.checkOutTime || r.outTime) ? calculateWorkedHours(checkInTimeVal, r.checkOutTime || r.outTime) : '8 Hours'),
+              checkOutTime: checkOutVal || undefined,
+              workingHours: r.workingHours || (checkInTimeVal && checkOutVal ? calculateWorkedHours(checkInTimeVal, checkOutVal) : '--'),
               shift: r.shift || 'Morning Shift (08:30 - 17:00)',
               status: statusVal as any,
               remarks: r.remarks || 'Recorded via Admin Staff Attendance'
@@ -342,7 +343,8 @@ export const LibrarianAttendanceView: React.FC = () => {
       const existing = map.get(key);
 
       const localIn = r.checkInTime || existing?.checkInTime;
-      const localOut = r.checkOutTime || existing?.checkOutTime;
+      const rawOut = r.checkOutTime !== undefined ? r.checkOutTime : existing?.checkOutTime;
+      const localOut = rawOut === '05:00 PM' && !r.checkOutTime ? undefined : rawOut;
       const statusVal = deriveAttendanceStatus(localIn, r.status || existing?.status);
 
       map.set(key, {
@@ -358,7 +360,7 @@ export const LibrarianAttendanceView: React.FC = () => {
         checkInTime: localIn,
         checkOutTime: localOut,
         status: statusVal as any,
-        workingHours: r.workingHours || (localIn && localOut ? calculateWorkedHours(localIn, localOut) : (existing?.workingHours || '8 Hours'))
+        workingHours: r.workingHours && r.workingHours !== '23.2 Hours' ? r.workingHours : (localIn && localOut ? calculateWorkedHours(localIn, localOut) : '--')
       });
     });
 

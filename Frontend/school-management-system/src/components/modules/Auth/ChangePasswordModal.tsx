@@ -59,13 +59,18 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            <span className="text-red-500 font-bold">*</span> Indicates required field
+          </p>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Current Password <span className="text-red-500">*</span></label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
                 required
+                aria-required="true"
                 value={oldPass}
                 onChange={e => setOldPass(e.target.value)}
                 placeholder="••••••••"
@@ -75,12 +80,13 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password <span className="text-red-500">*</span></label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
                 required
+                aria-required="true"
                 value={newPass}
                 onChange={e => setNewPass(e.target.value)}
                 placeholder="••••••••"
@@ -90,12 +96,13 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password <span className="text-red-500">*</span></label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
                 required
+                aria-required="true"
                 value={confirmPass}
                 onChange={e => setConfirmPass(e.target.value)}
                 placeholder="••••••••"
