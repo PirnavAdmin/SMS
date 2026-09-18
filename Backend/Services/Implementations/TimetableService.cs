@@ -521,7 +521,7 @@ public class TimetableService : ITimetableService
         if (dto.Overwrite != true && dto.IgnoreConflicts != true)
         {
             await _validationService.ValidateWeeklySubjectLimitAsync(
-                header.HeaderId, dto.ClassId, dto.SubjectId, subject.SubjectName ?? string.Empty, existingSlot?.SlotId);
+                header.HeaderId, dto.ClassId, dto.SubjectId, subject?.SubjectName ?? string.Empty, existingSlot?.SlotId);
 
             // 11. Conflict Validation (Teacher & Room Overlap)
             await _validationService.ValidateSlotConflictsAsync(
@@ -566,8 +566,8 @@ public class TimetableService : ITimetableService
             StartTime = FormatTime(slot.StartTime),
             EndTime = FormatTime(slot.EndTime),
             SubjectId = slot.SubjectId,
-            SubjectName = subject.SubjectName ?? "",
-            SubjectCode = subject.SubjectCode ?? "",
+            SubjectName = subject?.SubjectName ?? dto.SubjectName ?? "",
+            SubjectCode = subject?.SubjectCode ?? "",
             TeacherId = teacher?.StaffId ?? teacherId,
             TeacherName = teacherName,
             EmployeeId = teacher?.EmployeeId ?? "",

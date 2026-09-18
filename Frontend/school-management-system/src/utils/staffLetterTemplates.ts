@@ -1,0 +1,134 @@
+import { Staff, SchoolProfile } from '../types';
+import { GeneratedStaffLetterRecord, StaffLetterPayload, StaffLetterSalaryBreakdown, StaffLetterType } from '../types/staffLetter';
+
+export const calculateSalaryBreakdown = (monthlySalary: number): StaffLetterSalaryBreakdown => {
+  const grossMonthly = Math.max(0, monthlySalary || 0);
+  const basic = Math.round(grossMonthly * 0.5);
+  const hra = Math.round(grossMonthly * 0.2);
+  const transportAllowance = Math.round(grossMonthly * 0.1);
+  const specialAllowance = Math.max(0, grossMonthly - (basic + hra + transportAllowance));
+  const annualCtc = grossMonthly * 12;
+
+  return {
+    basic,
+    hra,
+    specialAllowance,
+    transportAllowance,
+    grossMonthly,
+    annualCtc,
+  };
+};
+
+export const generateLetterRefNo = (type: StaffLetterType, empId?: string): string => {
+  const prefix = type === 'offer' ? 'OFF' : type === 'relieving' ? 'REL' : 'EXP';
+  const year = new Date().getFullYear();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  const suffix = empId ? empId.replace(/[^a-zA-Z0-9]/g, '') : rand;
+  return `${prefix}/${year}/${suffix}`;
+};
+
+export const DEFAULT_OFFER_TERMS = [
+  'Probation: You will be on probation for a period of 6 (six) months from your date of joining. The management reserves the right to extend the probation period based on performance evaluation.',
+  'Working Hours: Normal school working hours are 08:30 AM to 04:00 PM, Monday through Saturday (with designated 2nd and 4th Saturday offs as per institutional calendar).',
+  'Code of Conduct: You are expected to uphold the highest standard of academic excellence, student safety, and professional ethics as prescribed by the School Management and Regulatory Boards.',
+  'Notice Period: During probation, either party may terminate the appointment by providing 1 (one) month written notice or salary in lieu thereof. Post confirmation, the notice period shall be 3 (three) months or completion of the ongoing academic term.',
+  'Confidentiality & Non-Disclosure: All curriculum materials, assessment records, student data, and institutional policies are proprietary and must remain confidential.',
+];
+
+export const getDefaultLetterPayload = (
+  type: StaffLetterType,
+  staff: Staff,
+  schoolProfile?: SchoolProfile
+): StaffLetterPayload => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const monthlySalary = typeof staff.salary === 'number'
+    ? staff.salary
+    : parseFloat(String(staff.salary || (staff as any).basicSalary || (staff as any).grossSalary || (staff as any).netSalary || '0')) || 35000;
+
+  const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || 'Staff Member';
+  const defaultSignatoryName = schoolProfile?.principalName || 'Dr. K. S. Sharma';
+  const defaultSignatoryTitle = 'Principal & Authorized Signatory';
+  const staffAddress = staff.presentAddress || staff.residentialAddress || staff.permanentAddress || staff.address || (schoolProfile?.address || '');
+  const staffBranch = staff.branch || (staff as any).campus || 'Main Campus';
+  const staffDesignation = staff.designation || (staff.role === 'Teacher' ? 'Subject Teacher' : (staff.role || 'Staff Member'));
+  const staffDepartment = staff.department || (staff.role === 'Teacher' ? 'Academics' : 'Administration');
+  const staffJoiningDate = staff.joiningDate || (staff as any).dateOfJoining || todayStr;
+
+  return {
+    refNo: generateLetterRefNo(type, staff.empId || staff.id),
+    issueDate: todayStr,
+    candidateName: fullName,
+    empId: staff.empId || staff.id || '',
+    address: staffAddress,
+    phone: staff.phone || (staff as any).mobile || (staff as any).phoneNumber || '',
+    email: staff.email || '',
+    designation: staffDesignation,
+    department: staffDepartment,
+    branch: staffBranch,
+    joiningDate: staffJoiningDate,
+    relievingDate: type !== 'offer' ? todayStr : undefined,
+    salaryBreakdown: calculateSalaryBreakdown(monthlySalary),
+    probationMonths: 6,
+    noticePeriodDays: 30,
+    workingHours: '08:30 AM – 04:00 PM',
+    conductRating: 'Exemplary',
+    noDuesCleared: true,
+    reasonForRelieving: 'Personal reasons & career advancement',
+    authorizedSignatoryName: defaultSignatoryName,
+    authorizedSignatoryTitle: defaultSignatoryTitle,
+    customTerms: DEFAULT_OFFER_TERMS,
+    remarks: 'Approved and issued by Institutional Human Resources.',
+  };
+};
+
+const STORAGE_KEY = 'edu_db_staff_letters';
+
+export const getStoredStaffLetters = (): GeneratedStaffLetterRecord[] => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to load staff letters from storage:', e);
+  }
+  return [];
+};
+
+export const saveStaffLetterRecord = (record: GeneratedStaffLetterRecord): GeneratedStaffLetterRecord[] => {
+  try {
+    const existing = getStoredStaffLetters();
+    const filtered = existing.filter((r) => r.id !== record.id);
+    const updated = [record, ...filtered];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event('staff_letters_updated'));
+    return updated;
+  } catch (e) {
+    console.warn('Failed to save staff letter record:', e);
+    return [];
+  }
+};
+
+export const deleteStaffLetterRecord = (id: string): GeneratedStaffLetterRecord[] => {
+  try {
+    const existing = getStoredStaffLetters();
+    const updated = existing.filter((r) => r.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event('staff_letters_updated'));
+    return updated;
+  } catch (e) {
+    console.warn('Failed to delete staff letter record:', e);
+    return [];
+  }
+};
+
+export const getLettersForStaff = (staffIdOrEmpId: string): GeneratedStaffLetterRecord[] => {
+  const all = getStoredStaffLetters();
+  const target = String(staffIdOrEmpId || '').toLowerCase().trim();
+  return all.filter(
+    (l) =>
+      String(l.staffId || '').toLowerCase().trim() === target ||
+      String(l.staffEmpId || '').toLowerCase().trim() === target
+  );
+};

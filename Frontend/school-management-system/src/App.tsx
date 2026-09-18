@@ -69,6 +69,7 @@ import { ReportsView } from "./components/modules/School Administration/School R
 import { UserManagementView } from "./components/modules/UserManagement/UserManagementView";
 import { SettingsView } from "./components/modules/Settings/SettingsView";
 import { TrainingContainerView } from "./components/modules/School Administration/Faculty Development & Training/TrainingContainerView";
+import { StaffLettersManagementView } from "./components/modules/Staff/Letters/StaffLettersManagementView";
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user, setUser, role, setRole } = useAuth();
@@ -93,6 +94,16 @@ const MainLayout: React.FC = () => {
   };
   const [showLogin, setShowLogin] = useState(false);
   const [selectedPortalRole, setSelectedPortalRole] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const handleModuleNav = (e: any) => {
+      if (e?.detail) {
+        setActiveModule(e.detail);
+      }
+    };
+    window.addEventListener('navigate_module', handleModuleNav as EventListener);
+    return () => window.removeEventListener('navigate_module', handleModuleNav as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -481,6 +492,12 @@ const MainLayout: React.FC = () => {
         if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian") return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return <StaffList onNavigate={setActiveModule} />;
+      case "staff-letters":
+        if (userRole === "parent" || userRole === "student")
+          return <ParentTeacherInfoView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian") return <TeacherProfileView />;
+        if (userRole === "driver") return <DriverProfileView />;
+        return <StaffLettersManagementView onNavigate={setActiveModule} />;
       case "staff-non-teaching":
         if (userRole === "teacher") return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;

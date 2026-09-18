@@ -487,38 +487,28 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             </button>
 
             {showBranchMenu && (
-              <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
-                <div className="mb-2 px-1">
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <Search className="w-3.5 h-3.5 text-slate-400" />
-                    <input
-                      value={branchSearch}
-                      onChange={e => setBranchSearch(e.target.value)}
-                      placeholder="Filter campus..."
-                      className="w-full bg-transparent outline-none text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
+              <div className="absolute left-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
                 {canManageBranch && (
                   <button
                     onClick={() => {
-                      setEditingBranchName(null);
-                      setBranchDraftName('');
-                      setBranchModalOpen(true);
+                      setShowBranchMenu(false);
+                      localStorage.setItem('settings_active_tab', 'campus');
+                      window.dispatchEvent(new CustomEvent('settings_tab_change', { detail: { tab: 'campus' } }));
+                      if (onNavigate) {
+                        onNavigate('settings');
+                      }
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-xl transition-colors mb-1 cursor-pointer"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-xl transition-colors mb-1 cursor-pointer"
                   >
-                    <span className="flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
+                    <span className="flex items-center gap-1.5">
+                      <Plus className="w-3.5 h-3.5" />
                       Add New Campus
                     </span>
                   </button>
                 )}
 
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {filteredBranchOptions.map((branch, idx) => {
+                <div className="max-h-56 overflow-y-auto space-y-0.5 no-scrollbar">
+                  {branchOptions.map((branch, idx) => {
                     const isSelected = selectedBranch === branch;
                     const isInactive = (inactiveBranches || []).includes(branch);
                     return (
@@ -528,7 +518,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                             setSelectedBranch(branch);
                             setShowBranchMenu(false);
                           }}
-                          className={`flex-1 flex items-center justify-between px-2.5 py-2 text-xs text-left transition-colors font-medium ${
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 text-xs text-left transition-colors font-medium cursor-pointer ${
                             isSelected ? 'text-brand-600 font-bold' : 'text-slate-700 dark:text-slate-200'
                           }`}
                         >
@@ -579,19 +569,20 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           <div className="relative animate-in fade-in" ref={ayRef}>
             <button
               onClick={() => setShowAYMenu(!showAYMenu)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors h-9"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-xs hover:bg-sky-50/50 dark:hover:bg-slate-700 transition-colors h-9 cursor-pointer"
             >
-              <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <span className="max-w-28 truncate text-indigo-900 dark:text-indigo-100">
-                {selectedAcademicYear || "Select AY"}
+              <Calendar className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+              <span className="text-sky-600 dark:text-sky-400 font-semibold whitespace-nowrap">Academic Year:</span>
+              <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                {formatAYDisplay(selectedAcademicYear) || "2026–27"}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              <ChevronDown className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
             </button>
 
             {showAYMenu && (
-              <div className="absolute left-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+              <div className="absolute left-0 mt-2 w-52 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
                 {ayOptions.map((item) => {
-                  const isSelected = selectedAcademicYear === item.academicYear;
+                  const isSelected = selectedAcademicYear === item.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(item.academicYear);
                   return (
                     <button
                       key={item.id}
@@ -599,13 +590,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                         setSelectedAcademicYear(item.academicYear);
                         setShowAYMenu(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors font-medium text-left ${
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors font-medium text-left cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 font-bold'
+                          ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold'
                           : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <span>{item.academicYear}</span>
+                      <span className="font-semibold">{formatAYDisplay(item.academicYear)}</span>
                       {item.isCurrent && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-normal">
                           Current

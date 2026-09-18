@@ -28,7 +28,7 @@ namespace Backend.Tests.Controllers
                 new StaffResponseDto { StaffId = 1, FirstName = "John" }
             };
 
-            _staffServiceMock.Setup(s => s.GetAllStaffAsync("John", "Science"))
+            _staffServiceMock.Setup(s => s.GetAllStaffAsync("John", "Science", null))
                 .ReturnsAsync(expectedList);
 
             var result = await _controller.GetAllStaff("John", "Science");

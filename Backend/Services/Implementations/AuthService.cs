@@ -558,7 +558,7 @@ namespace SMS.Api.Services.Implementations
                             var matchedDriver = await _dbContext.TransportDrivers.FirstOrDefaultAsync(d => 
                                 (d.Email != null && user.Email != null && d.Email.ToLower() == user.Email.ToLower()) ||
                                 (d.MobileNumber != null && user.MobileNumber != null && (d.MobileNumber == user.MobileNumber || (digitsOnly.Length >= 10 && d.MobileNumber.EndsWith(digitsOnly)))) ||
-                                d.DriverName.ToLower() == user.FullName.ToLower());
+                                (d.DriverName != null && user.FullName != null && d.DriverName.ToLower() == user.FullName.ToLower()));
                             if (matchedDriver != null && !string.IsNullOrWhiteSpace(matchedDriver.DriverName))
                             {
                                 fullName = matchedDriver.DriverName;

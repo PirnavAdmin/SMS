@@ -23,6 +23,7 @@ import {
   Loader2,
   UploadCloud,
   FileSpreadsheet,
+  FileText,
 } from "lucide-react";
 import { Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -32,6 +33,7 @@ import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { StaffFormModal } from "./StaffFormModal";
 import { StaffProfileDrawer } from "./StaffProfileDrawerEnhanced";
+import { StaffLetterModal } from "./Letters/StaffLetterModal";
 import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { DocumentRequirementMasterModal } from "./DocumentRequirementMasterModal";
@@ -154,6 +156,7 @@ export const StaffList: React.FC<{
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [staffToEdit, setStaffToEdit] = useState<Staff | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [letterStaffTarget, setLetterStaffTarget] = useState<Staff | null>(null);
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
   const [statusConfirmTarget, setStatusConfirmTarget] = useState<{ staff: Staff; nextStatus: "Active" | "Inactive" | "Resigned" } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -1016,6 +1019,13 @@ export const StaffList: React.FC<{
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => setLetterStaffTarget(st)}
+                            className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-sky-600 dark:text-sky-400"
+                            title={`Generate & View Official Letters (Offer / Relieving) - ${st.firstName} ${st.lastName}`}
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => {
                               setStaffToEdit(st);
                               setIsAddOpen(true);
@@ -1097,6 +1107,16 @@ export const StaffList: React.FC<{
         isOpen={!!selectedStaff}
         onClose={() => setSelectedStaff(null)}
       />
+
+      {letterStaffTarget && (
+        <StaffLetterModal
+          staff={letterStaffTarget}
+          isOpen={!!letterStaffTarget}
+          onClose={() => setLetterStaffTarget(null)}
+          onNavigate={onNavigate}
+          initialType="offer"
+        />
+      )}
 
       <ConfirmModal
         isOpen={!!staffToDelete}

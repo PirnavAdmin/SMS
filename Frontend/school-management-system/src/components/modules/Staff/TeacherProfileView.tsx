@@ -1,14 +1,18 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Mail, Phone, Building, GraduationCap, Briefcase, MapPin, Calendar, 
-  Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2, Upload, Trash2
+  Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2, Upload, Trash2,
+  FileText, Download, Eye, Award, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { getSortOrderForClass } from '../../../utils/classSorter';
+import { StaffLetterModal } from './Letters/StaffLetterModal';
+import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
+import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
 
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
@@ -506,6 +510,61 @@ export const TeacherProfileView: React.FC = () => {
     }
   };
 
+  // Staff HR Letters State & Listeners
+  const [letterModalOpen, setLetterModalOpen] = useState(false);
+  const [selectedLetterType, setSelectedLetterType] = useState<StaffLetterType>('offer');
+  const [selectedLetterRecord, setSelectedLetterRecord] = useState<GeneratedStaffLetterRecord | undefined>(undefined);
+  const [staffLetters, setStaffLetters] = useState<GeneratedStaffLetterRecord[]>([]);
+
+  const refreshStaffLetters = () => {
+    const sId = dbTeacher?.empId || dbTeacher?.id || (user as any)?.empId || user?.id;
+    if (sId) {
+      setStaffLetters(getLettersForStaff(sId));
+    }
+  };
+
+  useEffect(() => {
+    refreshStaffLetters();
+    window.addEventListener('staff_letters_updated', refreshStaffLetters);
+    return () => window.removeEventListener('staff_letters_updated', refreshStaffLetters);
+  }, [dbTeacher?.id, dbTeacher?.empId, user?.id]);
+
+  const staffForLetter = useMemo(() => {
+    const fullNameStr = profile.fullName || 'Staff Member';
+    const parts = fullNameStr.split(' ');
+    return {
+      id: dbTeacher?.id || user?.id || 'STF-001',
+      empId: profile.employeeId || dbTeacher?.empId || 'STF-001',
+      firstName: parts[0] || 'Staff',
+      lastName: parts.slice(1).join(' ') || 'Member',
+      email: profile.email,
+      phone: profile.mobile,
+      designation: profile.designation,
+      department: profile.department,
+      role: profile.role || profile.designation,
+      branch: dbTeacher?.branch || user?.branch || 'Main Campus',
+      joiningDate: profile.joiningDate,
+      dateOfJoining: profile.joiningDate,
+      qualification: profile.qualification,
+      experience: profile.experience,
+      address: profile.address,
+      basicSalary: Number((dbTeacher as any)?.basicSalary) || 35000,
+      hra: Number((dbTeacher as any)?.hra) || 12000,
+      da: Number((dbTeacher as any)?.da) || 5000,
+      specialAllowance: Number((dbTeacher as any)?.specialAllowance) || 3000,
+      conveyance: Number((dbTeacher as any)?.conveyance) || 2000,
+      medicalAllowance: Number((dbTeacher as any)?.medicalAllowance) || 1500,
+      grossSalary: Number((dbTeacher as any)?.grossSalary) || 58500,
+      netSalary: Number((dbTeacher as any)?.netSalary) || 55000,
+      bankName: (dbTeacher as any)?.bankName || 'State Bank of India',
+      bankAccountNumber: (dbTeacher as any)?.bankAccountNumber || '38920199201',
+      ifscCode: (dbTeacher as any)?.ifscCode || 'SBIN0004012',
+      panNumber: (dbTeacher as any)?.panNumber || 'ABCDE1234F',
+      aadhaarNumber: (dbTeacher as any)?.aadhaarNumber || '9876-5432-1098',
+      ...dbTeacher
+    };
+  }, [dbTeacher, profile, user]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -780,6 +839,164 @@ export const TeacherProfileView: React.FC = () => {
 
       </div>
 
+      {/* Official Institutional Letters & HR Documents Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+              Official Institutional Letters & HR Documents
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Access your official employment appointment offer letter, salary breakdown, and service records.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const existingOffer = staffLetters.find(l => l.letterType === 'offer');
+                setSelectedLetterType('offer');
+                setSelectedLetterRecord(existingOffer);
+                setLetterModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm cursor-pointer transition transform active:scale-95"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              View My Offer Letter
+            </button>
+          </div>
+        </div>
+
+        {/* HR Letter Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Offer / Appointment Letter */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/40 dark:from-sky-950/30 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/50 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300">
+                  <FileText className="w-4 h-4" />
+                </span>
+                <Badge variant="success" size="sm">Official</Badge>
+              </div>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm mt-2">Appointment / Offer Letter</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Institutional appointment contract with terms of service, compensation structure, and probation details.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const existingOffer = staffLetters.find(l => l.letterType === 'offer');
+                setSelectedLetterType('offer');
+                setSelectedLetterRecord(existingOffer);
+                setLetterModalOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              View & Print Offer Letter
+            </button>
+          </div>
+
+          {/* Card 2: Relieving Letter */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
+                  <CheckCircle2 className="w-4 h-4" />
+                </span>
+                {staffLetters.some(l => l.letterType === 'relieving') ? (
+                  <Badge variant="success" size="sm">Issued</Badge>
+                ) : (
+                  <Badge variant="neutral" size="sm">On Separation</Badge>
+                )}
+              </div>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm mt-2">Relieving & Clearance Letter</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Official relieving letter confirming formal clearance of institutional dues, assets, and service tenure.
+              </p>
+            </div>
+            {staffLetters.some(l => l.letterType === 'relieving') ? (
+              <button
+                onClick={() => {
+                  const relRecord = staffLetters.find(l => l.letterType === 'relieving');
+                  setSelectedLetterType('relieving');
+                  setSelectedLetterRecord(relRecord);
+                  setLetterModalOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                View Relieving Letter
+              </button>
+            ) : (
+              <div className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-center text-xs font-semibold">
+                Issued Upon Formal Relieving
+              </div>
+            )}
+          </div>
+
+          {/* Card 3: Experience / Service Certificate */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
+                  <Award className="w-4 h-4" />
+                </span>
+                {staffLetters.some(l => l.letterType === 'experience') ? (
+                  <Badge variant="success" size="sm">Issued</Badge>
+                ) : (
+                  <Badge variant="neutral" size="sm">Service Certificate</Badge>
+                )}
+              </div>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm mt-2">Experience Certificate</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Institutional service testimonial verifying your designation, responsibilities, and tenure performance.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const expRecord = staffLetters.find(l => l.letterType === 'experience');
+                setSelectedLetterType('experience');
+                setSelectedLetterRecord(expRecord);
+                setLetterModalOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              View Experience Certificate
+            </button>
+          </div>
+        </div>
+
+        {/* Issued Documents Audit List if any records exist */}
+        {staffLetters.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Issued Letter History</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {staffLetters.map(rec => (
+                <div key={rec.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-white capitalize">{rec.letterType} Letter</p>
+                    <p className="text-[10px] text-slate-400 font-mono">Ref: {rec.letterNumber || rec.payload?.refNo} • {rec.issueDate || rec.payload?.issueDate}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedLetterType(rec.letterType);
+                      setSelectedLetterRecord(rec);
+                      setLetterModalOpen(true);
+                    }}
+                    className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 hover:bg-sky-100 cursor-pointer"
+                    title="View Document"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Edit My Profile Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
@@ -995,6 +1212,17 @@ export const TeacherProfileView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {staffForLetter && (
+        <StaffLetterModal
+          staff={staffForLetter as any}
+          isOpen={letterModalOpen}
+          onClose={() => setLetterModalOpen(false)}
+          initialType={selectedLetterType}
+          existingRecord={selectedLetterRecord}
+          readOnly={true}
+        />
       )}
     </div>
   );

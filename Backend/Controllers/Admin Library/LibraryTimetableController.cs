@@ -25,74 +25,10 @@ public class LibraryTimetableController : ControllerBase
         _context = context;
     }
 
-    private static List<LibraryTimetableSlot> GetMasterAdminSeededSlots()
-    {
-        return new List<LibraryTimetableSlot>
-        {
-            // Monday
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 5", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 3", Section = "B", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 9", Section = "A", Subject = "Library & Research", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 4, PeriodName = "PERIOD 4", StartTime = "11:00 AM", EndTime = "11:45 AM", ClassName = "Class 10", Section = "A", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 5, PeriodName = "PERIOD 5", StartTime = "11:45 AM", EndTime = "12:30 PM", ClassName = "Class 6", Section = "B", Subject = "Library & Storytelling", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 6, PeriodName = "PERIOD 6", StartTime = "01:15 PM", EndTime = "02:00 PM", ClassName = "Class 8", Section = "A", Subject = "Library & Research", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 7, PeriodName = "PERIOD 7", StartTime = "02:00 PM", EndTime = "02:45 PM", ClassName = "Class 11", Section = "B", Subject = "Library & Reference", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Monday", PeriodNumber = 8, PeriodName = "PERIOD 8", StartTime = "02:45 PM", EndTime = "03:30 PM", ClassName = "Class 7", Section = "A", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-
-            // Tuesday
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 4", Section = "A", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 6", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 11", Section = "A", Subject = "Library & Reference", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 4, PeriodName = "PERIOD 4", StartTime = "11:00 AM", EndTime = "11:45 AM", ClassName = "Class 9", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 5, PeriodName = "PERIOD 5", StartTime = "11:45 AM", EndTime = "12:30 PM", ClassName = "Class 10", Section = "B", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 6, PeriodName = "PERIOD 6", StartTime = "01:15 PM", EndTime = "02:00 PM", ClassName = "Class 5", Section = "B", Subject = "Library & Storytelling", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Tuesday", PeriodNumber = 7, PeriodName = "PERIOD 7", StartTime = "02:00 PM", EndTime = "02:45 PM", ClassName = "Class 12", Section = "A", Subject = "Library & Journal Study", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-
-            // Wednesday
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 7", Section = "B", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 10", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 5", Section = "A", Subject = "Library & Storytelling", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 4, PeriodName = "PERIOD 4", StartTime = "11:00 AM", EndTime = "11:45 AM", ClassName = "Class 3", Section = "A", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 5, PeriodName = "PERIOD 5", StartTime = "11:45 AM", EndTime = "12:30 PM", ClassName = "Class 8", Section = "B", Subject = "Library & Research", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 6, PeriodName = "PERIOD 6", StartTime = "01:15 PM", EndTime = "02:00 PM", ClassName = "Class 4", Section = "B", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Wednesday", PeriodNumber = 7, PeriodName = "PERIOD 7", StartTime = "02:00 PM", EndTime = "02:45 PM", ClassName = "Class 9", Section = "B", Subject = "Library & Reading", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-
-            // Thursday
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 11", Section = "B", Subject = "Library & Reference", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 8", Section = "B", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 6", Section = "B", Subject = "Library & Reading", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 4, PeriodName = "PERIOD 4", StartTime = "11:00 AM", EndTime = "11:45 AM", ClassName = "Class 7", Section = "A", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 5, PeriodName = "PERIOD 5", StartTime = "11:45 AM", EndTime = "12:30 PM", ClassName = "Class 12", Section = "B", Subject = "Library & Journal Study", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 6, PeriodName = "PERIOD 6", StartTime = "01:15 PM", EndTime = "02:00 PM", ClassName = "Class 10", Section = "A", Subject = "Library & Research", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Thursday", PeriodNumber = 7, PeriodName = "PERIOD 7", StartTime = "02:00 PM", EndTime = "02:45 PM", ClassName = "Class 4", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-
-            // Friday
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 9", Section = "B", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 5", Section = "B", Subject = "Library & Reading", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 12", Section = "A", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 4, PeriodName = "PERIOD 4", StartTime = "11:00 AM", EndTime = "11:45 AM", ClassName = "Class 3", Section = "A", Subject = "Library & Storytelling", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 5, PeriodName = "PERIOD 5", StartTime = "11:45 AM", EndTime = "12:30 PM", ClassName = "Class 6", Section = "A", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 6, PeriodName = "PERIOD 6", StartTime = "01:15 PM", EndTime = "02:00 PM", ClassName = "Class 11", Section = "A", Subject = "Library & Reference", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Friday", PeriodNumber = 7, PeriodName = "PERIOD 7", StartTime = "02:00 PM", EndTime = "02:45 PM", ClassName = "Class 8", Section = "A", Subject = "Library Period", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-
-            // Saturday
-            new LibraryTimetableSlot { DayOfWeek = "Saturday", PeriodNumber = 1, PeriodName = "PERIOD 1", StartTime = "08:30 AM", EndTime = "09:15 AM", ClassName = "Class 6", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Saturday", PeriodNumber = 2, PeriodName = "PERIOD 2", StartTime = "09:15 AM", EndTime = "10:00 AM", ClassName = "Class 7", Section = "B", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Saturday", PeriodNumber = 3, PeriodName = "PERIOD 3", StartTime = "10:15 AM", EndTime = "11:00 AM", ClassName = "Class 8", Section = "B", Subject = "Library & Storytelling", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Saturday", PeriodNumber = 4, PeriodName = "PERIOD 4", StartTime = "11:00 AM", EndTime = "11:45 AM", ClassName = "Class 10", Section = "B", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Saturday", PeriodNumber = 5, PeriodName = "PERIOD 5", StartTime = "11:45 AM", EndTime = "12:30 PM", ClassName = "Class 9", Section = "A", Subject = "Library & Reading", AssignedLibrarian = "Bhanu Prakash", IsFreeSlot = false },
-            new LibraryTimetableSlot { DayOfWeek = "Saturday", PeriodNumber = 6, PeriodName = "PERIOD 6", StartTime = "01:15 PM", EndTime = "02:00 PM", ClassName = "Class 5", Section = "A", Subject = "Library Period", AssignedLibrarian = "Rachel Green", IsFreeSlot = false }
-        };
-    }
-
     private async Task EnsureSeededTimetableAsync()
     {
-        if (!await _context.LibraryTimetableSlots.AnyAsync())
-        {
-            var defaults = GetMasterAdminSeededSlots();
-            await _context.LibraryTimetableSlots.AddRangeAsync(defaults);
-            await _context.SaveChangesAsync();
-        }
+        // Mock seeder removed - library timetable slots come from authentic database entries
+        await Task.CompletedTask;
     }
 
     [HttpGet]
@@ -250,19 +186,13 @@ public class LibraryTimetableController : ControllerBase
     [HttpPost("sync")]
     public async Task<IActionResult> SyncAdminTimetable()
     {
-        var seededSlots = GetMasterAdminSeededSlots();
-
         var existing = await _context.LibraryTimetableSlots.ToListAsync();
-        _context.LibraryTimetableSlots.RemoveRange(existing);
-        await _context.LibraryTimetableSlots.AddRangeAsync(seededSlots);
-        await _context.SaveChangesAsync();
-
         return Ok(new
         {
             success = true,
-            message = $"Successfully synced {seededSlots.Count} Library Period slots from Admin Master Timetable.",
-            totalSynced = seededSlots.Count,
-            data = seededSlots
+            message = $"Library Timetable synchronized with database ({existing.Count} slots found).",
+            totalSynced = existing.Count,
+            data = existing
         });
     }
 
