@@ -94,6 +94,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
+  const [identifierTouched, setIdentifierTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [loginSubmitted, setLoginSubmitted] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -101,9 +105,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [mode, setMode] = useState<'login' | 'forgot' | 'verify-otp' | 'reset-password'>('login');
   
   const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotIdentifierTouched, setForgotIdentifierTouched] = useState(false);
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
+
   const [otp, setOtp] = useState('');
+  const [otpTouched, setOtpTouched] = useState(false);
+  const [otpSubmitted, setOtpSubmitted] = useState(false);
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [newPasswordTouched, setNewPasswordTouched] = useState(false);
+  const [confirmNewPasswordTouched, setConfirmNewPasswordTouched] = useState(false);
+  const [resetSubmitted, setResetSubmitted] = useState(false);
 
   // High Resolution School Campus Background Image
   const bgCampusImage = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2000&auto=format&fit=crop';
@@ -141,8 +154,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleLoginSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!identifier || !password) {
-      setError('Please fill in both identifier and password.');
+    setLoginSubmitted(true);
+    if (!identifier.trim() || !password) {
       return;
     }
     if (rememberMe) {
@@ -172,7 +185,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleForgotSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!forgotIdentifier) return;
+    setForgotSubmitted(true);
+    if (!forgotIdentifier.trim()) return;
     setError('');
     setLoading(true);
     try {
@@ -188,7 +202,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleVerifyOtpSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!otp) return;
+    setOtpSubmitted(true);
+    if (!otp.trim()) return;
     setError('');
     setLoading(true);
     try {
@@ -204,6 +219,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleResetPasswordSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    setResetSubmitted(true);
+    if (!newPassword || !confirmNewPassword) return;
     if (newPassword !== confirmNewPassword) {
       setError('Passwords do not match.');
       return;
@@ -309,17 +326,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* SINGLE LOGIN FORM FOR ALL USERS */}
             {mode === 'login' && (
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div className="text-left pb-1">
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    <span className="text-red-500 font-bold">*</span> Indicates required field
-                  </p>
-                </div>
+              <form onSubmit={handleLoginSubmit} noValidate className="space-y-4">
                 
                 {/* Email / Phone Identifier */}
                 <div className="space-y-1.5 text-left">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Email Address or Phone Number <span className="text-red-500">*</span>
+                    Email Address or Phone Number <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500">
@@ -328,21 +340,30 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type="text"
                       value={identifier}
-                      onChange={e => setIdentifier(e.target.value)}
+                      onChange={e => {
+                        setIdentifier(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setIdentifierTouched(true)}
                       onFocus={handleInputFocus}
                       onClick={handleInputFocus}
                       placeholder="Enter registered email or phone"
-                      required
-                      aria-required="true"
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!identifier.trim() && (identifierTouched || loginSubmitted))
+                          ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                      }`}
                     />
                   </div>
+                  {(!identifier.trim() && (identifierTouched || loginSubmitted)) && (
+                    <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+                  )}
                 </div>
 
                 {/* Password */}
                 <div className="space-y-1.5 text-left">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Password <span className="text-red-500">*</span>
+                    Password <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500">
@@ -351,13 +372,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={e => setPassword(e.target.value)}
+                      onChange={e => {
+                        setPassword(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setPasswordTouched(true)}
                       onFocus={handleInputFocus}
                       onClick={handleInputFocus}
                       placeholder="Enter your password"
-                      required
-                      aria-required="true"
-                      className="w-full pl-11 pr-11 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium"
+                      className={`w-full pl-11 pr-11 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!password && (passwordTouched || loginSubmitted))
+                          ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                      }`}
                     />
                     <button
                       type="button"
@@ -369,6 +396,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                     </button>
                   </div>
+                  {(!password && (passwordTouched || loginSubmitted)) && (
+                    <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+                  )}
 
                   <div className="flex items-center justify-between pt-1">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -415,7 +445,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* FORGOT PASSWORD FORM */}
             {mode === 'forgot' && (
-              <form onSubmit={handleForgotSubmit} className="space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleForgotSubmit} noValidate className="space-y-4 animate-in fade-in duration-300">
                 <div className="space-y-1 mb-2 text-left">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recover Password</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
@@ -424,7 +454,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Email or Phone <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Email or Phone <span className="text-red-500 ml-0.5">*</span>
+                  </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Mail className="w-4.5 h-4.5" />
@@ -433,12 +465,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       type="text"
                       value={forgotIdentifier}
                       onChange={e => setForgotIdentifier(e.target.value)}
+                      onBlur={() => setForgotIdentifierTouched(true)}
                       placeholder="Enter registered email or phone"
-                      required
-                      aria-required="true"
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all font-medium"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted))
+                          ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                      }`}
                     />
                   </div>
+                  {(!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted)) && (
+                    <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+                  )}
                 </div>
 
                 <div className="space-y-2 pt-2">
@@ -466,7 +504,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* VERIFY OTP FORM */}
             {mode === 'verify-otp' && (
-              <form onSubmit={handleVerifyOtpSubmit} className="space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleVerifyOtpSubmit} noValidate className="space-y-4 animate-in fade-in duration-300">
                 <div className="space-y-1 mb-2 text-left">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verify Code</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
@@ -475,17 +513,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Verification Code <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Verification Code <span className="text-red-500 ml-0.5">*</span>
+                  </label>
                   <input
                     type="text"
                     value={otp}
                     onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                    onBlur={() => setOtpTouched(true)}
                     placeholder="123456"
-                    required
-                    aria-required="true"
                     maxLength={6}
-                    className="w-full px-4 py-3 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                    className={`w-full px-4 py-3 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 transition-all ${
+                      (!otp.trim() && (otpTouched || otpSubmitted))
+                        ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                        : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                    }`}
                   />
+                  {(!otp.trim() && (otpTouched || otpSubmitted)) && (
+                    <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+                  )}
                 </div>
 
                 <div className="space-y-2 pt-2">
@@ -513,7 +559,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* RESET PASSWORD FORM */}
             {mode === 'reset-password' && (
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleResetPasswordSubmit} noValidate className="space-y-4 animate-in fade-in duration-300">
                 <div className="space-y-1 mb-2 text-left">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">New Password</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
@@ -523,29 +569,45 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
                 <div className="space-y-3 text-left">
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">New Password <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      New Password <span className="text-red-500 ml-0.5">*</span>
+                    </label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
+                      onBlur={() => setNewPasswordTouched(true)}
                       placeholder="••••••••"
-                      required
-                      aria-required="true"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
+                      className={`w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!newPassword && (newPasswordTouched || resetSubmitted))
+                          ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/50 focus:border-emerald-500'
+                      }`}
                     />
+                    {(!newPassword && (newPasswordTouched || resetSubmitted)) && (
+                      <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+                    )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Confirm Password <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Confirm Password <span className="text-red-500 ml-0.5">*</span>
+                    </label>
                     <input
                       type="password"
                       value={confirmNewPassword}
                       onChange={e => setConfirmNewPassword(e.target.value)}
+                      onBlur={() => setConfirmNewPasswordTouched(true)}
                       placeholder="••••••••"
-                      required
-                      aria-required="true"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
+                      className={`w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!confirmNewPassword && (confirmNewPasswordTouched || resetSubmitted))
+                          ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/50 focus:border-emerald-500'
+                      }`}
                     />
+                    {(!confirmNewPassword && (confirmNewPasswordTouched || resetSubmitted)) && (
+                      <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+                    )}
                   </div>
                 </div>
 
