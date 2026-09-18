@@ -16,9 +16,12 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
+import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
+import { StaffLetterModal } from './Letters/StaffLetterModal';
+import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
 
 type DrawerTab =
   | 'overview'
@@ -146,10 +149,29 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [imgErr, setImgErr] = useState(false);
 
+  // Staff Letter Generation & Viewer State
+  const [letterModalOpen, setLetterModalOpen] = useState(false);
+  const [selectedLetterType, setSelectedLetterType] = useState<StaffLetterType>('offer');
+  const [selectedLetterRecord, setSelectedLetterRecord] = useState<GeneratedStaffLetterRecord | undefined>(undefined);
+  const [staffLetters, setStaffLetters] = useState<GeneratedStaffLetterRecord[]>([]);
+
+  const refreshStaffLetters = () => {
+    if (staff?.id || staff?.empId) {
+      setStaffLetters(getLettersForStaff(staff.empId || staff.id));
+    }
+  };
+
+  useEffect(() => {
+    refreshStaffLetters();
+    window.addEventListener('staff_letters_updated', refreshStaffLetters);
+    return () => window.removeEventListener('staff_letters_updated', refreshStaffLetters);
+  }, [staff?.id, staff?.empId]);
+
   useEffect(() => {
     if (isOpen) {
       setActiveTab('overview');
       setImgErr(false);
+      refreshStaffLetters();
     }
   }, [isOpen, staff?.id]);
 
@@ -589,7 +611,109 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   );
 
   const renderDocuments = () => (
-    <SectionBlock title="Documents" subtitle="Uploaded employee records and requirement checklist.">
+    <SectionBlock title="Documents & Letters" subtitle="Official institutional letters, uploaded employee records and requirement checklist.">
+      {/* Official HR Letters Section */}
+      <div className="mb-6 p-4 rounded-3xl bg-gradient-to-r from-sky-50 via-sky-50/40 to-blue-50 dark:from-slate-850 dark:to-slate-900 border border-sky-200/90 dark:border-sky-850 space-y-3.5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-200/60 dark:border-slate-800 pb-3">
+          <div>
+            <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Official Institutional Letters
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              Generate, preview, customize, and issue standard institutional letters with official school letterhead.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLetterType('offer');
+                setSelectedLetterRecord(staffLetters.find(l => l.letterType === 'offer'));
+                setLetterModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" /> Offer Letter
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLetterType('relieving');
+                setSelectedLetterRecord(staffLetters.find(l => l.letterType === 'relieving'));
+                setLetterModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> Relieving Letter
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLetterType('experience');
+                setSelectedLetterRecord(staffLetters.find(l => l.letterType === 'experience'));
+                setLetterModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Award className="w-3.5 h-3.5" /> Experience Letter
+            </button>
+          </div>
+        </div>
+
+        {/* List of Issued Letters for this staff member */}
+        <div className="space-y-2">
+          {staffLetters.length === 0 ? (
+            <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-2xl border border-sky-100 dark:border-slate-800 text-center text-xs text-slate-500 italic">
+              No official HR letters generated yet. Click any button above to generate a new Offer or Relieving Letter.
+            </div>
+          ) : (
+            staffLetters.map((ltr) => (
+              <div
+                key={ltr.id}
+                className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-slate-800 shadow-2xs"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl text-xs font-black ${
+                    ltr.letterType === 'offer'
+                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                      : ltr.letterType === 'relieving'
+                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                  }`}>
+                    {ltr.letterType === 'offer' ? <FileText className="w-4 h-4" /> : ltr.letterType === 'relieving' ? <ShieldCheck className="w-4 h-4" /> : <Award className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">
+                      {ltr.letterType === 'offer' ? 'Offer & Appointment Letter' : ltr.letterType === 'relieving' ? 'Relieving Order & Clearance' : 'Service & Experience Certificate'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      Ref: <strong>{ltr.letterNumber}</strong> &bull; Issued on {ltr.issueDate}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    {ltr.status}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLetterType(ltr.letterType);
+                      setSelectedLetterRecord(ltr);
+                      setLetterModalOpen(true);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 text-xs font-bold border border-sky-200 dark:border-sky-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> View / Print
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
         <MetricCard label="Uploaded" value={staffDocs.length} tone="brand" />
         <MetricCard label="Pending" value={staffDocs.filter(doc => !doc.verificationStatus || doc.verificationStatus === 'Pending Verification').length} tone="amber" />
@@ -874,6 +998,16 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             </div>
           </div>
         </div>
+      )}
+
+      {staff && (
+        <StaffLetterModal
+          staff={staff}
+          isOpen={letterModalOpen}
+          onClose={() => setLetterModalOpen(false)}
+          initialType={selectedLetterType}
+          existingRecord={selectedLetterRecord}
+        />
       )}
     </div>
   );

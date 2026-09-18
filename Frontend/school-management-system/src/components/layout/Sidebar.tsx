@@ -441,6 +441,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ]
       : [
           { id: "staff-directory", label: "Staff Directory", icon: Users },
+          { id: "staff-letters", label: "Offer & Relieving Letters", icon: FileText },
           {
             id: "staff-attendance",
             label: "Staff Attendance",

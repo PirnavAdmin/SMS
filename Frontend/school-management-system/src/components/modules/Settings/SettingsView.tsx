@@ -220,7 +220,28 @@ export const SettingsView: React.FC = () => {
     | "automated-ids"
     | "backup"
     | "audit"
-  >("my-profile");
+  >(() => {
+    const saved = localStorage.getItem("settings_active_tab");
+    if (saved) {
+      localStorage.removeItem("settings_active_tab");
+      return saved as any;
+    }
+    return "my-profile";
+  });
+
+  useEffect(() => {
+    const handleTabChange = (e: any) => {
+      const targetTab = e?.detail?.tab || localStorage.getItem("settings_active_tab");
+      if (targetTab) {
+        setActiveTab(targetTab as any);
+        localStorage.removeItem("settings_active_tab");
+      }
+    };
+    window.addEventListener("settings_tab_change", handleTabChange);
+    return () => {
+      window.removeEventListener("settings_tab_change", handleTabChange);
+    };
+  }, []);
 
   // Personal Profile Details State for Logged-In User (Warden / Admin)
   const getCleanUserEmail = (raw?: string): string => {

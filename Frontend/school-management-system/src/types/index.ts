@@ -2747,3 +2747,4 @@ export interface GeneratedCertificateRecord {
   clearanceSummary?: any;
 }
 
+export * from './staffLetter';
