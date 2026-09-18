@@ -441,6 +441,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ]
       : [
           { id: "staff-directory", label: "Staff Directory", icon: Users },
+          { id: "staff-letters", label: "Offer & Relieving Letters", icon: FileText },
           {
             id: "staff-attendance",
             label: "Staff Attendance",
@@ -559,11 +560,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ? "Timetable"
               : "Time Table",
           icon: Clock,
-        },
-        {
-          id: "examination",
-          label: "Examinations",
-          icon: Award,
         },
         {
           id: "report-cards",

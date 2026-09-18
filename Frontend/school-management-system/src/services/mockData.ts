@@ -12018,7 +12018,14 @@ export const initialStudentUniformIssues: StudentUniformIssue[] = [
     notes: 'Fees Paid at counter'
   }
 ];
-export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [];
+export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [
+  { id: 'FUC-101', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 4', gender: 'Male', uniformPackage: 'Boys Base Package(Admission kit)', feePlan: 'Annual', feeAmount: 4000, effectiveFrom: '2026-06-01', status: 'Active' },
+  { id: 'FUC-102', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 4', gender: 'Female', uniformPackage: 'Girls Base Package(Admission kit)', feePlan: 'Annual', feeAmount: 4000, effectiveFrom: '2026-06-01', status: 'Active' },
+  { id: 'FUC-103', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 3', gender: 'Male', uniformPackage: 'Boys Base Package(Admission kit)', feePlan: 'Annual', feeAmount: 3000, effectiveFrom: '2026-06-01', status: 'Active' },
+  { id: 'FUC-104', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 3', gender: 'Female', uniformPackage: 'Girls Base Package(Admission kit)', feePlan: 'Annual', feeAmount: 3000, effectiveFrom: '2026-06-01', status: 'Active' },
+  { id: 'FUC-105', academicYear: '2026-2027', branch: 'Main Campus', className: 'All Classes', gender: 'Unisex', uniformPackage: 'Tie &crest', feePlan: 'Annual', feeAmount: 222, effectiveFrom: '2026-06-01', status: 'Active' },
+  { id: 'FUC-106', academicYear: '2026-2027', branch: 'Main Campus', className: 'All Classes', gender: 'Unisex', uniformPackage: 'Sweater', feePlan: 'Annual', feeAmount: 1000, effectiveFrom: '2026-06-01', status: 'Active' }
+];
 export const initialLeaveTypes: LeaveType[] = [];
 export const initialLeaveApplications: LeaveApplication[] = [
   {

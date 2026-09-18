@@ -97,7 +97,7 @@ namespace Backend.Tests.E2E
             var maxId = staffList
                 .Select(s => s.EmployeeId)
                 .Where(id => !string.IsNullOrEmpty(id) && id.StartsWith("EMP"))
-                .Select(id => int.TryParse(id.Substring(3), out var n) ? n : 0)
+                .Select(id => int.TryParse(id!.Substring(3), out var n) ? n : 0)
                 .DefaultIfEmpty(0)
                 .Max();
 

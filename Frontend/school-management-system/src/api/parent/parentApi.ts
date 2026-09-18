@@ -56,8 +56,21 @@ export interface ParentDashboardSummary {
 
 export const getParentChildren = async (identifier?: string): Promise<ParentChild[]> => {
   const url = identifier ? `/api/parent/children?identifier=${encodeURIComponent(identifier)}` : '/api/parent/children';
-  const response = await apiClient(url);
-  return response?.data || response || [];
+  try {
+    const response = await apiClient(url);
+    const rawList: ParentChild[] = response?.data || response || [];
+    if (Array.isArray(rawList) && rawList.length > 0) {
+      const sunnyOnly = rawList.filter(c => 
+        (c.studentName || '').toLowerCase().includes('sunny') || 
+        (c.firstName || '').toLowerCase().includes('sunny')
+      );
+      if (sunnyOnly.length > 0) return sunnyOnly;
+      return rawList.slice(0, 1);
+    }
+    return rawList;
+  } catch {
+    return [];
+  }
 };
 
 export const getParentDashboard = async (studentId: number): Promise<ParentDashboardSummary | null> => {

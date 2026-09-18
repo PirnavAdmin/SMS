@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Users } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import {
   BasicStaffFormState,
   buildBasicStaffCreatePayload,
@@ -35,14 +36,24 @@ const getInitialCategory = (): string => {
 
 export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ onNavigate }) => {
   const { staff, addStaff, departments, designations } = useData();
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
     const initCat = getInitialCategory();
+    let initBranch = 'Main Campus';
+    try {
+      const storedB = sessionStorage.getItem('staff-registration-branch');
+      if (storedB) initBranch = storedB;
+    } catch {}
+    if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
+      initBranch = selectedBranch;
+    }
     return {
       ...defaultBasicStaffFormState(initCat),
+      branch: initBranch,
       empId: getNextEmployeeId(staff, initCat)
     };
   });

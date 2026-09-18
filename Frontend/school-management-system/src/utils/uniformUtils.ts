@@ -358,7 +358,7 @@ export const getItemFeeFromFinanceConfig = (
 
     const activeConfigs = [...financeUniformConfigs].reverse().filter(c => c && c.status !== 'Inactive');
 
-    const match = activeConfigs.find(c => {
+    let match = activeConfigs.find(c => {
       const cClass = (c.className || '').toLowerCase().trim();
       const cPkg = (c.uniformPackage || c.name || '').toLowerCase().trim();
       const cGender = (c.gender || '').toLowerCase().trim();
@@ -395,6 +395,37 @@ export const getItemFeeFromFinanceConfig = (
       return cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys') || cGender === 'unisex';
     });
 
+    if (!match) {
+      // If no exact gender match was found, try finding ANY match for that item regardless of gender as a fallback
+      match = activeConfigs.find(c => {
+        const cClass = (c.className || '').toLowerCase().trim();
+        const cPkg = (c.uniformPackage || c.name || '').toLowerCase().trim();
+
+        const isClassMatch = checkExactClassMatch(targetClassLower, cClass);
+        if (!isClassMatch) return false;
+
+        let isItemMatch =
+          cPkg === targetItemLower ||
+          cPkg.includes(targetItemLower) ||
+          targetItemLower.includes(cPkg);
+
+        if (!isItemMatch) {
+          if ((targetItemLower.includes('shoe') && cPkg.includes('shoe')) ||
+              (targetItemLower.includes('sock') && cPkg.includes('sock')) ||
+              (targetItemLower.includes('tie') && cPkg.includes('tie')) ||
+              (targetItemLower.includes('belt') && cPkg.includes('belt')) ||
+              ((targetItemLower.includes('pant') || targetItemLower.includes('trouser')) && (cPkg.includes('pant') || cPkg.includes('trouser'))) ||
+              (targetItemLower.includes('skirt') && cPkg.includes('skirt')) ||
+              (targetItemLower.includes('shirt') && cPkg.includes('shirt')) ||
+              (targetItemLower.includes('cap') && cPkg.includes('cap'))) {
+            isItemMatch = true;
+          }
+        }
+
+        return isItemMatch;
+      });
+    }
+
     if (match && match.feeAmount && Number(match.feeAmount) > 0) {
       return Number(match.feeAmount);
     }
@@ -426,7 +457,7 @@ export const calculateClothOrItemPrice = (
   uniformCategoriesOrCatalog?: any[]
 ): number => {
   const rawName = (itemName || '').toLowerCase();
-  const cleanItemName = rawName.replace(/\(extra\)/gi, '').replace(/\(extra purchase\)/gi, '').trim();
+  const cleanItemName = rawName.replace(/\(extra\)/gi, '').replace(/\(extra purchase\)/gi, '').replace(/\(#\d+\)/g, '').trim();
   const isCloth = cleanItemName.includes('cloth') || cleanItemName.includes('fabric') || cleanItemName.includes('unstitched');
 
   const cleanSize = (sizeStr || '').toLowerCase().trim();
@@ -459,7 +490,19 @@ export const calculateClothOrItemPrice = (
           cfgMatch = activeClothConfigs.find(c => {
             const pkgStr = (c.uniformPackage || c.packageName || c.name || '');
             const normPkg = normRange(pkgStr);
+            // Don't match if normPkg is empty (e.g. config named just "Cloth")
+            if (!normPkg) return false;
             return normPkg === normalizedSize || normPkg.includes(normalizedSize) || normalizedSize.includes(normPkg);
+          });
+        }
+
+        // 3. Last resort: if no size-specific match found, try matching fabricMeterage with fuzzy/substring
+        if (!cfgMatch) {
+          cfgMatch = activeClothConfigs.find(c => {
+            const meter = ((c as any).fabricMeterage || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            const normalizedSizeAlpha = finalSize.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            if (!meter || !normalizedSizeAlpha) return false;
+            return meter === normalizedSizeAlpha || meter.includes(normalizedSizeAlpha) || normalizedSizeAlpha.includes(meter);
           });
         }
 
@@ -477,19 +520,18 @@ export const calculateClothOrItemPrice = (
     if (pkgFee > 0) return pkgFee;
   }
 
-  // 2. If explicit unit price was saved on transaction/item, prioritize it!
-  if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
-    return currentUnitPrice;
-  }
-
-  // 2. Fall back to exact price configured in Finance & Fees Setup for non-cloth items
+  // 2. Exact price configured in Finance & Fees Setup for non-cloth items
   if (Array.isArray(financeConfigs) && financeConfigs.length > 0 && cleanItemName) {
-    const configuredFee = getItemFeeFromFinanceConfig(className, cleanItemName, gender, financeConfigs, currentUnitPrice);
+    const configuredFee = getItemFeeFromFinanceConfig(className, cleanItemName, gender, financeConfigs);
     if (configuredFee > 0 && configuredFee !== 35 && configuredFee !== 85) {
       return configuredFee;
     }
   }
 
+  // 3. If explicit unit price was saved on transaction/item, use it
+  if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
+    return currentUnitPrice;
+  }
   // 3. Fall back to uniform categories/catalog configuration
   if (Array.isArray(uniformCategoriesOrCatalog) && uniformCategoriesOrCatalog.length > 0 && cleanItemName) {
     const match = uniformCategoriesOrCatalog.find(c => {
@@ -502,17 +544,7 @@ export const calculateClothOrItemPrice = (
     }
   }
 
-  // 4. Default fallbacks matching setup if no finance config exists
-  if (cleanItemName.includes('cap') || cleanItemName.includes('hat')) return 1000;
-  if (cleanItemName.includes('sock')) return 100;
-  if (cleanItemName.includes('tie') || cleanItemName.includes('crest') || cleanItemName.includes('belt')) return 150;
-  if (cleanItemName.includes('shoe') || cleanItemName.includes('footwear')) return 1000;
-  if (cleanItemName.includes('track') || cleanItemName.includes('sport')) return 600;
-  if (cleanItemName.includes('shirt') || cleanItemName.includes('blazer') || cleanItemName.includes('coat')) return 350;
-  if (cleanItemName.includes('pant') || cleanItemName.includes('trouser') || cleanItemName.includes('skirt')) return 350;
-  if (cleanItemName.includes('base') || cleanItemName.includes('kit') || cleanItemName.includes('package')) return 2000;
-
-  return 350;
+  return currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85 ? currentUnitPrice : 0;
 };
 
 export const getStudentUniformFeeStatus = (

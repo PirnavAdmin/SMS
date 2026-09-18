@@ -605,7 +605,7 @@ public class TimetableGenerationService : ITimetableGenerationService
                             var lockedItem = new SlotAssignmentItem
                             {
                                 SubjectId = locked.SubjectId,
-                                SubjectName = allSubjects.TryGetValue(locked.SubjectId, out var sub) ? sub.SubjectName : $"Subject {locked.SubjectId}",
+                                SubjectName = allSubjects.TryGetValue(locked.SubjectId, out var sub) && !string.IsNullOrEmpty(sub.SubjectName) ? sub.SubjectName : $"Subject {locked.SubjectId}",
                                 SubjectCode = sub?.SubjectCode ?? "",
                                 TeacherId = locked.TeacherId,
                                 TeacherName = allStaff.TryGetValue(locked.TeacherId, out var st) ? $"{st.FirstName} {st.LastName}".Trim() : "",
