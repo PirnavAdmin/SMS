@@ -57,6 +57,7 @@ import {
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   BRANCHES,
+  RELIGIONS,
 } from "../../../utils/validation";
 import {
   validateDOB,
@@ -2722,18 +2723,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Religion
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Religion"
-                      value={formData.religion}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          religion: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                    />
+                    <div className="relative">
+                      <select
+                        value={formData.religion || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            religion: e.target.value,
+                          })
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none cursor-pointer appearance-none pr-10"
+                      >
+                        <option value="">Select Religion</option>
+                        {RELIGIONS.map((rel) => (
+                          <option key={rel} value={rel}>
+                            {rel}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
                   <div className="sm:col-span-3">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
@@ -2778,7 +2787,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                         >
-                          <option value="">Select Caste</option>
+                          <option value="">Select</option>
                           {CASTE_CATEGORIES.map((cc) => (
                             <option key={cc} value={cc}>
                               {cc}

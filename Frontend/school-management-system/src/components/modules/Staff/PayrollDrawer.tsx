@@ -91,11 +91,20 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   const structure = staff ? (salaryStructures.find(item => item.id === assignment?.salaryStructureId || item.id === staff.salaryStructureId) || salaryStructures[0]) : null;
   const employeePayslips = staff ? payslips.filter(item => item.employeeId === staff.id) : [];
 
-  const basicSalary = structure?.earnings[0]?.amount || staff?.salary || 0;
-  const allowances = structure ? structure.earnings.slice(1).reduce((sum, line) => sum + line.amount, 0) : Math.round(basicSalary * 0.25);
-  const deductions = structure ? structure.deductions.reduce((sum, line) => sum + line.amount, 0) : Math.round(basicSalary * 0.12);
+  const structureEarnings = Array.isArray(structure?.earnings) ? structure.earnings : [];
+  const structureDeductions = Array.isArray(structure?.deductions) ? structure.deductions : [];
+  const structureAllowances = structureEarnings.slice(1);
+
+  const basicSalary = structureEarnings[0]?.amount || staff?.salary || 0;
+  const allowances = structureEarnings.length > 1
+    ? structureEarnings.slice(1).reduce((sum, line) => sum + (Number(line?.amount) || 0), 0)
+    : Math.round(basicSalary * 0.25);
+  const deductions = structureDeductions.length > 0
+    ? structureDeductions.reduce((sum, line) => sum + (Number(line?.amount) || 0), 0)
+    : Math.round(basicSalary * 0.12);
   const grossSalary = structure?.grossSalary || basicSalary + allowances;
-  const netSalary = assignment?.monthlyGross ? assignment.monthlyGross - deductions : Math.max(0, grossSalary - deductions);
+  const netSalary = assignment?.monthlyGross ? Math.max(0, assignment.monthlyGross - deductions) : Math.max(0, grossSalary - deductions);
+
   const historyRows = employeePayslips.length > 0
     ? employeePayslips.slice(0, 5)
     : [
@@ -108,9 +117,48 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
 
   const latestPayslip = useMemo(() => {
     if (!staff) return null;
-    if (employeePayslips && employeePayslips.length > 0) {
-      return employeePayslips[0];
+    const existing = employeePayslips && employeePayslips.length > 0 ? employeePayslips[0] : null;
+
+    const fallbackEarnings = structureEarnings.length > 0
+      ? structureEarnings
+      : [
+          { name: 'Basic Pay', amount: basicSalary },
+          { name: 'Allowances', amount: allowances }
+        ];
+
+    const fallbackDeductions = structureDeductions.length > 0
+      ? structureDeductions
+      : [
+          { name: 'Provident Fund (PF)', amount: Math.round(basicSalary * 0.12) },
+          { name: 'Other Deductions', amount: Math.max(0, deductions - Math.round(basicSalary * 0.12)) }
+        ];
+
+    const resolvedEarnings = (existing?.earnings && Array.isArray(existing.earnings) && existing.earnings.length > 0)
+      ? existing.earnings
+      : fallbackEarnings;
+
+    const resolvedDeductions = (existing?.deductions && Array.isArray(existing.deductions) && existing.deductions.length > 0)
+      ? existing.deductions
+      : fallbackDeductions;
+
+    if (existing) {
+      return {
+        ...existing,
+        employeeName: existing.employeeName || `${staff.firstName} ${staff.lastName}`,
+        empId: existing.empId || staff.empId,
+        month: existing.month || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        department: existing.department || staff.department || 'General',
+        designation: existing.designation || staff.designation || 'Staff',
+        bankAccount: existing.bankAccount || staff.bankDetails?.accountNumber || 'N/A',
+        branch: existing.branch || staff.branch || 'Main Campus',
+        disbursedDate: existing.disbursedDate || existing.paymentDate || new Date().toISOString().split('T')[0],
+        grossSalary: existing.grossSalary || grossSalary,
+        netSalary: existing.netSalary || netSalary,
+        earnings: resolvedEarnings,
+        deductions: resolvedDeductions,
+      };
     }
+
     return {
       id: `PS-${staff.id}-DRAFT`,
       employeeId: staff.id,
@@ -118,11 +166,11 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
       empId: staff.empId,
       month: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       basicSalary: basicSalary,
-      hra: structure?.earnings.find(e => e.name.toLowerCase().includes('hra'))?.amount || Math.round(basicSalary * 0.1),
-      da: structure?.earnings.find(e => e.name.toLowerCase().includes('da'))?.amount || Math.round(basicSalary * 0.05),
-      pfDeduction: structure?.deductions.find(d => d.name.toLowerCase().includes('pf'))?.amount || Math.round(basicSalary * 0.12),
+      hra: structureEarnings.find(e => e.name?.toLowerCase().includes('hra'))?.amount || Math.round(basicSalary * 0.1),
+      da: structureEarnings.find(e => e.name?.toLowerCase().includes('da'))?.amount || Math.round(basicSalary * 0.05),
+      pfDeduction: structureDeductions.find(d => d.name?.toLowerCase().includes('pf'))?.amount || Math.round(basicSalary * 0.12),
       lopDeduction: 0,
-      otherDeductions: deductions - (structure?.deductions.find(d => d.name.toLowerCase().includes('pf'))?.amount || Math.round(basicSalary * 0.12)),
+      otherDeductions: Math.max(0, deductions - (structureDeductions.find(d => d.name?.toLowerCase().includes('pf'))?.amount || Math.round(basicSalary * 0.12))),
       grossSalary: grossSalary,
       netSalary: netSalary,
       status: 'Paid',
@@ -131,34 +179,34 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
       department: staff.department || 'General',
       designation: staff.designation || 'Staff',
       branch: staff.branch || 'Main Campus',
-      earnings: structure?.earnings || [
-        { name: 'Basic Pay', amount: basicSalary },
-        { name: 'Allowances', amount: allowances }
-      ],
-      deductions: structure?.deductions || [
-        { name: 'Deductions', amount: deductions }
-      ]
+      earnings: resolvedEarnings,
+      deductions: resolvedDeductions
     };
-  }, [staff, employeePayslips, basicSalary, allowances, deductions, grossSalary, netSalary, structure]);
+  }, [staff, employeePayslips, basicSalary, allowances, deductions, grossSalary, netSalary, structureEarnings, structureDeductions]);
 
   const handleDownloadPayslip = (p: any) => {
+    if (!p) return;
     const printWin = window.open('', '_blank');
     if (!printWin) return;
 
-    const earnings = p.earnings || [
-      { name: 'Basic Pay', amount: p.basicSalary },
-      { name: 'House Rent Allowance (HRA)', amount: p.hra || 0 },
-      { name: 'Dearness Allowance (DA)', amount: p.da || 0 },
-    ];
+    const earnings = (p.earnings && Array.isArray(p.earnings) && p.earnings.length > 0)
+      ? p.earnings
+      : [
+          { name: 'Basic Pay', amount: p.basicSalary || basicSalary },
+          { name: 'House Rent Allowance (HRA)', amount: p.hra || 0 },
+          { name: 'Dearness Allowance (DA)', amount: p.da || 0 },
+        ];
 
-    const deductions = p.deductions || [
-      { name: 'Provident Fund (PF)', amount: p.pfDeduction || 0 },
-      { name: 'Professional Tax (PT)', amount: p.otherDeductions || 200 },
-      ...(p.lopDeduction ? [{ name: 'Loss of Pay (LOP)', amount: p.lopDeduction }] : [])
-    ];
+    const deductions = (p.deductions && Array.isArray(p.deductions) && p.deductions.length > 0)
+      ? p.deductions
+      : [
+          { name: 'Provident Fund (PF)', amount: p.pfDeduction || 0 },
+          { name: 'Professional Tax (PT)', amount: p.otherDeductions || 200 },
+          ...(p.lopDeduction ? [{ name: 'Loss of Pay (LOP)', amount: p.lopDeduction }] : [])
+        ];
 
-    const totalEarnings = earnings.reduce((sum: number, e: any) => sum + e.amount, 0);
-    const totalDeductions = deductions.reduce((sum: number, d: any) => sum + d.amount, 0);
+    const totalEarnings = earnings.reduce((sum: number, e: any) => sum + (Number(e?.amount) || 0), 0);
+    const totalDeductions = deductions.reduce((sum: number, d: any) => sum + (Number(d?.amount) || 0), 0);
 
     printWin.document.write(`
       <!DOCTYPE html>
@@ -278,16 +326,36 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   const handleQuickAction = (title: string) => {
     if (title === 'Preview Payslip') {
       setViewingPayslip(latestPayslip);
-    } else if (title === 'Download PDF') {
+    } else if (title === 'Download PDF' || title === 'Download Payslip') {
       handleDownloadPayslip(latestPayslip);
     } else {
-      addToast('success', title, `${staff.firstName} ${staff.lastName}'s payroll action executed in the static drawer.`);
+      addToast('success', title, `${staff.firstName} ${staff.lastName}'s payroll action executed.`);
     }
   };
 
-  const structureAllowances = structure?.earnings.slice(1) || [];
-  const structureDeductions = structure?.deductions || [];
   if (!isOpen || !staff) return null;
+
+  const activeModalEarnings = (viewingPayslip?.earnings && Array.isArray(viewingPayslip.earnings) && viewingPayslip.earnings.length > 0)
+    ? viewingPayslip.earnings
+    : [
+        { name: 'Basic Salary', amount: viewingPayslip?.basicSalary || basicSalary },
+        ...(viewingPayslip?.hra ? [{ name: 'House Rent Allowance (HRA)', amount: viewingPayslip.hra }] : []),
+        ...(viewingPayslip?.da ? [{ name: 'Dearness Allowance (DA)', amount: viewingPayslip.da }] : []),
+        ...(structureAllowances.length > 0 && !viewingPayslip?.hra && !viewingPayslip?.da
+          ? structureAllowances
+          : [{ name: 'Allowances', amount: allowances }])
+      ];
+
+  const activeModalDeductions = (viewingPayslip?.deductions && Array.isArray(viewingPayslip.deductions) && viewingPayslip.deductions.length > 0)
+    ? viewingPayslip.deductions
+    : [
+        ...(viewingPayslip?.pfDeduction ? [{ name: 'Provident Fund (PF)', amount: viewingPayslip.pfDeduction }] : []),
+        ...(viewingPayslip?.lopDeduction ? [{ name: 'Loss of Pay (LOP)', amount: viewingPayslip.lopDeduction }] : []),
+        ...(viewingPayslip?.otherDeductions ? [{ name: 'Other Deductions', amount: viewingPayslip.otherDeductions }] : []),
+        ...(structureDeductions.length > 0 && !viewingPayslip?.pfDeduction
+          ? structureDeductions
+          : [{ name: 'Deductions', amount: deductions }])
+      ];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
@@ -304,7 +372,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
               <p className="text-xs font-bold text-slate-500">{staff.designation} | {staff.department}</p>
             </div>
           </div>
-          <button onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          <button onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -319,7 +387,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition-all ${
+                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition-all cursor-pointer ${
                     active
                       ? 'border-brand-600 bg-brand-600 text-white shadow-xs'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
@@ -353,7 +421,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                     <div className="flex items-center justify-between"><span className="text-slate-500">Branch</span><span className="font-bold text-slate-900 dark:text-white">{staff.branch || 'Main Campus'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Joining Date</span><span className="font-bold text-slate-900 dark:text-white">{formatShortDate(staff.joiningDate)}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Current Assignment</span><span className="font-bold text-slate-900 dark:text-white">{assignment?.salaryStructureName || 'Unassigned'}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-slate-500">Bank</span><span className="font-bold text-slate-900 dark:text-white">{staff.bankDetails.bankName}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-slate-500">Bank</span><span className="font-bold text-slate-900 dark:text-white">{staff.bankDetails?.bankName || 'N/A'}</span></div>
                   </div>
                 </DrawerCard>
               </div>
@@ -383,7 +451,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                       key={action}
                       type="button"
                       onClick={() => handleQuickAction(action)}
-                      className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-bold text-slate-900 transition-all hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                      className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-bold text-slate-900 transition-all hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900 dark:text-white cursor-pointer"
                     >
                       <span>{action}</span>
                       <Eye className="h-4 w-4 text-slate-400" />
@@ -492,52 +560,78 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
           {activeTab === 'payslips' && (
             <DrawerCard title="Payslips" subtitle="Download and publish ready-made employee payslips.">
               <div className="space-y-3">
-                {historyRows.map((item: any) => (
-                  <div key={`${item.month}-slip`} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{item.month}</p>
-                      <p className="mt-1 text-xs text-slate-500">{formatCurrency(item.netSalary)}</p>
+                {historyRows.map((item: any) => {
+                  const slipObj = {
+                    ...item,
+                    employeeName: item.employeeName || `${staff.firstName} ${staff.lastName}`,
+                    empId: item.empId || staff.empId,
+                    department: item.department || staff.department || 'General',
+                    designation: item.designation || staff.designation || 'Staff',
+                    bankAccount: item.bankAccount || staff.bankDetails?.accountNumber || 'N/A',
+                    branch: item.branch || staff.branch || 'Main Campus',
+                    disbursedDate: item.disbursedDate || item.paymentDate || new Date().toISOString().split('T')[0],
+                    grossSalary: item.grossSalary || grossSalary,
+                    netSalary: item.netSalary || netSalary,
+                    earnings: (item.earnings && Array.isArray(item.earnings) && item.earnings.length > 0)
+                      ? item.earnings
+                      : [
+                          { name: 'Basic Pay', amount: item.basicSalary || basicSalary },
+                          { name: 'Allowances', amount: allowances }
+                        ],
+                    deductions: (item.deductions && Array.isArray(item.deductions) && item.deductions.length > 0)
+                      ? item.deductions
+                      : [
+                          { name: 'Provident Fund (PF)', amount: item.pfDeduction || Math.round(basicSalary * 0.12) },
+                          { name: 'Other Deductions', amount: item.otherDeductions || deductions }
+                        ]
+                  };
+                  return (
+                    <div key={`${item.month}-slip`} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-slate-900">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">{item.month}</p>
+                        <p className="mt-1 text-xs text-slate-500">{formatCurrency(item.netSalary)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setViewingPayslip(slipObj)}
+                          className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer hover:bg-slate-200"
+                        >
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => handleDownloadPayslip(slipObj)}
+                          className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300 cursor-pointer hover:bg-brand-100"
+                        >
+                          Download
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleQuickAction('Preview Payslip')} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">Preview</button>
-                      <button onClick={() => handleQuickAction('Download Payslip')} className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">Download</button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </DrawerCard>
           )}
 
           {activeTab === 'bank' && (
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
+            <div className="max-w-2xl">
               <DrawerCard title="Bank Details" subtitle="Salary disbursement account information.">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
+                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Account Holder</p>
-                    <p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails.accountHolderName}</p>
+                    <p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails?.accountHolderName || `${staff.firstName} ${staff.lastName}`}</p>
                   </div>
-                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
+                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Account Number</p>
-                    <p className="mt-2 font-mono text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails.accountNumber}</p>
+                    <p className="mt-2 font-mono text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails?.accountNumber || 'N/A'}</p>
                   </div>
-                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
+                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Bank</p>
-                    <p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails.bankName}</p>
+                    <p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails?.bankName || 'N/A'}</p>
                   </div>
-                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
+                  <div className="rounded-2xl bg-white p-4 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">IFSC</p>
-                    <p className="mt-2 font-mono text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails.ifscCode}</p>
+                    <p className="mt-2 font-mono text-sm font-bold text-slate-900 dark:text-white">{staff.bankDetails?.ifscCode || 'N/A'}</p>
                   </div>
-                </div>
-              </DrawerCard>
-              <DrawerCard title="Quick Bank Actions" subtitle="Static action buttons for bank workflows.">
-                <div className="space-y-3">
-                  {['Copy Account Number', 'Download Bank Advice', 'Email Bank Team', 'Print Salary Advice'].map(action => (
-                    <button key={action} type="button" onClick={() => handleQuickAction(action)} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-bold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white">
-                      <span>{action}</span>
-                      <Mail className="h-4 w-4 text-slate-400" />
-                    </button>
-                  ))}
                 </div>
               </DrawerCard>
             </div>
@@ -547,7 +641,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
         {/* VIEW PAYSLIP MODAL PREVIEW */}
         {viewingPayslip && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 overflow-y-auto max-h-[90vh]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 overflow-y-auto max-h-[90vh]">
               
               {/* Header */}
               <div className="flex items-center justify-between border-b pb-4">
@@ -557,10 +651,10 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase">PIRNAV EDUCATIONAL INSTITUTION</h3>
-                    <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Monthly Salary Statement ({viewingPayslip.month})</p>
+                    <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Monthly Salary Statement ({viewingPayslip.month || 'Current Month'})</p>
                   </div>
                 </div>
-                <button onClick={() => setViewingPayslip(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer">
+                <button onClick={() => setViewingPayslip(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -569,31 +663,31 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Employee Name</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.employeeName}</p>
+                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.employeeName || `${staff.firstName} ${staff.lastName}`}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Employee ID</span>
-                  <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.empId}</p>
+                  <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.empId || staff.empId}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Department</span>
-                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingPayslip.department}</p>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingPayslip.department || staff.department || 'General'}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Designation</span>
-                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingPayslip.designation}</p>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingPayslip.designation || staff.designation || 'Staff'}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Bank Account</span>
-                  <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.bankAccount}</p>
+                  <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.bankAccount || staff.bankDetails?.accountNumber || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Disbursed Date</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.disbursedDate}</p>
+                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.disbursedDate || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Branch</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch}</p>
+                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || staff.branch || 'Main Campus'}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Payment Status</span>
@@ -604,41 +698,41 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
               {/* Salary Components Breakdown Table */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Earnings */}
-                <div className="border rounded-2xl p-3 bg-white dark:bg-slate-900">
-                  <h4 className="font-bold text-slate-800 dark:text-white border-b pb-2 mb-2 flex items-center justify-between text-[11px]">
+                <div className="border rounded-2xl p-3 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-2 flex items-center justify-between text-[11px]">
                     <span>EARNINGS COMPONENTS</span>
                     <span className="text-slate-400">AMOUNT</span>
                   </h4>
                   <div className="space-y-2">
-                    {viewingPayslip.earnings.map((e: any, idx: number) => (
+                    {activeModalEarnings.map((e: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-slate-600 dark:text-slate-300">
                         <span>{e.name}</span>
                         <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(e.amount)}</span>
                       </div>
                     ))}
-                    <div className="border-t pt-2 mt-2 flex justify-between font-black text-slate-900 dark:text-white">
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-2 mt-2 flex justify-between font-black text-slate-900 dark:text-white">
                       <span>GROSS EARNINGS</span>
-                      <span className="text-emerald-600">{formatCurrency(viewingPayslip.grossSalary)}</span>
+                      <span className="text-emerald-600">{formatCurrency(viewingPayslip.grossSalary || grossSalary)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Deductions */}
-                <div className="border rounded-2xl p-3 bg-white dark:bg-slate-900">
-                  <h4 className="font-bold text-slate-800 dark:text-white border-b pb-2 mb-2 flex items-center justify-between text-[11px]">
+                <div className="border rounded-2xl p-3 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-2 flex items-center justify-between text-[11px]">
                     <span>DEDUCTIONS</span>
                     <span className="text-slate-400">AMOUNT</span>
                   </h4>
                   <div className="space-y-2">
-                    {viewingPayslip.deductions.map((d: any, idx: number) => (
+                    {activeModalDeductions.map((d: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-slate-600 dark:text-slate-300">
                         <span>{d.name}</span>
                         <span className="font-bold text-rose-600">-{formatCurrency(d.amount)}</span>
                       </div>
                     ))}
-                    <div className="border-t pt-2 mt-2 flex justify-between font-black text-slate-900 dark:text-white">
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-2 mt-2 flex justify-between font-black text-slate-900 dark:text-white">
                       <span>TOTAL DEDUCTIONS</span>
-                      <span className="text-rose-600">-{formatCurrency(viewingPayslip.grossSalary - viewingPayslip.netSalary)}</span>
+                      <span className="text-rose-600">-{formatCurrency((viewingPayslip.grossSalary || grossSalary) - (viewingPayslip.netSalary || netSalary))}</span>
                     </div>
                   </div>
                 </div>
@@ -648,7 +742,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
               <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-2xl flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-extrabold text-emerald-700 dark:text-emerald-400 tracking-wider">NET TAKE-HOME SALARY</span>
-                  <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{formatCurrency(viewingPayslip.netSalary)}</p>
+                  <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{formatCurrency(viewingPayslip.netSalary || netSalary)}</p>
                 </div>
                 <button
                   onClick={() => handleDownloadPayslip(viewingPayslip)}
@@ -658,7 +752,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                 </button>
               </div>
 
-              <div className="flex justify-end pt-2 border-t">
+              <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={() => setViewingPayslip(null)}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl cursor-pointer"

@@ -81,9 +81,36 @@ const formatEmailToName = (email: string): string => {
   return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
 };
 
+export const TOKEN_EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 Hours in ms
+
+export const isTokenValid = (): boolean => {
+  const token = localStorage.getItem('auth_token');
+  if (!token || token === 'null' || token === 'undefined') return false;
+
+  const timestampStr = localStorage.getItem('auth_token_timestamp');
+  if (!timestampStr) {
+    localStorage.setItem('auth_token_timestamp', Date.now().toString());
+    return true;
+  }
+
+  const age = Date.now() - Number(timestampStr);
+  if (isNaN(age) || age > TOKEN_EXPIRATION_MS) {
+    return false;
+  }
+  return true;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     try {
+      if (!isTokenValid()) {
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_token_timestamp');
+        localStorage.removeItem('roles');
+        localStorage.removeItem('active_module');
+        return null;
+      }
       const saved = localStorage.getItem('auth_user');
       const savedToken = localStorage.getItem('auth_token');
       if (saved && savedToken && savedToken !== 'offline-bypass-dev-token') {
@@ -98,9 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const normRole = normalizeUserRole(parsed.role || '');
           if (normRole === 'Parent' || (parsed.email && parsed.email.toLowerCase().includes('parent'))) {
             parsed.role = 'Parent';
-            if (isInvalidParent(parsed.name)) {
-              parsed.name = 'Aashiq';
-            }
           } else if (parsed.role) {
             parsed.role = normRole;
           }
@@ -108,9 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          if (parsed.role === 'Parent' && isInvalidParent(parsed.name)) {
-            parsed.name = 'Aashiq';
-          } else if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
+          if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
             parsed.name = localProfile.name;
           } else if (!parsed.name && parsed.email) {
             parsed.name = formatEmailToName(parsed.email);
@@ -143,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
+    if (!isTokenValid()) return null;
     const t = localStorage.getItem('auth_token');
     return t || null;
   });
@@ -255,6 +278,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token, user?.email]);
 
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_token_timestamp');
+    localStorage.removeItem('roles');
+    localStorage.removeItem('active_module');
+    localStorage.removeItem('active_selected_class_id');
+    localStorage.removeItem('active_class_tab');
+  };
+
+  useEffect(() => {
+    const checkSessionValidity = () => {
+      if (token && !isTokenValid()) {
+        console.warn('Session expired: 24-hour token duration reached.');
+        logout();
+        window.dispatchEvent(new CustomEvent('session_expired'));
+      }
+    };
+
+    // Check periodically every 30 seconds and on tab focus/visibility change
+    const interval = setInterval(checkSessionValidity, 30000);
+    window.addEventListener('focus', checkSessionValidity);
+    window.addEventListener('visibilitychange', checkSessionValidity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkSessionValidity);
+      window.removeEventListener('visibilitychange', checkSessionValidity);
+    };
+  }, [token]);
+
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
     try {
       const response = await loginApi(emailOrPhone, password, chosenRole);
@@ -281,8 +338,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let mappedRole: UserRole = 'Student';
-      if (chosenRole && normalizedRoles.includes(normalizeUserRole(chosenRole))) {
+      if (chosenRole && normalizeUserRole(chosenRole) === 'Parent') {
+        mappedRole = 'Parent';
+      } else if (chosenRole && normalizedRoles.includes(normalizeUserRole(chosenRole))) {
         mappedRole = normalizeUserRole(chosenRole);
+      } else if ((emailOrPhone && emailOrPhone.toLowerCase().includes('parent')) || (response?.email && response.email.toLowerCase().includes('parent'))) {
+        mappedRole = 'Parent';
       } else if (roles.length > 0) {
         const priorityOrder: UserRole[] = [
           'Admin',
@@ -316,10 +377,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!userName && loginEmail) {
         userName = formatEmailToName(loginEmail);
       }
-      if (!userName || mappedRole === 'Parent') {
-        if (!userName || mappedRole === 'Parent' && (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'karthik kumar' || userName.toLowerCase() === 'parent')) {
-          userName = 'Aashiq';
-        }
+      if ((!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'parent') && loginEmail) {
+        userName = formatEmailToName(loginEmail);
       }
 
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);
@@ -345,6 +404,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(realToken);
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
       localStorage.setItem('auth_token', realToken);
+      localStorage.setItem('auth_token_timestamp', Date.now().toString());
       localStorage.setItem('roles', JSON.stringify(roles));
       localStorage.setItem('active_module', 'dashboard');
 
@@ -353,17 +413,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login failed:', err);
       throw err;
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('roles');
-    localStorage.removeItem('active_module');
-    localStorage.removeItem('active_selected_class_id');
-    localStorage.removeItem('active_class_tab');
   };
 
   const changePassword = async (_oldPass: string, _newPass: string): Promise<boolean> => {

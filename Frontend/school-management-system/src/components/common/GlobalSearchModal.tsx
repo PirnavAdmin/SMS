@@ -90,6 +90,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Events & Holidays', module: 'events' },
     { name: 'Faculty Training', module: 'training' },
     { name: 'School Reports', module: 'reports' },
+    { name: 'Roles & Permissions', module: 'users' },
     { name: 'System Settings', module: 'settings' },
     { name: 'Library Inventory', module: 'library' },
     { name: 'Librarian Attendance', module: 'librarian-attendance' },

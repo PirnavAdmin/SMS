@@ -586,7 +586,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: "communication", label: "Communication Hub", icon: Megaphone },
         { id: "events", label: "Events & Holidays", icon: Calendar },
         { id: "reports", label: "School Reports", icon: BarChart3 },
-        // { id: 'users', label: 'Roles', icon: ShieldCheck },
+        { id: "users", label: "Roles", icon: ShieldCheck },
         { id: "settings", label: "Settings", icon: Settings },
       ],
     },
@@ -1490,6 +1490,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "events" && activeModule === "events") ||
                   (item.id === "training" && activeModule === "training") ||
                   (item.id === "reports" && activeModule === "reports") ||
+                  (item.id === "users" && ["users", "roles"].includes(activeModule)) ||
+                  (item.id === "roles" && ["users", "roles"].includes(activeModule)) ||
                   (item.id === "settings" && activeModule === "settings") ||
                   (item.id === "warden-attendance" && ["warden-attendance", "hostel-warden-attendance"].includes(activeModule));
 

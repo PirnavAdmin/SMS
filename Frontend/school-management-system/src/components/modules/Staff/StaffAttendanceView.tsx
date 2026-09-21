@@ -13,6 +13,7 @@ import {
   Users,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Printer,
   FileSpreadsheet,
   Download,
@@ -2152,6 +2153,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return { total, present, absent, leave, halfDay };
   }, [currentTabStaffList, attendanceMap, normalizeStatus]);
 
+  // Search Input Validation State
+  const currentSearchQuery = activeTab === "teaching" ? teachingQuery : nonTeachingQuery;
+  const isSearchQueryEntered = currentSearchQuery.trim().length > 0;
+  const hasInvalidSearchChars = /[^a-zA-Z0-9\s\-_./]/.test(currentSearchQuery.trim());
+  const isSearchUnmatched = isSearchQueryEntered && currentTabStaffList.length === 0;
+  const hasStaffSearchError = isSearchQueryEntered && (hasInvalidSearchChars || isSearchUnmatched);
+
   // Status Change Handler with Leave Locks & Permission Checks
   const handleStatusChange = (
     empId: string,
@@ -2988,19 +2996,29 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         {/* Search Staff Bar (Top Right corner of main module tabs line) */}
         <div className="w-full md:w-72 shrink-0">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
             <input
               type="text"
               placeholder="Search by name or ID..."
-              value={activeTab === "teaching" ? teachingQuery : nonTeachingQuery}
+              value={currentSearchQuery}
               onChange={(e) =>
                 activeTab === "teaching"
                   ? setTeachingQuery(e.target.value)
                   : setNonTeachingQuery(e.target.value)
               }
-              className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
+              className={`w-full pl-9 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold outline-none transition-colors ${
+                hasStaffSearchError
+                  ? "border-red-500 text-red-700 dark:text-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  : "border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500"
+              }`}
             />
           </div>
+          {hasStaffSearchError && (
+            <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>Invalid input, please enter a valid staff name/ID</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -3285,7 +3303,15 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                           colSpan={8}
                           className="py-12 text-center text-slate-400 italic"
                         >
-                          No employees found matching the filter criteria.
+                          {hasStaffSearchError ? (
+                            <div className="inline-flex flex-col items-center justify-center p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 gap-1.5 max-w-md mx-auto shadow-sm not-italic">
+                              <AlertCircle className="w-6 h-6 shrink-0" />
+                              <p className="text-xs font-bold">Invalid input, please enter a valid staff name/ID</p>
+                              <p className="text-[11px] text-red-500/80 font-medium">No employee records match "{currentSearchQuery}". Please check the spelling or employee ID.</p>
+                            </div>
+                          ) : (
+                            "No employees found matching the filter criteria."
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -3727,7 +3753,15 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                           colSpan={registerDaysList.length + 10}
                           className="py-8 text-center text-slate-400 italic"
                         >
-                          No employees found for the selected register criteria.
+                          {hasStaffSearchError ? (
+                            <div className="inline-flex flex-col items-center justify-center p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 gap-1.5 max-w-md mx-auto shadow-sm not-italic">
+                              <AlertCircle className="w-6 h-6 shrink-0" />
+                              <p className="text-xs font-bold">Invalid input, please enter a valid staff name/ID</p>
+                              <p className="text-[11px] text-red-500/80 font-medium">No employee records match "{currentSearchQuery}". Please check the spelling or employee ID.</p>
+                            </div>
+                          ) : (
+                            "No employees found for the selected register criteria."
+                          )}
                         </td>
                       </tr>
                     ) : (

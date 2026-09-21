@@ -583,16 +583,17 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-1">
                 <button
-                  onClick={() => onLoginClick()}
-                  className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl text-sm shadow-xl shadow-sky-500/30 hover:shadow-sky-500/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2.5 group"
+                  onClick={() => scrollToSection('features')}
+                  className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl text-sm shadow-xl shadow-sky-500/30 hover:shadow-sky-500/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2.5 group cursor-pointer"
                 >
-                  <span>Access Portal</span>
-                  <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
+                  <Building2 className="w-4.5 h-4.5" />
+                  <span>Explore ERP Features</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 <button
                   onClick={() => scrollToSection('campus-life')}
-                  className="w-full sm:w-auto px-7 py-3.5 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 font-semibold rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-7 py-3.5 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 font-semibold rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ImageIcon className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400" />
                   <span>Explore Campus</span>
@@ -913,7 +914,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               <Lock className="w-3.5 h-3.5" /> Sign In Portals
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Tailored Access for Every Stakeholder
+              Role-Based Access Portals
             </h2>
             <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm max-w-xl mx-auto font-medium">
               Select your portal role to log in directly to your personalized workspace.

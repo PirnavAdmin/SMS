@@ -27,6 +27,7 @@ import {
 } from '../Staff/staffFlowOptions';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
 import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
+import { RELIGIONS } from '../../../utils/validation';
 
 interface UploadedFile {
   fileName: string;
@@ -750,7 +751,14 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
               </div>
               <div>
                 <FieldLabel label="Religion" />
-                <input value={form.personal.religion} onChange={e => updatePersonal('religion', e.target.value.replace(/[^a-zA-Z\s]/g, ''))} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                <select
+                  value={form.personal.religion}
+                  onChange={e => updatePersonal('religion', e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm outline-none text-slate-900 dark:text-white"
+                >
+                  <option value="">Select Religion</option>
+                  {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
+                </select>
               </div>
               <div>
                 <FieldLabel label="Marital Status" />
