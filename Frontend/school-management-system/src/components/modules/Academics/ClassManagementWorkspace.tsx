@@ -44,6 +44,34 @@ const isNameEquivalent = (n1: string, n2: string): boolean => {
   return norm(n1) === norm(n2);
 };
 
+const isYearMatch = (classYear?: string, targetYear?: string): boolean => {
+  if (!targetYear || targetYear === 'All' || targetYear === 'All Years' || !targetYear.trim()) return true;
+  if (!classYear || classYear === 'All' || classYear === 'All Years' || !classYear.trim()) return true;
+  
+  const cleanTarget = String(targetYear).replace(/[\u2013\u2014]/g, '-').replace(/[^0-9-]/g, '').trim();
+  const cleanClass = String(classYear).replace(/[\u2013\u2014]/g, '-').replace(/[^0-9-]/g, '').trim();
+  
+  if (cleanTarget === cleanClass) return true;
+  
+  const targetDigits = cleanTarget.replace(/[^0-9]/g, '');
+  const classDigits = cleanClass.replace(/[^0-9]/g, '');
+  
+  if (targetDigits.length >= 4 && classDigits.length >= 4) {
+    if (targetDigits.slice(0, 4) === classDigits.slice(0, 4)) return true;
+  }
+  
+  return false;
+};
+
+const isBranchMatch = (classBranch?: string, targetBranch?: string): boolean => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'All Branches' || targetBranch === 'All Campuses' || !targetBranch.trim()) return true;
+  if (!classBranch || classBranch === 'All' || classBranch === 'All Branches' || classBranch === 'All Campuses' || !classBranch.trim()) return true;
+  
+  const b1 = String(classBranch).toLowerCase().trim();
+  const b2 = String(targetBranch).toLowerCase().trim();
+  return b1 === b2 || b1.includes(b2) || b2.includes(b1);
+};
+
 interface ClassManagementWorkspaceProps {
   initialTab?: string;
   onTabChange?: (tab: string) => void;
@@ -613,8 +641,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     const filteredForKPIs = academicClasses.filter(c => {
       const campus = (c as any).campus || (c as any).branch || 'Main Campus';
       const year = (c as any).academicYear || '2026-2027';
-      const matchesCampus = !selectedBranch || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses' || campus === selectedBranch;
-      const matchesYear = !selectedAcademicYear || year === selectedAcademicYear;
+      const matchesCampus = isBranchMatch(campus, selectedBranch);
+      const matchesYear = isYearMatch(year, selectedAcademicYear);
       return matchesCampus && matchesYear;
     });
 
@@ -1258,8 +1286,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       const name = c.name.toLowerCase();
       const disp = ((c as any).displayName || '').toLowerCase();
 
-      const matchesCampus = !filterCampus || campus === filterCampus;
-      const matchesYear = !filterYear || year === filterYear;
+      const matchesCampus = isBranchMatch(campus, filterCampus);
+      const matchesYear = isYearMatch(year, filterYear);
       const matchesStatus = !filterStatus || status === filterStatus;
       const matchesSearch = !searchClassName || name.includes(searchClassName.toLowerCase()) || disp.includes(searchClassName.toLowerCase());
 

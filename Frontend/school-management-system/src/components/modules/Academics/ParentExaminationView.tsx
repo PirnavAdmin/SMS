@@ -109,50 +109,54 @@ export const ParentExaminationView: React.FC = () => {
     parentWards = Array.from(unique.values());
   }
 
-  const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || id;
-
-  if (parentWards.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500 font-bold">
-        No active student records linked to this user account.
-      </div>
-    );
-  }
+  const getSubjectName = (id: string) => (subjects || []).find(s => s.id === id)?.name || id;
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
   // Map current ward to a full Student type for PrintableReportCard
-  const wardStudent: Student = students.find(s => String(s.id) === String(currentWard.id) || s.admissionNo === currentWard.admissionNo) || {
-    id: String(currentWard.id || currentWard.studentId || '1'),
-    admissionNo: currentWard.admissionNo || 'ADM-1001',
-    rollNo: currentWard.rollNo || '101',
-    firstName: currentWard.firstName || (currentWard.studentName ? currentWard.studentName.split(' ')[0] : 'Student'),
-    lastName: currentWard.lastName || (currentWard.studentName?.split(' ').slice(1).join(' ') || ''),
-    studentName: currentWard.studentName || `${currentWard.firstName || 'Student'} ${currentWard.lastName || ''}`.trim(),
-    gender: (currentWard.gender as any) || 'Male',
-    dob: currentWard.dob || '',
+  const wardStudent: Student = (currentWard && (students || []).find(s => String(s.id) === String(currentWard.id) || s.admissionNo === currentWard.admissionNo)) || {
+    id: String(currentWard?.id || currentWard?.studentId || '1'),
+    admissionNo: currentWard?.admissionNo || 'ADM-1001',
+    rollNo: currentWard?.rollNo || '101',
+    firstName: currentWard?.firstName || (currentWard?.studentName ? currentWard.studentName.split(' ')[0] : 'Student'),
+    lastName: currentWard?.lastName || (currentWard?.studentName?.split(' ').slice(1).join(' ') || ''),
+    studentName: currentWard?.studentName || `${currentWard?.firstName || 'Student'} ${currentWard?.lastName || ''}`.trim(),
+    gender: (currentWard?.gender as any) || 'Male',
+    dob: currentWard?.dob || '',
     bloodGroup: 'O+',
-    className: currentWard.className || 'Class 6',
-    section: currentWard.section || 'A',
+    className: currentWard?.className || 'Class 6',
+    section: currentWard?.section || 'A',
     category: 'General',
     status: 'Active',
     avatar: '',
     joiningDate: '2026-06-01',
-    fatherName: currentWard.fatherName || user?.name || 'Parent',
+    fatherName: currentWard?.fatherName || user?.name || 'Parent',
     fatherPhone: '',
     fatherOccupation: 'N/A',
-    motherName: currentWard.motherName || 'Mother',
+    motherName: currentWard?.motherName || 'Mother',
     motherPhone: ''
   };
 
   // Get ONLY officially Published results
-  const wardResultsRaw = processedResults.filter(
-    r => r.studentId === currentWard.id && r.status === 'Published'
-  );
+  const wardResultsRaw = currentWard ? (processedResults || []).filter(
+    r => (
+      String(r.studentId) === String(currentWard.id) ||
+      String(r.studentId) === String(currentWard.studentId) ||
+      (currentWard.rollNo && String(r.rollNo) === String(currentWard.rollNo)) ||
+      (currentWard.admissionNo && String(r.admissionNo || r.rollNo) === String(currentWard.admissionNo))
+    ) && r.status === 'Published'
+  ) : [];
 
   const dbChildExams = wardResultsRaw.map(r => {
-    const exam = exams.find(e => e.id === r.examId);
-    const marksForExam = examMarks.filter(m => m.examId === r.examId && m.studentId === r.studentId);
+    const exam = (exams || []).find(e => e.id === r.examId);
+    const marksForExam = (examMarks || []).filter(m => 
+      m.examId === r.examId && 
+      (
+        String(m.studentId) === String(r.studentId) || 
+        String(m.studentId) === String(currentWard.id) ||
+        String(m.studentId) === String(currentWard.studentId)
+      )
+    );
     
     const formattedSubjects = marksForExam.map((sm: any) => ({
       name: getSubjectName(sm.subject),
@@ -165,7 +169,7 @@ export const ParentExaminationView: React.FC = () => {
       examName: exam?.name || 'Unknown Exam',
       date: exam?.startDate || '',
       overallGrade: r.overallGrade || r.finalGrade,
-      percentage: r.percentage.toFixed(1) + '%',
+      percentage: r.percentage?.toFixed(1) ? r.percentage.toFixed(1) + '%' : '0%',
       remarks: r.remarks || 'No remarks provided by class teacher.',
       subjects: formattedSubjects
     };
@@ -174,14 +178,22 @@ export const ParentExaminationView: React.FC = () => {
   const childExams = dbChildExams;
   const activeExam = childExams.find((e: any) => e.examName === selectedExamId) || childExams[0];
 
-  // Set default selected exam on mount or if child changes
+  // Set default selected exam on mount or if child changes - Unconditional Hook
   useEffect(() => {
     if (childExams.length > 0) {
       setSelectedExamId(childExams[0].examName);
     } else {
       setSelectedExamId('');
     }
-  }, [selectedChildIdx, processedResults.length, childExams.length]);
+  }, [selectedChildIdx, processedResults?.length, childExams.length]);
+
+  if (parentWards.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500 font-bold">
+        No active student records linked to this user account.
+      </div>
+    );
+  }
 
   const matchedExam: ExamSetup = exams.find(e => e.id === activeExam?.examId || e.name === activeExam?.examName) || {
     id: activeExam?.examId || 'term-1',

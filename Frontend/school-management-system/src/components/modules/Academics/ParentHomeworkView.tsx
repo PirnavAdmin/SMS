@@ -10,6 +10,11 @@ export const ParentHomeworkView: React.FC = () => {
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+  const [filterSubject, setFilterSubject] = useState('All');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Closed'>('Upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [popupDescription, setPopupDescription] = useState<string | null>(null);
 
   useEffect(() => {
     if (fetchHomeworkData) {
@@ -40,7 +45,7 @@ export const ParentHomeworkView: React.FC = () => {
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
-      firstName: c.firstName || c.studentName.split(' ')[0],
+      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
       lastName: c.lastName || '',
       studentName: c.studentName,
       className: c.className || 'Class 6',
@@ -106,7 +111,7 @@ export const ParentHomeworkView: React.FC = () => {
 
   if (parentWards.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-500">
+      <div className="p-8 text-center text-slate-500 font-bold">
         No active wards found in the system.
       </div>
     );
@@ -134,7 +139,7 @@ export const ParentHomeworkView: React.FC = () => {
   const wardInfo = parseClassAndSection(currentWard.className, currentWard.section);
 
   // Filter the global homework data for this specific ward's class and section, ensuring publication checks
-  const wardHomeworkRaw = homework.filter(h => {
+  const wardHomeworkRaw = (homework || []).filter(h => {
     const hInfo = parseClassAndSection(h.className, h.section);
     
     // Match class (e.g. '10' === '10' or '10-a' === '10-a')
@@ -162,24 +167,62 @@ export const ParentHomeworkView: React.FC = () => {
     return true;
   }).sort((a, b) => new Date(b.dueDate || 0).getTime() - new Date(a.dueDate || 0).getTime());
 
-  const processedWardHomework = wardHomeworkRaw.map(hw => ({
-    ...hw,
-    status: new Date(hw.dueDate) < new Date() ? 'Evaluated' : 'Pending',
-    assignedDate: hw.assignedDate || hw.dueDate,
-    evaluationDate: '',
-    maxMarks: '50.00',
-    marksObtained: '',
-    note: ''
-  }));
+  const [submissions, setSubmissions] = useState<Record<string, { status: string; submittedAt: string; note?: string; attachmentName?: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('parent_student_homework_submissions');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [activeSubmittingHw, setActiveSubmittingHw] = useState<any | null>(null);
+  const [submissionNote, setSubmissionNote] = useState('');
+  const [submissionFile, setSubmissionFile] = useState<string | null>(null);
+
+  const handleSaveSubmission = (hwId: string) => {
+    const updated = {
+      ...submissions,
+      [hwId]: {
+        status: 'Submitted',
+        submittedAt: new Date().toISOString(),
+        note: submissionNote,
+        attachmentName: submissionFile || 'Assignment_Submission.pdf'
+      }
+    };
+    setSubmissions(updated);
+    try {
+      localStorage.setItem('parent_student_homework_submissions', JSON.stringify(updated));
+    } catch {}
+    setActiveSubmittingHw(null);
+    setSubmissionNote('');
+    setSubmissionFile(null);
+  };
+
+  const processedWardHomework = wardHomeworkRaw.map(hw => {
+    const subRecord = submissions[hw.id];
+    let hwStatus = 'Pending';
+    if (subRecord && subRecord.status) {
+      hwStatus = subRecord.status;
+    } else if (new Date(hw.dueDate) < new Date()) {
+      hwStatus = 'Evaluated';
+    }
+
+    return {
+      ...hw,
+      status: hwStatus,
+      assignedDate: hw.assignedDate || hw.dueDate,
+      evaluationDate: '',
+      maxMarks: hw.maxMarks || '50.00',
+      marksObtained: hw.marksObtained || '',
+      note: subRecord?.note || hw.note || '',
+      submissionRecord: subRecord
+    };
+  });
 
   const wardHomework = processedWardHomework;
 
   const subjects = Array.from(new Set(wardHomework.map(h => h.subject)));
-  const [filterSubject, setFilterSubject] = useState('All');
-  const [filterDate, setFilterDate] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Closed'>('Upcoming');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [popupDescription, setPopupDescription] = useState<string | null>(null);
 
   const getSubjectCode = (subjectName: string) => {
     if (!subjectName) return '';
@@ -196,8 +239,7 @@ export const ParentHomeworkView: React.FC = () => {
 
   const filteredHomework = wardHomework.filter(h => {
     const isUpcomingTab = filterStatus === 'Upcoming';
-    // For demo purposes, we will treat 'Pending' as Upcoming and others as Closed
-    const tabMatch = isUpcomingTab ? h.status === 'Pending' : h.status !== 'Pending';
+    const tabMatch = isUpcomingTab ? (h.status === 'Pending' || h.status === 'Submitted') : (h.status === 'Evaluated' || h.status === 'Closed');
     const searchMatch = !searchQuery || h.subject.toLowerCase().includes(searchQuery.toLowerCase()) || (h.title && h.title.toLowerCase().includes(searchQuery.toLowerCase()));
     const subjectMatch = filterSubject === 'All' || h.subject === filterSubject;
     const dateMatch = !filterDate || h.assignedDate === filterDate || h.dueDate === filterDate;
@@ -208,13 +250,13 @@ export const ParentHomeworkView: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Evaluated':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#7cb342] text-white">Evaluated</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">Evaluated</span>;
       case 'Pending':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#e91e63] text-white">Pending</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800">Pending</span>;
       case 'Submitted':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#ff9800] text-white">Submitted</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">Submitted</span>;
       default:
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-500 text-white">{status}</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">{status}</span>;
     }
   };
 
@@ -310,6 +352,8 @@ export const ParentHomeworkView: React.FC = () => {
                 <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Description</th>
                 <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Homework Date</th>
                 <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Submission Date</th>
+                <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Status</th>
+                <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -336,11 +380,57 @@ export const ParentHomeworkView: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatDate(hw.assignedDate)}</td>
                     <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatDate(hw.dueDate)}</td>
+                    <td className="py-3 px-4 text-xs">
+                      {getStatusBadge(hw.status)}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {hw.status === 'Pending' ? (
+                          <button
+                            onClick={() => {
+                              setActiveSubmittingHw(hw);
+                              setSubmissionNote(hw.note || '');
+                            }}
+                            className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                          >
+                            Submit
+                          </button>
+                        ) : hw.status === 'Submitted' ? (
+                          <button
+                            onClick={() => {
+                              setActiveSubmittingHw(hw);
+                              setSubmissionNote(hw.note || '');
+                            }}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                          >
+                            Edit Submission
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setPopupDescription(`Marks: ${hw.marksObtained || hw.maxMarks}/${hw.maxMarks}\nEvaluation Note: Completed and evaluated.`)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-all"
+                          >
+                            View Result
+                          </button>
+                        )}
+                        {(hw.documentUrl || hw.attachment) && (
+                          <a
+                            href={hw.documentUrl || hw.attachment}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            title="Download Attachment"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
                     No records found.
                   </td>
                 </tr>
@@ -361,10 +451,12 @@ export const ParentHomeworkView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Description Popup Modal */}
       {popupDescription && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPopupDescription(null)}>
           <div className="bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Description</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Details</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{popupDescription}</p>
             <div className="mt-6 flex justify-end">
               <button 
@@ -372,6 +464,72 @@ export const ParentHomeworkView: React.FC = () => {
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-bold transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Homework Submission Modal */}
+      {activeSubmittingHw && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setActiveSubmittingHw(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              Submit Homework: {activeSubmittingHw.subject}
+            </h3>
+            <div className="text-xs text-slate-500">
+              Due Date: <span className="font-bold text-slate-700 dark:text-slate-300">{formatDate(activeSubmittingHw.dueDate)}</span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Submission Notes / Text
+                </label>
+                <textarea
+                  rows={4}
+                  value={submissionNote}
+                  onChange={e => setSubmissionNote(e.target.value)}
+                  placeholder="Enter answers, comments, or notes for the teacher..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Upload Assignment File (PDF, DOCX, JPG)
+                </label>
+                <input
+                  type="file"
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSubmissionFile(e.target.files[0].name);
+                    }
+                  }}
+                  className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
+                />
+                {submissionFile && (
+                  <p className="mt-1 text-xs text-emerald-600 font-medium">
+                    Selected file: {submissionFile}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setActiveSubmittingHw(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveSubmission(activeSubmittingHw.id)}
+                className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+              >
+                Save & Submit
               </button>
             </div>
           </div>

@@ -316,50 +316,8 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
   };
 
   const displayName = useMemo(() => {
-    // 1. Authentic user account name if set and NOT generic 'Administrator' / 'Admin'
-    const rawName = (user?.name || '').trim();
-    if (rawName && rawName.toLowerCase() !== 'administrator' && rawName.toLowerCase() !== 'admin' && rawName.toLowerCase() !== 'user') {
-      return rawName;
-    }
-
-    const uEmail = (user?.email || '').toLowerCase().trim();
-    const uPhone = (user?.phone || '').replace(/\D/g, '');
-
-    // 2. Match staff record by email or phone in staff list
-    if (uPhone && uPhone.length >= 10) {
-      const matchedStaff = (staff || []).find(s => s.phone && s.phone.replace(/\D/g, '').endsWith(uPhone));
-      if (matchedStaff) {
-        const fullStaffName = `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim();
-        if (fullStaffName && !fullStaffName.toLowerCase().includes('admin')) return fullStaffName;
-      }
-    }
-
-    if (uEmail) {
-      const matchedStaff = (staff || []).find(s => s.email && s.email.toLowerCase().trim() === uEmail);
-      if (matchedStaff) {
-        const fullStaffName = `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim();
-        if (fullStaffName && !fullStaffName.toLowerCase().includes('admin')) return fullStaffName;
-      }
-    }
-
-    // 3. Match hostel block / warden record by email in hostel blocks / wardens list from Admin login
-    if (uEmail) {
-      const allBlks = blocks.length > 0 ? blocks : contextBlocks;
-      const matchedBlock = allBlks.find(b =>
-        (b.email || (b as any).wardenEmail || '').toLowerCase().trim() === uEmail ||
-        (b.wardenName && b.wardenName.toLowerCase().includes(uEmail.split('@')[0]))
-      );
-      if (matchedBlock?.wardenName && !matchedBlock.wardenName.toLowerCase().includes('admin')) return matchedBlock.wardenName;
-    }
-
-    // 4. Derivation from email (e.g. vishal@pirnav.com -> Vishal)
-    if (uEmail) {
-      const derived = formatEmailToName(uEmail);
-      if (derived && derived.toLowerCase() !== 'admin' && derived.toLowerCase() !== 'administrator') return derived;
-    }
-
-    return 'Hostel Warden';
-  }, [user, staff, blocks, contextBlocks]);
+    return (user?.name || '').trim();
+  }, [user]);
 
   return (
     <div className="space-y-6 animate-in fade-in pb-12">
@@ -368,7 +326,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-1">
             <h1 className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-1.5">
-              {greeting}, {displayName} 🖐️
+              {greeting}{displayName ? `, ${displayName}` : ''} 🖐️
             </h1>
           </div>
         </div>
