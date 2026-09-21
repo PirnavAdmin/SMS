@@ -30,6 +30,11 @@ import {
 } from "../utils/uniformUtils";
 import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
 import {
+  createStaffLetterRecord,
+  saveStaffLetterRecord,
+  syncStaffLettersWithStaffList,
+} from "../utils/staffLetterTemplates";
+import {
   Student,
   AcademicHistoryRecord,
   DiscontinuationDetails,
@@ -1898,7 +1903,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("tc_register", []),
   );
   const [students, setStudents] = useState<Student[]>(() => {
-    const versionKey = "edu_db_students_enrolled_only_v14_configured_classes";
+    const versionKey = "edu_db_students_enrolled_only_v15_dynamic";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
@@ -1906,14 +1911,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return initialStudents;
     }
     const stored = getStored("students", initialStudents);
-    return stored && stored.length > 0 ? stored : initialStudents;
+    const list = stored && stored.length > 0 ? stored : initialStudents;
+    return list;
   });
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("edu_db_staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => {
-    const versionKey = "edu_db_admissions_enrolled_only_v14_configured_classes";
+    const versionKey = "edu_db_admissions_enrolled_only_v15_dynamic";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem(
@@ -1924,7 +1930,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return initialAdmissions;
     }
     const stored = getStored("admissions", initialAdmissions);
-    return stored && stored.length > 0 ? stored : initialAdmissions;
+    const list = stored && stored.length > 0 ? stored : initialAdmissions;
+    return list;
   });
   const [rawClasses, setRawClasses] = useState<any[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
@@ -7187,6 +7194,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch((err) => {
         console.error("Failed to create staff in backend", err);
       });
+
+    // Auto-generate and issue Official Offer & Appointment letter
+    try {
+      const offerLetter = createStaffLetterRecord("offer", newStaff, schoolProfile, newStaff.joiningDate);
+      saveStaffLetterRecord(offerLetter);
+      const offerDoc: StaffDocument = {
+        id: `DOC-LTR-${Date.now()}`,
+        title: `Offer & Appointment Letter (${offerLetter.letterNumber})`,
+        type: "Appointment Letter",
+        fileUrl: "",
+        uploadedDate: offerLetter.issueDate || new Date().toISOString().split("T")[0],
+        documentNumber: offerLetter.letterNumber,
+        verificationStatus: "Verified",
+        category: "Institutional Letters",
+      };
+      newStaff.documents = [offerDoc, ...(newStaff.documents || [])];
+    } catch (e) {
+      console.warn("Failed to auto-issue offer letter on addStaff:", e);
+    }
 
     setStaff((prev) => [...prev, newStaff]);
     logActivity(

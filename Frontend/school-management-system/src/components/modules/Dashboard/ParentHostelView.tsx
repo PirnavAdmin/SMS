@@ -1,50 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Building2, AlertCircle, Home, MapPin, BedDouble, UserCircle, Phone } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentHostelView: React.FC = () => {
-  const { students, studentHostels, hostelMasters } = useData();
+  const { students = [], admissions = [], studentHostels = [], hostelMasters = [] } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
+  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
 
-  // Match children by email or phone, or own ID if student
-  let parentWards = students.filter(s => 
-    s.status === 'Active' && 
-    (
-      role === 'Student' ? s.id === user?.id : 
-      (
-        s.guardianEmail === user?.email || 
-        s.guardianPhone === user?.email || 
-        s.contactEmail === user?.email || 
-        s.contactPhone === user?.email ||
-        s.fatherPhone === user?.email ||
-        s.motherPhone === user?.email ||
-        (user?.name && s.fatherName && (s.fatherName.toLowerCase().includes(user.name.toLowerCase()) || user.name.toLowerCase().includes(s.fatherName.toLowerCase()))) ||
-        (user?.name && s.motherName && (s.motherName.toLowerCase().includes(user.name.toLowerCase()) || user.name.toLowerCase().includes(s.motherName.toLowerCase())))
-      )
-    )
-  );
+  useEffect(() => {
+    let isMounted = true;
+    const fetchChildren = async () => {
+      try {
+        const children = await getParentChildren(user?.email);
+        if (isMounted) {
+          setApiChildren(children || []);
+        }
+      } catch (err) {
+        console.warn('Failed to load parent children in hostel view:', err);
+      }
+    };
+    fetchChildren();
+    return () => { isMounted = false; };
+  }, [user?.email]);
 
-  const hasMatchedWards = parentWards.length > 0;
-  if (!hasMatchedWards) {
-    if (user?.name?.toLowerCase().includes('kumar') || user?.email?.toLowerCase().includes('kumar')) {
-      parentWards = [
-        {
-          id: '2',
-          studentId: 2,
-          firstName: 'pawankalyan',
-          lastName: '',
-          studentName: 'pawankalyan',
-          className: 'Class 6',
-          section: 'A',
-          status: 'Active'
-        } as any
-      ];
-    } else {
-      parentWards = students.filter(s => s.status === 'Active').slice(0, 1);
+  const parentWards = useMemo(() => {
+    if (apiChildren.length > 0) {
+      return apiChildren.map(c => ({
+        id: String(c.studentId),
+        studentId: c.studentId,
+        firstName: c.firstName || c.studentName.split(' ')[0],
+        lastName: c.lastName || '',
+        studentName: c.studentName,
+        className: c.className || 'Class 6',
+        section: c.sectionName || 'A',
+        status: 'Active'
+      }));
     }
-  }
+
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
+
+    const studentMatches = (students || []).filter(s => 
+      s.status === 'Active' && 
+      (
+        role === 'Student' ? (s.id === user?.id || s.email === user?.email) : 
+        (
+          (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
+            s.guardianEmail?.toLowerCase() === userEmail || 
+            s.contactEmail?.toLowerCase() === userEmail || 
+            s.fatherPhone?.toLowerCase() === userEmail ||
+            s.motherPhone?.toLowerCase() === userEmail
+          )) ||
+          (userPhone && userPhone.length >= 7 && (
+            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
+          ))
+        )
+      )
+    );
+
+    const admissionMatches = (admissions || []).filter(a => {
+      if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      const phoneMatch = userPhone && userPhone.length >= 7 && (
+        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
+      );
+      const emailMatch = userEmail && (
+        (a.email && a.email.toLowerCase().trim() === userEmail) ||
+        ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
+      );
+      return phoneMatch || emailMatch;
+    }).map(a => ({
+      id: String(a.id),
+      studentId: a.id,
+      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
+      lastName: a.lastName || '',
+      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
+      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
+      section: (a as any).section || 'A',
+      status: 'Active'
+    }));
+
+    const combined = [...studentMatches, ...admissionMatches];
+    const unique = new Map();
+    combined.forEach(w => {
+      if (!unique.has(w.id)) unique.set(w.id, w);
+    });
+    return Array.from(unique.values());
+  }, [students, admissions, user, role, apiChildren]);
 
   if (parentWards.length === 0) {
     return (

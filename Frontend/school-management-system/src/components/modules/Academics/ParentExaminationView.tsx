@@ -8,7 +8,7 @@ import { PrintableReportCard } from '../Examination/PrintableReportCard';
 import { Student, ExamSetup, ExamMark, ProcessedResult } from '../../../types';
 
 export const ParentExaminationView: React.FC = () => {
-  const { students, exams, processedResults, subjects, examMarks } = useData();
+  const { students = [], admissions = [], exams, processedResults, subjects, examMarks } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
@@ -19,8 +19,8 @@ export const ParentExaminationView: React.FC = () => {
     const fetchChildren = async () => {
       try {
         const children = await getParentChildren(user?.email);
-        if (isMounted && children && children.length > 0) {
-          setApiChildren(children);
+        if (isMounted) {
+          setApiChildren(children || []);
         }
       } catch (err) {
         console.warn('Failed to load parent children in report cards view:', err);
@@ -39,45 +39,74 @@ export const ParentExaminationView: React.FC = () => {
       studentId: c.studentId,
       admissionNo: c.admissionNumber,
       rollNo: c.rollNumber,
-      firstName: c.firstName || c.studentName.split(' ')[0],
+      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
       lastName: c.lastName || '',
       studentName: c.studentName,
       className: c.className || 'Class 6',
       section: c.sectionName || 'A',
       gender: c.gender || 'Male',
-      dob: c.dateOfBirth || '2015-01-21',
+      dob: c.dateOfBirth || '',
       status: 'Active'
     }));
   } else {
     const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
 
-    const localMatches = students.filter(s => 
+    const studentMatches = (students || []).filter(s => 
       s.status === 'Active' && 
       (
         role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
         (
           (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
             s.guardianEmail?.toLowerCase() === userEmail || 
-            s.guardianPhone?.toLowerCase() === userEmail || 
             s.contactEmail?.toLowerCase() === userEmail || 
-            s.contactPhone?.toLowerCase() === userEmail ||
             s.fatherPhone?.toLowerCase() === userEmail ||
             s.motherPhone?.toLowerCase() === userEmail
           )) ||
-          (userName && (
-            s.fatherName?.toLowerCase() === userName ||
-            s.motherName?.toLowerCase() === userName ||
-            s.guardianName?.toLowerCase() === userName
+          (userPhone && userPhone.length >= 7 && (
+            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
           ))
         )
       )
     );
-    if (localMatches.length > 0) {
-      parentWards = localMatches;
-    } else {
-      parentWards = students.filter(s => s.status === 'Active').slice(0, 1);
-    }
+
+    const admissionMatches = (admissions || []).filter(a => {
+      if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      const phoneMatch = userPhone && userPhone.length >= 7 && (
+        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
+      );
+      const emailMatch = userEmail && (
+        (a.email && a.email.toLowerCase().trim() === userEmail) ||
+        ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
+      );
+      return phoneMatch || emailMatch;
+    }).map(a => ({
+      id: String(a.id),
+      studentId: a.id,
+      admissionNo: a.applicationNo || a.registrationNo || (a as any).admissionNo || `ADM-${a.id}`,
+      rollNo: a.registrationNo || a.applicationNo || `ROLL-${a.id}`,
+      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
+      lastName: a.lastName || '',
+      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
+      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
+      section: (a as any).section || 'A',
+      gender: a.gender || 'Male',
+      dob: a.dateOfBirth || (a as any).dob || '',
+      status: 'Active'
+    }));
+
+    const combined = [...studentMatches, ...admissionMatches];
+    const unique = new Map();
+    combined.forEach(w => {
+      if (!unique.has(w.id)) unique.set(w.id, w);
+    });
+    parentWards = Array.from(unique.values());
   }
 
   const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || id;
@@ -94,14 +123,14 @@ export const ParentExaminationView: React.FC = () => {
 
   // Map current ward to a full Student type for PrintableReportCard
   const wardStudent: Student = students.find(s => String(s.id) === String(currentWard.id) || s.admissionNo === currentWard.admissionNo) || {
-    id: String(currentWard.id || currentWard.studentId || '2'),
-    admissionNo: currentWard.admissionNo || 'REG-1104',
-    rollNo: currentWard.rollNo || '102',
-    firstName: currentWard.firstName || currentWard.studentName?.split(' ')[0] || 'pawankalyan',
+    id: String(currentWard.id || currentWard.studentId || '1'),
+    admissionNo: currentWard.admissionNo || 'ADM-1001',
+    rollNo: currentWard.rollNo || '101',
+    firstName: currentWard.firstName || (currentWard.studentName ? currentWard.studentName.split(' ')[0] : 'Student'),
     lastName: currentWard.lastName || (currentWard.studentName?.split(' ').slice(1).join(' ') || ''),
-    studentName: currentWard.studentName || `${currentWard.firstName || 'pawankalyan'} ${currentWard.lastName || ''}`.trim(),
+    studentName: currentWard.studentName || `${currentWard.firstName || 'Student'} ${currentWard.lastName || ''}`.trim(),
     gender: (currentWard.gender as any) || 'Male',
-    dob: currentWard.dob || '2015-01-21',
+    dob: currentWard.dob || '',
     bloodGroup: 'O+',
     className: currentWard.className || 'Class 6',
     section: currentWard.section || 'A',
@@ -109,11 +138,11 @@ export const ParentExaminationView: React.FC = () => {
     status: 'Active',
     avatar: '',
     joiningDate: '2026-06-01',
-    fatherName: currentWard.fatherName || user?.name || 'Kumar Parent',
-    fatherPhone: '9876543210',
-    fatherOccupation: 'Business',
-    motherName: 'Mother',
-    motherPhone: '9876543211'
+    fatherName: currentWard.fatherName || user?.name || 'Parent',
+    fatherPhone: '',
+    fatherOccupation: 'N/A',
+    motherName: currentWard.motherName || 'Mother',
+    motherPhone: ''
   };
 
   // Get ONLY officially Published results

@@ -98,9 +98,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const normRole = normalizeUserRole(parsed.role || '');
           if (normRole === 'Parent' || (parsed.email && parsed.email.toLowerCase().includes('parent'))) {
             parsed.role = 'Parent';
-            if (isInvalidParent(parsed.name)) {
-              parsed.name = 'Aashiq';
-            }
           } else if (parsed.role) {
             parsed.role = normRole;
           }
@@ -108,9 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          if (parsed.role === 'Parent' && isInvalidParent(parsed.name)) {
-            parsed.name = 'Aashiq';
-          } else if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
+          if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
             parsed.name = localProfile.name;
           } else if (!parsed.name && parsed.email) {
             parsed.name = formatEmailToName(parsed.email);
@@ -281,8 +276,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let mappedRole: UserRole = 'Student';
-      if (chosenRole && normalizedRoles.includes(normalizeUserRole(chosenRole))) {
+      if (chosenRole && normalizeUserRole(chosenRole) === 'Parent') {
+        mappedRole = 'Parent';
+      } else if (chosenRole && normalizedRoles.includes(normalizeUserRole(chosenRole))) {
         mappedRole = normalizeUserRole(chosenRole);
+      } else if ((emailOrPhone && emailOrPhone.toLowerCase().includes('parent')) || (response?.email && response.email.toLowerCase().includes('parent'))) {
+        mappedRole = 'Parent';
       } else if (roles.length > 0) {
         const priorityOrder: UserRole[] = [
           'Admin',
@@ -316,10 +315,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!userName && loginEmail) {
         userName = formatEmailToName(loginEmail);
       }
-      if (!userName || mappedRole === 'Parent') {
-        if (!userName || mappedRole === 'Parent' && (!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'karthik kumar' || userName.toLowerCase() === 'parent')) {
-          userName = 'Aashiq';
-        }
+      if ((!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'parent') && loginEmail) {
+        userName = formatEmailToName(loginEmail);
       }
 
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);
