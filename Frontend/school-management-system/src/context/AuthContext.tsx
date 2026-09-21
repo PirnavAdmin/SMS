@@ -117,11 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved);
         if (parsed) {
           parsed.isFirstLogin = false;
-          const isInvalidParent = (n?: string) => {
-            const clean = (n || '').trim().toLowerCase();
-            return !clean || ['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean) || clean.includes('srinivas') || clean.includes('karthik');
-          };
-
           const normRole = normalizeUserRole(parsed.role || '');
           if (normRole === 'Parent' || (parsed.email && parsed.email.toLowerCase().includes('parent'))) {
             parsed.role = 'Parent';
@@ -132,20 +127,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
-          if (localProfile?.name && (!parsed.name || parsed.name.toLowerCase() === 'user' || parsed.name.toLowerCase() === 'administrator')) {
-            parsed.name = localProfile.name;
-          } else if (!parsed.name && parsed.email) {
-            parsed.name = formatEmailToName(parsed.email);
+          if (localProfile) {
+            const profileEmail = (localProfile.email || '').trim().toLowerCase();
+            const userEmail = (parsed.email || '').trim().toLowerCase();
+            const isEmailMatch = !profileEmail || !userEmail || profileEmail === userEmail;
+
+            if (isEmailMatch) {
+              if (localProfile.name && (parsed.role === 'Admin' || localProfile.name !== 'Pirnavsms')) {
+                parsed.name = localProfile.name;
+              }
+              if (localProfile.avatar) {
+                parsed.avatar = localProfile.avatar;
+              }
+              if (localProfile.phone) {
+                parsed.phone = localProfile.phone;
+              }
+              if (localProfile.branch) {
+                parsed.branch = localProfile.branch;
+              }
+            }
           }
 
-          if (localProfile?.avatar) {
-            parsed.avatar = localProfile.avatar;
-          }
-          if (localProfile?.phone) {
-            parsed.phone = localProfile.phone;
-          }
-          if (localProfile?.branch) {
-            parsed.branch = localProfile.branch;
+          if (!parsed.name) {
+            parsed.name = '';
           }
 
           localStorage.setItem('auth_user', JSON.stringify(parsed));
@@ -258,13 +262,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const data = res?.data;
           if (data && (data.avatar || data.name)) {
             if (data.email && user.email && data.email.trim().toLowerCase() !== user.email.trim().toLowerCase()) return;
+            if (user.role !== 'Admin' && data.name === 'Pirnavsms') return;
+
             setUser((prev) => {
               if (!prev) return prev;
               const hasUploadedAvatar = prev.avatar && prev.avatar.startsWith('data:image/');
               const nextAvatar = hasUploadedAvatar ? prev.avatar : (data.avatar || prev.avatar);
+              const nextName = (user.role !== 'Admin' && data.name === 'Pirnavsms') ? prev.name : (data.name || prev.name);
               const next = {
                 ...prev,
-                name: data.name || prev.name,
+                name: nextName,
                 phone: data.phone || prev.phone,
                 avatar: nextAvatar,
                 branch: data.branch || prev.branch,
@@ -276,7 +283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .catch(() => {});
     }
-  }, [token, user?.email]);
+  }, [token, user?.email, user?.role]);
 
   const logout = () => {
     setUser(null);
@@ -373,12 +380,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let userName = (response?.fullName || response?.name || '').trim();
       if (!userName && savedProfile?.name) {
         userName = savedProfile.name.trim();
-      }
-      if (!userName && loginEmail) {
-        userName = formatEmailToName(loginEmail);
-      }
-      if ((!userName || userName.toLowerCase() === 'user' || userName.toLowerCase() === 'parent') && loginEmail) {
-        userName = formatEmailToName(loginEmail);
       }
 
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);

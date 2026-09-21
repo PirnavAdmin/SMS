@@ -840,46 +840,34 @@ export const TeacherProfileView: React.FC = () => {
       </div>
 
       {/* Official Institutional Letters & HR Documents Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-sm border border-sky-300 dark:border-sky-800 space-y-6">
+        <div className="border-b pb-5 border-slate-100 dark:border-slate-800">
           <div>
-            <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5">
               <FileText className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               Official Institutional Letters & HR Documents
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Access your official employment appointment offer letter, salary breakdown, and service records.
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const existingOffer = staffLetters.find(l => l.letterType === 'offer');
-                setSelectedLetterType('offer');
-                setSelectedLetterRecord(existingOffer);
-                setLetterModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm cursor-pointer transition transform active:scale-95"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              View My Offer Letter
-            </button>
           </div>
         </div>
 
         {/* HR Letter Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Card 1: Offer / Appointment Letter */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/40 dark:from-sky-950/30 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/50 flex flex-col justify-between space-y-3">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
               <div className="flex items-center justify-between">
-                <span className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">
                   <FileText className="w-4 h-4" />
+                </div>
+                <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                  Official
                 </span>
-                <Badge variant="success" size="sm">Official</Badge>
               </div>
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm mt-2">Appointment / Offer Letter</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-3">Appointment / Offer Letter</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
                 Institutional appointment contract with terms of service, compensation structure, and probation details.
               </p>
             </div>
@@ -890,28 +878,32 @@ export const TeacherProfileView: React.FC = () => {
                 setSelectedLetterRecord(existingOffer);
                 setLetterModalOpen(true);
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-4 h-4" />
               View & Print Offer Letter
             </button>
           </div>
 
           {/* Card 2: Relieving Letter */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
               <div className="flex items-center justify-between">
-                <span className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                   <CheckCircle2 className="w-4 h-4" />
-                </span>
+                </div>
                 {staffLetters.some(l => l.letterType === 'relieving') ? (
-                  <Badge variant="success" size="sm">Issued</Badge>
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                    Issued
+                  </span>
                 ) : (
-                  <Badge variant="neutral" size="sm">On Separation</Badge>
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-medium border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+                    On Separation
+                  </span>
                 )}
               </div>
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm mt-2">Relieving & Clearance Letter</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-3">Relieving & Clearance Letter</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
                 Official relieving letter confirming formal clearance of institutional dues, assets, and service tenure.
               </p>
             </div>
@@ -923,33 +915,37 @@ export const TeacherProfileView: React.FC = () => {
                   setSelectedLetterRecord(relRecord);
                   setLetterModalOpen(true);
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
               >
-                <Eye className="w-3.5 h-3.5" />
+                <Eye className="w-4 h-4" />
                 View Relieving Letter
               </button>
             ) : (
-              <div className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-center text-xs font-semibold">
+              <div className="w-full py-2.5 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-center text-xs font-medium">
                 Issued Upon Formal Relieving
               </div>
             )}
           </div>
 
           {/* Card 3: Experience / Service Certificate */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
               <div className="flex items-center justify-between">
-                <span className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Award className="w-4 h-4" />
-                </span>
+                </div>
                 {staffLetters.some(l => l.letterType === 'experience') ? (
-                  <Badge variant="success" size="sm">Issued</Badge>
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                    Issued
+                  </span>
                 ) : (
-                  <Badge variant="neutral" size="sm">Service Certificate</Badge>
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-medium border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+                    Service Certificate
+                  </span>
                 )}
               </div>
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm mt-2">Experience Certificate</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-3">Experience Certificate</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
                 Institutional service testimonial verifying your designation, responsibilities, and tenure performance.
               </p>
             </div>
@@ -960,9 +956,9 @@ export const TeacherProfileView: React.FC = () => {
                 setSelectedLetterRecord(expRecord);
                 setLetterModalOpen(true);
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-4 h-4" />
               View Experience Certificate
             </button>
           </div>

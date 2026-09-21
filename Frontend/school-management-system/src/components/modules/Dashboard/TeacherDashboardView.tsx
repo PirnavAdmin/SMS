@@ -527,7 +527,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
           <div className="space-y-1 text-left">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-                <span>{greeting}, {teacher.firstName} {teacher.lastName}</span>
+                <span>{greeting}{(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim() ? `, ${(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim()}` : ''}</span>
                 <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
               </h1>
             </div>

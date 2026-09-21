@@ -387,7 +387,7 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
         <div className="relative z-10 text-left">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span>{greeting}, {matchedDriver.driverName}!</span>
+              <span>{greeting}{(user?.name || matchedDriver.driverName || '').trim() ? `, ${(user?.name || matchedDriver.driverName || '').trim()}` : ''}!</span>
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
           </div>
