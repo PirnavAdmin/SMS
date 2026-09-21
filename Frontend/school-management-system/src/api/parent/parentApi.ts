@@ -59,15 +59,7 @@ export const getParentChildren = async (identifier?: string): Promise<ParentChil
   try {
     const response = await apiClient(url);
     const rawList: ParentChild[] = response?.data || response || [];
-    if (Array.isArray(rawList) && rawList.length > 0) {
-      const sunnyOnly = rawList.filter(c => 
-        (c.studentName || '').toLowerCase().includes('sunny') || 
-        (c.firstName || '').toLowerCase().includes('sunny')
-      );
-      if (sunnyOnly.length > 0) return sunnyOnly;
-      return rawList.slice(0, 1);
-    }
-    return rawList;
+    return Array.isArray(rawList) ? rawList : [];
   } catch {
     return [];
   }

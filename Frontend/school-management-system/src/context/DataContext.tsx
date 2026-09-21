@@ -1903,7 +1903,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("tc_register", []),
   );
   const [students, setStudents] = useState<Student[]>(() => {
-    const versionKey = "edu_db_students_enrolled_only_v14_configured_classes";
+    const versionKey = "edu_db_students_enrolled_only_v15_dynamic";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
@@ -1911,14 +1911,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return initialStudents;
     }
     const stored = getStored("students", initialStudents);
-    return stored && stored.length > 0 ? stored : initialStudents;
+    const list = stored && stored.length > 0 ? stored : initialStudents;
+    return list;
   });
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("edu_db_staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => {
-    const versionKey = "edu_db_admissions_enrolled_only_v14_configured_classes";
+    const versionKey = "edu_db_admissions_enrolled_only_v15_dynamic";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
       localStorage.setItem(
@@ -1929,7 +1930,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return initialAdmissions;
     }
     const stored = getStored("admissions", initialAdmissions);
-    return stored && stored.length > 0 ? stored : initialAdmissions;
+    const list = stored && stored.length > 0 ? stored : initialAdmissions;
+    return list;
   });
   const [rawClasses, setRawClasses] = useState<any[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
