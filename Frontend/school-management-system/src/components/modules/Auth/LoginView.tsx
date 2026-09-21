@@ -170,7 +170,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     setError('');
     setLoading(true);
     try {
-      await login(identifier, password, activeRole as any);
+      await login(identifier, password);
       addToast('success', 'Authentication Successful', `Welcome to ${schoolName}!`);
     } catch (err: any) {
       const errorMessage = err?.message || '';
@@ -294,25 +294,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   {schoolName}
                 </h1>
-                {activeRole ? (
-                  <div className="mt-1.5 flex items-center justify-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 shadow-sm">
-                      <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                      {activeRole === 'Admin' ? 'Administrator Portal' : `${activeRole} Portal`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveRole(undefined)}
-                      className="text-[11px] text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 font-semibold underline underline-offset-2 transition-colors cursor-pointer"
-                    >
-                      (Switch)
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider mt-0.5">
-                    Sign In Portal
-                  </p>
-                )}
+                <p className="text-xs text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider mt-1">
+                  Sign In Portal
+                </p>
               </div>
             </div>
 

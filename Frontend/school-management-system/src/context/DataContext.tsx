@@ -30,6 +30,11 @@ import {
 } from "../utils/uniformUtils";
 import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
 import {
+  createStaffLetterRecord,
+  saveStaffLetterRecord,
+  syncStaffLettersWithStaffList,
+} from "../utils/staffLetterTemplates";
+import {
   Student,
   AcademicHistoryRecord,
   DiscontinuationDetails,
@@ -7187,6 +7192,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch((err) => {
         console.error("Failed to create staff in backend", err);
       });
+
+    // Auto-generate and issue Official Offer & Appointment letter
+    try {
+      const offerLetter = createStaffLetterRecord("offer", newStaff, schoolProfile, newStaff.joiningDate);
+      saveStaffLetterRecord(offerLetter);
+      const offerDoc: StaffDocument = {
+        id: `DOC-LTR-${Date.now()}`,
+        title: `Offer & Appointment Letter (${offerLetter.letterNumber})`,
+        type: "Appointment Letter",
+        fileUrl: "",
+        uploadedDate: offerLetter.issueDate || new Date().toISOString().split("T")[0],
+        documentNumber: offerLetter.letterNumber,
+        verificationStatus: "Verified",
+        category: "Institutional Letters",
+      };
+      newStaff.documents = [offerDoc, ...(newStaff.documents || [])];
+    } catch (e) {
+      console.warn("Failed to auto-issue offer letter on addStaff:", e);
+    }
 
     setStaff((prev) => [...prev, newStaff]);
     logActivity(

@@ -83,17 +83,113 @@ export const getDefaultLetterPayload = (
 
 const STORAGE_KEY = 'edu_db_staff_letters';
 
-export const getStoredStaffLetters = (): GeneratedStaffLetterRecord[] => {
+export const createStaffLetterRecord = (
+  type: StaffLetterType,
+  staff: Staff,
+  schoolProfile?: SchoolProfile,
+  customIssueDate?: string
+): GeneratedStaffLetterRecord => {
+  const payload = getDefaultLetterPayload(type, staff, schoolProfile);
+  if (customIssueDate) {
+    payload.issueDate = customIssueDate;
+  }
+  const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || 'Staff Member';
+  return {
+    id: `LTR-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}-${staff.id || staff.empId || '01'}`,
+    letterNumber: payload.refNo,
+    letterType: type,
+    staffId: staff.id || '',
+    staffEmpId: staff.empId || '',
+    staffName: fullName,
+    designation: payload.designation,
+    department: payload.department,
+    branch: payload.branch,
+    issueDate: payload.issueDate,
+    generatedBy: 'Institutional HR Administration',
+    status: 'Issued',
+    payload: payload,
+  };
+};
+
+export const generateSeedStaffLetters = (staffList?: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
+  const targetList = staffList && staffList.length > 0 ? staffList : [];
+  const initialLetters: GeneratedStaffLetterRecord[] = [];
+
+  // Generate official offer letters for all staff in list (up to 12)
+  targetList.slice(0, 12).forEach((s, idx) => {
+    const issueDate = s.joiningDate || new Date(Date.now() - (idx * 30 + 10) * 86400000).toISOString().split('T')[0];
+    const rec = createStaffLetterRecord('offer', s, schoolProfile, issueDate);
+    initialLetters.push(rec);
+  });
+
+  // Also add sample relieving & experience letters if we have enough staff
+  if (targetList.length > 3) {
+    const s1 = targetList[2];
+    const s2 = targetList[3];
+    if (s1) {
+      const expRec = createStaffLetterRecord('experience', s1, schoolProfile);
+      initialLetters.push(expRec);
+    }
+    if (s2) {
+      const relRec = createStaffLetterRecord('relieving', s2, schoolProfile);
+      initialLetters.push(relRec);
+    }
+  }
+
+  return initialLetters;
+};
+
+export const getStoredStaffLetters = (fallbackStaff?: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
     console.warn('Failed to load staff letters from storage:', e);
   }
-  return [];
+
+  // Seed default letters if empty
+  const seeded = generateSeedStaffLetters(fallbackStaff, schoolProfile);
+  if (seeded.length > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    } catch (e) {
+      console.warn('Failed to cache seed staff letters:', e);
+    }
+  }
+  return seeded;
+};
+
+export const syncStaffLettersWithStaffList = (staffList: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
+  try {
+    const currentLetters = getStoredStaffLetters(staffList, schoolProfile);
+    const existingStaffMap = new Set(currentLetters.map((l) => `${l.staffId || l.staffEmpId}_${l.letterType}`));
+
+    const newLetters: GeneratedStaffLetterRecord[] = [];
+
+    (staffList || []).forEach((s) => {
+      const idKey = `${s.id || s.empId}_offer`;
+      if (!existingStaffMap.has(idKey)) {
+        const newOffer = createStaffLetterRecord('offer', s, schoolProfile, s.joiningDate);
+        newLetters.push(newOffer);
+        existingStaffMap.add(idKey);
+      }
+    });
+
+    if (newLetters.length > 0) {
+      const combined = [...newLetters, ...currentLetters];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(combined));
+      window.dispatchEvent(new Event('staff_letters_updated'));
+      return combined;
+    }
+
+    return currentLetters;
+  } catch (e) {
+    console.warn('Error in syncStaffLettersWithStaffList:', e);
+    return getStoredStaffLetters();
+  }
 };
 
 export const saveStaffLetterRecord = (record: GeneratedStaffLetterRecord): GeneratedStaffLetterRecord[] => {
