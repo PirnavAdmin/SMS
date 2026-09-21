@@ -4182,6 +4182,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             let attendantId = (a.attendantId || "").toString();
             let attendantName = a.attendantName || "";
             let attendantMobile = a.attendantMobile || "";
+            let attendantEmployeeId = a.attendantEmployeeId || "";
+            let driverEmployeeId = a.driverEmployeeId || "";
 
             return {
               id: (a.id || a.assignmentId || "").toString(),
@@ -4193,8 +4195,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               vehicleNumber,
               driverId,
               driverName,
+              driverEmployeeId,
               attendantId,
               attendantName,
+              attendantEmployeeId,
               attendantMobile,
               morningTripTime: a.morningTripTime || a.morningTrip || "",
               eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
@@ -4225,11 +4229,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               uniqueAssignmentsMap.set(key, {
                 ...existing,
                 ...item,
+                driverEmployeeId:
+                  item.driverEmployeeId || existing.driverEmployeeId || "",
                 attendantId: item.attendantId || existing.attendantId || "",
                 attendantName:
                   item.attendantName || existing.attendantName || "",
                 attendantMobile:
                   item.attendantMobile || existing.attendantMobile || "",
+                attendantEmployeeId:
+                  item.attendantEmployeeId || existing.attendantEmployeeId || "",
               });
             }
           });

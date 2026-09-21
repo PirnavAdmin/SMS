@@ -571,11 +571,20 @@ export const StudentTransportAssignmentView: React.FC = () => {
                                    vehicleAssignments.find(va => va.vehicleId === inspectingAssignment.vehicleId);
         const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || vehicleMasters[0];
         const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || driverMasters[0];
-        const attendantObj = busAttendants.find(a => a.id === vehicleAssignedRel?.attendantId || a.attendantName === vehicleAssignedRel?.attendantName) ||
-                             (staff || []).find(s => String(s.id) === String(vehicleAssignedRel?.attendantId) || s.empId === vehicleAssignedRel?.attendantId || `${s.firstName} ${s.lastName || ''}`.trim().toLowerCase() === vehicleAssignedRel?.attendantName?.toLowerCase());
+        const attendantObj = busAttendants.find(a => 
+          (vehicleAssignedRel?.attendantId && (String(a.id) === String(vehicleAssignedRel.attendantId) || a.employeeId === vehicleAssignedRel.attendantId)) ||
+          (vehicleAssignedRel?.attendantEmployeeId && a.employeeId === vehicleAssignedRel.attendantEmployeeId) ||
+          (vehicleAssignedRel?.attendantName && a.attendantName?.trim().toLowerCase() === vehicleAssignedRel.attendantName?.trim().toLowerCase())
+        ) || (staff || []).find(s => 
+          String(s.id) === String(vehicleAssignedRel?.attendantId) || 
+          s.empId === vehicleAssignedRel?.attendantId || 
+          s.empId === vehicleAssignedRel?.attendantEmployeeId || 
+          (s as any).employeeId === vehicleAssignedRel?.attendantEmployeeId || 
+          `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === vehicleAssignedRel?.attendantName?.trim().toLowerCase()
+        );
 
         const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || (driverObj?.id ? `DRV-${driverObj.id}` : '-');
-        const attendantEmpId = attendantObj?.employeeId || (attendantObj as any)?.empId || vehicleAssignedRel?.attendantEmployeeId || '-';
+        const attendantEmpId = vehicleAssignedRel?.attendantEmployeeId || attendantObj?.employeeId || (attendantObj as any)?.empId || (attendantObj as any)?.employeeId || '-';
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">

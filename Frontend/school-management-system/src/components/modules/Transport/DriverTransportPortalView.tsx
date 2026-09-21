@@ -156,17 +156,17 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       const targetEmpId = (attendant?.employeeId || currentAssignment.attendantEmployeeId || currentAssignment.attendantId || '').trim().toLowerCase();
 
       return (
-        (targetEmpId && staffEmpId === targetEmpId) ||
+        (targetEmpId && (staffEmpId === targetEmpId || String(s.id).toLowerCase() === targetEmpId)) ||
         (attName && (staffFullName === attName || staffFullName.includes(attName) || attName.includes(staffFullName)))
       );
     });
 
     const name = (currentAssignment.attendantName && currentAssignment.attendantName.toUpperCase() !== 'UNASSIGNED' && currentAssignment.attendantName.trim() !== '')
       ? currentAssignment.attendantName
-      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName || ''}`.trim() : 'Unassigned'));
+      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim() : 'Unassigned'));
 
-    let empCode = attendant?.employeeId || matchedStaff?.empId || (matchedStaff as any)?.employeeId || currentAssignment.attendantEmployeeId || '';
-    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '';
+    let empCode = currentAssignment.attendantEmployeeId || attendant?.employeeId || matchedStaff?.empId || (matchedStaff as any)?.employeeId || (matchedStaff?.id ? `STF-${matchedStaff.id}` : '-');
+    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || (matchedStaff as any)?.mobileNumber || '-';
 
     return {
       name,
@@ -526,14 +526,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
                         <span className="font-bold truncate">{student.pickupPoint}</span>
                       </div>
 
-                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <div className="text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
                         <span className="text-[10px] truncate">Guardian: {student.parentName}</span>
-                        <a
-                          href={`tel:${student.parentMobile}`}
-                          className="text-[10px] text-sky-600 dark:text-sky-400 font-bold hover:underline flex items-center gap-1 shrink-0"
-                        >
-                          <Phone className="w-2.5 h-2.5" /> Call
-                        </a>
                       </div>
                     </div>
                   </div>

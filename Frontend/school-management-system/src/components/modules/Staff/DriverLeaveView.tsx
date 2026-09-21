@@ -28,27 +28,40 @@ export const DriverLeaveView: React.FC = () => {
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
-    const userEmpId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
+    const userPhone = (user?.phone || '').trim().toLowerCase();
+    const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
     const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId)) ||
+      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
       (userEmail && d.email?.toLowerCase() === userEmail) ||
-      (userName && d.driverName?.toLowerCase() === userName)
+      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
+      (userName && d.driverName?.toLowerCase() === userName) ||
+      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
     );
 
     if (fromMaster) return fromMaster;
 
-    const fromStaff = staff.find(s =>
-      (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
-      (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
-    );
+    const fromStaff = staff.find(s => {
+      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+      const sId = String(s.id).toLowerCase();
+      const sEmail = (s.email || '').toLowerCase();
+      const sPhone = (s.phone || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = (s.name || '').trim().toLowerCase();
+
+      return (
+        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
+        (userEmail && sEmail === userEmail) ||
+        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
+        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
+      );
+    });
 
     if (fromStaff) {
       return {
         id: fromStaff.id,
-        driverName: `${fromStaff.firstName} ${fromStaff.lastName}`,
-        employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`
+        driverName: `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name || 'Driver',
+        employeeId: fromStaff.empId || fromStaff.employeeId || `DRV-${fromStaff.id}`
       };
     }
 
