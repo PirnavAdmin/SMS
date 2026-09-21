@@ -79,35 +79,43 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
     }
 
     // Try matching in staff
-    const fromStaff = staff.find(s =>
-      (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
-      (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userPhone && s.phone && s.phone.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
-    );
+    const fromStaff = staff.find(s => {
+      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+      const sId = String(s.id).toLowerCase();
+      const sEmail = (s.email || '').toLowerCase();
+      const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = (s.name || '').trim().toLowerCase();
+
+      return (
+        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
+        (userEmail && sEmail === userEmail) ||
+        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
+        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
+      );
+    });
 
     if (fromStaff) {
-      const staffName = `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim();
+      const staffName = `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name;
       return {
         id: fromStaff.id,
         driverName: staffName || user?.name || 'Driver',
-        licenseNumber: (fromStaff as any).licenseNumber || 'DL-2026-9874',
-        mobileNumber: fromStaff.phone || user?.phone || '+91-9878645565',
-        employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`,
-        status: 'Active' as const,
-        experienceYears: 6
+        licenseNumber: (fromStaff as any).licenseNumber || (fromStaff as any).licenceNumber || '',
+        mobileNumber: fromStaff.phone || (fromStaff as any).mobileNumber || user?.phone || '',
+        employeeId: fromStaff.empId || (fromStaff as any).employeeId || String(fromStaff.id) || '',
+        status: fromStaff.status || ('Active' as const),
+        experienceYears: (fromStaff as any).experienceYears !== undefined ? (fromStaff as any).experienceYears : 0
       };
     }
 
-    // Fallback default driver so dashboard always displays the assigned vehicle
     return {
       id: user?.id || '1',
       driverName: user?.name || 'Driver',
-      licenseNumber: 'DL-2026-9874',
-      mobileNumber: user?.phone || '+91-9878645565',
-      employeeId: (user as any)?.empId || (user as any)?.employeeId || 'DRV-001',
+      licenseNumber: (user as any)?.licenseNumber || '',
+      mobileNumber: user?.phone || (user as any)?.mobileNumber || '',
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || '',
       status: 'Active' as const,
-      experienceYears: 8
+      experienceYears: 0
     };
   }, [user, driverMasters, staff]);
 
@@ -496,15 +504,15 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
           </div>
           <div>
             <div className="text-lg font-black text-slate-900 dark:text-white truncate">
-              {assignedRoute?.routeName || currentAssignment?.routeName || 'Banjara Hills Route'}
+              {assignedRoute?.routeName || currentAssignment?.routeName || 'Unassigned'}
             </div>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-              Code: {assignedRoute?.routeCode || 'RT-01'} • {routeStops.length} Stops
+              {assignedRoute?.routeCode ? `Code: ${assignedRoute.routeCode} • ` : ''}{routeStops.length} Stops
             </div>
           </div>
           <div className="flex items-center justify-between pt-1.5 border-t border-sky-100 dark:border-sky-900/60 text-[11px] font-bold">
             <span className="text-slate-500">Total Distance</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-mono font-black">{assignedRoute?.totalDistanceKm || 25} km</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-mono font-black">{assignedRoute?.totalDistanceKm !== undefined && assignedRoute?.totalDistanceKm !== null ? `${assignedRoute.totalDistanceKm} km` : '—'}</span>
           </div>
         </div>
 
@@ -521,15 +529,15 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
               {assignedAttendant.name}
             </div>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-              Emp ID: {assignedAttendant.employeeId}
+              Emp ID: {assignedAttendant.employeeId || '—'}
             </div>
           </div>
           <div className="flex items-center justify-between pt-1.5 border-t border-sky-100 dark:border-sky-900/60 text-[11px] font-bold">
             <a
-              href={`tel:${assignedAttendant.mobile}`}
+              href={assignedAttendant.mobile && assignedAttendant.mobile !== '-' ? `tel:${assignedAttendant.mobile}` : undefined}
               className="text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 font-bold"
             >
-              <Phone className="w-3 h-3" /> {assignedAttendant.mobile}
+              <Phone className="w-3 h-3" /> {assignedAttendant.mobile || '—'}
             </a>
             <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full font-bold">On Duty</span>
           </div>
@@ -565,7 +573,7 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
                     {stop.pickupName}
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                    <span>{stop.distanceFromSchoolKm || 3.5} km</span>
+                    <span>{stop.distanceFromSchoolKm !== undefined && stop.distanceFromSchoolKm !== null ? `${stop.distanceFromSchoolKm} km` : '—'}</span>
                     <span className="font-bold text-sky-600">{studentsAtThisStop} Students</span>
                   </div>
                 </div>

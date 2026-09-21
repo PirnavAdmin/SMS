@@ -78,10 +78,10 @@ export const DriverProfileView: React.FC = () => {
       ? user.name
       : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (user?.name || 'Driver')));
 
-    const resolvedLicense = fromMaster?.licenseNumber || (fromStaff as any)?.licenseNumber || (resolvedEmpId ? `DL-${resolvedEmpId}` : '');
+    const resolvedLicense = fromMaster?.licenseNumber || (fromStaff as any)?.licenseNumber || '';
     const resolvedLicenseExpiry = fromMaster?.licenseExpiryDate || (fromStaff as any)?.licenseExpiryDate || '';
-    const resolvedLicenseType = (fromMaster as any)?.licenseType || (fromStaff as any)?.licenseType || 'Commercial (HMV)';
-    const resolvedExperience = fromMaster?.experienceYears !== undefined ? fromMaster.experienceYears : ((fromStaff as any)?.experienceYears !== undefined ? (fromStaff as any).experienceYears : 5);
+    const resolvedLicenseType = (fromMaster as any)?.licenseType || (fromStaff as any)?.licenseType || '';
+    const resolvedExperience = fromMaster?.experienceYears !== undefined ? fromMaster.experienceYears : ((fromStaff as any)?.experienceYears !== undefined ? (fromStaff as any).experienceYears : 0);
     const resolvedDept = (fromMaster as any)?.department || fromStaff?.department || 'Transport';
     const resolvedDesig = (fromMaster as any)?.designation || fromStaff?.designation || 'Driver';
 
@@ -169,7 +169,7 @@ export const DriverProfileView: React.FC = () => {
   // Sync formData whenever matchedDriver or saved profile changes
   useEffect(() => {
     try {
-      const key = `driver_profile_${matchedDriver.employeeId || 'DRV-001'}`;
+      const key = `driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`;
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : null;
       setFormData({
@@ -196,7 +196,7 @@ export const DriverProfileView: React.FC = () => {
       };
 
       // Save contact details + license details to localStorage
-      localStorage.setItem(`driver_profile_${matchedDriver.employeeId || 'DRV-001'}`, JSON.stringify(dataToSave));
+      localStorage.setItem(`driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`, JSON.stringify(dataToSave));
 
       // Also update DriverMaster via DataContext for persistence
       if (matchedDriver?.id && updateDriverMaster) {
@@ -242,7 +242,7 @@ export const DriverProfileView: React.FC = () => {
                 <Badge variant="success" size="sm">Active Staff</Badge>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                ID: {matchedDriver.employeeId || 'STF-2026-0003'} • Department: {(matchedDriver as any).department || 'Transport Dept'}
+                ID: {matchedDriver.employeeId || '—'} • Department: {(matchedDriver as any).department || 'Transport'}
               </p>
               <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mt-0.5">
                 Designation: {(matchedDriver as any).designation || 'Driver'}

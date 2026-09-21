@@ -57,14 +57,14 @@ export const DriverAttendanceView: React.FC = () => {
       return {
         id: fromStaff.id,
         driverName: `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name || 'Driver',
-        employeeId: fromStaff.empId || fromStaff.employeeId || `DRV-${fromStaff.id}`
+        employeeId: fromStaff.empId || fromStaff.employeeId || fromStaff.id || ''
       };
     }
 
     return {
       id: user?.id || '1',
       driverName: user?.name || user?.email || 'Driver',
-      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || 'DRV-001'
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || ''
     };
   }, [user, driverMasters, staff]);
 
@@ -297,7 +297,7 @@ export const DriverAttendanceView: React.FC = () => {
       days.push({ day: null, dateStr: '', status: '' });
     }
 
-    const driverId = String(matchedDriver.employeeId || matchedDriver.id || 'DRV-001').toLowerCase();
+    const driverId = String(matchedDriver.employeeId || matchedDriver.id || '').toLowerCase();
 
     for (let d = 1; d <= daysInMonth; d++) {
       const monthPadded = String(selectedMonth + 1).padStart(2, '0');
@@ -366,7 +366,7 @@ export const DriverAttendanceView: React.FC = () => {
                 </Badge>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {matchedDriver.driverName} • ID: {matchedDriver.employeeId || 'DRV-001'} • Transport Fleet
+                {matchedDriver.driverName} • ID: {matchedDriver.employeeId || matchedDriver.id || '—'} • Transport Fleet
               </p>
             </div>
           </div>

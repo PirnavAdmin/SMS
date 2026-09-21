@@ -61,20 +61,20 @@ export const DriverLeaveView: React.FC = () => {
       return {
         id: fromStaff.id,
         driverName: `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name || 'Driver',
-        employeeId: fromStaff.empId || fromStaff.employeeId || `DRV-${fromStaff.id}`
+        employeeId: fromStaff.empId || fromStaff.employeeId || fromStaff.id || ''
       };
     }
 
     return {
       id: user?.id || '1',
       driverName: user?.name || user?.email || 'Driver',
-      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || 'DRV-001'
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || ''
     };
   }, [user, driverMasters, staff]);
 
   // 2. Filter driver's leave applications
   const driverFirstName = (matchedDriver.driverName || '').split(' ')[0].toLowerCase();
-  const driverEmpId = String(matchedDriver.employeeId || matchedDriver.id || 'DRV-001').toLowerCase();
+  const driverEmpId = String(matchedDriver.employeeId || matchedDriver.id || '').toLowerCase();
 
   const driverApplications = useMemo(() => {
     return (leaveApplications || []).filter(a => {
@@ -229,7 +229,7 @@ export const DriverLeaveView: React.FC = () => {
                 Driver Leave Management
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {matchedDriver.driverName} • ID: {matchedDriver.employeeId || 'DRV-001'} • Annual Leave Entitlement
+                {matchedDriver.driverName} • ID: {matchedDriver.employeeId || matchedDriver.id || '—'} • Annual Leave Entitlement
               </p>
             </div>
           </div>

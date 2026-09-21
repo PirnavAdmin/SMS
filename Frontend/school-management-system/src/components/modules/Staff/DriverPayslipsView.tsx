@@ -47,7 +47,7 @@ export const DriverPayslipsView: React.FC = () => {
       return {
         id: fromStaff.id,
         driverName: `${fromStaff.firstName} ${fromStaff.lastName}`,
-        employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`,
+        employeeId: fromStaff.employeeId || fromStaff.empId || fromStaff.id || '',
         salary: fromStaff.salary || 30000
       };
     }
@@ -55,14 +55,14 @@ export const DriverPayslipsView: React.FC = () => {
     return {
       id: user?.id || '1',
       driverName: user?.name || user?.email || 'Driver',
-      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || 'DRV-001',
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || '',
       salary: 30000
     };
   }, [user, driverMasters, staff]);
 
   // 2. Synthesize or Retrieve Realistic Monthly Payslips
   const driverPayslips: Payslip[] = useMemo(() => {
-    const driverId = String(matchedDriver.employeeId || matchedDriver.id || 'DRV-001').toLowerCase();
+    const driverId = String(matchedDriver.employeeId || matchedDriver.id || '').toLowerCase();
     const driverName = (matchedDriver.driverName || '').toLowerCase();
 
     const existing = payslips.filter(p =>
@@ -97,9 +97,9 @@ export const DriverPayslipsView: React.FC = () => {
 
       return {
         id: `PS-DRV-${1000 + idx}`,
-        employeeId: matchedDriver.employeeId || matchedDriver.id || 'DRV-001',
-        employeeName: matchedDriver.driverName || 'Nag Sahoo',
-        empId: matchedDriver.employeeId || 'DRV-001',
+        employeeId: matchedDriver.employeeId || matchedDriver.id || '',
+        employeeName: matchedDriver.driverName || 'Driver',
+        empId: matchedDriver.employeeId || matchedDriver.id || '',
         branch: 'Main Campus',
         department: 'Transport & Logistics',
         designation: 'Senior Bus Driver',
@@ -276,7 +276,7 @@ export const DriverPayslipsView: React.FC = () => {
                 Driver Salary & Payslips
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {matchedDriver.driverName} • ID: {matchedDriver.employeeId || 'DRV-001'} • Transport Roster
+                {matchedDriver.driverName} • ID: {matchedDriver.employeeId || matchedDriver.id || '—'} • Transport Roster
               </p>
             </div>
           </div>

@@ -2046,7 +2046,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const nonTeachingStaffList = useMemo(() => {
     const driverItems = (driverMasters || []).map(d => ({
       id: String(d.id),
-      empId: d.employeeId || `DRV-${d.id}`,
+      empId: d.employeeId || String(d.id),
       firstName: d.driverName,
       lastName: '',
       designation: 'Driver',
