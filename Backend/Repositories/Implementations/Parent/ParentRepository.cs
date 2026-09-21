@@ -27,85 +27,95 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 if (!string.IsNullOrWhiteSpace(identifier))
                 {
                     identifier = identifier.Trim().ToLowerInvariant();
+                    var digitsOnly = new string(identifier.Where(char.IsDigit).ToArray());
+                    bool isEmail = identifier.Contains("@");
+                    bool isGenericName = new[] { "parent", "user", "admin", "administrator" }.Contains(identifier);
 
-                    // Specifically for Kumar Parent / portal parent user, resolve its ward (pawankalyan konidela)
-                    if (identifier == "parent@pirnavschools.com" || identifier == "parent@pirnav.com" || identifier.Contains("kumar") || identifier.Contains("aashiq") || identifier == "9876543223")
-                    {
-                        var aashiqWards = await _context.Students
-                            .Include(s => s.ClassGrade)
-                            .Include(s => s.ClassSection)
-                            .AsNoTracking()
-                            .Where(s => !s.IsDeleted && s.Status == "Active")
-                            .Where(s => s.FatherMobile == "9876543223" || (s.FatherName != null && (s.FatherName.ToLower().Contains("aashiq") || s.FatherName.ToLower().Contains("kumar parent"))) || (s.StudentName != null && s.StudentName.ToLower().Contains("sunny")))
-                            .ToListAsync();
+                    var matchedStudents = new List<Student>();
 
-                        if (aashiqWards.Any())
-                        {
-                            foreach (var w in aashiqWards)
-                            {
-                                if (w.ClassGrade == null || w.ClassGrade.ClassName != "Class 5")
-                                    w.ClassGrade = new ClassGrade { ClassName = "Class 5" };
-                                if (string.IsNullOrWhiteSpace(w.AdmissionNumber) || w.AdmissionNumber == "ADM-2026-2014")
-                                    w.AdmissionNumber = "REG-2049";
-                            }
-                            return aashiqWards;
-                        }
-                    }
-
-                    // 1. Direct match on Father/Mother mobile, parent email, or father/mother full name
-                    var exactParentMatch = await _context.Students
+                    // 1. Direct match on Students table
+                    var studentMatches = await _context.Students
                         .Include(s => s.ClassGrade)
                         .Include(s => s.ClassSection)
                         .AsNoTracking()
                         .Where(s => !s.IsDeleted && s.Status == "Active")
                         .Where(s =>
-                            (s.FatherMobile != null && s.FatherMobile.ToLower() == identifier) ||
-                            (s.MotherMobile != null && s.MotherMobile.ToLower() == identifier) ||
-                            (s.MobileNumber != null && s.MobileNumber.ToLower() == identifier) ||
-                            (s.Email != null && s.Email.ToLower() == identifier) ||
-                            (s.FatherName != null && (s.FatherName.ToLower() == identifier || s.FatherName.ToLower().Contains(identifier) || identifier.Contains(s.FatherName.ToLower()))) ||
-                            (s.MotherName != null && (s.MotherName.ToLower() == identifier || s.MotherName.ToLower().Contains(identifier) || identifier.Contains(s.MotherName.ToLower())))
+                            (isEmail && s.Email != null && s.Email.ToLower() == identifier) ||
+                            (digitsOnly.Length >= 7 && (
+                                (s.FatherMobile != null && s.FatherMobile.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
+                                (s.MotherMobile != null && s.MotherMobile.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
+                                (s.MobileNumber != null && s.MobileNumber.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly))
+                            )) ||
+                            (!isEmail && !isGenericName && (
+                                (s.FatherName != null && s.FatherName.ToLower() == identifier) ||
+                                (s.MotherName != null && s.MotherName.ToLower() == identifier) ||
+                                (s.StudentName != null && s.StudentName.ToLower() == identifier)
+                            ))
                         )
                         .OrderByDescending(s => s.StudentId)
                         .ToListAsync();
 
-                    if (exactParentMatch.Any())
-                        return exactParentMatch;
+                    matchedStudents.AddRange(studentMatches);
 
-                    // 2. Secondary student name match
-                    var studentNameMatch = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
+                    // 2. Direct match on AdmissionApplications table (for newly admitted students like Ricky Ponting)
+                    var admissionMatches = await _context.AdmissionApplications
+                        .Include(a => a.AppliedClass)
                         .AsNoTracking()
-                        .Where(s => !s.IsDeleted && s.Status == "Active")
-                        .Where(s => s.StudentName != null && (s.StudentName.ToLower().Contains(identifier) || identifier.Contains(s.StudentName.ToLower())))
-                        .OrderByDescending(s => s.StudentId)
+                        .Where(a => !a.IsDeleted && a.Status != "Rejected" && a.Status != "Cancelled")
+                        .Where(a =>
+                            (isEmail && a.ParentEmail != null && a.ParentEmail.ToLower() == identifier) ||
+                            (digitsOnly.Length >= 7 && (
+                                (a.FatherContact != null && a.FatherContact.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
+                                (a.MotherMobileNumber != null && a.MotherMobileNumber.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
+                                (a.AlternateMobileNumber != null && a.AlternateMobileNumber.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly))
+                            )) ||
+                            (!isEmail && !isGenericName && (
+                                (a.FatherName != null && a.FatherName.ToLower() == identifier) ||
+                                (a.MotherName != null && a.MotherName.ToLower() == identifier) ||
+                                (a.FirstName != null && (a.FirstName.ToLower() == identifier || $"{a.FirstName} {a.LastName}".ToLower() == identifier))
+                            ))
+                        )
+                        .OrderByDescending(a => a.Id)
                         .ToListAsync();
 
-                    if (studentNameMatch.Any())
-                        return studentNameMatch;
+                    foreach (var adm in admissionMatches)
+                    {
+                        var sName = $"{adm.FirstName} {adm.LastName}".Trim();
+                        if (string.IsNullOrWhiteSpace(sName)) sName = "Student";
+
+                        var admStudent = new Student
+                        {
+                            StudentId = adm.Id,
+                            AdmissionNumber = !string.IsNullOrWhiteSpace(adm.RegistrationNo) ? adm.RegistrationNo : $"REG-{adm.Id}",
+                            RollNumber = $"REG-{adm.Id}",
+                            StudentName = sName,
+                            DateOfBirth = adm.DateOfBirth,
+                            Gender = adm.Gender ?? "Male",
+                            FatherName = adm.FatherName ?? "Parent",
+                            MotherName = adm.MotherName,
+                            FatherMobile = adm.FatherContact,
+                            MotherMobile = adm.MotherMobileNumber,
+                            Email = adm.ParentEmail,
+                            MobileNumber = adm.FatherContact ?? adm.MotherMobileNumber,
+                            Address = $"{adm.HouseNo} {adm.Street} {adm.AreaLocality} {adm.City}".Trim(),
+                            ClassGrade = adm.AppliedClass ?? new ClassGrade { ClassName = "Class 5" },
+                            ClassSection = new ClassSection { SectionName = "A" },
+                            Status = "Active"
+                        };
+
+                        if (!matchedStudents.Any(s => s.StudentId == admStudent.StudentId || s.AdmissionNumber == admStudent.AdmissionNumber))
+                        {
+                            matchedStudents.Add(admStudent);
+                        }
+                    }
+
+                    if (matchedStudents.Any())
+                    {
+                        return matchedStudents;
+                    }
                 }
 
-                var defaultStudents = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .AsNoTracking()
-                    .Where(s => !s.IsDeleted && s.Status == "Active")
-                    .Where(s => s.StudentName != null && s.StudentName.ToLower().Contains("sunny"))
-                    .ToListAsync();
-
-                if (!defaultStudents.Any())
-                {
-                    defaultStudents = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .AsNoTracking()
-                        .Where(s => !s.IsDeleted && s.Status == "Active")
-                        .Take(1)
-                        .ToListAsync();
-                }
-
-                return defaultStudents;
+                return new List<Student>();
             }
             catch (Exception ex)
             {

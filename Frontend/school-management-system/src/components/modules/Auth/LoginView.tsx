@@ -90,10 +90,24 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [rememberMe, setRememberMe] = useState(() => {
     return localStorage.getItem('remember_me') === 'true';
   });
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState(() => {
+    if (localStorage.getItem('remember_me') === 'true') {
+      return localStorage.getItem('remember_me_identifier') || '';
+    }
+    return '';
+  });
+  const [password, setPassword] = useState(() => {
+    if (localStorage.getItem('remember_me') === 'true') {
+      return localStorage.getItem('remember_me_password') || '';
+    }
+    return '';
+  });
   const [showPassword, setShowPassword] = useState(false);
   
+  const [identifierTouched, setIdentifierTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [loginSubmitted, setLoginSubmitted] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -101,35 +115,43 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [mode, setMode] = useState<'login' | 'forgot' | 'verify-otp' | 'reset-password'>('login');
   
   const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotIdentifierTouched, setForgotIdentifierTouched] = useState(false);
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
+
   const [otp, setOtp] = useState('');
+  const [otpTouched, setOtpTouched] = useState(false);
+  const [otpSubmitted, setOtpSubmitted] = useState(false);
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [newPasswordTouched, setNewPasswordTouched] = useState(false);
+  const [confirmNewPasswordTouched, setConfirmNewPasswordTouched] = useState(false);
+  const [resetSubmitted, setResetSubmitted] = useState(false);
 
   // High Resolution School Campus Background Image
   const bgCampusImage = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2000&auto=format&fit=crop';
 
-  // Load remembered credentials helper
-  const loadRememberedDetails = () => {
-    const savedId = localStorage.getItem('remember_me_identifier');
-    const savedPw = localStorage.getItem('remember_me_password');
-    if (savedId && savedPw) {
-      setIdentifier(savedId);
-      setPassword(savedPw);
-      setRememberMe(true);
-    }
-  };
-
-  const handleInputFocus = () => {
-    if (!identifier && !password) {
-      loadRememberedDetails();
-    }
-  };
+  // Listen for session expiration events (24-hour token reset)
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setError('Session expired. Please sign in again.');
+    };
+    window.addEventListener('session_expired', handleSessionExpired);
+    return () => window.removeEventListener('session_expired', handleSessionExpired);
+  }, []);
 
   const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
     setRememberMe(isChecked);
-    if (isChecked && !identifier && !password) {
-      loadRememberedDetails();
+    if (isChecked) {
+      const savedId = localStorage.getItem('remember_me_identifier');
+      const savedPw = localStorage.getItem('remember_me_password');
+      if (savedId && !identifier) setIdentifier(savedId);
+      if (savedPw && !password) setPassword(savedPw);
+    } else {
+      localStorage.removeItem('remember_me');
+      localStorage.removeItem('remember_me_identifier');
+      localStorage.removeItem('remember_me_password');
     }
   };
 
@@ -139,32 +161,71 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     setActiveRole(initialRole);
   }, [initialRole]);
 
+  // Validation helpers for clean simple error messages
+  const getIdentifierError = () => {
+    if (!identifier.trim()) {
+      return (identifierTouched || loginSubmitted) ? 'Email or phone is required' : '';
+    }
+    const clean = identifier.trim();
+    if (clean.includes('@')) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(clean) && (identifierTouched || loginSubmitted)) {
+        return 'Invalid email address';
+      }
+    } else {
+      const digits = clean.replace(/\D/g, '');
+      if (digits.length < 8 && (identifierTouched || loginSubmitted)) {
+        return 'Invalid phone number';
+      }
+    }
+    return '';
+  };
+
+  const getPasswordError = () => {
+    if (!password) {
+      return (passwordTouched || loginSubmitted) ? 'Password is required' : '';
+    }
+    if (password.length < 4 && (passwordTouched || loginSubmitted)) {
+      return 'Password must be at least 4 characters';
+    }
+    return '';
+  };
+
   const handleLoginSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!identifier || !password) {
-      setError('Please fill in both identifier and password.');
+    setLoginSubmitted(true);
+    
+    const idErr = getIdentifierError();
+    const pwErr = getPasswordError();
+    if (idErr || pwErr || !identifier.trim() || !password) {
       return;
     }
+
     if (rememberMe) {
       localStorage.setItem('remember_me', 'true');
-      localStorage.setItem('remember_me_identifier', identifier);
+      localStorage.setItem('remember_me_identifier', identifier.trim());
       localStorage.setItem('remember_me_password', password);
     } else {
       localStorage.removeItem('remember_me');
       localStorage.removeItem('remember_me_identifier');
       localStorage.removeItem('remember_me_password');
     }
+
     setError('');
     setLoading(true);
     try {
-      await login(identifier, password, activeRole as any);
-      addToast('success', 'Authentication Successful', `Welcome to ${schoolName}!`);
+      await login(identifier.trim(), password);
+      addToast('success', 'Authentication Successful', `Welcome to ${schoolName || 'the Campus Portal'}!`);
     } catch (err: any) {
       const errorMessage = err?.message || '';
-      if (errorMessage.includes('502') || errorMessage.includes('503') || errorMessage.includes('Failed to fetch')) {
-        setError('The server is currently unreachable. Please try again later.');
+      if (errorMessage.includes('502') || errorMessage.includes('503') || errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        setError('Server unreachable. Please try again.');
+      } else if (errorMessage.toLowerCase().includes('password') || errorMessage.toLowerCase().includes('credential') || errorMessage.toLowerCase().includes('user not found')) {
+        setError('Invalid email/phone or password');
+      } else if (errorMessage.toLowerCase().includes('inactive') || errorMessage.toLowerCase().includes('disabled')) {
+        setError('Account is inactive. Contact admin.');
       } else {
-        setError(errorMessage || 'Invalid email/phone or password.');
+        setError(errorMessage || 'Sign in failed');
       }
       setLoading(false);
     }
@@ -172,15 +233,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleForgotSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!forgotIdentifier) return;
+    setForgotSubmitted(true);
+    if (!forgotIdentifier.trim()) return;
     setError('');
     setLoading(true);
     try {
-      await sendOtp(forgotIdentifier);
-      addToast('info', 'OTP Sent', `Verification code sent to ${forgotIdentifier}.`);
+      await sendOtp(forgotIdentifier.trim());
+      addToast('info', 'OTP Sent', `Verification code sent to ${forgotIdentifier.trim()}.`);
       setMode('verify-otp');
-    } catch (err) {
-      setError('Failed to send OTP. Please check your contact information.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -188,15 +250,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleVerifyOtpSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!otp) return;
+    setOtpSubmitted(true);
+    if (!otp.trim() || otp.trim().length < 6) return;
     setError('');
     setLoading(true);
     try {
-      await verifyOtp(forgotIdentifier, otp);
+      await verifyOtp(forgotIdentifier.trim(), otp.trim());
       addToast('success', 'OTP Verified', 'Please enter your new password.');
       setMode('reset-password');
-    } catch (err) {
-      setError('Invalid verification code.');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid or expired code');
     } finally {
       setLoading(false);
     }
@@ -204,26 +267,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const handleResetPasswordSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    setResetSubmitted(true);
+    if (!newPassword || !confirmNewPassword) return;
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
     if (newPassword !== confirmNewPassword) {
-      setError('Passwords do not match.');
+      setError('Passwords do not match');
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await resetPasswordWithOtp(forgotIdentifier, otp, newPassword);
+      await resetPasswordWithOtp(forgotIdentifier.trim(), otp.trim(), newPassword);
       addToast('success', 'Password Reset Successful', 'You can now sign in with your new password.');
       setMode('login');
       setOtp('');
       setNewPassword('');
       setConfirmNewPassword('');
       setForgotIdentifier('');
-    } catch (err) {
-      setError('Failed to reset password.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to reset password');
     } finally {
       setLoading(false);
     }
   };
+
+  const identifierError = getIdentifierError();
+  const passwordError = getPasswordError();
 
   return (
     <div className="min-h-screen w-full flex flex-col font-sans overflow-x-hidden relative text-slate-900 dark:text-slate-100 selection:bg-sky-500 selection:text-white">
@@ -277,31 +349,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   {schoolName}
                 </h1>
-                {activeRole ? (
-                  <div className="mt-1.5 flex items-center justify-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 shadow-sm">
-                      <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                      {activeRole === 'Admin' ? 'Administrator Portal' : `${activeRole} Portal`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveRole(undefined)}
-                      className="text-[11px] text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 font-semibold underline underline-offset-2 transition-colors cursor-pointer"
-                    >
-                      (Switch)
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider mt-0.5">
-                    Sign In Portal
-                  </p>
-                )}
+                <p className="text-xs text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider mt-1">
+                  Sign In Portal
+                </p>
               </div>
             </div>
 
-            {/* Error Alert */}
+            {/* Error Alert Banner */}
             {error && (
-              <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold animate-in slide-in-from-top-2">
+              <div className="mb-5 flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold animate-in slide-in-from-top-2">
                 <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{error}</span>
               </div>
@@ -309,12 +365,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* SINGLE LOGIN FORM FOR ALL USERS */}
             {mode === 'login' && (
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <form onSubmit={handleLoginSubmit} noValidate className="space-y-4">
                 
                 {/* Email / Phone Identifier */}
-                <div className="space-y-1.5 text-left">
+                <div className="space-y-1 text-left">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Email Address or Phone Number
+                    Email Address or Phone Number <span className="text-rose-500 ml-0.5">*</span>
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500">
@@ -323,20 +379,31 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type="text"
                       value={identifier}
-                      onChange={e => setIdentifier(e.target.value)}
-                      onFocus={handleInputFocus}
-                      onClick={handleInputFocus}
+                      onChange={e => {
+                        setIdentifier(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setIdentifierTouched(true)}
                       placeholder="Enter registered email or phone"
-                      required
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        identifierError
+                          ? 'border-rose-500 focus:ring-rose-500/30 focus:border-rose-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                      }`}
                     />
                   </div>
+                  {identifierError && (
+                    <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{identifierError}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Password */}
-                <div className="space-y-1.5 text-left">
+                <div className="space-y-1 text-left">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Password
+                    Password <span className="text-rose-500 ml-0.5">*</span>
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500">
@@ -345,25 +412,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      onFocus={handleInputFocus}
-                      onClick={handleInputFocus}
+                      onChange={e => {
+                        setPassword(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setPasswordTouched(true)}
                       placeholder="Enter your password"
-                      required
-                      className="w-full pl-11 pr-11 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium"
+                      className={`w-full pl-11 pr-11 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        passwordError
+                          ? 'border-rose-500 focus:ring-rose-500/30 focus:border-rose-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide Password" : "Show Password"}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                       tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                     </button>
                   </div>
+                  {passwordError && (
+                    <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{passwordError}</span>
+                    </div>
+                  )}
 
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center justify-between pt-1.5">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -378,8 +456,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     
                     <button
                       type="button"
-                      onClick={() => setMode('forgot')}
-                      className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline"
+                      onClick={() => {
+                        setError('');
+                        setMode('forgot');
+                      }}
+                      className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
                     >
                       Forgot Password?
                     </button>
@@ -390,7 +471,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl text-sm shadow-xl shadow-sky-500/30 active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                    className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl text-sm shadow-xl shadow-sky-500/30 active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
                   >
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -408,16 +489,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* FORGOT PASSWORD FORM */}
             {mode === 'forgot' && (
-              <form onSubmit={handleForgotSubmit} className="space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleForgotSubmit} noValidate className="space-y-4 animate-in fade-in duration-300">
                 <div className="space-y-1 mb-2 text-left">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recover Password</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Recover Password</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                    Enter your registered email or phone to receive an OTP code.
+                    Enter your registered email address or mobile phone to receive a verification OTP code.
                   </p>
                 </div>
 
-                <div className="space-y-1.5 text-left">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Email or Phone</label>
+                <div className="space-y-1 text-left">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Email or Mobile Number <span className="text-rose-500 ml-0.5">*</span>
+                  </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Mail className="w-4.5 h-4.5" />
@@ -425,19 +508,32 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type="text"
                       value={forgotIdentifier}
-                      onChange={e => setForgotIdentifier(e.target.value)}
+                      onChange={e => {
+                        setForgotIdentifier(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setForgotIdentifierTouched(true)}
                       placeholder="Enter registered email or phone"
-                      required
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all font-medium"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted))
+                          ? 'border-rose-500 focus:ring-rose-500/30 focus:border-rose-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                      }`}
                     />
                   </div>
+                  {(!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted)) && (
+                    <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Email or phone is required</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 pt-2">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 transition-all flex justify-center items-center gap-2"
+                    className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 transition-all flex justify-center items-center gap-2 cursor-pointer"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -447,8 +543,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode('login')}
-                    className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold rounded-xl transition-all"
+                    onClick={() => {
+                      setError('');
+                      setMode('login');
+                    }}
+                    className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
                   >
                     Back to Sign In
                   </button>
@@ -458,32 +557,53 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* VERIFY OTP FORM */}
             {mode === 'verify-otp' && (
-              <form onSubmit={handleVerifyOtpSubmit} className="space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleVerifyOtpSubmit} noValidate className="space-y-4 animate-in fade-in duration-300">
                 <div className="space-y-1 mb-2 text-left">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verify Code</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Verify Code</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                    We sent a 6-digit code to <span className="font-bold text-slate-900 dark:text-white">{forgotIdentifier}</span>
+                    We sent a 6-digit verification code to <span className="font-bold text-slate-900 dark:text-white">{forgotIdentifier}</span>.
                   </p>
                 </div>
 
-                <div className="space-y-1.5 text-left">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Verification Code</label>
+                <div className="space-y-1 text-left">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Verification Code <span className="text-rose-500 ml-0.5">*</span>
+                  </label>
                   <input
                     type="text"
                     value={otp}
-                    onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                    onChange={e => {
+                      setOtp(e.target.value.replace(/\D/g, ''));
+                      if (error) setError('');
+                    }}
+                    onBlur={() => setOtpTouched(true)}
                     placeholder="123456"
-                    required
                     maxLength={6}
-                    className="w-full px-4 py-3 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                    className={`w-full px-4 py-3 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 transition-all ${
+                      (!otp.trim() && (otpTouched || otpSubmitted))
+                        ? 'border-rose-500 focus:ring-rose-500/30 focus:border-rose-500'
+                        : 'border-slate-200 dark:border-slate-800 focus:ring-sky-500/50 focus:border-sky-500'
+                    }`}
                   />
+                  {(!otp.trim() && (otpTouched || otpSubmitted)) && (
+                    <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Verification code is required</span>
+                    </div>
+                  )}
+                  {otp.trim() && otp.trim().length < 6 && (otpTouched || otpSubmitted) && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mt-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Code must be 6 digits</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 pt-2">
                   <button
                     type="submit"
                     disabled={loading || otp.length < 6}
-                    className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 transition-all flex justify-center items-center gap-2 disabled:opacity-70"
+                    className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -493,8 +613,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode('login')}
-                    className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold rounded-xl transition-all"
+                    onClick={() => {
+                      setError('');
+                      setMode('login');
+                    }}
+                    className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -504,37 +627,73 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
             {/* RESET PASSWORD FORM */}
             {mode === 'reset-password' && (
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleResetPasswordSubmit} noValidate className="space-y-4 animate-in fade-in duration-300">
                 <div className="space-y-1 mb-2 text-left">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">New Password</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Create New Password</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                    Create a new password for your account.
+                    Set a secure new password for your account.
                   </p>
                 </div>
 
                 <div className="space-y-3 text-left">
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">New Password</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      New Password <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
                     <input
                       type="password"
                       value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
+                      onChange={e => {
+                        setNewPassword(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setNewPasswordTouched(true)}
+                      placeholder="Min. 6 characters"
+                      className={`w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!newPassword && (newPasswordTouched || resetSubmitted))
+                          ? 'border-rose-500 focus:ring-rose-500/30 focus:border-rose-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/50 focus:border-emerald-500'
+                      }`}
                     />
+                    {(!newPassword && (newPasswordTouched || resetSubmitted)) && (
+                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>New password is required</span>
+                      </div>
+                    )}
+                    {newPassword && newPassword.length < 6 && (newPasswordTouched || resetSubmitted) && (
+                      <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mt-1 animate-in fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>Password must be at least 6 characters</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Confirm Password</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Confirm New Password <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
                     <input
                       type="password"
                       value={confirmNewPassword}
-                      onChange={e => setConfirmNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
+                      onChange={e => {
+                        setConfirmNewPassword(e.target.value);
+                        if (error) setError('');
+                      }}
+                      onBlur={() => setConfirmNewPasswordTouched(true)}
+                      placeholder="Re-type new password"
+                      className={`w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
+                        (!confirmNewPassword && (confirmNewPasswordTouched || resetSubmitted))
+                          ? 'border-rose-500 focus:ring-rose-500/30 focus:border-rose-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/50 focus:border-emerald-500'
+                      }`}
                     />
+                    {(!confirmNewPassword && (confirmNewPasswordTouched || resetSubmitted)) && (
+                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>Please confirm your password</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -542,7 +701,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                   <button
                     type="submit"
                     disabled={loading || !newPassword || !confirmNewPassword}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/25 transition-all flex justify-center items-center gap-2 disabled:opacity-70"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/25 transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

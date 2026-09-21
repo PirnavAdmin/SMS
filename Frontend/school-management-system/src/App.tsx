@@ -71,6 +71,13 @@ import { SettingsView } from "./components/modules/Settings/SettingsView";
 import { TrainingContainerView } from "./components/modules/School Administration/Faculty Development & Training/TrainingContainerView";
 import { StaffLettersManagementView } from "./components/modules/Staff/Letters/StaffLettersManagementView";
 
+const formatEmailToName = (email?: string): string => {
+  if (!email || !email.includes('@')) return '';
+  const username = email.split('@')[0];
+  const parts = username.split(/[._-]/);
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+};
+
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user, setUser, role, setRole } = useAuth();
   const { staff, driverMasters, students, admissions } = useData();
@@ -162,7 +169,7 @@ const MainLayout: React.FC = () => {
 
       const effectiveParentName = !isInvalidParentName(userName)
         ? userName
-        : (!isInvalidParentName(resolvedParentName) ? resolvedParentName : 'Aashiq');
+        : (!isInvalidParentName(resolvedParentName) ? resolvedParentName : (user.email ? formatEmailToName(user.email) : 'Parent'));
 
       if (user.role !== 'Parent' || user.name !== effectiveParentName || role !== 'Parent') {
         const updated = { ...user, name: effectiveParentName, role: 'Parent' as any };
@@ -713,6 +720,7 @@ const MainLayout: React.FC = () => {
           <ReportsView />
         );
       case "users":
+      case "roles":
         return userRole === "parent" || userRole === "student" ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (

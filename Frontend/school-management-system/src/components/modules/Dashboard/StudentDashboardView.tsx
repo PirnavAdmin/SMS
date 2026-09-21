@@ -18,19 +18,42 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const rawUserName = (user?.name || '').trim().toLowerCase();
 
   const currentWard = students.find(s => {
-    if (userId && (String(s.id) === userId || s.admissionNo === userId || (s as any).rollNo === userId)) return true;
+    if (userId && (s.admissionNo === userId || (s as any).rollNo === userId)) return true;
     if (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) return true;
     if (userPhone && userPhone.length >= 10) {
       if (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) return true;
       if ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) return true;
-      if (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) return true;
     }
     if (rawUserName && rawUserName !== 'student' && rawUserName !== 'user') {
       const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
       if (sFullName === rawUserName || (s as any).name?.toLowerCase().trim() === rawUserName) return true;
     }
     return false;
-  }) || (students.length > 0 ? (students.find(s => s.status === 'Active') || students[0]) : null);
+  }) || ((useData().admissions || []).find(a => {
+    if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+    if (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) return true;
+    if (userPhone && userPhone.length >= 7 && (a.phone?.replace(/\D/g, '').endsWith(userPhone) || (a as any).fatherMobileNo?.replace(/\D/g, '').endsWith(userPhone))) return true;
+    if (rawUserName && rawUserName !== 'student' && rawUserName !== 'user' && (a.applicantName?.toLowerCase().trim() === rawUserName)) return true;
+    return false;
+  }) ? {
+    id: String(((useData().admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)))?.id || 'ADM-DYN'),
+    studentName: ((useData().admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)))?.applicantName || 'Student',
+    firstName: (((useData().admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)))?.applicantName || 'Student').split(' ')[0],
+    lastName: (((useData().admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)))?.applicantName || '').split(' ').slice(1).join(' '),
+    className: ((useData().admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)))?.appliedClass || 'Class 8',
+    section: 'A',
+    admissionNo: ((useData().admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)))?.registrationNo || 'REG-1957',
+    status: 'Active'
+  } : null) || {
+    id: `DYN-${userEmail || 'student'}`,
+    studentName: (user?.name && !['student', 'user'].includes(user.name.toLowerCase())) ? user.name : (userEmail ? userEmail.split('@')[0].split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 'Student'),
+    firstName: ((user?.name && !['student', 'user'].includes(user.name.toLowerCase())) ? user.name : (userEmail ? userEmail.split('@')[0].split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 'Student')).split(' ')[0],
+    lastName: ((user?.name && !['student', 'user'].includes(user.name.toLowerCase())) ? user.name : (userEmail ? userEmail.split('@')[0].split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 'Student')).split(' ').slice(1).join(' '),
+    className: 'Class 8',
+    section: 'A',
+    admissionNo: 'REG-1957',
+    status: 'Active'
+  };
 
   if (!currentWard) {
     return (

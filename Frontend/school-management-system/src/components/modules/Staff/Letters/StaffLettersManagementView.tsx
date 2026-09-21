@@ -8,6 +8,7 @@ import {
   Search,
   Filter,
   Eye,
+  Edit3,
   Printer,
   Download,
   Trash2,
@@ -35,7 +36,9 @@ import {
   deleteStaffLetterRecord,
   saveStaffLetterRecord,
   getDefaultLetterPayload,
-  DEFAULT_OFFER_TERMS
+  DEFAULT_OFFER_TERMS,
+  syncStaffLettersWithStaffList,
+  generateSeedStaffLetters
 } from '../../../../utils/staffLetterTemplates';
 import { initialStaff } from '../../../../services/mockData';
 import { StaffLetterModal } from './StaffLetterModal';
@@ -70,7 +73,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
 
   const [activeTab, setActiveTab] = useState<'registry' | 'templates' | 'quick-generate'>('registry');
   const [letters, setLetters] = useState<GeneratedStaffLetterRecord[]>(() => {
-    return getStoredStaffLetters();
+    return getStoredStaffLetters(staff.length > 0 ? staff : initialStaff, schoolProfile);
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -81,6 +84,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const [selectedStaffForGen, setSelectedStaffForGen] = useState<Staff | null>(null);
   const [selectedTypeForGen, setSelectedTypeForGen] = useState<StaffLetterType>('offer');
   const [existingRecordForView, setExistingRecordForView] = useState<GeneratedStaffLetterRecord | undefined>(undefined);
+  const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<GeneratedStaffLetterRecord | null>(null);
 
   // Global Template Settings State
@@ -99,22 +103,35 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const [globalNoticePeriodDays, setGlobalNoticePeriodDays] = useState(30);
 
   const refreshLetters = () => {
-    setLetters(getStoredStaffLetters());
+    const list = getStoredStaffLetters(staff.length > 0 ? staff : initialStaff, schoolProfile);
+    setLetters(list);
     setActiveTab('registry');
   };
 
+  const handleSyncAllStaff = () => {
+    const targetStaff = staff.length > 0 ? staff : initialStaff;
+    const synced = syncStaffLettersWithStaffList(targetStaff, schoolProfile);
+    setLetters(synced);
+    addToast('success', 'Staff Letters Synced', `Successfully indexed ${synced.length} institutional letters for all faculty & staff members.`);
+  };
+
   useEffect(() => {
-    refreshLetters();
+    // Automatically ensure all staff members have offer letters generated
+    const targetStaff = staff.length > 0 ? staff : initialStaff;
+    const synced = syncStaffLettersWithStaffList(targetStaff, schoolProfile);
+    setLetters(synced);
+
     window.addEventListener('staff_letters_updated', refreshLetters);
     return () => window.removeEventListener('staff_letters_updated', refreshLetters);
-  }, []);
+  }, [staff, schoolProfile]);
 
-  const handleOpenGenerator = (type: StaffLetterType = 'offer', specificStaff?: Staff, record?: GeneratedStaffLetterRecord) => {
+  const handleOpenGenerator = (type: StaffLetterType = 'offer', specificStaff?: Staff, record?: GeneratedStaffLetterRecord, readOnlyMode = false) => {
     const availableStaff = staff.length > 0 ? staff : (initialStaff.length > 0 ? initialStaff : [getSafeStaffFallback(schoolProfile)]);
     const target = specificStaff || availableStaff[0];
     setSelectedStaffForGen(target);
     setSelectedTypeForGen(type);
     setExistingRecordForView(record);
+    setIsReadOnlyModal(readOnlyMode);
     setGeneratorOpen(true);
   };
 
@@ -214,6 +231,14 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleSyncAllStaff}
+            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-xs transition transform active:scale-95 cursor-pointer whitespace-nowrap border border-slate-200 dark:border-slate-700"
+            title="Auto-generate and synchronize official offer letters for all active faculty and staff members"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Sync All Staff
+          </button>
           <button
             onClick={() => handleOpenGenerator('offer')}
             className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition transform active:scale-95 cursor-pointer whitespace-nowrap"
@@ -346,16 +371,24 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                 </div>
                 <h3 className="text-base font-black text-slate-800 dark:text-white">No Institutional Letters Issued Yet</h3>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Click the button below to generate, customize, and issue your first official appointment Offer Letter or
-                  Relieving Certificate.
+                  Click below to generate an official appointment Offer Letter or Relieving Certificate, or auto-populate offer letters for all registered school staff.
                 </p>
-                <button
-                  onClick={() => handleOpenGenerator('offer')}
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-md"
-                >
-                  <Plus className="w-4 h-4" />
-                  Generate First Letter
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                  <button
+                    onClick={() => handleOpenGenerator('offer')}
+                    className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Generate Custom Letter
+                  </button>
+                  <button
+                    onClick={handleSyncAllStaff}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl inline-flex items-center gap-2 cursor-pointer border border-slate-300 dark:border-slate-700"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Auto-Populate Offer Letters for All Staff
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -420,12 +453,8 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => {
-                                  setSelectedStaffForGen(
-                                    matchedStaff || ({ id: letter.staffId, empId: letter.staffEmpId, firstName: letter.staffName, lastName: '', designation: letter.designation, department: letter.department, branch: letter.branch } as any)
-                                  );
-                                  setSelectedTypeForGen(letter.letterType);
-                                  setExistingRecordForView(letter);
-                                  setGeneratorOpen(true);
+                                  const targetStaff = matchedStaff || ({ id: letter.staffId, empId: letter.staffEmpId, firstName: letter.staffName, lastName: '', designation: letter.designation, department: letter.department, branch: letter.branch } as any);
+                                  handleOpenGenerator(letter.letterType, targetStaff, letter, true);
                                 }}
                                 className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 hover:bg-sky-100 cursor-pointer"
                                 title="View & Print Document"
@@ -598,12 +627,13 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           onClose={() => {
             setGeneratorOpen(false);
             setExistingRecordForView(undefined);
+            setIsReadOnlyModal(false);
             refreshLetters();
           }}
           onNavigate={onNavigate}
           initialType={selectedTypeForGen}
           existingRecord={existingRecordForView}
-          readOnly={!!existingRecordForView}
+          readOnly={isReadOnlyModal}
         />
       )}
 

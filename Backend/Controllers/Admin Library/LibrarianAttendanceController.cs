@@ -52,21 +52,35 @@ public class LibrarianAttendanceController : ControllerBase
     {
         await EnsureDefaultAttendanceLogsAsync();
 
-        var query = _context.LibrarianAttendances.AsNoTracking().AsQueryable();
+        string viewMode = (view ?? "daily").ToLower().Trim();
 
-        if (!string.IsNullOrWhiteSpace(date))
+        if (viewMode == "daily")
         {
-            if (DateTime.TryParse(date, out var parsedDate))
+            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsedDate))
             {
                 query = query.Where(a => a.Date.Date == parsedDate.Date);
             }
         }
-
-        if (!string.IsNullOrWhiteSpace(month))
+        else if (viewMode == "weekly")
         {
-            if (DateTime.TryParse(month + "-01", out var parsedMonth))
+            DateTime refDate = DateTime.Today;
+            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsedDate))
+            {
+                refDate = parsedDate.Date;
+            }
+            DateTime startDate = refDate.AddDays(-7);
+            DateTime endDate = refDate.AddDays(1);
+            query = query.Where(a => a.Date.Date >= startDate && a.Date.Date <= endDate);
+        }
+        else if (viewMode == "monthly")
+        {
+            if (!string.IsNullOrWhiteSpace(month) && DateTime.TryParse(month + "-01", out var parsedMonth))
             {
                 query = query.Where(a => a.Date.Year == parsedMonth.Year && a.Date.Month == parsedMonth.Month);
+            }
+            else if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsedDate))
+            {
+                query = query.Where(a => a.Date.Year == parsedDate.Year && a.Date.Month == parsedDate.Month);
             }
         }
 

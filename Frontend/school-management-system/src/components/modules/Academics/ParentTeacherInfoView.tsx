@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, GraduationCap } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
-import { getParentTeachers } from '../../../api/parent/parentApi';
+import { getParentTeachers, getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 interface TeacherItem {
   id: string | number;
@@ -17,7 +17,7 @@ interface TeacherItem {
 }
 
 export const ParentTeacherInfoView: React.FC = () => {
-  const { students, staff, academicClasses, teacherAssignments, timetable, subjects: masterSubjects } = useData();
+  const { students, admissions, staff, academicClasses, teacherAssignments, timetable, subjects: masterSubjects } = useData();
   const { user, role } = useAuth();
   
   const [selectedWardIdx, setSelectedWardIdx] = useState(0);
@@ -25,35 +25,93 @@ export const ParentTeacherInfoView: React.FC = () => {
   const [subjectFilter, setSubjectFilter] = useState('All');
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchChildren = async () => {
+      try {
+        const children = await getParentChildren(user?.email);
+        if (isMounted) {
+          setApiChildren(children || []);
+        }
+      } catch (err) {
+        console.warn('Failed to load parent children in teacher view:', err);
+      }
+    };
+    fetchChildren();
+    return () => { isMounted = false; };
+  }, [user?.email]);
 
   const parentWards = useMemo(() => {
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
+    if (apiChildren.length > 0) {
+      return apiChildren.map(c => ({
+        id: String(c.studentId),
+        studentId: c.studentId,
+        firstName: c.firstName || c.studentName.split(' ')[0],
+        lastName: c.lastName || '',
+        studentName: c.studentName,
+        className: c.className || 'Class 6',
+        section: c.sectionName || 'A',
+        status: 'Active'
+      }));
+    }
 
-    const matches = students.filter(s => 
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
+
+    const studentMatches = (students || []).filter(s => 
       s.status === 'Active' && 
       (
-        role === 'Student' ? s.id === user?.id : 
+        role === 'Student' ? (s.id === user?.id || s.email === user?.email) : 
         (
           (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
             s.guardianEmail?.toLowerCase() === userEmail || 
-            s.guardianPhone?.toLowerCase() === userEmail || 
             s.contactEmail?.toLowerCase() === userEmail || 
-            s.contactPhone?.toLowerCase() === userEmail ||
             s.fatherPhone?.toLowerCase() === userEmail ||
             s.motherPhone?.toLowerCase() === userEmail
           )) ||
-          (userName && (
-            s.fatherName?.toLowerCase() === userName ||
-            s.motherName?.toLowerCase() === userName ||
-            s.guardianName?.toLowerCase() === userName
+          (userPhone && userPhone.length >= 7 && (
+            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
           ))
         )
       )
     );
 
-    return matches.length > 0 ? matches : students.filter(s => s.status === 'Active').slice(0, 1);
-  }, [students, user, role]);
+    const admissionMatches = (admissions || []).filter(a => {
+      if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      const phoneMatch = userPhone && userPhone.length >= 7 && (
+        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
+      );
+      const emailMatch = userEmail && (
+        (a.email && a.email.toLowerCase().trim() === userEmail) ||
+        ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
+      );
+      return phoneMatch || emailMatch;
+    }).map(a => ({
+      id: String(a.id),
+      studentId: a.id,
+      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
+      lastName: a.lastName || '',
+      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
+      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
+      section: (a as any).section || 'A',
+      status: 'Active'
+    }));
+
+    const combined = [...studentMatches, ...admissionMatches];
+    const unique = new Map();
+    combined.forEach(w => {
+      if (!unique.has(w.id)) unique.set(w.id, w);
+    });
+    return Array.from(unique.values());
+  }, [students, admissions, user, role, apiChildren]);
 
   const currentWard = parentWards[selectedWardIdx] || parentWards[0];
 

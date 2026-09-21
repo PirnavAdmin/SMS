@@ -15,12 +15,20 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
   const [oldPass, setOldPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
+  const [oldPassTouched, setOldPassTouched] = useState(false);
+  const [newPassTouched, setNewPassTouched] = useState(false);
+  const [confirmPassTouched, setConfirmPassTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    setSubmitted(true);
+    if (!oldPass || !newPass || !confirmPass) {
+      return;
+    }
     if (newPass !== confirmPass) {
       addToast('error', 'Password Mismatch', 'New password and confirmation do not match.');
       return;
@@ -37,6 +45,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
     setOldPass('');
     setNewPass('');
     setConfirmPass('');
+    setSubmitted(false);
     onClose();
   };
 
@@ -58,50 +67,77 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Current Password <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
-                required
                 value={oldPass}
                 onChange={e => setOldPass(e.target.value)}
+                onBlur={() => setOldPassTouched(true)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-brand-500"
+                className={`w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                  (!oldPass && (oldPassTouched || submitted))
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                }`}
               />
             </div>
+            {(!oldPass && (oldPassTouched || submitted)) && (
+              <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+            )}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              New Password <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
-                required
                 value={newPass}
                 onChange={e => setNewPass(e.target.value)}
+                onBlur={() => setNewPassTouched(true)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-brand-500"
+                className={`w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                  (!newPass && (newPassTouched || submitted))
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                }`}
               />
             </div>
+            {(!newPass && (newPassTouched || submitted)) && (
+              <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+            )}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Confirm New Password <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
-                required
                 value={confirmPass}
                 onChange={e => setConfirmPass(e.target.value)}
+                onBlur={() => setConfirmPassTouched(true)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-brand-500"
+                className={`w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                  (!confirmPass && (confirmPassTouched || submitted))
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                }`}
               />
             </div>
+            {(!confirmPass && (confirmPassTouched || submitted)) && (
+              <p className="text-xs text-red-500 font-medium mt-1">Required</p>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2">

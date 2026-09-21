@@ -233,6 +233,12 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* Hide native MS Edge/IE password reveal & clear icons to prevent duplicate toggle icons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 /* Lined Notepad Styling */
 .notepad-lines {
   background-color: #fffdf5 !important;

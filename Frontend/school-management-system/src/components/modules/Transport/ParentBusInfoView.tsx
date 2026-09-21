@@ -10,7 +10,7 @@ import { Badge } from '../../common/Badge';
 import { getParentChildren, getParentTransport, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentBusInfoView: React.FC = () => {
-  const { students } = useData();
+  const { students = [], admissions = [] } = useData();
   const { user, role } = useAuth();
 
   const [selectedWardIdx, setSelectedWardIdx] = useState(0);
@@ -25,8 +25,8 @@ export const ParentBusInfoView: React.FC = () => {
       try {
         const identifier = user?.email || user?.name || '';
         const children = await getParentChildren(identifier);
-        if (isMounted && children && children.length > 0) {
-          setApiChildren(children);
+        if (isMounted) {
+          setApiChildren(children || []);
         }
       } catch (err) {
         console.warn('Failed to load parent children in transport view:', err);
@@ -52,31 +52,28 @@ export const ParentBusInfoView: React.FC = () => {
     }
 
     const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
 
-    const localMatches = students.filter(s => 
+    const studentMatches = (students || []).filter(s => 
       s.status === 'Active' && 
       (
         role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
         (
           (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
             s.guardianEmail?.toLowerCase() === userEmail || 
-            s.guardianPhone?.toLowerCase() === userEmail || 
             s.contactEmail?.toLowerCase() === userEmail || 
-            s.contactPhone?.toLowerCase() === userEmail ||
             s.fatherPhone?.toLowerCase() === userEmail ||
             s.motherPhone?.toLowerCase() === userEmail
           )) ||
-          (userName && (
-            s.fatherName?.toLowerCase() === userName ||
-            s.fatherName?.toLowerCase().includes(userName) ||
-            userName.includes(s.fatherName?.toLowerCase() || '___')
+          (userPhone && userPhone.length >= 7 && (
+            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
           ))
         )
       )
-    );
-
-    return localMatches.map(s => ({
+    ).map(s => ({
       id: String(s.id),
       studentId: Number(s.id),
       admissionNo: s.admissionNo || '',
@@ -85,9 +82,41 @@ export const ParentBusInfoView: React.FC = () => {
       studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || '',
       className: s.className || 'Class 6',
       section: s.section || 'A',
+      status: s.status || 'Active'
+    }));
+
+    const admissionMatches = (admissions || []).filter(a => {
+      if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      const phoneMatch = userPhone && userPhone.length >= 7 && (
+        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
+        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
+      );
+      const emailMatch = userEmail && (
+        (a.email && a.email.toLowerCase().trim() === userEmail) ||
+        ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
+      );
+      return phoneMatch || emailMatch;
+    }).map(a => ({
+      id: String(a.id),
+      studentId: a.id,
+      admissionNo: a.applicationNo || a.registrationNo || (a as any).admissionNo || `ADM-${a.id}`,
+      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
+      lastName: a.lastName || '',
+      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
+      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
+      section: (a as any).section || 'A',
       status: 'Active'
     }));
-  }, [apiChildren, students, user, role]);
+
+    const combined = [...studentMatches, ...admissionMatches];
+    const unique = new Map();
+    combined.forEach(w => {
+      if (!unique.has(w.id)) unique.set(w.id, w);
+    });
+    return Array.from(unique.values());
+  }, [apiChildren, students, admissions, user, role]);
 
   const currentWard = parentWards[selectedWardIdx] || parentWards[0];
 

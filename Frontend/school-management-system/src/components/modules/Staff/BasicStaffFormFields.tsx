@@ -27,6 +27,7 @@ import {
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { lookupPostalCode, getOfflinePostalInfo, validateStateName, validateCityName, VALID_INDIAN_STATES, KNOWN_INDIAN_CITIES, WORLD_COUNTRIES, COUNTRY_DIAL_CODES } from '../../../utils/postalLookup';
+import { validateEmail } from '../../../utils/validation';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;
@@ -281,8 +282,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
         stepErrors.panNumber = "Invalid PAN Number format (e.g. ABCDE1234F).";
       }
       require("email", !!value.email.trim(), "Email address is required.");
-      if (value.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email.trim())) {
-        stepErrors.email = "Invalid email format.";
+      if (value.email.trim()) {
+        const emailRes = validateEmail(value.email.trim(), true);
+        if (!emailRes.isValid && emailRes.error) {
+          stepErrors.email = emailRes.error;
+        }
       }
     } else if (step === 2) {
       require("branch", !!value.branch.trim(), "Branch is required.");
@@ -744,8 +748,32 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <input
                   type="text"
                   value={value.firstName}
-                  onChange={e => onChange('firstName', e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
-                  className={fieldClass}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                    onChange('firstName', val);
+                    if (!val.trim()) {
+                      setLocalErrors(prev => ({ ...prev, firstName: 'First Name is required.' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.firstName;
+                        return copy;
+                      });
+                    }
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value.trim();
+                    if (!val) {
+                      setLocalErrors(prev => ({ ...prev, firstName: 'First Name is required.' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.firstName;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${fieldClass} ${errors.firstName ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                 />
                 {errors.firstName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.firstName}</p>}
               </div>
@@ -758,8 +786,32 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <input
                   type="text"
                   value={value.lastName}
-                  onChange={e => onChange('lastName', e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
-                  className={fieldClass}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                    onChange('lastName', val);
+                    if (!val.trim()) {
+                      setLocalErrors(prev => ({ ...prev, lastName: 'Last Name is required.' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.lastName;
+                        return copy;
+                      });
+                    }
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value.trim();
+                    if (!val) {
+                      setLocalErrors(prev => ({ ...prev, lastName: 'Last Name is required.' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.lastName;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${fieldClass} ${errors.lastName ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                 />
                 {errors.lastName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.lastName}</p>}
               </div>
@@ -904,8 +956,42 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <input
                   type="email"
                   value={value.email}
-                  onChange={e => onChange('email', e.target.value)}
-                  className={fieldClass}
+                  onChange={e => {
+                    const newEmail = e.target.value;
+                    onChange('email', newEmail);
+                    if (newEmail.trim()) {
+                      const res = validateEmail(newEmail, false);
+                      if (!res.isValid && res.error) {
+                        setLocalErrors(prev => ({ ...prev, email: res.error! }));
+                      } else {
+                        setLocalErrors(prev => {
+                          const copy = { ...prev };
+                          delete copy.email;
+                          return copy;
+                        });
+                      }
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.email;
+                        return copy;
+                      });
+                    }
+                  }}
+                  onBlur={e => {
+                    const emailVal = e.target.value;
+                    const res = validateEmail(emailVal, true);
+                    if (!res.isValid && res.error) {
+                      setLocalErrors(prev => ({ ...prev, email: res.error! }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.email;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${fieldClass} ${errors.email ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                 />
                 {errors.email && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.email}</p>}
               </div>
@@ -919,16 +1005,45 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-xs">Identity Details</h3>
             </div>
 
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">              {/* Aadhaar Number */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Aadhaar Number <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
+                  maxLength={12}
                   value={value.aadhaarNumber || ''}
-                  onChange={e => onChange('aadhaarNumber', e.target.value)}
-                  className={`${fieldClass} font-mono`}
+                  onChange={e => {
+                    const cleanVal = e.target.value.replace(/\D/g, '').slice(0, 12);
+                    onChange('aadhaarNumber', cleanVal);
+                    if (!cleanVal) {
+                      setLocalErrors(prev => ({ ...prev, aadhaarNumber: 'Aadhaar Number is required.' }));
+                    } else if (cleanVal.length < 12) {
+                      setLocalErrors(prev => ({ ...prev, aadhaarNumber: 'Aadhaar Number must be exactly 12 digits.' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.aadhaarNumber;
+                        return copy;
+                      });
+                    }
+                  }}
+                  onBlur={e => {
+                    const val = (e.target.value || '').replace(/\D/g, '').slice(0, 12);
+                    if (!val) {
+                      setLocalErrors(prev => ({ ...prev, aadhaarNumber: 'Aadhaar Number is required.' }));
+                    } else if (val.length < 12) {
+                      setLocalErrors(prev => ({ ...prev, aadhaarNumber: 'Aadhaar Number must be exactly 12 digits.' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.aadhaarNumber;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${fieldClass} font-mono ${errors.aadhaarNumber ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                   placeholder="Enter 12-digit Aadhaar"
                 />
                 {errors.aadhaarNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.aadhaarNumber}</p>}
@@ -941,9 +1056,38 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={10}
                   value={value.panNumber || ''}
-                  onChange={e => onChange('panNumber', e.target.value.toUpperCase())}
-                  className={`${fieldClass} font-mono uppercase`}
+                  onChange={e => {
+                    const cleanVal = e.target.value.toUpperCase().slice(0, 10);
+                    onChange('panNumber', cleanVal);
+                    if (!cleanVal) {
+                      setLocalErrors(prev => ({ ...prev, panNumber: 'PAN Number is required.' }));
+                    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanVal)) {
+                      setLocalErrors(prev => ({ ...prev, panNumber: 'Invalid PAN Number format (e.g. ABCDE1234F).' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.panNumber;
+                        return copy;
+                      });
+                    }
+                  }}
+                  onBlur={e => {
+                    const val = (e.target.value || '').toUpperCase().slice(0, 10);
+                    if (!val) {
+                      setLocalErrors(prev => ({ ...prev, panNumber: 'PAN Number is required.' }));
+                    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(val)) {
+                      setLocalErrors(prev => ({ ...prev, panNumber: 'Invalid PAN Number format (e.g. ABCDE1234F).' }));
+                    } else {
+                      setLocalErrors(prev => {
+                        const copy = { ...prev };
+                        delete copy.panNumber;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${fieldClass} font-mono uppercase ${errors.panNumber ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                   placeholder="Enter 10-char PAN"
                 />
                 {errors.panNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.panNumber}</p>}

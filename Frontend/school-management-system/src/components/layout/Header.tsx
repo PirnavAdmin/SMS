@@ -94,23 +94,37 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
 
     // 2. If parent role, look up parent name
-    if (userRole === 'parent') {
+    if (userRole === 'parent' || (user?.email && user.email.toLowerCase().includes('parent'))) {
       const isInvalidParentName = (n?: string) => {
         const clean = (n || '').trim().toLowerCase();
-        return !clean || ['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean) || clean.includes('srinivas') || clean.includes('karthik');
+        if (!clean) return true;
+        if (['parent', 'user', 'administrator', 'admin', 'karthik kumar', 'srinivas kumar', 'srinivasa rao', 'srinivas sai'].includes(clean)) return true;
+        if (clean.includes('srinivas') || clean.includes('karthik') || clean.includes('parent') || clean.includes('pirnav')) return true;
+        const isStudentNameMatch = (students || []).some(s => s.studentName?.toLowerCase() === clean || `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === clean) ||
+          (admissions || []).some(a => (a as any).applicantName?.toLowerCase() === clean || `${a.firstName || ''} ${a.lastName || ''}`.trim().toLowerCase() === clean);
+        return isStudentNameMatch;
       };
-
-      const rawName = (user?.name || '').trim();
-      if (!isInvalidParentName(rawName)) {
-        return rawName;
-      }
 
       const userEmail = (user?.email || '').toLowerCase().trim();
       const userPhone = (user?.phone || '').replace(/\D/g, '');
+      const rawUserName = (user?.name || '').trim();
+
+      const matchedAdmission = (admissions || []).find(a => 
+        (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail)) ||
+        (userPhone && userPhone.length >= 7 && (
+          (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
+          ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone))
+        ))
+      );
+      if (matchedAdmission) {
+        const pName = (matchedAdmission as any).fatherFullName || (matchedAdmission as any).fatherName || matchedAdmission.parentName || matchedAdmission.motherName || (matchedAdmission as any).motherFullName;
+        if (!isInvalidParentName(pName)) return pName.trim();
+      }
 
       const matchedStudent = (students || []).find(s => 
-        (userEmail && (s.email?.toLowerCase().trim() === userEmail || s.guardianEmail?.toLowerCase().trim() === userEmail || s.fatherPhone?.toLowerCase().trim() === userEmail)) ||
-        (userPhone && userPhone.length >= 10 && (
+        (userEmail && (s.email?.toLowerCase().trim() === userEmail || s.guardianEmail?.toLowerCase().trim() === userEmail || (s as any).parentEmail?.toLowerCase().trim() === userEmail || s.fatherPhone?.toLowerCase().trim() === userEmail)) ||
+        (userPhone && userPhone.length >= 7 && (
           (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
           (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
           ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
@@ -122,19 +136,19 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         if (!isInvalidParentName(pName)) return pName.trim();
       }
 
-      const matchedAdmission = (admissions || []).find(a => 
-        (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
-        (userPhone && userPhone.length >= 10 && (
-          (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-          ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone))
-        ))
-      );
-      if (matchedAdmission) {
-        const pName = (matchedAdmission as any).fatherFullName || matchedAdmission.parentName || matchedAdmission.motherName || (matchedAdmission as any).motherFullName;
-        if (!isInvalidParentName(pName)) return pName.trim();
+      if (!isInvalidParentName(rawUserName)) {
+        return rawUserName;
       }
 
-      return 'Aashiq';
+      const sName = matchedAdmission?.applicantName || matchedStudent?.studentName || (matchedStudent ? `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() : '');
+      if (sName) {
+        return `${sName}'s Father`;
+      }
+
+      if (userEmail) {
+        return `${formatEmailToName(userEmail)}'s Father`;
+      }
+      return 'Parent';
     }
 
     // 3. If matching student found, use student's name
@@ -142,18 +156,38 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       const userEmail = (user?.email || '').toLowerCase().trim();
       const userPhone = (user?.phone || '').replace(/\D/g, '');
       const userId = String(user?.id || '').trim();
+
       const matchedStudent = (students || []).find(s => 
-        (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+        (userId && (s.admissionNo === userId || (s as any).rollNo === userId)) ||
         (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
         (userPhone && userPhone.length >= 10 && (
           (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
-          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
         ))
       );
       if (matchedStudent) {
-        const studentName = `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim();
+        const studentName = `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() || matchedStudent.studentName;
         if (studentName) return studentName;
+      }
+
+      const matchedAdmission = (admissions || []).find(a => 
+        (a.status !== 'Rejected' && a.status !== 'Cancelled') && (
+          (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
+          (userPhone && userPhone.length >= 7 && (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)))
+        )
+      );
+      if (matchedAdmission) {
+        const studentName = matchedAdmission.applicantName || `${matchedAdmission.firstName || ''} ${matchedAdmission.lastName || ''}`.trim();
+        if (studentName) return studentName;
+      }
+
+      const rawName = (user?.name || '').trim();
+      if (rawName && !['student', 'user', 'administrator', 'admin'].includes(rawName.toLowerCase())) {
+        return rawName;
+      }
+
+      if (userEmail) {
+        return formatEmailToName(userEmail);
       }
     }
 
@@ -442,7 +476,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const displayRole = useMemo(() => {
     const userRole = (role || user?.role || '').toLowerCase();
-    if (userRole === 'parent') return 'Parent';
+    if (userRole === 'parent' || (user?.role && user.role.toLowerCase() === 'parent') || (user?.email && user.email.toLowerCase().includes('parent'))) return 'Parent';
     if (userRole === 'student') return 'Student';
     return role || user?.role || 'User';
   }, [role, user]);

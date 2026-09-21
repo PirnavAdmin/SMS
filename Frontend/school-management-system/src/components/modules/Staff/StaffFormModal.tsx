@@ -16,6 +16,7 @@ import {
   normalizeStaffType,
 } from "./staffFlowOptions";
 import { BasicStaffFormFields } from "./BasicStaffFormFields";
+import { validateEmail } from "../../../utils/validation";
 
 interface StaffFormModalProps {
   isOpen: boolean;
@@ -200,11 +201,11 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
     // Email format check
     require("email", !!form.email.trim(), "Email address is required.");
-    if (
-      form.email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
-    ) {
-      nextErrors.email = "Invalid email format.";
+    if (form.email.trim()) {
+      const emailRes = validateEmail(form.email.trim(), true);
+      if (!emailRes.isValid && emailRes.error) {
+        nextErrors.email = emailRes.error;
+      }
     }
 
     // Duplicate Staff ID Check

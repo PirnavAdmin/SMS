@@ -75,9 +75,13 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     if (response.status === 401 && !endpoint.includes('/auth/')) {
       const hadToken = !!localStorage.getItem('auth_token');
       localStorage.removeItem('auth_user');
+      localStorage.removeItem('user');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_token_timestamp');
+      localStorage.removeItem('roles');
       localStorage.removeItem('active_module');
       if (hadToken) {
+        window.dispatchEvent(new CustomEvent('session_expired'));
         window.location.reload();
       }
     }

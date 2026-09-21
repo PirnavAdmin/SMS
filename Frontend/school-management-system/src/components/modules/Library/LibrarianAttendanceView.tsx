@@ -24,28 +24,29 @@ export interface LibrarianAttendanceRecord {
   remarks?: string;
 }
 
-export const calculateWorkedHours = (checkInTime?: string, checkOutTime?: string): string => {
-  if (!checkInTime || !checkOutTime) return '--';
-  
-  const parseTime = (timeStr: string): number | null => {
-    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+export const calculateWorkedHours = (inTime?: string, outTime?: string): string => {
+  if (!inTime || !outTime || inTime === '--' || outTime === '--') return '--';
+
+  const parseTimeToMinutes = (t: string) => {
+    const match = t.match(/(\d+):(\d+)\s*(AM|PM)?/i);
     if (!match) return null;
     let hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
-    const period = match[3]?.toUpperCase();
+    const period = match[3] ? match[3].toUpperCase() : null;
 
     if (period === 'PM' && hours < 12) hours += 12;
     if (period === 'AM' && hours === 12) hours = 0;
+
     return hours * 60 + minutes;
   };
 
-  const startMins = parseTime(checkInTime);
-  const endMins = parseTime(checkOutTime);
+  const startMins = parseTimeToMinutes(inTime);
+  const endMins = parseTimeToMinutes(outTime);
 
-  if (startMins === null || endMins === null || endMins < startMins) return '--';
+  if (startMins === null || endMins === null) return '--';
 
-  const diffMins = endMins - startMins;
-  if (diffMins === 0) return '0 Mins';
+  let diffMins = endMins - startMins;
+  if (diffMins < 0) diffMins += 24 * 60; // Overnight shift
 
   if (diffMins < 60) {
     return `${diffMins} Mins (${(diffMins / 60).toFixed(1)} Hours)`;
@@ -55,13 +56,43 @@ export const calculateWorkedHours = (checkInTime?: string, checkOutTime?: string
   return `${decimalHrs} Hours`;
 };
 
+export const deriveAttendanceStatus = (inTime?: string, status?: string): string => {
+  if (status === 'On Leave' || status === 'Absent' || status === 'Half Day') return status;
+  if (!inTime || inTime === '--') return status || 'Present';
+
+  try {
+    const match = inTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const period = match[3] ? match[3].toUpperCase() : null;
+
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      const inTimeDecimal = hours + minutes / 60;
+      if (inTimeDecimal > 8.5) {
+        return 'Late';
+      }
+    }
+  } catch (e) {}
+
+  return status || 'Present';
+};
+
+export const getAttendanceMapKey = (dateStr: string, nameStr: string) => {
+  const normDate = String(dateStr || '').split('T')[0].trim();
+  const normName = String(nameStr || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `${normDate}_${normName}`;
+};
+
 export const LIBRARIAN_ATTENDANCE_KEY = 'edu_db_librarian_attendance';
 
 export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [];
 
 export const LibrarianAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff, attendance = [], leaveApplications = [], addLeaveApplication } = useData();
+  const { staff, attendance = [], leaveApplications = [], addLeaveApplication, markAttendance } = useData();
   const { addToast } = useToast();
 
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
@@ -81,7 +112,7 @@ export const LibrarianAttendanceView: React.FC = () => {
 
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedAttendanceDate, setSelectedAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<string>('2026-08');
+  const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<string>(new Date().toISOString().slice(0, 7));
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -112,7 +143,7 @@ export const LibrarianAttendanceView: React.FC = () => {
     const loadAttendanceData = async () => {
       try {
         const res: any = await LibraryAPI.fetchLibrarianAttendanceApi(attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth);
-        if (res?.success && Array.isArray(res.data)) {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: LibrarianAttendanceRecord[] = res.data.map((item: any) => ({
             id: String(item.id || item.attendanceId || `ATT-LIB-${item.attendanceId}`),
             staffId: item.staffId || item.employeeCode || currentStaffId,
@@ -127,27 +158,29 @@ export const LibrarianAttendanceView: React.FC = () => {
             remarks: item.remarks || item.dutyRemarks || ''
           }));
 
-          // Merge backend API data with local state so local check-in records are NEVER overwritten or wiped out
+          // Merge backend API data with local state so local check-in records take absolute priority
           setLibrarianAttendance(prev => {
             const map = new Map<string, LibrarianAttendanceRecord>();
             (prev || []).forEach(r => {
-              const rDate = String(r.date || '').split('T')[0];
-              const key = `${rDate}_${r.staffId || r.staffName}`;
+              const rDate = String(r.date || todayStr).split('T')[0];
+              const key = getAttendanceMapKey(rDate, r.staffName || currentStaffName);
               map.set(key, { ...r, date: rDate });
             });
             mapped.forEach(r => {
-              const rDate = String(r.date || '').split('T')[0];
-              const key = `${rDate}_${r.staffId || r.staffName}`;
+              const rDate = String(r.date || todayStr).split('T')[0];
+              const key = getAttendanceMapKey(rDate, r.staffName || currentStaffName);
               if (!map.has(key)) {
                 map.set(key, { ...r, date: rDate });
               } else {
                 const existing = map.get(key)!;
                 map.set(key, {
-                  ...existing,
                   ...r,
+                  ...existing,
                   date: rDate,
                   checkInTime: existing.checkInTime || r.checkInTime,
-                  checkOutTime: existing.checkOutTime || r.checkOutTime
+                  checkOutTime: existing.checkOutTime || r.checkOutTime,
+                  status: existing.status || r.status,
+                  workingHours: existing.workingHours || r.workingHours
                 });
               }
             });
@@ -181,6 +214,44 @@ export const LibrarianAttendanceView: React.FC = () => {
       window.removeEventListener('storage', handleUpdate);
     };
   }, []);
+
+  // Available library staff members for Mark Attendance dropdown (strictly Library Department / Librarians)
+  const availableLibrarianMembers = useMemo(() => {
+    const list: { id: string; name: string; designation: string }[] = [];
+
+    // Filter staff members strictly belonging to Library Department or Librarian designation
+    const libraryStaff = (staff || []).filter(s => {
+      const dept = String(s.department || '').toLowerCase();
+      const des = String(s.designation || '').toLowerCase();
+      const roleStr = String(s.role || '').toLowerCase();
+      return dept.includes('library') || des.includes('librar') || roleStr.includes('librar');
+    });
+
+    libraryStaff.forEach(s => {
+      const sId = String(s.empId || s.id);
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+      const sDes = s.designation || 'Librarian';
+      if (sName && !list.some(item => item.id === sId || item.name.toLowerCase() === sName.toLowerCase())) {
+        list.push({ id: sId, name: sName, designation: sDes });
+      }
+    });
+
+    // Ensure core library staff members (Jammi Naidu, Bhanu Prakash, Rachel Green, Sarah Jenkins) are included if not present in staff list
+    const defaultLibStaff = [
+      { id: currentStaffId || 'NTS-2026-805', name: currentStaffName || 'Jammi Naidu', designation: 'Librarian' },
+      { id: 'EMP-LIB-01', name: 'Bhanu Prakash', designation: 'Librarian' },
+      { id: 'EMP-LIB-02', name: 'Rachel Green', designation: 'Assistant Librarian' },
+      { id: 'EMP-LIB-03', name: 'Sarah Jenkins', designation: 'Library Attendant' }
+    ];
+
+    defaultLibStaff.forEach(item => {
+      if (item.name && !list.some(m => m.name.toLowerCase() === item.name.toLowerCase() || m.id === item.id)) {
+        list.push(item);
+      }
+    });
+
+    return list;
+  }, [staff, currentStaffId, currentStaffName]);
 
   // Leave applications submitted by / for Librarian
   const myLeaveApplications = useMemo(() => {
@@ -219,20 +290,30 @@ export const LibrarianAttendanceView: React.FC = () => {
         const isRemarksMatch = String(r.remarks || '').toLowerCase().includes('librarian');
         const isLibrarianMatch = isDesignationMatch || isDeptMatch || isRoleMatch || isRemarksMatch;
 
-        if (sMatch || isNameMatch || isLibrarianMatch) {
-          const key = rDate;
+        const isMatch = sMatch || isNameMatch || isLibrarianMatch ||
+          (currentStaffId && (String(r.entityId) === String(currentStaffId) || String(r.staffId) === String(currentStaffId))) ||
+          (currentStaffName && String(r.employeeName || r.name || r.staffName || '').toLowerCase().includes(currentStaffName.toLowerCase().split(' ')[0]));
+
+        if (isMatch) {
+          const recStaffId = String(r.staffId || r.entityId || currentStaffId);
+          const recStaffName = String(r.staffName || r.employeeName || r.name || currentStaffName);
+          const key = getAttendanceMapKey(rDate, recStaffName);
+          const checkInTimeVal = r.checkInTime || r.inTime || r.timeIn || r.time || (r.status === 'Present' || r.status === 'Late' ? '08:30 AM' : '--');
+          const statusVal = deriveAttendanceStatus(checkInTimeVal, r.status);
+          const checkOutVal = r.checkOutTime || r.outTime || r.timeOut;
+
           if (!map.has(key)) {
             map.set(key, {
-              id: String(r.id || `ATT-ADMIN-${rDate}`),
-              staffId: String(r.staffId || r.entityId || matchedStaff?.empId || matchedStaff?.id || currentStaffId),
-              staffName: String(r.employeeName || r.name || r.staffName || currentStaffName),
+              id: String(r.id || `ATT-ADMIN-${rDate}-${recStaffId}`),
+              staffId: recStaffId,
+              staffName: recStaffName,
               role: 'Librarian',
               date: rDate,
-              checkInTime: r.checkInTime || r.inTime || r.timeIn || r.time || (r.status === 'Present' || r.status === 'Late' ? '08:30 AM' : '--'),
-              checkOutTime: r.checkOutTime || r.outTime || r.timeOut || (r.status === 'Present' || r.status === 'Late' ? '05:00 PM' : undefined),
-              workingHours: r.workingHours || (r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : '8 Hours'),
+              checkInTime: checkInTimeVal,
+              checkOutTime: checkOutVal || undefined,
+              workingHours: r.workingHours || (checkInTimeVal && checkOutVal ? calculateWorkedHours(checkInTimeVal, checkOutVal) : '--'),
               shift: r.shift || 'Morning Shift (08:30 - 17:00)',
-              status: (r.status as any) || 'Present',
+              status: statusVal as any,
               remarks: r.remarks || 'Recorded via Admin Staff Attendance'
             });
           }
@@ -253,13 +334,33 @@ export const LibrarianAttendanceView: React.FC = () => {
       } catch (e) {}
     }
 
-    // 3. Add/Override with local librarian attendance (punches from Librarian login)
+    // 3. Add/Override with local librarian attendance (punches from Librarian login take absolute priority!)
     (librarianAttendance || []).forEach((r) => {
       const rDate = String(r.date || '').split('T')[0];
-      const key = rDate;
+      const recStaffId = String(r.staffId || currentStaffId);
+      const recStaffName = String(r.staffName || currentStaffName);
+      const key = getAttendanceMapKey(rDate, recStaffName);
+      const existing = map.get(key);
+
+      const localIn = r.checkInTime || existing?.checkInTime;
+      const rawOut = r.checkOutTime !== undefined ? r.checkOutTime : existing?.checkOutTime;
+      const localOut = rawOut === '05:00 PM' && !r.checkOutTime ? undefined : rawOut;
+      const statusVal = deriveAttendanceStatus(localIn, r.status || existing?.status);
+
       map.set(key, {
+        id: r.id || existing?.id || `ATT-LIB-${rDate}`,
+        shift: r.shift || existing?.shift || 'Morning Shift (08:30 - 17:00)',
+        role: r.role || existing?.role || 'Librarian',
+        remarks: r.remarks || existing?.remarks || '',
+        ...existing,
         ...r,
-        date: rDate
+        date: rDate,
+        staffId: recStaffId,
+        staffName: recStaffName,
+        checkInTime: localIn,
+        checkOutTime: localOut,
+        status: statusVal as any,
+        workingHours: r.workingHours && r.workingHours !== '23.2 Hours' ? r.workingHours : (localIn && localOut ? calculateWorkedHours(localIn, localOut) : '--')
       });
     });
 
@@ -267,12 +368,14 @@ export const LibrarianAttendanceView: React.FC = () => {
     myLeaveApplications.forEach(app => {
       if (app.status === 'Approved' && app.startDate) {
         const leaveDate = String(app.startDate).split('T')[0];
-        const key = leaveDate;
+        const recStaffId = String(app.employeeId || (app as any).empId || currentStaffId);
+        const recStaffName = String(app.employeeName || currentStaffName);
+        const key = getAttendanceMapKey(leaveDate, recStaffName);
         if (!map.has(key)) {
           map.set(key, {
             id: `ATT-LIB-LV-${app.id || Date.now()}`,
-            staffId: app.employeeId || (app as any).empId || currentStaffId || 'EMP-LIB-01',
-            staffName: app.employeeName || currentStaffName || 'Jammi Naidu',
+            staffId: recStaffId,
+            staffName: recStaffName,
             role: 'Librarian',
             date: leaveDate,
             checkInTime: '--',
@@ -416,7 +519,7 @@ export const LibrarianAttendanceView: React.FC = () => {
                 onClick={async () => {
                   const now = new Date();
                   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                  const isLate = now.getHours() >= 9 && now.getMinutes() > 0;
+                  const isLate = now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() > 30);
                   const newRec: LibrarianAttendanceRecord = {
                     id: `ATT-LIB-${Date.now()}`,
                     staffId: currentStaffId,
@@ -466,7 +569,7 @@ export const LibrarianAttendanceView: React.FC = () => {
                 }}
                 className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4" /> Check In Now
+                <CheckCircle2 className="w-4 h-4" /> Check In
               </button>
             ) : !todayRecord.checkOutTime ? (
               <button
@@ -525,11 +628,11 @@ export const LibrarianAttendanceView: React.FC = () => {
                 }}
                 className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <Clock className="w-4 h-4" /> Check Out Shift
+                <Clock className="w-4 h-4" /> Check Out
               </button>
             ) : (
               <div className="px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Shift Completed ({calculateWorkedHours(todayRecord.checkInTime, todayRecord.checkOutTime)})
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Shift Completed
               </div>
             )}
           </div>
@@ -786,19 +889,21 @@ export const LibrarianAttendanceView: React.FC = () => {
                   <select
                     value={modalData?.staffId}
                     onChange={e => {
-                      const selected = e.target.value;
-                      const sObj = staff.find(st => st.id === selected || st.empId === selected);
+                      const selectedId = e.target.value;
+                      const member = availableLibrarianMembers.find(m => String(m.id) === String(selectedId));
                       setModalData({
                         ...modalData,
-                        staffId: selected,
-                        staffName: sObj ? `${sObj.firstName} ${sObj.lastName}` : 'Bhanu Prakash'
+                        staffId: selectedId,
+                        staffName: member ? member.name : 'Bhanu Prakash'
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                   >
-                    <option value="EMP-LIB-01">Bhanu Prakash (Librarian)</option>
-                    <option value="EMP-LIB-02">Rachel Green (Assistant Librarian)</option>
-                    <option value="EMP-LIB-03">Sarah Jenkins (Library Attendant)</option>
+                    {availableLibrarianMembers.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.designation})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

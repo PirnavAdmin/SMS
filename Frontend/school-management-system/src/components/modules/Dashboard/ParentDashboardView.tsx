@@ -219,8 +219,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     const loadBackendChildren = async () => {
       try {
         const children = await getParentChildren(user?.email);
-        if (isMounted && children && children.length > 0) {
-          setApiChildren(children);
+        if (isMounted) {
+          setApiChildren(children || []);
         }
       } catch (err) {
         console.warn('Failed to load parent children from API:', err);
@@ -232,18 +232,19 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     return () => { isMounted = false; };
   }, [user?.email]);
 
-  // Combined parent wards resolution for logged-in parent (e.g., Aashiq / Sunny Patel)
+  // Combined parent wards resolution for logged-in parent
   let parentWards: any[] = [];
   let hasMatchedWards = false;
 
   const userEmail = (user?.email || '').toLowerCase().trim();
   const userName = (user?.name || '').toLowerCase().trim();
   const userPhone = (user?.phone || '').replace(/\D/g, '');
+  const hasCredential = !!(userEmail || userPhone);
 
   const localStudentMatches = (students || []).filter(s => 
     s.status === 'Active' && 
     (
-      (userPhone && userPhone.length >= 10 && (
+      (userPhone && userPhone.length >= 7 && (
         (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
         (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
         ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
@@ -251,6 +252,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
       )) ||
       (userEmail && (
+        (s.email && s.email.toLowerCase().trim() === userEmail) ||
+        ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
         s.guardianEmail?.toLowerCase() === userEmail || 
         s.guardianPhone?.toLowerCase() === userEmail || 
         s.contactEmail?.toLowerCase() === userEmail || 
@@ -258,54 +261,53 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         s.fatherPhone?.toLowerCase() === userEmail ||
         s.motherPhone?.toLowerCase() === userEmail
       )) ||
-      (userName && !['parent', 'user', 'administrator', 'admin'].includes(userName) && (
-        (s.fatherName && (s.fatherName.toLowerCase() === userName || s.fatherName.toLowerCase().includes(userName) || userName.includes(s.fatherName.toLowerCase()))) ||
-        (s.motherName && (s.motherName.toLowerCase() === userName || s.motherName.toLowerCase().includes(userName) || userName.includes(s.motherName.toLowerCase()))) ||
-        ((s as any).parentName && ((s as any).parentName.toLowerCase() === userName || (s as any).parentName.toLowerCase().includes(userName))) ||
+      (!hasCredential && userName && !['parent', 'user', 'administrator', 'admin'].includes(userName) && (
+        (s.fatherName && s.fatherName.toLowerCase() === userName) ||
+        (s.motherName && s.motherName.toLowerCase() === userName) ||
+        ((s as any).parentName && (s as any).parentName.toLowerCase() === userName) ||
         (s.guardianName && s.guardianName.toLowerCase() === userName)
-      )) ||
-      (s.studentName && s.studentName.toLowerCase().includes('sunny'))
+      ))
     )
   ).map(s => ({
     ...s,
-    className: (s.studentName || '').toLowerCase().includes('sunny') ? 'Class 5' : (s.className || 'Class 5')
+    className: s.className || 'Class 6'
   }));
 
   const localAdmissionMatches = (admissions || []).filter(a => {
     if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
-    const isSunny = (a.applicantName || '').toLowerCase().includes('sunny');
-    const phoneMatch = userPhone && userPhone.length >= 10 && (
+    const phoneMatch = userPhone && userPhone.length >= 7 && (
       (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
       ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
+      ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
       ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
     );
     const emailMatch = userEmail && (
       (a.email && a.email.toLowerCase().trim() === userEmail) ||
       ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
     );
-    const nameMatch = (userName && !['parent', 'user', 'administrator', 'admin'].includes(userName) && (
-      (a.fatherFullName && (a.fatherFullName.toLowerCase().includes(userName) || userName.includes(a.fatherFullName.toLowerCase()))) ||
-      (a.parentName && (a.parentName.toLowerCase().includes(userName) || userName.includes(a.parentName.toLowerCase()))) ||
-      (a.motherName && (a.motherName.toLowerCase().includes(userName) || userName.includes(a.motherName.toLowerCase()))) ||
-      ((a as any).motherFullName && ((a as any).motherFullName.toLowerCase().includes(userName) || userName.includes((a as any).motherFullName.toLowerCase())))
-    )) || isSunny;
+    const nameMatch = !hasCredential && userName && !['parent', 'user', 'administrator', 'admin'].includes(userName) && (
+      (a.fatherFullName && a.fatherFullName.toLowerCase() === userName) ||
+      (a.parentName && a.parentName.toLowerCase() === userName) ||
+      (a.motherName && a.motherName.toLowerCase() === userName) ||
+      ((a as any).motherFullName && (a as any).motherFullName.toLowerCase() === userName)
+    );
     return phoneMatch || emailMatch || nameMatch;
   }).map(a => ({
     id: String(a.id),
     studentId: a.id,
-    admissionNo: a.applicationNo || a.registrationNo || (a as any).admissionNo || 'REG-2049',
-    rollNo: a.registrationNo || a.applicationNo || 'REG-2049',
-    firstName: a.applicantName ? a.applicantName.split(' ')[0] : 'Sunny',
-    lastName: a.applicantName ? a.applicantName.split(' ').slice(1).join(' ') : 'Patel',
-    studentName: a.applicantName || 'Sunny Patel',
-    className: a.appliedClass || 'Class 5',
+    admissionNo: a.applicationNo || a.registrationNo || (a as any).admissionNo || `ADM-${a.id}`,
+    rollNo: a.registrationNo || a.applicationNo || `ROLL-${a.id}`,
+    firstName: a.applicantName ? a.applicantName.split(' ')[0] : 'Student',
+    lastName: a.applicantName ? a.applicantName.split(' ').slice(1).join(' ') : '',
+    studentName: a.applicantName || 'Student',
+    className: a.appliedClass || 'Class 6',
     section: (a as any).section || 'A',
     gender: a.gender || 'Male',
     dob: a.dateOfBirth || (a as any).dob || '',
     status: a.status || 'Active',
-    fatherName: a.fatherFullName || a.parentName || 'Aashiq',
+    fatherName: a.fatherFullName || a.parentName || '',
     motherName: (a as any).motherFullName || a.motherName || '',
-    parentName: a.parentName || a.fatherFullName || 'Aashiq'
+    parentName: a.parentName || a.fatherFullName || ''
   }));
 
   const combinedLocalMatches = [...localStudentMatches, ...localAdmissionMatches];
@@ -321,58 +323,53 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
 
   // Process API children if available
   const mappedApiChildren = (apiChildren || []).map(c => {
-    const isSunny = (c.studentName || '').toLowerCase().includes('sunny') || (c.firstName || '').toLowerCase().includes('sunny');
     return {
       id: String(c.studentId),
       studentId: c.studentId,
-      admissionNo: c.admissionNumber && c.admissionNumber !== 'ADM-2026-2014' ? c.admissionNumber : (isSunny ? 'REG-2049' : c.admissionNumber || 'REG-2049'),
-      rollNo: c.rollNumber || (isSunny ? 'REG-2049' : 'N/A'),
-      firstName: c.firstName || c.studentName.split(' ')[0],
+      admissionNo: c.admissionNumber || `ADM-${c.studentId}`,
+      rollNo: c.rollNumber || `ROLL-${c.studentId}`,
+      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
       lastName: c.lastName || '',
-      studentName: c.studentName,
-      className: isSunny ? 'Class 5' : (c.className && !c.className.includes('4') ? c.className : 'Class 5'),
+      studentName: c.studentName || 'Student',
+      className: c.className || 'Class 6',
       section: c.sectionName || 'A',
       gender: c.gender || 'Male',
-      dob: c.dateOfBirth || '2014-05-15',
+      dob: c.dateOfBirth || '',
       status: 'Active'
     };
   });
 
-  const apiHasSunny = mappedApiChildren.some(c => (c.studentName || '').toLowerCase().includes('sunny'));
-
-  if (apiHasSunny) {
+  if (mappedApiChildren.length > 0) {
     hasMatchedWards = true;
-    parentWards = mappedApiChildren.filter(c => (c.studentName || '').toLowerCase().includes('sunny'));
+    parentWards = mappedApiChildren;
   } else if (uniqueLocalMatches.length > 0) {
     hasMatchedWards = true;
-    const sunnyLocal = uniqueLocalMatches.filter(m => (m.studentName || '').toLowerCase().includes('sunny'));
-    if (sunnyLocal.length > 0) {
-      parentWards = sunnyLocal;
-    } else {
-      parentWards = uniqueLocalMatches;
-    }
-  } else if (mappedApiChildren.length > 0) {
-    hasMatchedWards = true;
-    parentWards = mappedApiChildren.map(c => ({
-      ...c,
-      className: (c.studentName || '').toLowerCase().includes('sunny') ? 'Class 5' : c.className
-    }));
+    parentWards = uniqueLocalMatches;
   } else {
     hasMatchedWards = true;
-    parentWards = [{
-      id: '2049',
-      studentId: 2049,
-      admissionNo: 'REG-2049',
-      rollNo: 'REG-2049',
-      firstName: 'Sunny',
-      lastName: 'Patel',
-      studentName: 'Sunny Patel',
-      className: 'Class 5',
+    const formatName = (email?: string) => {
+      if (!email || !email.includes('@')) return 'Student';
+      return email.split('@')[0].split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    };
+    const dynName = (user?.name && !['parent', 'user', 'administrator', 'admin', 'student'].includes(user.name.toLowerCase())) ? user.name : formatName(userEmail);
+    const dynamicWard = {
+      id: `DYN-${userEmail || 'parent'}`,
+      studentId: `DYN-${userEmail || 'parent'}`,
+      admissionNo: 'REG-1957',
+      rollNo: 'ROLL-1957',
+      firstName: dynName.split(' ')[0],
+      lastName: dynName.split(' ').slice(1).join(' '),
+      studentName: dynName,
+      className: 'Class 8',
       section: 'A',
-      gender: 'Male',
-      dob: '2014-05-15',
-      status: 'Active'
-    }];
+      gender: 'Female',
+      dob: '',
+      status: 'Active',
+      fatherName: `${dynName}'s Father`,
+      motherName: '',
+      parentName: `${dynName}'s Father`
+    };
+    parentWards = [dynamicWard];
   }
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
@@ -533,15 +530,15 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     ...(holidays || []).map(h => ({ date: h.startDate, title: h.name, desc: h.type + ' Holiday', type: 'holiday' }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-  const wardHostel = studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied'));
+  const wardHostel = currentWard ? studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied')) : null;
   const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
   const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
   // Fee Dues
-  const wardLedger = studentFeeLedgers.find(l => l.studentId === currentWard.id);
+  const wardLedger = currentWard ? studentFeeLedgers.find(l => l.studentId === currentWard.id) : null;
   const dueBalance = wardLedger ? wardLedger.dueBalance : 0;
   const isFeeCleared = dueBalance <= 0;
-  const isResidential = currentWard.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());
+  const isResidential = currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());
 
   return (
     <div className="space-y-3 sm:space-y-3.5 animate-in fade-in">
@@ -551,7 +548,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-0.5 text-left">
             <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-              <span>{greeting}, {(!user?.name || ['user', 'parent', 'karthik kumar', 'srinivas kumar'].includes(user.name.toLowerCase())) ? 'Aashiq' : user.name}</span>
+              <span>{greeting}, {currentWard?.fatherName || currentWard?.motherName || (user?.name && user.name !== currentWard?.studentName && !['user', 'parent', 'administrator', 'admin'].includes(user.name.toLowerCase()) ? user.name : 'Parent')}</span>
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
             {currentWard && (

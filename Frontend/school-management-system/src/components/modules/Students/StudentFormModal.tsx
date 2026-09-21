@@ -5,7 +5,7 @@ import { Student, StudentType, SiblingDetail } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
-import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
+import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
 
 import { DateInput } from '../../common/DateInput';
 import { generateNextAdmissionNo, generateNextStudentId } from '../../../utils/idGenerator';
@@ -586,13 +586,14 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Religion</label>
-                <input
-                  type="text"
-                  placeholder="Enter Religion"
+                <select
                   value={formData.religion}
-                  onChange={e => setFormData({ ...formData, religion: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                  onChange={e => setFormData({ ...formData, religion: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                />
+                >
+                  <option value="">Select Religion</option>
+                  {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Caste Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>

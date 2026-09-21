@@ -198,14 +198,18 @@ export const HomeworkView: React.FC = () => {
       const userPhone = (user?.phone || '').replace(/\D/g, '');
       const userId = String(user?.id || '').trim();
       const currentStudent = students.find(s => 
-        (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+        (userId && (s.admissionNo === userId || (s as any).rollNo === userId)) ||
         (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
         (userPhone && userPhone.length >= 10 && (
           (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
-          (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
+          ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
         ))
-      ) || (students.length > 0 ? (students.find(s => s.status === 'Active') || students[0]) : null);
+      ) || (admissions || []).find(a => 
+        (a.status !== 'Rejected' && a.status !== 'Cancelled') && (
+          (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
+          (userPhone && userPhone.length >= 7 && (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)))
+        )
+      ) ? { className: (admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail))?.appliedClass || 'Class 8' } : null;
       if (!currentStudent) return homework;
       const sCls = cleanClassName(currentStudent.className);
       return homework.filter(h => cleanClassName(h.className) === sCls);
