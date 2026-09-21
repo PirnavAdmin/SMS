@@ -720,6 +720,7 @@ const MainLayout: React.FC = () => {
           <ReportsView />
         );
       case "users":
+      case "roles":
         return userRole === "parent" || userRole === "student" ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (

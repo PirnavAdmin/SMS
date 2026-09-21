@@ -175,6 +175,7 @@ export const hasModuleAccess = (
   if (moduleId === "library-timetable") moduleId = "library";
   if (moduleId === "warden-profile") moduleId = "staff";
   if (moduleId === "report-cards") moduleId = "examination";
+  if (moduleId === "roles") moduleId = "users";
   const baseModule = moduleId.split("-")[0] as ModuleId;
   const lookupRole = normalizeRoleForRbac(role);
   const allowedModules =
