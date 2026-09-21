@@ -520,34 +520,23 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Welcome Banner matching Admin Dashboard Aesthetics */}
-      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 py-3.5 px-5 text-slate-900 dark:text-white border border-sky-200 dark:border-sky-900/40 shadow-xs">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-brand-100/50 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1 text-left">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-                <span>{greeting}{(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim() ? `, ${(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim()}` : ''}</span>
-                <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
-              </h1>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-              Designated as <span className="font-extrabold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-sky-600 dark:text-sky-400">{assignedClassesFormatted}</span>.
-            </p>
+      {/* Welcome Banner */}
+      <div className="rounded-2xl bg-white dark:bg-slate-900 py-3.5 px-5 text-slate-900 dark:text-white border border-sky-200 dark:border-slate-800 shadow-sm">
+        <div className="space-y-1 text-left">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-base sm:text-lg tracking-tight flex items-center gap-2">
+              <span>
+                <span className="text-slate-500 dark:text-slate-400 font-extrabold">{greeting}</span>
+                {(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim() ? (
+                  <>, <span className="font-extrabold text-sky-600 dark:text-sky-400">{(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim()}</span></>
+                ) : ''}
+              </span>
+              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
+            </h1>
           </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Primary Department Badge */}
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-50 dark:bg-slate-700 text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
-                {teacher.firstName ? teacher.firstName.charAt(0) : 'T'}
-              </div>
-              <div className="text-left">
-                <p className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider leading-none">Primary Dept</p>
-                <p className="text-[11px] font-extrabold text-slate-900 dark:text-white leading-tight mt-0.5">{teacher.department || 'Social Studies'}</p>
-              </div>
-            </div>
-          </div>
+          <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+            Designated as <span className="font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800/50">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/50">{assignedClassesFormatted}</span>.
+          </p>
         </div>
       </div>
 

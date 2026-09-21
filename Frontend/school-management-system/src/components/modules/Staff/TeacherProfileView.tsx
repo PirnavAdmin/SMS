@@ -46,12 +46,12 @@ export const TeacherProfileView: React.FC = () => {
         const userLast = userName ? userName.split(' ').slice(1).join(' ') : '';
         return {
           ...byEmail,
-          firstName: (isGenericName && userFirst) ? userFirst : (byEmail.firstName || userFirst || 'Sardhar'),
-          lastName: (isGenericName && userLast) ? userLast : (byEmail.lastName || userLast || 'Karthi'),
+          firstName: (isGenericName && userFirst) ? userFirst : (byEmail.firstName || userFirst || ''),
+          lastName: (isGenericName && userLast) ? userLast : (byEmail.lastName || userLast || ''),
           designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
           department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
           role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
-          empId: (isGenericName || byEmail.empId === '358' || byEmail.id === '358') ? (user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : 'STF-001')) : (byEmail.empId || byEmail.employeeId || byEmail.id)
+          empId: byEmail.empId || byEmail.employeeId || (user as any)?.empId || byEmail.id || user?.id || ''
         };
       }
     }
@@ -110,24 +110,24 @@ export const TeacherProfileView: React.FC = () => {
     }
 
     // 5. Fallback: Return dynamic profile object from logged in user
-    const rawName = user?.name || (isAccountant ? 'Sardhar Karthi' : isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : 'Faculty Member');
+    const rawName = user?.name || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001'),
-      empId: (user as any)?.empId || user?.id || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001'),
-      firstName: nameParts[0] || 'Faculty',
-      lastName: nameParts.slice(1).join(' ') || 'Member',
-      email: user?.email || (isAccountant ? 'sardhar@gmail.com' : isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
-      phone: user?.phone || '+91 9985852577',
+      id: (user as any)?.empId || user?.id || '',
+      empId: (user as any)?.empId || user?.id || '',
+      firstName: nameParts[0] || (user?.name || ''),
+      lastName: nameParts.slice(1).join(' ') || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
       department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : ((user as any)?.department || 'Academics'),
       designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
-      qualification: (user as any)?.qualification || (isAccountant ? 'M.Com, Chartered Accountancy (CA Inter)' : isWarden ? 'Hostel Administration & Student Welfare' : 'Academic Qualification Completed'),
-      experience: (user as any)?.experience || (isAccountant ? '7 Years Institutional Accounting & Audit Experience' : isWarden ? '5 Years Hostel Management Experience' : 'Teaching Experience'),
+      qualification: (user as any)?.qualification || '',
+      experience: (user as any)?.experience || '',
       branch: user?.branch || 'Main Campus',
-      avatar: user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
+      avatar: user?.avatar || ''
     };
   }, [user, staff]);
 
@@ -374,19 +374,19 @@ export const TeacherProfileView: React.FC = () => {
       ? user.name
       : (!isGenericAdminName && dbFullName)
       ? dbFullName
-      : (isAccountant ? 'Sardhar Karthi' : isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : 'Faculty Member');
+      : (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
 
     const fallbackDept = isAccountant
       ? 'Finance & Accounts'
       : isWarden
       ? 'Hostel Management'
-      : (dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'Academics');
+      : (dbTeacher?.department || (dbTeacher as any)?.primarySubject || (user as any)?.department || 'Academics');
 
     const fallbackDesignation = isAccountant
       ? 'Accountant'
       : isWarden
       ? 'Hostel Warden'
-      : (dbTeacher?.designation && !dbTeacher.designation.toLowerCase().includes('administrator') ? dbTeacher.designation : 'Teacher');
+      : (dbTeacher?.designation && !dbTeacher.designation.toLowerCase().includes('administrator') ? dbTeacher.designation : ((user as any)?.designation || 'Teacher'));
 
     const fallbackRole = isAccountant
       ? 'Accountant'
@@ -395,29 +395,29 @@ export const TeacherProfileView: React.FC = () => {
       : (dbTeacher?.role || fallbackDesignation);
 
     return {
-      staffId: (user as any)?.empId || user?.id || (dbTeacher?.id && String(dbTeacher.id) !== '358' ? dbTeacher.id : (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-2026-0009')),
-      employeeId: (user as any)?.empId || user?.id || (dbTeacher?.empId && String(dbTeacher.empId) !== '358' ? dbTeacher.empId : (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-2026-0009')),
+      staffId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || user?.id || '',
+      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || user?.id || '',
       fullName: localEdit?.fullName || defaultFullName,
-      email: localEdit?.email || user?.email || dbTeacher?.email || (isAccountant ? 'sardhar@gmail.com' : isWarden ? 'warden@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
-      mobile: localEdit?.mobile || user?.phone || dbTeacher?.phone || '+91 9985852577',
-      gender: localEdit?.gender || dbTeacher?.gender || 'Male',
-      dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || '1990-05-15',
-      bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || 'O+',
-      address: localEdit?.address || dbTeacher?.address || 'Kondapur, Main Campus Quarter 4B',
-      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || '+91 9876543210',
+      email: localEdit?.email || user?.email || dbTeacher?.email || '',
+      mobile: localEdit?.mobile || user?.phone || dbTeacher?.phone || (user as any)?.mobile || '',
+      gender: localEdit?.gender || dbTeacher?.gender || (user as any)?.gender || 'Not Specified',
+      dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || dbTeacher?.dateOfBirth || (user as any)?.dob || '',
+      bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || (user as any)?.bloodGroup || 'Not Specified',
+      address: localEdit?.address || dbTeacher?.address || (user as any)?.address || '',
+      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || (user as any)?.emergencyContact || '',
       branch: dbTeacher?.branch || user?.branch || 'Main Campus',
       department: fallbackDept,
       designation: fallbackDesignation,
       role: fallbackRole,
-      joiningDate: dbTeacher?.joiningDate || '2026-08-26',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (isAccountant ? 'M.Com, Chartered Accountancy (CA Inter)' : isWarden ? 'Post Graduate Diploma in Hostel Administration' : 'Academic Qualification Completed'),
-      experience: localEdit?.experience || (dbTeacher as any)?.experience || (isAccountant ? '7 Years Institutional Accounting & Audit Experience' : isWarden ? '5 Years Hostel Management Experience' : '8 Years Teaching Experience'),
+      joiningDate: dbTeacher?.joiningDate || (user as any)?.joiningDate || '',
+      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (user as any)?.qualification || '',
+      experience: localEdit?.experience || (dbTeacher as any)?.experience || (user as any)?.experience || '',
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
-      assignedSubjects: isAccountant ? ['Fee Management', 'Financial Auditing'] : isWarden ? ['Hostel Administration', 'Student Welfare'] : dynamicAssignedSubjects,
+      assignedSubjects: isAccountant ? (dbTeacher?.assignedSubjects || ['Finance & Accounts']) : isWarden ? (dbTeacher?.assignedSubjects || ['Hostel Administration']) : dynamicAssignedSubjects,
       employmentStatus: dbTeacher?.status || 'Active',
       profileStatus: 'Completed',
-      profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
+      profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || ''
     };
   }, [dbTeacher, user, dynamicAssignedClasses, dynamicAssignedSections, dynamicAssignedSubjects, localEdit]);
 
@@ -602,64 +602,51 @@ export const TeacherProfileView: React.FC = () => {
     );
   }
 
-  const activePhoto = profile?.profilePhoto || user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80';
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
       
-      {/* Header Banner & Hero Card - Compact Vibrant Pirnav Brand Sky Blue Theme */}
-      <div className="relative bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-4 sm:p-5 text-white shadow-md shadow-sky-500/15 overflow-hidden border border-sky-400/40">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-          <div className="relative group shrink-0">
-            <img
-              src={activePhoto}
-              alt={profile.fullName}
-              className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl object-cover border-3 border-white/20 shadow-xl"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80';
-              }}
-            />
-            <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow" />
+      {/* Header Banner & Hero Card - Compact Clean White Theme */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-sm border border-sky-200 dark:border-slate-700/80">
+        <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3.5 sm:gap-4">
+          <div className="relative shrink-0">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white font-black text-base sm:text-lg flex items-center justify-center shadow-sm">
+              {(() => {
+                const nameParts = (profile.fullName || user?.name || 'Teacher').trim().split(/\s+/);
+                if (nameParts.length >= 2) return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+                return (nameParts[0] || 'T').substring(0, 2).toUpperCase();
+              })()}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow-sm" />
           </div>
 
-          <div className="flex-1 text-center sm:text-left space-y-1.5">
+          <div className="flex-1 text-center sm:text-left space-y-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">{profile.fullName}</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 text-[10px] font-black uppercase border border-emerald-400/30 backdrop-blur-sm">
+              <h1 className="text-lg sm:text-xl font-black text-sky-600 dark:text-sky-400 tracking-tight">{profile.fullName}</h1>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase border border-emerald-200 dark:border-emerald-800/50">
                 {profile.employmentStatus || 'ACTIVE'}
               </span>
               {classTeacherInfo.isClassTeacher && (
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/30 text-amber-100 text-[10px] font-black uppercase border border-amber-300/50 backdrop-blur-sm flex items-center gap-1 shadow-sm">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase border border-amber-200 dark:border-amber-800/50 flex items-center gap-1">
                   🏷️ Class Teacher ({classTeacherInfo.className})
                 </span>
               )}
             </div>
 
-            <p className="text-sky-100 font-extrabold text-xs sm:text-sm">
+            <p className="text-sky-600 dark:text-sky-400 font-bold text-xs sm:text-sm">
               {profile.designation}
             </p>
 
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-sky-100/90 pt-0.5 font-semibold">
-              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-white/10 shadow-2xs">
-                <Shield className="w-3.5 h-3.5 text-sky-200" />
-                ID: {profile.employeeId}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-slate-500 dark:text-slate-400 pt-0.5 font-semibold">
+              <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                Emp ID: {profile.employeeId}
               </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-white/10 shadow-2xs">
-                <Calendar className="w-3.5 h-3.5 text-sky-200" />
+              <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                 Joined: {profile.joiningDate}
               </span>
             </div>
           </div>
-
-          <button
-            onClick={handleOpenEditModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-sky-800 font-black rounded-xl text-xs shadow-md hover:shadow-lg transition transform active:scale-95 cursor-pointer whitespace-nowrap self-center sm:self-start"
-          >
-            <Edit2 className="w-3.5 h-3.5 text-sky-600" />
-            Edit My Profile
-          </button>
         </div>
       </div>
 
