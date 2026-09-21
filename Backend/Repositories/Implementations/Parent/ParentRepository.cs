@@ -24,88 +24,57 @@ namespace SMS.Api.Repositories.Implementations.Parent
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(identifier))
-                {
-                    identifier = identifier.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(identifier))
+                    return new List<Student>();
 
-                    // Specifically for Kumar Parent / portal parent user, resolve its ward (pawankalyan konidela)
-                    if (identifier == "parent@pirnavschools.com" || identifier == "parent@pirnav.com" || identifier.Contains("kumar") || identifier.Contains("aashiq") || identifier == "9876543223")
-                    {
-                        var aashiqWards = await _context.Students
-                            .Include(s => s.ClassGrade)
-                            .Include(s => s.ClassSection)
-                            .AsNoTracking()
-                            .Where(s => !s.IsDeleted && s.Status == "Active")
-                            .Where(s => s.FatherMobile == "9876543223" || (s.FatherName != null && (s.FatherName.ToLower().Contains("aashiq") || s.FatherName.ToLower().Contains("kumar parent"))) || (s.StudentName != null && s.StudentName.ToLower().Contains("sunny")))
-                            .ToListAsync();
+                identifier = identifier.Trim().ToLowerInvariant();
+                var digitsOnly = new string(identifier.Where(char.IsDigit).ToArray());
 
-                        if (aashiqWards.Any())
-                        {
-                            foreach (var w in aashiqWards)
-                            {
-                                if (w.ClassGrade == null || w.ClassGrade.ClassName != "Class 5")
-                                    w.ClassGrade = new ClassGrade { ClassName = "Class 5" };
-                                if (string.IsNullOrWhiteSpace(w.AdmissionNumber) || w.AdmissionNumber == "ADM-2026-2014")
-                                    w.AdmissionNumber = "REG-2049";
-                            }
-                            return aashiqWards;
-                        }
-                    }
+                // 1. Look up parentUser in Users table if identifier is email/mobile/name/userId
+                var parentUser = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => 
+                        (u.Email != null && u.Email.ToLower() == identifier) ||
+                        u.MobileNumber == identifier ||
+                        (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly)) ||
+                        u.UserId.ToString() == identifier ||
+                        u.FullName.ToLower() == identifier
+                    );
 
-                    // 1. Direct match on Father/Mother mobile, parent email, or father/mother full name
-                    var exactParentMatch = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .AsNoTracking()
-                        .Where(s => !s.IsDeleted && s.Status == "Active")
-                        .Where(s =>
-                            (s.FatherMobile != null && s.FatherMobile.ToLower() == identifier) ||
-                            (s.MotherMobile != null && s.MotherMobile.ToLower() == identifier) ||
-                            (s.MobileNumber != null && s.MobileNumber.ToLower() == identifier) ||
-                            (s.Email != null && s.Email.ToLower() == identifier) ||
-                            (s.FatherName != null && (s.FatherName.ToLower() == identifier || s.FatherName.ToLower().Contains(identifier) || identifier.Contains(s.FatherName.ToLower()))) ||
-                            (s.MotherName != null && (s.MotherName.ToLower() == identifier || s.MotherName.ToLower().Contains(identifier) || identifier.Contains(s.MotherName.ToLower())))
-                        )
-                        .OrderByDescending(s => s.StudentId)
-                        .ToListAsync();
+                string searchMobile = parentUser?.MobileNumber ?? identifier;
+                string searchEmail = parentUser?.Email ?? identifier;
+                string searchFullName = parentUser?.FullName ?? identifier;
+                string searchMobileDigits = new string(searchMobile.Where(char.IsDigit).ToArray());
 
-                    if (exactParentMatch.Any())
-                        return exactParentMatch;
-
-                    // 2. Secondary student name match
-                    var studentNameMatch = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .AsNoTracking()
-                        .Where(s => !s.IsDeleted && s.Status == "Active")
-                        .Where(s => s.StudentName != null && (s.StudentName.ToLower().Contains(identifier) || identifier.Contains(s.StudentName.ToLower())))
-                        .OrderByDescending(s => s.StudentId)
-                        .ToListAsync();
-
-                    if (studentNameMatch.Any())
-                        return studentNameMatch;
-                }
-
-                var defaultStudents = await _context.Students
+                // 2. Query students strictly matching exact Mobile, Email, or Full Name
+                var children = await _context.Students
                     .Include(s => s.ClassGrade)
                     .Include(s => s.ClassSection)
                     .AsNoTracking()
                     .Where(s => !s.IsDeleted && s.Status == "Active")
-                    .Where(s => s.StudentName != null && s.StudentName.ToLower().Contains("sunny"))
+                    .Where(s =>
+                        (!string.IsNullOrEmpty(searchMobile) && (
+                            s.FatherMobile == searchMobile || 
+                            s.MotherMobile == searchMobile || 
+                            s.MobileNumber == searchMobile ||
+                            (searchMobileDigits.Length >= 10 && (
+                                (s.FatherMobile != null && s.FatherMobile.EndsWith(searchMobileDigits)) ||
+                                (s.MotherMobile != null && s.MotherMobile.EndsWith(searchMobileDigits)) ||
+                                (s.MobileNumber != null && s.MobileNumber.EndsWith(searchMobileDigits))
+                            ))
+                        )) ||
+                        (!string.IsNullOrEmpty(searchEmail) && searchEmail.Contains("@") && (
+                            (s.Email != null && s.Email.ToLower() == searchEmail)
+                        )) ||
+                        (!string.IsNullOrEmpty(searchFullName) && (
+                            (s.FatherName != null && s.FatherName.Trim().ToLower() == searchFullName.Trim().ToLower()) ||
+                            (s.MotherName != null && s.MotherName.Trim().ToLower() == searchFullName.Trim().ToLower())
+                        ))
+                    )
+                    .OrderByDescending(s => s.StudentId)
                     .ToListAsync();
 
-                if (!defaultStudents.Any())
-                {
-                    defaultStudents = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .AsNoTracking()
-                        .Where(s => !s.IsDeleted && s.Status == "Active")
-                        .Take(1)
-                        .ToListAsync();
-                }
-
-                return defaultStudents;
+                return children;
             }
             catch (Exception ex)
             {
@@ -245,18 +214,13 @@ namespace SMS.Api.Repositories.Implementations.Parent
 
             return new ParentAttendanceSummaryDto
             {
-                TotalDays = 17,
-                PresentDays = 14,
-                AbsentDays = 1,
-                LateDays = 1,
-                HalfDays = 1,
-                Percentage = 91,
-                Logs = new List<ParentAttendanceLogDto>
-                {
-                    new ParentAttendanceLogDto { AttendanceId = 1, Date = "2026-08-25", Status = "Present", Remarks = null, CheckInTime = "08:30 AM", CheckOutTime = "03:30 PM" },
-                    new ParentAttendanceLogDto { AttendanceId = 2, Date = "2026-08-24", Status = "Absent", Remarks = "Sick leave", CheckInTime = null, CheckOutTime = null },
-                    new ParentAttendanceLogDto { AttendanceId = 3, Date = "2026-08-21", Status = "HalfDay", Remarks = "Doctor appointment", CheckInTime = "08:30 AM", CheckOutTime = "12:30 PM" }
-                }
+                TotalDays = 0,
+                PresentDays = 0,
+                AbsentDays = 0,
+                LateDays = 0,
+                HalfDays = 0,
+                Percentage = 0,
+                Logs = new List<ParentAttendanceLogDto>()
             };
         }
 
@@ -753,65 +717,43 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 System.Console.WriteLine($"[ParentRepository] GetUpcomingEvents Exception: {ex.Message}");
             }
 
-            return new List<ParentEventItemDto>
-            {
-                new ParentEventItemDto { Id = "SE-1", Title = "New Year's Day (Gazetted)", Category = "Gazetted", Date = "2026-01-01", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-2", Title = "Makar Sankranti / Pongal", Category = "Festival", Date = "2026-01-14", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-3", Title = "Republic Day (National)", Category = "National", Date = "2026-01-26", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-4", Title = "Maha Shivaratri (Gazetted)", Category = "Gazetted", Date = "2026-02-15", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-5", Title = "Raksha Bandhan", Category = "Festival", Date = "2026-08-28", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-6", Title = "Janmashtami (Gokulashtami)", Category = "Festival", Date = "2026-09-04", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-7", Title = "Milad-un-Nabi (Eid-e-Milad)", Category = "Gazetted", Date = "2026-09-24", Type = "Holiday" }
-            };
+            return new List<ParentEventItemDto>();
         }
 
         public async Task<List<ParentCommunicationDto>> GetCommunicationsAsync()
         {
-            return await Task.FromResult(new List<ParentCommunicationDto>
+            try
             {
-                new ParentCommunicationDto
+                var circulars = await _context.Circulars
+                    .AsNoTracking()
+                    .OrderByDescending(c => c.CreatedDate)
+                    .Take(20)
+                    .ToListAsync();
+
+                if (circulars.Any())
                 {
-                    Id = "ANN-1",
-                    Title = "🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday",
-                    Content = "Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (Dispatched on 2026-08-24 at 02:48 PM). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.",
-                    TargetAudience = "ALL",
-                    Category = "URGENT",
-                    Date = "2026-08-24",
-                    Time = "09:30 AM",
-                    Author = "Issued by Principal Office",
-                    IsPinned = true,
-                    RecipientsCount = 1420,
-                    DeliveryChannels = "Sent via SMS & Email (1420 Recipients)"
-                },
-                new ParentCommunicationDto
-                {
-                    Id = "ANN-2",
-                    Title = "🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday",
-                    Content = "Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (Dispatched on 2026-08-24 at 05:28 PM). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.",
-                    TargetAudience = "ALL",
-                    Category = "URGENT",
-                    Date = "2026-08-24",
-                    Time = "09:30 AM",
-                    Author = "Issued by Principal Office",
-                    IsPinned = true,
-                    RecipientsCount = 1420,
-                    DeliveryChannels = "Sent via SMS & Email (1420 Recipients)"
-                },
-                new ParentCommunicationDto
-                {
-                    Id = "ANN-3",
-                    Title = "🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday",
-                    Content = "Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.",
-                    TargetAudience = "ALL",
-                    Category = "URGENT",
-                    Date = "2026-08-20",
-                    Time = "09:30 AM",
-                    Author = "Issued by Principal Office",
-                    IsPinned = true,
-                    RecipientsCount = 1420,
-                    DeliveryChannels = "Sent via SMS & Email (1420 Recipients)"
+                    return circulars.Select(c => new ParentCommunicationDto
+                    {
+                        Id = $"ANN-{c.CircularId}",
+                        Title = c.Title ?? "Announcement",
+                        Content = c.Content ?? "",
+                        TargetAudience = c.TargetAudience ?? "ALL",
+                        Category = c.Category ?? "NOTICE",
+                        Date = c.CreatedDate.ToString("yyyy-MM-dd"),
+                        Time = c.CreatedDate.ToString("hh:mm tt"),
+                        Author = c.Author ?? "School Administration",
+                        IsPinned = c.IsPinned,
+                        RecipientsCount = c.DeliveredCount,
+                        DeliveryChannels = "Sent via System Notification"
+                    }).ToList();
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[ParentRepository] GetCommunications Exception: {ex.Message}");
+            }
+
+            return new List<ParentCommunicationDto>();
         }
     }
 }
