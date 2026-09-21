@@ -321,9 +321,41 @@ contentTypeProvider.Mappings[".png"] = "image/png";
 contentTypeProvider.Mappings[".jpg"] = "image/jpeg";
 contentTypeProvider.Mappings[".jpeg"] = "image/jpeg";
 
+var contentRootUploads = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+if (Directory.Exists(contentRootUploads))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(contentRootUploads),
+        RequestPath = "/uploads",
+        ContentTypeProvider = contentTypeProvider
+    });
+}
+
 app.UseStaticFiles(new StaticFileOptions
 {
     ContentTypeProvider = contentTypeProvider
+});
+
+// Fallback Middleware for Missing Upload Images (prevents 404 console errors for missing avatars/branding images)
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Response.StatusCode == 404 && context.Request.Path.Value != null && context.Request.Path.Value.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+    {
+        var reqPath = context.Request.Path.Value.ToLowerInvariant();
+        if (reqPath.Contains("/profile") || reqPath.Contains("/avatar") || reqPath.EndsWith(".jpg") || reqPath.EndsWith(".png") || reqPath.EndsWith(".jpeg") || reqPath.EndsWith(".webp") || reqPath.EndsWith(".svg"))
+        {
+            context.Response.StatusCode = 200;
+            context.Response.ContentType = "image/svg+xml";
+            string fallbackSvg = @"<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'>
+                <rect width='128' height='128' rx='64' fill='#e2e8f0'/>
+                <circle cx='64' cy='48' r='24' fill='#94a3b8'/>
+                <path d='M24 108c0-22.091 17.909-40 40-40s40 17.909 40 40' fill='#94a3b8'/>
+            </svg>";
+            await context.Response.WriteAsync(fallbackSvg);
+        }
+    }
 });
 
 // Enable Swagger UI unconditionally

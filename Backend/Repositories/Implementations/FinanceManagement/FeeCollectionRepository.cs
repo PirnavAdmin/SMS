@@ -52,6 +52,16 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         return gA.Equals(gB, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool MatchesSection(string? structSec, string? studentSec)
+    {
+        if (string.IsNullOrWhiteSpace(structSec)) return true;
+        string s = structSec.Trim().ToLowerInvariant();
+        if (s == "all" || s == "all sections" || s == "all section" || s == "all-sections" || s == "all_sections")
+            return true;
+        if (string.IsNullOrWhiteSpace(studentSec)) return true;
+        return s.Equals(studentSec.Trim().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<FeeCollectionStudentRosterResponseDto> GetStudentRosterAsync(
         string? search, string? className, string? sectionName, string? studentType, int page, int pageSize)
     {
@@ -133,7 +143,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             var matchedStructure = feeStructures.FirstOrDefault(f => 
                 !string.IsNullOrEmpty(f.ClassName) && 
                 MatchesClassName(f.ClassName, cName) &&
-                (string.IsNullOrEmpty(f.Section) || f.Section.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Section.Equals(sName, StringComparison.OrdinalIgnoreCase)));
+                MatchesSection(f.Section, sName));
 
             if (matchedStructure != null && matchedStructure.TotalAmount > 0)
             {
@@ -212,7 +222,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var matchedStructure = feeStructures.FirstOrDefault(f => 
             !string.IsNullOrEmpty(f.ClassName) && 
             MatchesClassName(f.ClassName, cName) &&
-            (string.IsNullOrEmpty(f.Section) || f.Section.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Section.Equals(sName, StringComparison.OrdinalIgnoreCase)));
+            MatchesSection(f.Section, sName));
 
         decimal totalExpectedFee = matchedStructure != null && matchedStructure.TotalAmount > 0 
             ? matchedStructure.TotalAmount 

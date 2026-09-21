@@ -48,14 +48,19 @@ const SearchableCombobox: React.FC<{
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectedOpt = options.find((o) => String(o.value) === String(value));
+  const selectedOpt = options.find(
+    (o) =>
+      String(o.value) === String(value) ||
+      (value && value !== "N/A" && o.label.toLowerCase() === String(value).toLowerCase())
+  );
 
   useEffect(() => {
     if (selectedOpt) {
       setSearchText(selectedOpt.label);
-    } else if (value) {
+    } else if (value && value !== "N/A" && value !== "none") {
       setSearchText(value);
     } else {
       setSearchText("");
@@ -69,6 +74,7 @@ const SearchableCombobox: React.FC<{
         !containerRef.current.contains(e.target as Node)
       ) {
         setIsOpen(false);
+        setIsUserTyping(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -76,12 +82,14 @@ const SearchableCombobox: React.FC<{
   }, []);
 
   const filteredOptions = options.filter((opt) => {
-    if (!searchText.trim()) return true;
+    if (!isUserTyping) return true;
+    if (!searchText.trim() || searchText === "N/A" || searchText === "none") return true;
     if (selectedOpt && searchText === selectedOpt.label) return true;
     const q = searchText.toLowerCase().trim();
     return (
       opt.label.toLowerCase().includes(q) ||
-      (opt.subLabel || "").toLowerCase().includes(q)
+      (opt.subLabel || "").toLowerCase().includes(q) ||
+      String(opt.value).toLowerCase() === q
     );
   });
 
@@ -95,10 +103,16 @@ const SearchableCombobox: React.FC<{
           type="text"
           disabled={disabled}
           value={searchText}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setIsOpen(true);
+            if (searchText === "N/A" || searchText === "none") {
+              setSearchText("");
+            }
+          }}
           onChange={(e) => {
             const val = e.target.value;
             setSearchText(val);
+            setIsUserTyping(true);
             setIsOpen(true);
             if (allowCustom) {
               onChange(val);

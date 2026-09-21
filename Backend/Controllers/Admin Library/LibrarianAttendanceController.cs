@@ -27,18 +27,7 @@ public class LibrarianAttendanceController : ControllerBase
 
     private async Task EnsureDefaultAttendanceLogsAsync()
     {
-        if (!await _context.LibrarianAttendances.AnyAsync())
-        {
-            var defaults = new List<LibrarianAttendance>
-            {
-                new LibrarianAttendance { Date = new DateTime(2026, 8, 25), StaffName = "Bhanu Prakash", EmployeeCode = "EMP-LIB-01", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "11:59 AM", CheckOutTime = "05:00 PM", TotalHours = 8.5, Status = "Late", DutyRemarks = "Late arrival check-in • Checked out at 05:00 PM" },
-                new LibrarianAttendance { Date = new DateTime(2026, 8, 20), StaffName = "Bhanu Prakash", EmployeeCode = "EMP-LIB-01", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "08:30 AM", CheckOutTime = "05:00 PM", TotalHours = 8.5, Status = "Present", DutyRemarks = "Catalog audit & inventory completed" },
-                new LibrarianAttendance { Date = new DateTime(2026, 8, 20), StaffName = "Rachel Green", EmployeeCode = "EMP-LIB-02", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "08:45 AM", CheckOutTime = "05:15 PM", TotalHours = 8.5, Status = "Present", DutyRemarks = "Circulation desk duty" },
-                new LibrarianAttendance { Date = new DateTime(2026, 8, 19), StaffName = "Bhanu Prakash", EmployeeCode = "EMP-LIB-01", ShiftDetails = "Morning Shift (08:30 - 17:00)", CheckInTime = "08:28 AM", CheckOutTime = "05:05 PM", TotalHours = 8.6, Status = "Present", DutyRemarks = "Book issue renewals" }
-            };
-            await _context.LibrarianAttendances.AddRangeAsync(defaults);
-            await _context.SaveChangesAsync();
-        }
+        await Task.CompletedTask;
     }
 
     [HttpGet]
@@ -51,6 +40,8 @@ public class LibrarianAttendanceController : ControllerBase
         [FromQuery] int pageSize = 50)
     {
         await EnsureDefaultAttendanceLogsAsync();
+
+        var query = _context.LibrarianAttendances.AsNoTracking().AsQueryable();
 
         string viewMode = (view ?? "daily").ToLower().Trim();
 

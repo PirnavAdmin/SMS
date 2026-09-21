@@ -214,7 +214,7 @@ public class FinanceService : IFinanceService
             ClassName = dto.ClassName,
             Section = string.IsNullOrEmpty(dto.Section) ? "All Sections" : dto.Section,
             StudentCategory = string.IsNullOrEmpty(dto.StudentCategory) ? "General" : dto.StudentCategory,
-            TotalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : (dto.Items != null ? dto.Items.Sum(i => i.Amount) : 0),
+            TotalAmount = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount,
             Status = dto.Status ?? "Active",
             ItemsJson = JsonSerializer.Serialize(dto.Items ?? new List<FeeStructureItemDto>())
         };
@@ -238,7 +238,7 @@ public class FinanceService : IFinanceService
             ClassName = dto.ClassName,
             Section = string.IsNullOrEmpty(dto.Section) ? "All Sections" : dto.Section,
             StudentCategory = string.IsNullOrEmpty(dto.StudentCategory) ? "General" : dto.StudentCategory,
-            TotalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : (dto.Items != null ? dto.Items.Sum(i => i.Amount) : 0),
+            TotalAmount = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount,
             Status = dto.Status ?? "Active",
             ItemsJson = JsonSerializer.Serialize(dto.Items ?? new List<FeeStructureItemDto>())
         };

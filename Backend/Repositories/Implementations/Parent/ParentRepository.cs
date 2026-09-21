@@ -30,20 +30,19 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 identifier = identifier.Trim().ToLowerInvariant();
                 var digitsOnly = new string(identifier.Where(char.IsDigit).ToArray());
 
-                // 1. Look up parentUser in Users table if identifier is email/mobile/name/userId
+                // 1. Look up parentUser in Users table if identifier is email/mobile/userId
                 var parentUser = await _context.Users
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => 
                         (u.Email != null && u.Email.ToLower() == identifier) ||
                         u.MobileNumber == identifier ||
                         (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly)) ||
-                        u.UserId.ToString() == identifier ||
-                        u.FullName.ToLower() == identifier
+                        u.UserId.ToString() == identifier
                     );
 
-                string searchMobile = parentUser?.MobileNumber ?? identifier;
-                string searchEmail = parentUser?.Email ?? identifier;
-                string searchFullName = parentUser?.FullName ?? identifier;
+                string searchMobile = parentUser?.MobileNumber ?? (digitsOnly.Length >= 10 ? identifier : string.Empty);
+                string searchEmail = parentUser?.Email ?? (identifier.Contains("@") ? identifier : string.Empty);
+                string searchFullName = parentUser?.FullName ?? string.Empty;
                 string searchMobileDigits = new string(searchMobile.Where(char.IsDigit).ToArray());
 
                 // 2. Query students strictly matching exact Mobile, Email, or Full Name
@@ -63,7 +62,7 @@ namespace SMS.Api.Repositories.Implementations.Parent
                                 (s.MobileNumber != null && s.MobileNumber.EndsWith(searchMobileDigits))
                             ))
                         )) ||
-                        (!string.IsNullOrEmpty(searchEmail) && searchEmail.Contains("@") && (
+                        (!string.IsNullOrEmpty(searchEmail) && (
                             (s.Email != null && s.Email.ToLower() == searchEmail)
                         )) ||
                         (!string.IsNullOrEmpty(searchFullName) && (
@@ -87,19 +86,11 @@ namespace SMS.Api.Repositories.Implementations.Parent
         {
             try
             {
-                var student = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
-
-                if (student != null) return student;
-
                 return await _context.Students
                     .Include(s => s.ClassGrade)
                     .Include(s => s.ClassSection)
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(s => !s.IsDeleted && s.Status == "Active");
+                    .FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
             }
             catch (Exception ex)
             {

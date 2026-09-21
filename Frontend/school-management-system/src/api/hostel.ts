@@ -235,13 +235,22 @@ export const getHostelBlocks = async (search?: string, type?: string, signal?: A
     if (search) params.append('search', search);
     if (type) params.append('type', type);
     const query = params.toString();
-    const res = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
-    if (Array.isArray(res)) {
-      serverBlocks = res;
+    const res = await hostelApiClient(`/api/hostel/blocks${query ? `?${query}` : ''}`, { signal });
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res.blocks) ? res.blocks : null));
+    if (arrayData) {
+      serverBlocks = arrayData;
       isServerConnected = true;
     }
   } catch (err) {
-    // API offline fallback
+    // Try fallback endpoint /api/hostels/blocks
+    try {
+      const resFallback = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
+      const arrayDataFallback = Array.isArray(resFallback) ? resFallback : (resFallback && Array.isArray(resFallback.data) ? resFallback.data : null);
+      if (arrayDataFallback) {
+        serverBlocks = arrayDataFallback;
+        isServerConnected = true;
+      }
+    } catch {}
   }
 
   const sanitizeBlock = (b: any, fallbackIndex: number): HostelBlock => {
