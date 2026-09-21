@@ -142,7 +142,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
   const targetRouteCode = (assignedRoute?.routeCode || '').trim().toLowerCase();
 
   const assignedAttendant = useMemo(() => {
-    if (!currentAssignment) return { name: 'Blast Bobby', employeeId: 'ATT-2026-01', mobile: '+91-9878909876' };
+    if (!currentAssignment) return { name: 'Unassigned', employeeId: '', mobile: '' };
 
     const attendant = busAttendants.find(a =>
       (currentAssignment.attendantId && (String(a.id) === String(currentAssignment.attendantId) || a.employeeId === currentAssignment.attendantId)) ||
@@ -152,7 +152,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     const matchedStaff = staff.find(s => {
       const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
       const attName = (currentAssignment.attendantName || attendant?.attendantName || '').trim().toLowerCase();
-      const staffEmpId = (s.employeeId || s.id || '').trim().toLowerCase();
+      const staffEmpId = (s.empId || (s as any).employeeId || String(s.id) || '').trim().toLowerCase();
       const targetEmpId = (attendant?.employeeId || currentAssignment.attendantEmployeeId || currentAssignment.attendantId || '').trim().toLowerCase();
 
       return (
@@ -163,10 +163,10 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
 
     const name = (currentAssignment.attendantName && currentAssignment.attendantName.toUpperCase() !== 'UNASSIGNED' && currentAssignment.attendantName.trim() !== '')
       ? currentAssignment.attendantName
-      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName}` : 'Blast Bobby'));
+      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName || ''}`.trim() : 'Unassigned'));
 
-    let empCode = attendant?.employeeId || matchedStaff?.employeeId || currentAssignment.attendantEmployeeId || 'ATT-2026-01';
-    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '+91-9878909876';
+    let empCode = attendant?.employeeId || matchedStaff?.empId || (matchedStaff as any)?.employeeId || currentAssignment.attendantEmployeeId || '';
+    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '';
 
     return {
       name,

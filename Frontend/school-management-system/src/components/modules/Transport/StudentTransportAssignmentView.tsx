@@ -108,7 +108,13 @@ export const StudentTransportAssignmentView: React.FC = () => {
   // Only show students who opted for bus transport
   const eligibleStudents = React.useMemo(() => {
     return students.filter(st => {
-      return st.transportRequired === true || Boolean(st.busRoute) || Boolean(st.transportType) || Boolean(st.routeId);
+      return st.transportRequired === true ||
+             Boolean(st.busRoute) ||
+             Boolean(st.transportType) ||
+             Boolean(st.routeId) ||
+             (st as any).isTransportOpted === true ||
+             (st as any).transport === true ||
+             Boolean(st.pickupPoint);
     });
   }, [students]);
 
@@ -565,10 +571,11 @@ export const StudentTransportAssignmentView: React.FC = () => {
                                    vehicleAssignments.find(va => va.vehicleId === inspectingAssignment.vehicleId);
         const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || vehicleMasters[0];
         const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || driverMasters[0];
-        const attendantObj = busAttendants.find(a => a.id === vehicleAssignedRel?.attendantId || a.attendantName === vehicleAssignedRel?.attendantName) || busAttendants[0];
+        const attendantObj = busAttendants.find(a => a.id === vehicleAssignedRel?.attendantId || a.attendantName === vehicleAssignedRel?.attendantName) ||
+                             (staff || []).find(s => String(s.id) === String(vehicleAssignedRel?.attendantId) || s.empId === vehicleAssignedRel?.attendantId || `${s.firstName} ${s.lastName || ''}`.trim().toLowerCase() === vehicleAssignedRel?.attendantName?.toLowerCase());
 
-        const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || `DRV-${driverObj?.id || '01'}`;
-        const attendantEmpId = attendantObj?.employeeId || vehicleAssignedRel?.attendantEmployeeId || 'ATT-2026-01';
+        const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || (driverObj?.id ? `DRV-${driverObj.id}` : '-');
+        const attendantEmpId = attendantObj?.employeeId || (attendantObj as any)?.empId || vehicleAssignedRel?.attendantEmployeeId || '-';
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">

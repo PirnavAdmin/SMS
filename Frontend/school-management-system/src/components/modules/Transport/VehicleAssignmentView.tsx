@@ -89,6 +89,7 @@ const getCurrentAcademicYear = () => {
 export const VehicleAssignmentView: React.FC = () => {
   const {
     students = [],
+    staff = [],
     vehicleAssignments,
     vehicleMasters,
     routeMasters,
@@ -242,9 +243,9 @@ export const VehicleAssignmentView: React.FC = () => {
     const list: Array<{ id: string; driverName: string; employeeId: string; mobileNumber: string; status: string }> = [];
     const seen = new Set<string>();
 
-    driverMasters.forEach(d => {
+    (driverMasters || []).forEach(d => {
       if (d && d.driverName && d.driverName.trim() !== '') {
-        const key = d.driverName.trim().toLowerCase();
+        const key = (d.employeeId || d.driverName).trim().toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
           list.push({
@@ -258,8 +259,82 @@ export const VehicleAssignmentView: React.FC = () => {
       }
     });
 
+    (staff || []).forEach(s => {
+      const isDriver =
+        s.designation?.toLowerCase().includes('driver') ||
+        s.department?.toLowerCase().includes('driver') ||
+        (s as any).role?.toLowerCase().includes('driver');
+
+      if (isDriver && s.firstName) {
+        const fullName = `${s.firstName} ${s.lastName || ''}`.trim();
+        const empId = s.empId || s.employeeId || `EMP-${s.id}`;
+        const key = empId.toLowerCase();
+        const nameKey = fullName.toLowerCase();
+        if (!seen.has(key) && !seen.has(nameKey)) {
+          seen.add(key);
+          seen.add(nameKey);
+          list.push({
+            id: `staff-${s.id}`,
+            driverName: fullName,
+            employeeId: empId,
+            mobileNumber: s.phone || s.mobileNumber || '',
+            status: s.status || 'Active'
+          });
+        }
+      }
+    });
+
     return list;
-  }, [driverMasters]);
+  }, [driverMasters, staff]);
+
+  const availableAttendants = useMemo(() => {
+    const list: Array<{ id: string; attendantName: string; employeeId: string; mobileNumber: string; status: string }> = [];
+    const seen = new Set<string>();
+
+    // 1. From busAttendants (configured masters)
+    (busAttendants || []).forEach(a => {
+      if (a && a.attendantName && a.attendantName.trim() !== '') {
+        const key = (a.employeeId || a.attendantName).trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: String(a.id),
+            attendantName: a.attendantName,
+            employeeId: a.employeeId || '',
+            mobileNumber: a.mobileNumber || '',
+            status: a.status || 'Active'
+          });
+        }
+      }
+    });
+
+    // 2. From Non-Teaching Staff
+    (staff || []).forEach(s => {
+      const isAttendantOrNonTeaching =
+        s.role !== 'Teacher' &&
+        s.employeeCategory !== 'Teacher';
+
+      if (isAttendantOrNonTeaching && s.firstName) {
+        const fullName = `${s.firstName} ${s.lastName || ''}`.trim();
+        const empId = s.empId || (s as any).employeeId || '';
+        const key = empId ? empId.toLowerCase() : fullName.toLowerCase();
+        const nameKey = fullName.toLowerCase();
+        if (!seen.has(key) && !seen.has(nameKey)) {
+          if (empId) seen.add(key);
+          seen.add(nameKey);
+          list.push({
+            id: `staff-${s.id}`,
+            attendantName: fullName,
+            employeeId: empId,
+            mobileNumber: s.phone || (s as any).mobileNumber || '',
+            status: s.status || 'Active'
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [busAttendants, staff]);
 
   const branchOptions = useMemo(() => {
     const list = (branches || [])
@@ -280,7 +355,10 @@ export const VehicleAssignmentView: React.FC = () => {
   ]));
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
-    const attendant = busAttendants.find(a =>
+    const attendant = availableAttendants.find(a =>
+      (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+      (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
+    ) || busAttendants.find(a =>
       (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
       (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
     );
@@ -1101,17 +1179,17 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.attendantId}
                   onChange={e => {
-                    const att = busAttendants.find(a => a.id === e.target.value);
+                    const att = availableAttendants.find(a => a.id === e.target.value) || busAttendants.find(a => a.id === e.target.value);
                     setForm(prev => ({
                       ...prev,
                       attendantId: e.target.value,
-                      attendantEmployeeId: att?.employeeId || 'ATT-2026-01'
+                      attendantEmployeeId: att?.employeeId || ''
                     }));
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
                   <option value="">-- Select Bus Attendant (Optional) --</option>
-                  {busAttendants.map(attendant => {
+                  {availableAttendants.map(attendant => {
                     const activeOther = vehicleAssignments.find(va =>
                       (va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true') &&
                       (String(va.attendantId) === String(attendant.id) || (va.attendantName && va.attendantName.trim().toLowerCase() === attendant.attendantName.trim().toLowerCase())) &&
@@ -1120,9 +1198,10 @@ export const VehicleAssignmentView: React.FC = () => {
                     );
                     const isCurrent = form.attendantId === attendant.id || (editingAssignment && (String(editingAssignment.attendantId) === String(attendant.id) || editingAssignment.attendantName?.toLowerCase() === attendant.attendantName?.toLowerCase()));
                     const isDisabled = !!activeOther && !isCurrent;
+                    const empIdText = attendant.employeeId ? ` (Emp ID: ${attendant.employeeId}${attendant.mobileNumber ? ` • ${attendant.mobileNumber}` : ''})` : (attendant.mobileNumber ? ` (${attendant.mobileNumber})` : '');
                     return (
                       <option key={attendant.id} value={attendant.id} disabled={isDisabled}>
-                        {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber}){activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ''}
+                        {attendant.attendantName}{empIdText}{activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ''}
                       </option>
                     );
                   })}
