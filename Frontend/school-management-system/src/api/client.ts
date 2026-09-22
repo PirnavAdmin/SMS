@@ -1,4 +1,8 @@
-export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
+export const apiClient = async (
+  endpoint: string,
+  options: RequestInit = {},
+  isRetry = false
+): Promise<any> => {
   const token = localStorage.getItem('auth_token');
   const branch = localStorage.getItem('auth_branch') || '';
   const academicYear = localStorage.getItem('auth_academic_year') || '';
@@ -32,49 +36,42 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  let rawBaseUrl = (import.meta.env.VITE_API_URL as string) || '';
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    if (rawBaseUrl.includes('ngrok')) {
-      rawBaseUrl = '';
-    }
+  let rawBaseUrl = ((import.meta.env.VITE_API_URL as string) || '').trim();
+  if (typeof window !== 'undefined') {
+    rawBaseUrl = '';
   }
   const baseUrl = rawBaseUrl;
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
+  let response: Response | null = null;
+
+  const tryFetch = async (fetchUrl: string): Promise<Response> => {
+    return await fetch(fetchUrl, {
       ...options,
       headers,
     });
+  };
+
+  try {
+    response = await tryFetch(url);
   } catch (fetchError) {
-    // If fetching fails or hits cors/network issue on localhost, transparently fallback to direct backend port 5151
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      const localUrl = `http://127.0.0.1:5151${endpoint}`;
-      try {
-        response = await fetch(localUrl, {
-          ...options,
-          headers,
-        });
-      } catch {
-        throw fetchError;
-      }
-    } else {
-      throw fetchError;
+    // Perform a 1-time retry after 200ms on network error
+    if (!isRetry) {
+      await new Promise((res) => setTimeout(res, 200));
+      return apiClient(endpoint, options, true);
     }
+    throw fetchError;
   }
 
-  if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504) && url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
-    try {
-      const localUrl = `http://127.0.0.1:5151${endpoint}`;
-      const fallbackRes = await fetch(localUrl, {
-        ...options,
-        headers,
-      });
-      if (fallbackRes.ok) {
-        response = fallbackRes;
-      }
-    } catch { }
+  // Handle 502/503/504 transient proxy error with a single automatic retry
+  if (
+    response &&
+    !response.ok &&
+    (response.status === 502 || response.status === 503 || response.status === 504) &&
+    !isRetry
+  ) {
+    await new Promise((res) => setTimeout(res, 250));
+    return apiClient(endpoint, options, true);
   }
 
   if (!response.ok) {
@@ -92,8 +89,8 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       }
     }
     let errorMessage = `HTTP error! status: ${response.status}`;
-    if (response.status === 502) {
-      errorMessage = `Gateway Error (502 Bad Gateway): The proxy server could not reach the backend API. Please make sure your backend dotnet server is running.`;
+    if (response.status === 502 || response.status === 503) {
+      errorMessage = `Backend Service Unavailable (${response.status}): Connection dropped. Please retry.`;
     }
     try {
       const errorBody = await response.text();

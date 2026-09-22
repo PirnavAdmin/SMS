@@ -1,18 +1,38 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import http from 'http';
+import https from 'https';
+
+const httpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 20,
+});
+
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 100,
+  rejectUnauthorized: false,
+});
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  const apiTarget = env.VITE_BACKEND_TARGET || env.VITE_API_URL || 'http://127.0.0.1:5151';
+  const env = loadEnv(mode, __dirname, '');
+  let apiTarget = (env.VITE_BACKEND_TARGET || 'http://127.0.0.1:5151').trim();
+  if (apiTarget.includes('ngrok')) {
+    apiTarget = 'http://127.0.0.1:5151';
+  }
+  const isHttps = apiTarget.startsWith('https');
 
   return {
     plugins: [react()],
     server: {
+      host: true,
       proxy: {
         '/api': {
           target: apiTarget,
           changeOrigin: true,
           secure: false,
+          agent: isHttps ? httpsAgent : httpAgent,
           headers: {
             'ngrok-skip-browser-warning': 'true',
           },
@@ -31,6 +51,7 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
           secure: false,
+          agent: isHttps ? httpsAgent : httpAgent,
           headers: {
             'ngrok-skip-browser-warning': 'true',
           },
