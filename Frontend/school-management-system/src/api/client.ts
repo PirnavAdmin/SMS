@@ -32,7 +32,13 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  let rawBaseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    if (rawBaseUrl.includes('ngrok')) {
+      rawBaseUrl = '';
+    }
+  }
+  const baseUrl = rawBaseUrl;
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
   let response: Response;
@@ -42,8 +48,8 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       headers,
     });
   } catch (fetchError) {
-    // If ngrok tunnel fails or hits limit on localhost, transparently fallback to direct backend port 5151
-    if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+    // If fetching fails or hits cors/network issue on localhost, transparently fallback to direct backend port 5151
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       const localUrl = `http://127.0.0.1:5151${endpoint}`;
       try {
         response = await fetch(localUrl, {

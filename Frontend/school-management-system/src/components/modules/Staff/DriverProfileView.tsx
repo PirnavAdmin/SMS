@@ -30,67 +30,78 @@ export const DriverProfileView: React.FC = () => {
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
     const userPhone = (user?.phone || '').trim().toLowerCase();
-    const userEmpId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
+    const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
     // Match from driverMasters
     const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId)) ||
+      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
       (userEmail && d.email?.toLowerCase() === userEmail) ||
       (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
       (userName && d.driverName?.toLowerCase() === userName) ||
       (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
     );
 
-    if (fromMaster) {
-      return {
-        ...fromMaster,
-        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : fromMaster.driverName
-      };
-    }
-
     // Match from staff
-    const fromStaff = staff.find(s =>
-      (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
-      (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
-    );
+    const fromStaff = staff.find(s => {
+      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+      const sId = String(s.id).toLowerCase();
+      const sEmail = (s.email || '').toLowerCase();
+      const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = (s.name || '').trim().toLowerCase();
 
-    if (fromStaff) {
-      return {
-        id: fromStaff.id,
-        driverName: (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator') ? user.name : `${fromStaff.firstName} ${fromStaff.lastName}`.trim(),
-        licenseNumber: (fromStaff as any).licenseNumber || `DL-${fromStaff.empId || fromStaff.id}`,
-        mobileNumber: fromStaff.phone || '',
-        employeeId: fromStaff.empId || fromStaff.employeeId || `STF-${fromStaff.id}`,
-        department: fromStaff.department || 'Transport Dept',
-        designation: fromStaff.designation || 'Driver',
-        status: 'Active' as const,
-        experienceYears: (fromStaff as any).experienceYears !== undefined ? (fromStaff as any).experienceYears : 5,
-        email: fromStaff.email || user?.email || '',
-        address: fromStaff.address || '',
-        bloodGroup: fromStaff.bloodGroup || 'O+',
-        dateOfJoining: fromStaff.dateOfJoining || new Date().toISOString().split('T')[0],
-        licenseExpiryDate: (fromStaff as any).licenseExpiryDate || '',
-        licenseType: (fromStaff as any).licenseType || 'Commercial (HMV)',
-      };
-    }
+      const matchesUser = (
+        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
+        (userEmail && sEmail === userEmail) ||
+        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
+        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
+      );
+
+      const matchesMaster = fromMaster ? (
+        (fromMaster.employeeId && (sEmpId === fromMaster.employeeId.toLowerCase() || sId === fromMaster.employeeId.toLowerCase())) ||
+        (fromMaster.email && sEmail === fromMaster.email.toLowerCase()) ||
+        (fromMaster.mobileNumber && sPhone && sPhone === fromMaster.mobileNumber.replace(/\D/g, '')) ||
+        (fromMaster.driverName && (sFullName === fromMaster.driverName.toLowerCase() || sName === fromMaster.driverName.toLowerCase() || sFullName.includes(fromMaster.driverName.toLowerCase())))
+      ) : false;
+
+      return matchesUser || matchesMaster;
+    });
+
+    const resolvedBloodGroup = (fromMaster as any)?.bloodGroup || fromStaff?.bloodGroup || (fromStaff as any)?.blood_group || (user as any)?.bloodGroup || '';
+    const resolvedEmergency = (fromMaster as any)?.emergencyContact || (fromStaff as any)?.emergencyContact || (fromStaff as any)?.emergencyContactNumber || (fromStaff as any)?.emergencyPhone || (fromStaff as any)?.fatherPhone || (fromStaff as any)?.guardianPhone || '';
+    const resolvedJoiningDate = (fromMaster as any)?.dateOfJoining || (fromMaster as any)?.joiningDate || fromStaff?.joiningDate || (fromStaff as any)?.dateOfJoining || (user as any)?.joiningDate || '';
+    const resolvedAddress = fromMaster?.address || fromStaff?.address || (fromStaff as any)?.presentAddress || (fromStaff as any)?.permanentAddress || (user as any)?.address || '';
+    const resolvedMobile = fromMaster?.mobileNumber || fromStaff?.phone || (fromStaff as any)?.mobileNumber || user?.phone || '';
+    const resolvedEmail = fromMaster?.email || fromStaff?.email || user?.email || '';
+    const resolvedEmpId = fromMaster?.employeeId || fromStaff?.empId || fromStaff?.employeeId || (user as any)?.empId || user?.id || '';
+    const resolvedName = (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator')
+      ? user.name
+      : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (user?.name || 'Driver')));
+
+    const resolvedLicense = fromMaster?.licenseNumber || (fromStaff as any)?.licenseNumber || '';
+    const resolvedLicenseExpiry = fromMaster?.licenseExpiryDate || (fromStaff as any)?.licenseExpiryDate || '';
+    const resolvedLicenseType = (fromMaster as any)?.licenseType || (fromStaff as any)?.licenseType || '';
+    const resolvedExperience = fromMaster?.experienceYears !== undefined ? fromMaster.experienceYears : ((fromStaff as any)?.experienceYears !== undefined ? (fromStaff as any).experienceYears : 0);
+    const resolvedDept = (fromMaster as any)?.department || fromStaff?.department || 'Transport';
+    const resolvedDesig = (fromMaster as any)?.designation || fromStaff?.designation || 'Driver';
 
     return {
-      id: user?.id || '1',
-      driverName: user?.name || 'Sai Kiran V',
-      licenseNumber: `DL-${user?.id || '2026-0003'}`,
-      mobileNumber: user?.phone || '',
-      employeeId: (user as any)?.empId || user?.id || 'STF-2026-0003',
-      department: (user as any)?.department || 'Transport Dept',
-      designation: (user as any)?.designation || 'Driver',
-      status: 'Active' as const,
-      experienceYears: 5,
-      email: user?.email || '',
-      address: '',
-      bloodGroup: 'O+',
-      dateOfJoining: new Date().toISOString().split('T')[0],
-      licenseExpiryDate: '',
-      licenseType: 'Commercial (HMV)',
+      id: fromMaster?.id || fromStaff?.id || user?.id || '1',
+      driverName: resolvedName,
+      employeeId: resolvedEmpId,
+      mobileNumber: resolvedMobile,
+      email: resolvedEmail,
+      address: resolvedAddress,
+      bloodGroup: resolvedBloodGroup,
+      emergencyContact: resolvedEmergency,
+      dateOfJoining: resolvedJoiningDate,
+      licenseNumber: resolvedLicense,
+      licenseExpiryDate: resolvedLicenseExpiry,
+      licenseType: resolvedLicenseType,
+      experienceYears: resolvedExperience,
+      department: resolvedDept,
+      designation: resolvedDesig,
+      status: fromMaster?.status || fromStaff?.status || 'Active'
     };
   }, [user, driverMasters, staff]);
 
@@ -158,7 +169,7 @@ export const DriverProfileView: React.FC = () => {
   // Sync formData whenever matchedDriver or saved profile changes
   useEffect(() => {
     try {
-      const key = `driver_profile_${matchedDriver.employeeId || 'DRV-001'}`;
+      const key = `driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`;
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : null;
       setFormData({
@@ -185,7 +196,7 @@ export const DriverProfileView: React.FC = () => {
       };
 
       // Save contact details + license details to localStorage
-      localStorage.setItem(`driver_profile_${matchedDriver.employeeId || 'DRV-001'}`, JSON.stringify(dataToSave));
+      localStorage.setItem(`driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`, JSON.stringify(dataToSave));
 
       // Also update DriverMaster via DataContext for persistence
       if (matchedDriver?.id && updateDriverMaster) {
@@ -231,7 +242,7 @@ export const DriverProfileView: React.FC = () => {
                 <Badge variant="success" size="sm">Active Staff</Badge>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                ID: {matchedDriver.employeeId || 'STF-2026-0003'} • Department: {(matchedDriver as any).department || 'Transport Dept'}
+                ID: {matchedDriver.employeeId || '—'} • Department: {(matchedDriver as any).department || 'Transport'}
               </p>
               <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mt-0.5">
                 Designation: {(matchedDriver as any).designation || 'Driver'}
@@ -275,17 +286,17 @@ export const DriverProfileView: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Blood Group</span>
-                    <span className="font-black text-rose-600">{formData.bloodGroup}</span>
+                    <span className="font-black text-rose-600">{formData.bloodGroup || matchedDriver.bloodGroup || '—'}</span>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Emergency Contact</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{formData.emergencyContact || '—'}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{formData.emergencyContact || matchedDriver.emergencyContact || '—'}</span>
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Date of Joining</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
-                    {(matchedDriver as any).dateOfJoining || '15 June 2022'}
+                    {matchedDriver.dateOfJoining || '—'}
                   </span>
                 </div>
               </div>

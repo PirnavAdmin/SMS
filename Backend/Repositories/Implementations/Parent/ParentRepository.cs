@@ -24,98 +24,56 @@ namespace SMS.Api.Repositories.Implementations.Parent
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(identifier))
-                {
-                    identifier = identifier.Trim().ToLowerInvariant();
-                    var digitsOnly = new string(identifier.Where(char.IsDigit).ToArray());
-                    bool isEmail = identifier.Contains("@");
-                    bool isGenericName = new[] { "parent", "user", "admin", "administrator" }.Contains(identifier);
+                if (string.IsNullOrWhiteSpace(identifier))
+                    return new List<Student>();
 
-                    var matchedStudents = new List<Student>();
+                identifier = identifier.Trim().ToLowerInvariant();
+                var digitsOnly = new string(identifier.Where(char.IsDigit).ToArray());
 
-                    // 1. Direct match on Students table
-                    var studentMatches = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .AsNoTracking()
-                        .Where(s => !s.IsDeleted && s.Status == "Active")
-                        .Where(s =>
-                            (isEmail && s.Email != null && s.Email.ToLower() == identifier) ||
-                            (digitsOnly.Length >= 7 && (
-                                (s.FatherMobile != null && s.FatherMobile.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
-                                (s.MotherMobile != null && s.MotherMobile.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
-                                (s.MobileNumber != null && s.MobileNumber.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly))
-                            )) ||
-                            (!isEmail && !isGenericName && (
-                                (s.FatherName != null && s.FatherName.ToLower() == identifier) ||
-                                (s.MotherName != null && s.MotherName.ToLower() == identifier) ||
-                                (s.StudentName != null && s.StudentName.ToLower() == identifier)
+                // 1. Look up parentUser in Users table if identifier is email/mobile/userId
+                var parentUser = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => 
+                        (u.Email != null && u.Email.ToLower() == identifier) ||
+                        u.MobileNumber == identifier ||
+                        (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly)) ||
+                        u.UserId.ToString() == identifier
+                    );
+
+                string searchMobile = parentUser?.MobileNumber ?? (digitsOnly.Length >= 10 ? identifier : string.Empty);
+                string searchEmail = parentUser?.Email ?? (identifier.Contains("@") ? identifier : string.Empty);
+                string searchFullName = parentUser?.FullName ?? string.Empty;
+                string searchMobileDigits = new string(searchMobile.Where(char.IsDigit).ToArray());
+
+                // 2. Query students strictly matching exact Mobile, Email, or Full Name
+                var children = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .AsNoTracking()
+                    .Where(s => !s.IsDeleted && s.Status == "Active")
+                    .Where(s =>
+                        (!string.IsNullOrEmpty(searchMobile) && (
+                            s.FatherMobile == searchMobile || 
+                            s.MotherMobile == searchMobile || 
+                            s.MobileNumber == searchMobile ||
+                            (searchMobileDigits.Length >= 10 && (
+                                (s.FatherMobile != null && s.FatherMobile.EndsWith(searchMobileDigits)) ||
+                                (s.MotherMobile != null && s.MotherMobile.EndsWith(searchMobileDigits)) ||
+                                (s.MobileNumber != null && s.MobileNumber.EndsWith(searchMobileDigits))
                             ))
-                        )
-                        .OrderByDescending(s => s.StudentId)
-                        .ToListAsync();
+                        )) ||
+                        (!string.IsNullOrEmpty(searchEmail) && (
+                            (s.Email != null && s.Email.ToLower() == searchEmail)
+                        )) ||
+                        (!string.IsNullOrEmpty(searchFullName) && (
+                            (s.FatherName != null && s.FatherName.Trim().ToLower() == searchFullName.Trim().ToLower()) ||
+                            (s.MotherName != null && s.MotherName.Trim().ToLower() == searchFullName.Trim().ToLower())
+                        ))
+                    )
+                    .OrderByDescending(s => s.StudentId)
+                    .ToListAsync();
 
-                    matchedStudents.AddRange(studentMatches);
-
-                    // 2. Direct match on AdmissionApplications table (for newly admitted students like Ricky Ponting)
-                    var admissionMatches = await _context.AdmissionApplications
-                        .Include(a => a.AppliedClass)
-                        .AsNoTracking()
-                        .Where(a => !a.IsDeleted && a.Status != "Rejected" && a.Status != "Cancelled")
-                        .Where(a =>
-                            (isEmail && a.ParentEmail != null && a.ParentEmail.ToLower() == identifier) ||
-                            (digitsOnly.Length >= 7 && (
-                                (a.FatherContact != null && a.FatherContact.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
-                                (a.MotherMobileNumber != null && a.MotherMobileNumber.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly)) ||
-                                (a.AlternateMobileNumber != null && a.AlternateMobileNumber.Replace("-", "").Replace(" ", "").EndsWith(digitsOnly))
-                            )) ||
-                            (!isEmail && !isGenericName && (
-                                (a.FatherName != null && a.FatherName.ToLower() == identifier) ||
-                                (a.MotherName != null && a.MotherName.ToLower() == identifier) ||
-                                (a.FirstName != null && (a.FirstName.ToLower() == identifier || $"{a.FirstName} {a.LastName}".ToLower() == identifier))
-                            ))
-                        )
-                        .OrderByDescending(a => a.Id)
-                        .ToListAsync();
-
-                    foreach (var adm in admissionMatches)
-                    {
-                        var sName = $"{adm.FirstName} {adm.LastName}".Trim();
-                        if (string.IsNullOrWhiteSpace(sName)) sName = "Student";
-
-                        var admStudent = new Student
-                        {
-                            StudentId = adm.Id,
-                            AdmissionNumber = !string.IsNullOrWhiteSpace(adm.RegistrationNo) ? adm.RegistrationNo : $"REG-{adm.Id}",
-                            RollNumber = $"REG-{adm.Id}",
-                            StudentName = sName,
-                            DateOfBirth = adm.DateOfBirth,
-                            Gender = adm.Gender ?? "Male",
-                            FatherName = adm.FatherName ?? "Parent",
-                            MotherName = adm.MotherName,
-                            FatherMobile = adm.FatherContact,
-                            MotherMobile = adm.MotherMobileNumber,
-                            Email = adm.ParentEmail,
-                            MobileNumber = adm.FatherContact ?? adm.MotherMobileNumber,
-                            Address = $"{adm.HouseNo} {adm.Street} {adm.AreaLocality} {adm.City}".Trim(),
-                            ClassGrade = adm.AppliedClass ?? new ClassGrade { ClassName = "Class 5" },
-                            ClassSection = new ClassSection { SectionName = "A" },
-                            Status = "Active"
-                        };
-
-                        if (!matchedStudents.Any(s => s.StudentId == admStudent.StudentId || s.AdmissionNumber == admStudent.AdmissionNumber))
-                        {
-                            matchedStudents.Add(admStudent);
-                        }
-                    }
-
-                    if (matchedStudents.Any())
-                    {
-                        return matchedStudents;
-                    }
-                }
-
-                return new List<Student>();
+                return children;
             }
             catch (Exception ex)
             {
@@ -128,19 +86,11 @@ namespace SMS.Api.Repositories.Implementations.Parent
         {
             try
             {
-                var student = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
-
-                if (student != null) return student;
-
                 return await _context.Students
                     .Include(s => s.ClassGrade)
                     .Include(s => s.ClassSection)
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(s => !s.IsDeleted && s.Status == "Active");
+                    .FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
             }
             catch (Exception ex)
             {
@@ -255,18 +205,13 @@ namespace SMS.Api.Repositories.Implementations.Parent
 
             return new ParentAttendanceSummaryDto
             {
-                TotalDays = 17,
-                PresentDays = 14,
-                AbsentDays = 1,
-                LateDays = 1,
-                HalfDays = 1,
-                Percentage = 91,
-                Logs = new List<ParentAttendanceLogDto>
-                {
-                    new ParentAttendanceLogDto { AttendanceId = 1, Date = "2026-08-25", Status = "Present", Remarks = null, CheckInTime = "08:30 AM", CheckOutTime = "03:30 PM" },
-                    new ParentAttendanceLogDto { AttendanceId = 2, Date = "2026-08-24", Status = "Absent", Remarks = "Sick leave", CheckInTime = null, CheckOutTime = null },
-                    new ParentAttendanceLogDto { AttendanceId = 3, Date = "2026-08-21", Status = "HalfDay", Remarks = "Doctor appointment", CheckInTime = "08:30 AM", CheckOutTime = "12:30 PM" }
-                }
+                TotalDays = 0,
+                PresentDays = 0,
+                AbsentDays = 0,
+                LateDays = 0,
+                HalfDays = 0,
+                Percentage = 0,
+                Logs = new List<ParentAttendanceLogDto>()
             };
         }
 
@@ -763,65 +708,43 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 System.Console.WriteLine($"[ParentRepository] GetUpcomingEvents Exception: {ex.Message}");
             }
 
-            return new List<ParentEventItemDto>
-            {
-                new ParentEventItemDto { Id = "SE-1", Title = "New Year's Day (Gazetted)", Category = "Gazetted", Date = "2026-01-01", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-2", Title = "Makar Sankranti / Pongal", Category = "Festival", Date = "2026-01-14", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-3", Title = "Republic Day (National)", Category = "National", Date = "2026-01-26", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-4", Title = "Maha Shivaratri (Gazetted)", Category = "Gazetted", Date = "2026-02-15", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-5", Title = "Raksha Bandhan", Category = "Festival", Date = "2026-08-28", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-6", Title = "Janmashtami (Gokulashtami)", Category = "Festival", Date = "2026-09-04", Type = "Holiday" },
-                new ParentEventItemDto { Id = "SE-7", Title = "Milad-un-Nabi (Eid-e-Milad)", Category = "Gazetted", Date = "2026-09-24", Type = "Holiday" }
-            };
+            return new List<ParentEventItemDto>();
         }
 
         public async Task<List<ParentCommunicationDto>> GetCommunicationsAsync()
         {
-            return await Task.FromResult(new List<ParentCommunicationDto>
+            try
             {
-                new ParentCommunicationDto
+                var circulars = await _context.Circulars
+                    .AsNoTracking()
+                    .OrderByDescending(c => c.CreatedDate)
+                    .Take(20)
+                    .ToListAsync();
+
+                if (circulars.Any())
                 {
-                    Id = "ANN-1",
-                    Title = "🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday",
-                    Content = "Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (Dispatched on 2026-08-24 at 02:48 PM). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.",
-                    TargetAudience = "ALL",
-                    Category = "URGENT",
-                    Date = "2026-08-24",
-                    Time = "09:30 AM",
-                    Author = "Issued by Principal Office",
-                    IsPinned = true,
-                    RecipientsCount = 1420,
-                    DeliveryChannels = "Sent via SMS & Email (1420 Recipients)"
-                },
-                new ParentCommunicationDto
-                {
-                    Id = "ANN-2",
-                    Title = "🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday",
-                    Content = "Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (Dispatched on 2026-08-24 at 05:28 PM). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.",
-                    TargetAudience = "ALL",
-                    Category = "URGENT",
-                    Date = "2026-08-24",
-                    Time = "09:30 AM",
-                    Author = "Issued by Principal Office",
-                    IsPinned = true,
-                    RecipientsCount = 1420,
-                    DeliveryChannels = "Sent via SMS & Email (1420 Recipients)"
-                },
-                new ParentCommunicationDto
-                {
-                    Id = "ANN-3",
-                    Title = "🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday",
-                    Content = "Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.",
-                    TargetAudience = "ALL",
-                    Category = "URGENT",
-                    Date = "2026-08-20",
-                    Time = "09:30 AM",
-                    Author = "Issued by Principal Office",
-                    IsPinned = true,
-                    RecipientsCount = 1420,
-                    DeliveryChannels = "Sent via SMS & Email (1420 Recipients)"
+                    return circulars.Select(c => new ParentCommunicationDto
+                    {
+                        Id = $"ANN-{c.CircularId}",
+                        Title = c.Title ?? "Announcement",
+                        Content = c.Content ?? "",
+                        TargetAudience = c.TargetAudience ?? "ALL",
+                        Category = c.Category ?? "NOTICE",
+                        Date = c.CreatedDate.ToString("yyyy-MM-dd"),
+                        Time = c.CreatedDate.ToString("hh:mm tt"),
+                        Author = c.Author ?? "School Administration",
+                        IsPinned = c.IsPinned,
+                        RecipientsCount = c.DeliveredCount,
+                        DeliveryChannels = "Sent via System Notification"
+                    }).ToList();
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[ParentRepository] GetCommunications Exception: {ex.Message}");
+            }
+
+            return new List<ParentCommunicationDto>();
         }
     }
 }

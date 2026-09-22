@@ -33,7 +33,20 @@ export const getLocalUserProfile = (userKey?: string): UserProfileData | null =>
   try {
     const stored = localStorage.getItem(`user_profile_${key}`);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Validate that stored profile matches this user's email
+      const targetEmail = key.includes('@') ? key.trim().toLowerCase() : '';
+      const storedEmail = (parsed.email || '').trim().toLowerCase();
+      if (targetEmail && storedEmail && targetEmail !== storedEmail) {
+        localStorage.removeItem(`user_profile_${key}`);
+        return null;
+      }
+      // If non-admin user got corrupted with admin profile name
+      if (targetEmail && !targetEmail.includes('admin') && !targetEmail.includes('pirnavsms') && parsed.name === 'Pirnavsms') {
+        localStorage.removeItem(`user_profile_${key}`);
+        return null;
+      }
+      return parsed;
     }
   } catch {}
   return null;
@@ -63,25 +76,38 @@ export const saveLocalUserProfile = (profileData: Partial<UserProfileData>, user
 export const fetchUserProfileApi = async (userEmailOrId?: string) => {
   const key = getActiveUserKey(userEmailOrId);
 
-  // 1. Try dedicated backend endpoint
+  // 1. Try dedicated backend endpoint ONLY for Admin users
   try {
-    const res = await apiClient('/api/Settings/profile', {
-      method: 'GET',
-    });
-    const backendData = res?.data || res;
-    if (backendData && (backendData.name || backendData.avatar || backendData.email)) {
-      // Cache locally for this specific user
-      saveLocalUserProfile(backendData, key);
-      return {
-        success: true,
-        data: backendData,
-      };
+    let isExplicitAdmin = false;
+    try {
+      const saved = localStorage.getItem('auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        isExplicitAdmin = parsed?.role === 'Admin' || key.includes('admin') || key.includes('pirnavsms');
+      }
+    } catch {}
+
+    if (isExplicitAdmin) {
+      const res = await apiClient('/api/Settings/profile', {
+        method: 'GET',
+      });
+      const backendData = res?.data || res;
+      if (backendData && (backendData.name || backendData.avatar || backendData.email)) {
+        const backendEmail = (backendData.email || '').trim().toLowerCase();
+        const targetKey = key.trim().toLowerCase();
+        if (!backendEmail || !targetKey || targetKey === 'current_user' || !targetKey.includes('@') || backendEmail === targetKey) {
+          // Cache locally for this specific admin user
+          saveLocalUserProfile(backendData, key);
+          return {
+            success: true,
+            data: backendData,
+          };
+        }
+      }
     }
   } catch (err: any) {
     // CRITICAL: If backend endpoint is not found (404) or server is unreachable,
     // DO NOT fallback to /api/Settings!
-    // /api/Settings returns SchoolSettings (Principal Name "Dr. Eleanor Vance", School Email, School Logo)
-    // which must NEVER overwrite a user's personal profile or corrupt other accounts.
   }
 
   // 2. Return user-scoped profile from local storage if previously saved

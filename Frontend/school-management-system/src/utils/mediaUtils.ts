@@ -52,10 +52,13 @@ export const resolveMediaUrl = (url?: string | null): string => {
   }
 
   // 4. Dynamic backend uploads (e.g., /uploads/...)
-  const backendBase = (import.meta.env.VITE_API_URL as string) || (import.meta.env.VITE_BACKEND_TARGET as string) || '';
   if (trimmed.startsWith('/uploads/')) {
     const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    const cleanBase = backendBase ? backendBase.trim().replace(/\/+$/, '') : (isLocalhost ? 'http://127.0.0.1:5151' : '');
+    if (isLocalhost) {
+      return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    }
+    const backendBase = (import.meta.env.VITE_API_URL as string) || (import.meta.env.VITE_BACKEND_TARGET as string) || '';
+    const cleanBase = backendBase ? backendBase.trim().replace(/\/+$/, '') : '';
     const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
     let finalUrl = cleanBase ? `${cleanBase}${cleanPath}` : cleanPath;
     if (finalUrl.includes('ngrok') && !finalUrl.includes('ngrok-skip-browser-warning')) {

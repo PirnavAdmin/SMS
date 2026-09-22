@@ -1725,6 +1725,9 @@ export interface VehicleAssignment {
   attendantMobile?: string;
   morningTripTime?: string;
   eveningTripTime?: string;
+  morningTripStatus?: 'Pending' | 'Running' | 'Completed' | 'Delayed';
+  eveningTripStatus?: 'Pending' | 'Running' | 'Completed' | 'Delayed';
+  tripStatus?: 'Pending' | 'Running' | 'Completed' | 'Delayed';
   vehicleCapacity?: number;
   assignedStudents?: number;
   gpsStatus?: 'Online' | 'Offline';

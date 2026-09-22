@@ -108,14 +108,19 @@ const SearchableCombobox: React.FC<{
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const selectedOpt = options.find((o) => String(o.value) === String(value));
+  const selectedOpt = options.find(
+    (o) =>
+      String(o.value) === String(value) ||
+      (value && value !== "N/A" && o.label.toLowerCase() === String(value).toLowerCase())
+  );
 
   useEffect(() => {
     if (selectedOpt) {
       setSearchText(selectedOpt.label);
-    } else if (value) {
+    } else if (value && value !== "N/A" && value !== "none") {
       setSearchText(value);
     } else {
       setSearchText("");
@@ -129,6 +134,7 @@ const SearchableCombobox: React.FC<{
         !containerRef.current.contains(e.target as Node)
       ) {
         setIsOpen(false);
+        setIsUserTyping(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -136,12 +142,14 @@ const SearchableCombobox: React.FC<{
   }, []);
 
   const filteredOptions = options.filter((opt) => {
-    if (!searchText.trim()) return true;
+    if (!isUserTyping) return true;
+    if (!searchText.trim() || searchText === "N/A" || searchText === "none") return true;
     if (selectedOpt && searchText === selectedOpt.label) return true;
     const q = searchText.toLowerCase().trim();
     return (
       opt.label.toLowerCase().includes(q) ||
-      (opt.subLabel || "").toLowerCase().includes(q)
+      (opt.subLabel || "").toLowerCase().includes(q) ||
+      String(opt.value).toLowerCase() === q
     );
   });
 
@@ -155,10 +163,16 @@ const SearchableCombobox: React.FC<{
           type="text"
           disabled={disabled}
           value={searchText}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setIsOpen(true);
+            if (searchText === "N/A" || searchText === "none") {
+              setSearchText("");
+            }
+          }}
           onChange={(e) => {
             const val = e.target.value;
             setSearchText(val);
+            setIsUserTyping(true);
             setIsOpen(true);
             if (allowCustom) {
               onChange(val);
@@ -175,11 +189,12 @@ const SearchableCombobox: React.FC<{
       {isOpen && !disabled && (
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1 space-y-0.5 custom-scrollbar">
           {filteredOptions.length === 0 ? (
-            allowCustom && searchText.trim() ? (
+            allowCustom && searchText.trim() && searchText !== "N/A" ? (
               <button
                 type="button"
                 onClick={() => {
                   onChange(searchText.trim());
+                  setIsUserTyping(false);
                   setIsOpen(false);
                 }}
                 className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 flex items-center justify-between"
@@ -207,6 +222,7 @@ const SearchableCombobox: React.FC<{
                     if (opt.disabled) return;
                     onChange(opt.value, opt);
                     setSearchText(opt.label);
+                    setIsUserTyping(false);
                     setIsOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${

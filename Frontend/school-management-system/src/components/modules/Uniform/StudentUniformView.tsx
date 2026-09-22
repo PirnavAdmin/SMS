@@ -4955,16 +4955,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             (student.studentName && i.studentName && i.studentName.toLowerCase().trim() === student.studentName.toLowerCase().trim())
           );
 
-          // DEBUG: Trace cloth data in modal
-          const clothDbg = rawStudentIssues.filter(i => (i.itemName || '').toLowerCase().includes('cloth'));
-          if (clothDbg.length > 0) {
-            console.log('[DEBUG-CLOTH] React state:', clothDbg.map(i => ({ id: i.id, size: i.size, price: i.price, qty: i.quantity, status: i.status, notes: (i.notes || '').substring(0, 80), replacementDate: i.replacementDate })));
-            try {
-              const lsData = JSON.parse(localStorage.getItem('edu_db_student_uniform_issues') || '[]');
-              const lsCloth = lsData.filter((x: any) => (x.itemName || '').toLowerCase().includes('cloth') && (x.studentId === student.studentId || (student.admissionNo && x.admissionNo === student.admissionNo)));
-              console.log('[DEBUG-CLOTH] localStorage:', lsCloth.map((x: any) => ({ id: x.id, size: x.size, price: x.price, qty: x.quantity, status: x.status, notes: (x.notes || '').substring(0, 80), replacementDate: x.replacementDate })));
-            } catch(e) {}
-          }
+          // Trace cloth data in modal
 
           const list: StudentUniformIssue[] = rawStudentIssues.length > 0 ? rawStudentIssues : (() => {
             const fallback: StudentUniformIssue[] = [];

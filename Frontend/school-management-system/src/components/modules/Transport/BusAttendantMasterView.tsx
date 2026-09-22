@@ -12,26 +12,21 @@ export { initialBusAttendants };          // re-export value for backward compat
 // BusAttendantMaster type and initialBusAttendants are now in transportData.ts
 
 export const BusAttendantMasterView: React.FC = () => {
-  const { staff, vehicleAssignments, busAttendants: attendants, addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
+  const { staff = [], vehicleAssignments, busAttendants: attendants, addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
   const { addToast } = useToast();
 
   const nonTeachingStaff = React.useMemo(() => {
     return (staff || []).filter(s => 
-      s.designation?.toLowerCase().includes('attendant') ||
-      s.designation?.toLowerCase().includes('helper') ||
-      s.designation?.toLowerCase().includes('conductor') ||
-      s.designation?.toLowerCase().includes('cleaner') ||
-      s.department?.toLowerCase().includes('attendant') ||
-      (s as any).role?.toLowerCase().includes('attendant')
+      s.role !== 'Teacher' &&
+      s.employeeCategory !== 'Teacher'
     );
   }, [staff]);
 
   const filteredNonTeachingStaff = React.useMemo(() => {
     return nonTeachingStaff.filter(
-      s => !attendants.some(a => a.employeeId === s.empId)
+      s => !attendants.some(a => a.employeeId === s.empId || a.employeeId === (s as any).employeeId)
     );
   }, [nonTeachingStaff, attendants]);
-
 
   const [query, setQuery] = useState('');
   const [selectedAttendantFilter, setSelectedAttendantFilter] = useState(() => sessionStorage.getItem('tm_attendant_filter') || '');
@@ -65,14 +60,10 @@ export const BusAttendantMasterView: React.FC = () => {
     vehicleAssignments.find(assignment => assignment.attendantId === attendant.id && assignment.status === 'Active') ||
     vehicleAssignments.find(assignment => assignment.attendantName === attendant.attendantName && assignment.status === 'Active');
 
-  const [initialEmployeeId, setInitialEmployeeId] = useState('');
-
   const handleOpenAdd = () => {
-    const generatedId = 'ATT-' + Math.floor(1000 + Math.random() * 9000);
-    setInitialEmployeeId(generatedId);
     setEditingAttendant(null);
     setForm({
-      employeeId: generatedId,
+      employeeId: '',
       attendantName: '',
       mobileNumber: '',
       gender: '' as any,
@@ -90,7 +81,10 @@ export const BusAttendantMasterView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.attendantName || !form.employeeId || !form.mobileNumber) return;
+    if (!form.attendantName || !form.employeeId || !form.mobileNumber) {
+      addToast('warning', 'Validation Error', 'Please select a non-teaching staff member or provide employee details.');
+      return;
+    }
     if (!form.gender) {
       addToast('warning', 'Validation Error', 'Please select a gender.');
       return;
@@ -101,7 +95,7 @@ export const BusAttendantMasterView: React.FC = () => {
       addToast('success', 'Bus Attendant Updated', `Updated details for ${form.attendantName}`);
     } else {
       addBusAttendant(form as Omit<BusAttendantMaster, 'id'>);
-      addToast('success', 'Bus Attendant Registered', `Added ${form.attendantName}`);
+      addToast('success', 'Bus Attendant Registered', `Added ${form.attendantName} (${form.employeeId})`);
     }
     setIsModalOpen(false);
   };
@@ -258,26 +252,25 @@ export const BusAttendantMasterView: React.FC = () => {
               {!editingAttendant && (
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Select Bus Attendant
+                    Select Non-Teaching Staff Member
                   </label>
                   <select
-                    value={filteredNonTeachingStaff.find(s => s.empId === form.employeeId)?.id || ""}
+                    value={filteredNonTeachingStaff.find(s => (s.empId || (s as any).employeeId) === form.employeeId)?.id || ""}
                     onChange={e => {
                       const selected = filteredNonTeachingStaff.find(s => String(s.id) === String(e.target.value));
                       if (selected) {
                         setForm(prev => ({
                           ...prev,
-                          employeeId: selected.empId || prev.employeeId,
-                          attendantName: `${selected.firstName} ${selected.lastName}`.trim(),
-                          mobileNumber: selected.phone || prev.mobileNumber,
+                          employeeId: selected.empId || (selected as any).employeeId || '',
+                          attendantName: `${selected.firstName} ${selected.lastName || ''}`.trim(),
+                          mobileNumber: selected.phone || (selected as any).mobileNumber || '',
                           gender: (selected.gender as any) || prev.gender,
-                          branch: selected.branch || prev.branch
+                          branch: selected.branch || prev.branch || 'Main Campus'
                         }));
                       } else {
-                        // Reset to the initial auto-generated ID
                         setForm(prev => ({
                           ...prev,
-                          employeeId: initialEmployeeId,
+                          employeeId: '',
                           attendantName: '',
                           mobileNumber: '',
                           gender: '' as any,
@@ -290,7 +283,7 @@ export const BusAttendantMasterView: React.FC = () => {
                     <option value="">-- Choose Non-Teaching Staff Member --</option>
                     {filteredNonTeachingStaff.map(s => (
                       <option key={s.id} value={s.id}>
-                        {s.firstName} {s.lastName} ({s.empId} • {s.designation} • {s.department})
+                        {s.firstName} {s.lastName || ''} (Emp ID: {s.empId || (s as any).employeeId || s.id} • {s.designation || 'Staff'} • {s.department || 'Operations'})
                       </option>
                     ))}
                   </select>

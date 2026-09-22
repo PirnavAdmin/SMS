@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setCollapsed,
 }) => {
   const { role, user } = useAuth();
-  const { schoolProfile, admissions, students } = useData();
+  const { schoolProfile, admissions, students, studentHostels, studentTransports } = useData();
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
     return (
       schoolProfile?.logoUrl ||
@@ -118,48 +118,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   if (role.toLowerCase() === "student" || role.toLowerCase() === "parent") {
     const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
     const userPhone = (user?.phone || '').replace(/\D/g, '');
     const userId = String(user?.id || '').trim();
 
-    const parentWards = students.filter(
-          (s) =>
-            s.status === "Active" &&
-            (role.toLowerCase() === "student"
-              ? (
-                  (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
-                  (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
-                  (userPhone && userPhone.length >= 10 && (
-                    (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-                    ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone)) ||
-                    (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone))
-                  ))
-                )
-              : (
-                  (userPhone && userPhone.length >= 10 && (
-                    (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-                    (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-                    ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-                    (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone))
-                  )) ||
-                  (userEmail && (
-                    s.guardianEmail?.toLowerCase() === userEmail || 
-                    s.guardianPhone?.toLowerCase() === userEmail || 
-                    s.contactEmail?.toLowerCase() === userEmail || 
-                    s.contactPhone?.toLowerCase() === userEmail ||
-                    s.fatherPhone?.toLowerCase() === userEmail ||
-                    s.motherPhone?.toLowerCase() === userEmail
-                  )) ||
-                  (userName && (
-                    s.fatherName?.toLowerCase() === userName ||
-                    s.motherName?.toLowerCase() === userName ||
-                    (s as any).guardianName?.toLowerCase() === userName
-                  ))
-                )),
+    const matchedStudents = (students || []).filter((s) => {
+      if (s.status !== "Active") return false;
+      if (role.toLowerCase() === "student") {
+        return (
+          (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
+          (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
+          (userPhone && userPhone.length >= 7 && (
+            (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
+            ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
+          ))
         );
+      } else {
+        // Parent
+        return (
+          (userPhone && userPhone.length >= 7 && (
+            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
+            (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone))
+          )) ||
+          (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
+            s.guardianEmail?.toLowerCase().trim() === userEmail ||
+            s.contactEmail?.toLowerCase().trim() === userEmail ||
+            s.fatherPhone?.toLowerCase().trim() === userEmail
+          ))
+        );
+      }
+    });
 
-    isHosteller = true;
-    usesTransport = true;
+    const studentIds = new Set(matchedStudents.map(s => String(s.id)));
+    const studentAdmissions = new Set(matchedStudents.map(s => String(s.admissionNo)));
+
+    // Check Hostel Enrollment
+    const hasHostelRecord = (studentHostels || []).some(sh => 
+      (sh.status === 'Active' || sh.status === 'Occupied') && 
+      (studentIds.has(String(sh.studentId)) || studentAdmissions.has(String(sh.studentId)))
+    );
+    const hasHostelStudentType = matchedStudents.some(s => 
+      s.studentType && ['hosteller', 'residential', 'hostel'].includes(s.studentType.toLowerCase())
+    );
+    isHosteller = hasHostelRecord || hasHostelStudentType;
+
+    // Check Transport Enrollment
+    const hasTransportRecord = (studentTransports || []).some((ta: any) => 
+      (ta.status === 'Active' || !ta.status) && 
+      (studentIds.has(String(ta.studentId)) || studentAdmissions.has(String(ta.studentId)))
+    );
+    const hasTransportField = matchedStudents.some((s: any) => 
+      Boolean(s.transportRoute || s.route || s.transport || s.busNumber || s.pickupPoint || s.transportOpted || s.transportType || s.routeId)
+    );
+    usesTransport = hasTransportRecord || hasTransportField;
   }
 
   const isFinanceActive =
@@ -689,8 +703,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const hasCustomModules =
             group.isFinanceSection &&
             (hasModuleAccess(role, "fees") ||
-              hasModuleAccess(role, "hostel") ||
-              hasModuleAccess(role, "transport") ||
+              (hasModuleAccess(role, "hostel") && isHosteller) ||
+              (hasModuleAccess(role, "transport") && usesTransport) ||
               hasModuleAccess(role, "uniforms"));
 
           if (visibleItems.length === 0 && !hasCustomModules) return null;
