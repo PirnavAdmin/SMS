@@ -54,6 +54,15 @@ export const getDefaultLetterPayload = (
   const staffDepartment = staff.department || (staff.role === 'Teacher' ? 'Academics' : 'Administration');
   const staffJoiningDate = staff.joiningDate || (staff as any).dateOfJoining || todayStr;
 
+  const checkIn = schoolProfile?.staffCheckInTime || '08:30 AM';
+  const checkOut = schoolProfile?.staffCheckOutTime || '05:00 PM';
+  const dynamicWorkingHours = `${checkIn} – ${checkOut}`;
+  const dynamicTerms = DEFAULT_OFFER_TERMS.map(term =>
+    term.startsWith('Working Hours:')
+      ? `Working Hours: Normal school working hours are ${checkIn} to ${checkOut}, Monday through Saturday (with designated 2nd and 4th Saturday offs as per institutional calendar).`
+      : term
+  );
+
   return {
     refNo: generateLetterRefNo(type, staff.empId || staff.id),
     issueDate: todayStr,
@@ -70,13 +79,13 @@ export const getDefaultLetterPayload = (
     salaryBreakdown: calculateSalaryBreakdown(monthlySalary),
     probationMonths: 6,
     noticePeriodDays: 30,
-    workingHours: '08:30 AM – 04:00 PM',
+    workingHours: dynamicWorkingHours,
     conductRating: 'Exemplary',
     noDuesCleared: true,
     reasonForRelieving: 'Personal reasons & career advancement',
     authorizedSignatoryName: defaultSignatoryName,
     authorizedSignatoryTitle: defaultSignatoryTitle,
-    customTerms: DEFAULT_OFFER_TERMS,
+    customTerms: dynamicTerms,
     remarks: 'Approved and issued by Institutional Human Resources.',
   };
 };

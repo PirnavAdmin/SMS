@@ -118,7 +118,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     loadTimetableForClassSection,
     fetchPeriods,
     fetchTimetables,
-    academicYears
+    academicYears,
+    schoolProfile
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
@@ -144,9 +145,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     }
   }, [initialAcademicYear, selectedAcademicYear, academicYears]);
 
-  // Daily School Timing Inputs (dynamic)
-  const [schoolStartTime, setSchoolStartTime] = useState('08:30 AM');
-  const [schoolEndTime, setSchoolEndTime] = useState('03:30 PM');
+  // Daily School Timing Inputs (dynamic, defaults synced to School Profile settings)
+  const [schoolStartTime, setSchoolStartTime] = useState(schoolProfile?.schoolStartTime || '08:30 AM');
+  const [schoolEndTime, setSchoolEndTime] = useState(schoolProfile?.schoolEndTime || '03:30 PM');
   const [periodDurationMinutes, setPeriodDurationMinutes] = useState<number | string>(45);
 
   // Dynamic Breaks List (with Add, Edit, Delete options)
