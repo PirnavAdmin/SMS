@@ -33,6 +33,7 @@ import {
   Upload,
   Sparkles,
   UserCheck,
+  Clock,
 } from "lucide-react";
 import { useData } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -188,6 +189,52 @@ const defaultCertificateTemplates: CertificateTemplateConfig[] = [
     footerDisclaimer: "Official sports recognition certificate.",
   },
 ];
+
+const TIME_DROPDOWN_OPTIONS = [
+  "06:00 AM", "06:15 AM", "06:30 AM", "06:45 AM",
+  "07:00 AM", "07:15 AM", "07:30 AM", "07:45 AM",
+  "08:00 AM", "08:15 AM", "08:30 AM", "08:45 AM",
+  "09:00 AM", "09:15 AM", "09:30 AM", "09:45 AM",
+  "10:00 AM", "10:15 AM", "10:30 AM", "10:45 AM",
+  "11:00 AM", "11:15 AM", "11:30 AM", "11:45 AM",
+  "12:00 PM", "12:15 PM", "12:30 PM", "12:45 PM",
+  "01:00 PM", "01:15 PM", "01:30 PM", "01:45 PM",
+  "02:00 PM", "02:15 PM", "02:30 PM", "02:45 PM",
+  "03:00 PM", "03:15 PM", "03:30 PM", "03:45 PM",
+  "04:00 PM", "04:15 PM", "04:30 PM", "04:45 PM",
+  "05:00 PM", "05:15 PM", "05:30 PM", "05:45 PM",
+  "06:00 PM", "06:15 PM", "06:30 PM", "06:45 PM",
+  "07:00 PM", "07:15 PM", "07:30 PM", "07:45 PM",
+  "08:00 PM", "08:15 PM", "08:30 PM", "08:45 PM",
+  "09:00 PM", "09:15 PM", "09:30 PM", "09:45 PM",
+  "10:00 PM"
+];
+
+const time12To24 = (timeStr: string): string => {
+  if (!timeStr) return '';
+  if (!timeStr.includes('AM') && !timeStr.includes('PM')) return timeStr;
+  const parts = timeStr.trim().split(' ');
+  const [hStr, mStr] = parts[0].split(':');
+  let hours = parseInt(hStr, 10);
+  const minutes = parseInt(mStr || '0', 10);
+  if (parts.length > 1) {
+    const ampm = parts[1].toUpperCase();
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+  }
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+const time24To12 = (time24: string): string => {
+  if (!time24) return '';
+  if (time24.includes('AM') || time24.includes('PM')) return time24;
+  const [hStr, mStr] = time24.split(':');
+  let hours = parseInt(hStr, 10);
+  const minutes = parseInt(mStr || '0', 10);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  return `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+};
 
 export const SettingsView: React.FC = () => {
   const {
@@ -1388,6 +1435,131 @@ export const SettingsView: React.FC = () => {
                 />
               </div>
             </div>
+            {/* Timings & Educational Board Settings */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3.5 my-2">
+              <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-sky-600" /> Operational Timings & Educational Board
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Educational Board <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={profileForm.boardType || "CBSE"}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, boardType: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="CBSE">CBSE (Central Board of Secondary Education)</option>
+                    <option value="ICSE">ICSE / CISCE Board</option>
+                    <option value="State Board (SSC)">State Board (SSC / Matriculation)</option>
+                    <option value="IB">IB (International Baccalaureate)</option>
+                    <option value="IGCSE">IGCSE / Cambridge International</option>
+                    <option value="Other Board">Other / Recognized Board</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                    <span>Staff Check-In Time <span className="text-rose-500">*</span></span>
+                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.staffCheckInTime || "08:30 AM")}</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={time12To24(profileForm.staffCheckInTime || "08:30 AM")}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        staffCheckInTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                    <span>Staff Check-Out Time <span className="text-rose-500">*</span></span>
+                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.staffCheckOutTime || "05:00 PM")}</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={time12To24(profileForm.staffCheckOutTime || "05:00 PM")}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        staffCheckOutTime: e.target.value ? time24To12(e.target.value) : "05:00 PM",
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                    <span>School Start Time <span className="text-rose-500">*</span></span>
+                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.schoolStartTime || "08:30 AM")}</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={time12To24(profileForm.schoolStartTime || "08:30 AM")}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        schoolStartTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                    <span>School End Time <span className="text-rose-500">*</span></span>
+                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.schoolEndTime || "03:30 PM")}</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={time12To24(profileForm.schoolEndTime || "03:30 PM")}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        schoolEndTime: e.target.value ? time24To12(e.target.value) : "03:30 PM",
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Late Grace Buffer <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={profileForm.staffGracePeriodMinutes || 15}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        staffGracePeriodMinutes: parseInt(e.target.value, 10) || 15,
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-amber-700 dark:text-amber-300"
+                  >
+                    <option value={5}>5 Mins (Strict)</option>
+                    <option value={10}>10 Mins Grace</option>
+                    <option value={15}>15 Mins Grace (Default)</option>
+                    <option value={20}>20 Mins Grace</option>
+                    <option value={30}>30 Mins Grace</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div className="pt-2">
               <SchoolLogoUploader
                 value={profileForm.logoUrl || ""}

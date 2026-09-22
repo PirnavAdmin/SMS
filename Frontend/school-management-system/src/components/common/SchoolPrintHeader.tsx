@@ -68,6 +68,8 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
             <span>•</span>
             <span>Web: {website}</span>
             <span>•</span>
+            <span>Board: {schoolProfile?.boardType || 'CBSE'}</span>
+            <span>•</span>
             <span>Acad. Year: {academicYear}</span>
           </div>
         </div>

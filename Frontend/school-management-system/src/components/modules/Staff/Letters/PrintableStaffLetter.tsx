@@ -95,7 +95,9 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
                   </tr>
                   <tr>
                     <td className="p-2 font-bold text-slate-600">Working Hours:</td>
-                    <td className="p-2 text-slate-800">{payload.workingHours || '08:30 AM – 04:00 PM'}</td>
+                    <td className="p-2 text-slate-800">
+                      {payload.workingHours || (activeSchoolProfile?.staffCheckInTime && activeSchoolProfile?.staffCheckOutTime ? `${activeSchoolProfile.staffCheckInTime} – ${activeSchoolProfile.staffCheckOutTime}` : '08:30 AM – 05:00 PM')}
+                    </td>
                   </tr>
                 </tbody>
               </table>

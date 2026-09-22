@@ -26,7 +26,14 @@ export const initialSchoolProfile: SchoolProfile = {
   website: "https://pirnavschools.edu",
   principalName: "Dr. Eleanor Vance",
   academicYear: "2026-2027",
-  logoUrl: "/pirnav-school-logo.png"
+  logoUrl: "/pirnav-school-logo.png",
+  staffCheckInTime: "08:30 AM",
+  staffCheckOutTime: "05:00 PM",
+  schoolStartTime: "08:30 AM",
+  schoolEndTime: "03:30 PM",
+  boardType: "CBSE",
+  staffLoginAllowWindow: true,
+  staffGracePeriodMinutes: 15
 };
 
 export const initialFinanceSettings: FinanceSettings = {
