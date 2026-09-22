@@ -46,8 +46,27 @@ export const getDefaultLetterPayload = (
     : parseFloat(String(staff.salary || (staff as any).basicSalary || (staff as any).grossSalary || (staff as any).netSalary || '0')) || 35000;
 
   const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || 'Staff Member';
-  const defaultSignatoryName = schoolProfile?.principalName || 'Dr. K. S. Sharma';
-  const defaultSignatoryTitle = 'Principal & Authorized Signatory';
+  
+  let defaultSignatoryName = schoolProfile?.principalName || 'Dr. Eleanor Vance';
+  let defaultSignatoryTitle = 'Principal & Authorized Signatory';
+  let defaultProbationMonths = 6;
+  let defaultNoticePeriodDays = 30;
+  let defaultSignatureImageUrl = '';
+  let defaultSealImageUrl = '';
+
+  try {
+    const savedGlobalSettings = localStorage.getItem('edu_db_global_letter_settings');
+    if (savedGlobalSettings) {
+      const parsed = JSON.parse(savedGlobalSettings);
+      if (parsed.signatoryName) defaultSignatoryName = parsed.signatoryName;
+      if (parsed.signatoryTitle) defaultSignatoryTitle = parsed.signatoryTitle;
+      if (parsed.probationMonths !== undefined) defaultProbationMonths = parsed.probationMonths;
+      if (parsed.noticePeriodDays !== undefined) defaultNoticePeriodDays = parsed.noticePeriodDays;
+      if (parsed.signatureImageUrl) defaultSignatureImageUrl = parsed.signatureImageUrl;
+      if (parsed.sealImageUrl) defaultSealImageUrl = parsed.sealImageUrl;
+    }
+  } catch (e) {}
+
   const staffAddress = staff.presentAddress || staff.residentialAddress || staff.permanentAddress || staff.address || (schoolProfile?.address || '');
   const staffBranch = staff.branch || (staff as any).campus || 'Main Campus';
   const staffDesignation = staff.designation || (staff.role === 'Teacher' ? 'Subject Teacher' : (staff.role || 'Staff Member'));
@@ -77,20 +96,43 @@ export const getDefaultLetterPayload = (
     joiningDate: staffJoiningDate,
     relievingDate: type !== 'offer' ? todayStr : undefined,
     salaryBreakdown: calculateSalaryBreakdown(monthlySalary),
-    probationMonths: 6,
-    noticePeriodDays: 30,
+    probationMonths: defaultProbationMonths,
+    noticePeriodDays: defaultNoticePeriodDays,
     workingHours: dynamicWorkingHours,
     conductRating: 'Exemplary',
     noDuesCleared: true,
     reasonForRelieving: 'Personal reasons & career advancement',
     authorizedSignatoryName: defaultSignatoryName,
     authorizedSignatoryTitle: defaultSignatoryTitle,
+    signatureImageUrl: defaultSignatureImageUrl,
+    sealImageUrl: defaultSealImageUrl,
     customTerms: dynamicTerms,
     remarks: 'Approved and issued by Institutional Human Resources.',
   };
 };
 
 const STORAGE_KEY = 'edu_db_staff_letters';
+const DELETED_KEYS_STORAGE = 'edu_db_deleted_letter_keys';
+
+export const getDeletedLetterKeys = (): Set<string> => {
+  try {
+    const saved = localStorage.getItem(DELETED_KEYS_STORAGE);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return new Set(parsed);
+    }
+  } catch (e) {}
+  return new Set();
+};
+
+export const markLetterAsDeleted = (letterId: string, staffKey?: string) => {
+  try {
+    const current = getDeletedLetterKeys();
+    if (letterId) current.add(letterId);
+    if (staffKey) current.add(staffKey);
+    localStorage.setItem(DELETED_KEYS_STORAGE, JSON.stringify(Array.from(current)));
+  } catch (e) {}
+};
 
 export const createStaffLetterRecord = (
   type: StaffLetterType,
@@ -124,7 +166,7 @@ export const generateSeedStaffLetters = (staffList?: Staff[], schoolProfile?: Sc
   const targetList = staffList && staffList.length > 0 ? staffList : [];
   const initialLetters: GeneratedStaffLetterRecord[] = [];
 
-  // Generate official offer letters for all staff in list (up to 12)
+  // Generate official offer letters for staff in list (up to 12)
   targetList.slice(0, 12).forEach((s, idx) => {
     const issueDate = s.joiningDate || new Date(Date.now() - (idx * 30 + 10) * 86400000).toISOString().split('T')[0];
     const rec = createStaffLetterRecord('offer', s, schoolProfile, issueDate);
@@ -151,22 +193,20 @@ export const generateSeedStaffLetters = (staffList?: Staff[], schoolProfile?: Sc
 export const getStoredStaffLetters = (fallbackStaff?: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    if (saved !== null) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch (e) {
     console.warn('Failed to load staff letters from storage:', e);
   }
 
-  // Seed default letters if empty
+  // Seed default letters only if never initialized before
   const seeded = generateSeedStaffLetters(fallbackStaff, schoolProfile);
-  if (seeded.length > 0) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-    } catch (e) {
-      console.warn('Failed to cache seed staff letters:', e);
-    }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+  } catch (e) {
+    console.warn('Failed to cache seed staff letters:', e);
   }
   return seeded;
 };
@@ -174,13 +214,14 @@ export const getStoredStaffLetters = (fallbackStaff?: Staff[], schoolProfile?: S
 export const syncStaffLettersWithStaffList = (staffList: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
   try {
     const currentLetters = getStoredStaffLetters(staffList, schoolProfile);
+    const deletedKeys = getDeletedLetterKeys();
     const existingStaffMap = new Set(currentLetters.map((l) => `${l.staffId || l.staffEmpId}_${l.letterType}`));
 
     const newLetters: GeneratedStaffLetterRecord[] = [];
 
     (staffList || []).forEach((s) => {
       const idKey = `${s.id || s.empId}_offer`;
-      if (!existingStaffMap.has(idKey)) {
+      if (!existingStaffMap.has(idKey) && !deletedKeys.has(idKey) && !deletedKeys.has(s.id) && !deletedKeys.has(s.empId)) {
         const newOffer = createStaffLetterRecord('offer', s, schoolProfile, s.joiningDate);
         newLetters.push(newOffer);
         existingStaffMap.add(idKey);
@@ -203,6 +244,15 @@ export const syncStaffLettersWithStaffList = (staffList: Staff[], schoolProfile?
 
 export const saveStaffLetterRecord = (record: GeneratedStaffLetterRecord): GeneratedStaffLetterRecord[] => {
   try {
+    // If it was previously deleted, unmark it so it saves and displays cleanly
+    const deletedKeys = getDeletedLetterKeys();
+    const staffKey = `${record.staffId || record.staffEmpId}_${record.letterType}`;
+    if (deletedKeys.has(record.id) || deletedKeys.has(staffKey)) {
+      deletedKeys.delete(record.id);
+      deletedKeys.delete(staffKey);
+      localStorage.setItem(DELETED_KEYS_STORAGE, JSON.stringify(Array.from(deletedKeys)));
+    }
+
     const existing = getStoredStaffLetters();
     const filtered = existing.filter((r) => r.id !== record.id);
     const updated = [record, ...filtered];
@@ -218,6 +268,11 @@ export const saveStaffLetterRecord = (record: GeneratedStaffLetterRecord): Gener
 export const deleteStaffLetterRecord = (id: string): GeneratedStaffLetterRecord[] => {
   try {
     const existing = getStoredStaffLetters();
+    const target = existing.find((r) => r.id === id);
+    if (target) {
+      const staffKey = `${target.staffId || target.staffEmpId}_${target.letterType}`;
+      markLetterAsDeleted(id, staffKey);
+    }
     const updated = existing.filter((r) => r.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event('staff_letters_updated'));

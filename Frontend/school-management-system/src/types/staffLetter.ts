@@ -31,6 +31,8 @@ export interface StaffLetterPayload {
   reasonForRelieving?: string;
   authorizedSignatoryName: string;
   authorizedSignatoryTitle: string;
+  signatureImageUrl?: string;
+  sealImageUrl?: string;
   customTerms?: string[];
   remarks?: string;
 }
