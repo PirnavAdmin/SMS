@@ -227,18 +227,49 @@ public class SendFeeReminderRequestDto
 // 5. PROMOTED STUDENTS DUES DTOs
 // =========================================================================
 
+public class PromotedDueItemDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string FeeHeadName { get; set; } = string.Empty;
+    public string TermName { get; set; } = string.Empty;
+    public string DueDate { get; set; } = string.Empty;
+    public decimal OriginalAmount { get; set; }
+    public decimal PaidAmount { get; set; }
+    public decimal DueAmount { get; set; }
+    public string Status { get; set; } = "Due";
+    public string FormattedOriginal => $"₹{OriginalAmount:N0}";
+    public string FormattedPaid => $"₹{PaidAmount:N0}";
+    public string FormattedDue => $"₹{DueAmount:N0}";
+}
+
+public class PromotedDueBreakdownGroupDto
+{
+    public string AcademicYear { get; set; } = string.Empty;
+    public string ClassName { get; set; } = string.Empty;
+    public decimal TotalPending { get; set; }
+    public string FormattedPending => $"₹{TotalPending:N0}";
+    public List<PromotedDueItemDto> Items { get; set; } = new();
+}
+
 public class PromotedDueStudentDto
 {
     public int StudentId { get; set; }
+    public string StudentIdStr => StudentId.ToString();
     public string AdmissionNo { get; set; } = string.Empty;
     public string StudentName { get; set; } = string.Empty;
     public string CurrentClass { get; set; } = string.Empty;
+    public string Section { get; set; } = string.Empty;
     public string PreviousClass { get; set; } = string.Empty;
-    public string PreviousAcademicYear { get; set; } = "2025-2026";
+    public List<string> PreviousAcademicYears { get; set; } = new();
+    public string PreviousAcademicYear { get; set; } = string.Empty;
     public decimal PreviousArrearsAmount { get; set; }
+    public decimal PreviousYearPendingAmount => PreviousArrearsAmount;
     public string FormattedArrears => $"₹{PreviousArrearsAmount:N0}";
+    public int PendingComponentsCount { get; set; }
+    public string Status { get; set; } = string.Empty;
     public string FatherName { get; set; } = string.Empty;
     public string FatherMobile { get; set; } = string.Empty;
+    public List<PromotedDueBreakdownGroupDto> BreakdownByYear { get; set; } = new();
 }
 
 // =========================================================================

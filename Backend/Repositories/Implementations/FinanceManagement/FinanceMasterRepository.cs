@@ -83,7 +83,20 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             result = result.Where(t => t.Type.Equals(type, StringComparison.OrdinalIgnoreCase)).ToList();
 
         if (!string.IsNullOrWhiteSpace(module) && !module.Equals("ALL", StringComparison.OrdinalIgnoreCase))
-            result = result.Where(t => t.SourceModule.Equals(module, StringComparison.OrdinalIgnoreCase)).ToList();
+        {
+            if (module.Equals("Student Fee Collection", StringComparison.OrdinalIgnoreCase) || module.Equals("Fee Collection", StringComparison.OrdinalIgnoreCase))
+            {
+                result = result.Where(t => t.SourceModule.Equals("Fees", StringComparison.OrdinalIgnoreCase) || t.SourceModule.Equals("Fee Collection", StringComparison.OrdinalIgnoreCase) || t.SourceModule.Equals("Student Fee Collection", StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            else if (module.Equals("Manual", StringComparison.OrdinalIgnoreCase) || module.Equals("Manual Entries", StringComparison.OrdinalIgnoreCase))
+            {
+                result = result.Where(t => t.SourceModule.Equals("Manual", StringComparison.OrdinalIgnoreCase) || t.SourceModule.Equals("Manual Entries", StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            else
+            {
+                result = result.Where(t => t.SourceModule.Equals(module, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(category) && !category.Equals("ALL", StringComparison.OrdinalIgnoreCase))
             result = result.Where(t => t.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();

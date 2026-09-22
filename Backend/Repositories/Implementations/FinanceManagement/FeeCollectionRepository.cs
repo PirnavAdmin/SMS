@@ -474,26 +474,156 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         };
     }
 
-    public async Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync()
+    public async Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync(
+        string? search = null, string? className = null, string? previousAcademicYear = null, string? status = null)
     {
-        var students = await _context.Students.AsNoTracking()
+        var query = _context.Students.AsNoTracking()
             .Include(s => s.ClassGrade)
-            .Where(s => !s.IsDeleted && s.Status == "Active")
-            .Take(5)
+            .Include(s => s.ClassSection)
+            .Include(s => s.AcademicYear)
+            .Where(s => !s.IsDeleted && s.Status == "Active");
+
+        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanClass = className.Trim();
+            query = query.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName != null &&
+                (s.ClassGrade.ClassName == cleanClass ||
+                 s.ClassGrade.ClassName.StartsWith(cleanClass + " ") ||
+                 s.ClassGrade.ClassName.StartsWith(cleanClass + "-")));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.Trim().ToLower();
+            query = query.Where(st =>
+                (st.StudentName != null && st.StudentName.ToLower().Contains(s)) ||
+                (st.AdmissionNumber != null && st.AdmissionNumber.ToLower().Contains(s)) ||
+                (st.RollNumber != null && st.RollNumber.ToLower().Contains(s)));
+        }
+
+        var students = await query.ToListAsync();
+
+        var studentIdsStr = students.Select(s => s.StudentId.ToString()).ToList();
+        var admNos = students.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToList();
+
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => studentIdsStr.Contains(p.StudentId) || admNos.Contains(p.StudentId))
             .ToListAsync();
 
-        return students.Select((s, index) => new PromotedDueStudentDto
+        var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+
+        var resultList = new List<PromotedDueStudentDto>();
+
+        foreach (var st in students)
         {
-            StudentId = s.StudentId,
-            AdmissionNo = s.AdmissionNumber ?? $"REG-{s.StudentId}",
-            StudentName = s.StudentName ?? $"Student #{s.StudentId}",
-            CurrentClass = s.ClassGrade?.ClassName ?? "Class 10",
-            PreviousClass = "Class 9",
-            PreviousAcademicYear = "2025-2026",
-            PreviousArrearsAmount = index % 2 == 0 ? 3500m : 0m,
-            FatherName = s.FatherName ?? "",
-            FatherMobile = s.FatherMobile ?? ""
-        }).Where(p => p.PreviousArrearsAmount > 0).ToList();
+            string cName = st.ClassGrade?.ClassName ?? "Class 10";
+            string sName = st.ClassSection?.SectionName ?? "A";
+            string prevClass = GetPreviousClassName(cName);
+            var prevYears = new List<string> { string.IsNullOrWhiteSpace(previousAcademicYear) || previousAcademicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase) ? "2025-2026" : previousAcademicYear };
+
+            decimal prevFeeTotal = 0m;
+            var prevStructure = feeStructures.FirstOrDefault(f =>
+                !string.IsNullOrEmpty(f.ClassName) &&
+                MatchesClassName(f.ClassName, prevClass));
+
+            if (prevStructure != null && prevStructure.TotalAmount > 0)
+            {
+                prevFeeTotal = prevStructure.TotalAmount;
+            }
+            else
+            {
+                prevFeeTotal = 12000m;
+            }
+
+            var stPayments = payments.Where(p =>
+                p.StudentId == st.StudentId.ToString() ||
+                p.StudentId == st.AdmissionNumber).ToList();
+
+            decimal totalPaid = stPayments.Sum(p => p.Amount);
+            decimal previousArrears = Math.Max(0m, prevFeeTotal - totalPaid);
+
+            if (previousArrears > 0)
+            {
+                string computedStatus = totalPaid > 0 ? "Partially Paid" : "Due";
+
+                if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!computedStatus.Equals(status.Trim(), StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
+                resultList.Add(new PromotedDueStudentDto
+                {
+                    StudentId = st.StudentId,
+                    AdmissionNo = st.AdmissionNumber ?? $"ADM-{st.StudentId:D4}",
+                    StudentName = st.StudentName ?? $"Student #{st.StudentId}",
+                    CurrentClass = cName,
+                    Section = sName,
+                    PreviousClass = prevClass,
+                    PreviousAcademicYears = prevYears,
+                    PreviousAcademicYear = prevYears.FirstOrDefault() ?? "2025-2026",
+                    PreviousArrearsAmount = previousArrears,
+                    PendingComponentsCount = 2,
+                    Status = computedStatus,
+                    FatherName = st.FatherName ?? "",
+                    FatherMobile = st.FatherMobile ?? "",
+                    BreakdownByYear = new List<PromotedDueBreakdownGroupDto>
+                    {
+                        new PromotedDueBreakdownGroupDto
+                        {
+                            AcademicYear = prevYears.FirstOrDefault() ?? "2025-2026",
+                            ClassName = prevClass,
+                            TotalPending = previousArrears,
+                            Items = new List<PromotedDueItemDto>
+                            {
+                                new PromotedDueItemDto
+                                {
+                                    Id = $"item-prev-1-{st.StudentId}",
+                                    FeeHeadName = "Tuition Fee Arrears",
+                                    TermName = "Term 2",
+                                    DueDate = "2026-03-15",
+                                    OriginalAmount = prevFeeTotal * 0.7m,
+                                    PaidAmount = Math.Min(totalPaid, prevFeeTotal * 0.7m),
+                                    DueAmount = Math.Max(0m, (prevFeeTotal * 0.7m) - Math.Min(totalPaid, prevFeeTotal * 0.7m)),
+                                    Status = computedStatus
+                                },
+                                new PromotedDueItemDto
+                                {
+                                    Id = $"item-prev-2-{st.StudentId}",
+                                    FeeHeadName = "Annual Charges / Arrears",
+                                    TermName = "Annual",
+                                    DueDate = "2026-01-10",
+                                    OriginalAmount = prevFeeTotal * 0.3m,
+                                    PaidAmount = Math.Max(0m, totalPaid - (prevFeeTotal * 0.7m)),
+                                    DueAmount = Math.Max(0m, (prevFeeTotal * 0.3m) - Math.Max(0m, totalPaid - (prevFeeTotal * 0.7m))),
+                                    Status = computedStatus
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        return resultList;
+    }
+
+    private static string GetPreviousClassName(string currentClass)
+    {
+        string norm = NormalizeGrade(currentClass);
+        if (norm == "10") return "Class 9";
+        if (norm == "9") return "Class 8";
+        if (norm == "8") return "Class 7";
+        if (norm == "7") return "Class 6";
+        if (norm == "6") return "Class 5";
+        if (norm == "5") return "Class 4";
+        if (norm == "4") return "Class 3";
+        if (norm == "3") return "Class 2";
+        if (norm == "2") return "Class 1";
+        if (norm == "1") return "UKG";
+        if (norm == "ukg") return "LKG";
+        if (norm == "lkg") return "Nursery";
+        return "Class 9";
     }
 
     public async Task<FeeReceiptsRegisterResponseDto> GetReceiptsRegisterAsync(
