@@ -1,8 +1,4 @@
-export const apiClient = async (
-  endpoint: string,
-  options: RequestInit = {},
-  isRetry = false
-): Promise<any> => {
+export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');
   const branch = localStorage.getItem('auth_branch') || '';
   const academicYear = localStorage.getItem('auth_academic_year') || '';
@@ -36,66 +32,63 @@ export const apiClient = async (
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  let rawBaseUrl = ((import.meta.env.VITE_API_URL as string) || '').trim();
-  if (typeof window !== 'undefined') {
-    rawBaseUrl = '';
-  }
-  const baseUrl = rawBaseUrl;
+  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
-  let response: Response | null = null;
-
-  const tryFetch = async (fetchUrl: string): Promise<Response> => {
-    return await fetch(fetchUrl, {
+  let response: Response;
+  try {
+    response = await fetch(url, {
       ...options,
       headers,
     });
-  };
-
-  try {
-    response = await tryFetch(url);
   } catch (fetchError) {
-    // Perform a 1-time retry after 200ms on network error
-    if (!isRetry) {
-      await new Promise((res) => setTimeout(res, 200));
-      return apiClient(endpoint, options, true);
+    // If ngrok tunnel fails or hits limit on localhost, transparently fallback to direct backend port 5151
+    if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+      const localUrl = `http://127.0.0.1:5151${endpoint}`;
+      try {
+        response = await fetch(localUrl, {
+          ...options,
+          headers,
+        });
+      } catch {
+        throw fetchError;
+      }
+    } else {
+      throw fetchError;
     }
-    throw fetchError;
   }
 
-  // Handle 502/503/504 transient proxy error with a single automatic retry
-  if (
-    response &&
-    !response.ok &&
-    (response.status === 502 || response.status === 503 || response.status === 504) &&
-    !isRetry
-  ) {
-    await new Promise((res) => setTimeout(res, 250));
-    return apiClient(endpoint, options, true);
+  if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504) && url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+    try {
+      const localUrl = `http://127.0.0.1:5151${endpoint}`;
+      const fallbackRes = await fetch(localUrl, {
+        ...options,
+        headers,
+      });
+      if (fallbackRes.ok) {
+        response = fallbackRes;
+      }
+    } catch { }
   }
 
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {
       const hadToken = !!localStorage.getItem('auth_token');
       localStorage.removeItem('auth_user');
-      localStorage.removeItem('user');
       localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_token_timestamp');
-      localStorage.removeItem('roles');
       localStorage.removeItem('active_module');
       if (hadToken) {
-        window.dispatchEvent(new CustomEvent('session_expired'));
         window.location.reload();
       }
     }
     let errorMessage = `HTTP error! status: ${response.status}`;
-    if (response.status === 502 || response.status === 503) {
-      errorMessage = `Backend Service Unavailable (${response.status}): Connection dropped. Please retry.`;
+    if (response.status === 502) {
+      errorMessage = `Gateway Error (502 Bad Gateway): The proxy server could not reach the backend API. Please make sure your backend dotnet server is running.`;
     }
     try {
       const errorBody = await response.text();
       const errorJson = JSON.parse(errorBody);
-      
+
       if (errorJson.errors) {
         const validationErrors = Object.entries(errorJson.errors)
           .map(([key, messages]) => `${key}: ${(messages as string[]).join(', ')}`)
@@ -113,7 +106,7 @@ export const apiClient = async (
     } catch (e) {
       // Ignored
     }
-    
+
     const error: any = new Error(errorMessage);
     error.status = response.status;
     throw error;
