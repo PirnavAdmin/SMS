@@ -104,7 +104,7 @@ export const DEFAULT_LIBRARIAN_ATTENDANCE: LibrarianAttendanceRecord[] = [];
 
 export const LibrarianAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff, attendance = [], leaveApplications = [], addLeaveApplication, markAttendance } = useData();
+  const { staff, attendance = [], leaveApplications = [], addLeaveApplication, markAttendance, schoolProfile } = useData();
   const { addToast } = useToast();
 
   const isLibrarian = (role || '').toLowerCase().includes('librarian');
