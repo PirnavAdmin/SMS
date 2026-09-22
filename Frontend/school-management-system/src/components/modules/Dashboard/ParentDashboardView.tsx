@@ -209,7 +209,7 @@ const ParentPremiumDonutChart: React.FC<{
 
 export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { students, admissions, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams } = useData();
+  const { students, admissions, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams, schoolProfile } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
@@ -771,7 +771,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
             </div>
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Board Type</span>
-              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.boardType || 'CBSE'}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.boardType || schoolProfile?.boardType || 'CBSE'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Student Type</span>

@@ -21,17 +21,17 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses } = useData();
+  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile } = useData();
   const { addToast } = useToast();
 
   const [formData, setFormData] = useState<Partial<Student>>({
     firstName: '',
     lastName: '',
     gender: 'Male',
-    dob: '15/08/2012',
+    dob: '',
     bloodGroup: 'O+',
-    religion: 'General',
-    casteCategory: 'General',
+    religion: 'Other',
+    nationality: 'Indian',
     className: academicClasses[0]?.name || '',
     section: '',
     category: 'General',
@@ -49,7 +49,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     hostelBlock: hostelBlocks[0]?.id || '',
     hostelRoom: hostelRooms[0]?.id || '',
     hostelBed: '',
-    boardType: 'CBSE',
+    boardType: schoolProfile?.boardType || 'CBSE',
     fatherName: '',
     fatherPhone: '',
     fatherOccupation: 'Business',

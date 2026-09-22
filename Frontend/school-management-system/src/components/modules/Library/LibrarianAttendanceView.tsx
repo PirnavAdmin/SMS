@@ -56,22 +56,34 @@ export const calculateWorkedHours = (inTime?: string, outTime?: string): string 
   return `${decimalHrs} Hours`;
 };
 
-export const deriveAttendanceStatus = (inTime?: string, status?: string): string => {
+export const deriveAttendanceStatus = (
+  inTime?: string,
+  status?: string,
+  targetCheckInTime: string = '08:30 AM',
+  graceMinutes: number = 15
+): string => {
   if (status === 'On Leave' || status === 'Absent' || status === 'Half Day') return status;
   if (!inTime || inTime === '--') return status || 'Present';
 
+  const parseToMinutes = (tStr: string): number | null => {
+    const match = tStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3] ? match[3].toUpperCase() : null;
+
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
   try {
-    const match = inTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-    if (match) {
-      let hours = parseInt(match[1], 10);
-      const minutes = parseInt(match[2], 10);
-      const period = match[3] ? match[3].toUpperCase() : null;
+    const actualMins = parseToMinutes(inTime);
+    const targetMins = parseToMinutes(targetCheckInTime) ?? (8 * 60 + 30);
 
-      if (period === 'PM' && hours < 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-
-      const inTimeDecimal = hours + minutes / 60;
-      if (inTimeDecimal > 8.5) {
+    if (actualMins !== null) {
+      const lateThreshold = targetMins + (graceMinutes || 15);
+      if (actualMins > lateThreshold) {
         return 'Late';
       }
     }
@@ -345,7 +357,12 @@ export const LibrarianAttendanceView: React.FC = () => {
       const localIn = r.checkInTime || existing?.checkInTime;
       const rawOut = r.checkOutTime !== undefined ? r.checkOutTime : existing?.checkOutTime;
       const localOut = rawOut === '05:00 PM' && !r.checkOutTime ? undefined : rawOut;
-      const statusVal = deriveAttendanceStatus(localIn, r.status || existing?.status);
+      const statusVal = deriveAttendanceStatus(
+        localIn,
+        r.status || existing?.status,
+        schoolProfile?.staffCheckInTime || '08:30 AM',
+        schoolProfile?.staffGracePeriodMinutes || 15
+      );
 
       map.set(key, {
         id: r.id || existing?.id || `ATT-LIB-${rDate}`,
@@ -497,7 +514,7 @@ export const LibrarianAttendanceView: React.FC = () => {
             </div>
             <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{currentStaffName} ({role || 'Librarian'})</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Today: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{todayStr}</span> • Shift: <span className="font-semibold text-slate-700 dark:text-slate-300">Morning Shift (08:30 AM - 05:00 PM)</span>
+              Today: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{todayStr}</span> • Shift: <span className="font-semibold text-slate-700 dark:text-slate-300">Shift ({schoolProfile?.staffCheckInTime || '08:30 AM'} - {schoolProfile?.staffCheckOutTime || '05:00 PM'})</span>
             </p>
             {todayRecord && (
               <div className="flex items-center gap-3 pt-1 text-xs justify-center md:justify-start">

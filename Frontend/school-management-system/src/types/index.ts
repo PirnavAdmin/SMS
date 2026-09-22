@@ -55,6 +55,13 @@ export interface SchoolProfile {
   academicYear: string;
   logoUrl: string;
   highestClass?: string;
+  staffCheckInTime?: string;
+  staffCheckOutTime?: string;
+  schoolStartTime?: string;
+  schoolEndTime?: string;
+  boardType?: string;
+  staffLoginAllowWindow?: boolean;
+  staffGracePeriodMinutes?: number;
 }
 
 export interface AcademicYearMaster {
