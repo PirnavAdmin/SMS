@@ -19,7 +19,9 @@ import {
   Sparkles,
   Search,
   ChevronDown,
-  Check
+  Check,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Staff } from '../../../../types';
 import { StaffLetterPayload, StaffLetterType, GeneratedStaffLetterRecord } from '../../../../types/staffLetter';
@@ -146,28 +148,53 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     });
   }, [effectiveStaffList, staffCategoryFilter, staffSearchQuery]);
 
+  const getGlobalSignature = () => {
+    try {
+      const direct = localStorage.getItem('edu_db_global_signatory_signature');
+      if (direct) return direct;
+      const saved = localStorage.getItem('edu_db_global_letter_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
+      }
+    } catch (e) {}
+    return (schoolProfile as any)?.signature || (schoolProfile as any)?.principalSignature || '';
+  };
+
   const [activeType, setActiveType] = useState<StaffLetterType>(
     existingRecord ? existingRecord.letterType : initialType
   );
   const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
 
   const [payload, setPayload] = useState<StaffLetterPayload>(() => {
-    if (existingRecord) return existingRecord.payload;
-    return getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
+    const globalSig = getGlobalSignature();
+    if (existingRecord) {
+      const pl = { ...existingRecord.payload };
+      if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
+      return pl;
+    }
+    const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
+    if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
+    return defaultPl;
   });
 
   useEffect(() => {
     if (isOpen) {
+      const globalSig = getGlobalSignature();
       if (existingRecord) {
         setActiveType(existingRecord.letterType);
-        setPayload(existingRecord.payload);
+        const pl = { ...existingRecord.payload };
+        if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
+        setPayload(pl);
       } else if (staff) {
         setCurrentStaff(staff);
         setActiveType(initialType);
-        setPayload(getDefaultLetterPayload(initialType, staff, schoolProfile));
+        const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
+        if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
+        setPayload(defaultPl);
       }
     }
-  }, [isOpen, existingRecord, staff, initialType]);
+  }, [isOpen, existingRecord, staff, initialType, schoolProfile]);
 
   const handleStaffSelect = (selectedId: string) => {
     const found = effectiveStaffList.find(
@@ -175,7 +202,14 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     );
     if (found) {
       setCurrentStaff(found);
-      setPayload(getDefaultLetterPayload(activeType, found, schoolProfile));
+      const globalSig = getGlobalSignature();
+      const pl = getDefaultLetterPayload(activeType, found, schoolProfile);
+      if (payload.signatureImageUrl) {
+        pl.signatureImageUrl = payload.signatureImageUrl;
+      } else if (globalSig) {
+        pl.signatureImageUrl = globalSig;
+      }
+      setPayload(pl);
     }
   };
 
@@ -183,7 +217,14 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const handleTypeChange = (newType: StaffLetterType) => {
     setActiveType(newType);
     if (!existingRecord) {
-      setPayload(getDefaultLetterPayload(newType, currentStaff, schoolProfile));
+      const globalSig = getGlobalSignature();
+      const pl = getDefaultLetterPayload(newType, currentStaff, schoolProfile);
+      if (payload.signatureImageUrl) {
+        pl.signatureImageUrl = payload.signatureImageUrl;
+      } else if (globalSig) {
+        pl.signatureImageUrl = globalSig;
+      }
+      setPayload(pl);
     }
   };
 
@@ -851,6 +892,89 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                       onChange={(e) => setPayload({ ...payload, authorizedSignatoryTitle: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                     />
+                  </div>
+                </div>
+
+                {/* Digital Signature / Stamp Upload */}
+                <div>
+                  <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1.5">
+                    Authorized Signatory Signature / Official Stamp Image
+                  </label>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-3">
+                    <div className="w-24 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                      {payload.signatureImageUrl ? (
+                        <img
+                          src={payload.signatureImageUrl}
+                          alt="Signature Preview"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center text-slate-400">
+                          <ImageIcon className="w-5 h-5 mx-auto stroke-1" />
+                          <span className="text-[9px] font-bold block mt-0.5">No Signature</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1.5 text-center sm:text-left">
+                      <p className="text-[11px] text-slate-500">
+                        Upload authorized digital signature or official seal (PNG, JPG, WEBP, max 5MB). Replaces the default seal placeholder on this letter.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                        <label className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all">
+                          <Upload className="w-3.5 h-3.5" />
+                          {payload.signatureImageUrl ? 'Change Signature' : 'Upload Signature'}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (!file.type.startsWith('image/')) {
+                                addToast('error', 'Invalid File', 'Please select an image file (PNG, JPG, WEBP, SVG).');
+                                return;
+                              }
+                              if (file.size > 5 * 1024 * 1024) {
+                                addToast('error', 'File Too Large', 'Signature image must be under 5MB.');
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const result = ev.target?.result as string;
+                                if (result) {
+                                  setPayload((prev) => ({ ...prev, signatureImageUrl: result }));
+                                  try {
+                                    localStorage.setItem('edu_db_global_signatory_signature', result);
+                                    const currentSettings = localStorage.getItem('edu_db_global_letter_settings');
+                                    const parsed = currentSettings ? JSON.parse(currentSettings) : {};
+                                    parsed.signatureImageUrl = result;
+                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
+                                    window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
+                                  } catch (err) {}
+                                  addToast('success', 'Signature Loaded', 'Signature applied and saved globally.');
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+
+                        {payload.signatureImageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPayload((prev) => ({ ...prev, signatureImageUrl: '' }));
+                              addToast('info', 'Signature Removed', 'Custom signature removed.');
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-900 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
