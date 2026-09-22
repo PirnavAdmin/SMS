@@ -93,11 +93,12 @@ export const TransactionsMasterLedgerView: React.FC = () => {
     const matchesType = typeFilter === 'All' || t.type === typeFilter;
 
     // Module
+    const mod = String(t.sourceModule || '');
     const matchesModule =
       sourceModuleFilter === 'All' ||
       t.sourceModule === sourceModuleFilter ||
-      (sourceModuleFilter === 'Student Fee Collection' && (t.sourceModule === 'Fees' || t.sourceModule === 'Fee Collection' || t.sourceModule === 'Student Fee Collection')) ||
-      ((sourceModuleFilter === 'Manual' || sourceModuleFilter === 'Manual Entries') && (t.sourceModule === 'Manual' || t.sourceModule === 'Manual Entries'));
+      (sourceModuleFilter === 'Student Fee Collection' && (mod === 'Fees' || mod === 'Fee Collection' || mod === 'Student Fee Collection')) ||
+      ((sourceModuleFilter === 'Manual' || sourceModuleFilter === 'Manual Entries') && (mod === 'Manual' || mod === 'Manual Entries'));
 
     // Category
     const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
