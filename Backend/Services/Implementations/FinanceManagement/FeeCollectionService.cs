@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Services.Implementations.FinanceManagement;
+namespace SMS.Api.Services.Implementations.FinanceManagement;
 
 using SMS.Api.Dtos.FinanceManagement;
 using SMS.Api.Repositories.Interfaces.FinanceManagement;
@@ -37,9 +37,10 @@ public class FeeCollectionService : IFeeCollectionService
         return _repository.GetDueFeesSummaryAsync(className, sectionName, minDaysOverdue);
     }
 
-    public Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync()
+    public Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync(
+        string? search = null, string? className = null, string? previousAcademicYear = null, string? status = null)
     {
-        return _repository.GetPromotedStudentsDuesAsync();
+        return _repository.GetPromotedStudentsDuesAsync(search, className, previousAcademicYear, status);
     }
 
     public Task<FeeReceiptsRegisterResponseDto> GetReceiptsRegisterAsync(

@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Controllers.FinanceManagement;
+namespace SMS.Api.Controllers.FinanceManagement;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -97,9 +97,13 @@ public class FeeCollectionController : ControllerBase
 
     [HttpGet("promoted-students-dues")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
-    public async Task<IActionResult> GetPromotedStudentsDues()
+    public async Task<IActionResult> GetPromotedStudentsDues(
+        [FromQuery] string? search,
+        [FromQuery] string? className,
+        [FromQuery] string? previousAcademicYear,
+        [FromQuery] string? status)
     {
-        var result = await _feeCollectionService.GetPromotedStudentsDuesAsync();
+        var result = await _feeCollectionService.GetPromotedStudentsDuesAsync(search, className, previousAcademicYear, status);
         return Ok(new { success = true, data = result });
     }
 

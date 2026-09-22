@@ -1336,7 +1336,58 @@ const initialFinancialAccounts: FinancialAccount[] = [];
 
 const initialFinancialCategories: FinancialCategory[] = [];
 
-const initialFinancialBudgets: FinancialBudget[] = [];
+const initialFinancialBudgets: FinancialBudget[] = [
+  {
+    id: "BDG-101",
+    categoryName: "Infrastructure & Campus Maintenance",
+    allocatedAmount: 500000,
+    consumedAmount: 125000,
+    remainingAmount: 375000,
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    status: "Active",
+  },
+  {
+    id: "BDG-102",
+    categoryName: "IT Hardware, Software & AV Labs",
+    allocatedAmount: 350000,
+    consumedAmount: 280000,
+    remainingAmount: 70000,
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    status: "Active",
+  },
+  {
+    id: "BDG-103",
+    categoryName: "Library Books & Digital Learning Materials",
+    allocatedAmount: 200000,
+    consumedAmount: 45000,
+    remainingAmount: 155000,
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    status: "Active",
+  },
+  {
+    id: "BDG-104",
+    categoryName: "Sports & Extracurricular Activities",
+    allocatedAmount: 250000,
+    consumedAmount: 95000,
+    remainingAmount: 155000,
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    status: "Active",
+  },
+  {
+    id: "BDG-105",
+    categoryName: "Staff Training & Professional Development",
+    allocatedAmount: 150000,
+    consumedAmount: 30000,
+    remainingAmount: 120000,
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    status: "Active",
+  },
+];
 const initialAlumniRecords: AlumniRecord[] = [
   {
     id: "ALM-101",

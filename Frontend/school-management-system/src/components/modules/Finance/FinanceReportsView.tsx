@@ -118,11 +118,11 @@ export const FinanceReportsView: React.FC = () => {
   }, [selectedReport, searchQuery]);
 
   // Distinct values for filter dropdowns
-  const paymentModes = Array.from(new Set(feePayments.map(p => p.paymentMode))).filter(Boolean);
+  const paymentModes = Array.from(new Set([...feePayments.map(p => p.paymentMode), 'Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'Online'])).filter(Boolean);
   const hostelNames = Array.from(new Set(studentHostels.map(h => h.hostelName))).filter(Boolean);
   const routeNames = Array.from(new Set(studentTransports.map(t => t.routeName))).filter(Boolean);
-  const classesList = Array.from(new Set(students.map(s => s.className))).filter(Boolean);
-  const sectionsList = Array.from(new Set(students.map(s => s.section))).filter(Boolean);
+  const classesList = Array.from(new Set([...students.map(s => s.className), 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'])).filter(Boolean);
+  const sectionsList = Array.from(new Set([...students.map(s => s.section), 'A', 'B', 'C', 'D', 'E'])).filter(Boolean);
 
   // Conditional filters visibility check
   const showFeeHeadFilter = selectedReport === 'Fee Head Wise Collection';
@@ -135,11 +135,11 @@ export const FinanceReportsView: React.FC = () => {
   const todayCollection = apiSummary?.todayCollection ?? feePayments.filter(p => p.paymentDate === todayStr).reduce((sum, p) => sum + Number(p.amountPaid || p.amount || 0), 0);
 
   const thisMonthStr = new Date().toISOString().substring(0, 7); // YYYY-MM
-  const monthlyCollection = apiSummary?.monthlyCollection ?? (feePayments.filter(p => p.paymentDate && p.paymentDate.startsWith(thisMonthStr)).reduce((sum, p) => sum + Number(p.amountPaid || p.amount || 0), 0) || 7000);
+  const monthlyCollection = apiSummary?.monthlyCollection ?? feePayments.filter(p => p.paymentDate && p.paymentDate.startsWith(thisMonthStr)).reduce((sum, p) => sum + Number(p.amountPaid || p.amount || 0), 0);
 
-  const pendingFees = apiSummary?.pendingDues ?? (students.reduce((sum, s) => sum + (getStudentFeeOutstandingSummary ? getStudentFeeOutstandingSummary(s.id).totalOutstanding : 0), 0) || 2470500);
-  const distinctPaidStudents = apiSummary?.studentsPaidCount ?? (new Set(feePayments.map(p => p.studentId)).size || 17);
-  const totalScholarshipsAmount = apiSummary?.scholarshipsAndDiscounts ?? studentScholarships.reduce((sum, s) => sum + (s.discountType === 'Percentage' ? 3750 : Number(s.discountValue || 0)), 0);
+  const pendingFees = apiSummary?.pendingDues ?? students.reduce((sum, s) => sum + (getStudentFeeOutstandingSummary ? getStudentFeeOutstandingSummary(s.id).totalOutstanding : 0), 0);
+  const distinctPaidStudents = apiSummary?.studentsPaidCount ?? new Set(feePayments.map(p => p.studentId)).size;
+  const totalScholarshipsAmount = apiSummary?.scholarshipsAndDiscounts ?? studentScholarships.reduce((sum, s) => sum + Number(s.discountValue || 0), 0);
   const totalDiscountsAmount = feePayments.reduce((sum, p) => sum + Number(p.discount || 0), 0);
 
   const transportRevenue = apiSummary?.transportAndHostel ?? studentTransports.reduce((sum, t) => sum + Number(t.feeAmount || 0), 0);
