@@ -135,11 +135,11 @@ export const FinanceReportsView: React.FC = () => {
   const todayCollection = apiSummary?.todayCollection ?? feePayments.filter(p => p.paymentDate === todayStr).reduce((sum, p) => sum + Number(p.amountPaid || p.amount || 0), 0);
 
   const thisMonthStr = new Date().toISOString().substring(0, 7); // YYYY-MM
-  const monthlyCollection = apiSummary?.monthlyCollection ?? (feePayments.filter(p => p.paymentDate && p.paymentDate.startsWith(thisMonthStr)).reduce((sum, p) => sum + Number(p.amountPaid || p.amount || 0), 0) || 7000);
+  const monthlyCollection = apiSummary?.monthlyCollection ?? feePayments.filter(p => p.paymentDate && p.paymentDate.startsWith(thisMonthStr)).reduce((sum, p) => sum + Number(p.amountPaid || p.amount || 0), 0);
 
-  const pendingFees = apiSummary?.pendingDues ?? (students.reduce((sum, s) => sum + (getStudentFeeOutstandingSummary ? getStudentFeeOutstandingSummary(s.id).totalOutstanding : 0), 0) || 2470500);
-  const distinctPaidStudents = apiSummary?.studentsPaidCount ?? (new Set(feePayments.map(p => p.studentId)).size || 17);
-  const totalScholarshipsAmount = apiSummary?.scholarshipsAndDiscounts ?? studentScholarships.reduce((sum, s) => sum + (s.discountType === 'Percentage' ? 3750 : Number(s.discountValue || 0)), 0);
+  const pendingFees = apiSummary?.pendingDues ?? students.reduce((sum, s) => sum + (getStudentFeeOutstandingSummary ? getStudentFeeOutstandingSummary(s.id).totalOutstanding : 0), 0);
+  const distinctPaidStudents = apiSummary?.studentsPaidCount ?? new Set(feePayments.map(p => p.studentId)).size;
+  const totalScholarshipsAmount = apiSummary?.scholarshipsAndDiscounts ?? studentScholarships.reduce((sum, s) => sum + Number(s.discountValue || 0), 0);
   const totalDiscountsAmount = feePayments.reduce((sum, p) => sum + Number(p.discount || 0), 0);
 
   const transportRevenue = apiSummary?.transportAndHostel ?? studentTransports.reduce((sum, t) => sum + Number(t.feeAmount || 0), 0);

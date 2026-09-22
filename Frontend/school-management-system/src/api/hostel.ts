@@ -230,11 +230,11 @@ const saveStoredHostelBlocks = (blocks: HostelBlock[]) => {
 export const getHostelBlocks = async (search?: string, type?: string, signal?: AbortSignal): Promise<HostelBlock[]> => {
   let serverBlocks: HostelBlock[] = [];
   let isServerConnected = false;
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (type) params.append('type', type);
+  const query = params.toString();
   try {
-    const params = new URLSearchParams();
-    if (search) params.append('search', search);
-    if (type) params.append('type', type);
-    const query = params.toString();
     const res = await hostelApiClient(`/api/hostel/blocks${query ? `?${query}` : ''}`, { signal });
     const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res.blocks) ? res.blocks : null));
     if (arrayData) {

@@ -21041,10 +21041,6 @@ export const useData = () => {
     /* Ignored when outside HRProvider */
   }
 
-  if (!context) {
-    console.warn("useData was called outside a DataProvider or before DataProvider mounted.");
-  }
-
   return {
     ...(context || {}),
     ...hostel,

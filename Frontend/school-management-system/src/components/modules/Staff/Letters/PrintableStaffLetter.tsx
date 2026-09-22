@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SchoolProfile } from '../../../../types';
 import { StaffLetterPayload, StaffLetterType } from '../../../../types/staffLetter';
 import { formatDateDDMMYYYY } from '../../../../utils/dateValidation';
@@ -24,6 +24,19 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
   const formattedIssueDate = formatDateDDMMYYYY(payload.issueDate) || payload.issueDate;
   const formattedJoiningDate = formatDateDDMMYYYY(payload.joiningDate) || payload.joiningDate;
   const formattedRelievingDate = payload.relievingDate ? formatDateDDMMYYYY(payload.relievingDate) || payload.relievingDate : '';
+
+  // Resolve effective signature image from payload, global settings, or school profile
+  const effectiveSignature = useMemo(() => {
+    if (payload.signatureImageUrl) return payload.signatureImageUrl;
+    try {
+      const saved = localStorage.getItem('edu_db_global_letter_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
+      }
+    } catch (e) {}
+    return (activeSchoolProfile as any)?.signature || (activeSchoolProfile as any)?.principalSignature || '';
+  }, [payload.signatureImageUrl, activeSchoolProfile]);
 
   return (
     <div className="printable-staff-letter bg-white text-slate-900 font-sans p-6 sm:p-8 max-w-[800px] mx-auto shadow-lg print:shadow-none print:p-0 print:max-w-full text-[12.5px] leading-relaxed border border-slate-200 print:border-none min-h-[1050px] flex flex-col justify-between">
@@ -286,11 +299,19 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
           )}
 
           {/* Official Stamp & Signatory */}
-          <div className="text-center space-y-0.5">
-            <div className="h-11 flex items-center justify-center">
-              <div className="w-18 h-10 border border-sky-300 rounded-lg bg-sky-50/50 flex items-center justify-center text-[8.5px] font-black text-sky-800 uppercase tracking-widest rotate-[-6deg] opacity-80 px-2">
-                Official Seal
-              </div>
+          <div className="text-center space-y-0.5 min-w-[170px]">
+            <div className="h-12 flex items-center justify-center mb-0.5">
+              {effectiveSignature ? (
+                <img
+                  src={effectiveSignature}
+                  alt="Authorized Signatory Signature"
+                  className="max-h-12 max-w-[150px] object-contain"
+                />
+              ) : (
+                <div className="w-18 h-10 border border-sky-300 rounded-lg bg-sky-50/50 flex items-center justify-center text-[8.5px] font-black text-sky-800 uppercase tracking-widest rotate-[-6deg] opacity-80 px-2">
+                  Official Seal
+                </div>
+              )}
             </div>
             <p className="text-xs font-black text-slate-900 uppercase tracking-wide">
               {payload.authorizedSignatoryName}

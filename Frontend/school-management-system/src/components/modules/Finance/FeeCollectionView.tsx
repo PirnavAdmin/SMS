@@ -1791,7 +1791,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {filteredStudents.map((st) => {
+                {filteredStudents.map((st, stIdx) => {
                   const isHosteller =
                     st.studentType === "Hosteller" ||
                     (st as any).studentType === "Residential" ||
@@ -1815,7 +1815,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
                   return (
                     <tr
-                      key={st.id}
+                      key={`${st.id}-${st.admissionNo || ''}-${stIdx}`}
                       onClick={() => handleSelectStudent(st)}
                       className="hover:bg-sky-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
                     >

@@ -271,8 +271,20 @@ export const sendFeeReminderApi = async (payload: {
   });
 };
 
-export const fetchPromotedDuesApi = async () => {
-  return apiClient('/api/finance/promoted-students-dues', { method: 'GET' });
+export const fetchPromotedDuesApi = async (params?: {
+  search?: string;
+  className?: string;
+  previousAcademicYear?: string;
+  status?: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.search) query.append('search', params.search);
+  if (params?.className) query.append('className', params.className);
+  if (params?.previousAcademicYear) query.append('previousAcademicYear', params.previousAcademicYear);
+  if (params?.status) query.append('status', params.status);
+
+  const qs = query.toString();
+  return apiClient(`/api/finance/promoted-students-dues${qs ? `?${qs}` : ''}`, { method: 'GET' });
 };
 
 export const fetchFeeReceiptsRegisterApi = async (params?: {
