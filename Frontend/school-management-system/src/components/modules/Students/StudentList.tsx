@@ -34,7 +34,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
   const [wardenSelectedBlockId, setWardenSelectedBlockId] = useState<string>('All');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(students.length === 0);
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
@@ -134,15 +134,20 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   ];
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadStudents = async () => {
       try {
-        setLoading(true);
+        if (students.length === 0) {
+          setLoading(true);
+        }
         await fetchStudents();
       } catch (err: any) {
         console.error('Failed to fetch students:', err);
-        addToast('error', 'Fetch Failed', 'Could not retrieve students database directory.');
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     loadStudents();
@@ -153,8 +158,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           getAllocations().catch(() => []),
           getHostelBlocks().catch(() => [])
         ]);
-        if (Array.isArray(data)) setAllocations(data);
-        if (Array.isArray(blocksData)) setHostelBlocks(blocksData);
+        if (isMounted) {
+          if (Array.isArray(data)) setAllocations(data);
+          if (Array.isArray(blocksData)) setHostelBlocks(blocksData);
+        }
       } catch (e) {
         console.warn('Failed to load hostel allocations:', e);
       }
@@ -170,19 +177,21 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     window.addEventListener('hostel_students_updated', handleSync);
     window.addEventListener('residential_students_updated', handleSync);
     window.addEventListener('students_updated', handleSync);
-    window.addEventListener('storage', handleSync);
     return () => {
+      isMounted = false;
       window.removeEventListener('hostel_outpasses_updated', handleSync);
       window.removeEventListener('hostel_allocations_updated', handleSync);
       window.removeEventListener('hostel_students_updated', handleSync);
       window.removeEventListener('residential_students_updated', handleSync);
       window.removeEventListener('students_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
     };
-  }, [fetchStudents]);
+  }, []);
 
   useEffect(() => {
     setApiStudents(students);
+    if (students.length > 0) {
+      setLoading(false);
+    }
   }, [students]);
 
   // Helper to calculate natural ascending order rank for classes
@@ -571,8 +580,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const currentSectionRoster = useMemo(() => {
     if (!selectedClass || !selectedSection) return [];
 
+    const activeList = displayStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+
     if (selectedClass === 'All') {
-      const activeList = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
       if (isWardenRole) {
         return activeList.filter(s =>
           (s as any).studentType === 'Hosteller' ||
@@ -584,12 +594,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       return activeList;
     }
 
-    return apiStudents.filter(
-      s => s.status !== 'Completed' && s.status !== 'Alumni' &&
-           s.className.toLowerCase() === selectedClass.toLowerCase() &&
-           (selectedSection === 'All' || s.section.toLowerCase() === selectedSection.toLowerCase())
-    );
-  }, [apiStudents, selectedClass, selectedSection, isWardenRole]);
+    const cleanTargetClass = selectedClass.trim().toLowerCase();
+    const cleanTargetSection = selectedSection.replace(/^section\s+/i, '').trim().toLowerCase();
+
+    return activeList.filter(s => {
+      const sCls = (s.className || '').trim().toLowerCase();
+      const sSec = (s.section || '').replace(/^section\s+/i, '').trim().toLowerCase();
+      const matchesClass = sCls === cleanTargetClass;
+      const matchesSection = selectedSection === 'All' || sSec === cleanTargetSection || (s.section || '').trim().toLowerCase() === selectedSection.trim().toLowerCase();
+      return matchesClass && matchesSection;
+    });
+  }, [displayStudents, selectedClass, selectedSection, isWardenRole]);
 
   // Filtered Roster for Selected Section View
   const filteredRoster = useMemo(() => {
