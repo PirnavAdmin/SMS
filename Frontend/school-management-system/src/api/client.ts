@@ -32,13 +32,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  let rawBaseUrl = (import.meta.env.VITE_API_URL as string) || '';
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    if (rawBaseUrl.includes('ngrok')) {
-      rawBaseUrl = '';
-    }
-  }
-  const baseUrl = rawBaseUrl;
+  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
   let response: Response;
@@ -48,8 +42,8 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       headers,
     });
   } catch (fetchError) {
-    // If fetching fails or hits cors/network issue on localhost, transparently fallback to direct backend port 5151
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    // If ngrok tunnel fails or hits limit on localhost, transparently fallback to direct backend port 5151
+    if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
       const localUrl = `http://127.0.0.1:5151${endpoint}`;
       try {
         response = await fetch(localUrl, {
@@ -81,13 +75,9 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     if (response.status === 401 && !endpoint.includes('/auth/')) {
       const hadToken = !!localStorage.getItem('auth_token');
       localStorage.removeItem('auth_user');
-      localStorage.removeItem('user');
       localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_token_timestamp');
-      localStorage.removeItem('roles');
       localStorage.removeItem('active_module');
       if (hadToken) {
-        window.dispatchEvent(new CustomEvent('session_expired'));
         window.location.reload();
       }
     }
@@ -98,7 +88,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     try {
       const errorBody = await response.text();
       const errorJson = JSON.parse(errorBody);
-      
+
       if (errorJson.errors) {
         const validationErrors = Object.entries(errorJson.errors)
           .map(([key, messages]) => `${key}: ${(messages as string[]).join(', ')}`)
@@ -116,7 +106,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     } catch (e) {
       // Ignored
     }
-    
+
     const error: any = new Error(errorMessage);
     error.status = response.status;
     throw error;
