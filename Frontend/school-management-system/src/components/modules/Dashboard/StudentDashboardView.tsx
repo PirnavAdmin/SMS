@@ -64,11 +64,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     );
   }
 
-  const studentDisplayName = (
-    currentWard 
-      ? `${currentWard.firstName || ''} ${currentWard.lastName || ''}`.trim() || user?.name
-      : user?.name
-  ) || 'Student';
+  const studentDisplayName = (user?.name || '').trim();
 
   // Attendance
   const wardId = String(currentWard?.id || '').trim();
@@ -154,7 +150,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-              <span>{greeting}, {studentDisplayName}</span>
+              <span>{greeting}{studentDisplayName ? `, ${studentDisplayName}` : ''}</span>
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
             <p className="text-xs text-slate-600 dark:text-slate-400">

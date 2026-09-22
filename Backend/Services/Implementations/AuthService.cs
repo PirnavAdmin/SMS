@@ -168,48 +168,35 @@ namespace SMS.Api.Services.Implementations
                 {
                     var linkedUser = await _dbContext.Users
                         .FirstOrDefaultAsync(u => 
-                            (u.Email != null && student.Email != null && u.Email.ToLower() == student.Email.ToLower()) ||
-                            (u.MobileNumber != null && (u.MobileNumber == student.MobileNumber || u.MobileNumber == student.FatherMobile || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
-                            (u.FullName.ToLower() == student.StudentName.ToLower())
+                            u.Role != "Parent" && u.Role != "Admin" && u.Role != "Teacher" && u.Role != "Driver" &&
+                            ((u.Email != null && student.Email != null && u.Email.ToLower() == student.Email.ToLower()) ||
+                             (u.MobileNumber != null && (u.MobileNumber == student.MobileNumber || u.MobileNumber == student.FatherMobile || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
+                             (u.FullName.ToLower() == student.StudentName.ToLower()))
                         );
 
-                    bool passValid = false;
-                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash))
-                    {
-                        passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
-                    }
-                    else
-                    {
-                        passValid = dto.Password == "Password@123" || dto.Password == "Student@123" || dto.Password == "Pirnav@123" || dto.Password == student.AdmissionNumber || dto.Password == "admin1234";
-                    }
+                    bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
 
-                    if (passValid)
+                    if (passValid && linkedUser != null)
                     {
-                        if (linkedUser != null && linkedUser.FullName != student.StudentName)
+                        var studentUser = new User
                         {
-                            linkedUser.FullName = student.StudentName;
-                            try { await _dbContext.SaveChangesAsync(); } catch { }
-                        }
-
-                        var dummyUser = new User
-                        {
-                            UserId = student.StudentId,
+                            UserId = linkedUser.UserId,
                             FullName = student.StudentName,
-                            Email = student.Email ?? linkedUser?.Email ?? $"{student.AdmissionNumber.ToLower()}@pirnavschools.com",
-                            MobileNumber = student.MobileNumber ?? student.FatherMobile ?? linkedUser?.MobileNumber ?? "9876543222",
+                            Email = linkedUser.Email ?? student.Email,
+                            MobileNumber = linkedUser.MobileNumber ?? student.MobileNumber ?? student.FatherMobile,
                             Role = "Student"
                         };
                         var studentRoles = new List<string> { "Student" };
-                        var sToken = GenerateJwtToken(dummyUser, studentRoles);
+                        var sToken = GenerateJwtToken(studentUser, studentRoles);
 
                         return new AuthResponseDto(
                             student.StudentId,
                             student.StudentName,
                             sToken,
                             studentRoles,
-                            student.Email ?? linkedUser?.Email,
-                            student.MobileNumber ?? student.FatherMobile ?? linkedUser?.MobileNumber,
-                            linkedUser?.Avatar,
+                            linkedUser.Email ?? student.Email,
+                            linkedUser.MobileNumber ?? student.MobileNumber ?? student.FatherMobile,
+                            linkedUser.Avatar,
                             student.Branch?.BranchName ?? "Main Campus");
                     }
                 }
@@ -237,20 +224,12 @@ namespace SMS.Api.Services.Implementations
                             (u.Role == "Driver" && u.FullName.ToLower() == (driver.DriverName ?? "").ToLower())
                         );
 
-                    bool passValid = false;
-                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash))
-                    {
-                        passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
-                    }
-                    else
-                    {
-                        passValid = dto.Password == "Password@123" || dto.Password == "Driver@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
-                    }
+                    bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
 
-                    if (passValid)
+                    if (passValid && linkedUser != null)
                     {
-                        var driverName = !string.IsNullOrWhiteSpace(driver.DriverName) ? driver.DriverName : (linkedUser?.FullName ?? "Driver");
-                        if (linkedUser != null && linkedUser.FullName != driverName)
+                        var driverName = !string.IsNullOrWhiteSpace(driver.DriverName) ? driver.DriverName : linkedUser.FullName;
+                        if (linkedUser.FullName != driverName)
                         {
                             linkedUser.FullName = driverName;
                             try { await _dbContext.SaveChangesAsync(); } catch { }
@@ -258,10 +237,10 @@ namespace SMS.Api.Services.Implementations
 
                         var driverUser = new User
                         {
-                            UserId = linkedUser?.UserId ?? (int)driver.DriverId,
+                            UserId = linkedUser.UserId,
                             FullName = driverName,
-                            Email = driver.Email ?? linkedUser?.Email ?? "driver@pirnav.com",
-                            MobileNumber = driver.MobileNumber ?? linkedUser?.MobileNumber ?? "9581768544",
+                            Email = linkedUser.Email ?? driver.Email,
+                            MobileNumber = linkedUser.MobileNumber ?? driver.MobileNumber,
                             Role = "Driver"
                         };
                         var driverRoles = new List<string> { "Driver" };
@@ -272,9 +251,9 @@ namespace SMS.Api.Services.Implementations
                             driverName,
                             dToken,
                             driverRoles,
-                            driver.Email ?? linkedUser?.Email,
-                            driver.MobileNumber ?? linkedUser?.MobileNumber,
-                            null,
+                            linkedUser.Email ?? driver.Email,
+                            linkedUser.MobileNumber ?? driver.MobileNumber,
+                            linkedUser.Avatar,
                             "Main Campus");
                     }
                 }
@@ -310,22 +289,14 @@ namespace SMS.Api.Services.Implementations
                             u.FullName.ToLower() == $"{staffMember.FirstName} {staffMember.LastName}".Trim().ToLower()
                         );
 
-                    bool passValid = false;
-                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash))
-                    {
-                        passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
-                    }
-                    else
-                    {
-                        passValid = dto.Password == "Password@123" || dto.Password == "Teacher@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
-                    }
+                    bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
 
-                    if (passValid)
+                    if (passValid && linkedUser != null)
                     {
                         string staffFullName = $"{staffMember.FirstName} {staffMember.LastName}".Trim();
-                        if (string.IsNullOrWhiteSpace(staffFullName)) staffFullName = linkedUser?.FullName ?? "Staff Member";
+                        if (string.IsNullOrWhiteSpace(staffFullName)) staffFullName = linkedUser.FullName;
 
-                        if (linkedUser != null && linkedUser.FullName != staffFullName)
+                        if (linkedUser.FullName != staffFullName)
                         {
                             linkedUser.FullName = staffFullName;
                             try { await _dbContext.SaveChangesAsync(); } catch { }
@@ -346,15 +317,15 @@ namespace SMS.Api.Services.Implementations
                             resolvedRole = "Driver";
                         else if (!string.IsNullOrEmpty(targetRole))
                             resolvedRole = targetRole;
-                        else if (!string.IsNullOrEmpty(linkedUser?.Role))
+                        else if (!string.IsNullOrEmpty(linkedUser.Role))
                             resolvedRole = linkedUser.Role;
 
                         var staffUser = new User
                         {
-                            UserId = linkedUser?.UserId ?? staffMember.StaffId,
+                            UserId = linkedUser.UserId,
                             FullName = staffFullName,
-                            Email = staffMember.Email ?? linkedUser?.Email,
-                            MobileNumber = staffMember.Phone ?? linkedUser?.MobileNumber ?? "9876543221",
+                            Email = linkedUser.Email ?? staffMember.Email,
+                            MobileNumber = linkedUser.MobileNumber ?? staffMember.Phone,
                             Role = resolvedRole
                         };
                         var staffRoles = new List<string> { resolvedRole };
@@ -365,9 +336,9 @@ namespace SMS.Api.Services.Implementations
                             staffFullName,
                             stToken,
                             staffRoles,
-                            staffMember.Email ?? linkedUser?.Email,
-                            staffMember.Phone ?? linkedUser?.MobileNumber,
-                            staffMember.ProfilePhoto ?? linkedUser?.Avatar,
+                            linkedUser.Email ?? staffMember.Email,
+                            linkedUser.MobileNumber ?? staffMember.Phone,
+                            staffMember.ProfilePhoto ?? linkedUser.Avatar,
                             "Main Campus");
                     }
                 }
@@ -391,41 +362,24 @@ namespace SMS.Api.Services.Implementations
                             (u.Role == "Hostel Warden" && u.FullName.ToLower() == (warden.WardenName ?? "").ToLower())
                         );
 
-                    bool passValid = false;
-                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash))
-                    {
-                        passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
-                    }
-                    else
-                    {
-                        passValid = dto.Password == "Password@123" || dto.Password == "Warden@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
-                    }
+                    bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
 
-                    if (passValid)
+                    if (passValid && linkedUser != null)
                     {
                         var wardenRoles = new List<string> { "Hostel Warden" };
                         string wardenName = !string.IsNullOrWhiteSpace(warden.WardenName) 
                             ? warden.WardenName 
-                            : (warden.Staff != null ? $"{warden.Staff.FirstName} {warden.Staff.LastName}".Trim() : "Hostel Warden");
+                            : (warden.Staff != null ? $"{warden.Staff.FirstName} {warden.Staff.LastName}".Trim() : linkedUser.FullName);
 
-                        var dummyUser = new User
-                        {
-                            UserId = linkedUser?.UserId ?? warden.WardenId,
-                            FullName = wardenName,
-                            Email = warden.EmailAddress ?? warden.Staff?.Email ?? linkedUser?.Email ?? "Warden@pirnav.com",
-                            MobileNumber = warden.MobileNumber ?? warden.Staff?.Phone ?? linkedUser?.MobileNumber ?? "9581768444",
-                            Role = "Hostel Warden"
-                        };
-
-                        var wardenToken = GenerateJwtToken(dummyUser, wardenRoles);
+                        var wardenToken = GenerateJwtToken(linkedUser, wardenRoles);
                         return new AuthResponseDto(
-                            dummyUser.UserId,
+                            linkedUser.UserId,
                             wardenName,
                             wardenToken,
                             wardenRoles,
-                            dummyUser.Email,
-                            dummyUser.MobileNumber,
-                            null,
+                            linkedUser.Email ?? warden.EmailAddress,
+                            linkedUser.MobileNumber ?? warden.MobileNumber,
+                            linkedUser.Avatar,
                             "Main Campus");
                     }
                 }
@@ -436,16 +390,15 @@ namespace SMS.Api.Services.Implementations
             {
                 // 1. Look for user in users table with role Parent
                 var parentUser = await _dbContext.Users
-                    .FirstOrDefaultAsync(u => u.Role == "Parent" && (
+                    .FirstOrDefaultAsync(u => (u.Role == "Parent" || u.Role == "Parent / Guardian") && (
                         (u.Email != null && u.Email.ToLower() == lower) ||
                         u.MobileNumber == identifier ||
-                        (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly))
+                        (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
                     ));
 
                 if (parentUser != null)
                 {
-                    bool passValid = VerifyPassword(parentUser.PasswordHash, dto.Password) 
-                                  || dto.Password == "Password@123" || dto.Password == "Parent@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
+                    bool passValid = !string.IsNullOrEmpty(parentUser.PasswordHash) && VerifyPassword(parentUser.PasswordHash, dto.Password);
                     if (passValid)
                     {
                         var parentRoles = new List<string> { "Parent" };
@@ -479,80 +432,35 @@ namespace SMS.Api.Services.Implementations
 
                 if (studentWithParent != null)
                 {
-                    bool passValid = dto.Password == "Password@123" || dto.Password == "Parent@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
-                    if (passValid)
+                    var linkedUser = await _dbContext.Users
+                        .FirstOrDefaultAsync(u =>
+                            (u.Email != null && studentWithParent.Email != null && u.Email.ToLower() == studentWithParent.Email.ToLower()) ||
+                            (u.MobileNumber != null && (u.MobileNumber == studentWithParent.FatherMobile || u.MobileNumber == studentWithParent.MotherMobile || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
+                            (studentWithParent.FatherName != null && u.FullName.ToLower() == studentWithParent.FatherName.ToLower()) ||
+                            (studentWithParent.MotherName != null && u.FullName.ToLower() == studentWithParent.MotherName.ToLower())
+                        );
+
+                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password))
                     {
                         string parentName = !string.IsNullOrWhiteSpace(studentWithParent.FatherName) 
                             ? studentWithParent.FatherName 
-                            : (!string.IsNullOrWhiteSpace(studentWithParent.MotherName) ? studentWithParent.MotherName : "Parent");
+                            : (!string.IsNullOrWhiteSpace(studentWithParent.MotherName) ? studentWithParent.MotherName : linkedUser.FullName);
 
-                        var dummyParent = new User
-                        {
-                            UserId = studentWithParent.StudentId,
-                            FullName = parentName,
-                            Email = studentWithParent.Email ?? $"{digitsOnly}@pirnavschools.com",
-                            MobileNumber = studentWithParent.FatherMobile ?? studentWithParent.MotherMobile ?? identifier,
-                            Role = "Parent"
-                        };
                         var parentRoles = new List<string> { "Parent" };
-                        var pToken = GenerateJwtToken(dummyParent, parentRoles);
+                        var pToken = GenerateJwtToken(linkedUser, parentRoles);
                         return new AuthResponseDto(
-                            dummyParent.UserId,
+                            linkedUser.UserId,
                             parentName,
                             pToken,
                             parentRoles,
-                            dummyParent.Email,
-                            dummyParent.MobileNumber,
-                            null,
+                            linkedUser.Email ?? studentWithParent.Email,
+                            linkedUser.MobileNumber ?? studentWithParent.FatherMobile ?? studentWithParent.MotherMobile,
+                            linkedUser.Avatar,
                             studentWithParent.Branch?.BranchName ?? "Main Campus"
                         );
                     }
                 }
 
-                // 3. Look in AdmissionApplications table
-                var admissionWithParent = await _dbContext.AdmissionApplications
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(a => !a.IsDeleted && (
-                        (a.ParentEmail != null && a.ParentEmail.ToLower() == lower) ||
-                        a.FatherContact == identifier ||
-                        a.MotherMobileNumber == identifier ||
-                        (digitsOnly.Length >= 10 && (
-                            (a.FatherContact != null && a.FatherContact.EndsWith(digitsOnly)) ||
-                            (a.MotherMobileNumber != null && a.MotherMobileNumber.EndsWith(digitsOnly))
-                        ))
-                    ));
-
-                if (admissionWithParent != null)
-                {
-                    bool passValid = dto.Password == "Password@123" || dto.Password == "Parent@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
-                    if (passValid)
-                    {
-                        string parentName = !string.IsNullOrWhiteSpace(admissionWithParent.FatherName) 
-                            ? admissionWithParent.FatherName 
-                            : (!string.IsNullOrWhiteSpace(admissionWithParent.MotherName) ? admissionWithParent.MotherName : "Parent");
-
-                        var dummyParent = new User
-                        {
-                            UserId = admissionWithParent.Id,
-                            FullName = parentName,
-                            Email = admissionWithParent.ParentEmail ?? lower,
-                            MobileNumber = admissionWithParent.FatherContact ?? admissionWithParent.MotherMobileNumber ?? identifier,
-                            Role = "Parent"
-                        };
-                        var parentRoles = new List<string> { "Parent" };
-                        var pToken = GenerateJwtToken(dummyParent, parentRoles);
-                        return new AuthResponseDto(
-                            dummyParent.Id,
-                            parentName,
-                            pToken,
-                            parentRoles,
-                            dummyParent.Email,
-                            dummyParent.MobileNumber,
-                            null,
-                            admissionWithParent.BranchName ?? "Main Campus"
-                        );
-                    }
-                }
                 return null;
             }
 
@@ -567,13 +475,12 @@ namespace SMS.Api.Services.Implementations
                 var user = await userQuery.FirstOrDefaultAsync(u => 
                     (u.Email != null && u.Email.ToLower() == lower) ||
                     u.MobileNumber == identifier ||
-                    (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly))
+                    (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
                 );
 
                 if (user != null)
                 {
-                    bool userPasswordMatches = VerifyPassword(user.PasswordHash, dto.Password)
-                                            || dto.Password == "Password@123" || dto.Password == "Pirnav@123" || dto.Password == "admin1234";
+                    bool userPasswordMatches = !string.IsNullOrEmpty(user.PasswordHash) && VerifyPassword(user.PasswordHash, dto.Password);
                     if (userPasswordMatches)
                     {
                         var userRolesList = GetUserRolesList(user);
@@ -676,11 +583,11 @@ namespace SMS.Api.Services.Implementations
             if (result == null)
             {
                 result = await TryAdminAsync()
+                      ?? await TryParentAsync()
                       ?? await TryStudentAsync()
                       ?? await TryDriverAsync()
                       ?? await TryStaffAsync()
                       ?? await TryWardenAsync()
-                      ?? await TryParentAsync()
                       ?? await TryUserAsync();
             }
 

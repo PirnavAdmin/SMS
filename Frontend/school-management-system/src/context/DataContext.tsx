@@ -481,60 +481,7 @@ export interface AcademicClass {
   branch?: string;
 }
 
-const initialClasses: AcademicClass[] = [
-  {
-    id: "CL-9",
-    name: "Class 9",
-    sections: ["A", "B"],
-    sectionTeachers: { A: "Sarah Jenkins", B: "Jonathan Miller" },
-    teacher: "Sarah Jenkins",
-    subjects: ["Social Studies", "Physics", "Chemistry", "English", "History"],
-  },
-  {
-    id: "CL-10",
-    name: "Class 10",
-    sections: ["A", "B"],
-    sectionTeachers: { A: "Jonathan Miller", B: "Robert Langdon" },
-    teacher: "Jonathan Miller",
-    subjects: [
-      "Mathematics",
-      "Physics",
-      "Computer Science",
-      "English",
-      "Biology",
-    ],
-  },
-  {
-    id: "CL-11",
-    name: "Class 11",
-    sections: ["A", "B", "C"],
-    sectionTeachers: {
-      A: "Robert Langdon",
-      B: "Dr. Eleanor Vance",
-      C: "Jonathan Miller",
-    },
-    teacher: "Robert Langdon",
-    subjects: [
-      "Advanced Calculus",
-      "Organic Chemistry",
-      "Physics",
-      "Economics",
-    ],
-  },
-  {
-    id: "CL-12",
-    name: "Class 12",
-    sections: ["A", "B"],
-    sectionTeachers: { A: "Dr. Eleanor Vance", B: "Sarah Jenkins" },
-    teacher: "Dr. Eleanor Vance",
-    subjects: [
-      "Higher Mathematics",
-      "Quantum Physics",
-      "Literature",
-      "Accountancy",
-    ],
-  },
-];
+const initialClasses: AcademicClass[] = [];
 
 const defaultPeriodSettings: PeriodSetting[] = [];
 const defaultTeacherAssignments: TeacherAssignment[] = [];
@@ -1379,122 +1326,9 @@ interface DataContextType {
   ) => void;
 }
 
-const defaultGradeConfigurations: GradeConfig[] = [
-  {
-    id: "GRD-1",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "A+",
-    minPercent: 90,
-    maxPercent: 100,
-    gradePoints: 10,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-2",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "A",
-    minPercent: 80,
-    maxPercent: 89,
-    gradePoints: 9,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-3",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "B+",
-    minPercent: 70,
-    maxPercent: 79,
-    gradePoints: 8,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-4",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "B",
-    minPercent: 60,
-    maxPercent: 69,
-    gradePoints: 7,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-5",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "C",
-    minPercent: 50,
-    maxPercent: 59,
-    gradePoints: 6,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-6",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "D",
-    minPercent: 33,
-    maxPercent: 49,
-    gradePoints: 4,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-7",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "F",
-    minPercent: 0,
-    maxPercent: 32,
-    gradePoints: 0,
-    passCriteria: "Fail",
-  },
-];
+const defaultGradeConfigurations: GradeConfig[] = [];
 
-const defaultExamSchedules: ExamSchedule[] = [
-  {
-    id: "SCH-1",
-    examId: "EXM-01",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    date: "2026-09-10",
-    startTime: "09:00",
-    endTime: "12:00",
-    subject: "Mathematics",
-    className: "Class 10",
-    section: "A",
-    maxMarks: 100,
-    passMarks: 33,
-    room: "Room 101",
-    invigilatorId: "STF-002",
-    invigilatorName: "Jonathan Miller",
-  },
-  {
-    id: "SCH-2",
-    examId: "EXM-01",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    date: "2026-09-12",
-    startTime: "09:00",
-    endTime: "12:00",
-    subject: "Physics",
-    className: "Class 10",
-    section: "A",
-    maxMarks: 100,
-    passMarks: 33,
-    room: "Room 102",
-    invigilatorId: "STF-002",
-    invigilatorName: "Jonathan Miller",
-  },
-];
+const defaultExamSchedules: ExamSchedule[] = [];
 
 const initialFinanceTransactions: FinanceTransaction[] = [];
 
@@ -1566,127 +1400,7 @@ const initialAlumniRecords: AlumniRecord[] = [
   },
 ];
 
-const initialSchoolEvents: SchoolEvent[] = [
-  {
-    id: "EVT-001",
-    title: "Annual Sports Day & Athletic Meet 2026",
-    category: "Sports Day",
-    description:
-      "Grand Annual Sports Day featuring track & field competitions, march past, relay races, and trophy distribution.",
-    organizer: "Physical Education Dept",
-    venue: "Main Campus Stadium Ground",
-    startDate: "2026-08-15",
-    endDate: "2026-08-15",
-    startTime: "08:30 AM",
-    endTime: "04:30 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: [
-      "Class 1",
-      "Class 2",
-      "Class 5",
-      "Class 8",
-      "Class 10",
-      "Class 12",
-    ],
-    participants: "All Students & Faculty",
-    attachments: [
-      { id: "ATT-1", name: "Sports_Day_Schedule.pdf", url: "#", type: "PDF" },
-      { id: "ATT-2", name: "Track_Events_Rules.pdf", url: "#", type: "PDF" },
-    ],
-    status: "Published",
-    createdBy: "PE Director (Jonathan Miller)",
-  },
-  {
-    id: "EVT-002",
-    title: "Inter-House Science & Robotics Exhibition",
-    category: "Science Exhibition",
-    description:
-      "Student project showcases in AI, Renewable Energy, Physics Experiments, and Robotics Prototypes.",
-    organizer: "Department of Science & Tech",
-    venue: "Auditorium & STEM Lab 1",
-    startDate: "2026-08-22",
-    endDate: "2026-08-22",
-    startTime: "10:00 AM",
-    endTime: "03:00 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: [
-      "Class 8",
-      "Class 9",
-      "Class 10",
-      "Class 11",
-      "Class 12",
-    ],
-    participants: "Class 8-12 Students",
-    attachments: [
-      {
-        id: "ATT-3",
-        name: "Science_Fair_Guidelines.pdf",
-        url: "#",
-        type: "PDF",
-      },
-    ],
-    status: "Published",
-    createdBy: "HOD Science (Dr. Sarah Jenkins)",
-  },
-  {
-    id: "EVT-003",
-    title: "Term 1 Parent Teacher Meeting (PTM)",
-    category: "Parent Teacher Meeting",
-    description:
-      "Quarterly review meeting to discuss academic progress, attendance, and holistic student growth with parents.",
-    organizer: "Academic Committee",
-    venue: "Respective Classrooms",
-    startDate: "2026-08-28",
-    endDate: "2026-08-28",
-    startTime: "09:00 AM",
-    endTime: "01:00 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: ["All Classes"],
-    participants: "Parents, Students & Class Teachers",
-    status: "Published",
-    createdBy: "Vice Principal",
-  },
-  {
-    id: "EVT-004",
-    title: "Grand Cultural Fest & Musical Night",
-    category: "Cultural Fest",
-    description:
-      "Annual cultural extravaganza featuring classical dance, drama performance, school choir, and band live show.",
-    organizer: "Cultural Arts Association",
-    venue: "Open Air Amphitheatre",
-    startDate: "2026-09-05",
-    endDate: "2026-09-05",
-    startTime: "04:00 PM",
-    endTime: "08:30 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    participants: "All Students, Staff & Alumni",
-    status: "Published",
-    createdBy: "Arts Coordinator",
-  },
-  {
-    id: "EVT-005",
-    title: "Career Guidance & University Fair Seminar",
-    category: "Workshop & Seminar",
-    description:
-      "Interactive session with global university delegates and career counselors for Senior Secondary Students.",
-    organizer: "Student Counseling Cell",
-    venue: "Conference Hall B",
-    startDate: "2026-09-18",
-    endDate: "2026-09-18",
-    startTime: "11:00 AM",
-    endTime: "02:00 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: ["Class 11", "Class 12"],
-    participants: "Class 11 & 12 Students",
-    status: "Published",
-    createdBy: "Senior Counselor",
-  },
-];
+const initialSchoolEvents: SchoolEvent[] = [];
 
 const initialWorkshops: WorkshopTraining[] = [
   {
@@ -4182,6 +3896,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             let attendantId = (a.attendantId || "").toString();
             let attendantName = a.attendantName || "";
             let attendantMobile = a.attendantMobile || "";
+            let attendantEmployeeId = a.attendantEmployeeId || "";
+            let driverEmployeeId = a.driverEmployeeId || "";
 
             return {
               id: (a.id || a.assignmentId || "").toString(),
@@ -4193,8 +3909,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               vehicleNumber,
               driverId,
               driverName,
+              driverEmployeeId,
               attendantId,
               attendantName,
+              attendantEmployeeId,
               attendantMobile,
               morningTripTime: a.morningTripTime || a.morningTrip || "",
               eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
@@ -4225,11 +3943,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               uniqueAssignmentsMap.set(key, {
                 ...existing,
                 ...item,
+                driverEmployeeId:
+                  item.driverEmployeeId || existing.driverEmployeeId || "",
                 attendantId: item.attendantId || existing.attendantId || "",
                 attendantName:
                   item.attendantName || existing.attendantName || "",
                 attendantMobile:
                   item.attendantMobile || existing.attendantMobile || "",
+                attendantEmployeeId:
+                  item.attendantEmployeeId || existing.attendantEmployeeId || "",
               });
             }
           });
@@ -4917,7 +4639,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const promise = (async () => {
       try {
         const json = await fetchAdmissionsApi();
-        console.log("Admissions API response:", json);
         if (json && json.success && json.data) {
           if (json.data.length === 0) {
             addToast(
@@ -5202,7 +4923,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const response = await fetchStaffApi();
         if (response && response.success && response.data) {
-          console.log("DEBUG: fetchStaff response data:", response.data);
           const mappedStaff: Staff[] = response.data.map((item: any) => {
             const cat = (item.employeeCategory || "").toLowerCase();
             const isTeaching =
@@ -6353,46 +6073,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.getItem("schoolLogo") ||
             "";
 
-          setSchoolProfile((prev) => {
-            const currentProfile = prev || initialSchoolProfile;
-            const effectiveLogo =
-              (data.logoUrl && data.logoUrl.trim() !== '')
-                ? data.logoUrl
-                : (localCustomLogo || currentProfile.logoUrl || initialSchoolProfile.logoUrl);
+          const currentProfile = schoolProfile || initialSchoolProfile;
+          const effectiveLogo =
+            (data.logoUrl && data.logoUrl.trim() !== '')
+              ? data.logoUrl
+              : (localCustomLogo || currentProfile.logoUrl || initialSchoolProfile.logoUrl);
 
-            const next: SchoolProfile = {
-              ...initialSchoolProfile,
-              ...currentProfile,
-              name: data.schoolName || data.name || currentProfile.name || initialSchoolProfile.name,
-              tagline:
-                data.tagline !== undefined && data.tagline !== null
-                  ? data.tagline
-                  : (currentProfile.tagline || initialSchoolProfile.tagline),
-              address: data.address !== undefined && data.address !== null ? data.address : (currentProfile.address || initialSchoolProfile.address),
-              phone: data.phone !== undefined && data.phone !== null ? data.phone : (currentProfile.phone || initialSchoolProfile.phone),
-              email: data.email !== undefined && data.email !== null ? data.email : (currentProfile.email || initialSchoolProfile.email),
-              website:
-                data.website !== undefined && data.website !== null
-                  ? data.website
-                  : (currentProfile.website || initialSchoolProfile.website),
-              principalName:
-                data.principalName !== undefined && data.principalName !== null
-                  ? data.principalName
-                  : (currentProfile.principalName || initialSchoolProfile.principalName),
-              logoUrl: effectiveLogo,
-            };
+          const next: SchoolProfile = {
+            ...initialSchoolProfile,
+            ...currentProfile,
+            name: data.schoolName || data.name || currentProfile.name || initialSchoolProfile.name,
+            tagline:
+              data.tagline !== undefined && data.tagline !== null
+                ? data.tagline
+                : (currentProfile.tagline || initialSchoolProfile.tagline),
+            address: data.address !== undefined && data.address !== null ? data.address : (currentProfile.address || initialSchoolProfile.address),
+            phone: data.phone !== undefined && data.phone !== null ? data.phone : (currentProfile.phone || initialSchoolProfile.phone),
+            email: data.email !== undefined && data.email !== null ? data.email : (currentProfile.email || initialSchoolProfile.email),
+            website:
+              data.website !== undefined && data.website !== null
+                ? data.website
+                : (currentProfile.website || initialSchoolProfile.website),
+            principalName:
+              data.principalName !== undefined && data.principalName !== null
+                ? data.principalName
+                : (currentProfile.principalName || initialSchoolProfile.principalName),
+            logoUrl: effectiveLogo,
+          };
+          try {
+            localStorage.setItem("edu_db_profile", JSON.stringify(next));
+            localStorage.setItem("profile", JSON.stringify(next));
+            if (next.logoUrl) {
+              localStorage.setItem("school_logo", next.logoUrl);
+              localStorage.setItem("logoUrl", next.logoUrl);
+              localStorage.setItem("schoolLogo", next.logoUrl);
+            }
+          } catch (e) {}
+
+          setSchoolProfile(next);
+          setTimeout(() => {
             try {
-              localStorage.setItem("edu_db_profile", JSON.stringify(next));
-              localStorage.setItem("profile", JSON.stringify(next));
-              if (next.logoUrl) {
-                localStorage.setItem("school_logo", next.logoUrl);
-                localStorage.setItem("logoUrl", next.logoUrl);
-                localStorage.setItem("schoolLogo", next.logoUrl);
-              }
               window.dispatchEvent(new Event("school_profile_updated"));
             } catch (e) {}
-            return next;
-          });
+          }, 0);
         }
       } catch (err) {
         console.warn(
@@ -16750,7 +16473,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           recordsByDept[dept].push(r);
         });
 
-        console.log("DEBUG: markAttendance records input:", records);
         setLastAttendancePayload(recordsByDept);
 
         const savePromises = Object.entries(recordsByDept).map(
@@ -16804,12 +16526,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 };
               }),
             };
-            console.log(
-              `DEBUG: markAttendance payload for department ${dept}:`,
-              payload,
-            );
             const res = await markBulkStaffAttendanceApi(payload);
-            console.log(`DEBUG: response for department ${dept}:`, res);
             return res;
           },
         );

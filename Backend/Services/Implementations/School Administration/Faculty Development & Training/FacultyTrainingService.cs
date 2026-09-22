@@ -57,49 +57,6 @@ namespace SMS.Api.Services.Implementations
         public async Task<List<WorkshopResponseDto>> GetAllWorkshopsAsync()
         {
             var workshops = await _repository.GetAllWorkshopsAsync();
-            if (workshops.Count == 0)
-            {
-                var seed1 = new FacultyWorkshop
-                {
-                    Title = "AI & Machine Learning Tools in Modern Education",
-                    Category = "AI Training",
-                    Description = "Hands-on workshop on leveraging Generative AI lesson planning tools, automated assessment creators, and interactive student engagement platforms.",
-                    TrainerName = "Dr. Vikramaditya Sharma",
-                    Organization = "EdTech Innovations Institute",
-                    Venue = "Smart Audio-Visual Lab 1",
-                    StartDate = new DateTime(2026, 08, 10),
-                    EndDate = new DateTime(2026, 08, 11),
-                    StartTime = "09:30 AM",
-                    EndTime = "03:30 PM",
-                    TargetRoleType = "Teaching Staff",
-                    Branch = "Main Campus",
-                    Status = "Scheduled",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                var seed2 = new FacultyWorkshop
-                {
-                    Title = "POCSO & Child Safety Awareness Training",
-                    Category = "POCSO Awareness",
-                    Description = "Mandatory workshop on POCSO Act guidelines, identifying behavioral indicators, emergency protocols, and institutional reporting procedures.",
-                    TrainerName = "Adv. Meenakshi Sundaram",
-                    Organization = "National Child Rights & Protection Forum",
-                    Venue = "Main Auditorium",
-                    StartDate = new DateTime(2026, 08, 25),
-                    EndDate = new DateTime(2026, 08, 25),
-                    StartTime = "10:00 AM",
-                    EndTime = "01:00 PM",
-                    TargetRoleType = "All Staff",
-                    Branch = "Main Campus",
-                    Status = "Scheduled",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _repository.AddWorkshopAsync(seed1);
-                await _repository.AddWorkshopAsync(seed2);
-                await _repository.SaveChangesAsync();
-                workshops = await _repository.GetAllWorkshopsAsync();
-            }
             return workshops.Select(MapToWorkshopResponse).ToList();
         }
 
@@ -806,33 +763,6 @@ namespace SMS.Api.Services.Implementations
                 Status = "Issued"
             }));
 
-            if (list.Count == 0)
-            {
-                list.Add(new IssuedCertificateResponseDto
-                {
-                    CertificateNumber = "CERT-2026-101",
-                    StaffId = 1,
-                    EmployeeName = "Rajesh Sharma",
-                    ProgramId = 1,
-                    ProgramName = "AI & Machine Learning Tools in Modern Education",
-                    ProgramType = "Workshop",
-                    CompletionDate = new DateTime(2026, 08, 11),
-                    Status = "Issued"
-                });
-
-                list.Add(new IssuedCertificateResponseDto
-                {
-                    CertificateNumber = "CERT-2026-201",
-                    StaffId = 1,
-                    EmployeeName = "Rajesh Sharma",
-                    ProgramId = 1,
-                    ProgramName = "Digital Pedagogy & Smart Classroom Skills Assessment",
-                    ProgramType = "Assessment",
-                    CompletionDate = new DateTime(2026, 08, 18),
-                    Status = "Issued"
-                });
-            }
-
             return list.OrderByDescending(x => x.CompletionDate).ToList();
         }
 
@@ -872,17 +802,7 @@ namespace SMS.Api.Services.Implementations
                 };
             }
 
-            return new IssuedCertificateResponseDto
-            {
-                CertificateNumber = certNo,
-                StaffId = 1,
-                EmployeeName = "Rajesh Sharma",
-                ProgramId = 1,
-                ProgramName = certNo.Contains("101") ? "AI & Machine Learning Tools in Modern Education" : "Digital Pedagogy & Smart Classroom Skills Assessment",
-                ProgramType = certNo.Contains("101") ? "Workshop" : "Assessment",
-                CompletionDate = new DateTime(2026, 08, 18),
-                Status = "Issued"
-            };
+            return null;
         }
 
         public async Task<DevelopmentReportsSummaryDto> GetDevelopmentReportsSummaryAsync()
@@ -972,9 +892,9 @@ namespace SMS.Api.Services.Implementations
         {
             var staffList = await _repository.GetAllStaffForDropdownAsync();
             var staff = staffList.FirstOrDefault(s => s.StaffId == staffId);
-            string fullName = staff != null ? $"{staff.FirstName} {staff.LastName}".Trim() : "Rajesh Sharma";
-            string designation = staff?.Designation ?? "Senior PGT Teacher";
-            string department = staff?.Department ?? "Academics";
+            string fullName = staff != null ? $"{staff.FirstName} {staff.LastName}".Trim() : string.Empty;
+            string designation = staff?.Designation ?? string.Empty;
+            string department = staff?.Department ?? string.Empty;
 
             var participations = await _repository.GetParticipationsByStaffIdAsync(staffId);
             var candidates = await _repository.GetCandidatesByStaffIdAsync(staffId);
@@ -982,78 +902,36 @@ namespace SMS.Api.Services.Implementations
             var workshopLogs = participations.Select(p => new StaffWorkshopLogDto
             {
                 WorkshopId = p.WorkshopId,
-                Title = p.Workshop?.Title ?? "Workshop",
+                Title = p.Workshop?.Title ?? string.Empty,
                 Status = p.RegistrationStatus,
                 CompletionDate = p.IssuedDate ?? (p.Workshop?.EndDate ?? DateTime.UtcNow)
             }).ToList();
 
-            if (workshopLogs.Count == 0)
-            {
-                workshopLogs.Add(new StaffWorkshopLogDto
-                {
-                    WorkshopId = 1,
-                    Title = "AI & Machine Learning Tools in Modern Education",
-                    Status = "Completed",
-                    CompletionDate = new DateTime(2026, 08, 11)
-                });
-            }
-
             var assessmentLogs = candidates.Select(c => new StaffAssessmentLogDto
             {
                 AssessmentId = c.AssessmentId,
-                AssessmentName = c.Assessment?.AssessmentName ?? "Assessment",
-                Score = c.Score ?? 89m,
-                Grade = c.Grade ?? "Pass",
-                Status = c.Status ?? "Completed",
+                AssessmentName = c.Assessment?.AssessmentName ?? string.Empty,
+                Score = c.Score ?? 0m,
+                Grade = c.Grade ?? string.Empty,
+                Status = c.Status ?? string.Empty,
                 ScheduledDate = c.IssuedDate ?? (c.Assessment?.ScheduledDate ?? DateTime.UtcNow)
             }).ToList();
-
-            if (assessmentLogs.Count == 0)
-            {
-                assessmentLogs.Add(new StaffAssessmentLogDto
-                {
-                    AssessmentId = 1,
-                    AssessmentName = "Digital Pedagogy & Smart Classroom Skills Assessment",
-                    Score = 89m,
-                    Grade = "Pass",
-                    Status = "Completed",
-                    ScheduledDate = new DateTime(2026, 08, 18)
-                });
-            }
 
             var certs = new List<StaffCertificateLogDto>();
             certs.AddRange(participations.Where(p => p.CertificateIssued && p.CertificateNumber != null).Select(p => new StaffCertificateLogDto
             {
                 CertificateNumber = p.CertificateNumber!,
-                ProgramName = p.Workshop?.Title ?? "Workshop",
+                ProgramName = p.Workshop?.Title ?? string.Empty,
                 ProgramType = "Workshop",
                 IssuedDate = p.IssuedDate
             }));
             certs.AddRange(candidates.Where(c => c.CertificateIssued && c.CertificateNumber != null).Select(c => new StaffCertificateLogDto
             {
                 CertificateNumber = c.CertificateNumber!,
-                ProgramName = c.Assessment?.AssessmentName ?? "Assessment",
+                ProgramName = c.Assessment?.AssessmentName ?? string.Empty,
                 ProgramType = "Assessment",
                 IssuedDate = c.IssuedDate
             }));
-
-            if (certs.Count == 0)
-            {
-                certs.Add(new StaffCertificateLogDto
-                {
-                    CertificateNumber = "CERT-2026-101",
-                    ProgramName = "AI & Machine Learning Tools in Modern Education",
-                    ProgramType = "Workshop",
-                    IssuedDate = new DateTime(2026, 08, 11)
-                });
-                certs.Add(new StaffCertificateLogDto
-                {
-                    CertificateNumber = "CERT-2026-201",
-                    ProgramName = "Digital Pedagogy & Smart Classroom Skills Assessment",
-                    ProgramType = "Assessment",
-                    IssuedDate = new DateTime(2026, 08, 18)
-                });
-            }
 
             return new StaffDevelopmentProfileDto
             {
@@ -1061,8 +939,8 @@ namespace SMS.Api.Services.Implementations
                 FullName = fullName,
                 Designation = designation,
                 Department = department,
-                PrimarySubject = staff?.PrimarySubject ?? "Mathematics",
-                AvatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+                PrimarySubject = staff?.PrimarySubject ?? string.Empty,
+                AvatarUrl = string.Empty,
                 WorkshopsAttended = workshopLogs,
                 CompetencyAssessments = assessmentLogs,
                 EarnedCertificates = certs

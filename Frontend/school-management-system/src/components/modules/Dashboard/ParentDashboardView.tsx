@@ -365,9 +365,9 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       gender: 'Female',
       dob: '',
       status: 'Active',
-      fatherName: `${dynName}'s Father`,
+      fatherName: dynName,
       motherName: '',
-      parentName: `${dynName}'s Father`
+      parentName: dynName
     };
     parentWards = [dynamicWard];
   }
@@ -540,6 +540,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const isFeeCleared = dueBalance <= 0;
   const isResidential = currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());
 
+  const parentDisplayName = (user?.name || '').trim();
+
   return (
     <div className="space-y-3 sm:space-y-3.5 animate-in fade-in">
       {/* Welcome Banner Card (Identical layout to reference Student Dashboard) */}
@@ -548,7 +550,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="space-y-0.5 text-left">
             <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
-              <span>{greeting}, {currentWard?.fatherName || currentWard?.motherName || (user?.name && user.name !== currentWard?.studentName && !['user', 'parent', 'administrator', 'admin'].includes(user.name.toLowerCase()) ? user.name : 'Parent')}</span>
+              <span>{greeting}{parentDisplayName ? `, ${parentDisplayName}` : ''}</span>
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
             {currentWard && (

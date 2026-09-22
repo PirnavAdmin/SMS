@@ -960,36 +960,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <CalendarCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               My Attendance
             </h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 dark:text-slate-400 font-bold text-xs">
-              <span>
-                👤 Name:{" "}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  {`${teacher.firstName} ${teacher.lastName}`.trim()}
-                </strong>
-              </span>
-              <span>
-                🆔 Emp ID:{" "}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  {teacher.empId || teacher.id}
-                </strong>
-              </span>
-              <span>
-                🏢 Dept:{" "}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  {teacher.department}
-                </strong>
-              </span>
-              <span>
-                📅 Date:{" "}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  {new Date().toLocaleDateString(undefined, {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </strong>
-              </span>
-            </div>
           </div>
 
           <div className="flex flex-col items-start md:items-end gap-0.5">
@@ -2076,7 +2046,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const nonTeachingStaffList = useMemo(() => {
     const driverItems = (driverMasters || []).map(d => ({
       id: String(d.id),
-      empId: d.employeeId || `DRV-${d.id}`,
+      empId: d.employeeId || String(d.id),
       firstName: d.driverName,
       lastName: '',
       designation: 'Driver',

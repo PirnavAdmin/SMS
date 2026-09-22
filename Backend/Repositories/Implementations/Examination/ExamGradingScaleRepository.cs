@@ -13,16 +13,7 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
 {
     private readonly AppDbContext _context;
 
-    private static readonly List<NewGradingScaleRule> _inMemoryRules = new List<NewGradingScaleRule>
-    {
-        new NewGradingScaleRule { RuleId = 1, ExamType = "All", Grade = "A+", MinMarks = 90, MaxMarks = 100, Gpa = 4.0m, PassFail = "PASS", Remarks = "Outstanding" },
-        new NewGradingScaleRule { RuleId = 2, ExamType = "All", Grade = "A", MinMarks = 80, MaxMarks = 89, Gpa = 3.5m, PassFail = "PASS", Remarks = "Excellent" },
-        new NewGradingScaleRule { RuleId = 3, ExamType = "All", Grade = "B+", MinMarks = 70, MaxMarks = 79, Gpa = 3.0m, PassFail = "PASS", Remarks = "Very Good" },
-        new NewGradingScaleRule { RuleId = 4, ExamType = "All", Grade = "B", MinMarks = 60, MaxMarks = 69, Gpa = 2.5m, PassFail = "PASS", Remarks = "Good" },
-        new NewGradingScaleRule { RuleId = 5, ExamType = "All", Grade = "C", MinMarks = 50, MaxMarks = 59, Gpa = 2.0m, PassFail = "PASS", Remarks = "Satisfactory" },
-        new NewGradingScaleRule { RuleId = 6, ExamType = "All", Grade = "D", MinMarks = 33, MaxMarks = 49, Gpa = 1.0m, PassFail = "PASS", Remarks = "Pass" },
-        new NewGradingScaleRule { RuleId = 7, ExamType = "All", Grade = "F", MinMarks = 0, MaxMarks = 32, Gpa = 0.0m, PassFail = "FAIL", Remarks = "Needs Improvement" }
-    };
+    private static readonly List<NewGradingScaleRule> _inMemoryRules = new List<NewGradingScaleRule>();
 
     public ExamGradingScaleRepository(AppDbContext context)
     {

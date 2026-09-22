@@ -30,7 +30,7 @@ namespace SMS.Api.Controllers.Parent
             if (!string.IsNullOrWhiteSpace(headerIdentifier))
                 return headerIdentifier;
 
-            return emailClaim ?? mobileClaim ?? nameClaim ?? "parent@pirnavschools.edu";
+            return emailClaim ?? mobileClaim ?? nameClaim ?? string.Empty;
         }
 
         [HttpGet("children")]

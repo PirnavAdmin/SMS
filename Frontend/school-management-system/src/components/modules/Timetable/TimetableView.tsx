@@ -288,12 +288,10 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       return !allBusySlots.some(b => b === slotStr || b.includes(slotStr) || slotStr.includes(b));
     });
 
-    const tasks = ['Parent Sync Meetings', 'Exam Evaluation', 'Student Counseling', 'Lesson Planning', 'Worksheet Design', 'Academic Research'];
-
-    return free.map((p, idx) => ({
+    return free.map((p) => ({
       periodName: p.periodName,
       timeSlot: `${p.startTime} - ${p.endTime}`,
-      suggestion: tasks[idx % tasks.length]
+      suggestion: 'Available'
     }));
   }, [teacherTodaysSchedule, substitutionSchedule, periodSettings]);
 
@@ -1202,32 +1200,40 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 </div>
 
                 <div className="space-y-3 flex-grow pt-1">
-                  {substitutionSchedule.map((sub) => (
-                    <div
-                      key={sub.id}
-                      className={`p-3 rounded-2xl border ${
-                        sub.status.includes('Substituting') ? 'bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-150/60' :
-                        sub.status.includes('Cancelled') ? 'bg-rose-50/30 dark:bg-rose-950/10 border-rose-150/60' :
-                        'bg-amber-50/30 dark:bg-amber-950/10 border-amber-150/60'
-                      } space-y-1.5`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-xs text-slate-905 dark:text-white">{sub.period}</span>
-                        <span className="font-mono text-[9px] font-bold text-slate-400">{sub.time}</span>
-                      </div>
-                      <div className="text-[10.5px] font-bold text-slate-650 dark:text-slate-350">
-                        <p>{sub.classSection} &bull; {sub.subject}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">Room: <span className="font-mono font-bold text-slate-600 dark:text-slate-200">{sub.room}</span></p>
-                      </div>
-                      <p className={`text-[9.5px] font-black uppercase tracking-wider ${
-                        sub.status.includes('Substituting') ? 'text-indigo-600 dark:text-indigo-400' :
-                        sub.status.includes('Cancelled') ? 'text-rose-600 dark:text-rose-400' :
-                        'text-amber-600 dark:text-amber-400'
-                      }`}>
-                        {sub.status}
-                      </p>
+                  {substitutionSchedule.length === 0 ? (
+                    <div className="p-6 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-center flex flex-col items-center justify-center gap-1.5">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Substitution Duties</p>
+                      <p className="text-[10px] text-slate-400">You have no substitute periods assigned today.</p>
                     </div>
-                  ))}
+                  ) : (
+                    substitutionSchedule.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className={`p-3 rounded-2xl border ${
+                          sub.status.includes('Substituting') ? 'bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-150/60' :
+                          sub.status.includes('Cancelled') ? 'bg-rose-50/30 dark:bg-rose-950/10 border-rose-150/60' :
+                          'bg-amber-50/30 dark:bg-amber-950/10 border-amber-150/60'
+                        } space-y-1.5`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-xs text-slate-905 dark:text-white">{sub.period}</span>
+                          <span className="font-mono text-[9px] font-bold text-slate-400">{sub.time}</span>
+                        </div>
+                        <div className="text-[10.5px] font-bold text-slate-650 dark:text-slate-350">
+                          <p>{sub.classSection} &bull; {sub.subject}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">Room: <span className="font-mono font-bold text-slate-600 dark:text-slate-200">{sub.room}</span></p>
+                        </div>
+                        <p className={`text-[9.5px] font-black uppercase tracking-wider ${
+                          sub.status.includes('Substituting') ? 'text-indigo-600 dark:text-indigo-400' :
+                          sub.status.includes('Cancelled') ? 'text-rose-600 dark:text-rose-400' :
+                          'text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {sub.status}
+                        </p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 

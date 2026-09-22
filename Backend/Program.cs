@@ -321,9 +321,41 @@ contentTypeProvider.Mappings[".png"] = "image/png";
 contentTypeProvider.Mappings[".jpg"] = "image/jpeg";
 contentTypeProvider.Mappings[".jpeg"] = "image/jpeg";
 
+var contentRootUploads = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+if (Directory.Exists(contentRootUploads))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(contentRootUploads),
+        RequestPath = "/uploads",
+        ContentTypeProvider = contentTypeProvider
+    });
+}
+
 app.UseStaticFiles(new StaticFileOptions
 {
     ContentTypeProvider = contentTypeProvider
+});
+
+// Fallback Middleware for Missing Upload Images (prevents 404 console errors for missing avatars/branding images)
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Response.StatusCode == 404 && context.Request.Path.Value != null && context.Request.Path.Value.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+    {
+        var reqPath = context.Request.Path.Value.ToLowerInvariant();
+        if (reqPath.Contains("/profile") || reqPath.Contains("/avatar") || reqPath.EndsWith(".jpg") || reqPath.EndsWith(".png") || reqPath.EndsWith(".jpeg") || reqPath.EndsWith(".webp") || reqPath.EndsWith(".svg"))
+        {
+            context.Response.StatusCode = 200;
+            context.Response.ContentType = "image/svg+xml";
+            string fallbackSvg = @"<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'>
+                <rect width='128' height='128' rx='64' fill='#e2e8f0'/>
+                <circle cx='64' cy='48' r='24' fill='#94a3b8'/>
+                <path d='M24 108c0-22.091 17.909-40 40-40s40 17.909 40 40' fill='#94a3b8'/>
+            </svg>";
+            await context.Response.WriteAsync(fallbackSvg);
+        }
+    }
 });
 
 // Enable Swagger UI unconditionally
@@ -1987,228 +2019,7 @@ using (var scope = app.Services.CreateScope())
         await context.SaveChangesAsync();
 
         // Mock portal users seeder removed - users are managed directly in the database.
-
-        // =================================================
-        // SEED DEPARTMENTS
-        // =================================================
-
-        var departmentSeeds = new[]
-        {
-            new Department
-            {
-                DepartmentName = "Mathematics",
-                DepartmentCode = "DEPT-MTH",
-                Description = "Department of Mathematics",
-                Status = "Active"
-            },
-            new Department
-            {
-                DepartmentName = "Science",
-                DepartmentCode = "DEPT-SCI",
-                Description = "Department of Science",
-                Status = "Active"
-            },
-            new Department
-            {
-                DepartmentName = "Languages",
-                DepartmentCode = "DEPT-LNG",
-                Description = "Department of Languages",
-                Status = "Active"
-            }
-        };
-
-        foreach (var departmentSeed in departmentSeeds)
-        {
-            var departmentExists = await context.Departments.AnyAsync(
-                x => x.DepartmentCode == departmentSeed.DepartmentCode);
-
-            if (!departmentExists)
-            {
-                await context.Departments.AddAsync(departmentSeed);
-            }
-        }
-
-        // Save departments first because Subjects.DepartmentId
-        // is a foreign key to Departments.DepartmentId.
-        await context.SaveChangesAsync();
-
-        var mathematicsDepartment = await context.Departments
-            .SingleAsync(x => x.DepartmentCode == "DEPT-MTH");
-
-        var scienceDepartment = await context.Departments
-            .SingleAsync(x => x.DepartmentCode == "DEPT-SCI");
-
-        var languagesDepartment = await context.Departments
-            .SingleAsync(x => x.DepartmentCode == "DEPT-LNG");
-
-        // =================================================
-        // SEED SUBJECTS
-        // =================================================
-
-        var subjectSeeds = new[]
-        {
-            new Subject
-            {
-                SubjectCode = "MATH101",
-                SubjectName = "Mathematics",
-                CourseCode = "MATH",
-                DepartmentId = mathematicsDepartment.DepartmentId
-            },
-            new Subject
-            {
-                SubjectCode = "PHY101",
-                SubjectName = "Physics",
-                CourseCode = "PHY",
-                DepartmentId = scienceDepartment.DepartmentId
-            },
-            new Subject
-            {
-                SubjectCode = "ENG101",
-                SubjectName = "English Literature",
-                CourseCode = "ENG",
-                DepartmentId = languagesDepartment.DepartmentId
-            },
-            new Subject
-            {
-                SubjectCode = "CHEM101",
-                SubjectName = "Chemistry",
-                CourseCode = "CHEM",
-                DepartmentId = scienceDepartment.DepartmentId
-            }
-        };
-
-        foreach (var subjectSeed in subjectSeeds)
-        {
-            var subjectExists = await context.Subjects.AnyAsync(
-                x => x.SubjectCode == subjectSeed.SubjectCode);
-
-            if (!subjectExists)
-            {
-                await context.Subjects.AddAsync(subjectSeed);
-            }
-        }
-
-        await context.SaveChangesAsync();
-
-        // =================================================
-        // SEED CLASSES AND SECTIONS
-        // =================================================
-
-        if (!await context.Classes.AnyAsync())
-        {
-            var staffMembers = await context.Staff
-                .OrderBy(x => x.StaffId)
-                .Take(2)
-                .ToListAsync();
-
-            var staff1 = staffMembers.ElementAtOrDefault(0);
-            var staff2 = staffMembers.ElementAtOrDefault(1);
-
-            // Fetch a default subject to satisfy FK constraint on teacher_assignments
-            var defaultSubject = await context.Subjects.OrderBy(s => s.SubjectId).FirstOrDefaultAsync();
-            var defaultSubjectId = defaultSubject?.SubjectId ?? 1;
-
-            for (var classNumber = 1;
-                 classNumber <= 12;
-                 classNumber++)
-            {
-                var classGrade = new ClassGrade
-                {
-                    ClassName = $"Class {classNumber}"
-                };
-
-                // Save the class first to generate ClassId.
-                await context.Classes.AddAsync(classGrade);
-                await context.SaveChangesAsync();
-
-                if (classNumber == 1)
-                {
-                    await context.ClassSections.AddAsync(
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "A"
-                        });
-                    if (staff1 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "A",
-                                TeacherId = staff1.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                }
-                else if (classNumber == 2)
-                {
-                    await context.ClassSections.AddAsync(
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "A"
-                        });
-                    if (staff2 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "A",
-                                TeacherId = staff2.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                }
-                else if (classNumber == 9)
-                {
-                    await context.ClassSections.AddRangeAsync(
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "A"
-                        },
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "B"
-                        });
-                    if (staff1 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "A",
-                                TeacherId = staff1.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                    if (staff2 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "B",
-                                TeacherId = staff2.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                }
-
-                await context.SaveChangesAsync();
-            }
-        }
+        // Mock data seeders removed — data is managed directly through the database. }
 
         // Mock admission applications seeder removed - admissions are managed directly through the system.
 
@@ -2407,121 +2218,7 @@ using (var scope = app.Services.CreateScope())
             logger.LogWarning(syncEx, "Admissions→Students startup sync failed. This is non-fatal — sync will retry on next startup.");
         }
 
-        // =================================================
-        // SEED PERIOD SETTINGS
-        // =================================================
-        if (!await context.PeriodSettings.AnyAsync(p => !p.IsDeleted))
-        {
-            var defaultPeriods = new[]
-            {
-                new PeriodSetting { PeriodName = "Period 1", StartTime = new TimeSpan(8, 30, 0), EndTime = new TimeSpan(9, 15, 0), PeriodType = "Teaching Period", DisplayOrder = 1 },
-                new PeriodSetting { PeriodName = "Period 2", StartTime = new TimeSpan(9, 15, 0), EndTime = new TimeSpan(10, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 2 },
-                new PeriodSetting { PeriodName = "Morning Break", StartTime = new TimeSpan(10, 0, 0), EndTime = new TimeSpan(10, 15, 0), PeriodType = "Break / Recess", DisplayOrder = 3 },
-                new PeriodSetting { PeriodName = "Period 3", StartTime = new TimeSpan(10, 15, 0), EndTime = new TimeSpan(11, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 4 },
-                new PeriodSetting { PeriodName = "Period 4", StartTime = new TimeSpan(11, 0, 0), EndTime = new TimeSpan(11, 45, 0), PeriodType = "Teaching Period", DisplayOrder = 5 },
-                new PeriodSetting { PeriodName = "Lunch Break", StartTime = new TimeSpan(11, 45, 0), EndTime = new TimeSpan(12, 30, 0), PeriodType = "Break / Recess", DisplayOrder = 6 },
-                new PeriodSetting { PeriodName = "Period 5", StartTime = new TimeSpan(12, 30, 0), EndTime = new TimeSpan(13, 15, 0), PeriodType = "Teaching Period", DisplayOrder = 7 },
-                new PeriodSetting { PeriodName = "Period 6", StartTime = new TimeSpan(13, 15, 0), EndTime = new TimeSpan(14, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 8 }
-            };
-
-            await context.PeriodSettings.AddRangeAsync(defaultPeriods);
-            await context.SaveChangesAsync();
-        }
-
-        // Mock teacher subject assignments seeder removed - managed directly through the system.
-        // =================================================
-        // SEED LEAVE TYPES CONFIG
-        // =================================================
-        if (!await context.LeaveTypeConfigs.AnyAsync())
-        {
-            var defaultLeaveTypes = new[]
-            {
-                new LeaveTypeConfig { Name = "Casual Leave", Code = "CL", AnnualAllowance = 10, CarryForward = false, MaxConsecutiveDays = 3, RequiresAttachment = false, IsPaid = true, Status = "Active" },
-                new LeaveTypeConfig { Name = "Sick Leave", Code = "SL", AnnualAllowance = 12, CarryForward = true, MaxConsecutiveDays = 5, RequiresAttachment = true, IsPaid = true, Status = "Active" },
-                new LeaveTypeConfig { Name = "Earned Leave", Code = "EL", AnnualAllowance = 15, CarryForward = true, MaxConsecutiveDays = 10, RequiresAttachment = true, IsPaid = true, Status = "Active" },
-                new LeaveTypeConfig { Name = "Maternity Leave", Code = "ML", AnnualAllowance = 90, CarryForward = false, MaxConsecutiveDays = 90, RequiresAttachment = true, IsPaid = true, Status = "Active" },
-                new LeaveTypeConfig { Name = "Paternity Leave", Code = "PL", AnnualAllowance = 15, CarryForward = false, MaxConsecutiveDays = 15, RequiresAttachment = true, IsPaid = true, Status = "Active" },
-                new LeaveTypeConfig { Name = "Loss of Pay", Code = "LOP", AnnualAllowance = 0, CarryForward = false, MaxConsecutiveDays = 30, RequiresAttachment = false, IsPaid = false, Status = "Active" }
-            };
-            await context.LeaveTypeConfigs.AddRangeAsync(defaultLeaveTypes);
-            await context.SaveChangesAsync();
-        }
-
-        // Mock leave applications seeder removed - managed directly through the system.
-
-        // =================================================
-        // SEED SALARY STRUCTURES
-        // =================================================
-        if (!await context.SalaryStructures.AnyAsync())
-        {
-            var teacherScale = new SalaryStructure
-            {
-                StructureCode = "SAL-STR-TCH",
-                StructureName = "Teaching Staff Scale",
-                StaffCategory = "Teacher",
-                Branch = "Main Campus",
-                Department = "Academics",
-                Designation = "Teacher",
-                EmploymentType = "Full-time",
-                EffectiveDate = DateTime.UtcNow.Date,
-                Status = "Active",
-                Notes = "Standard scale for teaching staff members.",
-                MonthlyGrossSalary = 50000,
-                AssignedEmployeesCount = 0,
-                PayrollFrequency = "Monthly",
-                SalaryPaymentDay = "5",
-                PfApplicable = true,
-                PfPercentage = 12,
-                EsiApplicable = true,
-                EsiPercentage = 0.75m,
-                ProfessionalTaxApplicable = true,
-                ProfessionalTaxAmount = 200,
-                RoundOffRule = "Nearest 1"
-            };
-
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Basic Salary", ComponentType = "Earning", Amount = 30000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "HRA", ComponentType = "Earning", Amount = 10000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "DA", ComponentType = "Earning", Amount = 5000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Travel Allowance", ComponentType = "Earning", Amount = 5000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Employee PF", ComponentType = "Deduction", Amount = 3600 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "ESI", ComponentType = "Deduction", Amount = 375 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Professional Tax", ComponentType = "Deduction", Amount = 200 });
-
-            var adminScale = new SalaryStructure
-            {
-                StructureCode = "SAL-STR-ADM",
-                StructureName = "Non-Teaching Admin Scale",
-                StaffCategory = "Staff",
-                Branch = "Main Campus",
-                Department = "Administration",
-                Designation = "Administrator",
-                EmploymentType = "Full-time",
-                EffectiveDate = DateTime.UtcNow.Date,
-                Status = "Active",
-                Notes = "Standard scale for administration staff members.",
-                MonthlyGrossSalary = 35000,
-                AssignedEmployeesCount = 0,
-                PayrollFrequency = "Monthly",
-                SalaryPaymentDay = "5",
-                PfApplicable = true,
-                PfPercentage = 12,
-                EsiApplicable = false,
-                EsiPercentage = 0,
-                ProfessionalTaxApplicable = true,
-                ProfessionalTaxAmount = 150,
-                RoundOffRule = "Nearest 1"
-            };
-
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Basic Salary", ComponentType = "Earning", Amount = 20000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "HRA", ComponentType = "Earning", Amount = 8000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "DA", ComponentType = "Earning", Amount = 3000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Travel Allowance", ComponentType = "Earning", Amount = 4000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Employee PF", ComponentType = "Deduction", Amount = 2400 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Professional Tax", ComponentType = "Deduction", Amount = 150 });
-
-            await context.SalaryStructures.AddRangeAsync(teacherScale, adminScale);
-            await context.SaveChangesAsync();
-        }
+        // Mock period settings, leave types, and salary structures seeders removed — managed directly through the database.
 
         // --- BACKFILL: Sync existing staff into users table for login ---
         try

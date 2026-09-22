@@ -377,10 +377,33 @@ export const LeaveManagementView: React.FC = () => {
   const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
   const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
   
-  // Aggregate total leave balance for current active staff
+  // Helper function to get approved leave days for an employee by type
+  const getEmployeeApprovedUsedLeaves = (empId: string, empCode?: string) => {
+    const apps = leaveApplications.filter(
+      app => (String(app.employeeId) === String(empId) || (empCode && app.empId === empCode)) && (app.status || '').toLowerCase() === 'approved'
+    );
+    let casual = 0;
+    let sick = 0;
+    let earned = 0;
+    apps.forEach(app => {
+      const tName = (app.leaveType || app.leaveTypeName || '').toLowerCase();
+      const days = Number(app.numberOfDays) || 0;
+      if (tName.includes('casual')) casual += days;
+      else if (tName.includes('sick')) sick += days;
+      else if (tName.includes('earned') || tName.includes('paid')) earned += days;
+      else casual += days;
+    });
+    return { casual, sick, earned, total: casual + sick + earned };
+  };
+
+  // Aggregate total remaining leave balance for current active staff
   const totalBalance = staff.reduce((sum, s) => {
     const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-    return sum + (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
+    const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
+    const remCasual = Math.max(0, (bal.casual || 0) - used.casual);
+    const remSick = Math.max(0, (bal.sick || 0) - used.sick);
+    const remPaid = Math.max(0, (bal.paid || 0) - used.earned);
+    return sum + remCasual + remSick + remPaid;
   }, 0);
 
   // Overlap date checker
@@ -425,10 +448,11 @@ export const LeaveManagementView: React.FC = () => {
 
   const getAvailableBalance = (s: Staff, typeName: string) => {
     const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+    const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
     const name = typeName.toLowerCase();
-    if (name.includes('casual')) return bal.casual || 0;
-    if (name.includes('sick')) return bal.sick || 0;
-    if (name.includes('earned') || name.includes('paid')) return bal.paid || 0;
+    if (name.includes('casual')) return Math.max(0, (bal.casual || 0) - used.casual);
+    if (name.includes('sick')) return Math.max(0, (bal.sick || 0) - used.sick);
+    if (name.includes('earned') || name.includes('paid')) return Math.max(0, (bal.paid || 0) - used.earned);
     return 99; // Lost of pay or unlimited allowance
   };
 
@@ -1046,12 +1070,12 @@ export const LeaveManagementView: React.FC = () => {
               </thead>
               <tbody className="divide-y font-medium text-slate-705 dark:text-slate-300">
                 {paginatedStaffForBalance.map((s, idx) => {
-                  const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-                  const employeeApplications = leaveApplications.filter(
-                    app => (app.employeeId === s.id || app.empId === s.empId) && app.status === 'Approved'
-                  );
-                  const usedLeaves = employeeApplications.reduce((sum, app) => sum + (app.numberOfDays || 0), 0);
-                  const totalRemaining = (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
+                  const baseBal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
+                  const remCasual = Math.max(0, (baseBal.casual || 0) - used.casual);
+                  const remSick = Math.max(0, (baseBal.sick || 0) - used.sick);
+                  const remEarned = Math.max(0, (baseBal.paid || 0) - used.earned);
+                  const totalRemaining = remCasual + remSick + remEarned;
                   return (
                     <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                       <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{(balanceCurrentPage - 1) * balancePageSize + idx + 1}</td>
@@ -1059,10 +1083,10 @@ export const LeaveManagementView: React.FC = () => {
                         <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
                         <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.casual} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.sick} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{bal.paid} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{usedLeaves} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remCasual} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remSick} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remEarned} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} Days</td>
                       <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{totalRemaining} Days</td>
                     </tr>
                   );
@@ -1255,16 +1279,21 @@ export const LeaveManagementView: React.FC = () => {
 
               {selectedStaffMember && (
                 (() => {
-                  const bal = selectedStaffMember.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const baseBal = selectedStaffMember.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const used = getEmployeeApprovedUsedLeaves(selectedStaffMember.id, selectedStaffMember.empId);
+                  const remCasual = Math.max(0, (baseBal.casual || 0) - used.casual);
+                  const remSick = Math.max(0, (baseBal.sick || 0) - used.sick);
+                  const remPaid = Math.max(0, (baseBal.paid || 0) - used.earned);
                   return (
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
                       <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || 'Main Campus'}</span></div>
                       <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
                       <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
                       <div className="col-span-2 pt-1 mt-0.5 border-t border-slate-200 dark:border-slate-700 text-brand-700 dark:text-brand-400 font-bold flex gap-3">
-                        <span>Casual: {bal.casual ?? 10}</span>
-                        <span>Sick: {bal.sick ?? 10}</span>
-                        <span>Paid: {bal.paid ?? 15}</span>
+                        <span>Casual: {remCasual}</span>
+                        <span>Sick: {remSick}</span>
+                        <span>Paid: {remPaid}</span>
+                        <span className="text-slate-500">Used: {used.total}</span>
                       </div>
                     </div>
                   );

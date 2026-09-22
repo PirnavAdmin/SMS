@@ -65,7 +65,7 @@ export const ParentHostelView: React.FC = () => {
     );
 
     const admissionMatches = (admissions || []).filter(a => {
-      if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      if ((a.status as any) === 'Rejected' || (a.status as any) === 'Cancelled') return false;
       const phoneMatch = userPhone && userPhone.length >= 7 && (
         (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
         ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||

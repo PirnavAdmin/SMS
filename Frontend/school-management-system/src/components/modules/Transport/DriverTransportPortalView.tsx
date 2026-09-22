@@ -57,10 +57,10 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
     const userPhone = (user?.phone || '').trim().toLowerCase();
-    const userEmpId = (user?.id || '').trim().toLowerCase();
+    const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
     const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId)) ||
+      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
       (userEmail && d.email?.toLowerCase() === userEmail) ||
       (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
       (userName && d.driverName?.toLowerCase() === userName) ||
@@ -69,30 +69,41 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
 
     if (fromMaster) return fromMaster;
 
-    const fromStaff = staff.find(s =>
-      (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
-      (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
-    );
+    const fromStaff = staff.find(s => {
+      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+      const sId = String(s.id).toLowerCase();
+      const sEmail = (s.email || '').toLowerCase();
+      const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = (s.name || '').trim().toLowerCase();
+
+      return (
+        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
+        (userEmail && sEmail === userEmail) ||
+        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
+        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
+      );
+    });
 
     if (fromStaff) {
+      const staffName = `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name;
       return {
         id: fromStaff.id,
-        driverName: `${fromStaff.firstName} ${fromStaff.lastName}`,
-        licenseNumber: (fromStaff as any).licenseNumber || 'DL-2026-9874',
-        mobileNumber: fromStaff.phone || '+91-9878645565',
-        employeeId: fromStaff.employeeId || `DRV-${fromStaff.id}`,
-        status: 'Active' as const,
-        experienceYears: 6
+        driverName: staffName || user?.name || 'Driver',
+        licenseNumber: (fromStaff as any).licenseNumber || (fromStaff as any).licenceNumber || '',
+        mobileNumber: fromStaff.phone || (fromStaff as any).mobileNumber || user?.phone || '',
+        employeeId: fromStaff.empId || (fromStaff as any).employeeId || String(fromStaff.id) || '',
+        status: fromStaff.status || ('Active' as const),
+        experienceYears: (fromStaff as any).experienceYears !== undefined ? (fromStaff as any).experienceYears : 0
       };
     }
 
     return {
       id: user?.id || '1',
-      driverName: user?.name || user?.email || 'Driver',
-      licenseNumber: '',
-      mobileNumber: (user as any)?.phone || '',
-      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || 'DRV-001',
+      driverName: user?.name || 'Driver',
+      licenseNumber: (user as any)?.licenseNumber || '',
+      mobileNumber: user?.phone || (user as any)?.mobileNumber || '',
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || '',
       status: 'Active' as const,
       experienceYears: 0
     };
@@ -142,7 +153,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
   const targetRouteCode = (assignedRoute?.routeCode || '').trim().toLowerCase();
 
   const assignedAttendant = useMemo(() => {
-    if (!currentAssignment) return { name: 'Blast Bobby', employeeId: 'ATT-2026-01', mobile: '+91-9878909876' };
+    if (!currentAssignment) return { name: 'Unassigned', employeeId: '', mobile: '' };
 
     const attendant = busAttendants.find(a =>
       (currentAssignment.attendantId && (String(a.id) === String(currentAssignment.attendantId) || a.employeeId === currentAssignment.attendantId)) ||
@@ -152,21 +163,21 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     const matchedStaff = staff.find(s => {
       const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
       const attName = (currentAssignment.attendantName || attendant?.attendantName || '').trim().toLowerCase();
-      const staffEmpId = (s.employeeId || s.id || '').trim().toLowerCase();
+      const staffEmpId = (s.empId || (s as any).employeeId || String(s.id) || '').trim().toLowerCase();
       const targetEmpId = (attendant?.employeeId || currentAssignment.attendantEmployeeId || currentAssignment.attendantId || '').trim().toLowerCase();
 
       return (
-        (targetEmpId && staffEmpId === targetEmpId) ||
+        (targetEmpId && (staffEmpId === targetEmpId || String(s.id).toLowerCase() === targetEmpId)) ||
         (attName && (staffFullName === attName || staffFullName.includes(attName) || attName.includes(staffFullName)))
       );
     });
 
     const name = (currentAssignment.attendantName && currentAssignment.attendantName.toUpperCase() !== 'UNASSIGNED' && currentAssignment.attendantName.trim() !== '')
       ? currentAssignment.attendantName
-      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName} ${matchedStaff.lastName}` : 'Blast Bobby'));
+      : (attendant?.attendantName || (matchedStaff ? `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim() : 'Unassigned'));
 
-    let empCode = attendant?.employeeId || matchedStaff?.employeeId || currentAssignment.attendantEmployeeId || 'ATT-2026-01';
-    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || '+91-9878909876';
+    let empCode = currentAssignment.attendantEmployeeId || attendant?.employeeId || matchedStaff?.empId || (matchedStaff as any)?.employeeId || (matchedStaff?.id ? `STF-${matchedStaff.id}` : '-');
+    const mobile = currentAssignment.attendantMobile || attendant?.mobileNumber || matchedStaff?.phone || (matchedStaff as any)?.mobileNumber || '-';
 
     return {
       name,
@@ -526,14 +537,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
                         <span className="font-bold truncate">{student.pickupPoint}</span>
                       </div>
 
-                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <div className="text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
                         <span className="text-[10px] truncate">Guardian: {student.parentName}</span>
-                        <a
-                          href={`tel:${student.parentMobile}`}
-                          className="text-[10px] text-sky-600 dark:text-sky-400 font-bold hover:underline flex items-center gap-1 shrink-0"
-                        >
-                          <Phone className="w-2.5 h-2.5" /> Call
-                        </a>
                       </div>
                     </div>
                   </div>

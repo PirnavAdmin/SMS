@@ -613,13 +613,13 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const renderDocuments = () => (
     <SectionBlock title="Documents & Letters" subtitle="Official institutional letters, uploaded employee records and requirement checklist.">
       {/* Official HR Letters Section */}
-      <div className="mb-6 p-4 rounded-3xl bg-gradient-to-r from-sky-50 via-sky-50/40 to-blue-50 dark:from-slate-850 dark:to-slate-900 border border-sky-200/90 dark:border-sky-850 space-y-3.5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-200/60 dark:border-slate-800 pb-3">
+      <div className="mb-6 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Official Institutional Letters
+              <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Official Institutional Letters & HR Documents
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
               Generate, preview, customize, and issue standard institutional letters with official school letterhead.
             </p>
           </div>
@@ -631,7 +631,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                 setSelectedLetterRecord(staffLetters.find(l => l.letterType === 'offer'));
                 setLetterModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" /> Offer Letter
             </button>
@@ -642,7 +642,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                 setSelectedLetterRecord(staffLetters.find(l => l.letterType === 'relieving'));
                 setLetterModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
               <ShieldCheck className="w-3.5 h-3.5" /> Relieving Letter
             </button>
@@ -653,7 +653,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                 setSelectedLetterRecord(staffLetters.find(l => l.letterType === 'experience'));
                 setLetterModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
               <Award className="w-3.5 h-3.5" /> Experience Letter
             </button>
@@ -792,32 +792,52 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     </SectionBlock>
   );
 
-  const renderLeave = () => (
-    <SectionBlock title="Leave" subtitle="Leave balances and recent applications.">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <MetricCard label="Casual Leave" value={staff.leaveBalance?.casual || 0} tone="emerald" />
-        <MetricCard label="Sick Leave" value={staff.leaveBalance?.sick || 0} tone="amber" />
-        <MetricCard label="Paid Leave" value={staff.leaveBalance?.paid || 0} tone="brand" />
-      </div>
-      <div className="mt-5 space-y-2">
-        {leaveHistory.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">No leave applications found for this staff member.</p>
-        ) : (
-          leaveHistory.map(item => (
-            <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{item.leaveTypeName}</p>
-                <p className="text-[10px] text-slate-500">{item.fromDate} to {item.toDate} | {item.numberOfDays} days</p>
+  const renderLeave = () => {
+    const baseBal = staff.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+    const approved = (leaveHistory || []).filter(item => item.status === 'Approved');
+    let usedCasual = 0;
+    let usedSick = 0;
+    let usedPaid = 0;
+    approved.forEach(item => {
+      const tName = (item.leaveTypeName || '').toLowerCase();
+      const days = Number(item.numberOfDays) || 0;
+      if (tName.includes('casual')) usedCasual += days;
+      else if (tName.includes('sick')) usedSick += days;
+      else if (tName.includes('paid') || tName.includes('earned')) usedPaid += days;
+      else usedCasual += days;
+    });
+
+    const remCasual = Math.max(0, (baseBal.casual || 0) - usedCasual);
+    const remSick = Math.max(0, (baseBal.sick || 0) - usedSick);
+    const remPaid = Math.max(0, (baseBal.paid || 0) - usedPaid);
+
+    return (
+      <SectionBlock title="Leave" subtitle="Leave balances and recent applications.">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <MetricCard label="Casual Leave" value={remCasual} tone="emerald" />
+          <MetricCard label="Sick Leave" value={remSick} tone="amber" />
+          <MetricCard label="Paid Leave" value={remPaid} tone="brand" />
+        </div>
+        <div className="mt-5 space-y-2">
+          {leaveHistory.length === 0 ? (
+            <p className="text-sm text-slate-500 italic">No leave applications found for this staff member.</p>
+          ) : (
+            leaveHistory.map(item => (
+              <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{item.leaveTypeName}</p>
+                  <p className="text-[10px] text-slate-500">{item.fromDate} to {item.toDate} | {item.numberOfDays} days</p>
+                </div>
+                <Badge variant={item.status === 'Approved' ? 'success' : item.status === 'Rejected' ? 'danger' : 'warning'} size="sm">
+                  {item.status}
+                </Badge>
               </div>
-              <Badge variant={item.status === 'Approved' ? 'success' : item.status === 'Rejected' ? 'danger' : 'warning'} size="sm">
-                {item.status}
-              </Badge>
-            </div>
-          ))
-        )}
-      </div>
-    </SectionBlock>
-  );
+            ))
+          )}
+        </div>
+      </SectionBlock>
+    );
+  };
 
   const renderPerformance = () => (
     <SectionBlock title="Performance" subtitle="Training, assessment, and certification snapshot.">
