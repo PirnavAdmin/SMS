@@ -258,15 +258,15 @@ public class PromotedDueStudentDto
     public string AdmissionNo { get; set; } = string.Empty;
     public string StudentName { get; set; } = string.Empty;
     public string CurrentClass { get; set; } = string.Empty;
-    public string Section { get; set; } = "A";
+    public string Section { get; set; } = string.Empty;
     public string PreviousClass { get; set; } = string.Empty;
     public List<string> PreviousAcademicYears { get; set; } = new();
-    public string PreviousAcademicYear { get; set; } = "2025-2026";
+    public string PreviousAcademicYear { get; set; } = string.Empty;
     public decimal PreviousArrearsAmount { get; set; }
     public decimal PreviousYearPendingAmount => PreviousArrearsAmount;
     public string FormattedArrears => $"₹{PreviousArrearsAmount:N0}";
-    public int PendingComponentsCount { get; set; } = 1;
-    public string Status { get; set; } = "Due";
+    public int PendingComponentsCount { get; set; }
+    public string Status { get; set; } = string.Empty;
     public string FatherName { get; set; } = string.Empty;
     public string FatherMobile { get; set; } = string.Empty;
     public List<PromotedDueBreakdownGroupDto> BreakdownByYear { get; set; } = new();

@@ -118,11 +118,11 @@ export const FinanceReportsView: React.FC = () => {
   }, [selectedReport, searchQuery]);
 
   // Distinct values for filter dropdowns
-  const paymentModes = Array.from(new Set([...feePayments.map(p => p.paymentMode), 'Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'Online'])).filter(Boolean);
+  const paymentModes = Array.from(new Set(feePayments.map(p => p.paymentMode))).filter(Boolean);
   const hostelNames = Array.from(new Set(studentHostels.map(h => h.hostelName))).filter(Boolean);
   const routeNames = Array.from(new Set(studentTransports.map(t => t.routeName))).filter(Boolean);
-  const classesList = Array.from(new Set([...students.map(s => s.className), 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'])).filter(Boolean);
-  const sectionsList = Array.from(new Set([...students.map(s => s.section), 'A', 'B', 'C', 'D', 'E'])).filter(Boolean);
+  const classesList = Array.from(new Set(students.map(s => s.className))).filter(Boolean);
+  const sectionsList = Array.from(new Set(students.map(s => s.section))).filter(Boolean);
 
   // Conditional filters visibility check
   const showFeeHeadFilter = selectedReport === 'Fee Head Wise Collection';

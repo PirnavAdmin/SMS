@@ -20,14 +20,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     private static readonly ConcurrentDictionary<int, FinanceTransactionDto> _manualTransactions = new();
     private static readonly List<FinancialAccountDto> _accounts = new();
     private static readonly List<FinancialCategoryDto> _categories = new();
-    private static readonly List<FinancialBudgetDto> _budgets = new()
-    {
-        new FinancialBudgetDto { Id = 1, CategoryName = "Infrastructure & Campus Maintenance", AllocatedAmount = 500000m, ConsumedAmount = 125000m, Status = "Active", Department = "Administration", Branch = "Main Campus", AcademicYear = "2026-2027" },
-        new FinancialBudgetDto { Id = 2, CategoryName = "IT Hardware, Software & AV Labs", AllocatedAmount = 350000m, ConsumedAmount = 280000m, Status = "Active", Department = "IT", Branch = "Main Campus", AcademicYear = "2026-2027" },
-        new FinancialBudgetDto { Id = 3, CategoryName = "Library Books & Digital Learning Materials", AllocatedAmount = 200000m, ConsumedAmount = 45000m, Status = "Active", Department = "Library", Branch = "Main Campus", AcademicYear = "2026-2027" },
-        new FinancialBudgetDto { Id = 4, CategoryName = "Sports & Extracurricular Activities", AllocatedAmount = 250000m, ConsumedAmount = 95000m, Status = "Active", Department = "Sports", Branch = "Main Campus", AcademicYear = "2026-2027" },
-        new FinancialBudgetDto { Id = 5, CategoryName = "Staff Training & Professional Development", AllocatedAmount = 150000m, ConsumedAmount = 30000m, Status = "Active", Department = "HR", Branch = "Main Campus", AcademicYear = "2026-2027" }
-    };
+    private static readonly List<FinancialBudgetDto> _budgets = new();
     private static readonly ConcurrentDictionary<int, FeeRefundRequestDto> _refunds = new();
     private static FeeScheduleConfigDto _feeSchedule = new();
     private static FinanceSettingsDto _financeSettings = new();
