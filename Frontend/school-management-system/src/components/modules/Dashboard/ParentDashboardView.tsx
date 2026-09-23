@@ -281,7 +281,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     )
   ).map(s => ({
     ...s,
-    className: s.className || 'Class 6'
+    className: s.className || ''
   }));
 
   const localAdmissionMatches = (admissions || []).filter(a => {
@@ -311,8 +311,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     firstName: a.applicantName ? a.applicantName.split(' ')[0] : 'Student',
     lastName: a.applicantName ? a.applicantName.split(' ').slice(1).join(' ') : '',
     studentName: a.applicantName || 'Student',
-    className: a.appliedClass || 'Class 6',
-    section: (a as any).section || 'A',
+    className: (typeof a.appliedClass === 'string' ? a.appliedClass : (a.appliedClass as any)?.className) || a.className || '',
+    section: (a as any).section || '',
     gender: a.gender || 'Male',
     dob: a.dateOfBirth || (a as any).dob || '',
     status: a.status || 'Active',
@@ -320,17 +320,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     motherName: (a as any).motherFullName || a.motherName || '',
     parentName: a.parentName || a.fatherFullName || ''
   }));
-
-  const combinedLocalMatches = [...localStudentMatches, ...localAdmissionMatches];
-  const uniqueLocalMatches: any[] = [];
-  const seenKeys = new Set<string>();
-  for (const item of combinedLocalMatches) {
-    const key = `${item.studentName}-${item.admissionNo}`.toLowerCase();
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      uniqueLocalMatches.push(item);
-    }
-  }
 
   // Process API children if available
   const mappedApiChildren = (apiChildren || []).map(c => {
@@ -342,20 +331,30 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
       lastName: c.lastName || '',
       studentName: c.studentName || 'Student',
-      className: c.className || 'Class 6',
-      section: c.sectionName || 'A',
+      className: c.className || '',
+      section: c.sectionName || '',
       gender: c.gender || 'Male',
       dob: c.dateOfBirth || '',
       status: 'Active'
     };
   });
 
-  if (mappedApiChildren.length > 0) {
+  const combinedWardsList = [...localStudentMatches, ...mappedApiChildren, ...localAdmissionMatches];
+  const uniqueWardsList: any[] = [];
+  const seenWardKeys = new Set<string>();
+  for (const item of combinedWardsList) {
+    const sName = (item.studentName || `${item.firstName || ''} ${item.lastName || ''}`).trim().toLowerCase();
+    const cName = (item.className || '').toString().toLowerCase().replace(/class/gi, '').trim();
+    const key = `${sName}_${cName}`;
+    if (sName && !seenWardKeys.has(key)) {
+      seenWardKeys.add(key);
+      uniqueWardsList.push(item);
+    }
+  }
+
+  if (uniqueWardsList.length > 0) {
     hasMatchedWards = true;
-    parentWards = mappedApiChildren;
-  } else if (uniqueLocalMatches.length > 0) {
-    hasMatchedWards = true;
-    parentWards = uniqueLocalMatches;
+    parentWards = uniqueWardsList;
   } else {
     hasMatchedWards = true;
     const formatName = (email?: string) => {
@@ -371,8 +370,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       firstName: dynName.split(' ')[0],
       lastName: dynName.split(' ').slice(1).join(' '),
       studentName: dynName,
-      className: 'Class 8',
-      section: 'A',
+      className: '',
+      section: '',
       gender: 'Female',
       dob: '',
       status: 'Active',

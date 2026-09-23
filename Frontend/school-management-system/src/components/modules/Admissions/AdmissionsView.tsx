@@ -2257,7 +2257,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         lowerName.includes("uniform") || lowerName.includes("kit");
       if (isUniform) {
         amt = uniFeeAmount > 0 ? uniFeeAmount : i.amount;
-        itemName = "Uniform & Accessories";
       }
 
       const fh = (feeHeads || []).find(
@@ -2265,6 +2264,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
           (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
       );
+      if (fh?.name) {
+        itemName = fh.name;
+      }
 
       const detectedFreq =
         i.frequency ||
@@ -2307,9 +2309,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         ? computedItem.adjustedAmount
         : i.amount;
       const lateRemarks = computedItem ? computedItem.remarks : undefined;
+      const fh = (feeHeads || []).find(
+        (h) =>
+          (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
+          (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
+      );
+      const dynamicName = fh?.name || i.feeHeadName;
 
       items.push({
-        name: i.feeHeadName,
+        name: dynamicName,
         amount: isSelected ? adjustedAmount : i.amount,
         isApplicable: isSelected,
         remarks: isSelected ? lateRemarks : "Optional Fee Not Selected",
@@ -4281,7 +4289,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           const gnd = formData.gender || "Unisex";
                           const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
                           const displayAmount = isUniform && currentUniFeeAmount > 0 ? currentUniFeeAmount : item.amount;
-                          const displayName = isUniform ? "Uniform & Accessories" : item.feeHeadName;
+                          const matchedHead = (feeHeads || []).find(
+                            (h) =>
+                              (item.feeHeadId && h.id && String(h.id).toLowerCase() === String(item.feeHeadId).toLowerCase()) ||
+                              (h.name && item.feeHeadName && String(h.name || "").toLowerCase().trim() === String(item.feeHeadName || "").toLowerCase().trim()),
+                          );
+                          const displayName = matchedHead?.name || item.feeHeadName;
 
                           return (
                             <label

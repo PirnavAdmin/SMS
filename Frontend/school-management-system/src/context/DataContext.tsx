@@ -9944,6 +9944,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
+    if (updates.name) {
+      const newName = updates.name;
+      const targetHead = feeHeads.find((f) => String(f.id) === stringId);
+      const oldName = targetHead?.name;
+
+      setFeeStructures((prev) =>
+        prev.map((fs) => ({
+          ...fs,
+          items: (fs.items || []).map((i) => {
+            if (
+              (i.feeHeadId && String(i.feeHeadId) === stringId) ||
+              (oldName && i.feeHeadName && String(i.feeHeadName).toLowerCase() === String(oldName).toLowerCase())
+            ) {
+              return { ...i, feeHeadName: newName };
+            }
+            return i;
+          }),
+        }))
+      );
+
+      setDynamicFeeStructures((prev) =>
+        prev.map((dfs) => ({
+          ...dfs,
+          items: (dfs.items || []).map((i) => {
+            if (
+              (i.feeHeadId && String(i.feeHeadId) === stringId) ||
+              (oldName && i.feeHeadName && String(i.feeHeadName).toLowerCase() === String(oldName).toLowerCase())
+            ) {
+              return { ...i, feeHeadName: newName };
+            }
+            return i;
+          }),
+        }))
+      );
+    }
+
     try {
       const existing = feeHeads.find((f) => String(f.id) === stringId);
       const merged = { ...existing, ...updates };
@@ -10150,7 +10186,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteDynamicFeeStructure = (id: string) => {
-    setDynamicFeeStructures((prev) => prev.filter((d) => d.id !== id));
+    const target = dynamicFeeStructures.find((d) => d.id === id);
+    const targetClass = target?.className;
+    setDynamicFeeStructures((prev) =>
+      prev.filter((d) => {
+        if (d.id === id) return false;
+        if (
+          targetClass &&
+          d.className &&
+          d.className.toLowerCase().trim() === targetClass.toLowerCase().trim() &&
+          (!target?.academicYear || !d.academicYear || d.academicYear === target.academicYear)
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    );
     logActivity("Deleted Dynamic Fee Structure", `Removed structure ID ${id}`);
   };
 
@@ -12446,7 +12497,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         ledgerItems.push({
           headId: h.feeHeadId,
-          headName: isUni ? "Uniform & Accessories" : h.feeHeadName,
+          headName: h.feeHeadName,
           category:
             h.category ||
             (h.feeHeadName.includes("Tuition")
@@ -12502,7 +12553,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           ledgerItems.push({
             headId: i.feeHeadId,
-            headName: isUni ? "Uniform & Accessories" : i.feeHeadName,
+            headName: i.feeHeadName,
             category: i.feeHeadName.includes("Tuition")
               ? "Tuition Fee"
               : i.feeHeadName.includes("Admission")

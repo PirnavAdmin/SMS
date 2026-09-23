@@ -24,8 +24,15 @@ const DEFAULT_CLASSES = [
 ];
 
 export const FeeHeadsView: React.FC = () => {
-  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses } = useData();
+  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses, selectedBranch } = useData();
   const { addToast } = useToast();
+
+  const activeBranchList = useMemo(() => {
+    if (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') {
+      return [selectedBranch, 'All Branches'];
+    }
+    return ['All Branches'];
+  }, [selectedBranch]);
 
   const classOptions = useMemo(() => {
     if (academicClasses && academicClasses.length > 0) {
@@ -61,7 +68,7 @@ export const FeeHeadsView: React.FC = () => {
     frequency: 'Quarterly',
     mandatory: true,
     applicableClasses: classOptions,
-    applicableBranches: ['Main Campus'],
+    applicableBranches: activeBranchList,
     taxPercentage: 0,
     displayOrder: 1,
     status: 'Active'
@@ -89,7 +96,7 @@ export const FeeHeadsView: React.FC = () => {
       frequency: 'Quarterly',
       mandatory: true,
       applicableClasses: classOptions,
-      applicableBranches: ['Main Campus'],
+      applicableBranches: activeBranchList,
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
       status: 'Active'
@@ -103,7 +110,7 @@ export const FeeHeadsView: React.FC = () => {
       ...h,
       mandatory: h.mandatory === true,
       applicableClasses: h.applicableClasses && h.applicableClasses.length > 0 ? [...h.applicableClasses] : [...classOptions],
-      applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['Main Campus'],
+      applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : activeBranchList,
     });
     setIsModalOpen(true);
   };
@@ -120,15 +127,21 @@ export const FeeHeadsView: React.FC = () => {
       return;
     }
 
+    const targetBranches = (formData.applicableBranches && formData.applicableBranches.length > 0) 
+      ? formData.applicableBranches 
+      : activeBranchList;
+
     if (editingHead) {
       updateFeeHead(editingHead.id, {
         ...formData,
+        applicableBranches: targetBranches,
         mandatory: formData.mandatory === true,
       });
       addToast('success', 'Fee Head Updated', `Updated ${formData.name}`);
     } else {
       addFeeHead({
         ...formData,
+        applicableBranches: targetBranches,
         mandatory: formData.mandatory === true,
       } as Omit<FeeHead, 'id'>);
       addToast('success', 'Fee Head Created', `Created ${formData.name}`);

@@ -54,8 +54,8 @@ export const FeeStructuresView: React.FC = () => {
     return sum + val;
   }, 0);
 
-  // Sorted & Filtered Fee Structures (Displayed in ascending class order and filtered by academic year)
-  const filteredStructures = dynamicFeeStructures
+  // Sorted & Filtered Fee Structures (Displayed in ascending class order, filtered by academic year, and deduplicated by className)
+  const rawFilteredStructures = dynamicFeeStructures
     .filter((s) => {
       const matchesYear =
         !selectedAcademicYear ||
@@ -67,8 +67,20 @@ export const FeeStructuresView: React.FC = () => {
       const matchesClass =
         selectedClassFilter === "All" || s.className === selectedClassFilter;
       return matchesYear && matchesQuery && matchesClass;
-    })
-    .sort((a, b) => compareClassesAscending(a.className, b.className));
+    });
+
+  // Deduplicate by className (keeping the latest configured structure per class)
+  const uniqueClassMap = new Map<string, DynamicFeeStructure>();
+  rawFilteredStructures.forEach((s) => {
+    const key = (s.className || "").toLowerCase().trim();
+    if (key) {
+      uniqueClassMap.set(key, s);
+    }
+  });
+
+  const filteredStructures = Array.from(uniqueClassMap.values()).sort((a, b) =>
+    compareClassesAscending(a.className, b.className),
+  );
 
   // Sorted Academic Classes for top-bar Filter
   const sortedClassesForFilter = [...academicClasses].sort((a, b) =>
@@ -414,13 +426,7 @@ export const FeeStructuresView: React.FC = () => {
                         item.feeHeadName.toLowerCase().includes("book") ||
                         item.feeHeadName.toLowerCase().includes("exam");
                   const freq = head ? head.frequency : "Quarterly";
-                  const displayName =
-                    (item.feeHeadName || "")
-                      .toLowerCase()
-                      .includes("uniform") ||
-                    (item.feeHeadName || "").toLowerCase().includes("package")
-                      ? "Uniform & Accessories"
-                      : item.feeHeadName;
+                  const displayName = head ? head.name : item.feeHeadName;
 
                   return (
                     <div
@@ -541,14 +547,7 @@ export const FeeStructuresView: React.FC = () => {
                               <div>
                                 <div className="flex items-center gap-1.5">
                                   <p className="font-bold text-slate-900 dark:text-white text-xs">
-                                    {(head.name || "")
-                                      .toLowerCase()
-                                      .includes("uniform") ||
-                                    (head.name || "")
-                                      .toLowerCase()
-                                      .includes("package")
-                                      ? "Uniform & Accessories"
-                                      : head.name}
+                                    {head.name}
                                   </p>
                                   <span
                                     className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider ${

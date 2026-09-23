@@ -42,8 +42,8 @@ export const ParentExaminationView: React.FC = () => {
       firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
       lastName: c.lastName || '',
       studentName: c.studentName,
-      className: c.className || 'Class 6',
-      section: c.sectionName || 'A',
+      className: c.className || '',
+      section: c.sectionName || '',
       gender: c.gender || 'Male',
       dob: c.dateOfBirth || '',
       status: 'Active'
@@ -94,8 +94,8 @@ export const ParentExaminationView: React.FC = () => {
       firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
       lastName: a.lastName || '',
       studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
-      section: (a as any).section || 'A',
+      className: (a as any).appliedClass?.className || (a as any).className || (typeof a.appliedClass === 'string' ? a.appliedClass : '') || '',
+      section: (a as any).section || '',
       gender: a.gender || 'Male',
       dob: a.dateOfBirth || (a as any).dob || '',
       status: 'Active'
@@ -104,7 +104,12 @@ export const ParentExaminationView: React.FC = () => {
     const combined = [...studentMatches, ...admissionMatches];
     const unique = new Map();
     combined.forEach(w => {
-      if (!unique.has(w.id)) unique.set(w.id, w);
+      const sName = (w.studentName || `${w.firstName || ''} ${w.lastName || ''}`).trim().toLowerCase();
+      const cName = (w.className || '').toString().toLowerCase().replace(/class/gi, '').trim();
+      const key = `${sName}_${cName}`;
+      if (sName && !unique.has(key)) {
+        unique.set(key, w);
+      }
     });
     parentWards = Array.from(unique.values());
   }
