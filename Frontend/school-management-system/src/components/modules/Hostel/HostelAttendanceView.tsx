@@ -47,6 +47,7 @@ export const HostelAttendanceView: React.FC = () => {
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
+  const targetBlockIds = targetBlocks.map(b => String(b.hostelId || (b as any).id || '')).join(',');
 
   // Shift, View Mode & Date state
   const [attendanceShift, setAttendanceShift] = useState<'morning' | 'night'>('morning');
@@ -63,17 +64,17 @@ export const HostelAttendanceView: React.FC = () => {
   useEffect(() => {
     if (targetBlocks.length > 0) {
       if (isWarden) {
-        const assignedId = String(targetBlocks[0].hostelId);
-        if (!selectedBlockId || !targetBlocks.some(b => String(b.hostelId) === selectedBlockId)) {
+        const assignedId = String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || '');
+        if (!selectedBlockId || !targetBlocks.some(b => String(b.hostelId || (b as any).id) === selectedBlockId)) {
           setSelectedBlockId(assignedId);
         }
       } else {
         if (!selectedBlockId) {
-          setSelectedBlockId(String(targetBlocks[0].hostelId));
+          setSelectedBlockId(String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || ''));
         }
       }
     }
-  }, [isWarden, targetBlocks, selectedBlockId]);
+  }, [isWarden, targetBlockIds, selectedBlockId]);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,14 +115,12 @@ export const HostelAttendanceView: React.FC = () => {
     window.addEventListener('hostel_students_updated', handleSync);
     window.addEventListener('residential_students_updated', handleSync);
     window.addEventListener('students_updated', handleSync);
-    window.addEventListener('storage', handleSync);
 
     return () => {
       window.removeEventListener('hostel_allocations_updated', handleSync);
       window.removeEventListener('hostel_students_updated', handleSync);
       window.removeEventListener('residential_students_updated', handleSync);
       window.removeEventListener('students_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
     };
   }, [fetchData]);
 
