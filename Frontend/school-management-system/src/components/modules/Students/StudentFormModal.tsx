@@ -1,8 +1,9 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserCheck, User, Shield, Bus, Camera, Trash2, Home, Users, Search, ChevronDown } from 'lucide-react';
 import { Student, StudentType, SiblingDetail } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
@@ -21,8 +22,21 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile } = useData();
+  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile, branches = [] } = useData();
   const { addToast } = useToast();
+  const { selectedBranch } = useAuth();
+
+  const dynamicCampuses = useMemo(() => {
+    const fromApi = (branches || [])
+      .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
+      .filter(Boolean);
+    const combined = [
+      ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
+      ...fromApi,
+    ];
+    const unique = Array.from(new Set(combined)).filter(Boolean);
+    return unique.length > 0 ? unique : ['Madhapur Branch', 'Main Campus'];
+  }, [branches, selectedBranch]);
 
   const [formData, setFormData] = useState<Partial<Student>>({
     firstName: '',
@@ -535,7 +549,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   onChange={e => setFormData({ ...formData, branch: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
-                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                  {dynamicCampuses.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               <div>
