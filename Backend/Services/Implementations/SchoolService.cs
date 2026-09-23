@@ -1206,15 +1206,34 @@ public class SchoolService : ISchoolService
 			}
 			await _context.SaveChangesAsync();
 
-			// Sync to students table if student already exists OR application is active/enrolled/approved/admitted
 			var matchedStudent = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 				_context.Students, s => 
 					s.AdmissionNumber == app.RegistrationNo || 
 					(existing != null && s.AdmissionNumber == existing.ApplicationNo) ||
 					(s.StudentName.ToLower() == $"{app.FirstName} {app.LastName}".Trim().ToLower() && (s.FatherMobile == app.FatherContact || s.MobileNumber == app.FatherContact || s.Email == app.ParentEmail)));
 
+			// Sync to students table ONLY if student already exists OR application status is Enrolled/Admitted/Approved
+			var isEnrolledOrAdmitted = string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) ||
+			                           string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase) ||
+			                           string.Equals(app.Status, "Approved", StringComparison.OrdinalIgnoreCase);
+
 			if (!isDeleted)
 			{
+				if (matchedStudent == null && !isEnrolledOrAdmitted)
+				{
+					// Applications that are Pending or Rejected do NOT go to Student Directory until Enrolled
+					return;
+				}
+
+				if (matchedStudent != null && string.Equals(app.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+				{
+					matchedStudent.Status = "Inactive";
+					matchedStudent.UpdatedAt = DateTime.UtcNow;
+					_context.Entry(matchedStudent).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+					await _context.SaveChangesAsync();
+					return;
+				}
+
 				if (existing != null && existing.ClassId.HasValue)
 				{
 					var sectionLetter = string.IsNullOrEmpty(existing.SectionLetter) ? "A" : existing.SectionLetter;

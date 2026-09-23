@@ -62,8 +62,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   setCollapsed,
 }) => {
-  const { role, user } = useAuth();
-  const { schoolProfile, admissions, students, studentHostels, studentTransports } = useData();
+  const { role = "admin", user } = useAuth();
+  const { schoolProfile, admissions = [], students = [], studentHostels = [], studentTransports = [] } = useData() || {};
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
     return (
       schoolProfile?.logoUrl ||
@@ -314,8 +314,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isAcademicsActive,
   ]);
 
-  const pendingAdmissions = admissions.filter(
-    (a) => a.status === "Pending",
+  const pendingAdmissions = (admissions || []).filter(
+    (a) => a?.status === "Pending",
   ).length;
 
   const financeSubItems =
