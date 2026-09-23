@@ -576,6 +576,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: Clock,
         },
         {
+          id: "examination",
+          label: "Examinations",
+          icon: Award,
+        },
+        {
           id: "report-cards",
           label: "Report Cards",
           icon: ClipboardList,
