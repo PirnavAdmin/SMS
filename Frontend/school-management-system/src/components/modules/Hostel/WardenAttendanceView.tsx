@@ -219,6 +219,15 @@ export const WardenAttendanceView: React.FC = () => {
         };
 
         if (existingIdx >= 0) {
+          const current = prev[existingIdx];
+          if (
+            current.checkInTime === newRecord.checkInTime &&
+            current.checkOutTime === newRecord.checkOutTime &&
+            current.status === newRecord.status &&
+            current.remarks === newRecord.remarks
+          ) {
+            return prev;
+          }
           const updated = [...prev];
           updated[existingIdx] = newRecord;
           return updated;

@@ -166,12 +166,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
+  const targetBlockIds = targetBlocks.map(b => String(b.hostelId || (b as any).id || '')).join(',');
 
   useEffect(() => {
     if (isWarden && targetBlocks.length > 0 && (!filterHostel || filterHostel === 'All')) {
-      setFilterHostel(String(targetBlocks[0].hostelId));
+      setFilterHostel(String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || ''));
     }
-  }, [isWarden, targetBlocks, filterHostel]);
+  }, [isWarden, targetBlockIds, filterHostel]);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);

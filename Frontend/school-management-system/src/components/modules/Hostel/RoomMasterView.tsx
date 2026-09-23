@@ -178,12 +178,13 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedHostels : blocks;
+  const targetBlockIds = targetBlocks.map(b => String(b.hostelId || (b as any).id || '')).join(',');
 
   useEffect(() => {
     if (isWarden && targetBlocks.length > 0 && !filterHostel) {
-      setFilterHostel(String(targetBlocks[0].hostelId));
+      setFilterHostel(String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || ''));
     }
-  }, [isWarden, targetBlocks, filterHostel, setFilterHostel]);
+  }, [isWarden, targetBlockIds, filterHostel, setFilterHostel]);
 
   const availableFloorOptions = useMemo(() => {
     const floorsSet = new Set<string>();
