@@ -295,9 +295,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     feeHeads,
     academicYearFeeSchedules,
     schoolProfile,
+    branches = [],
+    fetchBranches,
   } = useData();
   const { addToast } = useToast();
   const { selectedBranch, selectedAcademicYear } = useAuth();
+
+  const dynamicCampuses = useMemo(() => {
+    const fromApi = (branches || [])
+      .map((b: any) => typeof b === "string" ? b : (b.name || b.branchName || b.campusName || ""))
+      .filter(Boolean);
+    const combined = [
+      ...(selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? [selectedBranch] : []),
+      ...fromApi,
+    ];
+    const unique = Array.from(new Set(combined)).filter(Boolean);
+    return unique.length > 0 ? unique : ["Madhapur Branch", "Main Campus"];
+  }, [branches, selectedBranch]);
 
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState("All");
@@ -572,12 +586,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           let count = 0;
           for (let i = 0; i < data.length; i++) {
             const row = data[i];
-            if (row.FirstName || row.applicantName || row.firstName || row.LastName || row.lastName) {
-              const name =
-                row.applicantName ||
-                `${row.FirstName || row.firstName || ""} ${row.LastName || row.lastName || ""}`.trim();
+            const name =
+              row.applicantName ||
+              row["Applicant Name"] ||
+              row["Student Name"] ||
+              row["Full Name"] ||
+              row.Name ||
+              row.name ||
+              `${row.FirstName || row.firstName || ""} ${row.LastName || row.lastName || ""}`.trim();
 
-              let rowDob = row.DOB || row.dob || "2018-08-15";
+            if (name) {
+              let rowDob = row.DOB || row.dob || row["Date of Birth"] || row.BirthDate || "2018-08-15";
               if (rowDob instanceof Date && !isNaN(rowDob.getTime())) {
                 rowDob = rowDob.toISOString().split("T")[0];
               } else if (typeof rowDob === "number") {
@@ -588,7 +607,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 rowDob = String(rowDob).trim();
               }
 
-              let rowAdmDate = row.DateOfAdmission || row.joiningDate || row.admissionDate || new Date().toISOString().split("T")[0];
+              let rowAdmDate = row.DateOfAdmission || row.joiningDate || row.admissionDate || row["Admission Date"] || new Date().toISOString().split("T")[0];
               if (rowAdmDate instanceof Date && !isNaN(rowAdmDate.getTime())) {
                 rowAdmDate = rowAdmDate.toISOString().split("T")[0];
               } else if (typeof rowAdmDate === "number") {
@@ -599,17 +618,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 rowAdmDate = String(rowAdmDate).trim();
               }
 
+              const rowStatus = String(row.Status || row.status || "Enrolled").trim();
+              const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
+              const rowSection = String(row.Section || row.section || "A").trim();
+              const rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || selectedBranch || "Main Campus").trim();
+              const rowAcademicYear = String(row.AcademicYear || row.academicYear || row["Academic Year"] || selectedAcademicYear || "").trim();
+
               const newApp = {
                 applicantName: name,
-                appliedClass: String(row.AppliedClass || row.appliedClass || "Class 1").trim(),
+                appliedClass: rowClass,
+                section: rowSection,
                 gender: String(row.Gender || row.gender || "Male").trim(),
                 dob: rowDob,
                 bloodGroup: String(row.BloodGroup || row.bloodGroup || "O+").trim(),
                 religion: String(row.Religion || row.religion || "General").trim(),
                 casteCategory: String(row.CasteCategory || row.casteCategory || "General").trim(),
-                parentName: String(row.FatherFullName || row.parentName || row.fatherName || "Not Provided").trim(),
-                motherName: String(row.MotherFullName || row.motherName || "Not Provided").trim(),
-                phone: String(row.FatherMobile || row.phone || row.mobile || "9876543210").trim(),
+                parentName: String(row.FatherFullName || row.parentName || row.fatherName || row["Father Name"] || "Not Provided").trim(),
+                motherName: String(row.MotherFullName || row.motherName || row["Mother Name"] || "Not Provided").trim(),
+                phone: String(row.FatherMobile || row.phone || row.mobile || row["Mobile Number"] || row["Phone"] || "9876543210").trim(),
                 motherPhone: String(row.MotherMobile || row.motherPhone || "").trim(),
                 alternatePhone: String(row.AlternateMobile || row.alternatePhone || "").trim(),
                 email: String(row.Email || row.email || "").trim(),
@@ -620,8 +646,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 addressDistrict: String(row.District || row.addressDistrict || "").trim(),
                 addressState: String(row.State || row.addressState || "").trim(),
                 addressPinCode: String(row.Pincode || row.addressPinCode || "").trim(),
-                branch: String(row.Campus || row.branch || selectedBranch || "Main Campus").trim(),
-                status: "Pending",
+                branch: rowBranch,
+                academicYear: rowAcademicYear,
+                status: rowStatus,
                 studentType: String(row.StudentType || row.studentType || "Day Scholar").trim(),
                 transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true || String(row.TransportRequired).toLowerCase() === "true"),
                 busRoute: String(row.BusRoute || row.busRoute || "").trim(),
@@ -644,6 +671,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           if (typeof fetchAdmissions === "function") {
             await fetchAdmissions();
           }
+          if (typeof fetchStudents === "function") {
+            await fetchStudents();
+          }
+          window.dispatchEvent(new Event('storage'));
 
           setTimeout(() => {
             addToast(
@@ -2603,7 +2634,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                           >
                             <option value="">Select Campus</option>
-                            {BRANCHES.map((branch) => (
+                            {dynamicCampuses.map((branch) => (
                               <option key={branch} value={branch}>
                                 {branch}
                               </option>

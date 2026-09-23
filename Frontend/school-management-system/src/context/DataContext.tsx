@@ -7574,6 +7574,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         floorLevel: "N/A",
         allocatedBedId: appData.hostelBed || "N/A",
         branch: appData.branch || selectedBranch || "Main Campus",
+        status: appData.status || "Enrolled",
+        section: (appData as any).section || "A",
+        academicYear: (appData as any).academicYear || selectedAcademicYear || "",
         avatar: appData.avatar || "",
         scholarship: appData.scholarshipId || "None",
         scholarshipId: appData.scholarshipId || "",
@@ -7583,6 +7586,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       const json = await createAdmissionApi(payload);
+
+      const resolvedStatus = appData.status || (json?.data?.status) || "Enrolled";
 
       const createdApp: AdmissionApplication = {
         id:
@@ -7633,7 +7638,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         discountId: appData.discountId,
         selectedOptionalFees: appData.selectedOptionalFees || [],
         submissionDate: new Date().toISOString().split("T")[0],
-        status: "Pending",
+        status: resolvedStatus as any,
         documentsSubmitted: appData.documentsSubmitted || [],
       };
 

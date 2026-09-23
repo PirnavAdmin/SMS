@@ -845,7 +845,7 @@ public class SchoolService : ISchoolService
 			AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed,
 			Scholarship = dto.Scholarship,
 			Discount = dto.Discount,
-			Status = "Pending"
+			Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Pending"
 		};
 
 		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) app.DateOfBirth = parsedDob;
@@ -1077,7 +1077,11 @@ public class SchoolService : ISchoolService
 
 					if (sectionObj != null)
 					{
-							var defaultAcademicYear = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(_context.AcademicYears);
+							var defaultAcademicYear = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+								_context.AcademicYears, ay => !ay.IsDeleted && ay.IsActive && ay.IsCurrent)
+								?? await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+									_context.AcademicYears, ay => !ay.IsDeleted && ay.IsActive)
+								?? await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(_context.AcademicYears);
 
 							if (defaultAcademicYear != null)
 							{
