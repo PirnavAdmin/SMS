@@ -17,10 +17,66 @@ using SMS.Api.Models;
 public class StaffLettersController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private static bool _tablesCreated = false;
+    private static readonly object _lock = new();
 
     public StaffLettersController(AppDbContext context)
     {
         _context = context;
+    }
+
+    private async Task EnsureTablesExistAsync()
+    {
+        if (_tablesCreated) return;
+
+        try
+        {
+            var createStaffLettersSql = @"
+                CREATE TABLE IF NOT EXISTS `staff_letters` (
+                    `Id` VARCHAR(100) NOT NULL,
+                    `LetterNumber` VARCHAR(100) NOT NULL,
+                    `LetterType` VARCHAR(50) NOT NULL,
+                    `StaffId` VARCHAR(50) NULL,
+                    `StaffEmpId` VARCHAR(50) NULL,
+                    `StaffName` VARCHAR(200) NOT NULL,
+                    `Designation` VARCHAR(150) NULL,
+                    `Department` VARCHAR(150) NULL,
+                    `Branch` VARCHAR(150) NULL,
+                    `IssueDate` VARCHAR(50) NULL,
+                    `GeneratedBy` VARCHAR(150) NULL,
+                    `Status` VARCHAR(50) NULL,
+                    `PayloadJson` LONGTEXT NULL,
+                    `CreatedAt` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                    `UpdatedAt` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                    PRIMARY KEY (`Id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+
+            var createGlobalSettingsSql = @"
+                CREATE TABLE IF NOT EXISTS `global_letter_settings` (
+                    `Id` INT NOT NULL,
+                    `SignatoryName` VARCHAR(200) NULL,
+                    `SignatoryTitle` VARCHAR(200) NULL,
+                    `ProbationMonths` INT NOT NULL DEFAULT 6,
+                    `NoticePeriodDays` INT NOT NULL DEFAULT 30,
+                    `SignatureImageUrl` LONGTEXT NULL,
+                    `SealImageUrl` LONGTEXT NULL,
+                    `MasterTermsJson` LONGTEXT NULL,
+                    `UpdatedAt` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                    PRIMARY KEY (`Id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+
+            await _context.Database.ExecuteSqlRawAsync(createStaffLettersSql);
+            await _context.Database.ExecuteSqlRawAsync(createGlobalSettingsSql);
+
+            lock (_lock)
+            {
+                _tablesCreated = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StaffLettersController] Warning ensuring tables: {ex.Message}");
+        }
     }
 
     // GET: api/staff-letters
@@ -30,6 +86,8 @@ public class StaffLettersController : ControllerBase
     {
         try
         {
+            await EnsureTablesExistAsync();
+
             var letters = await _context.StaffLetters
                 .OrderByDescending(l => l.CreatedAt)
                 .ToListAsync();
@@ -84,6 +142,8 @@ public class StaffLettersController : ControllerBase
     {
         try
         {
+            await EnsureTablesExistAsync();
+
             var letter = await _context.StaffLetters
                 .FirstOrDefaultAsync(l => l.Id == id || l.LetterNumber == id);
 
@@ -137,6 +197,8 @@ public class StaffLettersController : ControllerBase
 
         try
         {
+            await EnsureTablesExistAsync();
+
             var letterId = string.IsNullOrWhiteSpace(dto.Id)
                 ? $"LTR-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{new Random().Next(1000, 9999)}-{dto.StaffId ?? "01"}"
                 : dto.Id;
@@ -227,6 +289,8 @@ public class StaffLettersController : ControllerBase
 
         try
         {
+            await EnsureTablesExistAsync();
+
             var letter = await _context.StaffLetters.FirstOrDefaultAsync(l => l.Id == id);
             if (letter == null)
             {
@@ -285,6 +349,8 @@ public class StaffLettersController : ControllerBase
     {
         try
         {
+            await EnsureTablesExistAsync();
+
             var letter = await _context.StaffLetters.FirstOrDefaultAsync(l => l.Id == id);
             if (letter == null)
             {
@@ -313,6 +379,8 @@ public class StaffLettersController : ControllerBase
     {
         try
         {
+            await EnsureTablesExistAsync();
+
             var schoolSettings = await _context.SchoolSettings.FirstOrDefaultAsync();
             var dynamicPrincipalName = schoolSettings?.PrincipalName ?? string.Empty;
 
@@ -380,6 +448,8 @@ public class StaffLettersController : ControllerBase
 
         try
         {
+            await EnsureTablesExistAsync();
+
             var settings = await _context.GlobalLetterSettings.FirstOrDefaultAsync(s => s.Id == 1);
 
             string? masterTermsJson = null;

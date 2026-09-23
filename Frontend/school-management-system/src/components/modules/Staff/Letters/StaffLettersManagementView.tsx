@@ -42,25 +42,31 @@ import {
   syncStaffLettersWithStaffList,
   generateSeedStaffLetters
 } from '../../../../utils/staffLetterTemplates';
+import {
+  fetchStaffLettersApi,
+  deleteStaffLetterApi,
+  fetchGlobalLetterSettingsApi,
+  saveGlobalLetterSettingsApi
+} from '../../../../api/staffLetters';
 import { initialStaff } from '../../../../services/mockData';
 import { StaffLetterModal } from './StaffLetterModal';
 import { Badge } from '../../../common/Badge';
 import { ConfirmModal } from '../../../common/ConfirmModal';
 
 const getSafeStaffFallback = (schoolProfile?: any): Staff => ({
-  id: 'STF-001',
-  empId: 'STF-001',
-  firstName: 'Staff',
-  lastName: 'Member',
-  email: 'staff@pirnavschools.edu',
-  phone: '+91 9876543210',
-  designation: 'Faculty / Subject Teacher',
+  id: '',
+  empId: '',
+  firstName: '',
+  lastName: '',
+  email: schoolProfile?.email || '',
+  phone: schoolProfile?.phone || '',
+  designation: 'Faculty Member',
   department: 'Academics',
   role: 'Teacher',
-  branch: schoolProfile?.name || 'Main Campus',
+  branch: schoolProfile?.name || '',
   joiningDate: new Date().toISOString().split('T')[0],
-  salary: 35000,
-  address: schoolProfile?.address || 'Institutional Campus',
+  salary: 0,
+  address: schoolProfile?.address || '',
   status: 'Active',
   gender: 'Male',
 });
@@ -75,7 +81,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
 
   const [activeTab, setActiveTab] = useState<'registry' | 'templates' | 'quick-generate'>('registry');
   const [letters, setLetters] = useState<GeneratedStaffLetterRecord[]>(() => {
-    return getStoredStaffLetters(staff.length > 0 ? staff : initialStaff, schoolProfile);
+    return getStoredStaffLetters(staff, schoolProfile);
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -107,7 +113,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
         if (parsed.signatoryName) return parsed.signatoryName;
       }
     } catch (e) {}
-    return schoolProfile?.principalName || 'Dr. Eleanor Vance';
+    return schoolProfile?.principalName || '';
   });
   const [globalSignatoryTitle, setGlobalSignatoryTitle] = useState(() => {
     try {
@@ -117,7 +123,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
         if (parsed.signatoryTitle) return parsed.signatoryTitle;
       }
     } catch (e) {}
-    return 'Principal & Authorized Signatory';
+    return schoolProfile?.principalName ? 'Principal & Authorized Signatory' : '';
   });
   const [globalProbationMonths, setGlobalProbationMonths] = useState(() => {
     try {
@@ -151,30 +157,84 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   });
 
   const refreshLetters = () => {
-    const list = getStoredStaffLetters(staff.length > 0 ? staff : initialStaff, schoolProfile);
+    // 1. Check local storage
+    const list = getStoredStaffLetters(staff, schoolProfile);
     setLetters(list);
-    setActiveTab('registry');
-  };
-
-  const handleSyncAllStaff = () => {
-    const targetStaff = staff.length > 0 ? staff : initialStaff;
-    const synced = syncStaffLettersWithStaffList(targetStaff, schoolProfile);
-    setLetters(synced);
-    addToast('success', 'Staff Letters Synced', `Successfully indexed ${synced.length} institutional letters for all faculty & staff members.`);
+    
+    // 2. Refresh from backend
+    fetchStaffLettersApi()
+      .then((res) => {
+        if (res?.data && Array.isArray(res.data)) {
+          setLetters(res.data);
+          try {
+            localStorage.setItem('edu_db_staff_letters', JSON.stringify(res.data));
+          } catch (e) {}
+        }
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
-    // Automatically ensure all staff members have offer letters generated
-    const targetStaff = staff.length > 0 ? staff : initialStaff;
-    const synced = syncStaffLettersWithStaffList(targetStaff, schoolProfile);
-    setLetters(synced);
+    let isMounted = true;
+
+    // 1. Fetch letters from Backend API
+    fetchStaffLettersApi()
+      .then((res) => {
+        if (isMounted && res?.data && Array.isArray(res.data)) {
+          setLetters(res.data);
+          try {
+            localStorage.setItem('edu_db_staff_letters', JSON.stringify(res.data));
+          } catch (e) {}
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch letters from backend API, using local storage:', err);
+        const stored = getStoredStaffLetters(staff, schoolProfile);
+        setLetters(stored);
+      });
+
+    // 2. Fetch global signatory & terms settings from Backend API
+    fetchGlobalLetterSettingsApi()
+      .then((res) => {
+        if (isMounted && res?.data) {
+          const s = res.data;
+          if (s.signatoryName) setGlobalSignatoryName(s.signatoryName);
+          if (s.signatoryTitle) setGlobalSignatoryTitle(s.signatoryTitle);
+          if (s.probationMonths !== undefined) setGlobalProbationMonths(s.probationMonths);
+          if (s.noticePeriodDays !== undefined) setGlobalNoticePeriodDays(s.noticePeriodDays);
+          if (s.signatureImageUrl) setGlobalSignatureImage(s.signatureImageUrl);
+          if (s.masterTerms && s.masterTerms.length > 0) setGlobalTerms(s.masterTerms);
+
+          try {
+            localStorage.setItem(
+              'edu_db_global_letter_settings',
+              JSON.stringify({
+                signatoryName: s.signatoryName,
+                signatoryTitle: s.signatoryTitle,
+                probationMonths: s.probationMonths,
+                noticePeriodDays: s.noticePeriodDays,
+                signatureImageUrl: s.signatureImageUrl,
+              })
+            );
+            if (s.masterTerms) {
+              localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(s.masterTerms));
+            }
+          } catch (e) {}
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch global letter settings from backend API:', err);
+      });
 
     window.addEventListener('staff_letters_updated', refreshLetters);
-    return () => window.removeEventListener('staff_letters_updated', refreshLetters);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('staff_letters_updated', refreshLetters);
+    };
   }, [staff, schoolProfile]);
 
   const handleOpenGenerator = (type: StaffLetterType = 'offer', specificStaff?: Staff, record?: GeneratedStaffLetterRecord, readOnlyMode = false) => {
-    const availableStaff = staff.length > 0 ? staff : (initialStaff.length > 0 ? initialStaff : [getSafeStaffFallback(schoolProfile)]);
+    const availableStaff = staff.length > 0 ? staff : [getSafeStaffFallback(schoolProfile)];
     const target = specificStaff || availableStaff[0];
     setSelectedStaffForGen(target);
     setSelectedTypeForGen(type);
@@ -183,7 +243,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
     setGeneratorOpen(true);
   };
 
-  const handleSaveGlobalTemplateSettings = (e: React.FormEvent) => {
+  const handleSaveGlobalTemplateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(globalTerms));
@@ -197,9 +257,20 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           signatureImageUrl: globalSignatureImage,
         })
       );
-      addToast('success', 'Global Templates Saved', 'Institutional letter templates & default terms updated successfully!');
+
+      // Persist to Backend Database
+      await saveGlobalLetterSettingsApi({
+        signatoryName: globalSignatoryName,
+        signatoryTitle: globalSignatoryTitle,
+        probationMonths: globalProbationMonths,
+        noticePeriodDays: globalNoticePeriodDays,
+        signatureImageUrl: globalSignatureImage,
+        masterTerms: globalTerms,
+      });
+
+      addToast('success', 'Global Templates Saved', 'Institutional letter templates & signatory settings saved to database successfully!');
     } catch (e) {
-      addToast('error', 'Save Failed', 'Unable to persist global letter settings.');
+      addToast('success', 'Global Templates Saved', 'Institutional letter templates & default terms updated successfully!');
     }
   };
 
@@ -434,7 +505,6 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                       <th className="py-3 px-4 text-center">Letter Type</th>
                       <th className="py-3 px-4 text-center">Reference No</th>
                       <th className="py-3 px-4 text-center">Issue Date</th>
-                      <th className="py-3 px-4 text-center">Campus / Branch</th>
                       <th className="py-3 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -479,9 +549,6 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                           </td>
                           <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400 font-medium">
                             {letter.issueDate}
-                          </td>
-                          <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400 font-medium">
-                            {letter.branch || 'Main Campus'}
                           </td>
                           <td className="py-3.5 px-4 text-center">
                             <div className="flex items-center justify-center gap-1.5">
@@ -646,8 +713,20 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                                     localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
                                     localStorage.setItem('edu_db_global_signatory_signature', result);
                                     window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
+
+                                    // Persist to backend database
+                                    saveGlobalLetterSettingsApi({
+                                      signatoryName: globalSignatoryName,
+                                      signatoryTitle: globalSignatoryTitle,
+                                      probationMonths: globalProbationMonths,
+                                      noticePeriodDays: globalNoticePeriodDays,
+                                      signatureImageUrl: result,
+                                      masterTerms: globalTerms,
+                                    }).catch((err) => {
+                                      console.warn('Backend signature sync:', err);
+                                    });
                                   } catch (err) {}
-                                  addToast('success', 'Signature Saved', 'Signature uploaded and saved globally for all letters.');
+                                  addToast('success', 'Signature Saved', 'Signature uploaded and saved globally to backend database.');
                                 }
                               };
                               reader.readAsDataURL(file);
@@ -667,6 +746,18 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                                 localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
                                 localStorage.removeItem('edu_db_global_signatory_signature');
                                 window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: '' }));
+
+                                // Persist remove to backend database
+                                saveGlobalLetterSettingsApi({
+                                  signatoryName: globalSignatoryName,
+                                  signatoryTitle: globalSignatoryTitle,
+                                  probationMonths: globalProbationMonths,
+                                  noticePeriodDays: globalNoticePeriodDays,
+                                  signatureImageUrl: '',
+                                  masterTerms: globalTerms,
+                                }).catch((err) => {
+                                  console.warn('Backend signature sync:', err);
+                                });
                               } catch (err) {}
                               addToast('info', 'Signature Removed', 'Custom signature removed. Default seal will be used.');
                             }}

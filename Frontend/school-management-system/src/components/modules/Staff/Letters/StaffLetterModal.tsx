@@ -28,7 +28,6 @@ import { StaffLetterPayload, StaffLetterType, GeneratedStaffLetterRecord } from 
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { PrintableStaffLetter } from './PrintableStaffLetter';
-import { initialStaff } from '../../../../services/mockData';
 import {
   calculateSalaryBreakdown,
   getDefaultLetterPayload,
@@ -60,7 +59,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
   const effectiveStaffList = useMemo(() => {
     if (allStaff && allStaff.length > 0) return allStaff;
-    if (initialStaff && initialStaff.length > 0) return initialStaff;
     return [staff].filter(Boolean);
   }, [allStaff, staff]);
 

@@ -68,7 +68,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Dashboard', module: 'dashboard' },
     { name: 'Attendance', module: 'attendance' },
     { name: 'Time Table', module: 'timetable' },
-    { name: 'Report Cards & Exams', module: 'examination' },
+    { name: 'Examination & Assessments', module: 'examination' },
+    { name: 'Report Cards & Results', module: 'report-cards' },
     { name: 'Homework', module: 'homework' },
     { name: 'Fee Details & Dues', module: 'parent-fee-dues' },
     { name: 'Teachers Directory', module: 'staff' },
@@ -86,6 +87,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Student Promotion', module: 'student-promotion' },
     { name: 'Certificates', module: 'certificates' },
     { name: 'Alumni', module: 'alumni' },
+    { name: 'Examination', module: 'examination' },
+    { name: 'Report Cards', module: 'report-cards' },
+    { name: 'Homework', module: 'homework' },
     { name: 'Communication Hub', module: 'communication' },
     { name: 'Events & Holidays', module: 'events' },
     { name: 'Faculty Training', module: 'training' },
@@ -96,6 +100,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Librarian Attendance', module: 'librarian-attendance' },
     { name: 'Library Timetable', module: 'library-timetable' },
     { name: 'Inventory & Supplies', module: 'inventory' },
+    { name: 'Warden Attendance', module: 'warden-attendance' },
+    // Examination Sub-options
+    { name: 'Examination \u2192 Exam Setup', module: 'examination' },
+    { name: 'Examination \u2192 Exam Schedule & Timetable', module: 'examination' },
+    { name: 'Examination \u2192 Marks Entry', module: 'examination' },
+    { name: 'Examination \u2192 Grading Configuration', module: 'examination' },
+    { name: 'Examination \u2192 Results Management', module: 'examination' },
     // Finance Sub-options
     { name: 'Finance \u2192 Dashboard', module: 'finance-dashboard' },
     { name: 'Finance \u2192 Fee Collection', module: 'finance-fee-collection' },
@@ -115,7 +126,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     // Uniform Sub-options
     { name: 'Uniform \u2192 Dashboard', module: 'uniform-dashboard' },
     { name: 'Uniform \u2192 Uniform Configuration', module: 'uniform-masters' },
-    { name: 'Uniform → Uniform Distribution', module: 'uniform-student-uniform' },
+    { name: 'Uniform \u2192 Uniform Distribution', module: 'uniform-student-uniform' },
     { name: 'Uniform \u2192 Uniform Reports', module: 'uniform-reports' },
     // Staff Sub-options (Teachers vs Admin)
     ...(userRole === 'teacher' ? [
@@ -125,6 +136,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
       { name: 'Staff \u2192 My Payslips', module: 'staff-my-payslips' }
     ] : [
       { name: 'Staff \u2192 Staff Directory', module: 'staff-directory' },
+      { name: 'Staff \u2192 Offer & Relieving Letters', module: 'staff-letters' },
       { name: 'Staff \u2192 Staff Attendance', module: 'staff-attendance' },
       { name: 'Staff \u2192 Leave Management', module: 'staff-leave' },
       { name: 'Staff \u2192 Payroll', module: 'staff-payroll' }

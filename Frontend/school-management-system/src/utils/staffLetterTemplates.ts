@@ -1,5 +1,6 @@
 import { Staff, SchoolProfile } from '../types';
 import { GeneratedStaffLetterRecord, StaffLetterPayload, StaffLetterSalaryBreakdown, StaffLetterType } from '../types/staffLetter';
+import { createOrSaveStaffLetterApi, deleteStaffLetterApi } from '../api/staffLetters';
 
 export const calculateSalaryBreakdown = (monthlySalary: number): StaffLetterSalaryBreakdown => {
   const grossMonthly = Math.max(0, monthlySalary || 0);
@@ -47,8 +48,8 @@ export const getDefaultLetterPayload = (
 
   const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || 'Staff Member';
   
-  let defaultSignatoryName = schoolProfile?.principalName || 'Dr. Eleanor Vance';
-  let defaultSignatoryTitle = 'Principal & Authorized Signatory';
+  let defaultSignatoryName = schoolProfile?.principalName || '';
+  let defaultSignatoryTitle = schoolProfile?.principalName ? 'Principal & Authorized Signatory' : '';
   let defaultProbationMonths = 6;
   let defaultNoticePeriodDays = 30;
   let defaultSignatureImageUrl = '';
@@ -68,7 +69,7 @@ export const getDefaultLetterPayload = (
   } catch (e) {}
 
   const staffAddress = staff.presentAddress || staff.residentialAddress || staff.permanentAddress || staff.address || (schoolProfile?.address || '');
-  const staffBranch = staff.branch || (staff as any).campus || 'Main Campus';
+  const staffBranch = staff.branch || (staff as any).campus || (schoolProfile?.name || '');
   const staffDesignation = staff.designation || (staff.role === 'Teacher' ? 'Subject Teacher' : (staff.role || 'Staff Member'));
   const staffDepartment = staff.department || (staff.role === 'Teacher' ? 'Academics' : 'Administration');
   const staffJoiningDate = staff.joiningDate || (staff as any).dateOfJoining || todayStr;
@@ -162,34 +163,6 @@ export const createStaffLetterRecord = (
   };
 };
 
-export const generateSeedStaffLetters = (staffList?: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
-  const targetList = staffList && staffList.length > 0 ? staffList : [];
-  const initialLetters: GeneratedStaffLetterRecord[] = [];
-
-  // Generate official offer letters for staff in list (up to 12)
-  targetList.slice(0, 12).forEach((s, idx) => {
-    const issueDate = s.joiningDate || new Date(Date.now() - (idx * 30 + 10) * 86400000).toISOString().split('T')[0];
-    const rec = createStaffLetterRecord('offer', s, schoolProfile, issueDate);
-    initialLetters.push(rec);
-  });
-
-  // Also add sample relieving & experience letters if we have enough staff
-  if (targetList.length > 3) {
-    const s1 = targetList[2];
-    const s2 = targetList[3];
-    if (s1) {
-      const expRec = createStaffLetterRecord('experience', s1, schoolProfile);
-      initialLetters.push(expRec);
-    }
-    if (s2) {
-      const relRec = createStaffLetterRecord('relieving', s2, schoolProfile);
-      initialLetters.push(relRec);
-    }
-  }
-
-  return initialLetters;
-};
-
 export const getStoredStaffLetters = (fallbackStaff?: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -200,15 +173,7 @@ export const getStoredStaffLetters = (fallbackStaff?: Staff[], schoolProfile?: S
   } catch (e) {
     console.warn('Failed to load staff letters from storage:', e);
   }
-
-  // Seed default letters only if never initialized before
-  const seeded = generateSeedStaffLetters(fallbackStaff, schoolProfile);
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-  } catch (e) {
-    console.warn('Failed to cache seed staff letters:', e);
-  }
-  return seeded;
+  return [];
 };
 
 export const syncStaffLettersWithStaffList = (staffList: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
@@ -258,6 +223,12 @@ export const saveStaffLetterRecord = (record: GeneratedStaffLetterRecord): Gener
     const updated = [record, ...filtered];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event('staff_letters_updated'));
+
+    // Asynchronously save to backend database
+    createOrSaveStaffLetterApi(record).catch((err) => {
+      console.warn('Failed to persist staff letter to backend database:', err);
+    });
+
     return updated;
   } catch (e) {
     console.warn('Failed to save staff letter record:', e);
@@ -276,6 +247,12 @@ export const deleteStaffLetterRecord = (id: string): GeneratedStaffLetterRecord[
     const updated = existing.filter((r) => r.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event('staff_letters_updated'));
+
+    // Asynchronously delete from backend database
+    deleteStaffLetterApi(id).catch((err) => {
+      console.warn('Failed to delete staff letter from backend database:', err);
+    });
+
     return updated;
   } catch (e) {
     console.warn('Failed to delete staff letter record:', e);
