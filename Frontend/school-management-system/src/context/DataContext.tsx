@@ -1617,34 +1617,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("tc_register", []),
   );
   const [students, setStudents] = useState<Student[]>(() => {
-    const versionKey = "edu_db_students_enrolled_only_v15_dynamic";
+    const versionKey = "edu_db_students_enrolled_only_v16_clean";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
-      localStorage.setItem("students", JSON.stringify(initialStudents));
-      return initialStudents;
+      localStorage.setItem("edu_db_students", JSON.stringify([]));
+      localStorage.setItem("students", JSON.stringify([]));
+      return [];
     }
-    const stored = getStored("students", initialStudents);
-    const list = stored && stored.length > 0 ? stored : initialStudents;
-    return list;
+    const stored = getStored("students", []);
+    return Array.isArray(stored) ? stored : [];
   });
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("edu_db_staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => {
-    const versionKey = "edu_db_admissions_enrolled_only_v15_dynamic";
+    const versionKey = "edu_db_admissions_enrolled_only_v16_clean";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
-      localStorage.setItem(
-        "edu_db_admissions",
-        JSON.stringify(initialAdmissions),
-      );
-      localStorage.setItem("admissions", JSON.stringify(initialAdmissions));
-      return initialAdmissions;
+      const stored = getStored("admissions", []);
+      // Preserve any user-created admissions if existing
+      const list = Array.isArray(stored) ? stored : [];
+      localStorage.setItem("edu_db_admissions", JSON.stringify(list));
+      localStorage.setItem("admissions", JSON.stringify(list));
+      return list;
     }
-    const stored = getStored("admissions", initialAdmissions);
-    const list = stored && stored.length > 0 ? stored : initialAdmissions;
+    const stored = getStored("admissions", []);
+    const list = Array.isArray(stored) ? stored : [];
     return list;
   });
   const [rawClasses, setRawClasses] = useState<any[]>([]);
@@ -4703,25 +4702,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? item.applicationId.toString()
                   : existing?.id || Math.random().toString(),
                 applicationNo:
-                  item.registrationNo || existing?.applicationNo || "",
+                  item.registrationNo || item.registrationNumber || existing?.applicationNo || "",
                 registrationNo:
-                  item.registrationNo || existing?.registrationNo || "",
+                  item.registrationNo || item.registrationNumber || existing?.registrationNo || "",
                 applicantName:
-                  item.applicantFullName || existing?.applicantName || "",
+                  item.applicantFullName || item.studentName || existing?.applicantName || "",
                 appliedClass:
-                  item.appliedClass || existing?.appliedClass || "Class 10",
-                gender: item.gender || existing?.gender || "Male",
+                  item.appliedClass || item.appliedClassGrade || existing?.appliedClass || "",
+                gender: item.gender || existing?.gender || "",
                 dob: item.dob ? item.dob.split("T")[0] : existing?.dob || "",
-                bloodGroup: item.bloodGroup || existing?.bloodGroup || "O+",
-                religion: item.religion || existing?.religion || "General",
+                bloodGroup: item.bloodGroup || existing?.bloodGroup || "",
+                religion: item.religion || existing?.religion || "",
                 casteCategory:
-                  item.casteCategory || existing?.casteCategory || "General",
-                parentName: item.fatherFullName || existing?.parentName || "",
-                motherName: item.motherFullName || existing?.motherName || "",
-                phone: item.fatherMobileNo || existing?.phone || "",
+                  item.casteCategory || item.caste || item.category || existing?.casteCategory || "",
+                parentName: item.fatherFullName || item.fatherName || existing?.parentName || "",
+                motherName: item.motherFullName || item.motherName || existing?.motherName || "",
+                phone: item.fatherMobileNo || item.fatherMobile || item.fatherContact || item.mobileNumber || existing?.phone || "",
                 motherPhone:
                   item.motherPhone ||
                   item.motherMobileNumber ||
+                  item.motherMobile ||
                   existing?.motherPhone ||
                   "",
                 alternatePhone:
@@ -4732,7 +4732,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 email: item.parentEmail || item.email || existing?.email || "",
                 addressHouseNo: item.houseNo || existing?.addressHouseNo || "",
                 addressStreet: item.street || existing?.addressStreet || "",
-                addressArea: item.areaLocality || existing?.addressArea || "",
+                addressArea: item.areaLocality || item.address || existing?.addressArea || "",
                 addressCity: item.city || existing?.addressCity || "",
                 addressDistrict:
                   item.district || existing?.addressDistrict || "",
@@ -4747,7 +4747,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 siblingDetails:
                   item.siblingDetails || existing?.siblingDetails || [],
                 studentType:
-                  item.studentType || existing?.studentType || "Day Scholar",
+                  item.studentType || existing?.studentType || "",
                 transportRequired:
                   item.transportRequired ??
                   existing?.transportRequired ??
@@ -4774,7 +4774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.createdAt ||
                   existing?.applicationDate ||
                   new Date().toISOString(),
-                branch: item.branch || existing?.branch || "Main Campus",
+                branch: item.branch || item.branchName || existing?.branch || "",
                 avatar: item.avatar || existing?.avatar || "",
                 scholarshipId:
                   item.scholarshipId ||
@@ -5985,13 +5985,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchDailyAttendance(new Date().toISOString().split("T")[0]);
       }
     }
-    const allowedAdmissionsRoles = [
-      "Super Admin",
-      "Admin",
-      "Principal",
-      "Receptionist",
-    ];
-    if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
+    if (isAuthenticated) {
       fetchAdmissions();
     }
   }, [isAuthenticated, role]);

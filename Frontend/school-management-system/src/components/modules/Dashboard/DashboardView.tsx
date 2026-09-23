@@ -334,8 +334,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const isBranchMatch = useMemo(() => {
     return (s: any) => {
       if (!selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses') return true;
-      const sBranch = (s.branch || s.branchName || s.campus || s.campusLocation || 'Main Campus').trim().toLowerCase();
+      const sBranch = (s.branch || s.branchName || s.campus || s.campusLocation || '').trim().toLowerCase();
       const selBranch = selectedBranch.trim().toLowerCase();
+      if (!sBranch) return false;
       return sBranch === selBranch || sBranch.includes(selBranch) || selBranch.includes(sBranch);
     };
   }, [selectedBranch]);
@@ -357,6 +358,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   }, [selectedBranch, selectedAcademicYear]);
 
   const displayTotalStudents = useMemo(() => {
+    if (summaryData?.totalStudents !== undefined) {
+      return summaryData.totalStudents;
+    }
     // Only count enrolled/active students for the selected branch
     const enrolledStudents = (students || []).filter(s => 
       isBranchMatch(s) && (s.status === 'Active' || s.status === 'Enrolled' || !s.status)
@@ -370,7 +374,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     const liveEnrolledCount = enrolledStudents.length + enrolledAdmissions.length;
     if (liveEnrolledCount > 0) return liveEnrolledCount;
     if (summaryData?.enrolledAdmissions !== undefined && summaryData.enrolledAdmissions > 0) return summaryData.enrolledAdmissions;
-    if (summaryData?.totalStudents !== undefined && summaryData.totalStudents > 0) return summaryData.totalStudents;
     return totalStudentCount || enrolledStudents.length || 0;
   }, [students, admissions, isBranchMatch, summaryData, totalStudentCount]);
 
@@ -583,14 +586,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       return counts;
     }
     academicClasses.forEach(c => { counts[c.name] = 0; });
-    students.forEach(s => {
-      const cName = s.className.startsWith('Class ') ? s.className : `Class ${s.className}`;
-      if (counts[cName] !== undefined) {
+    const enrolledStudents = (students || []).filter(s => isBranchMatch(s) && (s.status === 'Active' || s.status === 'Enrolled' || !s.status));
+    const existingAdmNos = new Set(students.map(s => String(s.admissionNo || s.id || '').trim().toLowerCase()));
+    const enrolledAdmissions = (admissions || []).filter(a =>
+      (a.status === 'Enrolled' || a.status === 'Admitted') &&
+      isBranchMatch(a) &&
+      !existingAdmNos.has(String(a.applicationNo || a.id || '').trim().toLowerCase())
+    );
+
+    enrolledStudents.forEach(s => {
+      const cName = s.className ? (s.className.startsWith('Class ') ? s.className : `Class ${s.className}`) : '';
+      if (cName && counts[cName] !== undefined) {
+        counts[cName]++;
+      }
+    });
+    enrolledAdmissions.forEach(a => {
+      const cName = (a.gradeApplied || a.classApplied || a.className) ? ((a.gradeApplied || a.classApplied || a.className)!.startsWith('Class ') ? (a.gradeApplied || a.classApplied || a.className)! : `Class ${a.gradeApplied || a.classApplied || a.className}`) : '';
+      if (cName && counts[cName] !== undefined) {
         counts[cName]++;
       }
     });
     return counts;
-  }, [summaryData, academicClasses, students]);
+  }, [summaryData, academicClasses, students, admissions, isBranchMatch]);
 
   const sortedClasses = Object.entries(classCounts).sort((a, b) => {
     const numA = parseInt(a[0].replace(/\D/g, '')) || 0;
