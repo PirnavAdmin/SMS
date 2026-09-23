@@ -221,78 +221,167 @@ export const AttendanceView = () => {
     return ['Select Section', ...validSections];
   }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
-  // Dynamic list of subject options
-  const subjectOptions = useMemo(() => {
-    const teacherSubjs = (dbTeacher as any)?.assignedSubjects || [];
-    const fromTimetable = (timetable || []).map((t: any) => t.subject || t.subjectName).filter(Boolean);
-    const standardSubjs = ['Mathematics', 'Science', 'English', 'Social Studies', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Hindi', 'Physical Education'];
-    const merged = Array.from(new Set([...teacherSubjs, ...fromTimetable, ...standardSubjs])).filter(Boolean);
-    return ['Select Subject', ...merged];
-  }, [dbTeacher, timetable]);
+  // Dynamic list of period options matching selected Class, Section, Teacher & Day from Timetable
+  const dynamicPeriodsList = useMemo(() => {
+    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections') {
+      return [];
+    }
 
-  // Dynamic list of period options
-  const periodOptions = useMemo(() => {
-    const periodMap = new Map<number, string>();
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+    const normCls = norm(selectedClass);
+    const normSec = norm(selectedSection);
 
-    // 1. Gather active period settings from DataContext
-    const activeSettings = (periodSettings || []).filter((p: any) => p.status === 'Active' && !p.isBreak);
-    const classSpecific = activeSettings.filter((p: any) =>
-      selectedClass !== 'Select Class' && matchesClassName(p.className || '', selectedClass) && (!p.section || p.section === selectedSection)
+    // Day of week from selected date if in daily mode
+    let selectedDay = '';
+    if (dateMode === 'Daily' && date) {
+      const dObj = new Date(date);
+      if (!isNaN(dObj.getTime())) {
+        selectedDay = dObj.toLocaleDateString('en-US', { weekday: 'long' });
+      }
+    }
+
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const tLastName = (dbTeacher?.lastName || '').toLowerCase().trim();
+    const tFullName = `${dbTeacher?.firstName || ''} ${dbTeacher?.lastName || ''}`.toLowerCase().trim();
+
+    // 1. Filter timetable slots for selected Class & Section
+    let classSlots = (timetable || []).filter((t: any) => {
+      if (!t) return false;
+      const slotCls = norm(t.className);
+      const slotSec = norm(t.section);
+      return slotCls === normCls && (slotSec === normSec || !slotSec);
+    });
+
+    // 2. If logged in as Teacher, filter slots belonging to this teacher
+    if (isTeacher && classSlots.length > 0) {
+      const teacherSlots = classSlots.filter((t: any) => {
+        const mappedTa = (teacherAssignments || []).find((ta: any) =>
+          norm(ta.className) === normCls &&
+          norm(ta.section) === normSec &&
+          norm(ta.subject) === norm(t.subject)
+        );
+        const effectiveTeacher = (mappedTa?.teacherName || t.teacherName || '').toLowerCase().trim();
+
+        const matchesTeacherName = (tFullName && effectiveTeacher === tFullName) ||
+          (tFirstName.length > 2 && effectiveTeacher.includes(tFirstName)) ||
+          (tLastName.length > 2 && effectiveTeacher.includes(tLastName));
+
+        const matchesTeacherId = t.teacherId && (
+          String(t.teacherId) === String(dbTeacher?.id) ||
+          String(t.teacherId) === String((dbTeacher as any)?.empId) ||
+          String(t.teacherId) === String(user?.id)
+        );
+
+        const matchesSubject = (dbTeacher?.assignedSubjects || []).some(
+          (sub: string) => sub.toLowerCase().trim() === (t.subject || '').toLowerCase().trim()
+        );
+
+        return matchesTeacherName || matchesTeacherId || matchesSubject;
+      });
+
+      if (teacherSlots.length > 0) {
+        classSlots = teacherSlots;
+      }
+    }
+
+    // 3. Filter by selected day if day-specific slots exist for that day
+    if (selectedDay) {
+      const daySpecific = classSlots.filter((t: any) => t.day && t.day.toLowerCase() === selectedDay.toLowerCase());
+      if (daySpecific.length > 0) {
+        classSlots = daySpecific;
+      }
+    }
+
+    // 4. Map timetable slots to period options
+    if (classSlots.length > 0) {
+      const sorted = [...classSlots].sort((a: any, b: any) => {
+        const numA = a.periodNumber || parseInt((a.period || a.periodName || '').match(/\d+/)?.[0] || '99', 10);
+        const numB = b.periodNumber || parseInt((b.period || b.periodName || '').match(/\d+/)?.[0] || '99', 10);
+        return numA - numB;
+      });
+
+      const uniquePeriods: Array<{
+        periodLabel: string;
+        periodName: string;
+        timeSlot: string;
+        subject: string;
+      }> = [];
+
+      const seenKeys = new Set<string>();
+
+      sorted.forEach((slot: any) => {
+        const pNum = slot.periodNumber || (slot.period || slot.periodName || '').match(/\d+/)?.[0] || '';
+        const pName = slot.period || slot.periodName || (pNum ? `Period ${pNum}` : 'Period');
+        const timeSlotStr = slot.timeSlot || (slot.startTime && slot.endTime ? `${slot.startTime} - ${slot.endTime}` : '');
+        const subjectStr = slot.subject || (dbTeacher?.assignedSubjects && dbTeacher.assignedSubjects[0]) || '';
+
+        const key = `${pName}_${timeSlotStr}_${subjectStr}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+
+          let label = pName;
+          if (timeSlotStr && !label.includes(timeSlotStr)) {
+            label += ` (${timeSlotStr})`;
+          }
+          if (subjectStr) {
+            label += ` - ${subjectStr}`;
+          }
+
+          uniquePeriods.push({
+            periodLabel: label,
+            periodName: pName,
+            timeSlot: timeSlotStr,
+            subject: subjectStr
+          });
+        }
+      });
+
+      return uniquePeriods;
+    }
+
+    // 5. Fallback to active periodSettings for selected class/section
+    const activeSettings = (periodSettings || []).filter((p: any) =>
+      p.status === 'Active' &&
+      !p.isBreak &&
+      matchesClassName(p.className || '', selectedClass) &&
+      (!p.section || p.section === selectedSection)
     );
-    const applicableSettings = classSpecific.length > 0 ? classSpecific : activeSettings;
 
-    applicableSettings.forEach((p: any) => {
-      const match = (p.periodName || '').match(/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && !periodMap.has(num)) {
-          const name = p.periodName.startsWith('Period') ? p.periodName : `Period ${p.periodName}`;
-          const slot = p.startTime && p.endTime ? ` (${p.startTime} - ${p.endTime})` : '';
-          periodMap.set(num, `${name}${slot}`);
-        }
-      }
-    });
+    if (activeSettings.length > 0) {
+      return activeSettings.map((p: any) => {
+        const pName = p.periodName?.startsWith('Period') ? p.periodName : `Period ${p.periodName || ''}`;
+        const timeSlotStr = p.startTime && p.endTime ? `${p.startTime} - ${p.endTime}` : '';
+        const subjectStr = (dbTeacher?.assignedSubjects && dbTeacher.assignedSubjects[0]) || '';
 
-    // 2. Gather periods from timetable
-    (timetable || []).forEach((t: any) => {
-      const periodStr = t.period || t.periodName || (t.periodNumber ? `Period ${t.periodNumber}` : '');
-      const match = (periodStr || '').match(/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && !periodMap.has(num)) {
-          const name = periodStr.startsWith('Period') ? periodStr : `Period ${periodStr}`;
-          const timeSlot = t.timeSlot || (t.startTime && t.endTime ? `${t.startTime} - ${t.endTime}` : '');
-          const slot = timeSlot ? ` (${timeSlot})` : '';
-          periodMap.set(num, `${name}${slot}`);
-        }
-      }
-    });
+        let label = pName;
+        if (timeSlotStr) label += ` (${timeSlotStr})`;
+        if (subjectStr) label += ` - ${subjectStr}`;
 
-    // 3. Standard fallback periods if period number not present
-    const standardPeriods = [
-      { num: 1, label: 'Period 1 (08:30 AM - 09:20 AM)' },
-      { num: 2, label: 'Period 2 (09:20 AM - 10:10 AM)' },
-      { num: 3, label: 'Period 3 (10:25 AM - 11:15 AM)' },
-      { num: 4, label: 'Period 4 (11:15 AM - 12:05 PM)' },
-      { num: 5, label: 'Period 5 (12:50 PM - 01:40 PM)' },
-      { num: 6, label: 'Period 6 (01:40 PM - 02:30 PM)' },
-      { num: 7, label: 'Period 7 (02:45 PM - 03:35 PM)' },
-      { num: 8, label: 'Period 8 (03:35 PM - 04:25 PM)' },
-    ];
+        return {
+          periodLabel: label,
+          periodName: pName,
+          timeSlot: timeSlotStr,
+          subject: subjectStr
+        };
+      });
+    }
 
-    standardPeriods.forEach(sp => {
-      if (!periodMap.has(sp.num)) {
-        periodMap.set(sp.num, sp.label);
-      }
-    });
+    return [];
+  }, [selectedClass, selectedSection, dateMode, date, isTeacher, dbTeacher, timetable, teacherAssignments, periodSettings, user?.id]);
 
-    const sortedKeys = Array.from(periodMap.keys()).sort((a, b) => a - b);
-    return sortedKeys.map(key => periodMap.get(key)!);
-  }, [periodSettings, timetable, selectedClass, selectedSection]);
+  const periodOptions = useMemo(() => {
+    if (dynamicPeriodsList.length === 0) {
+      return ['Select Period'];
+    }
+    return dynamicPeriodsList.map(p => p.periodLabel);
+  }, [dynamicPeriodsList]);
 
   // Auto-sync section when class changes
   useEffect(() => {
-    if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
+    const validSections = sectionOptions.filter(s => s !== 'Select Section' && s !== 'All Sections');
+    if (validSections.length === 1 && selectedSection !== validSections[0]) {
+      setSelectedSection(validSections[0]);
+    } else if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
     }
   }, [sectionOptions, selectedSection]);
@@ -306,8 +395,36 @@ export const AttendanceView = () => {
     }
   }, [isTeacher, teacherClasses, selectedClass]);
 
-  const [selectedSubject, setSelectedSubject] = useState<string>('Select Subject');
-  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (08:30 AM - 09:20 AM)');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('Select Period');
+
+  // Derive selected subject dynamically from selected period option or timetable slot
+  const selectedSubject = useMemo(() => {
+    if (selectedPeriod && selectedPeriod !== 'Select Period') {
+      const matched = dynamicPeriodsList.find(p => p.periodLabel === selectedPeriod);
+      if (matched && matched.subject) {
+        return matched.subject;
+      }
+    }
+    if (dynamicPeriodsList.length > 0 && dynamicPeriodsList[0].subject) {
+      return dynamicPeriodsList[0].subject;
+    }
+    if (isTeacher && dbTeacher?.assignedSubjects && dbTeacher.assignedSubjects.length > 0) {
+      return dbTeacher.assignedSubjects[0];
+    }
+    return 'General';
+  }, [selectedPeriod, dynamicPeriodsList, isTeacher, dbTeacher]);
+
+  // Auto-sync selectedPeriod when dynamicPeriodsList changes
+  useEffect(() => {
+    if (dynamicPeriodsList.length > 0) {
+      const labels = dynamicPeriodsList.map(p => p.periodLabel);
+      if (!labels.includes(selectedPeriod)) {
+        setSelectedPeriod(labels[0]);
+      }
+    } else {
+      setSelectedPeriod('Select Period');
+    }
+  }, [dynamicPeriodsList]);
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -1123,19 +1240,6 @@ export const AttendanceView = () => {
             >
               {sectionOptions.map(sec => (
                 <option key={sec} value={sec}>{sec === 'Select Section' ? 'Select Section' : sec === 'All Sections' ? 'All Sections' : `Section ${sec}`}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
-            <select
-              value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
-            >
-              {subjectOptions.map(sbj => (
-                <option key={sbj} value={sbj}>{sbj}</option>
               ))}
             </select>
           </div>
