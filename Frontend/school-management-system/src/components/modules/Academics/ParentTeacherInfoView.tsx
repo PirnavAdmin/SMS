@@ -48,22 +48,41 @@ export const ParentTeacherInfoView: React.FC = () => {
       return apiChildren.map(c => ({
         id: String(c.studentId),
         studentId: c.studentId,
-        firstName: c.firstName || c.studentName.split(' ')[0],
+        firstName: c.firstName || c.studentName.split(' ')[0] || '',
         lastName: c.lastName || '',
-        studentName: c.studentName,
-        className: c.className || 'Class 6',
-        section: c.sectionName || 'A',
+        studentName: c.studentName || '',
+        className: c.className || '',
+        section: c.sectionName || '',
         status: 'Active'
       }));
     }
 
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userPhone = (user?.phone || '').replace(/\D/g, '');
+    const userId = String(user?.id || '').trim();
+    const rawUserName = (user?.name || '').trim().toLowerCase();
 
     const studentMatches = (students || []).filter(s => 
       s.status === 'Active' && 
       (
-        role === 'Student' ? (s.id === user?.id || s.email === user?.email) : 
+        role === 'Student' ? (
+          (userId && (String(s.id) === userId || String(s.admissionNo) === userId || String((s as any).rollNo) === userId)) ||
+          ((user as any)?.studentId && (String(s.id) === String((user as any).studentId) || String(s.admissionNo) === String((user as any).studentId))) ||
+          ((user as any)?.admissionNo && String(s.admissionNo).toLowerCase() === String((user as any).admissionNo).toLowerCase()) ||
+          (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).studentEmail && (s as any).studentEmail.toLowerCase().trim() === userEmail) ||
+            ((s as any).contactEmail && (s as any).contactEmail.toLowerCase().trim() === userEmail)
+          )) ||
+          (userPhone && userPhone.length >= 7 && (
+            ((s.phone || '').replace(/\D/g, '').endsWith(userPhone)) ||
+            (((s as any).mobileNumber || '').replace(/\D/g, '').endsWith(userPhone))
+          )) ||
+          (rawUserName && !['student', 'user'].includes(rawUserName) && (
+            `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === rawUserName ||
+            (s as any).name?.toLowerCase().trim() === rawUserName
+          ))
+        ) : 
         (
           (userEmail && (
             (s.email && s.email.toLowerCase().trim() === userEmail) ||
@@ -100,8 +119,8 @@ export const ParentTeacherInfoView: React.FC = () => {
       firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
       lastName: a.lastName || '',
       studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
-      section: (a as any).section || 'A',
+      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || (user as any)?.className || '',
+      section: (a as any).section || (user as any)?.section || '',
       status: 'Active'
     }));
 
@@ -110,6 +129,22 @@ export const ParentTeacherInfoView: React.FC = () => {
     combined.forEach(w => {
       if (!unique.has(w.id)) unique.set(w.id, w);
     });
+
+    if (unique.size === 0 && role === 'Student') {
+      const userClass = (user as any)?.className || (user as any)?.class || '';
+      const userSec = (user as any)?.section || (user as any)?.sectionName || '';
+      return [{
+        id: (user as any)?.studentId || (user as any)?.id || userId || '',
+        studentId: (user as any)?.studentId || (user as any)?.id || userId || '',
+        firstName: user?.name?.split(' ')[0] || '',
+        lastName: user?.name?.split(' ').slice(1).join(' ') || '',
+        studentName: user?.name || 'Student',
+        className: userClass,
+        section: userSec,
+        status: 'Active'
+      }];
+    }
+
     return Array.from(unique.values());
   }, [students, admissions, user, role, apiChildren]);
 
@@ -120,25 +155,165 @@ export const ParentTeacherInfoView: React.FC = () => {
     const loadClassTeachers = async () => {
       setLoading(true);
 
-      const norm = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
-      const wardClassNorm = norm(currentWard?.className);
-      const wardSecNorm = norm(currentWard?.section);
+      const normClass = (str?: string) => {
+        if (!str) return '';
+        return String(str)
+          .toLowerCase()
+          .replace(/^class\s*/i, '')
+          .replace(/^grade\s*/i, '')
+          .replace(/^standard\s*/i, '')
+          .replace(/^std\.?\s*/i, '')
+          .trim();
+      };
+
+      const isClassMatch = (targetCls?: string, candidateCls?: string) => {
+        const t = normClass(targetCls);
+        const c = normClass(candidateCls);
+        if (!t || !c) return false;
+        return t === c;
+      };
+
+      const normSection = (str?: string) => {
+        if (!str) return '';
+        return String(str)
+          .toLowerCase()
+          .replace(/^section\s*/i, '')
+          .replace(/^sec\.?\s*/i, '')
+          .trim();
+      };
+
+      const isSectionMatch = (targetSec?: string, candidateSec?: string) => {
+        const t = normSection(targetSec);
+        const c = normSection(candidateSec);
+        if (!t || !c || c === 'all') return true;
+        return t === c;
+      };
+
+      if (!currentWard || !currentWard.className) {
+        if (isMounted) {
+          setTeachers([]);
+          setLoading(false);
+        }
+        return;
+      }
 
       // Find the academic class definition configured in Admin
       const targetClass = (academicClasses || []).find(c => 
-        norm(c.name) === wardClassNorm || 
+        isClassMatch(c.name, currentWard.className) || 
         String(c.id) === String((currentWard as any)?.classId)
       );
 
-      // Map to store unique allocated faculty (keyed by normalized teacher identity)
+      // Map to store unique allocated faculty (keyed by canonical teacher identity)
       const teacherMap = new Map<string, TeacherItem>();
+
+      const cleanNameOnly = (str?: string) => {
+        return (str || '')
+          .replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, '')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toLowerCase()
+          .trim();
+      };
+
+      const findExistingKey = (t: TeacherItem, matchedStaffObj?: any): string | null => {
+        const tFullName = cleanNameOnly(`${t.firstName} ${t.lastName}`);
+        const sFullName = matchedStaffObj ? cleanNameOnly(`${matchedStaffObj.firstName} ${matchedStaffObj.lastName}`) : '';
+        const sNameOnly = matchedStaffObj?.name ? cleanNameOnly(matchedStaffObj.name) : '';
+        const targetNames = [tFullName, sFullName, sNameOnly].filter(n => n && n.length >= 2);
+
+        const targetIds = [
+          t.id ? String(t.id).toLowerCase().trim() : '',
+          matchedStaffObj?.id ? String(matchedStaffObj.id).toLowerCase().trim() : '',
+          matchedStaffObj?.empId ? String(matchedStaffObj.empId).toLowerCase().trim() : ''
+        ].filter(Boolean);
+
+        const targetEmails = [
+          t.email ? t.email.toLowerCase().trim() : '',
+          matchedStaffObj?.email ? matchedStaffObj.email.toLowerCase().trim() : ''
+        ].filter(e => e && !e.includes('school.edu'));
+
+        for (const [key, existing] of teacherMap.entries()) {
+          const exFullName = cleanNameOnly(`${existing.firstName} ${existing.lastName}`);
+          if (exFullName && targetNames.some(n => n === exFullName || n.includes(exFullName) || exFullName.includes(n))) {
+            return key;
+          }
+
+          const exId = String(existing.id || '').toLowerCase().trim();
+          if (exId && targetIds.includes(exId)) {
+            return key;
+          }
+
+          const exEmail = (existing.email || '').toLowerCase().trim();
+          if (exEmail && !exEmail.includes('school.edu') && targetEmails.includes(exEmail)) {
+            return key;
+          }
+        }
+
+        return null;
+      };
+
+      const addOrMergeTeacher = (t: TeacherItem, matchedStaffObj?: any) => {
+        const staffObj = matchedStaffObj || (staff || []).find(s => {
+          const sId = String(s.id || '').toLowerCase().trim();
+          const sEmp = String(s.empId || '').toLowerCase().trim();
+          const tId = String(t.id || '').toLowerCase().trim();
+          if (tId && (sId === tId || sEmp === tId)) return true;
+          if (t.email && s.email && s.email.toLowerCase().trim() === t.email.toLowerCase().trim()) return true;
+          const sFull = cleanNameOnly(`${s.firstName || ''} ${s.lastName || ''}`);
+          const sName = s.name ? cleanNameOnly(s.name) : '';
+          const tFull = cleanNameOnly(`${t.firstName || ''} ${t.lastName || ''}`);
+          return (sFull && tFull && (sFull === tFull || sFull.includes(tFull) || tFull.includes(sFull))) ||
+                 (sName && tFull && (sName === tFull || sName.includes(tFull) || tFull.includes(sName)));
+        });
+
+        const existingKey = findExistingKey(t, staffObj);
+        const resolvedKey = existingKey || cleanNameOnly(`${staffObj?.firstName || t.firstName} ${staffObj?.lastName || t.lastName}`) || `t_${teacherMap.size + 1}`;
+
+        if (teacherMap.has(resolvedKey)) {
+          const existing = teacherMap.get(resolvedKey)!;
+          const subjectList = new Set(
+            existing.subject
+              .split(',')
+              .map(s => s.trim())
+              .filter(s => s && s !== 'General' && s !== 'Subject')
+          );
+          if (t.subject && t.subject !== 'General' && t.subject !== 'Subject') {
+            t.subject.split(',').forEach(s => {
+              const cs = s.trim();
+              if (cs) subjectList.add(cs);
+            });
+          }
+          const combinedSubject = Array.from(subjectList).join(', ') || existing.subject || t.subject;
+
+          teacherMap.set(resolvedKey, {
+            ...existing,
+            firstName: staffObj?.firstName || existing.firstName || t.firstName,
+            lastName: staffObj?.lastName || existing.lastName || t.lastName,
+            phone: staffObj?.phone || existing.phone || t.phone,
+            email: staffObj?.email || existing.email || t.email,
+            isClassTeacher: existing.isClassTeacher || Boolean(t.isClassTeacher),
+            subject: combinedSubject,
+            subjectCode: existing.subjectCode || t.subjectCode
+          });
+        } else {
+          teacherMap.set(resolvedKey, {
+            id: staffObj?.id || t.id || resolvedKey,
+            firstName: staffObj?.firstName || t.firstName,
+            lastName: staffObj?.lastName || t.lastName,
+            subject: t.subject,
+            subjectCode: t.subjectCode,
+            phone: staffObj?.phone || t.phone || '',
+            email: staffObj?.email || t.email || '',
+            isClassTeacher: Boolean(t.isClassTeacher)
+          });
+        }
+      };
 
       // 1. Resolve Class Teacher from Section Allocation (Admin Class Management)
       const secTeachers = (targetClass as any)?.sectionTeachers || {};
       let sectionClassTeacherVal = '';
       
       Object.entries(secTeachers).forEach(([secKey, tVal]) => {
-        if (norm(secKey) === wardSecNorm || (!wardSecNorm && secKey)) {
+        if (isSectionMatch(currentWard.section, secKey)) {
           if (tVal && typeof tVal === 'string' && tVal.trim() !== '' && tVal !== 'Unassigned') {
             sectionClassTeacherVal = tVal.trim();
           }
@@ -158,34 +333,31 @@ export const ParentTeacherInfoView: React.FC = () => {
           return sFullName === cleanCT || sName === cleanCT || (sEmp && (cleanCT.includes(sEmp) || s.id === sectionClassTeacherVal));
         });
 
-        const teacherKey = (matchedStaff?.empId || matchedStaff?.id || sectionClassTeacherVal).toLowerCase().trim();
-        const subName = matchedStaff?.assignedSubjects?.[0] || matchedStaff?.primarySubject || matchedStaff?.specialization || (matchedStaff?.department && !matchedStaff.department.toLowerCase().includes('teaching') ? matchedStaff.department : '') || 'General';
+        const subName = matchedStaff?.assignedSubjects?.[0] || matchedStaff?.primarySubject || matchedStaff?.specialization || (matchedStaff?.department && !matchedStaff.department.toLowerCase().includes('teaching') ? matchedStaff.department : '') || '';
         const subMaster = (masterSubjects || []).find(sub => sub.name.toLowerCase() === subName.toLowerCase());
         const subCode = subMaster?.code || (matchedStaff?.empId ? `EMP-${matchedStaff.empId}` : '');
 
-        teacherMap.set(teacherKey, {
-          id: matchedStaff?.id || matchedStaff?.empId || teacherKey,
-          firstName: matchedStaff?.firstName || sectionClassTeacherVal.split(' ')[0] || 'Class',
+        addOrMergeTeacher({
+          id: matchedStaff?.id || matchedStaff?.empId || sectionClassTeacherVal,
+          firstName: matchedStaff?.firstName || sectionClassTeacherVal.split(' ')[0] || '',
           lastName: matchedStaff?.lastName || sectionClassTeacherVal.split(' ').slice(1).join(' ') || '',
           subject: subName,
           subjectCode: subCode,
-          phone: matchedStaff?.phone || matchedStaff?.alternateMobile || '+91 98765 43210',
-          email: matchedStaff?.email || `${(matchedStaff?.firstName || 'faculty').toLowerCase()}@school.edu`,
+          phone: matchedStaff?.phone || matchedStaff?.alternateMobile || '',
+          email: matchedStaff?.email || '',
           isClassTeacher: true
-        });
+        }, matchedStaff);
       }
 
       // 2. Resolve Subject Teachers from teacherAssignments (Admin Teacher-Subject Allocation)
       const directAssignments = (teacherAssignments || []).filter(ta => {
-        const taClassNorm = norm(ta.className);
-        const taSecNorm = norm(ta.section);
-        const matchesClass = taClassNorm === wardClassNorm || taClassNorm.includes(wardClassNorm) || wardClassNorm.includes(taClassNorm);
-        const matchesSection = !wardSecNorm || !taSecNorm || taSecNorm === 'all' || taSecNorm === wardSecNorm;
+        const matchesClass = isClassMatch(currentWard.className, ta.className);
+        const matchesSection = isSectionMatch(currentWard.section, ta.section);
         return matchesClass && matchesSection;
       });
 
       directAssignments.forEach(ta => {
-        const tSubject = ta.subject || (ta as any).subjectName || (ta as any).subject_name || 'Subject';
+        const tSubject = ta.subject || (ta as any).subjectName || (ta as any).subject_name || '';
         const tTeacherId = ta.teacherId;
         const tTeacherName = (ta.teacherName || '').trim();
         if (!tTeacherName && !tTeacherId) return;
@@ -196,9 +368,8 @@ export const ParentTeacherInfoView: React.FC = () => {
           (tTeacherName && (s.name || '').toLowerCase() === tTeacherName.toLowerCase())
         );
 
-        const teacherKey = (matchedStaff?.empId || matchedStaff?.id || tTeacherId || tTeacherName).toLowerCase().trim();
         const subMaster = (masterSubjects || []).find(sub => sub.name.toLowerCase() === tSubject.toLowerCase());
-        const subCode = subMaster?.code || (ta as any).subjectCode || (matchedStaff?.empId ? matchedStaff.empId : 'SUB');
+        const subCode = subMaster?.code || (ta as any).subjectCode || (matchedStaff?.empId ? matchedStaff.empId : '');
 
         const isClassTeacher = Boolean(
           (sectionClassTeacherVal && (
@@ -209,41 +380,28 @@ export const ParentTeacherInfoView: React.FC = () => {
           (ta as any).isClassTeacher
         );
 
-        if (teacherMap.has(teacherKey)) {
-          const existing = teacherMap.get(teacherKey)!;
-          // Keep existing card, preserve class teacher status and refine subject if needed
-          teacherMap.set(teacherKey, {
-            ...existing,
-            isClassTeacher: existing.isClassTeacher || isClassTeacher,
-            subject: existing.isClassTeacher ? existing.subject : tSubject,
-            subjectCode: existing.isClassTeacher ? existing.subjectCode : subCode
-          });
-        } else {
-          teacherMap.set(teacherKey, {
-            id: matchedStaff?.id || tTeacherId || teacherKey,
-            firstName: matchedStaff?.firstName || tTeacherName.split(' ')[0] || 'Faculty',
-            lastName: matchedStaff?.lastName || tTeacherName.split(' ').slice(1).join(' ') || '',
-            subject: tSubject,
-            subjectCode: subCode,
-            phone: matchedStaff?.phone || matchedStaff?.alternateMobile || '+91 98765 43210',
-            email: matchedStaff?.email || `${(matchedStaff?.firstName || 'faculty').toLowerCase()}@school.edu`,
-            isClassTeacher
-          });
-        }
+        addOrMergeTeacher({
+          id: matchedStaff?.id || tTeacherId || tTeacherName,
+          firstName: matchedStaff?.firstName || tTeacherName.split(' ')[0] || '',
+          lastName: matchedStaff?.lastName || tTeacherName.split(' ').slice(1).join(' ') || '',
+          subject: tSubject,
+          subjectCode: subCode,
+          phone: matchedStaff?.phone || matchedStaff?.alternateMobile || '',
+          email: matchedStaff?.email || '',
+          isClassTeacher
+        }, matchedStaff);
       });
 
       // 3. Resolve from Timetable Slots if not yet mapped
       const timetableSlots = (timetable || []).filter(t => {
-        const ttClassNorm = norm(t.className);
-        const ttSecNorm = norm(t.section);
-        const matchesClass = ttClassNorm === wardClassNorm;
-        const matchesSection = !wardSecNorm || !ttSecNorm || ttSecNorm === 'all' || ttSecNorm === wardSecNorm;
+        const matchesClass = isClassMatch(currentWard.className, t.className);
+        const matchesSection = isSectionMatch(currentWard.section, t.section);
         return matchesClass && matchesSection;
       });
 
       timetableSlots.forEach(slot => {
         const slotTeacherName = (slot.teacherName || '').trim();
-        const slotSubject = slot.subject || 'Subject';
+        const slotSubject = slot.subject || '';
         if (!slotTeacherName) return;
 
         const matchedStaff = (staff || []).find(s => 
@@ -252,22 +410,19 @@ export const ParentTeacherInfoView: React.FC = () => {
           (s.name || '').toLowerCase() === slotTeacherName.toLowerCase()
         );
 
-        const teacherKey = (matchedStaff?.empId || matchedStaff?.id || slot.teacherId || slotTeacherName).toLowerCase().trim();
-        if (teacherMap.has(teacherKey)) return;
-
         const subMaster = (masterSubjects || []).find(sub => sub.name.toLowerCase() === slotSubject.toLowerCase());
-        const subCode = subMaster?.code || (matchedStaff?.empId ? matchedStaff.empId : 'SUB');
+        const subCode = subMaster?.code || (matchedStaff?.empId ? matchedStaff.empId : '');
 
-        teacherMap.set(teacherKey, {
-          id: matchedStaff?.id || slot.teacherId || teacherKey,
-          firstName: matchedStaff?.firstName || slotTeacherName.split(' ')[0] || 'Teacher',
+        addOrMergeTeacher({
+          id: matchedStaff?.id || slot.teacherId || slotTeacherName,
+          firstName: matchedStaff?.firstName || slotTeacherName.split(' ')[0] || '',
           lastName: matchedStaff?.lastName || slotTeacherName.split(' ').slice(1).join(' ') || '',
           subject: slotSubject,
           subjectCode: subCode,
-          phone: matchedStaff?.phone || matchedStaff?.alternateMobile || '+91 98765 43210',
-          email: matchedStaff?.email || `${(matchedStaff?.firstName || 'teacher').toLowerCase()}@school.edu`,
+          phone: matchedStaff?.phone || matchedStaff?.alternateMobile || '',
+          email: matchedStaff?.email || '',
           isClassTeacher: Boolean(sectionClassTeacherVal && slotTeacherName.toLowerCase() === sectionClassTeacherVal.toLowerCase())
-        });
+        }, matchedStaff);
       });
 
       // 4. Try backend API only if no live assignments found
@@ -277,19 +432,17 @@ export const ParentTeacherInfoView: React.FC = () => {
           if (studentId) {
             const apiData = await getParentTeachers(Number(studentId));
             if (isMounted && Array.isArray(apiData) && apiData.length > 0) {
-              const mapped: TeacherItem[] = apiData.map((t: any) => ({
-                id: t.teacherId || t.id,
-                firstName: t.firstName || t.teacherName?.split(' ')[0] || 'Teacher',
-                lastName: t.lastName || t.teacherName?.split(' ').slice(1).join(' ') || '',
-                subject: t.subjectTaught || t.subject || 'General',
-                subjectCode: t.subjectCode || 'SUB-101',
-                phone: t.phone || t.mobileNumber || '+91 98765 43210',
-                email: t.email || 'teacher@school.edu',
-                isClassTeacher: Boolean(t.isClassTeacher)
-              }));
-              mapped.forEach(item => {
-                const key = String(item.id).toLowerCase();
-                if (!teacherMap.has(key)) teacherMap.set(key, item);
+              apiData.forEach((t: any) => {
+                addOrMergeTeacher({
+                  id: t.teacherId || t.id,
+                  firstName: t.firstName || t.teacherName?.split(' ')[0] || '',
+                  lastName: t.lastName || t.teacherName?.split(' ').slice(1).join(' ') || '',
+                  subject: t.subjectTaught || t.subject || '',
+                  subjectCode: t.subjectCode || '',
+                  phone: t.phone || t.mobileNumber || '',
+                  email: t.email || '',
+                  isClassTeacher: Boolean(t.isClassTeacher)
+                });
               });
             }
           }
@@ -309,7 +462,13 @@ export const ParentTeacherInfoView: React.FC = () => {
   }, [staff, academicClasses, teacherAssignments, timetable, masterSubjects, currentWard]);
 
   const subjects = useMemo(() => {
-    return ['All', ...Array.from(new Set(teachers.map(t => `${t.subject} (${t.subjectCode})`)))];
+    const set = new Set<string>();
+    teachers.forEach(t => {
+      if (t.subject) {
+        set.add(t.subjectCode ? `${t.subject} (${t.subjectCode})` : t.subject);
+      }
+    });
+    return ['All', ...Array.from(set)];
   }, [teachers]);
 
   const filteredTeachers = useMemo(() => {
@@ -321,7 +480,7 @@ export const ParentTeacherInfoView: React.FC = () => {
         teacher.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
         teacher.subjectCode.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const teacherFullSubject = `${teacher.subject} (${teacher.subjectCode})`;
+      const teacherFullSubject = teacher.subjectCode ? `${teacher.subject} (${teacher.subjectCode})` : teacher.subject;
       const matchesSubject = subjectFilter === 'All' || teacherFullSubject === subjectFilter || teacher.subject === subjectFilter;
       
       return matchesSearch && matchesSubject;
@@ -340,7 +499,16 @@ export const ParentTeacherInfoView: React.FC = () => {
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Teachers Information</h2>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                Assigned to: <strong className="text-sky-700 dark:text-sky-400">{currentWard?.className}-{currentWard?.section}</strong>
+                {currentWard?.className ? (
+                  <>
+                    Assigned to: <strong className="text-sky-700 dark:text-sky-400">
+                      {currentWard.className.toLowerCase().startsWith('class') ? currentWard.className : `Class ${currentWard.className}`}
+                      {currentWard.section ? `-${currentWard.section}` : ''}
+                    </strong>
+                  </>
+                ) : (
+                  <strong className="text-sky-700 dark:text-sky-400">Assigned Faculty</strong>
+                )}
               </span>
               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
                 {teachers.length} Faculty
@@ -389,7 +557,7 @@ export const ParentTeacherInfoView: React.FC = () => {
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-355'
               }`}
             >
-              {ward.firstName} <span className="text-[10px] font-bold opacity-60 ml-1">({ward.className}-{ward.section})</span>
+              {ward.firstName || ward.studentName} {ward.className && <span className="text-[10px] font-bold opacity-60 ml-1">({ward.className}{ward.section ? `-${ward.section}` : ''})</span>}
             </button>
           ))}
         </div>
@@ -436,33 +604,53 @@ export const ParentTeacherInfoView: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-slate-500 dark:text-slate-400 text-xs font-semibold">
-                    <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                    <span className="truncate">{teacher.subject}</span>
-                    <span className="opacity-70 text-[10.5px] whitespace-nowrap">({teacher.subjectCode})</span>
-                  </div>
+                  {teacher.subject && (
+                    <div className="flex items-center gap-1.5 mt-0.5 text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                      <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                      <span className="truncate">{teacher.subject}</span>
+                      {teacher.subjectCode && <span className="opacity-70 text-[10.5px] whitespace-nowrap">({teacher.subjectCode})</span>}
+                    </div>
+                  )}
                 </div>
               </div>
               
               <div className="flex flex-col gap-1.5 pt-3 mt-3 border-t border-sky-100 dark:border-sky-900/40 text-left">
-                <a 
-                  href={`tel:${teacher.phone}`} 
-                  className="flex items-center gap-2.5 p-1 -mx-1 rounded-xl hover:bg-sky-50/60 dark:hover:bg-slate-800/60 transition-colors text-slate-600 dark:text-slate-300"
-                >
-                  <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
-                    <Phone className="w-3 h-3" />
+                {teacher.phone ? (
+                  <a 
+                    href={`tel:${teacher.phone}`} 
+                    className="flex items-center gap-2.5 p-1 -mx-1 rounded-xl hover:bg-sky-50/60 dark:hover:bg-slate-800/60 transition-colors text-slate-600 dark:text-slate-300"
+                  >
+                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
+                      <Phone className="w-3 h-3" />
+                    </div>
+                    <span className="text-xs font-bold font-mono">{teacher.phone}</span>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-2.5 p-1 -mx-1 text-slate-400">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+                      <Phone className="w-3 h-3" />
+                    </div>
+                    <span className="text-xs font-medium italic">No phone provided</span>
                   </div>
-                  <span className="text-xs font-bold font-mono">{teacher.phone}</span>
-                </a>
-                <a 
-                  href={`mailto:${teacher.email}`} 
-                  className="flex items-center gap-2.5 p-1 -mx-1 rounded-xl hover:bg-sky-50/60 dark:hover:bg-slate-800/60 transition-colors text-slate-600 dark:text-slate-300"
-                >
-                  <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
-                    <Mail className="w-3 h-3" />
+                )}
+                {teacher.email ? (
+                  <a 
+                    href={`mailto:${teacher.email}`} 
+                    className="flex items-center gap-2.5 p-1 -mx-1 rounded-xl hover:bg-sky-50/60 dark:hover:bg-slate-800/60 transition-colors text-slate-600 dark:text-slate-300"
+                  >
+                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
+                      <Mail className="w-3 h-3" />
+                    </div>
+                    <span className="text-xs font-bold truncate">{teacher.email}</span>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-2.5 p-1 -mx-1 text-slate-400">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+                      <Mail className="w-3 h-3" />
+                    </div>
+                    <span className="text-xs font-medium italic">No email provided</span>
                   </div>
-                  <span className="text-xs font-bold truncate">{teacher.email}</span>
-                </a>
+                )}
               </div>
             </div>
           ))}
@@ -473,7 +661,9 @@ export const ParentTeacherInfoView: React.FC = () => {
                 <Search className="w-6 h-6" />
               </div>
               <h3 className="font-extrabold text-slate-900 dark:text-white">No teachers found</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">No faculty assignments found for {currentWard?.className}-{currentWard?.section}.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                No faculty assignments found{currentWard?.className ? ` for ${currentWard.className}${currentWard.section ? `-${currentWard.section}` : ''}` : ''}.
+              </p>
             </div>
           )}
         </div>
