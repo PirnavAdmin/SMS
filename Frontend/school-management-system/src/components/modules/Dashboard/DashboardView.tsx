@@ -334,9 +334,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const isBranchMatch = useMemo(() => {
     return (s: any) => {
       if (!selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses') return true;
-      return (s.branch || 'Main Campus').trim().toLowerCase() === selectedBranch.trim().toLowerCase();
+      const sBranch = (s.branch || s.branchName || s.campus || s.campusLocation || 'Main Campus').trim().toLowerCase();
+      const selBranch = selectedBranch.trim().toLowerCase();
+      return sBranch === selBranch || sBranch.includes(selBranch) || selBranch.includes(sBranch);
     };
   }, [selectedBranch]);
+
+  useEffect(() => {
+    const handleLiveSync = () => {
+      if (typeof fetchStudents === 'function') fetchStudents();
+      if (typeof fetchAdmissions === 'function') fetchAdmissions();
+      loadSummaryData(selectedBranch, selectedAcademicYear);
+    };
+    window.addEventListener('storage', handleLiveSync);
+    window.addEventListener('students_updated', handleLiveSync);
+    window.addEventListener('admissions_updated', handleLiveSync);
+    return () => {
+      window.removeEventListener('storage', handleLiveSync);
+      window.removeEventListener('students_updated', handleLiveSync);
+      window.removeEventListener('admissions_updated', handleLiveSync);
+    };
+  }, [selectedBranch, selectedAcademicYear]);
+
+  const displayTotalStudents = useMemo(() => {
+    // Only count enrolled/active students for the selected branch
+    const enrolledStudents = (students || []).filter(s => 
+      isBranchMatch(s) && (s.status === 'Active' || s.status === 'Enrolled' || !s.status)
+    );
+    const existingAdmNos = new Set(students.map(s => String(s.admissionNo || s.id || '').trim().toLowerCase()));
+    const enrolledAdmissions = (admissions || []).filter(a =>
+      (a.status === 'Enrolled' || a.status === 'Admitted') &&
+      isBranchMatch(a) &&
+      !existingAdmNos.has(String(a.applicationNo || a.id || '').trim().toLowerCase())
+    );
+    const liveEnrolledCount = enrolledStudents.length + enrolledAdmissions.length;
+    if (liveEnrolledCount > 0) return liveEnrolledCount;
+    if (summaryData?.enrolledAdmissions !== undefined && summaryData.enrolledAdmissions > 0) return summaryData.enrolledAdmissions;
+    if (summaryData?.totalStudents !== undefined && summaryData.totalStudents > 0) return summaryData.totalStudents;
+    return totalStudentCount || enrolledStudents.length || 0;
+  }, [students, admissions, isBranchMatch, summaryData, totalStudentCount]);
 
   const teachingStaff = useMemo(() => (staff || []).filter(s => {
     const isTeacher = s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic';
@@ -845,7 +881,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('students')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total Students</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.totalStudents : (totalStudentCount || students.length)).toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayTotalStudents.toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-200 dark:border-sky-800">
             <TrendingUp className="w-5 h-5" />

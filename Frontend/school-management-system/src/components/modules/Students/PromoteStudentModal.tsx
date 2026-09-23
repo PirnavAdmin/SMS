@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, ArrowUpRight, Building2, Calendar, BookOpen, GraduationCap, Award } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { BRANCHES } from '../../../utils/validation';
 
 interface PromoteStudentModalProps {
   student: Student | null;
@@ -16,8 +16,21 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { promoteStudent, completeStudent, getHighestClass, academicClasses } = useData();
+  const { promoteStudent, completeStudent, getHighestClass, academicClasses, branches = [] } = useData();
   const { addToast } = useToast();
+  const { selectedBranch } = useAuth();
+
+  const dynamicCampuses = useMemo(() => {
+    const fromApi = (branches || [])
+      .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
+      .filter(Boolean);
+    const combined = [
+      ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
+      ...fromApi,
+    ];
+    const unique = Array.from(new Set(combined)).filter(Boolean);
+    return unique.length > 0 ? unique : ['Madhapur Branch', 'Main Campus'];
+  }, [branches, selectedBranch]);
 
   const [targetYear, setTargetYear] = useState('2026-2027');
   const [targetClass, setTargetClass] = useState(academicClasses[0]?.name || 'Class 11');
@@ -163,7 +176,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
                     onChange={e => setTargetBranch(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white"
                   >
-                    {BRANCHES.map(b => (
+                    {dynamicCampuses.map(b => (
                       <option key={b} value={b}>{b}</option>
                     ))}
                   </select>

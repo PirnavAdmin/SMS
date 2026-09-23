@@ -45,6 +45,18 @@ public class SubmitAdmissionDto
     [JsonPropertyName("appliedClass")]
     public string? AppliedClass { get; set; }
 
+    [JsonPropertyName("section")]
+    public string? Section { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("academicYear")]
+    public string? AcademicYear { get; set; }
+
+    [JsonPropertyName("academicYearId")]
+    public int? AcademicYearId { get; set; }
+
     [JsonPropertyName("branch")]
     public string BranchName { get; set; } = "Main Campus";
 

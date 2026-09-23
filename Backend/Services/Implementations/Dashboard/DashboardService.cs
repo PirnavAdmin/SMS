@@ -72,7 +72,7 @@ public class DashboardService : IDashboardService
 
         // 1. Total Active Students (matches Student Directory query)
         var studentQuery = _context.Students.AsNoTracking()
-            .Where(s => !s.IsDeleted && s.Status == "Active");
+            .Where(s => !s.IsDeleted && (s.Status == "Active" || string.IsNullOrEmpty(s.Status)));
 
         if (targetBranchId.HasValue)
         {
@@ -80,15 +80,35 @@ public class DashboardService : IDashboardService
         }
         else if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            studentQuery = studentQuery.Where(s => s.Branch != null && s.Branch.BranchName == targetBranchName);
+            studentQuery = studentQuery.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == targetBranchName.ToLower() || s.Branch.BranchName.ToLower().Contains(targetBranchName.ToLower())));
         }
 
         if (effectiveYearId.HasValue && effectiveYearId.Value > 0)
         {
-            studentQuery = studentQuery.Where(s => s.AcademicYearId == effectiveYearId.Value);
+            studentQuery = studentQuery.Where(s => s.AcademicYearId == effectiveYearId.Value || s.AcademicYearId == 0);
         }
 
         int totalStudents = await studentQuery.CountAsync(cancellationToken);
+
+        // Also check if there are any enrolled/admitted applications in AdmissionApplications not yet in Students table
+        var existingAdmNos = await _context.Students.AsNoTracking()
+            .Where(s => !s.IsDeleted && s.AdmissionNumber != null)
+            .Select(s => s.AdmissionNumber.ToLower())
+            .ToListAsync(cancellationToken);
+
+        var admissionAppsQuery = _context.AdmissionApplications.AsNoTracking()
+            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted"));
+
+        if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            admissionAppsQuery = admissionAppsQuery.Where(a => a.BranchName != null && a.BranchName.ToLower() == targetBranchName.ToLower());
+        }
+
+        var unmappedAdmissions = await admissionAppsQuery
+            .Where(a => a.RegistrationNo != null && !existingAdmNos.Contains(a.RegistrationNo.ToLower()))
+            .CountAsync(cancellationToken);
+
+        totalStudents += unmappedAdmissions;
 
         // 2. Staff Counts (Teaching & Non-Teaching)
         var staffQuery = _context.Staff.AsNoTracking()

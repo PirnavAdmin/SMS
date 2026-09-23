@@ -209,10 +209,21 @@ const ParentPremiumDonutChart: React.FC<{
 
 export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { students, admissions, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams, schoolProfile } = useData();
+  const { students, admissions, studentAttendance = [], attendance = [], homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams, schoolProfile } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+
+  const [registryVersion, setRegistryVersion] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => setRegistryVersion(v => v + 1);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('attendance_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('attendance_updated', handleUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -387,6 +398,61 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
+  const combinedAttendance = useMemo(() => {
+    const list: any[] = [];
+    const seenKeys = new Set<string>();
+
+    (studentAttendance || []).forEach(a => {
+      const d = String(a.date || '').split('T')[0];
+      const sId = String(a.studentId || a.id || '');
+      const key = `${sId}_${d}`;
+      seenKeys.add(key);
+      list.push({ ...a, date: d, studentId: sId, entityType: 'Student' });
+    });
+
+    try {
+      const regRaw = localStorage.getItem('sms_attendance_registry');
+      if (regRaw) {
+        const registry = JSON.parse(regRaw);
+        Object.entries(registry).forEach(([regKey, studentMap]) => {
+          if (studentMap && typeof studentMap === 'object') {
+            const parts = regKey.split('_');
+            const d = parts[parts.length - 1];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+              Object.entries(studentMap).forEach(([sId, status]) => {
+                if (status) {
+                  const key = `${sId}_${d}`;
+                  if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    list.push({
+                      id: `reg_${sId}_${d}`,
+                      studentId: sId,
+                      date: d,
+                      status: status,
+                      entityType: 'Student'
+                    });
+                  }
+                }
+              });
+            }
+          }
+        });
+      }
+    } catch {}
+
+    (attendance || []).forEach(a => {
+      const d = String(a.date || '').split('T')[0];
+      const sId = String(a.studentId || a.entityId || '');
+      const key = `${sId}_${d}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        list.push({ ...a, date: d, studentId: sId, entityType: a.entityType || 'Student' });
+      }
+    });
+
+    return list;
+  }, [studentAttendance, attendance, registryVersion]);
+
   // Unconditional useMemo hooks (guaranteed to run in the same order on every render)
   const wardAttendanceStats = useMemo(() => {
     if (!currentWard) {
@@ -398,16 +464,18 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       };
     }
     const wardId = String(currentWard?.id || '').trim();
+    const wardStudentId = String((currentWard as any)?.studentId || '').trim();
     const wardRoll = String(currentWard?.rollNo || '').trim();
     const wardAdm = String(currentWard?.admissionNo || '').trim();
 
-    const wardAtt = (attendance || []).filter(a => {
+    const wardAtt = combinedAttendance.filter(a => {
       const isStudentEntity = !a.entityType || a.entityType === 'Student';
       if (!isStudentEntity) return false;
 
-      const recId = String(a.studentId || a.entityId || '').trim();
+      const recId = String(a.studentId || a.entityId || a.id || '').trim();
       return recId && (
         recId === wardId ||
+        (wardStudentId && recId === wardStudentId) ||
         (wardRoll && recId === wardRoll) ||
         (wardAdm && recId === wardAdm)
       );
@@ -440,7 +508,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       pEnd, lEnd, hdEnd,
       wardAttendance: wardAtt
     };
-  }, [attendance, currentWard?.id]);
+  }, [combinedAttendance, currentWard]);
 
   const upcomingEventsAndHolidays = useMemo(() => {
     const today = new Date();

@@ -54,38 +54,46 @@ export const ParentAttendanceView: React.FC = () => {
   const years = ['2024', '2025', '2026'];
 
   // Match children for Parent/Student role accurately
-  const deduplicateWards = (wards: any[]) => {
-    const seen = new Set<string>();
-    return wards.filter(w => {
-      const nameNorm = (w.studentName || `${w.firstName || ''} ${w.lastName || ''}`).trim().toLowerCase();
-      const classNorm = (w.className || '').trim().toLowerCase().replace(/class/gi, '').trim();
-      const secNorm = (w.section || w.sectionName || '').trim().toLowerCase();
-      const key = `${nameNorm}_${classNorm}_${secNorm}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
+  const parentWards = useMemo(() => {
+    if (apiChildren.length > 0) {
+      return apiChildren.map(c => ({
+        id: String(c.studentId),
+        studentId: c.studentId,
+        firstName: c.firstName || c.studentName.split(' ')[0] || '',
+        lastName: c.lastName || '',
+        studentName: c.studentName || '',
+        className: c.className || '',
+        section: c.sectionName || '',
+        status: 'Active'
+      }));
+    }
 
-  if (apiChildren.length > 0) {
-    parentWards = deduplicateWards(apiChildren.map(c => ({
-      id: String(c.studentId),
-      studentId: c.studentId,
-      firstName: c.firstName || c.studentName.split(' ')[0],
-      lastName: c.lastName || '',
-      studentName: c.studentName,
-      className: c.className || 'Class 6',
-      section: c.sectionName || 'A',
-      status: 'Active'
-    })));
-  } else {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userPhone = (user?.phone || '').replace(/\D/g, '');
+    const userId = String(user?.id || '').trim();
+    const rawUserName = (user?.name || '').trim().toLowerCase();
 
     const studentMatches = (students || []).filter(s => 
       s.status === 'Active' && 
       (
-        role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
+        role === 'Student' ? (
+          (userId && (String(s.id) === userId || String(s.admissionNo) === userId || String((s as any).rollNo) === userId)) ||
+          ((user as any)?.studentId && (String(s.id) === String((user as any).studentId) || String(s.admissionNo) === String((user as any).studentId))) ||
+          ((user as any)?.admissionNo && String(s.admissionNo).toLowerCase() === String((user as any).admissionNo).toLowerCase()) ||
+          (userEmail && (
+            (s.email && s.email.toLowerCase().trim() === userEmail) ||
+            ((s as any).studentEmail && (s as any).studentEmail.toLowerCase().trim() === userEmail) ||
+            ((s as any).contactEmail && (s as any).contactEmail.toLowerCase().trim() === userEmail)
+          )) ||
+          (userPhone && userPhone.length >= 7 && (
+            ((s.phone || '').replace(/\D/g, '').endsWith(userPhone)) ||
+            (((s as any).mobileNumber || '').replace(/\D/g, '').endsWith(userPhone))
+          )) ||
+          (rawUserName && !['student', 'user'].includes(rawUserName) && (
+            `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === rawUserName ||
+            (s as any).name?.toLowerCase().trim() === rawUserName
+          ))
+        ) : 
         (
           (userEmail && (
             (s.email && s.email.toLowerCase().trim() === userEmail) ||
@@ -122,38 +130,133 @@ export const ParentAttendanceView: React.FC = () => {
       firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
       lastName: a.lastName || '',
       studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
-      section: (a as any).section || 'A',
+      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || (user as any)?.className || '',
+      section: (a as any).section || (user as any)?.section || '',
       status: 'Active'
     }));
 
     const combined = [...studentMatches, ...admissionMatches];
-    parentWards = deduplicateWards(combined);
-  }
+    const unique = new Map();
+    combined.forEach(w => {
+      if (!unique.has(w.id)) unique.set(w.id, w);
+    });
 
-  if (parentWards.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500">
-        No active wards found in the system.
-      </div>
-    );
-  }
+    if (unique.size === 0 && role === 'Student') {
+      const userClass = (user as any)?.className || (user as any)?.class || '';
+      const userSec = (user as any)?.section || (user as any)?.sectionName || '';
+      return [{
+        id: (user as any)?.studentId || (user as any)?.id || userId || '',
+        studentId: (user as any)?.studentId || (user as any)?.id || userId || '',
+        firstName: user?.name?.split(' ')[0] || '',
+        lastName: user?.name?.split(' ').slice(1).join(' ') || '',
+        studentName: user?.name || 'Student',
+        className: userClass,
+        section: userSec,
+        status: 'Active'
+      }];
+    }
+
+    return Array.from(unique.values());
+  }, [students, admissions, user, role, apiChildren]);
+
+  // Listen for real-time attendance updates
+  const [registryVersion, setRegistryVersion] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => setRegistryVersion(v => v + 1);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('attendance_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('attendance_updated', handleUpdate);
+    };
+  }, []);
+
+  const combinedAttendance = useMemo(() => {
+    const list: any[] = [];
+    const seenDateKeys = new Set<string>();
+
+    // 1. From studentAttendance in DataContext
+    (studentAttendance || []).forEach(a => {
+      const d = String(a.date || '').split('T')[0];
+      const sId = String(a.studentId || a.id || '');
+      const key = `${sId}_${d}`;
+      seenDateKeys.add(key);
+      list.push({
+        ...a,
+        date: d,
+        studentId: sId,
+        entityType: 'Student'
+      });
+    });
+
+    // 2. From localStorage sms_attendance_registry
+    try {
+      const regRaw = localStorage.getItem('sms_attendance_registry');
+      if (regRaw) {
+        const registry = JSON.parse(regRaw);
+        Object.entries(registry).forEach(([regKey, studentMap]) => {
+          if (studentMap && typeof studentMap === 'object') {
+            const parts = regKey.split('_');
+            const d = parts[parts.length - 1];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+              Object.entries(studentMap).forEach(([sId, status]) => {
+                if (status) {
+                  const key = `${sId}_${d}`;
+                  if (!seenDateKeys.has(key)) {
+                    seenDateKeys.add(key);
+                    list.push({
+                      id: `reg_${sId}_${d}`,
+                      studentId: sId,
+                      date: d,
+                      status: status,
+                      entityType: 'Student'
+                    });
+                  }
+                }
+              });
+            }
+          }
+        });
+      }
+    } catch {}
+
+    // 3. From rawAttendance in DataContext
+    (rawAttendance || []).forEach(a => {
+      const d = String(a.date || '').split('T')[0];
+      const sId = String(a.studentId || a.entityId || '');
+      const key = `${sId}_${d}`;
+      if (!seenDateKeys.has(key)) {
+        seenDateKeys.add(key);
+        list.push({
+          ...a,
+          date: d,
+          studentId: sId,
+          entityType: a.entityType || 'Student'
+        });
+      }
+    });
+
+    return list;
+  }, [studentAttendance, rawAttendance, registryVersion]);
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
   // Filter real attendance for the selected child and the selected month/year/day
   const rawWardAttendance = useMemo(() => {
-    const wardId = String(currentWard?.id || '').trim();
-    const wardRoll = String(currentWard?.rollNo || '').trim();
-    const wardAdm = String(currentWard?.admissionNo || '').trim();
+    if (!currentWard) return [];
+    const wardId = String(currentWard.id || '').trim();
+    const wardStudentId = String((currentWard as any).studentId || '').trim();
+    const wardRoll = String(currentWard.rollNo || '').trim();
+    const wardAdm = String(currentWard.admissionNo || '').trim();
 
-    return attendance.filter(a => {
+    return combinedAttendance.filter(a => {
       const isStudentEntity = !a.entityType || a.entityType === 'Student';
       if (!isStudentEntity) return false;
 
-      const recId = String(a.studentId || a.entityId || '').trim();
+      const recId = String(a.studentId || a.entityId || a.id || '').trim();
       const isChildMatch = recId && (
         recId === wardId ||
+        (wardStudentId && recId === wardStudentId) ||
         (wardRoll && recId === wardRoll) ||
         (wardAdm && recId === wardAdm)
       );
@@ -171,7 +274,7 @@ export const ParentAttendanceView: React.FC = () => {
       }
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [attendance, currentWard, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
+  }, [combinedAttendance, currentWard, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
 
   const wardAttendance = rawWardAttendance;
 
@@ -182,9 +285,17 @@ export const ParentAttendanceView: React.FC = () => {
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
   const paginatedRecords = filteredRecords.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate, selectedChildIdx]);
+
+  if (parentWards.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        No active wards found in the system.
+      </div>
+    );
+  }
 
   // Statistics
   const totalDays = wardAttendance.length;
