@@ -2750,7 +2750,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         }
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none cursor-pointer appearance-none pr-10"
                       >
-                        <option value="">Select Religion</option>
+                        <option value="">Select</option>
                         {RELIGIONS.map((rel) => (
                           <option key={rel} value={rel}>
                             {rel}
