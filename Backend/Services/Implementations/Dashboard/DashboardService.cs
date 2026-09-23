@@ -257,11 +257,32 @@ public class DashboardService : IDashboardService
             })
             .ToListAsync(cancellationToken);
 
-        var classWiseStrength = rawClassStrengths
+        var dictStrengths = rawClassStrengths.ToDictionary(x => x.ClassName, x => x.StudentCount, StringComparer.OrdinalIgnoreCase);
+
+        var admissionClasses = await admissionAppsQuery
+            .Include(a => a.AppliedClass)
+            .Where(a => a.RegistrationNo != null && !existingAdmNos.Contains(a.RegistrationNo.ToLower()) && a.AppliedClass != null && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
+            .GroupBy(a => a.AppliedClass!.ClassName)
+            .Select(g => new { ClassName = g.Key, StudentCount = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        foreach (var ac in admissionClasses)
+        {
+            if (dictStrengths.ContainsKey(ac.ClassName))
+            {
+                dictStrengths[ac.ClassName] += ac.StudentCount;
+            }
+            else
+            {
+                dictStrengths[ac.ClassName] = ac.StudentCount;
+            }
+        }
+
+        var classWiseStrength = dictStrengths
             .Select(x => new ClassStrengthDto
             {
-                ClassName = x.ClassName,
-                StudentCount = x.StudentCount
+                ClassName = x.Key,
+                StudentCount = x.Value
             })
             .OrderBy(x => x.ClassName)
             .ToList();
