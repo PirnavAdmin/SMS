@@ -68,7 +68,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Dashboard', module: 'dashboard' },
     { name: 'Attendance', module: 'attendance' },
     { name: 'Time Table', module: 'timetable' },
-    { name: 'Examination & Assessments', module: 'examination' },
     { name: 'Report Cards & Results', module: 'report-cards' },
     { name: 'Homework', module: 'homework' },
     { name: 'Fee Details & Dues', module: 'parent-fee-dues' },

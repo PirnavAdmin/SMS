@@ -230,125 +230,136 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return BadRequest(new { success = false, message = "A duplicate class name already exists for this campus and academic year." });
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            var strategy = _context.Database.CreateExecutionStrategy();
+            ClassGrade? createdClassGrade = null;
+            int sectionCount = 0;
 
-            var classGrade = new ClassGrade
+            await strategy.ExecuteAsync(async () =>
             {
-                ClassName = dto.Name ?? dto.ClassName,
-                CampusLocation = campus,
-                AcademicYear = academicYear,
-                Status = "Active",
-                CreatedAt = DateTime.UtcNow
-            };
+                await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            await _context.Classes.AddAsync(classGrade);
-            await _context.SaveChangesAsync();
-
-            // Handle sections
-            var sectionLetters = dto.SectionNames ?? dto.Sections.Select(s => s.SectionName).ToList();
-            if (sectionLetters == null || !sectionLetters.Any())
-            {
-                sectionLetters = new List<string> { "A" };
-            }
-
-            foreach (var secLetter in sectionLetters)
-            {
-                var section = new ClassSection
+                var classGrade = new ClassGrade
                 {
-                    ClassId = classGrade.ClassId,
-                    SectionName = secLetter,
-                    Capacity = 40,
-                    Status = "Active"
+                    ClassName = dto.Name ?? dto.ClassName,
+                    CampusLocation = campus,
+                    AcademicYear = academicYear,
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
                 };
-                await _context.ClassSections.AddAsync(section);
-            }
 
-            // Handle subjects
-            // BUG-002 FIX: resolve a safe default DepartmentId before creating subjects
-            var subjectsInput = dto.Subjects ?? new List<string>();
-            if (subjectsInput.Any())
-            {
-                var defaultDept = await _context.Departments.FirstOrDefaultAsync(d => d.Status == "Active");
-                int safeDeptId = defaultDept?.DepartmentId ?? 1;
+                await _context.Classes.AddAsync(classGrade);
+                await _context.SaveChangesAsync();
 
-                foreach (var subName in subjectsInput)
+                // Handle sections
+                var sectionLetters = dto.SectionNames ?? dto.Sections.Select(s => s.SectionName).ToList();
+                if (sectionLetters == null || !sectionLetters.Any())
                 {
-                    var subject = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
-                    if (subject == null)
-                    {
-                        // BUG-012 FIX: generate unique subject code by checking for collisions
-                        var baseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length));
-                        var candidateCode = baseCode + "101";
-                        int codeSeq = 101;
-                        while (await _context.Subjects.AnyAsync(s => s.SubjectCode == candidateCode))
-                        {
-                            codeSeq++;
-                            candidateCode = baseCode + codeSeq;
-                        }
-                        subject = new Subject
-                        {
-                            SubjectName = subName,
-                            SubjectCode = candidateCode,
-                            CourseCode = baseCode,
-                            DepartmentId = safeDeptId
-                        };
-                        await _context.Subjects.AddAsync(subject);
-                        await _context.SaveChangesAsync();
-                    }
+                    sectionLetters = new List<string> { "A" };
+                }
 
-                    var mapping = new ClassSubjectMapping
+                foreach (var secLetter in sectionLetters)
+                {
+                    var section = new ClassSection
                     {
                         ClassId = classGrade.ClassId,
-                        SubjectId = subject.SubjectId,
-                        WeeklyPeriods = 5
+                        SectionName = secLetter,
+                        Capacity = 40,
+                        Status = "Active"
                     };
-                    await _context.ClassSubjectMappings.AddAsync(mapping);
+                    await _context.ClassSections.AddAsync(section);
                 }
-            }
 
-            // Handle teacher assignments
-            if (dto.SectionTeachers != null)
-            {
-                foreach (var kvp in dto.SectionTeachers)
+                // Handle subjects
+                // BUG-002 FIX: resolve a safe default DepartmentId before creating subjects
+                var subjectsInput = dto.Subjects ?? new List<string>();
+                if (subjectsInput.Any())
                 {
-                    var secLetter = kvp.Key;
-                    var teacherIdStr = kvp.Value;
+                    var defaultDept = await _context.Departments.FirstOrDefaultAsync(d => d.Status == "Active");
+                    int safeDeptId = defaultDept?.DepartmentId ?? 1;
 
-                    Staff? staff = null;
-                    if (int.TryParse(teacherIdStr, out int staffId))
+                    foreach (var subName in subjectsInput)
                     {
-                        staff = await _context.Staff.FindAsync(staffId);
-                    }
-                    if (staff == null)
-                    {
-                        staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == teacherIdStr);
-                    }
+                        var subject = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
+                        if (subject == null)
+                        {
+                            // BUG-012 FIX: generate unique subject code by checking for collisions
+                            var baseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length));
+                            var candidateCode = baseCode + "101";
+                            int codeSeq = 101;
+                            while (await _context.Subjects.AnyAsync(s => s.SubjectCode == candidateCode))
+                            {
+                                codeSeq++;
+                                candidateCode = baseCode + codeSeq;
+                            }
+                            subject = new Subject
+                            {
+                                SubjectName = subName,
+                                SubjectCode = candidateCode,
+                                CourseCode = baseCode,
+                                DepartmentId = safeDeptId
+                            };
+                            await _context.Subjects.AddAsync(subject);
+                            await _context.SaveChangesAsync();
+                        }
 
-                    if (staff != null)
-                    {
-                        // BUG-001 FIX: Class Teacher assignments must not use SubjectId=1 hardcode
-                        // Use first subject mapped to THIS class; default to 0 which the model must allow
-                        var firstClassSubject = await _context.ClassSubjectMappings
-                            .FirstOrDefaultAsync(m => m.ClassId == classGrade.ClassId);
-                        var assignment = new TeacherAssignment
+                        var mapping = new ClassSubjectMapping
                         {
                             ClassId = classGrade.ClassId,
-                            SectionLetter = secLetter,
-                            TeacherId = staff.StaffId,
-                            Role = "Class Teacher",
-                            Status = "Active",
-                            SubjectId = firstClassSubject?.SubjectId ?? 0
+                            SubjectId = subject.SubjectId,
+                            WeeklyPeriods = 5
                         };
-                        await _context.TeacherAssignments.AddAsync(assignment);
+                        await _context.ClassSubjectMappings.AddAsync(mapping);
                     }
                 }
-            }
 
-            await _context.SaveChangesAsync();
-await transaction.CommitAsync();
-            await LogAuditActionAsync("Create Class", $"Created class grade '{classGrade.ClassName}' with {sectionLetters.Count} sections.");
+                // Handle teacher assignments
+                if (dto.SectionTeachers != null)
+                {
+                    foreach (var kvp in dto.SectionTeachers)
+                    {
+                        var secLetter = kvp.Key;
+                        var teacherIdStr = kvp.Value;
 
-            return Ok(new { success = true, id = $"CL-{classGrade.ClassId}", message = "Class created successfully." });
+                        Staff? staff = null;
+                        if (int.TryParse(teacherIdStr, out int staffId))
+                        {
+                            staff = await _context.Staff.FindAsync(staffId);
+                        }
+                        if (staff == null)
+                        {
+                            staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == teacherIdStr);
+                        }
+
+                        if (staff != null)
+                        {
+                            // BUG-001 FIX: Class Teacher assignments must not use SubjectId=1 hardcode
+                            // Use first subject mapped to THIS class; default to 0 which the model must allow
+                            var firstClassSubject = await _context.ClassSubjectMappings
+                                .FirstOrDefaultAsync(m => m.ClassId == classGrade.ClassId);
+                            var assignment = new TeacherAssignment
+                            {
+                                ClassId = classGrade.ClassId,
+                                SectionLetter = secLetter,
+                                TeacherId = staff.StaffId,
+                                Role = "Class Teacher",
+                                Status = "Active",
+                                SubjectId = firstClassSubject?.SubjectId ?? 0
+                            };
+                            await _context.TeacherAssignments.AddAsync(assignment);
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                createdClassGrade = classGrade;
+                sectionCount = sectionLetters.Count;
+            });
+
+            await LogAuditActionAsync("Create Class", $"Created class grade '{createdClassGrade?.ClassName}' with {sectionCount} sections.");
+
+            return Ok(new { success = true, id = $"CL-{createdClassGrade?.ClassId}", message = "Class created successfully." });
         }
 
         [HttpPut("{id:int}")]

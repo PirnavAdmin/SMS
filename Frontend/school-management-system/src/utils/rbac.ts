@@ -46,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "subjects",
     "timetable",
     "examination",
+    "report-cards",
     "certificates",
     "communication",
     "events",
@@ -58,6 +59,8 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "students",
     "attendance",
     "timetable",
+    "examination",
+    "report-cards",
     "homework",
     "communication",
     "events",
@@ -102,7 +105,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "dashboard",
     "attendance",
     "timetable",
-    "examination",
+    "report-cards",
     "homework",
     "library",
     "communication",
@@ -116,7 +119,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "dashboard",
     "attendance",
     "timetable",
-    "examination",
+    "report-cards",
     "homework",
     "fees",
     "communication",
@@ -174,7 +177,6 @@ export const hasModuleAccess = (
   if (moduleId === "librarian-attendance") moduleId = "library";
   if (moduleId === "library-timetable") moduleId = "library";
   if (moduleId === "warden-profile") moduleId = "staff";
-  if (moduleId === "report-cards") moduleId = "examination";
   if (moduleId === "roles") moduleId = "users";
   const baseModule = moduleId.split("-")[0] as ModuleId;
   const lookupRole = normalizeRoleForRbac(role);
