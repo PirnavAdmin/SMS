@@ -321,85 +321,94 @@ public class TeacherStudentAttendanceRepository
         if (validStudentCount != requestedStudentIds.Length)
             throw new ArgumentException("One or more students do not belong to the selected class and section.");
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        StudentAttendanceSession? session = await _context.StudentAttendanceSessions
-            .FirstOrDefaultAsync(x =>
-                x.AttendanceDate == dto.Date.Date
-                && x.BranchId == dto.BranchId
-                && x.AcademicYearId == dto.AcademicYearId
-                && x.ClassId == dto.ClassId
-                && x.SectionId == dto.SectionId
-                && x.SubjectId == dto.SubjectId
-                && x.PeriodId == dto.PeriodId);
-
-        if (session?.IsLocked == true)
-            throw new InvalidOperationException("This attendance sheet is locked.");
-
-        if (session == null)
-        {
-            session = new StudentAttendanceSession
-            {
-                AttendanceDate = dto.Date.Date,
-                BranchId = dto.BranchId,
-                AcademicYearId = dto.AcademicYearId,
-                ClassId = dto.ClassId,
-                SectionId = dto.SectionId,
-                SubjectId = dto.SubjectId,
-                PeriodId = dto.PeriodId,
-                TimetableSlotId = slot.SlotId,
-                MarkedByStaffId = staffId,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.StudentAttendanceSessions.Add(session);
-            await _context.SaveChangesAsync();
-        }
-
-        Dictionary<int, StudentAttendance> existing = await _context.StudentAttendances
-            .Where(x => x.AttendanceSessionId == session.AttendanceSessionId && requestedStudentIds.Contains(x.StudentId ?? -1))
-            .ToDictionaryAsync(x => x.StudentId ?? -1);
-
+        var strategy = _context.Database.CreateExecutionStrategy();
+        StudentAttendanceSession? session = null;
         int inserted = 0;
         int updated = 0;
-        foreach (SaveTeacherAttendanceRecordDto row in dto.Students)
+        List<TeacherAttendanceStudentDto> summaryRows = new();
+
+        await strategy.ExecuteAsync(async () =>
         {
-            string status = NormalizeStatus(row.Status);
-            string? remarks = string.IsNullOrWhiteSpace(row.Remarks) ? null : row.Remarks.Trim();
-            if (existing.TryGetValue(row.StudentId, out StudentAttendance? record))
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            session = await _context.StudentAttendanceSessions
+                .FirstOrDefaultAsync(x =>
+                    x.AttendanceDate == dto.Date.Date
+                    && x.BranchId == dto.BranchId
+                    && x.AcademicYearId == dto.AcademicYearId
+                    && x.ClassId == dto.ClassId
+                    && x.SectionId == dto.SectionId
+                    && x.SubjectId == dto.SubjectId
+                    && x.PeriodId == dto.PeriodId);
+
+            if (session?.IsLocked == true)
+                throw new InvalidOperationException("This attendance sheet is locked.");
+
+            if (session == null)
             {
-                record.Status = status;
-                record.Remarks = remarks;
-                record.UpdatedAt = DateTime.UtcNow;
-                updated++;
-            }
-            else
-            {
-                _context.StudentAttendances.Add(new StudentAttendance
+                session = new StudentAttendanceSession
                 {
-                    AttendanceSessionId = session.AttendanceSessionId,
-                    StudentId = row.StudentId,
-                    Status = status,
-                    Remarks = remarks,
+                    AttendanceDate = dto.Date.Date,
+                    BranchId = dto.BranchId,
+                    AcademicYearId = dto.AcademicYearId,
+                    ClassId = dto.ClassId,
+                    SectionId = dto.SectionId,
+                    SubjectId = dto.SubjectId,
+                    PeriodId = dto.PeriodId,
+                    TimetableSlotId = slot.SlotId,
+                    MarkedByStaffId = staffId,
                     CreatedAt = DateTime.UtcNow
-                });
-                inserted++;
+                };
+                _context.StudentAttendanceSessions.Add(session);
+                await _context.SaveChangesAsync();
             }
-        }
 
-        session.MarkedByStaffId = staffId;
-        session.TimetableSlotId = slot.SlotId;
-        session.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
+            Dictionary<int, StudentAttendance> existing = await _context.StudentAttendances
+                .Where(x => x.AttendanceSessionId == session.AttendanceSessionId && requestedStudentIds.Contains(x.StudentId ?? -1))
+                .ToDictionaryAsync(x => x.StudentId ?? -1);
 
-        var summaryRows = dto.Students.Select(x => new TeacherAttendanceStudentDto
-        {
-            StudentId = x.StudentId,
-            Status = NormalizeStatus(x.Status)
-        }).ToList();
+            inserted = 0;
+            updated = 0;
+            foreach (SaveTeacherAttendanceRecordDto row in dto.Students)
+            {
+                string status = NormalizeStatus(row.Status);
+                string? remarks = string.IsNullOrWhiteSpace(row.Remarks) ? null : row.Remarks.Trim();
+                if (existing.TryGetValue(row.StudentId, out StudentAttendance? record))
+                {
+                    record.Status = status;
+                    record.Remarks = remarks;
+                    record.UpdatedAt = DateTime.UtcNow;
+                    updated++;
+                }
+                else
+                {
+                    _context.StudentAttendances.Add(new StudentAttendance
+                    {
+                        AttendanceSessionId = session.AttendanceSessionId,
+                        StudentId = row.StudentId,
+                        Status = status,
+                        Remarks = remarks,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    inserted++;
+                }
+            }
+
+            session.MarkedByStaffId = staffId;
+            session.TimetableSlotId = slot.SlotId;
+            session.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            summaryRows = dto.Students.Select(x => new TeacherAttendanceStudentDto
+            {
+                StudentId = x.StudentId,
+                Status = NormalizeStatus(x.Status)
+            }).ToList();
+        });
 
         return new SaveTeacherAttendanceResponseDto
         {
-            AttendanceSessionId = session.AttendanceSessionId,
+            AttendanceSessionId = session?.AttendanceSessionId ?? 0,
             InsertedCount = inserted,
             UpdatedCount = updated,
             IsLocked = false,
