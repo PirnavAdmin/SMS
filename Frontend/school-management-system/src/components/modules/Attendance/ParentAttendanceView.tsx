@@ -54,10 +54,21 @@ export const ParentAttendanceView: React.FC = () => {
   const years = ['2024', '2025', '2026'];
 
   // Match children for Parent/Student role accurately
-  let parentWards: any[] = [];
+  const deduplicateWards = (wards: any[]) => {
+    const seen = new Set<string>();
+    return wards.filter(w => {
+      const nameNorm = (w.studentName || `${w.firstName || ''} ${w.lastName || ''}`).trim().toLowerCase();
+      const classNorm = (w.className || '').trim().toLowerCase().replace(/class/gi, '').trim();
+      const secNorm = (w.section || w.sectionName || '').trim().toLowerCase();
+      const key = `${nameNorm}_${classNorm}_${secNorm}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
 
   if (apiChildren.length > 0) {
-    parentWards = apiChildren.map(c => ({
+    parentWards = deduplicateWards(apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
       firstName: c.firstName || c.studentName.split(' ')[0],
@@ -66,7 +77,7 @@ export const ParentAttendanceView: React.FC = () => {
       className: c.className || 'Class 6',
       section: c.sectionName || 'A',
       status: 'Active'
-    }));
+    })));
   } else {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userPhone = (user?.phone || '').replace(/\D/g, '');
@@ -117,11 +128,7 @@ export const ParentAttendanceView: React.FC = () => {
     }));
 
     const combined = [...studentMatches, ...admissionMatches];
-    const unique = new Map();
-    combined.forEach(w => {
-      if (!unique.has(w.id)) unique.set(w.id, w);
-    });
-    parentWards = Array.from(unique.values());
+    parentWards = deduplicateWards(combined);
   }
 
   if (parentWards.length === 0) {

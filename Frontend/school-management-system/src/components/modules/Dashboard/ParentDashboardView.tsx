@@ -339,12 +339,25 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     };
   });
 
+  const deduplicateWards = (wards: any[]) => {
+    const seen = new Set<string>();
+    return wards.filter(w => {
+      const nameNorm = (w.studentName || `${w.firstName || ''} ${w.lastName || ''}`).trim().toLowerCase();
+      const classNorm = (w.className || '').trim().toLowerCase().replace(/class/gi, '').trim();
+      const secNorm = (w.section || w.sectionName || '').trim().toLowerCase();
+      const key = `${nameNorm}_${classNorm}_${secNorm}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   if (mappedApiChildren.length > 0) {
     hasMatchedWards = true;
-    parentWards = mappedApiChildren;
+    parentWards = deduplicateWards(mappedApiChildren);
   } else if (uniqueLocalMatches.length > 0) {
     hasMatchedWards = true;
-    parentWards = uniqueLocalMatches;
+    parentWards = deduplicateWards(uniqueLocalMatches);
   } else {
     hasMatchedWards = true;
     const formatName = (email?: string) => {

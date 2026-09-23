@@ -73,7 +73,17 @@ namespace SMS.Api.Repositories.Implementations.Parent
                     .OrderByDescending(s => s.StudentId)
                     .ToListAsync();
 
-                return children;
+                // Deduplicate children by normalized StudentName + Class + Section to avoid duplicate tabs for the same child
+                var uniqueChildren = children
+                    .GroupBy(s => new {
+                        Name = (s.StudentName ?? "").Trim().ToLowerInvariant(),
+                        Class = (s.ClassGrade?.ClassName ?? "").Trim().ToLowerInvariant(),
+                        Section = (s.ClassSection?.SectionName ?? "").Trim().ToLowerInvariant()
+                    })
+                    .Select(g => g.First())
+                    .ToList();
+
+                return uniqueChildren;
             }
             catch (Exception ex)
             {

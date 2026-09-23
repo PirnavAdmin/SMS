@@ -1356,6 +1356,38 @@ using (var scope = app.Services.CreateScope())
                 `LockedDate` VARCHAR(100) NULL,
                 `PaymentDate` VARCHAR(100) NULL,
                 `WorkflowStage` VARCHAR(100) NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `staff_letters` (
+                `Id` varchar(100) NOT NULL,
+                `LetterNumber` varchar(100) NOT NULL,
+                `LetterType` varchar(50) NOT NULL DEFAULT 'offer',
+                `StaffId` varchar(50) NULL,
+                `StaffEmpId` varchar(50) NULL,
+                `StaffName` varchar(200) NOT NULL,
+                `Designation` varchar(150) NULL,
+                `Department` varchar(150) NULL,
+                `Branch` varchar(150) NULL,
+                `IssueDate` varchar(50) NULL,
+                `GeneratedBy` varchar(150) NULL,
+                `Status` varchar(50) NULL DEFAULT 'Issued',
+                `PayloadJson` longtext NULL,
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `global_letter_settings` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `SignatoryName` varchar(200) NULL,
+                `SignatoryTitle` varchar(200) NULL,
+                `ProbationMonths` int NOT NULL DEFAULT 6,
+                `NoticePeriodDays` int NOT NULL DEFAULT 30,
+                `SignatureImageUrl` longtext NULL,
+                `SealImageUrl` longtext NULL,
+                `MasterTermsJson` longtext NULL,
+                `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
