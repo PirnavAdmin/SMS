@@ -1,5 +1,6 @@
 namespace SMS.Api.Repositories.Interfaces;
 
+using SMS.Api.Dtos;
 using SMS.Api.Models;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,10 @@ public interface IStudentAttendanceRepository
         DateTime? startDate,
         DateTime? endDate,
         string? statusFilter);
+
+    Task<List<StudentAttendance>> GetAllAttendanceRecordsAsync(StudentAttendanceUniversalQueryDto query);
+
+    Task<int> BulkSaveStudentAttendanceAsync(List<BulkStudentAttendanceRecordDto> records, int? staffId);
 
     Task AddStudentAttendanceAsync(StudentAttendance attendance);
     Task AddStudentAttendanceRangeAsync(IEnumerable<StudentAttendance> attendances);

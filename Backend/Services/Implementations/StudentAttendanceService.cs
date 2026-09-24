@@ -1,21 +1,27 @@
 namespace SMS.Api.Services.Implementations;
 
+using Microsoft.EntityFrameworkCore;
+using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 public class StudentAttendanceService : IStudentAttendanceService
 {
     private readonly IStudentAttendanceRepository _repository;
+    private readonly AppDbContext _context;
 
     public StudentAttendanceService(
-        IStudentAttendanceRepository repository)
+        IStudentAttendanceRepository repository,
+        AppDbContext context)
     {
         _repository = repository;
+        _context = context;
     }
 
     public async Task<StudentAttendanceRegisterResponseDto>
@@ -97,6 +103,65 @@ public class StudentAttendanceService : IStudentAttendanceService
         };
     }
 
+    public async Task<List<StudentAttendanceUniversalDto>> GetAllAttendanceRecordsAsync(
+        StudentAttendanceUniversalQueryDto query)
+    {
+        var records = await _repository.GetAllAttendanceRecordsAsync(query);
+
+        var subjects = await _context.Subjects
+            .AsNoTracking()
+            .ToDictionaryAsync(s => s.SubjectId, s => s.SubjectName ?? s.SubjectCode ?? "");
+
+        var periods = await _context.PeriodSettings
+            .AsNoTracking()
+            .ToDictionaryAsync(p => p.PeriodId, p => p.PeriodName ?? "");
+
+        var staff = await _context.Staff
+            .AsNoTracking()
+            .ToDictionaryAsync(st => st.StaffId, st => $"{st.FirstName} {st.LastName}".Trim());
+
+        return records.Select(r =>
+        {
+            var sess = r.AttendanceSession;
+            var stu = r.Student;
+            string subjName = sess != null && subjects.TryGetValue(sess.SubjectId, out var sn) ? sn : "";
+            string prdName = sess != null && periods.TryGetValue(sess.PeriodId, out var pn) ? pn : "";
+            string markedByName = sess != null && staff.TryGetValue(sess.MarkedByStaffId, out var mn) ? mn : "Administrator";
+
+            return new StudentAttendanceUniversalDto
+            {
+                Id = r.Id.ToString(),
+                StudentId = (r.StudentId ?? 0).ToString(),
+                RollNo = stu?.RollNumber ?? "",
+                AdmissionNo = stu?.AdmissionNumber ?? "",
+                StudentName = stu?.StudentName ?? "Student",
+                ClassName = stu?.ClassGrade?.ClassName ?? "",
+                Section = stu?.ClassSection?.SectionName ?? "",
+                Date = sess?.AttendanceDate.ToString("yyyy-MM-dd") ?? "",
+                Status = FormatStatus(r.Status),
+                Remarks = r.Remarks ?? "",
+                Subject = subjName,
+                Period = prdName,
+                MarkedBy = markedByName
+            };
+        }).ToList();
+    }
+
+    public async Task<BulkSaveStudentAttendanceResponseDto> BulkSaveStudentAttendanceAsync(
+        BulkSaveStudentAttendanceDto dto, int? staffId)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        int count = await _repository.BulkSaveStudentAttendanceAsync(dto.Records, staffId);
+
+        return new BulkSaveStudentAttendanceResponseDto
+        {
+            Success = true,
+            Count = count,
+            Message = $"Successfully saved attendance for {count} student records."
+        };
+    }
+
     public async Task<bool> MarkStudentAttendanceAsync(
         MarkStudentAttendanceDto dto)
     {
@@ -164,8 +229,7 @@ public class StudentAttendanceService : IStudentAttendanceService
             "halfday" => "HalfDay",
             "leave" => "Leave",
 
-            _ => throw new ArgumentException(
-                "Status must be Present, Absent, Late, HalfDay, or Leave.")
+            _ => "Present"
         };
     }
 

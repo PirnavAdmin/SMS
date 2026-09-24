@@ -55,6 +55,15 @@ export default defineConfig(({ mode }) => {
           headers: {
             'ngrok-skip-browser-warning': 'true',
           },
+          configure: (proxy, _options) => {
+            proxy.on('error', (_err, _req, res) => {
+              const httpRes = res as any;
+              if (httpRes && !httpRes.headersSent && typeof httpRes.writeHead === 'function') {
+                httpRes.writeHead(404, { 'Content-Type': 'text/plain' });
+                httpRes.end('File not found or backend offline');
+              }
+            });
+          }
         },
       },
     },

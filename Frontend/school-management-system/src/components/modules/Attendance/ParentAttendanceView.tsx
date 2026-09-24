@@ -7,11 +7,17 @@ import { DailyAttendance } from '../../../types';
 import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentAttendanceView: React.FC = () => {
-  const { students = [], admissions = [], studentAttendance = [], attendance: rawAttendance } = useData();
+  const { students = [], admissions = [], studentAttendance = [], attendance: rawAttendance, fetchStudentAttendanceData } = useData();
   const attendance = rawAttendance || studentAttendance || [];
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+
+  useEffect(() => {
+    if (fetchStudentAttendanceData) {
+      fetchStudentAttendanceData();
+    }
+  }, [fetchStudentAttendanceData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -231,38 +237,7 @@ export const ParentAttendanceView: React.FC = () => {
       });
     });
 
-    // 2. From localStorage sms_attendance_registry
-    try {
-      const regRaw = localStorage.getItem('sms_attendance_registry');
-      if (regRaw) {
-        const registry = JSON.parse(regRaw);
-        Object.entries(registry).forEach(([regKey, studentMap]) => {
-          if (studentMap && typeof studentMap === 'object') {
-            const parts = regKey.split('_');
-            const d = parts[parts.length - 1];
-            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-              Object.entries(studentMap).forEach(([sId, status]) => {
-                if (status) {
-                  const key = `${sId}_${d}`;
-                  if (!seenDateKeys.has(key)) {
-                    seenDateKeys.add(key);
-                    list.push({
-                      id: `reg_${sId}_${d}`,
-                      studentId: sId,
-                      date: d,
-                      status: status,
-                      entityType: 'Student'
-                    });
-                  }
-                }
-              });
-            }
-          }
-        });
-      }
-    } catch {}
-
-    // 3. From rawAttendance in DataContext
+    // 2. From rawAttendance in DataContext
     (rawAttendance || []).forEach(a => {
       const d = String(a.date || '').split('T')[0];
       const sId = String(a.studentId || a.entityId || '');
