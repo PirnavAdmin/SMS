@@ -209,7 +209,23 @@ const ParentPremiumDonutChart: React.FC<{
 
 export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { students, admissions, studentAttendance = [], attendance = [], homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams, schoolProfile } = useData();
+  const { 
+    students = [], 
+    admissions = [], 
+    studentAttendance = [], 
+    attendance = [], 
+    homework = [], 
+    announcements = [], 
+    holidays = [], 
+    studentHostels = [], 
+    hostelMasters = [], 
+    roomMasters = [], 
+    studentFeeLedgers = [], 
+    meetings = [], 
+    schoolEvents = [], 
+    exams = [], 
+    schoolProfile 
+  } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
@@ -615,12 +631,12 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     ...(holidays || []).map(h => ({ date: h.startDate, title: h.name, desc: h.type + ' Holiday', type: 'holiday' }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-  const wardHostel = currentWard ? studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied')) : null;
-  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
-  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
+  const wardHostel = currentWard ? (studentHostels || []).find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied')) : null;
+  const hostelDetails = wardHostel ? (hostelMasters || []).find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
+  const roomDetails = wardHostel ? (roomMasters || []).find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
   // Fee Dues
-  const wardLedger = currentWard ? studentFeeLedgers.find(l => l.studentId === currentWard.id) : null;
+  const wardLedger = currentWard ? (studentFeeLedgers || []).find(l => l.studentId === currentWard.id) : null;
   const dueBalance = wardLedger ? wardLedger.dueBalance : 0;
   const isFeeCleared = dueBalance <= 0;
   const isResidential = currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());

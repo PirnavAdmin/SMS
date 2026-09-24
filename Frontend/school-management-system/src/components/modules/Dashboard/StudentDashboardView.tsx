@@ -10,7 +10,22 @@ interface StudentDashboardViewProps {
 
 export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { students, studentAttendance = [], attendance = [], homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, timetable, subjects, staff, studentFeeLedgers, meetings } = useData();
+  const { 
+    students = [], 
+    studentAttendance = [], 
+    attendance = [], 
+    homework = [], 
+    announcements = [], 
+    holidays = [], 
+    studentHostels = [], 
+    hostelMasters = [], 
+    roomMasters = [], 
+    timetable = [], 
+    subjects = [], 
+    staff = [], 
+    studentFeeLedgers = [], 
+    meetings = [] 
+  } = useData();
   
   const [registryVersion, setRegistryVersion] = React.useState(0);
   React.useEffect(() => {
@@ -248,7 +263,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayName = days[new Date().getDay()] as any;
-  const todaysSchedule = timetable
+  const todaysSchedule = (timetable || [])
     .filter(t => {
       const tClassNorm = norm(t.className);
       const tSecNorm = norm(t.section);
@@ -259,15 +274,15 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     })
     .sort((a,b) => (a.startTime || a.timeSlot || '').localeCompare(b.startTime || b.timeSlot || ''));
 
-  const getSubjectName = (id?: string) => id ? (subjects.find(s => s.id === id)?.name || id) : 'Subject';
+  const getSubjectName = (id?: string) => id ? ((subjects || []).find(s => s.id === id)?.name || id) : 'Subject';
 
   // Hostel
-  const wardHostel = studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied'));
-  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
-  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
+  const wardHostel = (studentHostels || []).find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied'));
+  const hostelDetails = wardHostel ? (hostelMasters || []).find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
+  const roomDetails = wardHostel ? (roomMasters || []).find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
   // Fee Dues
-  const wardLedger = studentFeeLedgers.find(l => l.studentId === currentWard.id);
+  const wardLedger = (studentFeeLedgers || []).find(l => l.studentId === currentWard.id);
   const dueBalance = wardLedger ? wardLedger.dueBalance : 0;
 
   // Notices
