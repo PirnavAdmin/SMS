@@ -1745,13 +1745,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<any>(null);
   const [exams, setExams] = useState<ExamSetup[]>(() => {
     const stored = getStored<ExamSetup[]>("exams", initialExamSetups);
-    return stored.length === 0 ? initialExamSetups : stored;
+    return !stored || stored.length === 0 ? initialExamSetups : stored;
   });
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => {
     const stored = getStored("exam_marks", initialExamMarks);
-    const version = localStorage.getItem("edu_db_full_exam_marks_v60");
+    const version = localStorage.getItem("edu_db_full_exam_marks_v61");
     if (!version || stored.length < initialExamMarks.length) {
-      localStorage.setItem("edu_db_full_exam_marks_v60", "true");
+      localStorage.setItem("edu_db_full_exam_marks_v61", "true");
       localStorage.setItem(
         "edu_db_exam_marks",
         JSON.stringify(initialExamMarks),

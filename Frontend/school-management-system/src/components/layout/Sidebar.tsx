@@ -62,8 +62,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   setCollapsed,
 }) => {
-  const { role = "admin", user } = useAuth();
-  const { schoolProfile, admissions = [], students = [], studentHostels = [], studentTransports = [] } = useData() || {};
+  const authCtx = useAuth() || {};
+  const role = authCtx.role || 'admin';
+  const user = authCtx.user;
+  const safeRole = (role || user?.role || '').toLowerCase();
+  const dataCtx = useData() || {};
+  const schoolProfile = dataCtx.schoolProfile;
+  const admissions = Array.isArray(dataCtx.admissions) ? dataCtx.admissions : [];
+  const students = Array.isArray(dataCtx.students) ? dataCtx.students : [];
+  const studentHostels = Array.isArray(dataCtx.studentHostels) ? dataCtx.studentHostels : [];
+  const studentTransports = Array.isArray(dataCtx.studentTransports) ? dataCtx.studentTransports : [];
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
     return (
       schoolProfile?.logoUrl ||
@@ -116,14 +124,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   let isHosteller = true;
   let usesTransport = true;
 
-  if (role.toLowerCase() === "student" || role.toLowerCase() === "parent") {
+  if (safeRole === "student" || safeRole === "parent") {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userPhone = (user?.phone || '').replace(/\D/g, '');
     const userId = String(user?.id || '').trim();
 
     const matchedStudents = (students || []).filter((s) => {
-      if (s.status !== "Active") return false;
-      if (role.toLowerCase() === "student") {
+      if (!s || s.status !== "Active") return false;
+      if (safeRole === "student") {
         return (
           (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
           (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
@@ -319,7 +327,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ).length;
 
   const financeSubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+    safeRole === "parent" || safeRole === "student"
       ? []
       : [
           {
@@ -345,9 +353,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
 
   const hostelSubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+    safeRole === "parent" || safeRole === "student"
       ? []
-      : role.toLowerCase().includes("warden")
+      : safeRole.includes("warden")
       ? [
           {
             id: "hostel-masters",
@@ -385,7 +393,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
 
   const transportSubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student" || role.toLowerCase() === "driver"
+    safeRole === "parent" || safeRole === "student" || safeRole === "driver"
       ? []
       : [
           {
@@ -418,7 +426,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const librarySubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+    safeRole === "parent" || safeRole === "student"
       ? [
           { id: "library", label: "Digital Library", icon: Library },
         ]
@@ -429,9 +437,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
 
   const staffSubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+    safeRole === "parent" || safeRole === "student"
       ? []
-      : role.toLowerCase() === "driver"
+      : safeRole === "driver"
       ? [
           { id: "driver-profile", label: "My Profile", icon: User },
           {
@@ -442,7 +450,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: "driver-leave", label: "Leave Management", icon: FileText },
           { id: "driver-payslips", label: "My Payslips", icon: IndianRupee },
         ]
-      : role.toLowerCase() === "teacher" || role.toLowerCase().includes("warden") || role.toLowerCase().includes("accountant") || role.toLowerCase() === "finance" || role.toLowerCase().includes("librarian")
+      : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian")
       ? [
           { id: "teacher-profile", label: "My Profile", icon: User },
           {
@@ -466,7 +474,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
 
   const academicSubItems =
-    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+    safeRole === "parent" || safeRole === "student"
       ? []
       : [
           { id: "academic-dashboard", label: "Dashboard", icon: School },
@@ -523,19 +531,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Core Operations",
       items: [
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-        ...(role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' ? [
+        ...(safeRole === 'admin' || safeRole === 'super admin' ? [
           { id: "warden-attendance", label: "Warden Attendance", icon: Clock }
         ] : []),
         {
           id: "staff",
           label:
-            role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+            safeRole === "parent" || safeRole === "student"
               ? "Teachers"
               : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
-                  role.toLowerCase().includes(r)
+                  safeRole.includes(r)
                 ) &&
-                !role.toLowerCase().includes("admin") &&
-                !role.toLowerCase().includes("principal")
+                !safeRole.includes("admin") &&
+                !safeRole.includes("principal")
               ? "My Details"
               : "Faculty & Staff",
           icon: Users,
@@ -546,7 +554,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Student Management",
       items: [
         { id: "admissions", label: "Admissions", icon: GraduationCap },
-        { id: "students", label: role.toLowerCase().includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
+        { id: "students", label: safeRole.includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
         { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
         { id: "academic-history", label: "Academic History", icon: History },
         {
@@ -570,7 +578,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {
           id: "timetable",
           label:
-            role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+            safeRole === "parent" || safeRole === "student"
               ? "Timetable"
               : "Time Table",
           icon: Clock,
@@ -612,7 +620,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ]
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => hasModuleAccess(role, item.id)),
+      items: group.items.filter((item) => hasModuleAccess(role || '', item.id)),
     }))
     .filter((group) => group.items.length > 0 || group.isFinanceSection);
 
@@ -686,17 +694,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const visibleItems = group.items.filter(
             (item: any) => {
               if (item.roles && !item.roles.includes(role || "")) return false;
-              if (role.toLowerCase() === "teacher") {
+              if (safeRole === "teacher") {
                 if (item.id === "examination") {
                   return false;
                 }
               }
-              if (role.toLowerCase() === "parent") {
+              if (safeRole === "parent") {
                 if (item.id === "library" || item.id === "librarian-attendance" || item.id === "library-timetable") {
                   return false;
                 }
               }
-              if (role.toLowerCase() === "student") {
+              if (safeRole === "student") {
                 if (item.id === "librarian-attendance" || item.id === "library-timetable") {
                   return false;
                 }
@@ -707,10 +715,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           const hasCustomModules =
             group.isFinanceSection &&
-            (hasModuleAccess(role, "fees") ||
-              (hasModuleAccess(role, "hostel") && isHosteller) ||
-              (hasModuleAccess(role, "transport") && usesTransport) ||
-              hasModuleAccess(role, "uniforms"));
+            (hasModuleAccess(role || '', "fees") ||
+              (hasModuleAccess(role || '', "hostel") && isHosteller) ||
+              (hasModuleAccess(role || '', "transport") && usesTransport) ||
+              hasModuleAccess(role || '', "uniforms"));
 
           if (visibleItems.length === 0 && !hasCustomModules) return null;
 
@@ -1243,27 +1251,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {visibleItems.map((item) => {
                 if (
                   (item.id === "subjects" || item.id === "timetable") &&
-                  (role.toLowerCase() === "admin" ||
-                    role.toLowerCase() === "super admin" ||
-                    role.toLowerCase() === "principal")
+                  (safeRole === "admin" ||
+                    safeRole === "super admin" ||
+                    safeRole === "principal")
                 ) {
                   return null;
                 }
 
                 if (
                   (item.id === "library" || item.id === "librarian-attendance" || item.id === "library-timetable") &&
-                  (role.toLowerCase() === "admin" ||
-                    role.toLowerCase() === "super admin" ||
-                    role.toLowerCase() === "principal")
+                  (safeRole === "admin" ||
+                    safeRole === "super admin" ||
+                    safeRole === "principal")
                 ) {
                   return null;
                 }
 
                 if (
                   item.id === "academics" &&
-                  (role.toLowerCase() === "admin" ||
-                    role.toLowerCase() === "super admin" ||
-                    role.toLowerCase() === "principal")
+                  (safeRole === "admin" ||
+                    safeRole === "super admin" ||
+                    safeRole === "principal")
                 ) {
                   return (
                     <div key={item.id} className="space-y-1">
@@ -1357,7 +1365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   );
                 }
 
-                if (item.id === "staff" && hasModuleAccess(role, "staff")) {
+                if (item.id === "staff" && hasModuleAccess(role || '', "staff")) {
                   return (
                     <div key={item.id} className="space-y-1">
                       <button
@@ -1372,18 +1380,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                           if (!isStaffActive) {
                             if (
-                              role.toLowerCase() === "parent" ||
-                              role.toLowerCase() === "student"
+                              safeRole === "parent" ||
+                              safeRole === "student"
                             ) {
                               setActiveModule("parent-teacher-info");
-                            } else if (role.toLowerCase() === "driver") {
+                            } else if (safeRole === "driver") {
                               setActiveModule("driver-profile");
                             } else if (
-                              role.toLowerCase() === "teacher" ||
-                              role.toLowerCase().includes("warden") ||
-                              role.toLowerCase().includes("librarian") ||
-                              role.toLowerCase().includes("accountant") ||
-                              role.toLowerCase() === "finance"
+                              safeRole === "teacher" ||
+                              safeRole.includes("warden") ||
+                              safeRole.includes("librarian") ||
+                              safeRole.includes("accountant") ||
+                              safeRole === "finance"
                             ) {
                               setActiveModule("teacher-profile");
                             } else {
@@ -1407,14 +1415,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           />
                           {!collapsed && (
                             <span className="font-bold">
-                              {role.toLowerCase() === "parent" ||
-                              role.toLowerCase() === "student"
+                              {safeRole === "parent" ||
+                              safeRole === "student"
                                 ? "Teachers"
                                 : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
-                                    role.toLowerCase().includes(r)
+                                    safeRole.includes(r)
                                   ) &&
-                                  !role.toLowerCase().includes("admin") &&
-                                  !role.toLowerCase().includes("principal")
+                                  !safeRole.includes("admin") &&
+                                  !safeRole.includes("principal")
                                 ? "My Details"
                                 : "Faculty & Staff"}
                             </span>

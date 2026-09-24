@@ -21,17 +21,17 @@ export function generateReportCardHtml(
 
     return `
       <tr style="border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 10px 14px; font-weight: 700; color: #1e293b;">
+        <td style="padding: 7px 12px; font-weight: 700; color: #1e293b;">
           ${sub.subject}
-          <span style="display: block; font-size: 10px; color: #64748b; font-family: monospace;">${subCode}</span>
+          <span style="display: block; font-size: 9.5px; color: #64748b; font-family: monospace;">${subCode}</span>
         </td>
-        <td style="padding: 10px 14px; text-align: center; font-family: monospace; font-weight: 700; color: #475569;">${sub.maxMarks || 100}</td>
-        <td style="padding: 10px 14px; text-align: center; font-family: monospace; font-weight: 800; color: ${isAbsent ? '#ef4444' : '#0f172a'};">
+        <td style="padding: 7px 12px; text-align: center; font-family: monospace; font-weight: 700; color: #475569;">${sub.maxMarks || 100}</td>
+        <td style="padding: 7px 12px; text-align: center; font-family: monospace; font-weight: 800; color: ${isAbsent ? '#ef4444' : '#0f172a'};">
           ${sub.obtainedMarks}
         </td>
-        <td style="padding: 10px 14px; text-align: center; font-weight: 800; color: #4f46e5;">${sub.grade || '—'}</td>
-        <td style="padding: 10px 14px; text-align: center;">
-          <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; background-color: ${isPass ? '#dcfce7' : '#fee2e2'}; color: ${isPass ? '#166534' : '#991b1b'};">
+        <td style="padding: 7px 12px; text-align: center; font-weight: 800; color: #4f46e5;">${sub.grade || '—'}</td>
+        <td style="padding: 7px 12px; text-align: center;">
+          <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; background-color: ${isPass ? '#dcfce7' : '#fee2e2'}; color: ${isPass ? '#166534' : '#991b1b'};">
             ${isAbsent ? 'Absent' : isPass ? 'Pass' : 'Fail'}
           </span>
         </td>
@@ -40,50 +40,49 @@ export function generateReportCardHtml(
   }).join('');
 
   return `
-    <div class="report-card-container" style="max-width: 800px; margin: 0 auto 30px auto; border: 2px solid #0284c7; border-radius: 16px; padding: 24px; background: #ffffff; page-break-after: always;">
+    <div class="report-card-container" style="max-width: 760px; margin: 0 auto; border: 2px solid #0284c7; border-radius: 14px; padding: 18px 20px; background: #ffffff; text-align: center;">
       <!-- Header -->
-        <div style="display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px;">
-          ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="width: 55px; height: 55px; border-radius: 10px; object-fit: contain;" alt="Logo" />` : ''}
-          <div style="text-align: left;">
-            <div style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1;">${schoolName}</div>
-            <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 2px;">${schoolAddress} ${schoolContact ? `• ${schoolContact}` : ''}</div>
-          </div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 4px;">
+        ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: contain;" alt="Logo" />` : ''}
+        <div style="text-align: left;">
+          <div style="font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1; line-height: 1.1;">${schoolName}</div>
+          <div style="font-size: 10.5px; font-weight: 600; color: #64748b; margin-top: 2px;">${schoolAddress} ${schoolContact ? `• ${schoolContact}` : ''}</div>
         </div>
-        <div style="margin-top: 10px; display: inline-block; background: #0f172a; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 4px 16px; border-radius: 9999px;">
-          Student Progress Report Card
-        </div>
-        <div style="font-size: 12px; font-weight: 800; color: #0284c7; margin-top: 6px; text-transform: uppercase;">${examName} • Academic Session ${academicYear}</div>
       </div>
+      <div style="margin-top: 6px; display: inline-block; background: #0f172a; color: #ffffff; font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 3px 14px; border-radius: 9999px;">
+        Student Progress Report Card
+      </div>
+      <div style="font-size: 11px; font-weight: 800; color: #0284c7; margin-top: 4px; margin-bottom: 12px; text-transform: uppercase;">${examName} • Academic Session ${academicYear}</div>
 
       <!-- Student Details -->
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 20px; font-size: 11px;">
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; font-size: 10.5px; text-align: left;">
         <div>
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 2px;">Student Name</label>
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 1px;">Student Name</label>
           <span style="font-weight: 800; color: #0f172a;">${data.studentName}</span>
         </div>
         <div>
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 2px;">Roll Number</label>
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 1px;">Roll Number</label>
           <span style="font-weight: 800; color: #0f172a; font-family: monospace;">${data.rollNo || 'N/A'}</span>
         </div>
         <div>
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 2px;">Admission No.</label>
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 1px;">Admission No.</label>
           <span style="font-weight: 800; color: #0f172a; font-family: monospace;">${data.admissionNo}</span>
         </div>
         <div>
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 2px;">Class & Section</label>
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 1px;">Class & Section</label>
           <span style="font-weight: 800; color: #0f172a;">${data.className} - ${data.section}</span>
         </div>
       </div>
 
       <!-- Scholastic Performance Table -->
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; text-align: left;">
         <thead>
-          <tr style="background: #f1f5f9; color: #475569; font-weight: 800; font-size: 10px; text-transform: uppercase;">
-            <th style="text-align: left; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Subject</th>
-            <th style="text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Maximum Marks</th>
-            <th style="text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Obtained Marks</th>
-            <th style="text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Grade</th>
-            <th style="text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Result</th>
+          <tr style="background: #f1f5f9; color: #475569; font-weight: 800; font-size: 9.5px; text-transform: uppercase;">
+            <th style="text-align: left; padding: 8px 12px; border-bottom: 2px solid #cbd5e1;">Subject</th>
+            <th style="text-align: center; padding: 8px 12px; border-bottom: 2px solid #cbd5e1;">Maximum Marks</th>
+            <th style="text-align: center; padding: 8px 12px; border-bottom: 2px solid #cbd5e1;">Obtained Marks</th>
+            <th style="text-align: center; padding: 8px 12px; border-bottom: 2px solid #cbd5e1;">Grade</th>
+            <th style="text-align: center; padding: 8px 12px; border-bottom: 2px solid #cbd5e1;">Result</th>
           </tr>
         </thead>
         <tbody>
@@ -92,42 +91,42 @@ export function generateReportCardHtml(
       </table>
 
       <!-- Summary Totals -->
-      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 24px;">
-        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 8px; padding: 8px 4px;">
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 2px;">Total Marks</label>
-          <div style="font-size: 14px; font-weight: 900; color: #0f172a;">${data.totalObtainedMarks} / ${data.totalMaxMarks}</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 8px; text-align: center; margin-bottom: 16px;">
+        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Total Marks</label>
+          <div style="font-size: 12.5px; font-weight: 900; color: #0f172a;">${data.totalObtainedMarks} / ${data.totalMaxMarks}</div>
         </div>
-        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 8px; padding: 8px 4px;">
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 2px;">Percentage</label>
-          <div style="font-size: 14px; font-weight: 900; color: #0284c7;">${data.percentage.toFixed(1)}%</div>
+        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Percentage</label>
+          <div style="font-size: 12.5px; font-weight: 900; color: #0284c7;">${data.percentage.toFixed(1)}%</div>
         </div>
-        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 8px; padding: 8px 4px;">
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 2px;">Overall Grade</label>
-          <div style="font-size: 14px; font-weight: 900; color: #4f46e5;">${data.finalGrade}</div>
+        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Overall Grade</label>
+          <div style="font-size: 12.5px; font-weight: 900; color: #4f46e5;">${data.finalGrade}</div>
         </div>
-        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 8px; padding: 8px 4px;">
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 2px;">Class Rank</label>
-          <div style="font-size: 14px; font-weight: 900; color: #d97706;">#${data.rank}</div>
+        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Class Rank</label>
+          <div style="font-size: 12.5px; font-weight: 900; color: #d97706;">#${data.rank}</div>
         </div>
-        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 8px; padding: 8px 4px;">
-          <label style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 2px;">Final Status</label>
-          <div style="font-size: 14px; font-weight: 900; color: ${data.passStatus === 'Pass' ? '#166534' : '#991b1b'};">${data.passStatus}</div>
+        <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
+          <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Final Status</label>
+          <div style="font-size: 12.5px; font-weight: 900; color: ${data.passStatus === 'Pass' ? '#166534' : '#991b1b'};">${data.passStatus}</div>
         </div>
       </div>
 
       <!-- Signature Footer -->
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; padding-top: 24px; margin-top: 10px;">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center; padding-top: 14px;">
         <div>
-          <div style="height: 35px;"></div>
-          <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 800; color: #475569;">Class Teacher Signature</div>
+          <div style="height: 28px;"></div>
+          <div style="border-top: 1px solid #94a3b8; padding-top: 4px; font-size: 10px; font-weight: 800; color: #475569;">Class Teacher Signature</div>
         </div>
         <div>
-          <div style="height: 35px;"></div>
-          <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 800; color: #475569;">Exam Coordinator</div>
+          <div style="height: 28px;"></div>
+          <div style="border-top: 1px solid #94a3b8; padding-top: 4px; font-size: 10px; font-weight: 800; color: #475569;">Exam Coordinator</div>
         </div>
         <div>
-          <div style="height: 35px;"></div>
-          <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 800; color: #475569;">Principal / Head of Institution</div>
+          <div style="height: 28px;"></div>
+          <div style="border-top: 1px solid #94a3b8; padding-top: 4px; font-size: 10px; font-weight: 800; color: #475569;">Principal / Head of Institution</div>
         </div>
       </div>
     </div>
@@ -143,8 +142,8 @@ export function generateFullDocumentHtml(bodyContent: string): string {
       <title>Student Report Cards</title>
       <style>
         @page {
-          size: portrait;
-          margin: 10mm;
+          size: A4 portrait;
+          margin: 8mm 6mm;
         }
         * {
           box-sizing: border-box;
@@ -155,9 +154,18 @@ export function generateFullDocumentHtml(bodyContent: string): string {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           background: #ffffff;
           color: #0f172a;
-          padding: 16px;
+          padding: 4px;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
+        }
+        .report-card-container {
+          box-shadow: none !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .report-card-container:not(:last-child) {
+          page-break-after: always !important;
+          break-after: page !important;
         }
       </style>
     </head>

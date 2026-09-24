@@ -22,32 +22,7 @@ interface OutpassRecord {
 
 const OUTPASSES_STORE_KEY = 'edu_db_hostel_outpasses';
 
-const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [
-  {
-    id: 1,
-    studentName: 'Rajesh Kumar',
-    admissionNo: 'ADM-2026-101',
-    hostelName: 'Ramachandra Bhavan Block',
-    roomNumber: '101',
-    outpassType: 'Home Leave',
-    departureDate: '2026-08-15',
-    returnDate: '2026-08-18',
-    reason: 'Family function visit',
-    status: 'Approved'
-  },
-  {
-    id: 2,
-    studentName: 'Ananya Roy',
-    admissionNo: 'ADM-2026-106',
-    hostelName: 'Girls Block A',
-    roomNumber: 'G-101',
-    outpassType: 'Local Outpass',
-    departureDate: '2026-08-17',
-    returnDate: '2026-08-17',
-    reason: 'Medical checkup',
-    status: 'Pending'
-  }
-];
+const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [];
 
 export const HostelOutpassLeaveView: React.FC = () => {
   const { students } = useData();
@@ -274,7 +249,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
     const selectedSt = (displayStudentsList as any[]).find(s => String(s.id) === selectedStudentId) ||
                        (students as any[]).find(s => String(s.id) === selectedStudentId);
 
-    const defaultBlockName = wardenAssignedBlocks[0]?.hostelName || 'Ramachandra Bhavan Block';
+    const defaultBlockName = wardenAssignedBlocks[0]?.hostelName || 'Hostel Block';
 
     const newRecord: OutpassRecord = {
       id: Date.now(),

@@ -6,7 +6,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { useAuth } from '../../../context/AuthContext';
-import { getAllocations, createAllocation, vacateAllocation, getRooms, getHostelBlocks, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
+import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
 
 const StudentInlineCombobox: React.FC<{
   students: any[];
@@ -249,23 +249,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
       }
     });
 
-    // Fallback default list if no students exist in DataContext yet
-    if (map.size === 0) {
-      const defaults = [
-        { id: "STF-2026-0001", name: "Rajesh Kumar", className: "Class 10", section: "A", admissionNo: "ADM-2026-101", isResidential: true, studentType: "Residential" },
-        { id: "STF-2026-0002", name: "Surya Teja", className: "Class 10", section: "A", admissionNo: "ADM-2026-102", isResidential: true, studentType: "Residential" },
-        { id: "STF-2026-0003", name: "Dhanush Y", className: "Class 10", section: "B", admissionNo: "ADM-2026-103", isResidential: true, studentType: "Residential" },
-        { id: "STF-2026-0004", name: "Bhanuprakash P", className: "Class 10", section: "B", admissionNo: "ADM-2026-104", isResidential: false, studentType: "Day Scholar" },
-        { id: "STF-2026-0005", name: "Saranya Ch", className: "Class 9", section: "A", admissionNo: "ADM-2026-105", isResidential: false, studentType: "Day Scholar" },
-        { id: "STF-2026-0006", name: "Ananya Roy", className: "Class 9", section: "B", admissionNo: "ADM-2026-106", isResidential: true, studentType: "Residential" },
-        { id: "STF-2026-0007", name: "Sundharam Padala", className: "Class 10", section: "A", admissionNo: "ADM-2026-107", isResidential: true, studentType: "Residential" }
-      ];
-      defaults.forEach(d => map.set(d.id, d));
-    }
-
+    // No hardcoded fallback list - use only actual students
     const list = Array.from(map.values());
     
-    const activeAllocs = (allocations || []).filter(a => a && (a.status === 'Active' || !a.status));
+    const activeAllocs = (allocations || []).filter(a => a && a.status !== 'Vacated' && a.status !== 'Inactive' && (a.status === 'Active' || !a.status));
 
     list.forEach((st: any) => {
       const sId = String(st.id || '').toLowerCase().trim();
@@ -381,11 +368,19 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
     try {
       setIsSubmitting(true);
+      const selectedSt = candidateStudents.find(s => String(s.id) === String(selectedStudentId));
+      const selectedBlk = blocks.find(b => String(b.hostelId || (b as any).id) === String(selectedHostelId));
+      const selectedRm = rooms.find(r => String(r.roomId || (r as any).id) === String(selectedRoomId));
+
       const payload = {
         studentId: String(selectedStudentId),
+        studentName: selectedSt?.name || 'Student',
+        admissionNo: selectedSt?.admissionNo || `ADM-${selectedStudentId}`,
         hostelId: Number(selectedHostelId),
+        hostelName: selectedBlk?.hostelName || (selectedBlk as any)?.name || 'Hostel Block',
         roomId: Number(selectedRoomId),
-        bedNumber: selectedBedNo,
+        roomNumber: selectedRm?.roomNumber || '101',
+        bedNumber: selectedBedNo || 'BED-1',
         joiningDate: joiningDate || new Date().toISOString().split('T')[0],
         status: 'Active'
       };
@@ -404,9 +399,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const handleVacate = async (a: BedAllocation) => {
     try {
-      await vacateAllocation(Number(a.allocationId));
+      await vacateStudentAllocation(a.studentId, a.admissionNo, a.allocationId);
       addToast('success', 'Room Vacated', 'The bed allocation has been vacated.');
       fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('residential_students_updated'));
+        window.dispatchEvent(new Event('students_updated'));
+      }
     } catch (error: any) {
       addToast('error', 'Failed to vacate', error?.message || 'Vacate error');
     }
@@ -414,25 +413,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const [viewStudentModal, setViewStudentModal] = useState<BedAllocation | null>(null);
 
-  // Filter active bed allocations and unallocated students so ONLY Residential/Hostel opt-in students appear
+  // Filter active bed allocations and unallocated students
   const safeAllocations = (Array.isArray(allocations) ? allocations : []).filter(a => {
-    if (!a) return false;
-    const matchingStudent = (students || []).find(s => s && (s.id?.toString() === a.studentId?.toString() || s.admissionNo === a.admissionNo));
-    if (matchingStudent) {
-      const isHosteller =
-        matchingStudent.studentType === 'Hosteller' ||
-        matchingStudent.studentType === 'Residential' ||
-        (matchingStudent.studentType as any) === 'Boarder' ||
-        (matchingStudent as any).isHostelRequired === true ||
-        (matchingStudent as any).facilityOpted === 'Hostel';
-      return isHosteller;
-    }
-    // If allocation exists with valid hostelName & roomNumber, keep it if non-default
-    return a.hostelName && a.hostelName !== 'N/A';
+    return a && a.status !== 'Vacated' && a.status !== 'Inactive';
   });
 
   const unallocatedAdmittedHostellers = (candidateStudents || []).filter(s =>
-    s && s.isResidential && !safeAllocations.some(a => a && (a.studentId?.toString() === s.id?.toString() || a.admissionNo === s.admissionNo))
+    s && s.isResidential && s.studentType !== 'Day Scholar' && !safeAllocations.some(a => a && (a.studentId?.toString() === s.id?.toString() || a.admissionNo === s.admissionNo))
   );
 
   const combinedAssignmentsList = [
@@ -490,7 +477,15 @@ export const StudentHostelAssignmentView: React.FC = () => {
     const matchQuery = (a.studentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (a.admissionNo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (a.roomNumber || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchHostel = filterHostel === 'All' || !filterHostel || (a.hostelId && a.hostelId.toString() === filterHostel) || a.isPendingAdmitted;
+
+    const selectedFilterBlock = blocks.find(b => String(b.hostelId || (b as any).id) === String(filterHostel));
+    const matchHostel =
+      filterHostel === 'All' ||
+      !filterHostel ||
+      a.isPendingAdmitted ||
+      (a.hostelId && String(a.hostelId) === String(filterHostel)) ||
+      (selectedFilterBlock && a.hostelName && a.hostelName.toLowerCase().trim() === selectedFilterBlock.hostelName.toLowerCase().trim());
+
     const matchFloor = filterFloor === 'All Floors' || !filterFloor || ((a as any).floorLevel && (a as any).floorLevel.toLowerCase() === filterFloor.toLowerCase()) || a.isPendingAdmitted;
     const matchRoom = filterRoom === 'All Rooms' || !filterRoom || (a.roomNumber && `Room #${a.roomNumber}` === filterRoom) || a.isPendingAdmitted;
 
