@@ -38,23 +38,43 @@ const formatTripTime = (value?: string) => {
   return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
 };
 
-const resolveAttendant = (assignment?: VehicleAssignment, busAttendants: any[] = []) => {
+const resolveAttendant = (assignment?: VehicleAssignment, busAttendants: any[] = [], staff: any[] = []) => {
   if (!assignment) {
     return { name: 'Unassigned', mobile: '', id: '' };
   }
 
-  const attendant = busAttendants.find(a =>
-    a.id === assignment.attendantId ||
-    a.attendantName === assignment.attendantName
-  ) || initialBusAttendants.find(a =>
-    a.id === assignment.attendantId ||
-    a.attendantName === assignment.attendantName
+  const attendantFromMaster = busAttendants.find(a =>
+    (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+    (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
   );
 
+  const attendantFromStaff = !attendantFromMaster ? staff.find(s => {
+    const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+    const sEmpId = (s.empId || s.employeeId || '').toLowerCase();
+    const sId = String(s.id).toLowerCase();
+    const targetAttId = String(assignment.attendantId || '').toLowerCase();
+    const targetAttName = String(assignment.attendantName || '').trim().toLowerCase();
+
+    return (
+      (targetAttId && (sId === targetAttId || sEmpId === targetAttId || `staff-${sId}` === targetAttId)) ||
+      (targetAttName && (sFullName === targetAttName || (sEmpId && sEmpId === targetAttName)))
+    );
+  }) : null;
+
+  const name = (assignment.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
+    ? assignment.attendantName
+    : (attendantFromMaster?.attendantName || (attendantFromStaff ? `${attendantFromStaff.firstName} ${attendantFromStaff.lastName || ''}`.trim() : 'Unassigned'));
+
+  const mobile = assignment.attendantMobile ||
+    attendantFromMaster?.mobileNumber ||
+    attendantFromStaff?.phone ||
+    (attendantFromStaff as any)?.mobileNumber ||
+    '';
+
   return {
-    id: attendant?.id || assignment.attendantId || '',
-    name: assignment.attendantName || attendant?.attendantName || 'Unassigned',
-    mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
+    id: attendantFromMaster?.id || attendantFromStaff?.id || assignment.attendantId || '',
+    name,
+    mobile
   };
 };
 
@@ -72,7 +92,8 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
     pickupPoints,
     studentTransports,
     students,
-    busAttendants
+    busAttendants,
+    staff = []
   } = useData();
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
@@ -117,7 +138,7 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
       (r.id && (vehicle as any).routeId && r.id.toString() === (vehicle as any).routeId.toString()) ||
       (r.routeName && (vehicle as any).routeName && r.routeName.trim().toLowerCase() === (vehicle as any).routeName.trim().toLowerCase())
     );
-    const attendant = resolveAttendant(assignment, busAttendants);
+    const attendant = resolveAttendant(assignment, busAttendants, staff);
 
     // 1. Fetch all configured pickup points for this route dynamically
     const configuredStops = pickupPoints

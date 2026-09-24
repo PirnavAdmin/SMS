@@ -273,9 +273,20 @@ namespace SMS.Api.Repositories.Implementations
                 if (byId != null) return byId;
             }
 
+            if (search.Contains('-'))
+            {
+                var parts = search.Split('-');
+                if (parts.Length > 1 && long.TryParse(parts[1], out long parsedId))
+                {
+                    var byId = await GetByIdAsync(parsedId);
+                    if (byId != null) return byId;
+                }
+            }
+
             var driver = await _context.TransportDrivers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (x.EmployeeId != null && x.EmployeeId.ToLower() == search.ToLower()) ||
                     (x.LicenceNumber != null && x.LicenceNumber.ToLower() == search.ToLower()) ||
                     (x.DriverName != null && x.DriverName.ToLower() == search.ToLower()) ||
                     (x.MobileNumber != null && x.MobileNumber.ToLower() == search.ToLower()) ||

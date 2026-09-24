@@ -3795,29 +3795,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: normalizeStatus(d.status),
           }));
 
-          const localStoredDrivers: DriverMaster[] = JSON.parse(
-            localStorage.getItem("edu_db_driver_masters") || "[]",
-          );
-          const mergedDriversMap = new Map<string, DriverMaster>();
-          localStoredDrivers.forEach((d) => {
-            if (d && d.driverName) {
-              mergedDriversMap.set(
-                String(d.id || d.driverName).toLowerCase(),
-                d,
-              );
-            }
-          });
-          mappedDrivers.forEach((d: DriverMaster) => {
-            if (d && d.driverName) {
-              const key = String(d.id || d.driverName).toLowerCase();
-              mergedDriversMap.set(key, { ...mergedDriversMap.get(key), ...d });
-            }
-          });
-          const finalDrivers = Array.from(mergedDriversMap.values());
-          setDriverMasters(finalDrivers);
+          setDriverMasters(mappedDrivers);
           localStorage.setItem(
             "edu_db_driver_masters",
-            JSON.stringify(finalDrivers),
+            JSON.stringify(mappedDrivers),
           );
         }
         if (assignments) {
@@ -14955,7 +14936,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       // Find all assignments referencing this driver and delete them from the backend
       const assignmentsToDelete = vehicleAssignments.filter(
-        (a) => a.driverId === id,
+        (a) => String(a.driverId) === String(id) || (a.driverName && a.driverName.toLowerCase() === id.toLowerCase()),
       );
       for (const a of assignmentsToDelete) {
         try {
@@ -14969,10 +14950,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       await TransportAPI.deleteDriverApi(id);
-      setDriverMasters((prev) => prev.filter((d) => d.id !== id));
+
+      setDriverMasters((prev) => {
+        const next = prev.filter(
+          (d) =>
+            String(d.id) !== String(id) &&
+            d.employeeId?.toLowerCase() !== id.toLowerCase() &&
+            d.driverName?.toLowerCase() !== id.toLowerCase(),
+        );
+        localStorage.setItem("edu_db_driver_masters", JSON.stringify(next));
+        return next;
+      });
+
       setVehicleAssignments((prev) =>
         prev.map((a) =>
-          a.driverId === id
+          String(a.driverId) === String(id)
             ? {
                 ...a,
                 driverId: "",
@@ -14982,6 +14974,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : a,
         ),
       );
+      addToast("success", "Driver Deleted", "Driver has been successfully deleted.");
     } catch (err: any) {
       addToast(
         "error",
