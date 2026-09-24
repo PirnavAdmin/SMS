@@ -37,7 +37,8 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   const handleNavigate = (tab: string) => {
     const clean = getCleanTab(tab);
     setActiveTab(clean);
-    if (onTabChange) onTabChange(tab);
+    const fullModule = tab.startsWith('hostel-') ? tab : `hostel-${clean}`;
+    if (onTabChange) onTabChange(fullModule);
   };
 
   const navTabs = [

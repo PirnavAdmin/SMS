@@ -30,6 +30,7 @@ const formatTripTime = (value?: string) => {
 export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps }) => {
   const {
     students = [],
+    staff = [],
     vehicleAssignments = [],
     vehicleMasters = [],
     driverMasters = [],
@@ -48,19 +49,68 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
 
   const hasFilterSelection = filterRoute !== '' || searchQuery.trim() !== '';
 
-  const resolveAttendant = (assignment: VehicleAssignment) => {
-    const attendant = busAttendants.find(a =>
-      a.id === assignment.attendantId ||
-      a.attendantName === assignment.attendantName
-    ) || initialBusAttendants.find(a =>
-      a.id === assignment.attendantId ||
-      a.attendantName === assignment.attendantName
+  const resolveDriver = (assignment: VehicleAssignment) => {
+    const driverFromMaster = driverMasters.find(d =>
+      (assignment.driverId && (String(d.id) === String(assignment.driverId) || d.employeeId === assignment.driverId)) ||
+      (assignment.driverName && d.driverName?.trim().toLowerCase() === assignment.driverName?.trim().toLowerCase())
     );
 
-    return {
-      name: assignment.attendantName || attendant?.attendantName || 'Unassigned',
-      mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
-    };
+    const driverFromStaff = !driverFromMaster ? staff.find(s => {
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+      const sId = String(s.id).toLowerCase();
+      const targetDrvId = String(assignment.driverId || '').toLowerCase();
+      const targetDrvName = String(assignment.driverName || '').trim().toLowerCase();
+
+      return (
+        (targetDrvId && (sId === targetDrvId || sEmpId === targetDrvId || `staff-${sId}` === targetDrvId)) ||
+        (targetDrvName && (sFullName === targetDrvName || (sEmpId && sEmpId === targetDrvName)))
+      );
+    }) : null;
+
+    const name = (assignment.driverName && assignment.driverName.toUpperCase() !== 'UNASSIGNED' && assignment.driverName.trim() !== '')
+      ? assignment.driverName
+      : (driverFromMaster?.driverName || (driverFromStaff ? `${driverFromStaff.firstName} ${driverFromStaff.lastName || ''}`.trim() : 'Unassigned'));
+
+    const mobile = assignment.driverMobile ||
+      driverFromMaster?.mobileNumber ||
+      driverFromStaff?.phone ||
+      (driverFromStaff as any)?.mobileNumber ||
+      '';
+
+    return { name, mobile };
+  };
+
+  const resolveAttendant = (assignment: VehicleAssignment) => {
+    const attendantFromMaster = busAttendants.find(a =>
+      (assignment.attendantId && (String(a.id) === String(assignment.attendantId) || a.employeeId === assignment.attendantId)) ||
+      (assignment.attendantName && a.attendantName?.trim().toLowerCase() === assignment.attendantName?.trim().toLowerCase())
+    );
+
+    const attendantFromStaff = !attendantFromMaster ? staff.find(s => {
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+      const sId = String(s.id).toLowerCase();
+      const targetAttId = String(assignment.attendantId || '').toLowerCase();
+      const targetAttName = String(assignment.attendantName || '').trim().toLowerCase();
+
+      return (
+        (targetAttId && (sId === targetAttId || sEmpId === targetAttId || `staff-${sId}` === targetAttId)) ||
+        (targetAttName && (sFullName === targetAttName || (sEmpId && sEmpId === targetAttName)))
+      );
+    }) : null;
+
+    const name = (assignment.attendantName && assignment.attendantName.toUpperCase() !== 'UNASSIGNED' && assignment.attendantName.trim() !== '')
+      ? assignment.attendantName
+      : (attendantFromMaster?.attendantName || (attendantFromStaff ? `${attendantFromStaff.firstName} ${attendantFromStaff.lastName || ''}`.trim() : 'Unassigned'));
+
+    const mobile = assignment.attendantMobile ||
+      attendantFromMaster?.mobileNumber ||
+      attendantFromStaff?.phone ||
+      (attendantFromStaff as any)?.mobileNumber ||
+      '';
+
+    return { name, mobile };
   };
 
   const handleOpenTripDetails = (assignment: VehicleAssignment) => {
@@ -301,10 +351,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
             (assignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === assignment.vehicleNumber.trim().toUpperCase())
           ) || vehicleMasters.find(v => v.vehicleNumber === assignment.vehicleNumber);
 
-          const driver = driverMasters.find(d => 
-            (assignment.driverId && String(d.id).trim() === String(assignment.driverId).trim()) || 
-            (assignment.driverName && d.driverName && d.driverName.trim().toLowerCase() === assignment.driverName.trim().toLowerCase())
-          );
+          const driver = resolveDriver(assignment);
 
           const route = routeMasters.find(r => 
             (assignment.routeId && String(r.id).trim() === String(assignment.routeId).trim()) || 
@@ -380,9 +427,9 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-sky-500" /> Commercial Driver
                   </span>
-                  <p className="font-bold text-slate-900 dark:text-white">{driver?.driverName || assignment.driverName || 'Unassigned'}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{driver.name || 'Unassigned'}</p>
                   <p className="text-[11px] text-sky-600 dark:text-sky-400 font-mono font-bold flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> {driver?.mobileNumber || assignment.driverMobile || '+91-9878645565'}
+                    <Phone className="w-3 h-3" /> {driver.mobile || 'N/A'}
                   </p>
                 </div>
 

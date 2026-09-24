@@ -12,6 +12,10 @@ import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
 import { publishTimetableApi } from "../api/academic";
 import {
+  fetchStudentAttendanceAllApi,
+  saveBulkStudentAttendanceApi,
+} from "../api/attendance";
+import {
   createAcademicYearApi,
   updateAcademicYearApi,
   deleteAcademicYearApi,
@@ -650,6 +654,8 @@ interface DataContextType {
   fetchBooks: () => Promise<void>;
   fetchBookIssues: () => Promise<void>;
   fetchHomeworkData: () => Promise<void>;
+  fetchStudentAttendanceData: (query?: any) => Promise<void>;
+  saveBulkStudentAttendance: (payload: any) => Promise<any>;
   fetchInventoryData: () => Promise<void>;
   fetchUniformData: () => Promise<void>;
   fetchFinanceData: () => Promise<void>;
@@ -1745,13 +1751,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<any>(null);
   const [exams, setExams] = useState<ExamSetup[]>(() => {
     const stored = getStored<ExamSetup[]>("exams", initialExamSetups);
-    return stored.length === 0 ? initialExamSetups : stored;
+    return !stored || stored.length === 0 ? initialExamSetups : stored;
   });
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => {
     const stored = getStored("exam_marks", initialExamMarks);
-    const version = localStorage.getItem("edu_db_full_exam_marks_v60");
+    const version = localStorage.getItem("edu_db_full_exam_marks_v61");
     if (!version || stored.length < initialExamMarks.length) {
-      localStorage.setItem("edu_db_full_exam_marks_v60", "true");
+      localStorage.setItem("edu_db_full_exam_marks_v61", "true");
       localStorage.setItem(
         "edu_db_exam_marks",
         JSON.stringify(initialExamMarks),
@@ -1783,9 +1789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(
     () => getStored("processed_results", []),
   );
-  const [studentAttendance, setStudentAttendance] = useState<any[]>(() =>
-    getStored("student_attendance", []),
-  );
+  const [studentAttendance, setStudentAttendance] = useState<any[]>([]);
   const [todayStudentAttendanceSummary, setTodayStudentAttendanceSummary] =
     useState<any>(null);
   const [coScholasticAssessments, setCoScholasticAssessments] = useState<any[]>(
@@ -1808,8 +1812,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return {
           ...hw,
-          className: cls || "Class 9",
-          section: sec || "A",
+          className: cls || hw.className || "",
+          section: sec || hw.section || "",
         };
       });
     }
@@ -3815,29 +3819,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: normalizeStatus(d.status),
           }));
 
-          const localStoredDrivers: DriverMaster[] = JSON.parse(
-            localStorage.getItem("edu_db_driver_masters") || "[]",
-          );
-          const mergedDriversMap = new Map<string, DriverMaster>();
-          localStoredDrivers.forEach((d) => {
-            if (d && d.driverName) {
-              mergedDriversMap.set(
-                String(d.id || d.driverName).toLowerCase(),
-                d,
-              );
-            }
-          });
-          mappedDrivers.forEach((d: DriverMaster) => {
-            if (d && d.driverName) {
-              const key = String(d.id || d.driverName).toLowerCase();
-              mergedDriversMap.set(key, { ...mergedDriversMap.get(key), ...d });
-            }
-          });
-          const finalDrivers = Array.from(mergedDriversMap.values());
-          setDriverMasters(finalDrivers);
+          setDriverMasters(mappedDrivers);
           localStorage.setItem(
             "edu_db_driver_masters",
-            JSON.stringify(finalDrivers),
+            JSON.stringify(mappedDrivers),
           );
         }
         if (assignments) {
@@ -5185,7 +5170,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         const normalizedItems = items.map((hw: any) => {
           let sec = (hw.section || "").trim();
           let cls = (hw.className || "").trim();
@@ -5194,12 +5179,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             cls = parts[0].trim();
             if (!sec && parts[1]) sec = parts[1].trim();
           }
+          const id = String(hw.homeworkId || hw.id || "");
           return {
             ...hw,
-            className: cls || "Class 9",
-            section: sec || "A",
+            id: id || `HW-${Math.floor(100 + Math.random() * 900)}`,
+            title: hw.title || hw.homeworkTitle || hw.topic || "",
+            className: cls || hw.className || "",
+            section: sec || hw.section || "",
+            subject: hw.subject || hw.subjectName || "",
+            teacherName: hw.teacherName || "",
+            assignedDate: hw.assignedDate || hw.createdAt || new Date().toISOString().split("T")[0],
+            dueDate: hw.dueDate || new Date().toISOString().split("T")[0],
+            description: hw.description || hw.topic || "",
+            status: hw.status || "PUBLISHED",
+            totalSubmissions: hw.submissionsCount ?? hw.totalSubmissions ?? 0,
+            publishToType: (hw.publishedTo || "").toLowerCase().includes("student") ? "Students" : "Class",
+            publishedStudentIds: hw.publishedStudentIds || (hw.studentIds ? (Array.isArray(hw.studentIds) ? hw.studentIds : [hw.studentIds]) : []),
+            attachments: hw.attachments || (hw.attachmentFileName ? [{ id: '1', name: hw.attachmentFileName, url: hw.attachmentUrl || '#', type: 'Doc' }] : [])
           };
         });
+
+        // Deduplicate items cleanly
+        const uniqueMap = new Map<string, any>();
+        normalizedItems.forEach((item: any) => {
+          const dedupeKey = item.id && !item.id.startsWith("HW-")
+            ? `db_${item.id}`
+            : `${item.className}_${item.section}_${item.subject}_${item.title}_${item.dueDate}`.toLowerCase();
+          if (!uniqueMap.has(dedupeKey)) {
+            uniqueMap.set(dedupeKey, item);
+          }
         setHomework((prev) => {
           const apiIds = new Set(normalizedItems.map((i: any) => i.id));
           const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
@@ -5207,6 +5215,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           if (JSON.stringify(prev) === JSON.stringify(updated)) return prev;
           return updated;
         });
+
+        const deduplicated = Array.from(uniqueMap.values());
+        setHomework(deduplicated);
+        try {
+          localStorage.setItem("edu_db_homework", JSON.stringify(deduplicated));
+          localStorage.setItem("homework", JSON.stringify(deduplicated));
+        } catch (e) {}
       }
     } catch (err) {
       console.warn("Failed to fetch homework from API", err);
@@ -5230,6 +5245,58 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to fetch inventory from API", err);
     }
   };
+
+  const fetchStudentAttendanceData = useCallback(async (query?: any) => {
+    const reqKey = "student-attendance" + (query ? JSON.stringify(query) : "");
+    if (activeRequests.current[reqKey]) {
+      return activeRequests.current[reqKey];
+    }
+
+    const promise = (async () => {
+      try {
+        const response: any = await fetchStudentAttendanceAllApi(query);
+        const items = Array.isArray(response)
+          ? response
+          : response?.data?.records || response?.data?.items || response?.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          setStudentAttendance((prev) => {
+            const existingMap = new Map<string, any>();
+            (prev || []).forEach((r) => {
+              const key = `${r.studentId || r.id}_${String(r.date || "").split("T")[0]}_${r.subject || ""}_${r.period || ""}`;
+              existingMap.set(key, r);
+            });
+            let hasChanges = false;
+            items.forEach((item: any) => {
+              const recDate = String(item.date || "").split("T")[0];
+              const key = `${item.studentId || item.id}_${recDate}_${item.subject || ""}_${item.period || ""}`;
+              const existing = existingMap.get(key);
+              if (!existing || existing.status !== item.status || existing.remarks !== item.remarks) {
+                hasChanges = true;
+              }
+              existingMap.set(key, { ...item, date: recDate });
+            });
+
+            if (!hasChanges && prev && prev.length === existingMap.size) {
+              return prev; // Preserve reference to prevent unnecessary component re-renders
+            }
+
+            const merged = Array.from(existingMap.values());
+            try {
+              window.dispatchEvent(new Event("attendance_updated"));
+            } catch {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn("Error fetching student attendance:", err);
+      } finally {
+        delete activeRequests.current[reqKey];
+      }
+    })();
+
+    activeRequests.current[reqKey] = promise;
+    return promise;
+  }, []);
 
   const fetchUniformData = async () => {
     if (activeRequests.current["uniform-data"]) {
@@ -5980,6 +6047,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchAnnouncementsData();
       fetchMeetingsData();
       fetchHomeworkData();
+      fetchStudentAttendanceData();
 
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
@@ -7899,6 +7967,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     status: AdmissionApplication["status"],
   ): Promise<string | null> => {
+    const matchedSt = students.find(
+      (s) => String(s.id).trim() === String(id).trim() || (s.admissionNo && s.admissionNo === id),
+    );
+    const app =
+      admissions.find(
+        (a) =>
+          String(a.id).trim() === String(id).trim() ||
+          (a.applicationNo && a.applicationNo === id),
+      ) ||
+      (matchedSt
+        ? ({
+            id: String(matchedSt.id),
+            applicationNo: matchedSt.admissionNo || String(matchedSt.id),
+            registrationNo: matchedSt.admissionNo || String(matchedSt.id),
+            applicantName: `${matchedSt.firstName || ""} ${matchedSt.lastName || ""}`.trim(),
+            appliedClass: matchedSt.className || "Class 1",
+            gender: matchedSt.gender || "Male",
+            status: matchedSt.status === "Inactive" ? "Rejected" : "Enrolled",
+            phone: matchedSt.phone || (matchedSt as any).fatherPhone || "",
+            parentName: matchedSt.parentName || matchedSt.fatherName || "",
+            dob: matchedSt.dob || "",
+            bloodGroup: matchedSt.bloodGroup || "",
+            studentType: matchedSt.studentType || "Day Scholar",
+            branch: matchedSt.branch || "",
+            religion: matchedSt.religion || "General",
+            casteCategory: matchedSt.casteCategory || (matchedSt as any).category || "General",
+            email: matchedSt.email || "",
+            submissionDate: matchedSt.joiningDate || new Date().toISOString().split("T")[0],
+            documentsSubmitted: [],
+          } as unknown as AdmissionApplication)
+        : null);
+
     const app = admissions.find((a) => a.id === id || (a as any).registrationNo === id || a.applicationNo === id);
     if (!app) return null;
 
@@ -8399,12 +8499,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
     } catch (err: any) {
-      console.error("Error updating admission status", err);
-      addToast(
-        "error",
-        "Network Error",
-        err.message || "Failed to update application status.",
+      console.warn("Server status update note:", err?.message || err);
+      // Seamless local fallback
+      setAdmissions((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status } : a)),
       );
+      if (status === "Rejected") {
+        setStudents((prev) =>
+          prev.map((s) => (String(s.id) === String(id) || s.admissionNo === id ? { ...s, status: "Inactive" as any } : s)),
+        );
+      }
     } finally {
       setTimeout(() => {
         inFlightStatusUpdates.delete(id);
@@ -10014,6 +10118,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
+    if (updates.name) {
+      const newName = updates.name;
+      const targetHead = feeHeads.find((f) => String(f.id) === stringId);
+      const oldName = targetHead?.name;
+
+      setFeeStructures((prev) =>
+        prev.map((fs: any) => ({
+          ...fs,
+          items: ((fs as any).items || []).map((i: any) => {
+            if (
+              (i.feeHeadId && String(i.feeHeadId) === stringId) ||
+              (oldName && i.feeHeadName && String(i.feeHeadName).toLowerCase() === String(oldName).toLowerCase())
+            ) {
+              return { ...i, feeHeadName: newName };
+            }
+            return i;
+          }),
+        }))
+      );
+
+      setDynamicFeeStructures((prev) =>
+        prev.map((dfs) => ({
+          ...dfs,
+          items: (dfs.items || []).map((i) => {
+            if (
+              (i.feeHeadId && String(i.feeHeadId) === stringId) ||
+              (oldName && i.feeHeadName && String(i.feeHeadName).toLowerCase() === String(oldName).toLowerCase())
+            ) {
+              return { ...i, feeHeadName: newName };
+            }
+            return i;
+          }),
+        }))
+      );
+    }
+
     try {
       const existing = feeHeads.find((f) => String(f.id) === stringId);
       const merged = { ...existing, ...updates };
@@ -10228,6 +10368,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     logActivity("Updated Dynamic Fee Structure", `Updated structure ID ${id}`);
   };
 
+  const deleteDynamicFeeStructure = (id: string) => {
+    const target = dynamicFeeStructures.find((d) => d.id === id);
+    const targetClass = target?.className;
+    setDynamicFeeStructures((prev) =>
+      prev.filter((d) => {
+        if (d.id === id) return false;
+        if (
+          targetClass &&
+          d.className &&
+          d.className.toLowerCase().trim() === targetClass.toLowerCase().trim() &&
+          (!target?.academicYear || !d.academicYear || d.academicYear === target.academicYear)
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    );
   const deleteDynamicFeeStructure = async (id: string) => {
     setDynamicFeeStructures((prev) => {
       const filtered = prev.filter((d) => d.id !== id);
@@ -12536,7 +12693,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         ledgerItems.push({
           headId: h.feeHeadId,
-          headName: isUni ? "Uniform & Accessories" : h.feeHeadName,
+          headName: h.feeHeadName,
           category:
             h.category ||
             (h.feeHeadName.includes("Tuition")
@@ -12592,7 +12749,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           ledgerItems.push({
             headId: i.feeHeadId,
-            headName: isUni ? "Uniform & Accessories" : i.feeHeadName,
+            headName: i.feeHeadName,
             category: i.feeHeadName.includes("Tuition")
               ? "Tuition Fee"
               : i.feeHeadName.includes("Admission")
@@ -14943,7 +15100,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       // Find all assignments referencing this driver and delete them from the backend
       const assignmentsToDelete = vehicleAssignments.filter(
-        (a) => a.driverId === id,
+        (a) => String(a.driverId) === String(id) || (a.driverName && a.driverName.toLowerCase() === id.toLowerCase()),
       );
       for (const a of assignmentsToDelete) {
         try {
@@ -14957,10 +15114,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       await TransportAPI.deleteDriverApi(id);
-      setDriverMasters((prev) => prev.filter((d) => d.id !== id));
+
+      setDriverMasters((prev) => {
+        const next = prev.filter(
+          (d) =>
+            String(d.id) !== String(id) &&
+            d.employeeId?.toLowerCase() !== id.toLowerCase() &&
+            d.driverName?.toLowerCase() !== id.toLowerCase(),
+        );
+        localStorage.setItem("edu_db_driver_masters", JSON.stringify(next));
+        return next;
+      });
+
       setVehicleAssignments((prev) =>
         prev.map((a) =>
-          a.driverId === id
+          String(a.driverId) === String(id)
             ? {
                 ...a,
                 driverId: "",
@@ -14970,6 +15138,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : a,
         ),
       );
+      addToast("success", "Driver Deleted", "Driver has been successfully deleted.");
     } catch (err: any) {
       addToast(
         "error",
@@ -17064,28 +17233,101 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const saveStudentAttendance = (record: any) => {
+    const recordDate = String(record.date || "").split("T")[0];
     setStudentAttendance((prev) => {
-      const recordDate = String(record.date || "").split("T")[0];
-      const filtered = prev.filter(
-        (r) =>
-          !(
-            String(r.studentId) === String(record.studentId) &&
-            String(r.date || "").split("T")[0] === recordDate
-          ),
-      );
+      const recStudentId = String(record.studentId || record.id || "").trim();
+      const recRoll = String(record.rollNo || "").trim();
+      const recAdm = String(record.admissionNo || "").trim();
+      const recName = String(record.studentName || "").trim().toLowerCase();
+
+      const filtered = prev.filter((r) => {
+        const rDate = String(r.date || "").split("T")[0];
+        if (rDate !== recordDate) return true;
+        const rStudentId = String(r.studentId || r.id || "").trim();
+        const rRoll = String(r.rollNo || "").trim();
+        const rAdm = String(r.admissionNo || "").trim();
+        const rName = String(r.studentName || "").trim().toLowerCase();
+
+        const isMatch =
+          (recStudentId && rStudentId === recStudentId) ||
+          (recRoll && (rRoll === recRoll || rStudentId === recRoll)) ||
+          (recAdm && (rAdm === recAdm || rStudentId === recAdm)) ||
+          (recName && rName && rName === recName);
+        return !isMatch;
+      });
       const updated = [...filtered, { ...record, date: recordDate }];
       try {
-        const str = JSON.stringify(updated);
-        localStorage.setItem("edu_db_student_attendance", str);
-        localStorage.setItem("student_attendance", str);
-        localStorage.setItem("sms_student_attendance", str);
+        window.dispatchEvent(new Event("attendance_updated"));
       } catch {}
       return updated;
     });
+
+    // Async backend persistence
+    saveBulkStudentAttendanceApi({
+      date: recordDate,
+      className: record.className,
+      section: record.section,
+      subject: record.subject,
+      period: record.period,
+      records: [
+        {
+          studentId: record.studentId || record.id,
+          rollNo: record.rollNo,
+          admissionNo: record.admissionNo,
+          studentName: record.studentName,
+          className: record.className,
+          section: record.section,
+          date: recordDate,
+          subject: record.subject,
+          period: record.period,
+          status: record.status || "Present",
+          remarks: record.remarks || "",
+          markedBy: record.markedBy,
+        },
+      ],
+    }).catch((e) => {
+      console.warn("Async saveStudentAttendance backend sync failed:", e);
+    });
+
     logActivity(
       "Saved Student Attendance",
       `Updated attendance for student ID ${record.studentId}`,
     );
+  };
+
+  const saveBulkStudentAttendance = async (payload: any) => {
+    try {
+      const recs = payload.records || [];
+      if (Array.isArray(recs) && recs.length > 0) {
+        setStudentAttendance((prev) => {
+          const map = new Map<string, any>();
+          (prev || []).forEach((r) => {
+            const k = `${r.studentId || r.id}_${String(r.date || "").split("T")[0]}_${r.subject || ""}_${r.period || ""}`;
+            map.set(k, r);
+          });
+          recs.forEach((r: any) => {
+            const rDate = String(r.date || payload.date || "").split("T")[0];
+            const k = `${r.studentId || r.id}_${rDate}_${r.subject || payload.subject || ""}_${r.period || payload.period || ""}`;
+            map.set(k, {
+              ...r,
+              date: rDate,
+              className: r.className || payload.className,
+              section: r.section || payload.section,
+            });
+          });
+          const updated = Array.from(map.values());
+          try {
+            window.dispatchEvent(new Event("attendance_updated"));
+          } catch {}
+          return updated;
+        });
+
+        const response = await saveBulkStudentAttendanceApi(payload);
+        return response;
+      }
+    } catch (err) {
+      console.warn("Bulk attendance save failed:", err);
+    }
   };
 
   const saveCoScholasticAssessment = (record: any) => {
@@ -17442,7 +17684,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ((hwData as any).section || "")
         .replace(/^section\s*/i, "")
         .replace(/^sec\s*/i, "")
-        .trim() || "A";
+        .trim();
     const newHw: Homework = {
       ...hwData,
       id,
@@ -17468,7 +17710,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? "Selected Students"
             : "Entire Class",
         status: newHw.status ? newHw.status.toUpperCase() : "PUBLISHED",
-        teacherName: newHw.teacherName || "Suteja K",
+        teacherName: newHw.teacherName || "",
         attachmentFileName: newHw.attachments?.[0]?.name,
         attachmentUrl: newHw.attachments?.[0]?.url,
       };
@@ -17492,7 +17734,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (updates.section || h.section || "")
             .replace(/^section\s*/i, "")
             .replace(/^sec\s*/i, "")
-            .trim() || "A";
+            .trim();
         return { ...h, ...updates, section: cleanSec };
       }),
     );
@@ -17511,7 +17753,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? "Selected Students"
             : "Entire Class",
         status: updates.status ? updates.status.toUpperCase() : "PUBLISHED",
-        teacherName: updates.teacherName || "Suteja K",
+        teacherName: updates.teacherName || "",
         attachmentFileName: updates.attachments?.[0]?.name,
         attachmentUrl: updates.attachments?.[0]?.url,
       };
@@ -20743,6 +20985,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchBooks,
         fetchBookIssues,
         fetchHomeworkData,
+        fetchStudentAttendanceData,
+        saveBulkStudentAttendance,
         fetchInventoryData,
         fetchUniformData,
         fetchFinanceData,

@@ -44,9 +44,9 @@ export const ParentBusInfoView: React.FC = () => {
         admissionNo: c.admissionNumber || '',
         firstName: c.firstName || c.studentName.split(' ')[0],
         lastName: c.lastName || '',
-        studentName: c.studentName,
-        className: c.className || 'Class 6',
-        section: c.sectionName || 'A',
+        studentName: c.studentName || 'Student',
+        className: c.className || '',
+        section: c.sectionName || '',
         status: 'Active'
       }));
     }
@@ -80,8 +80,8 @@ export const ParentBusInfoView: React.FC = () => {
       firstName: s.firstName || s.name?.split(' ')[0] || '',
       lastName: s.lastName || '',
       studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || '',
-      className: s.className || 'Class 6',
-      section: s.section || 'A',
+      className: s.className || '',
+      section: s.section || '',
       status: s.status || 'Active'
     }));
 
@@ -105,15 +105,20 @@ export const ParentBusInfoView: React.FC = () => {
       firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
       lastName: a.lastName || '',
       studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
-      section: (a as any).section || 'A',
+      className: (a as any).appliedClass?.className || (a as any).className || (typeof a.appliedClass === 'string' ? a.appliedClass : '') || '',
+      section: (a as any).section || '',
       status: 'Active'
     }));
 
     const combined = [...studentMatches, ...admissionMatches];
     const unique = new Map();
     combined.forEach(w => {
-      if (!unique.has(w.id)) unique.set(w.id, w);
+      const sName = (w.studentName || `${w.firstName || ''} ${w.lastName || ''}`).trim().toLowerCase();
+      const cName = (w.className || '').toString().toLowerCase().replace(/class/gi, '').trim();
+      const key = `${sName}_${cName}`;
+      if (sName && !unique.has(key)) {
+        unique.set(key, w);
+      }
     });
     return Array.from(unique.values());
   }, [apiChildren, students, admissions, user, role]);

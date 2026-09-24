@@ -1204,6 +1204,129 @@ public class SchoolService : ISchoolService
 		return MapToAdmissionResponseDto(app);
 	}
 
+	public async Task<bool> DeleteApplicationAsync(int id)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			app.Status = "Deleted";
+			app.IsDeleted = true;
+			await _schoolRepository.SaveChangesAsync();
+			await SyncToAdmissionsTableAsync(app, isDeleted: true);
+			return true;
+		}
+
+		int studentId = id > 100000 ? id - 100000 : id;
+		var s = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
+		if (s != null)
+		{
+			s.Status = "Inactive";
+			s.IsDeleted = true;
+			s.UpdatedAt = DateTime.UtcNow;
+			var adm = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == s.AdmissionNumber);
+			if (adm != null)
+			{
+				adm.Status = "Deleted";
+				adm.IsDeleted = true;
+			}
+			await _context.SaveChangesAsync();
+			return true;
+		}
+
+		throw new NotFoundException($"Admission application with ID '{id}' not found.");
+	}
+
+	public async Task<bool> RejectApplicationAsync(int id)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			app.Status = "Rejected";
+			await _schoolRepository.SaveChangesAsync();
+			await SyncToAdmissionsTableAsync(app);
+			return true;
+		}
+
+		int studentId = id > 100000 ? id - 100000 : id;
+		var s = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
+		if (s != null)
+		{
+			s.Status = "Inactive";
+			s.UpdatedAt = DateTime.UtcNow;
+			var adm = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == s.AdmissionNumber);
+			if (adm != null) adm.Status = "Rejected";
+			await _context.SaveChangesAsync();
+			return true;
+		}
+
+		throw new NotFoundException($"Admission application with ID '{id}' not found.");
+	}
+
+	public async Task<bool> EnrollStudentAsync(int id)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			if (app.Status != "Enrolled")
+			{
+				app.Status = "Enrolled";
+				await _schoolRepository.SaveChangesAsync();
+			}
+			await SyncToAdmissionsTableAsync(app);
+			return true;
+		}
+
+		int studentId = id > 100000 ? id - 100000 : id;
+		var s = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
+		if (s != null)
+		{
+			s.Status = "Active";
+			s.IsDeleted = false;
+			s.UpdatedAt = DateTime.UtcNow;
+			var adm = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == s.AdmissionNumber);
+			if (adm != null)
+			{
+				adm.Status = "Enrolled";
+				adm.IsDeleted = false;
+			}
+			await _context.SaveChangesAsync();
+			return true;
+		}
+
+		throw new NotFoundException($"Admission application with ID '{id}' not found.");
+	}
+
+	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			app.Status = status;
+			await _schoolRepository.SaveChangesAsync();
+			await SyncToAdmissionsTableAsync(app, isDeleted: string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase));
+			return true;
+		}
+
+		int studentId = id > 100000 ? id - 100000 : id;
+		var s = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
+		if (s != null)
+		{
+			bool isInactive = string.Equals(status, "Rejected", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase);
+			s.Status = isInactive ? "Inactive" : "Active";
+			if (string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase)) s.IsDeleted = true;
+			s.UpdatedAt = DateTime.UtcNow;
+			var adm = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == s.AdmissionNumber);
+			if (adm != null)
+			{
+				adm.Status = status;
+				if (string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase)) adm.IsDeleted = true;
+			}
+			await _context.SaveChangesAsync();
+			return true;
+		}
+
+		throw new NotFoundException($"Admission application with ID '{id}' not found.");
+	}
 
 	private async Task SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
 	{

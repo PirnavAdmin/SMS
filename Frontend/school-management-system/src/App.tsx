@@ -551,11 +551,18 @@ const MainLayout: React.FC = () => {
           />
         );
       case "hostel":
+      case "hostel-dashboard":
+      case "hostel-masters":
+      case "hostel-student-hostel":
+      case "hostel-reports":
       case "hostel-room-allocation":
       case "hostel-attendance":
       case "hostel-attendance-register":
       case "hostel-outpass":
       case "hostel-outpass-leave":
+      case "hostel-blocks":
+      case "hostel-rooms":
+      case "hostel-wardens":
       case "outpass":
       case "room-allocation":
       case "student-hostel":

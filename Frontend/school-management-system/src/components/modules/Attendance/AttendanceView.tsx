@@ -52,7 +52,7 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, saveBulkStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents, fetchStudentAttendanceData } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -221,78 +221,167 @@ export const AttendanceView = () => {
     return ['Select Section', ...validSections];
   }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
-  // Dynamic list of subject options
-  const subjectOptions = useMemo(() => {
-    const teacherSubjs = (dbTeacher as any)?.assignedSubjects || [];
-    const fromTimetable = (timetable || []).map((t: any) => t.subject || t.subjectName).filter(Boolean);
-    const standardSubjs = ['Mathematics', 'Science', 'English', 'Social Studies', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Hindi', 'Physical Education'];
-    const merged = Array.from(new Set([...teacherSubjs, ...fromTimetable, ...standardSubjs])).filter(Boolean);
-    return ['Select Subject', ...merged];
-  }, [dbTeacher, timetable]);
+  // Dynamic list of period options matching selected Class, Section, Teacher & Day from Timetable
+  const dynamicPeriodsList = useMemo(() => {
+    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections') {
+      return [];
+    }
 
-  // Dynamic list of period options
-  const periodOptions = useMemo(() => {
-    const periodMap = new Map<number, string>();
+    const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+    const normCls = norm(selectedClass);
+    const normSec = norm(selectedSection);
 
-    // 1. Gather active period settings from DataContext
-    const activeSettings = (periodSettings || []).filter((p: any) => p.status === 'Active' && !p.isBreak);
-    const classSpecific = activeSettings.filter((p: any) =>
-      selectedClass !== 'Select Class' && matchesClassName(p.className || '', selectedClass) && (!p.section || p.section === selectedSection)
+    // Day of week from selected date if in daily mode
+    let selectedDay = '';
+    if (dateMode === 'Daily' && date) {
+      const dObj = new Date(date);
+      if (!isNaN(dObj.getTime())) {
+        selectedDay = dObj.toLocaleDateString('en-US', { weekday: 'long' });
+      }
+    }
+
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const tLastName = (dbTeacher?.lastName || '').toLowerCase().trim();
+    const tFullName = `${dbTeacher?.firstName || ''} ${dbTeacher?.lastName || ''}`.toLowerCase().trim();
+
+    // 1. Filter timetable slots for selected Class & Section
+    let classSlots = (timetable || []).filter((t: any) => {
+      if (!t) return false;
+      const slotCls = norm(t.className);
+      const slotSec = norm(t.section);
+      return slotCls === normCls && (slotSec === normSec || !slotSec);
+    });
+
+    // 2. If logged in as Teacher, filter slots belonging to this teacher
+    if (isTeacher && classSlots.length > 0) {
+      const teacherSlots = classSlots.filter((t: any) => {
+        const mappedTa = (teacherAssignments || []).find((ta: any) =>
+          norm(ta.className) === normCls &&
+          norm(ta.section) === normSec &&
+          norm(ta.subject) === norm(t.subject)
+        );
+        const effectiveTeacher = (mappedTa?.teacherName || t.teacherName || '').toLowerCase().trim();
+
+        const matchesTeacherName = (tFullName && effectiveTeacher === tFullName) ||
+          (tFirstName.length > 2 && effectiveTeacher.includes(tFirstName)) ||
+          (tLastName.length > 2 && effectiveTeacher.includes(tLastName));
+
+        const matchesTeacherId = t.teacherId && (
+          String(t.teacherId) === String(dbTeacher?.id) ||
+          String(t.teacherId) === String((dbTeacher as any)?.empId) ||
+          String(t.teacherId) === String(user?.id)
+        );
+
+        const matchesSubject = (dbTeacher?.assignedSubjects || []).some(
+          (sub: string) => sub.toLowerCase().trim() === (t.subject || '').toLowerCase().trim()
+        );
+
+        return matchesTeacherName || matchesTeacherId || matchesSubject;
+      });
+
+      if (teacherSlots.length > 0) {
+        classSlots = teacherSlots;
+      }
+    }
+
+    // 3. Filter by selected day if day-specific slots exist for that day
+    if (selectedDay) {
+      const daySpecific = classSlots.filter((t: any) => t.day && t.day.toLowerCase() === selectedDay.toLowerCase());
+      if (daySpecific.length > 0) {
+        classSlots = daySpecific;
+      }
+    }
+
+    // 4. Map timetable slots to period options
+    if (classSlots.length > 0) {
+      const sorted = [...classSlots].sort((a: any, b: any) => {
+        const numA = a.periodNumber || parseInt((a.period || a.periodName || '').match(/\d+/)?.[0] || '99', 10);
+        const numB = b.periodNumber || parseInt((b.period || b.periodName || '').match(/\d+/)?.[0] || '99', 10);
+        return numA - numB;
+      });
+
+      const uniquePeriods: Array<{
+        periodLabel: string;
+        periodName: string;
+        timeSlot: string;
+        subject: string;
+      }> = [];
+
+      const seenKeys = new Set<string>();
+
+      sorted.forEach((slot: any) => {
+        const pNum = slot.periodNumber || (slot.period || slot.periodName || '').match(/\d+/)?.[0] || '';
+        const pName = slot.period || slot.periodName || (pNum ? `Period ${pNum}` : 'Period');
+        const timeSlotStr = slot.timeSlot || (slot.startTime && slot.endTime ? `${slot.startTime} - ${slot.endTime}` : '');
+        const subjectStr = slot.subject || (dbTeacher?.assignedSubjects && dbTeacher.assignedSubjects[0]) || '';
+
+        const key = `${pName}_${timeSlotStr}_${subjectStr}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+
+          let label = pName;
+          if (timeSlotStr && !label.includes(timeSlotStr)) {
+            label += ` (${timeSlotStr})`;
+          }
+          if (subjectStr) {
+            label += ` - ${subjectStr}`;
+          }
+
+          uniquePeriods.push({
+            periodLabel: label,
+            periodName: pName,
+            timeSlot: timeSlotStr,
+            subject: subjectStr
+          });
+        }
+      });
+
+      return uniquePeriods;
+    }
+
+    // 5. Fallback to active periodSettings for selected class/section
+    const activeSettings = (periodSettings || []).filter((p: any) =>
+      p.status === 'Active' &&
+      !p.isBreak &&
+      matchesClassName(p.className || '', selectedClass) &&
+      (!p.section || p.section === selectedSection)
     );
-    const applicableSettings = classSpecific.length > 0 ? classSpecific : activeSettings;
 
-    applicableSettings.forEach((p: any) => {
-      const match = (p.periodName || '').match(/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && !periodMap.has(num)) {
-          const name = p.periodName.startsWith('Period') ? p.periodName : `Period ${p.periodName}`;
-          const slot = p.startTime && p.endTime ? ` (${p.startTime} - ${p.endTime})` : '';
-          periodMap.set(num, `${name}${slot}`);
-        }
-      }
-    });
+    if (activeSettings.length > 0) {
+      return activeSettings.map((p: any) => {
+        const pName = p.periodName?.startsWith('Period') ? p.periodName : `Period ${p.periodName || ''}`;
+        const timeSlotStr = p.startTime && p.endTime ? `${p.startTime} - ${p.endTime}` : '';
+        const subjectStr = (dbTeacher?.assignedSubjects && dbTeacher.assignedSubjects[0]) || '';
 
-    // 2. Gather periods from timetable
-    (timetable || []).forEach((t: any) => {
-      const periodStr = t.period || t.periodName || (t.periodNumber ? `Period ${t.periodNumber}` : '');
-      const match = (periodStr || '').match(/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && !periodMap.has(num)) {
-          const name = periodStr.startsWith('Period') ? periodStr : `Period ${periodStr}`;
-          const timeSlot = t.timeSlot || (t.startTime && t.endTime ? `${t.startTime} - ${t.endTime}` : '');
-          const slot = timeSlot ? ` (${timeSlot})` : '';
-          periodMap.set(num, `${name}${slot}`);
-        }
-      }
-    });
+        let label = pName;
+        if (timeSlotStr) label += ` (${timeSlotStr})`;
+        if (subjectStr) label += ` - ${subjectStr}`;
 
-    // 3. Standard fallback periods if period number not present
-    const standardPeriods = [
-      { num: 1, label: 'Period 1 (08:30 AM - 09:20 AM)' },
-      { num: 2, label: 'Period 2 (09:20 AM - 10:10 AM)' },
-      { num: 3, label: 'Period 3 (10:25 AM - 11:15 AM)' },
-      { num: 4, label: 'Period 4 (11:15 AM - 12:05 PM)' },
-      { num: 5, label: 'Period 5 (12:50 PM - 01:40 PM)' },
-      { num: 6, label: 'Period 6 (01:40 PM - 02:30 PM)' },
-      { num: 7, label: 'Period 7 (02:45 PM - 03:35 PM)' },
-      { num: 8, label: 'Period 8 (03:35 PM - 04:25 PM)' },
-    ];
+        return {
+          periodLabel: label,
+          periodName: pName,
+          timeSlot: timeSlotStr,
+          subject: subjectStr
+        };
+      });
+    }
 
-    standardPeriods.forEach(sp => {
-      if (!periodMap.has(sp.num)) {
-        periodMap.set(sp.num, sp.label);
-      }
-    });
+    return [];
+  }, [selectedClass, selectedSection, dateMode, date, isTeacher, dbTeacher, timetable, teacherAssignments, periodSettings, user?.id]);
 
-    const sortedKeys = Array.from(periodMap.keys()).sort((a, b) => a - b);
-    return sortedKeys.map(key => periodMap.get(key)!);
-  }, [periodSettings, timetable, selectedClass, selectedSection]);
+  const periodOptions = useMemo(() => {
+    if (dynamicPeriodsList.length === 0) {
+      return ['Select Period'];
+    }
+    return dynamicPeriodsList.map(p => p.periodLabel);
+  }, [dynamicPeriodsList]);
 
   // Auto-sync section when class changes
   useEffect(() => {
-    if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
+    const validSections = sectionOptions.filter(s => s !== 'Select Section' && s !== 'All Sections');
+    if (validSections.length === 1 && selectedSection !== validSections[0]) {
+      setSelectedSection(validSections[0]);
+    } else if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
     }
   }, [sectionOptions, selectedSection]);
@@ -306,8 +395,36 @@ export const AttendanceView = () => {
     }
   }, [isTeacher, teacherClasses, selectedClass]);
 
-  const [selectedSubject, setSelectedSubject] = useState<string>('Select Subject');
-  const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (08:30 AM - 09:20 AM)');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('Select Period');
+
+  // Derive selected subject dynamically from selected period option or timetable slot
+  const selectedSubject = useMemo(() => {
+    if (selectedPeriod && selectedPeriod !== 'Select Period') {
+      const matched = dynamicPeriodsList.find(p => p.periodLabel === selectedPeriod);
+      if (matched && matched.subject) {
+        return matched.subject;
+      }
+    }
+    if (dynamicPeriodsList.length > 0 && dynamicPeriodsList[0].subject) {
+      return dynamicPeriodsList[0].subject;
+    }
+    if (isTeacher && dbTeacher?.assignedSubjects && dbTeacher.assignedSubjects.length > 0) {
+      return dbTeacher.assignedSubjects[0];
+    }
+    return 'General';
+  }, [selectedPeriod, dynamicPeriodsList, isTeacher, dbTeacher]);
+
+  // Auto-sync selectedPeriod when dynamicPeriodsList changes
+  useEffect(() => {
+    if (dynamicPeriodsList.length > 0) {
+      const labels = dynamicPeriodsList.map(p => p.periodLabel);
+      if (!labels.includes(selectedPeriod)) {
+        setSelectedPeriod(labels[0]);
+      }
+    } else {
+      setSelectedPeriod('Select Period');
+    }
+  }, [dynamicPeriodsList]);
 
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -346,7 +463,10 @@ export const AttendanceView = () => {
     if (fetchStudents && (!allStudents || allStudents.length === 0)) {
       fetchStudents();
     }
-  }, [fetchStudents, allStudents]);
+    if (fetchStudentAttendanceData) {
+      fetchStudentAttendanceData();
+    }
+  }, [fetchStudents, allStudents, fetchStudentAttendanceData]);
 
   useEffect(() => {
     if (isAggregatedView) {
@@ -365,35 +485,11 @@ export const AttendanceView = () => {
  
   const [profileStudent, setProfileStudent] = useState<Student | null>(null);
  
-  // Persistent LocalStorage Remarks registry
-  const [remarksState, setRemarksState] = useState<RemarksState>(() => {
-    const saved = localStorage.getItem('sms_attendance_remarks');
-    return saved ? JSON.parse(saved) : {};
-  });
+  // In-memory Remarks state
+  const [remarksState, setRemarksState] = useState<RemarksState>({});
  
-  // Persistent LocalStorage Attendance registry
-  const [attendanceRegistry, setAttendanceRegistry] = useState<Record<string, AttendanceState>>(() => {
-    const saved = localStorage.getItem('sms_attendance_registry');
-    return saved ? JSON.parse(saved) : {};
-  });
- 
-  // Cross-tab / cross-role storage sync
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'sms_attendance_registry' && e.newValue) {
-        try {
-          setAttendanceRegistry(JSON.parse(e.newValue));
-        } catch {}
-      }
-      if (e.key === 'sms_attendance_remarks' && e.newValue) {
-        try {
-          setRemarksState(JSON.parse(e.newValue));
-        } catch {}
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  // In-memory Attendance registry
+  const [attendanceRegistry, setAttendanceRegistry] = useState<Record<string, AttendanceState>>({});
 
   const classStudents = React.useMemo(() => {
     const targetSec = normalizeSec(selectedSection);
@@ -516,22 +612,7 @@ export const AttendanceView = () => {
       }
     }
 
-    // 6. Direct LocalStorage fallback scan
-    try {
-      const rawReg = localStorage.getItem('sms_attendance_registry');
-      if (rawReg) {
-        const parsed = JSON.parse(rawReg);
-        for (const regKey of Object.keys(parsed)) {
-          if (regKey.endsWith(`_${targetDate}`) && (regKey.toLowerCase().includes(cleanCls) || regKey.includes(student.className))) {
-            if (parsed[regKey]?.[sId] !== undefined) {
-              return parsed[regKey][sId];
-            }
-          }
-        }
-      }
-    } catch {}
-
-    // 7. Sunday / Declared Holiday fallback
+    // 6. Sunday / Declared Holiday fallback
     const holCheck = checkSundayOrHoliday(targetDate, holidays);
     if (holCheck.isHoliday) {
       return 'Holiday' as AttendanceStatus;
@@ -640,17 +721,15 @@ export const AttendanceView = () => {
           updated[k] = { ...(updated[k] || {}), [studentId]: status };
         }
       }
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
 
     if (targetStudent && saveStudentAttendance && newStatus) {
       saveStudentAttendance({
         studentId: targetStudent.id,
-        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+        rollNo: targetStudent.rollNo,
+        admissionNo: targetStudent.admissionNo,
+        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`.trim(),
         className: targetStudent.className,
         section: targetStudent.section,
         date: date,
@@ -660,6 +739,9 @@ export const AttendanceView = () => {
         remarks: remarksState[`${date}_${targetStudent.id}`] || '',
         markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -704,17 +786,15 @@ export const AttendanceView = () => {
           updated[k] = { ...(updated[k] || {}), [student.id]: nextStatus };
         }
       }
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
 
     if (saveStudentAttendance && nextStatus) {
       saveStudentAttendance({
         studentId: student.id,
-        studentName: `${student.firstName} ${student.lastName}`,
+        rollNo: student.rollNo,
+        admissionNo: student.admissionNo,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
         className: student.className,
         section: student.section,
         date: dateStr,
@@ -724,6 +804,9 @@ export const AttendanceView = () => {
         remarks: remarksState[`${dateStr}_${student.id}`] || '',
         markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -750,28 +833,41 @@ export const AttendanceView = () => {
         for (const k of keysToUpdate) {
           updated[k] = { ...(updated[k] || {}), [st.id]: status };
         }
-
-        if (saveStudentAttendance) {
-          saveStudentAttendance({
-            studentId: st.id,
-            studentName: `${st.firstName} ${st.lastName}`,
-            className: st.className,
-            section: st.section,
-            date: date,
-            subject: selectedSubject,
-            period: selectedPeriod,
-            status: status,
-            remarks: remarksState[`${date}_${st.id}`] || '',
-            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-          });
-        }
       });
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
+
+    const recordsToSave = classStudents.map(st => ({
+      studentId: st.id,
+      rollNo: st.rollNo,
+      admissionNo: st.admissionNo,
+      studentName: `${st.firstName} ${st.lastName}`.trim(),
+      className: st.className,
+      section: st.section,
+      date: date,
+      subject: selectedSubject,
+      period: selectedPeriod,
+      status: status,
+      remarks: remarksState[`${date}_${st.id}`] || '',
+      markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+    }));
+
+    if (saveBulkStudentAttendance) {
+      saveBulkStudentAttendance({
+        date: date,
+        className: selectedClass,
+        section: selectedSection,
+        subject: selectedSubject,
+        period: selectedPeriod,
+        records: recordsToSave
+      });
+    } else if (saveStudentAttendance) {
+      recordsToSave.forEach(rec => saveStudentAttendance(rec));
+    }
+
+    try {
+      window.dispatchEvent(new Event('attendance_updated'));
+    } catch {}
   };
 
   const handleRemarkChange = (studentId: string, remark: string) => {
@@ -781,15 +877,6 @@ export const AttendanceView = () => {
       [`${date}_${studentId}`]: remark
     }));
   };
-
-  // Auto-save mechanisms
-  useEffect(() => {
-    localStorage.setItem('sms_attendance_registry', JSON.stringify(attendanceRegistry));
-  }, [attendanceRegistry]);
-
-  useEffect(() => {
-    localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
-  }, [remarksState]);
 
   // Metrics calculation
   const summaryMetrics = React.useMemo(() => {
@@ -846,7 +933,6 @@ export const AttendanceView = () => {
       const updated = { ...prev };
       classStudents.forEach(st => {
         const status = getAttendanceStatus(st) || 'Present';
-        const remark = remarksState[`${date}_${st.id}`] || '';
 
         const cleanCls = normalizeClass(st.className);
         const cleanSec = normalizeSec(st.section);
@@ -865,29 +951,45 @@ export const AttendanceView = () => {
         for (const k of keysToUpdate) {
           updated[k] = { ...(updated[k] || {}), [st.id]: status };
         }
-
-        if (saveStudentAttendance) {
-          saveStudentAttendance({
-            studentId: st.id,
-            studentName: `${st.firstName} ${st.lastName}`,
-            className: st.className,
-            section: st.section,
-            date: date,
-            subject: selectedSubject,
-            period: selectedPeriod,
-            status: status,
-            remarks: remark,
-            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-          });
-        }
       });
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
+
+    const recordsToSave = classStudents.map(st => {
+      const status = getAttendanceStatus(st) || 'Present';
+      const remark = remarksState[`${date}_${st.id}`] || '';
+      return {
+        studentId: st.id,
+        rollNo: st.rollNo,
+        admissionNo: st.admissionNo,
+        studentName: `${st.firstName} ${st.lastName}`.trim(),
+        className: st.className,
+        section: st.section,
+        date: date,
+        subject: selectedSubject,
+        period: selectedPeriod,
+        status: status,
+        remarks: remark,
+        markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+      };
+    });
+
+    if (saveBulkStudentAttendance) {
+      saveBulkStudentAttendance({
+        date: date,
+        className: selectedClass,
+        section: selectedSection,
+        subject: selectedSubject,
+        period: selectedPeriod,
+        records: recordsToSave
+      });
+    } else if (saveStudentAttendance) {
+      recordsToSave.forEach(rec => saveStudentAttendance(rec));
+    }
+
+    try {
+      window.dispatchEvent(new Event('attendance_updated'));
+    } catch {}
 
     addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, Teacher, and Admin panels!');
   };
@@ -1118,7 +1220,7 @@ export const AttendanceView = () => {
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              disabled={isTeacher && sectionOptions.length <= 1}
+              disabled={isTeacher ? sectionOptions.length <= 1 : (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes')}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
               {sectionOptions.map(sec => (
@@ -1128,29 +1230,20 @@ export const AttendanceView = () => {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
-            <select
-              value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
-            >
-              {subjectOptions.map(sbj => (
-                <option key={sbj} value={sbj}>{sbj}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Period</label>
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections'}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
-              <option value="Select Period">Select Period</option>
-              {periodOptions.map(prd => (
-                <option key={prd} value={prd}>{prd}</option>
-              ))}
+              {(!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections' || dynamicPeriodsList.length === 0) ? (
+                <option value="Select Period">Select Period</option>
+              ) : (
+                periodOptions.map(prd => (
+                  <option key={prd} value={prd}>{prd}</option>
+                ))
+              )}
             </select>
           </div>
 

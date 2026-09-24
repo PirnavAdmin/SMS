@@ -52,3 +52,66 @@ public class MarkStudentAttendanceDto
     public string Status { get; set; } = "Present";
     public string? Remarks { get; set; }
 }
+
+public class BulkStudentAttendanceRecordDto
+{
+    public int? StudentId { get; set; }
+    public string? RollNo { get; set; }
+    public string? AdmissionNo { get; set; }
+    public string? StudentName { get; set; }
+    public string? ClassName { get; set; }
+    public string? Section { get; set; }
+    public string? Date { get; set; }
+    public string? Subject { get; set; }
+    public string? Period { get; set; }
+    public string Status { get; set; } = "Present";
+    public string? Remarks { get; set; }
+    public string? MarkedBy { get; set; }
+}
+
+public class BulkSaveStudentAttendanceDto
+{
+    public string? Date { get; set; }
+    public string? ClassName { get; set; }
+    public string? Section { get; set; }
+    public string? Subject { get; set; }
+    public string? Period { get; set; }
+    public List<BulkStudentAttendanceRecordDto> Records { get; set; } = new();
+}
+
+public class BulkSaveStudentAttendanceResponseDto
+{
+    public bool Success { get; set; } = true;
+    public int Count { get; set; }
+    public string Message { get; set; } = "Attendance saved successfully.";
+}
+
+public class StudentAttendanceUniversalDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string StudentId { get; set; } = string.Empty;
+    public string RollNo { get; set; } = string.Empty;
+    public string AdmissionNo { get; set; } = string.Empty;
+    public string StudentName { get; set; } = string.Empty;
+    public string ClassName { get; set; } = string.Empty;
+    public string Section { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty; // YYYY-MM-DD
+    public string Status { get; set; } = "Present";
+    public string? Remarks { get; set; }
+    public string? Subject { get; set; }
+    public string? Period { get; set; }
+    public string? MarkedBy { get; set; }
+}
+
+public class StudentAttendanceUniversalQueryDto
+{
+    public int? StudentId { get; set; }
+    public string? ClassName { get; set; }
+    public string? Section { get; set; }
+    public string? Date { get; set; }
+    public string? StartDate { get; set; }
+    public string? EndDate { get; set; }
+    public int? Month { get; set; }
+    public int? Year { get; set; }
+    public string? Status { get; set; }
+}

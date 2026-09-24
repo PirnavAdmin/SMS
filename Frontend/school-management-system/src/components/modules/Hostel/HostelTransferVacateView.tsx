@@ -28,39 +28,7 @@ interface TransferRecord {
 
 const TRANSFERS_STORE_KEY = 'edu_db_hostel_transfers';
 
-const DEFAULT_INITIAL_TRANSFERS: TransferRecord[] = [
-  {
-    id: 1,
-    studentName: 'Rajesh Kumar',
-    admissionNo: 'ADM-2026-101',
-    actionType: 'Room Transfer',
-    fromHostel: 'Ramachandra Bhavan Block',
-    fromRoom: '101',
-    toHostel: 'Bhanu Block',
-    toRoom: '201',
-    requestDate: '2026-08-01',
-    reason: 'Mutual exchange with classmate',
-    status: 'Completed'
-  },
-  {
-    id: 2,
-    studentName: 'Surya Teja',
-    admissionNo: 'ADM-2026-102',
-    actionType: 'Bed Vacate',
-    fromHostel: 'Ramachandra Bhavan Block',
-    fromRoom: '101',
-    toHostel: 'N/A (Vacated)',
-    toRoom: 'N/A',
-    requestDate: '2026-08-10',
-    reason: 'Shifted to Day Scholar residence',
-    status: 'Completed',
-    totalFeePaid: 60000,
-    monthsStayed: 3,
-    feeUtilized: 15000,
-    refundableBalance: 45000,
-    feeAdjustmentMode: 'Credit to Tuition Fee'
-  }
-];
+const DEFAULT_INITIAL_TRANSFERS: TransferRecord[] = [];
 
 export const HostelTransferVacateView: React.FC = () => {
   const { students } = useData();
@@ -300,7 +268,7 @@ export const HostelTransferVacateView: React.FC = () => {
     const selectedSt = displayStudentsList.find(s => String(s.id) === String(selectedStudentId)) || students.find(s => String(s.id) === String(selectedStudentId));
     const stName = selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student';
     const admNo = selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`;
-    const fromHostel = (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || 'Ramachandra Bhavan Block');
+    const fromHostel = (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || 'Hostel Block');
     const fromRoom = (selectedSt as any)?.roomNumber || '101';
 
     if (actionType === 'Room Transfer') {

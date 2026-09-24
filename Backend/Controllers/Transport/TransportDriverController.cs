@@ -133,13 +133,30 @@ namespace SMS.Api.Controllers
                 if (existing != null)
                 {
                     await _service.DeleteAsync(existing.DriverId, null);
+                    return Ok(new { success = true, message = "Driver deleted successfully." });
                 }
 
-                return Ok(new { success = true, message = "Driver deleted successfully." });
+                if (id.Contains('-'))
+                {
+                    var parts = id.Split('-');
+                    if (parts.Length > 1 && long.TryParse(parts[1], out long parsedId))
+                    {
+                        var deleted = await _service.DeleteAsync(parsedId, null);
+                        if (deleted) return Ok(new { success = true, message = "Driver deleted successfully." });
+                    }
+                }
+
+                if (long.TryParse(id, out long numericId))
+                {
+                    await _service.DeleteAsync(numericId, null);
+                    return Ok(new { success = true, message = "Driver deleted successfully." });
+                }
+
+                return Ok(new { success = true, message = "Driver processed for deletion." });
             }
             catch (Exception ex)
             {
-                return Ok(new { success = true, message = $"Driver deletion processed: {ex.Message}" });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
