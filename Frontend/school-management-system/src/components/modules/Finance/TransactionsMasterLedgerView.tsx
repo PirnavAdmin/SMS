@@ -3,7 +3,7 @@ import {
   FileSpreadsheet, ArrowUpRight, ArrowDownLeft, Plus, Search, Filter, Calendar,
   Building2, CreditCard, Eye, RotateCcw, AlertTriangle, ShieldCheck, CheckCircle2,
   Printer, Download, FileText, IndianRupee, Layers, SlidersHorizontal, BookOpen, Clock,
-  ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp
+  ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp, Edit
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import { FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionType } from '../../../types';
@@ -37,6 +37,48 @@ export const TransactionsMasterLedgerView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc'>('date-desc');
 
+  // Applied Filters State (Updated when user clicks "Apply Filters")
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchQuery: '',
+    typeFilter: 'All' as 'All' | 'Income' | 'Expense',
+    sourceModuleFilter: 'All',
+    categoryFilter: 'All',
+    paymentModeFilter: 'All',
+    statusFilter: 'All',
+    sortBy: 'date-desc' as 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc',
+  });
+
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      searchQuery,
+      typeFilter,
+      sourceModuleFilter,
+      categoryFilter,
+      paymentModeFilter,
+      statusFilter,
+      sortBy,
+    });
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('All');
+    setSourceModuleFilter('All');
+    setCategoryFilter('All');
+    setPaymentModeFilter('All');
+    setStatusFilter('All');
+    setSortBy('date-desc');
+    setAppliedFilters({
+      searchQuery: '',
+      typeFilter: 'All',
+      sourceModuleFilter: 'All',
+      categoryFilter: 'All',
+      paymentModeFilter: 'All',
+      statusFilter: 'All',
+      sortBy: 'date-desc',
+    });
+  };
+
   // Modals
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedTxnForDetail, setSelectedTxnForDetail] = useState<FinanceTransaction | null>(null);
@@ -46,6 +88,50 @@ export const TransactionsMasterLedgerView: React.FC = () => {
   // Category / Account Modals
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [editingCat, setEditingCat] = useState<FinancialCategory | null>(null);
+  const [editingAcc, setEditingAcc] = useState<FinancialAccount | null>(null);
+
+  const handleOpenAddCategory = () => {
+    setEditingCat(null);
+    setNewCatForm({ name: '', type: 'Income', sourceModule: 'Manual' });
+    setIsAddCategoryOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: FinancialCategory) => {
+    setEditingCat(cat);
+    setNewCatForm({
+      name: cat.name,
+      type: cat.type,
+      sourceModule: cat.sourceModule || 'Manual',
+    });
+    setIsAddCategoryOpen(true);
+  };
+
+  const handleOpenAddAccount = () => {
+    setEditingAcc(null);
+    setNewAccForm({
+      accountName: '',
+      accountType: 'Main Bank Account',
+      accountNumber: '',
+      bankName: '',
+      branchName: '',
+      currentBalance: '',
+    });
+    setIsAddAccountOpen(true);
+  };
+
+  const handleOpenEditAccount = (acc: FinancialAccount) => {
+    setEditingAcc(acc);
+    setNewAccForm({
+      accountName: acc.accountName,
+      accountType: acc.accountType,
+      accountNumber: acc.accountNumber || '',
+      bankName: acc.bankName || '',
+      branchName: acc.branchName || '',
+      currentBalance: String(acc.currentBalance ?? ''),
+    });
+    setIsAddAccountOpen(true);
+  };
 
   // Manual Entry Form State
   const [manualForm, setManualForm] = useState({
@@ -56,8 +142,8 @@ export const TransactionsMasterLedgerView: React.FC = () => {
     paymentMode: 'Bank Transfer' as any,
     account: 'Main Bank Account' as any,
     date: new Date().toISOString().split('T')[0],
-    branch: 'Main Campus',
-    academicYear: '2025-2026',
+    branch: selectedBranch || 'Main Campus',
+    academicYear: selectedAcademicYear || '2026-2027',
     notes: '',
     attachmentName: ''
   });
@@ -83,41 +169,61 @@ export const TransactionsMasterLedgerView: React.FC = () => {
   const filteredTxns = financeTransactions.filter(t => {
     // Search
     const matchesSearch =
-      (t.transactionId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.createdBy || '').toLowerCase().includes(searchQuery.toLowerCase());
+      !appliedFilters.searchQuery ||
+      (t.transactionId || '').toLowerCase().includes(appliedFilters.searchQuery.toLowerCase()) ||
+      (t.description || '').toLowerCase().includes(appliedFilters.searchQuery.toLowerCase()) ||
+      (t.referenceNumber || '').toLowerCase().includes(appliedFilters.searchQuery.toLowerCase()) ||
+      (t.category || '').toLowerCase().includes(appliedFilters.searchQuery.toLowerCase()) ||
+      (t.createdBy || '').toLowerCase().includes(appliedFilters.searchQuery.toLowerCase());
 
     // Type
-    const matchesType = typeFilter === 'All' || t.type === typeFilter;
+    const matchesType = appliedFilters.typeFilter === 'All' || t.type === appliedFilters.typeFilter;
 
     // Module
     const mod = String(t.sourceModule || '');
     const matchesModule =
-      sourceModuleFilter === 'All' ||
-      t.sourceModule === sourceModuleFilter ||
-      (sourceModuleFilter === 'Student Fee Collection' && (mod === 'Fees' || mod === 'Fee Collection' || mod === 'Student Fee Collection')) ||
-      ((sourceModuleFilter === 'Manual' || sourceModuleFilter === 'Manual Entries') && (mod === 'Manual' || mod === 'Manual Entries'));
+      appliedFilters.sourceModuleFilter === 'All' ||
+      t.sourceModule === appliedFilters.sourceModuleFilter ||
+      (appliedFilters.sourceModuleFilter === 'Student Fee Collection' && (mod === 'Fees' || mod === 'Fee Collection' || mod === 'Student Fee Collection')) ||
+      ((appliedFilters.sourceModuleFilter === 'Manual' || appliedFilters.sourceModuleFilter === 'Manual Entries') && (mod === 'Manual' || mod === 'Manual Entries'));
 
     // Category
-    const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
+    const catF = appliedFilters.categoryFilter;
+    const matchesCategory =
+      catF === 'All' ||
+      !t.category ||
+      t.category === catF ||
+      t.category.toLowerCase().trim() === catF.toLowerCase().trim() ||
+      t.category.toLowerCase().includes(catF.toLowerCase()) ||
+      catF.toLowerCase().includes(t.category.toLowerCase());
 
     // Payment Mode
-    const matchesMode = paymentModeFilter === 'All' || t.paymentMode === paymentModeFilter;
+    const modeF = appliedFilters.paymentModeFilter;
+    const matchesMode =
+      modeF === 'All' ||
+      !t.paymentMode ||
+      t.paymentMode.toLowerCase().trim() === modeF.toLowerCase().trim() ||
+      t.paymentMode.toLowerCase().replace(/\s+/g, '') === modeF.toLowerCase().replace(/\s+/g, '');
 
     // Status
-    const matchesStatus = statusFilter === 'All' || t.status === statusFilter;
+    const matchesStatus = appliedFilters.statusFilter === 'All' || t.status === appliedFilters.statusFilter;
 
     // Academic Year (Global Header filter)
-    const matchesAcademicYear = !selectedAcademicYear || selectedAcademicYear === 'All' || selectedAcademicYear === 'All Years' || t.academicYear === selectedAcademicYear || !t.academicYear;
+    const matchesAcademicYear =
+      !selectedAcademicYear ||
+      selectedAcademicYear === 'All' ||
+      selectedAcademicYear === 'All Years' ||
+      !t.academicYear ||
+      t.academicYear === selectedAcademicYear ||
+      (t.academicYear.replace(/[^0-9]/g, '').slice(0, 4) === selectedAcademicYear.replace(/[^0-9]/g, '').slice(0, 4) &&
+        selectedAcademicYear.replace(/[^0-9]/g, '').slice(0, 4).length === 4);
 
     return matchesSearch && matchesType && matchesModule && matchesCategory && matchesMode && matchesStatus && matchesAcademicYear;
   }).sort((a, b) => {
-    if (sortBy === 'date-desc') return new Date(b.date).getTime() - new Date(a.date).getTime();
-    if (sortBy === 'date-asc') return new Date(a.date).getTime() - new Date(b.date).getTime();
-    if (sortBy === 'amount-desc') return b.amount - a.amount;
-    if (sortBy === 'amount-asc') return a.amount - b.amount;
+    if (appliedFilters.sortBy === 'date-desc') return new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (appliedFilters.sortBy === 'date-asc') return new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (appliedFilters.sortBy === 'amount-desc') return b.amount - a.amount;
+    if (appliedFilters.sortBy === 'amount-asc') return a.amount - b.amount;
     return 0;
   });
 
@@ -168,8 +274,8 @@ export const TransactionsMasterLedgerView: React.FC = () => {
       amount: amt,
       paymentMode: manualForm.paymentMode,
       account: manualForm.account,
-      branch: manualForm.branch,
-      academicYear: manualForm.academicYear,
+      branch: manualForm.branch || selectedBranch || 'Main Campus',
+      academicYear: selectedAcademicYear || manualForm.academicYear || '2026-2027',
       status: 'Completed',
       createdBy: 'Finance Admin',
       approvedBy: 'Chief Accountant',
@@ -187,8 +293,8 @@ export const TransactionsMasterLedgerView: React.FC = () => {
       paymentMode: 'Bank Transfer',
       account: 'Main Bank Account',
       date: new Date().toISOString().split('T')[0],
-      branch: 'Main Campus',
-      academicYear: '2025-2026',
+      branch: selectedBranch || 'Main Campus',
+      academicYear: selectedAcademicYear || '2026-2027',
       notes: '',
       attachmentName: ''
     });
@@ -205,42 +311,65 @@ export const TransactionsMasterLedgerView: React.FC = () => {
     setReversalReason('');
   };
 
-  // Handle Add Category Submit
+  // Handle Add/Edit Category Submit
   const handleSaveCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatForm.name.trim()) return;
 
-    addFinancialCategory({
-      name: newCatForm.name.trim(),
-      type: newCatForm.type,
-      sourceModule: newCatForm.sourceModule,
-      status: 'Active',
-      isSystem: false
-    });
+    if (editingCat) {
+      updateFinancialCategory(editingCat.id, {
+        name: newCatForm.name.trim(),
+        type: newCatForm.type,
+        sourceModule: newCatForm.sourceModule,
+      });
+      addToast('success', 'Category Updated', `Category '${newCatForm.name}' updated.`);
+    } else {
+      addFinancialCategory({
+        name: newCatForm.name.trim(),
+        type: newCatForm.type,
+        sourceModule: newCatForm.sourceModule,
+        status: 'Active',
+        isSystem: false
+      });
+      addToast('success', 'Category Created', `Category '${newCatForm.name}' added.`);
+    }
 
-    addToast('success', 'Category Created', `Category '${newCatForm.name}' added.`);
     setIsAddCategoryOpen(false);
+    setEditingCat(null);
     setNewCatForm({ name: '', type: 'Income', sourceModule: 'Manual' });
   };
 
-  // Handle Add Account Submit
+  // Handle Add/Edit Account Submit
   const handleSaveAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAccForm.accountName.trim()) return;
 
-    addFinancialAccount({
-      accountName: newAccForm.accountName.trim(),
-      accountType: newAccForm.accountType,
-      accountNumber: newAccForm.accountNumber,
-      bankName: newAccForm.bankName,
-      branchName: newAccForm.branchName,
-      currentBalance: parseFloat(newAccForm.currentBalance) || 0,
-      currency: 'INR',
-      status: 'Active'
-    });
+    if (editingAcc) {
+      updateFinancialAccount(editingAcc.id, {
+        accountName: newAccForm.accountName.trim(),
+        accountType: newAccForm.accountType,
+        accountNumber: newAccForm.accountNumber,
+        bankName: newAccForm.bankName,
+        branchName: newAccForm.branchName,
+        currentBalance: parseFloat(newAccForm.currentBalance) || 0,
+      });
+      addToast('success', 'Account Updated', `Financial Account '${newAccForm.accountName}' updated.`);
+    } else {
+      addFinancialAccount({
+        accountName: newAccForm.accountName.trim(),
+        accountType: newAccForm.accountType,
+        accountNumber: newAccForm.accountNumber,
+        bankName: newAccForm.bankName,
+        branchName: newAccForm.branchName,
+        currentBalance: parseFloat(newAccForm.currentBalance) || 0,
+        currency: 'INR',
+        status: 'Active'
+      });
+      addToast('success', 'Account Created', `Financial Account '${newAccForm.accountName}' created.`);
+    }
 
-    addToast('success', 'Account Created', `Financial Account '${newAccForm.accountName}' created.`);
     setIsAddAccountOpen(false);
+    setEditingAcc(null);
     setNewAccForm({
       accountName: '',
       accountType: 'Main Bank Account',
@@ -423,7 +552,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
           
           {/* Filter Bar */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs items-center">
               
               {/* Search (Spans 2 columns for wide input view) */}
               <div className="relative sm:col-span-2 lg:col-span-2">
@@ -467,6 +596,17 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   <option value="Inventory">Inventory</option>
                   <option value="Manual">Manual Entries</option>
                 </select>
+              </div>
+
+              {/* Row 1 Action: Apply Filters Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-sky-500/20 transition-all cursor-pointer min-h-[38px]"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Apply Filters
+                </button>
               </div>
 
               {/* Category Filter */}
@@ -527,6 +667,17 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   <option value="amount-desc">Sort: Amount (High to Low)</option>
                   <option value="amount-asc">Sort: Amount (Low to High)</option>
                 </select>
+              </div>
+
+              {/* Row 2 Action: Reset Filters Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px]"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Reset Filters
+                </button>
               </div>
 
             </div>
@@ -666,8 +817,8 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <p className="text-[11px] text-slate-400">Income & Expense classification master</p>
               </div>
               <button
-                onClick={() => setIsAddCategoryOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs"
+                onClick={handleOpenAddCategory}
+                className="px-3 py-1.5 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Category
               </button>
@@ -687,9 +838,19 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                     </div>
                     <p className="text-[10px] text-slate-400">Source: {cat.sourceModule || 'Manual'}</p>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                    {cat.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                      {cat.status}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditCategory(cat)}
+                      title="Edit Category"
+                      className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-900 transition-all cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -706,8 +867,8 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <p className="text-[11px] text-slate-400">Cash vaults, bank accounts & department accounts</p>
               </div>
               <button
-                onClick={() => setIsAddAccountOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs"
+                onClick={handleOpenAddAccount}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Account
               </button>
@@ -721,9 +882,19 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                     <p className="text-[10px] text-slate-400">{acc.accountType} {acc.accountNumber ? `• ${acc.accountNumber}` : ''}</p>
                     {acc.bankName && <p className="text-[10px] text-slate-500">{acc.bankName} ({acc.branchName})</p>}
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold uppercase text-slate-400">Current Balance</span>
-                    <p className="font-black text-sm text-emerald-600">{formatCurrency(acc.currentBalance)}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Current Balance</span>
+                      <p className="font-black text-sm text-emerald-600">{formatCurrency(acc.currentBalance)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditAccount(acc)}
+                      title="Edit Account"
+                      className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 transition-all cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1058,13 +1229,17 @@ export const TransactionsMasterLedgerView: React.FC = () => {
         </div>
       )}
 
-      {/* ADD CATEGORY SUB-MODAL */}
+      {/* ADD / EDIT CATEGORY SUB-MODAL */}
       {isAddCategoryOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs">
             <div className="flex justify-between border-b pb-2">
-              <h3 className="font-bold text-slate-900 dark:text-white">Add Financial Category</h3>
-              <button onClick={() => setIsAddCategoryOpen(false)}><X className="w-4 h-4" /></button>
+              <h3 className="font-bold text-slate-900 dark:text-white">
+                {editingCat ? 'Edit Financial Category' : 'Add Financial Category'}
+              </h3>
+              <button onClick={() => { setIsAddCategoryOpen(false); setEditingCat(null); }}>
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <form onSubmit={handleSaveCategory} className="space-y-3">
               <div>
@@ -1079,21 +1254,25 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 </select>
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onClick={() => setIsAddCategoryOpen(false)} className="px-3 py-1.5 rounded-xl bg-slate-200">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-sky-600 text-white font-bold">Save Category</button>
+                <button type="button" onClick={() => { setIsAddCategoryOpen(false); setEditingCat(null); }} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-semibold cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-sky-600 text-white font-bold cursor-pointer">{editingCat ? 'Update Category' : 'Save Category'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ADD ACCOUNT SUB-MODAL */}
+      {/* ADD / EDIT ACCOUNT SUB-MODAL */}
       {isAddAccountOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs">
             <div className="flex justify-between border-b pb-2">
-              <h3 className="font-bold text-slate-900 dark:text-white">Add Financial Account</h3>
-              <button onClick={() => setIsAddAccountOpen(false)}><X className="w-4 h-4" /></button>
+              <h3 className="font-bold text-slate-900 dark:text-white">
+                {editingAcc ? 'Edit Financial Account' : 'Add Financial Account'}
+              </h3>
+              <button onClick={() => { setIsAddAccountOpen(false); setEditingAcc(null); }}>
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <form onSubmit={handleSaveAccount} className="space-y-3">
               <div>
@@ -1112,12 +1291,12 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block font-semibold mb-1">Opening Balance (INR) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-semibold mb-1">{editingAcc ? 'Current Balance (INR)' : 'Opening Balance (INR)'} <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input type="number" required value={newAccForm.currentBalance} onChange={e => setNewAccForm({ ...newAccForm, currentBalance: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onClick={() => setIsAddAccountOpen(false)} className="px-3 py-1.5 rounded-xl bg-slate-200">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold">Save Account</button>
+                <button type="button" onClick={() => { setIsAddAccountOpen(false); setEditingAcc(null); }} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-semibold cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold cursor-pointer">{editingAcc ? 'Update Account' : 'Save Account'}</button>
               </div>
             </form>
           </div>
