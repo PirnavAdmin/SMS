@@ -5165,7 +5165,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         const normalizedItems = items.map((hw: any) => {
           let sec = (hw.section || "").trim();
           let cls = (hw.className || "").trim();
@@ -5178,7 +5178,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return {
             ...hw,
             id: id || `HW-${Math.floor(100 + Math.random() * 900)}`,
-            title: hw.title || hw.homeworkTitle || "",
+            title: hw.title || hw.homeworkTitle || hw.topic || "",
             className: cls || hw.className || "",
             section: sec || hw.section || "",
             subject: hw.subject || hw.subjectName || "",
@@ -5189,18 +5189,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: hw.status || "PUBLISHED",
             totalSubmissions: hw.submissionsCount ?? hw.totalSubmissions ?? 0,
             publishToType: (hw.publishedTo || "").toLowerCase().includes("student") ? "Students" : "Class",
+            publishedStudentIds: hw.publishedStudentIds || (hw.studentIds ? (Array.isArray(hw.studentIds) ? hw.studentIds : [hw.studentIds]) : []),
             attachments: hw.attachments || (hw.attachmentFileName ? [{ id: '1', name: hw.attachmentFileName, url: hw.attachmentUrl || '#', type: 'Doc' }] : [])
           };
         });
-        setHomework((prev) => {
-          const apiIds = new Set(normalizedItems.map((i: any) => String(i.id)));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(String(i.id)));
-          const combined = [...normalizedItems, ...localOnly];
-          try {
-            localStorage.setItem("edu_db_homework", JSON.stringify(combined));
-          } catch (e) {}
-          return combined;
+
+        // Deduplicate items cleanly
+        const uniqueMap = new Map<string, any>();
+        normalizedItems.forEach((item: any) => {
+          const dedupeKey = item.id && !item.id.startsWith("HW-")
+            ? `db_${item.id}`
+            : `${item.className}_${item.section}_${item.subject}_${item.title}_${item.dueDate}`.toLowerCase();
+          if (!uniqueMap.has(dedupeKey)) {
+            uniqueMap.set(dedupeKey, item);
+          }
         });
+
+        const deduplicated = Array.from(uniqueMap.values());
+        setHomework(deduplicated);
+        try {
+          localStorage.setItem("edu_db_homework", JSON.stringify(deduplicated));
+          localStorage.setItem("homework", JSON.stringify(deduplicated));
+        } catch (e) {}
       }
     } catch (err) {
       console.warn("Failed to fetch homework from API", err);
@@ -17072,19 +17082,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveStudentAttendance = (record: any) => {
     setStudentAttendance((prev) => {
       const recordDate = String(record.date || "").split("T")[0];
-      const filtered = prev.filter(
-        (r) =>
-          !(
-            String(r.studentId) === String(record.studentId) &&
-            String(r.date || "").split("T")[0] === recordDate
-          ),
-      );
+      const recStudentId = String(record.studentId || record.id || "").trim();
+      const recRoll = String(record.rollNo || "").trim();
+      const recAdm = String(record.admissionNo || "").trim();
+      const recName = String(record.studentName || "").trim().toLowerCase();
+
+      const filtered = prev.filter((r) => {
+        const rDate = String(r.date || "").split("T")[0];
+        if (rDate !== recordDate) return true;
+        const rStudentId = String(r.studentId || r.id || "").trim();
+        const rRoll = String(r.rollNo || "").trim();
+        const rAdm = String(r.admissionNo || "").trim();
+        const rName = String(r.studentName || "").trim().toLowerCase();
+
+        const isMatch =
+          (recStudentId && rStudentId === recStudentId) ||
+          (recRoll && (rRoll === recRoll || rStudentId === recRoll)) ||
+          (recAdm && (rAdm === recAdm || rStudentId === recAdm)) ||
+          (recName && rName && rName === recName);
+        return !isMatch;
+      });
       const updated = [...filtered, { ...record, date: recordDate }];
       try {
         const str = JSON.stringify(updated);
         localStorage.setItem("edu_db_student_attendance", str);
         localStorage.setItem("student_attendance", str);
         localStorage.setItem("sms_student_attendance", str);
+        window.dispatchEvent(new Event("attendance_updated"));
+        window.dispatchEvent(new Event("storage"));
       } catch {}
       return updated;
     });

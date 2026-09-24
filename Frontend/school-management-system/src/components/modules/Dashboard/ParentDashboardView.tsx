@@ -224,11 +224,16 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     meetings = [], 
     schoolEvents = [], 
     exams = [], 
-    schoolProfile 
+    schoolProfile,
+    fetchHomeworkData
   } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
+
+  useEffect(() => {
+    fetchHomeworkData?.();
+  }, [fetchHomeworkData]);
 
   const [registryVersion, setRegistryVersion] = useState(0);
   useEffect(() => {
@@ -474,12 +479,22 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       const isStudentEntity = !a.entityType || a.entityType === 'Student';
       if (!isStudentEntity) return false;
 
-      const recId = String(a.studentId || a.entityId || a.id || '').trim();
-      return recId && (
-        recId === wardId ||
-        (wardStudentId && recId === wardStudentId) ||
-        (wardRoll && recId === wardRoll) ||
-        (wardAdm && recId === wardAdm)
+      const recId = String(a.studentId || a.entityId || a.id || '').trim().toLowerCase();
+      const recRoll = String(a.rollNo || '').trim().toLowerCase();
+      const recAdm = String(a.admissionNo || '').trim().toLowerCase();
+      const recName = String(a.studentName || '').trim().toLowerCase();
+
+      const wardIdStr = wardId.toLowerCase();
+      const wardStudentIdStr = wardStudentId.toLowerCase();
+      const wardRollStr = wardRoll.toLowerCase();
+      const wardAdmStr = wardAdm.toLowerCase();
+      const wardNameStr = String(currentWard.studentName || `${currentWard.firstName || ''} ${currentWard.lastName || ''}`).trim().toLowerCase();
+
+      return (
+        (recId && (recId === wardIdStr || recId === wardStudentIdStr || recId === wardRollStr || recId === wardAdmStr)) ||
+        (recRoll && (recRoll === wardRollStr || recRoll === wardIdStr || recRoll === wardAdmStr)) ||
+        (recAdm && (recAdm === wardAdmStr || recAdm === wardIdStr || recAdm === wardRollStr)) ||
+        (recName && wardNameStr && (recName === wardNameStr || recName.includes(wardNameStr) || wardNameStr.includes(recName)))
       );
     });
     let present = 0;
@@ -577,22 +592,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     return 'Good Evening';
   }, []);
 
-  // Early conditional return blocks (must be placed AFTER all Hook calls!)
-  if (loading) {
-    return <DashboardShimmer />;
-  }
-
-  if (parentWards.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500 font-medium">
-        No active wards found.
-      </div>
-    );
-  }
-
-  const wardAttendance = wardAttendanceStats.wardAttendance;
-  const attPercentage = wardAttendanceStats.presentPct;
-
   const normalizeClassNum = (str?: string) => {
     if (!str) return '';
     const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').replace(/\s+/g, '').trim();
@@ -614,16 +613,72 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const wardClassNumP = normalizeClassNum(currentWard?.className);
   const wardSecP = normalizeSection(currentWard?.section, currentWard?.className);
 
-  const pendingHomework = (homework || []).filter(h => {
-    if (!currentWard || !h) return false;
-    const hClassNum = normalizeClassNum(h.className || (h as any).classRoom || (h as any).class);
-    const hSec = normalizeSection(h.section, h.className || (h as any).classRoom || (h as any).class);
-    const matchesClass = !wardClassNumP || !hClassNum || hClassNum === wardClassNumP || hClassNum.includes(wardClassNumP) || wardClassNumP.includes(hClassNum);
-    const matchesSec = !hSec || hSec === 'all' || !wardSecP || hSec === wardSecP;
-    const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
-    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending'].includes(hStatus);
-    return matchesClass && matchesSec && isPublished;
-  }).length;
+  const pendingHomework = useMemo(() => {
+    if (!currentWard) return 0;
+    let submissions: Record<string, any> = {};
+    try {
+      const saved = localStorage.getItem('parent_student_homework_submissions');
+      if (saved) submissions = JSON.parse(saved);
+    } catch {}
+
+    const wardId = String(currentWard.id || '').trim().toLowerCase();
+    const wardRoll = String(currentWard.rollNo || '').trim().toLowerCase();
+    const wardAdm = String(currentWard.admissionNo || '').trim().toLowerCase();
+
+    const matchedMap = new Map<string, any>();
+
+    (homework || []).forEach(h => {
+      if (!h) return;
+      const hClassNum = normalizeClassNum(h.className || (h as any).classRoom || (h as any).class);
+      const hSec = normalizeSection(h.section, h.className || (h as any).classRoom || (h as any).class);
+
+      if (!wardClassNumP || !hClassNum || hClassNum !== wardClassNumP) return;
+      if (hSec && hSec !== 'all' && wardSecP && hSec !== wardSecP) return;
+
+      const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
+      const isPublished = ['published', 'active', 'assigned', 'pending'].includes(hStatus);
+      if (!isPublished) return;
+
+      if (h.publishToType === 'Students' || (h as any).publishedTo === 'Selected Students') {
+        const studentIds = h.publishedStudentIds || [];
+        if (Array.isArray(studentIds) && studentIds.length > 0) {
+          const isTargeted = studentIds.some((id: any) => {
+            const sId = String(id).trim().toLowerCase();
+            return sId === wardId || (wardRoll && sId === wardRoll) || (wardAdm && sId === wardAdm);
+          });
+          if (!isTargeted) return;
+        }
+      }
+
+      // Check if already submitted
+      const hwKey = String(h.id || (h as any).homeworkId);
+      const subRecord = submissions[hwKey];
+      if (subRecord && subRecord.status === 'Submitted') return;
+
+      const dedupeKey = `${hClassNum}_${hSec}_${(h.subject || '').trim()}_${(h.title || '').trim()}_${h.dueDate}`.toLowerCase();
+      if (!matchedMap.has(dedupeKey)) {
+        matchedMap.set(dedupeKey, h);
+      }
+    });
+
+    return matchedMap.size;
+  }, [homework, currentWard, wardClassNumP, wardSecP]);
+
+  // Early conditional return blocks (must be placed AFTER all Hook calls!)
+  if (loading) {
+    return <DashboardShimmer />;
+  }
+
+  if (parentWards.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500 font-medium">
+        No active wards found.
+      </div>
+    );
+  }
+
+  const wardAttendance = wardAttendanceStats.wardAttendance;
+  const attPercentage = wardAttendanceStats.presentPct;
 
   // Real data for notices
   const recentNotices = [

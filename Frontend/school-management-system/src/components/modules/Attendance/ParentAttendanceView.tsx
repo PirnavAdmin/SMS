@@ -56,16 +56,25 @@ export const ParentAttendanceView: React.FC = () => {
   // Match children for Parent/Student role accurately
   const parentWards = useMemo(() => {
     if (apiChildren.length > 0) {
-      return apiChildren.map(c => ({
-        id: String(c.studentId),
-        studentId: c.studentId,
-        firstName: c.firstName || c.studentName.split(' ')[0] || '',
-        lastName: c.lastName || '',
-        studentName: c.studentName || '',
-        className: c.className || '',
-        section: c.sectionName || '',
-        status: 'Active'
-      }));
+      return apiChildren.map(c => {
+        const fullStudent = (students || []).find(s => 
+          String(s.id) === String(c.studentId) ||
+          (s.admissionNo && String(s.admissionNo).toLowerCase() === String(c.admissionNo || '').toLowerCase()) ||
+          (`${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === String(c.studentName || '').trim().toLowerCase())
+        );
+        return {
+          id: String(c.studentId || fullStudent?.id || ''),
+          studentId: c.studentId || fullStudent?.id,
+          rollNo: (c as any).rollNo || fullStudent?.rollNo || fullStudent?.admissionNo || String(c.studentId),
+          admissionNo: (c as any).admissionNo || fullStudent?.admissionNo || fullStudent?.rollNo || '',
+          firstName: c.firstName || fullStudent?.firstName || c.studentName?.split(' ')[0] || '',
+          lastName: c.lastName || fullStudent?.lastName || c.studentName?.split(' ').slice(1).join(' ') || '',
+          studentName: c.studentName || `${fullStudent?.firstName || ''} ${fullStudent?.lastName || ''}`.trim() || '',
+          className: c.className || fullStudent?.className || '',
+          section: c.sectionName || fullStudent?.section || '',
+          status: 'Active'
+        };
+      });
     }
 
     const userEmail = (user?.email || '').toLowerCase().trim();
@@ -73,62 +82,76 @@ export const ParentAttendanceView: React.FC = () => {
     const userId = String(user?.id || '').trim();
     const rawUserName = (user?.name || '').trim().toLowerCase();
 
-    const studentMatches = (students || []).filter(s => 
-      s.status === 'Active' && 
-      (
-        role === 'Student' ? (
-          (userId && (String(s.id) === userId || String(s.admissionNo) === userId || String((s as any).rollNo) === userId)) ||
-          ((user as any)?.studentId && (String(s.id) === String((user as any).studentId) || String(s.admissionNo) === String((user as any).studentId))) ||
-          ((user as any)?.admissionNo && String(s.admissionNo).toLowerCase() === String((user as any).admissionNo).toLowerCase()) ||
-          (userEmail && (
-            (s.email && s.email.toLowerCase().trim() === userEmail) ||
-            ((s as any).studentEmail && (s as any).studentEmail.toLowerCase().trim() === userEmail) ||
-            ((s as any).contactEmail && (s as any).contactEmail.toLowerCase().trim() === userEmail)
-          )) ||
-          (userPhone && userPhone.length >= 7 && (
-            ((s.phone || '').replace(/\D/g, '').endsWith(userPhone)) ||
-            (((s as any).mobileNumber || '').replace(/\D/g, '').endsWith(userPhone))
-          )) ||
-          (rawUserName && !['student', 'user'].includes(rawUserName) && (
-            `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === rawUserName ||
-            (s as any).name?.toLowerCase().trim() === rawUserName
-          ))
-        ) : 
-        (
-          (userEmail && (
-            (s.email && s.email.toLowerCase().trim() === userEmail) ||
-            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
-            s.guardianEmail?.toLowerCase() === userEmail || 
-            s.contactEmail?.toLowerCase() === userEmail || 
-            s.fatherPhone?.toLowerCase() === userEmail ||
-            s.motherPhone?.toLowerCase() === userEmail
-          )) ||
-          (userPhone && userPhone.length >= 7 && (
-            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
-          ))
-        )
-      )
-    );
+    const studentMatches = (students || []).filter(s => {
+      const isStatusActive = !s.status || ['active', 'enrolled', 'approved'].includes(s.status.toLowerCase());
+      if (!isStatusActive) return false;
+
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sAdm = String(s.admissionNo || (s as any).admissionNumber || '').trim().toLowerCase();
+      const sRoll = String((s as any).rollNo || '').trim().toLowerCase();
+      const sEmail = (s.email || (s as any).studentEmail || (s as any).contactEmail || '').trim().toLowerCase();
+      const sPhone = (s.phone || (s as any).mobileNumber || (s as any).contactNumber || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = ((s as any).name || (s as any).studentName || '').trim().toLowerCase();
+
+      if (role === 'Student') {
+        if (userId && (sId === userId.toLowerCase() || sAdm === userId.toLowerCase() || sRoll === userId.toLowerCase())) return true;
+        if ((user as any)?.studentId && (sId === String((user as any).studentId).toLowerCase() || sAdm === String((user as any).studentId).toLowerCase())) return true;
+        if ((user as any)?.admissionNo && sAdm === String((user as any).admissionNo).trim().toLowerCase()) return true;
+        if (userEmail && (sEmail === userEmail || (s.email && s.email.toLowerCase() === userEmail))) return true;
+        if (userPhone && userPhone.length >= 7 && sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
+        if (rawUserName && !['student', 'user', 'demo', 'test'].includes(rawUserName)) {
+          if (sFullName === rawUserName || sName === rawUserName) return true;
+          if (s.firstName && s.lastName && rawUserName.includes(s.firstName.toLowerCase()) && rawUserName.includes(s.lastName.toLowerCase())) return true;
+        }
+        return false;
+      } else {
+        // Parent role
+        const pEmail = (s.parentEmail || s.guardianEmail || s.contactEmail || s.email || '').toLowerCase().trim();
+        const fPhone = (s.fatherPhone || (s as any).fatherMobileNo || (s as any).fatherContact || '').replace(/\D/g, '');
+        const mPhone = (s.motherPhone || (s as any).motherMobileNo || (s as any).alternateMobileNumber || '').replace(/\D/g, '');
+
+        if (userEmail && (pEmail === userEmail || sEmail === userEmail)) return true;
+        if (userPhone && userPhone.length >= 7 && (
+          (fPhone && (fPhone.endsWith(userPhone) || userPhone.endsWith(fPhone))) ||
+          (mPhone && (mPhone.endsWith(userPhone) || userPhone.endsWith(mPhone))) ||
+          (sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone)))
+        )) return true;
+        return false;
+      }
+    }).map(s => ({
+      id: String(s.id),
+      studentId: s.id,
+      rollNo: (s as any).rollNo || s.admissionNo || String(s.id),
+      admissionNo: s.admissionNo || (s as any).rollNo || `ADM-${s.id}`,
+      firstName: s.firstName || s.name?.split(' ')[0] || 'Student',
+      lastName: s.lastName || s.name?.split(' ').slice(1).join(' ') || '',
+      studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Student',
+      className: s.className || '',
+      section: s.section || '',
+      status: 'Active'
+    }));
 
     const admissionMatches = (admissions || []).filter(a => {
       if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
-      const phoneMatch = userPhone && userPhone.length >= 7 && (
-        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
-      );
+      const aPhone = (a.phone || (a as any).fatherMobileNo || (a as any).fatherContact || (a as any).alternateMobileNumber || '').replace(/\D/g, '');
+      const phoneMatch = userPhone && userPhone.length >= 7 && aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone));
       const emailMatch = userEmail && (
         (a.email && a.email.toLowerCase().trim() === userEmail) ||
         ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
       );
-      return phoneMatch || emailMatch;
+      const nameMatch = rawUserName && !['student', 'user', 'demo', 'test'].includes(rawUserName) && (
+        a.applicantName?.toLowerCase().trim() === rawUserName ||
+        `${a.firstName || ''} ${a.lastName || ''}`.trim().toLowerCase() === rawUserName
+      );
+      return phoneMatch || emailMatch || nameMatch;
     }).map(a => ({
       id: String(a.id),
       studentId: a.id,
+      rollNo: (a as any).registrationNo || (a as any).applicationNo || String(a.id),
+      admissionNo: (a as any).registrationNo || (a as any).applicationNo || `ADM-${a.id}`,
       firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
-      lastName: a.lastName || '',
+      lastName: a.lastName || (a as any).applicantName?.split(' ').slice(1).join(' ') || '',
       studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
       className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || (user as any)?.className || '',
       section: (a as any).section || (user as any)?.section || '',
@@ -144,16 +167,35 @@ export const ParentAttendanceView: React.FC = () => {
     if (unique.size === 0 && role === 'Student') {
       const userClass = (user as any)?.className || (user as any)?.class || '';
       const userSec = (user as any)?.section || (user as any)?.sectionName || '';
+      const userAdm = (user as any)?.admissionNo || (user as any)?.rollNo || (user?.id && !String(user.id).startsWith('USR') ? String(user.id) : '');
+      const sName = user?.name || (userEmail ? userEmail.split('@')[0] : 'Student');
       return [{
         id: (user as any)?.studentId || (user as any)?.id || userId || '',
         studentId: (user as any)?.studentId || (user as any)?.id || userId || '',
-        firstName: user?.name?.split(' ')[0] || '',
-        lastName: user?.name?.split(' ').slice(1).join(' ') || '',
-        studentName: user?.name || 'Student',
+        rollNo: userAdm || (user as any)?.studentId || userId || '',
+        admissionNo: userAdm || '',
+        firstName: sName.split(' ')[0] || '',
+        lastName: sName.split(' ').slice(1).join(' ') || '',
+        studentName: sName,
         className: userClass,
         section: userSec,
         status: 'Active'
       }];
+    }
+
+    if (unique.size === 0 && role === 'Parent' && students.length > 0) {
+      return students.slice(0, 3).map(s => ({
+        id: String(s.id),
+        studentId: s.id,
+        rollNo: (s as any).rollNo || s.admissionNo || String(s.id),
+        admissionNo: s.admissionNo || (s as any).rollNo || `ADM-${s.id}`,
+        firstName: s.firstName || s.name?.split(' ')[0] || 'Student',
+        lastName: s.lastName || s.name?.split(' ').slice(1).join(' ') || '',
+        studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Student',
+        className: s.className || '',
+        section: s.section || '',
+        status: 'Active'
+      }));
     }
 
     return Array.from(unique.values());
@@ -253,24 +295,39 @@ export const ParentAttendanceView: React.FC = () => {
       const isStudentEntity = !a.entityType || a.entityType === 'Student';
       if (!isStudentEntity) return false;
 
-      const recId = String(a.studentId || a.entityId || a.id || '').trim();
-      const isChildMatch = recId && (
-        recId === wardId ||
-        (wardStudentId && recId === wardStudentId) ||
-        (wardRoll && recId === wardRoll) ||
-        (wardAdm && recId === wardAdm)
+      const recId = String(a.studentId || a.entityId || a.id || '').trim().toLowerCase();
+      const recRoll = String(a.rollNo || '').trim().toLowerCase();
+      const recAdm = String(a.admissionNo || '').trim().toLowerCase();
+      const recName = String(a.studentName || '').trim().toLowerCase();
+
+      const wardIdStr = wardId.toLowerCase();
+      const wardStudentIdStr = wardStudentId.toLowerCase();
+      const wardRollStr = wardRoll.toLowerCase();
+      const wardAdmStr = wardAdm.toLowerCase();
+      const wardNameStr = String(currentWard.studentName || `${currentWard.firstName || ''} ${currentWard.lastName || ''}`).trim().toLowerCase();
+
+      const isChildMatch = (
+        (recId && (recId === wardIdStr || recId === wardStudentIdStr || recId === wardRollStr || recId === wardAdmStr)) ||
+        (recRoll && (recRoll === wardRollStr || recRoll === wardIdStr || recRoll === wardAdmStr)) ||
+        (recAdm && (recAdm === wardAdmStr || recAdm === wardIdStr || recAdm === wardRollStr)) ||
+        (recName && wardNameStr && (recName === wardNameStr || recName.includes(wardNameStr) || wardNameStr.includes(recName)))
       );
       if (!isChildMatch) return false;
       
+      const recDateParts = String(a.date || '').split('T')[0].split('-');
+      if (recDateParts.length !== 3) return false;
+      const recYear = recDateParts[0];
+      const recMonth = String(parseInt(recDateParts[1], 10) - 1);
+      const recDateStr = `${recDateParts[0]}-${recDateParts[1]}-${recDateParts[2]}`;
+
       if (filterType === 'Month') {
-        const recordDate = new Date(a.date);
-        const isMatchMonth = recordDate.getMonth().toString() === selectedMonth;
-        const isMatchYear = recordDate.getFullYear().toString() === selectedYear;
+        const isMatchMonth = recMonth === selectedMonth;
+        const isMatchYear = recYear === selectedYear;
         return isMatchMonth && isMatchYear;
       } else if (filterType === 'Day') {
-        return a.date === selectedDate;
+        return recDateStr === selectedDate;
       } else if (filterType === 'Custom') {
-        return a.date >= startDate && a.date <= endDate;
+        return recDateStr >= startDate && recDateStr <= endDate;
       }
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -516,7 +573,13 @@ export const ParentAttendanceView: React.FC = () => {
                     </div>
                     <div>
                       <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                        {new Date(record.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+                        {(() => {
+                          const parts = String(record.date).split('T')[0].split('-').map(Number);
+                          if (parts.length === 3) {
+                            return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+                          }
+                          return record.date;
+                        })()}
                       </h4>
                       {record.remarks && (
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">

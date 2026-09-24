@@ -650,7 +650,9 @@ export const AttendanceView = () => {
     if (targetStudent && saveStudentAttendance && newStatus) {
       saveStudentAttendance({
         studentId: targetStudent.id,
-        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+        rollNo: targetStudent.rollNo,
+        admissionNo: targetStudent.admissionNo,
+        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`.trim(),
         className: targetStudent.className,
         section: targetStudent.section,
         date: date,
@@ -660,6 +662,9 @@ export const AttendanceView = () => {
         remarks: remarksState[`${date}_${targetStudent.id}`] || '',
         markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -714,7 +719,9 @@ export const AttendanceView = () => {
     if (saveStudentAttendance && nextStatus) {
       saveStudentAttendance({
         studentId: student.id,
-        studentName: `${student.firstName} ${student.lastName}`,
+        rollNo: student.rollNo,
+        admissionNo: student.admissionNo,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
         className: student.className,
         section: student.section,
         date: dateStr,
@@ -724,6 +731,9 @@ export const AttendanceView = () => {
         remarks: remarksState[`${dateStr}_${student.id}`] || '',
         markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -762,7 +772,9 @@ export const AttendanceView = () => {
       classStudents.forEach(st => {
         saveStudentAttendance({
           studentId: st.id,
-          studentName: `${st.firstName} ${st.lastName}`,
+          rollNo: st.rollNo,
+          admissionNo: st.admissionNo,
+          studentName: `${st.firstName} ${st.lastName}`.trim(),
           className: st.className,
           section: st.section,
           date: date,
@@ -773,6 +785,9 @@ export const AttendanceView = () => {
           markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
         });
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -881,7 +896,9 @@ export const AttendanceView = () => {
         const remark = remarksState[`${date}_${st.id}`] || '';
         saveStudentAttendance({
           studentId: st.id,
-          studentName: `${st.firstName} ${st.lastName}`,
+          rollNo: st.rollNo,
+          admissionNo: st.admissionNo,
+          studentName: `${st.firstName} ${st.lastName}`.trim(),
           className: st.className,
           section: st.section,
           date: date,
@@ -892,6 +909,9 @@ export const AttendanceView = () => {
           markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
         });
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
 
     addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, Teacher, and Admin panels!');
