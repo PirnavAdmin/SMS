@@ -1235,7 +1235,7 @@ export const AttendanceView = () => {
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              disabled={isTeacher && sectionOptions.length <= 1}
+              disabled={isTeacher ? sectionOptions.length <= 1 : (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes')}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
               {sectionOptions.map(sec => (
@@ -1249,12 +1249,16 @@ export const AttendanceView = () => {
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections'}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
-              <option value="Select Period">Select Period</option>
-              {periodOptions.map(prd => (
-                <option key={prd} value={prd}>{prd}</option>
-              ))}
+              {(!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections' || dynamicPeriodsList.length === 0) ? (
+                <option value="Select Period">Select Period</option>
+              ) : (
+                periodOptions.map(prd => (
+                  <option key={prd} value={prd}>{prd}</option>
+                ))
+              )}
             </select>
           </div>
 
