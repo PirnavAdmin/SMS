@@ -216,8 +216,8 @@ export const ParentHomeworkView: React.FC = () => {
     const hClassNum = normalizeClassNum(h.className || (h as any).classRoom || (h as any).class);
     const hSec = normalizeSection(h.section, h.className || (h as any).classRoom || (h as any).class);
 
-    // Class Match (e.g. '5' === '5', '3' === '3', 'nursery' === 'nursery')
-    const classMatch = !wardClassNum || !hClassNum || hClassNum === wardClassNum || hClassNum.includes(wardClassNum) || wardClassNum.includes(hClassNum);
+    // Class Match (strict equality on normalized class number/name)
+    const classMatch = Boolean(wardClassNum) && Boolean(hClassNum) && hClassNum === wardClassNum;
     
     // Section Match (if homework specifies a section, match student section; otherwise match all)
     const sectionMatch = !hSec || hSec === 'all' || !wardSec || hSec === wardSec;

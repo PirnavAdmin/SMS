@@ -161,6 +161,77 @@ export const fetchStudentAttendanceRegisterApi = async (query: {
   });
 };
 
+export const fetchStudentAttendanceAllApi = async (query?: {
+  studentId?: number;
+  className?: string;
+  section?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  month?: number;
+  year?: number;
+  status?: string;
+}) => {
+  try {
+    const params = new URLSearchParams();
+    if (query?.studentId) params.append('studentId', query.studentId.toString());
+    if (query?.className) params.append('className', query.className);
+    if (query?.section) params.append('section', query.section);
+    if (query?.date) params.append('date', query.date);
+    if (query?.startDate) params.append('startDate', query.startDate);
+    if (query?.endDate) params.append('endDate', query.endDate);
+    if (query?.month) params.append('month', query.month.toString());
+    if (query?.year) params.append('year', query.year.toString());
+    if (query?.status) params.append('status', query.status);
+
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient(`/api/attendance/student/all${queryString}`, {
+      method: 'GET'
+    });
+    return response;
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return { success: false, data: [] };
+    }
+    throw err;
+  }
+};
+
+export const saveBulkStudentAttendanceApi = async (payload: {
+  date?: string;
+  className?: string;
+  section?: string;
+  subject?: string;
+  period?: string;
+  records: Array<{
+    studentId?: number | string;
+    rollNo?: string;
+    admissionNo?: string;
+    studentName?: string;
+    className?: string;
+    section?: string;
+    date?: string;
+    subject?: string;
+    period?: string;
+    status: string;
+    remarks?: string;
+    markedBy?: string;
+  }>;
+}) => {
+  try {
+    return await apiClient('/api/attendance/student/bulk', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+      return { success: true, localOnly: true };
+    }
+    throw err;
+  }
+};
+
+
 // ============================
 // TEACHER PERSONAL ATTENDANCE API
 // ============================

@@ -52,7 +52,7 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 
 export const AttendanceView = () => {
   const { user } = useAuth();
-  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents } = useData();
+  const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, saveBulkStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents, fetchStudentAttendanceData } = useData();
 
   const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
 
@@ -463,7 +463,10 @@ export const AttendanceView = () => {
     if (fetchStudents && (!allStudents || allStudents.length === 0)) {
       fetchStudents();
     }
-  }, [fetchStudents, allStudents]);
+    if (fetchStudentAttendanceData) {
+      fetchStudentAttendanceData();
+    }
+  }, [fetchStudents, allStudents, fetchStudentAttendanceData]);
 
   useEffect(() => {
     if (isAggregatedView) {
@@ -482,35 +485,11 @@ export const AttendanceView = () => {
  
   const [profileStudent, setProfileStudent] = useState<Student | null>(null);
  
-  // Persistent LocalStorage Remarks registry
-  const [remarksState, setRemarksState] = useState<RemarksState>(() => {
-    const saved = localStorage.getItem('sms_attendance_remarks');
-    return saved ? JSON.parse(saved) : {};
-  });
+  // In-memory Remarks state
+  const [remarksState, setRemarksState] = useState<RemarksState>({});
  
-  // Persistent LocalStorage Attendance registry
-  const [attendanceRegistry, setAttendanceRegistry] = useState<Record<string, AttendanceState>>(() => {
-    const saved = localStorage.getItem('sms_attendance_registry');
-    return saved ? JSON.parse(saved) : {};
-  });
- 
-  // Cross-tab / cross-role storage sync
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'sms_attendance_registry' && e.newValue) {
-        try {
-          setAttendanceRegistry(JSON.parse(e.newValue));
-        } catch {}
-      }
-      if (e.key === 'sms_attendance_remarks' && e.newValue) {
-        try {
-          setRemarksState(JSON.parse(e.newValue));
-        } catch {}
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  // In-memory Attendance registry
+  const [attendanceRegistry, setAttendanceRegistry] = useState<Record<string, AttendanceState>>({});
 
   const classStudents = React.useMemo(() => {
     const targetSec = normalizeSec(selectedSection);
@@ -633,22 +612,7 @@ export const AttendanceView = () => {
       }
     }
 
-    // 6. Direct LocalStorage fallback scan
-    try {
-      const rawReg = localStorage.getItem('sms_attendance_registry');
-      if (rawReg) {
-        const parsed = JSON.parse(rawReg);
-        for (const regKey of Object.keys(parsed)) {
-          if (regKey.endsWith(`_${targetDate}`) && (regKey.toLowerCase().includes(cleanCls) || regKey.includes(student.className))) {
-            if (parsed[regKey]?.[sId] !== undefined) {
-              return parsed[regKey][sId];
-            }
-          }
-        }
-      }
-    } catch {}
-
-    // 7. Sunday / Declared Holiday fallback
+    // 6. Sunday / Declared Holiday fallback
     const holCheck = checkSundayOrHoliday(targetDate, holidays);
     if (holCheck.isHoliday) {
       return 'Holiday' as AttendanceStatus;
@@ -757,17 +721,15 @@ export const AttendanceView = () => {
           updated[k] = { ...(updated[k] || {}), [studentId]: status };
         }
       }
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
 
     if (targetStudent && saveStudentAttendance && newStatus) {
       saveStudentAttendance({
         studentId: targetStudent.id,
-        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+        rollNo: targetStudent.rollNo,
+        admissionNo: targetStudent.admissionNo,
+        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`.trim(),
         className: targetStudent.className,
         section: targetStudent.section,
         date: date,
@@ -777,6 +739,9 @@ export const AttendanceView = () => {
         remarks: remarksState[`${date}_${targetStudent.id}`] || '',
         markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -821,17 +786,15 @@ export const AttendanceView = () => {
           updated[k] = { ...(updated[k] || {}), [student.id]: nextStatus };
         }
       }
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
 
     if (saveStudentAttendance && nextStatus) {
       saveStudentAttendance({
         studentId: student.id,
-        studentName: `${student.firstName} ${student.lastName}`,
+        rollNo: student.rollNo,
+        admissionNo: student.admissionNo,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
         className: student.className,
         section: student.section,
         date: dateStr,
@@ -841,6 +804,9 @@ export const AttendanceView = () => {
         remarks: remarksState[`${dateStr}_${student.id}`] || '',
         markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
       });
+      try {
+        window.dispatchEvent(new Event('attendance_updated'));
+      } catch {}
     }
   };
 
@@ -868,29 +834,40 @@ export const AttendanceView = () => {
           updated[k] = { ...(updated[k] || {}), [st.id]: status };
         }
       });
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
 
-    if (saveStudentAttendance) {
-      classStudents.forEach(st => {
-        saveStudentAttendance({
-          studentId: st.id,
-          studentName: `${st.firstName} ${st.lastName}`,
-          className: st.className,
-          section: st.section,
-          date: date,
-          subject: selectedSubject,
-          period: selectedPeriod,
-          status: status,
-          remarks: remarksState[`${date}_${st.id}`] || '',
-          markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-        });
+    const recordsToSave = classStudents.map(st => ({
+      studentId: st.id,
+      rollNo: st.rollNo,
+      admissionNo: st.admissionNo,
+      studentName: `${st.firstName} ${st.lastName}`.trim(),
+      className: st.className,
+      section: st.section,
+      date: date,
+      subject: selectedSubject,
+      period: selectedPeriod,
+      status: status,
+      remarks: remarksState[`${date}_${st.id}`] || '',
+      markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+    }));
+
+    if (saveBulkStudentAttendance) {
+      saveBulkStudentAttendance({
+        date: date,
+        className: selectedClass,
+        section: selectedSection,
+        subject: selectedSubject,
+        period: selectedPeriod,
+        records: recordsToSave
       });
+    } else if (saveStudentAttendance) {
+      recordsToSave.forEach(rec => saveStudentAttendance(rec));
     }
+
+    try {
+      window.dispatchEvent(new Event('attendance_updated'));
+    } catch {}
   };
 
   const handleRemarkChange = (studentId: string, remark: string) => {
@@ -900,15 +877,6 @@ export const AttendanceView = () => {
       [`${date}_${studentId}`]: remark
     }));
   };
-
-  // Auto-save mechanisms
-  useEffect(() => {
-    localStorage.setItem('sms_attendance_registry', JSON.stringify(attendanceRegistry));
-  }, [attendanceRegistry]);
-
-  useEffect(() => {
-    localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
-  }, [remarksState]);
 
   // Metrics calculation
   const summaryMetrics = React.useMemo(() => {
@@ -984,32 +952,44 @@ export const AttendanceView = () => {
           updated[k] = { ...(updated[k] || {}), [st.id]: status };
         }
       });
-      localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
-      localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
-      try {
-        window.dispatchEvent(new Event('storage'));
-      } catch {}
       return updated;
     });
 
-    if (saveStudentAttendance) {
-      classStudents.forEach(st => {
-        const status = getAttendanceStatus(st) || 'Present';
-        const remark = remarksState[`${date}_${st.id}`] || '';
-        saveStudentAttendance({
-          studentId: st.id,
-          studentName: `${st.firstName} ${st.lastName}`,
-          className: st.className,
-          section: st.section,
-          date: date,
-          subject: selectedSubject,
-          period: selectedPeriod,
-          status: status,
-          remarks: remark,
-          markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-        });
+    const recordsToSave = classStudents.map(st => {
+      const status = getAttendanceStatus(st) || 'Present';
+      const remark = remarksState[`${date}_${st.id}`] || '';
+      return {
+        studentId: st.id,
+        rollNo: st.rollNo,
+        admissionNo: st.admissionNo,
+        studentName: `${st.firstName} ${st.lastName}`.trim(),
+        className: st.className,
+        section: st.section,
+        date: date,
+        subject: selectedSubject,
+        period: selectedPeriod,
+        status: status,
+        remarks: remark,
+        markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+      };
+    });
+
+    if (saveBulkStudentAttendance) {
+      saveBulkStudentAttendance({
+        date: date,
+        className: selectedClass,
+        section: selectedSection,
+        subject: selectedSubject,
+        period: selectedPeriod,
+        records: recordsToSave
       });
+    } else if (saveStudentAttendance) {
+      recordsToSave.forEach(rec => saveStudentAttendance(rec));
     }
+
+    try {
+      window.dispatchEvent(new Event('attendance_updated'));
+    } catch {}
 
     addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, Teacher, and Admin panels!');
   };

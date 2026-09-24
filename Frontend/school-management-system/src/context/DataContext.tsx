@@ -12,6 +12,10 @@ import { formatCurrency } from "../utils/currency";
 import { fetchWorkshopsApi, fetchAssessmentsApi } from "../api/facultyTraining";
 import { publishTimetableApi } from "../api/academic";
 import {
+  fetchStudentAttendanceAllApi,
+  saveBulkStudentAttendanceApi,
+} from "../api/attendance";
+import {
   createAcademicYearApi,
   updateAcademicYearApi,
   deleteAcademicYearApi,
@@ -650,6 +654,8 @@ interface DataContextType {
   fetchBooks: () => Promise<void>;
   fetchBookIssues: () => Promise<void>;
   fetchHomeworkData: () => Promise<void>;
+  fetchStudentAttendanceData: (query?: any) => Promise<void>;
+  saveBulkStudentAttendance: (payload: any) => Promise<any>;
   fetchInventoryData: () => Promise<void>;
   fetchUniformData: () => Promise<void>;
   fetchFinanceData: () => Promise<void>;
@@ -1783,9 +1789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(
     () => getStored("processed_results", []),
   );
-  const [studentAttendance, setStudentAttendance] = useState<any[]>(() =>
-    getStored("student_attendance", []),
-  );
+  const [studentAttendance, setStudentAttendance] = useState<any[]>([]);
   const [todayStudentAttendanceSummary, setTodayStudentAttendanceSummary] =
     useState<any>(null);
   const [coScholasticAssessments, setCoScholasticAssessments] = useState<any[]>(
@@ -5146,7 +5150,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         const normalizedItems = items.map((hw: any) => {
           let sec = (hw.section || "").trim();
           let cls = (hw.className || "").trim();
@@ -5159,7 +5163,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return {
             ...hw,
             id: id || `HW-${Math.floor(100 + Math.random() * 900)}`,
-            title: hw.title || hw.homeworkTitle || "",
+            title: hw.title || hw.homeworkTitle || hw.topic || "",
             className: cls || hw.className || "",
             section: sec || hw.section || "",
             subject: hw.subject || hw.subjectName || "",
@@ -5170,18 +5174,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: hw.status || "PUBLISHED",
             totalSubmissions: hw.submissionsCount ?? hw.totalSubmissions ?? 0,
             publishToType: (hw.publishedTo || "").toLowerCase().includes("student") ? "Students" : "Class",
+            publishedStudentIds: hw.publishedStudentIds || (hw.studentIds ? (Array.isArray(hw.studentIds) ? hw.studentIds : [hw.studentIds]) : []),
             attachments: hw.attachments || (hw.attachmentFileName ? [{ id: '1', name: hw.attachmentFileName, url: hw.attachmentUrl || '#', type: 'Doc' }] : [])
           };
         });
-        setHomework((prev) => {
-          const apiIds = new Set(normalizedItems.map((i: any) => String(i.id)));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(String(i.id)));
-          const combined = [...normalizedItems, ...localOnly];
-          try {
-            localStorage.setItem("edu_db_homework", JSON.stringify(combined));
-          } catch (e) {}
-          return combined;
+
+        // Deduplicate items cleanly
+        const uniqueMap = new Map<string, any>();
+        normalizedItems.forEach((item: any) => {
+          const dedupeKey = item.id && !item.id.startsWith("HW-")
+            ? `db_${item.id}`
+            : `${item.className}_${item.section}_${item.subject}_${item.title}_${item.dueDate}`.toLowerCase();
+          if (!uniqueMap.has(dedupeKey)) {
+            uniqueMap.set(dedupeKey, item);
+          }
         });
+
+        const deduplicated = Array.from(uniqueMap.values());
+        setHomework(deduplicated);
+        try {
+          localStorage.setItem("edu_db_homework", JSON.stringify(deduplicated));
+          localStorage.setItem("homework", JSON.stringify(deduplicated));
+        } catch (e) {}
       }
     } catch (err) {
       console.warn("Failed to fetch homework from API", err);
@@ -5205,6 +5219,58 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to fetch inventory from API", err);
     }
   };
+
+  const fetchStudentAttendanceData = useCallback(async (query?: any) => {
+    const reqKey = "student-attendance" + (query ? JSON.stringify(query) : "");
+    if (activeRequests.current[reqKey]) {
+      return activeRequests.current[reqKey];
+    }
+
+    const promise = (async () => {
+      try {
+        const response: any = await fetchStudentAttendanceAllApi(query);
+        const items = Array.isArray(response)
+          ? response
+          : response?.data?.records || response?.data?.items || response?.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          setStudentAttendance((prev) => {
+            const existingMap = new Map<string, any>();
+            (prev || []).forEach((r) => {
+              const key = `${r.studentId || r.id}_${String(r.date || "").split("T")[0]}_${r.subject || ""}_${r.period || ""}`;
+              existingMap.set(key, r);
+            });
+            let hasChanges = false;
+            items.forEach((item: any) => {
+              const recDate = String(item.date || "").split("T")[0];
+              const key = `${item.studentId || item.id}_${recDate}_${item.subject || ""}_${item.period || ""}`;
+              const existing = existingMap.get(key);
+              if (!existing || existing.status !== item.status || existing.remarks !== item.remarks) {
+                hasChanges = true;
+              }
+              existingMap.set(key, { ...item, date: recDate });
+            });
+
+            if (!hasChanges && prev && prev.length === existingMap.size) {
+              return prev; // Preserve reference to prevent unnecessary component re-renders
+            }
+
+            const merged = Array.from(existingMap.values());
+            try {
+              window.dispatchEvent(new Event("attendance_updated"));
+            } catch {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn("Error fetching student attendance:", err);
+      } finally {
+        delete activeRequests.current[reqKey];
+      }
+    })();
+
+    activeRequests.current[reqKey] = promise;
+    return promise;
+  }, []);
 
   const fetchUniformData = async () => {
     if (activeRequests.current["uniform-data"]) {
@@ -5951,6 +6017,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchAnnouncementsData();
       fetchMeetingsData();
       fetchHomeworkData();
+      fetchStudentAttendanceData();
 
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
@@ -17063,28 +17130,101 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const saveStudentAttendance = (record: any) => {
+    const recordDate = String(record.date || "").split("T")[0];
     setStudentAttendance((prev) => {
-      const recordDate = String(record.date || "").split("T")[0];
-      const filtered = prev.filter(
-        (r) =>
-          !(
-            String(r.studentId) === String(record.studentId) &&
-            String(r.date || "").split("T")[0] === recordDate
-          ),
-      );
+      const recStudentId = String(record.studentId || record.id || "").trim();
+      const recRoll = String(record.rollNo || "").trim();
+      const recAdm = String(record.admissionNo || "").trim();
+      const recName = String(record.studentName || "").trim().toLowerCase();
+
+      const filtered = prev.filter((r) => {
+        const rDate = String(r.date || "").split("T")[0];
+        if (rDate !== recordDate) return true;
+        const rStudentId = String(r.studentId || r.id || "").trim();
+        const rRoll = String(r.rollNo || "").trim();
+        const rAdm = String(r.admissionNo || "").trim();
+        const rName = String(r.studentName || "").trim().toLowerCase();
+
+        const isMatch =
+          (recStudentId && rStudentId === recStudentId) ||
+          (recRoll && (rRoll === recRoll || rStudentId === recRoll)) ||
+          (recAdm && (rAdm === recAdm || rStudentId === recAdm)) ||
+          (recName && rName && rName === recName);
+        return !isMatch;
+      });
       const updated = [...filtered, { ...record, date: recordDate }];
       try {
-        const str = JSON.stringify(updated);
-        localStorage.setItem("edu_db_student_attendance", str);
-        localStorage.setItem("student_attendance", str);
-        localStorage.setItem("sms_student_attendance", str);
+        window.dispatchEvent(new Event("attendance_updated"));
       } catch {}
       return updated;
     });
+
+    // Async backend persistence
+    saveBulkStudentAttendanceApi({
+      date: recordDate,
+      className: record.className,
+      section: record.section,
+      subject: record.subject,
+      period: record.period,
+      records: [
+        {
+          studentId: record.studentId || record.id,
+          rollNo: record.rollNo,
+          admissionNo: record.admissionNo,
+          studentName: record.studentName,
+          className: record.className,
+          section: record.section,
+          date: recordDate,
+          subject: record.subject,
+          period: record.period,
+          status: record.status || "Present",
+          remarks: record.remarks || "",
+          markedBy: record.markedBy,
+        },
+      ],
+    }).catch((e) => {
+      console.warn("Async saveStudentAttendance backend sync failed:", e);
+    });
+
     logActivity(
       "Saved Student Attendance",
       `Updated attendance for student ID ${record.studentId}`,
     );
+  };
+
+  const saveBulkStudentAttendance = async (payload: any) => {
+    try {
+      const recs = payload.records || [];
+      if (Array.isArray(recs) && recs.length > 0) {
+        setStudentAttendance((prev) => {
+          const map = new Map<string, any>();
+          (prev || []).forEach((r) => {
+            const k = `${r.studentId || r.id}_${String(r.date || "").split("T")[0]}_${r.subject || ""}_${r.period || ""}`;
+            map.set(k, r);
+          });
+          recs.forEach((r: any) => {
+            const rDate = String(r.date || payload.date || "").split("T")[0];
+            const k = `${r.studentId || r.id}_${rDate}_${r.subject || payload.subject || ""}_${r.period || payload.period || ""}`;
+            map.set(k, {
+              ...r,
+              date: rDate,
+              className: r.className || payload.className,
+              section: r.section || payload.section,
+            });
+          });
+          const updated = Array.from(map.values());
+          try {
+            window.dispatchEvent(new Event("attendance_updated"));
+          } catch {}
+          return updated;
+        });
+
+        const response = await saveBulkStudentAttendanceApi(payload);
+        return response;
+      }
+    } catch (err) {
+      console.warn("Bulk attendance save failed:", err);
+    }
   };
 
   const saveCoScholasticAssessment = (record: any) => {
@@ -20742,6 +20882,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchBooks,
         fetchBookIssues,
         fetchHomeworkData,
+        fetchStudentAttendanceData,
+        saveBulkStudentAttendance,
         fetchInventoryData,
         fetchUniformData,
         fetchFinanceData,
