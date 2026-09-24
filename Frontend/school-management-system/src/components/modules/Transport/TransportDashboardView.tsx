@@ -104,12 +104,32 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
       }
     });
 
+    // 2. From Staff Directory (only Bus Attendants / Transport Department Attendants)
     (staff || []).forEach(s => {
-      const isAttendantOrNonTeaching =
-        s.role !== 'Teacher' &&
-        s.employeeCategory !== 'Teacher';
+      const dept = (s.department || '').toLowerCase().trim();
+      const desig = (s.designation || '').toLowerCase().trim();
+      const role = ((s as any).role || '').toLowerCase().trim();
 
-      if (isAttendantOrNonTeaching && s.firstName) {
+      const isDriver = desig.includes('driver') || role.includes('driver') || dept.includes('driver');
+
+      const isTransportDept = dept.includes('transport');
+      const isAttendantRoleOrDesig =
+        desig.includes('attendant') ||
+        desig.includes('conductor') ||
+        desig.includes('helper') ||
+        desig.includes('cleaner') ||
+        role.includes('attendant') ||
+        role.includes('conductor') ||
+        role.includes('helper') ||
+        role.includes('cleaner');
+
+      const isBusAttendantStaff = !isDriver && (
+        (isTransportDept && (isAttendantRoleOrDesig || (!desig.includes('manager') && !desig.includes('coordinator') && !desig.includes('supervisor') && !desig.includes('mechanic')))) ||
+        desig.includes('bus attendant') ||
+        role.includes('bus attendant')
+      );
+
+      if (isBusAttendantStaff && s.firstName) {
         const fullName = `${s.firstName} ${s.lastName || ''}`.trim();
         const empId = s.empId || (s as any).employeeId || '';
         const key = empId ? empId.toLowerCase() : fullName.toLowerCase();

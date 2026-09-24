@@ -225,7 +225,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     schoolEvents = [], 
     exams = [], 
     schoolProfile,
-    fetchHomeworkData
+    fetchHomeworkData,
+    fetchStudentAttendanceData
   } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -233,7 +234,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
 
   useEffect(() => {
     fetchHomeworkData?.();
-  }, [fetchHomeworkData]);
+    fetchStudentAttendanceData?.();
+  }, [fetchHomeworkData, fetchStudentAttendanceData]);
 
   const [registryVersion, setRegistryVersion] = useState(0);
   useEffect(() => {
@@ -416,36 +418,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       seenKeys.add(key);
       list.push({ ...a, date: d, studentId: sId, entityType: 'Student' });
     });
-
-    try {
-      const regRaw = localStorage.getItem('sms_attendance_registry');
-      if (regRaw) {
-        const registry = JSON.parse(regRaw);
-        Object.entries(registry).forEach(([regKey, studentMap]) => {
-          if (studentMap && typeof studentMap === 'object') {
-            const parts = regKey.split('_');
-            const d = parts[parts.length - 1];
-            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-              Object.entries(studentMap).forEach(([sId, status]) => {
-                if (status) {
-                  const key = `${sId}_${d}`;
-                  if (!seenKeys.has(key)) {
-                    seenKeys.add(key);
-                    list.push({
-                      id: `reg_${sId}_${d}`,
-                      studentId: sId,
-                      date: d,
-                      status: status,
-                      entityType: 'Student'
-                    });
-                  }
-                }
-              });
-            }
-          }
-        });
-      }
-    } catch {}
 
     (attendance || []).forEach(a => {
       const d = String(a.date || '').split('T')[0];

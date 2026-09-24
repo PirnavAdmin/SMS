@@ -1217,6 +1217,7 @@ export interface FeeHead {
   mandatory: boolean;
   applicableClasses: string[];
   applicableBranches: string[];
+  academicYear?: string;
   amount?: number;
   defaultAmount?: number;
   taxPercentage?: number;

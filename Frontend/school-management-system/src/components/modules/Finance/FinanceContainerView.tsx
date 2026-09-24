@@ -3,10 +3,12 @@ import { FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
 
 import { FinanceDashboardView } from './FinanceDashboardView';
-import { FinanceMastersView } from './FinanceMastersView';
+import { FeeSetupView } from './FeeSetupView';
+import { StudentFeesView } from './StudentFeesView';
 import { FeeCollectionContainerView } from './FeeCollectionContainerView';
+import { ConcessionsView } from './ConcessionsView';
+import { FinanceLedgerView } from './FinanceLedgerView';
 import { FinanceReportsView } from './FinanceReportsView';
-import { TransactionsMasterLedgerView } from './TransactionsMasterLedgerView';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 
 interface FinanceContainerViewProps {
@@ -14,7 +16,7 @@ interface FinanceContainerViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'fee-collection' }) => {
+export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'fee-collection', onTabChange }) => {
   const { fetchFinanceData } = useData();
 
   useEffect(() => {
@@ -33,42 +35,64 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     setActiveTab(cleanTab);
   }, [initialTab]);
 
+  const handleNavigate = (tab: string) => {
+    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(`finance-${tab}`);
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'transactions':
-      case 'ledger':
-      case 'master-ledger':
-        return <TransactionsMasterLedgerView />;
+      case 'dashboard':
+        return <FinanceDashboardView onNavigate={handleNavigate} />;
+
+      case 'fee-setup':
       case 'masters':
       case 'fee-heads':
       case 'fee-structure':
-      case 'student-fee-assignment':
-      case 'scholarships':
-      case 'discounts':
-      case 'fine-rules':
-      case 'transport-config':
-      case 'student-transport':
-      case 'hostel-config':
-      case 'student-hostel':
-      case 'refund-management':
+      case 'fee-schedule':
       case 'settings':
-        return <FinanceMastersView />;
-      case 'dashboard':
-      case 'fee-collection':
-      case 'fees':
-      case 'fee-receipts':
-        return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+        return <FeeSetupView initialTab={activeTab} />;
+
+      case 'student-fees':
+      case 'student-fee-assignment':
+      case 'student-assignment':
       case 'due-fees':
       case 'due_fees':
       case 'due':
       case 'dues':
-        return <FeeCollectionContainerView initialSubTab="due" onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
       case 'promoted-dues':
-      case 'promoted_dues':
-      case 'promoted-students-dues':
-        return <FeeCollectionContainerView initialSubTab="promoted_dues" onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+        return (
+          <StudentFeesView
+            initialTab={activeTab === 'student-fees' || activeTab === 'student-assignment' ? 'assign' : 'dues'}
+            onNavigateToCollect={() => setActiveTab('fee-collection')}
+          />
+        );
+
+      case 'fee-collection':
+      case 'fees':
+      case 'fee-receipts':
+        return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+
+      case 'concessions':
+      case 'scholarships':
+      case 'discounts':
+        return <ConcessionsView initialTab={activeTab === 'scholarships' ? 'student-concessions' : 'rules'} />;
+
+      case 'ledger':
+      case 'transactions':
+      case 'master-ledger':
+      case 'expenses':
+      case 'accounts':
+      case 'refunds':
+      case 'refund-management':
+      case 'budget':
+        return <FinanceLedgerView initialTab={activeTab} />;
+
       case 'reports':
         return <FinanceReportsView />;
+
       default:
         return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
     }
@@ -87,3 +111,5 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     </div>
   );
 };
+
+export default FinanceContainerView;

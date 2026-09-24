@@ -50,7 +50,7 @@ namespace SMS.Api.Dtos.Transport.VehicleAssignment
         public string? SelectBusAttendant
         {
             get => AttendantId?.ToString();
-            set { if (long.TryParse(value, out var id)) AttendantId = id; }
+            set { if (!string.IsNullOrWhiteSpace(value) && long.TryParse(value, out var id)) AttendantId = id; }
         }
 
         [JsonPropertyName("branchName")]

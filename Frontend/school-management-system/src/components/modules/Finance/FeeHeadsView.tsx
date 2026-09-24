@@ -25,16 +25,9 @@ const DEFAULT_CLASSES = [
 ];
 
 export const FeeHeadsView: React.FC = () => {
-  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses } = useData();
-  const { selectedBranch } = useAuth() as any;
+  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses, branches } = useData();
+  const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
-
-  const activeBranchList = useMemo(() => {
-    if (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') {
-      return [selectedBranch, 'All Branches'];
-    }
-    return ['All Branches'];
-  }, [selectedBranch]);
 
   const classOptions = useMemo(() => {
     if (academicClasses && academicClasses.length > 0) {
@@ -43,6 +36,16 @@ export const FeeHeadsView: React.FC = () => {
     }
     return DEFAULT_CLASSES;
   }, [academicClasses]);
+
+  const branchOptions = useMemo(() => {
+    if (branches && branches.length > 0) {
+      const names = branches.map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.branch)).filter(Boolean);
+      const unique = Array.from(new Set(names));
+      if (!unique.includes('All Branches')) unique.unshift('All Branches');
+      return unique;
+    }
+    return ['All Branches', 'Main Campus', 'Madhapur Branch'];
+  }, [branches]);
 
   const formatClassDisplayName = (cls: string) => {
     if (!cls) return '';
@@ -70,7 +73,7 @@ export const FeeHeadsView: React.FC = () => {
     frequency: 'Quarterly',
     mandatory: true,
     applicableClasses: classOptions,
-    applicableBranches: activeBranchList,
+    applicableBranches: ['All Branches'],
     taxPercentage: 0,
     displayOrder: 1,
     status: 'Active'
@@ -98,7 +101,7 @@ export const FeeHeadsView: React.FC = () => {
       frequency: 'Quarterly',
       mandatory: true,
       applicableClasses: classOptions,
-      applicableBranches: activeBranchList,
+      applicableBranches: ['All Branches'],
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
       status: 'Active'
@@ -112,43 +115,65 @@ export const FeeHeadsView: React.FC = () => {
       ...h,
       mandatory: h.mandatory === true,
       applicableClasses: h.applicableClasses && h.applicableClasses.length > 0 ? [...h.applicableClasses] : [...classOptions],
-      applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : activeBranchList,
+      applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['All Branches'],
     });
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.code) {
-      addToast('warning', 'Validation Error', 'Fee type name and code are required.');
-      return;
-    }
+    try {
+      if (!formData.name || !formData.name.trim()) {
+        throw new Error('Fee type name is required.');
+      }
+      if (!formData.code || !formData.code.trim()) {
+        throw new Error('Fee type code is required.');
+      }
+      if (!formData.applicableClasses || formData.applicableClasses.length === 0) {
+        throw new Error('Please select at least one applicable class for this fee type.');
+      }
 
-    if (!formData.applicableClasses || formData.applicableClasses.length === 0) {
-      addToast('warning', 'Validation Error', 'Please select at least one applicable class for this fee type.');
-      return;
-    }
+      const cleanName = formData.name.trim().toLowerCase();
+      const cleanCode = formData.code.trim().toLowerCase();
 
-    const targetBranches = (formData.applicableBranches && formData.applicableBranches.length > 0) 
-      ? formData.applicableBranches 
-      : activeBranchList;
-
-    if (editingHead) {
-      updateFeeHead(editingHead.id, {
-        ...formData,
-        applicableBranches: targetBranches,
-        mandatory: formData.mandatory === true,
+      // Duplicate validation check using Exception Handling
+      const existingDuplicate = feeHeads.find(h => {
+        if (editingHead && String(h.id) === String(editingHead.id)) return false;
+        const sameCode = h.code && h.code.trim().toLowerCase() === cleanCode;
+        const sameNameCat = h.name && h.name.trim().toLowerCase() === cleanName && h.category === formData.category;
+        return sameCode || sameNameCat;
       });
-      addToast('success', 'Fee Head Updated', `Updated ${formData.name}`);
-    } else {
-      addFeeHead({
+
+      if (existingDuplicate) {
+        if (existingDuplicate.code && existingDuplicate.code.trim().toLowerCase() === cleanCode) {
+          throw new Error(`Duplicate Validation Error: Fee type code "${formData.code}" already exists.`);
+        } else {
+          throw new Error(`Duplicate Validation Error: Fee type "${formData.name}" in category "${formData.category}" already exists.`);
+        }
+      }
+
+      const cleanTax = (formData.taxPercentage as any) === '' || formData.taxPercentage === undefined || formData.taxPercentage === null ? 0 : Number(formData.taxPercentage);
+      const cleanOrder = (formData.displayOrder as any) === '' || formData.displayOrder === undefined || formData.displayOrder === null ? feeHeads.length + 1 : Number(formData.displayOrder);
+
+      const payload = {
         ...formData,
-        applicableBranches: targetBranches,
+        taxPercentage: cleanTax,
+        displayOrder: cleanOrder,
         mandatory: formData.mandatory === true,
-      } as Omit<FeeHead, 'id'>);
-      addToast('success', 'Fee Head Created', `Created ${formData.name}`);
+        academicYear: selectedAcademicYear || 'All',
+      };
+
+      if (editingHead) {
+        await updateFeeHead(editingHead.id, payload);
+        addToast('success', 'Fee Head Updated', `Updated ${formData.name}`);
+      } else {
+        await addFeeHead(payload as Omit<FeeHead, 'id'>);
+        addToast('success', 'Fee Head Created', `Created ${formData.name}`);
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      addToast('error', 'Validation Error', err.message || 'Validation failed for Fee Type.');
     }
-    setIsModalOpen(false);
   };
 
   return (
@@ -353,18 +378,29 @@ export const FeeHeadsView: React.FC = () => {
                   <label className="block font-semibold mb-1">Display Order</label>
                   <input
                     type="number"
-                    value={formData.displayOrder}
-                    onChange={e => setFormData({ ...formData, displayOrder: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    min="1"
+                    value={(formData.displayOrder as any) === '' ? '' : (formData.displayOrder ?? 1)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, displayOrder: val === '' ? '' as any : Number(val) });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Tax (%)</label>
                   <input
                     type="number"
-                    value={formData.taxPercentage || 0}
-                    onChange={e => setFormData({ ...formData, taxPercentage: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="0"
+                    value={(formData.taxPercentage as any) === '' ? '' : (formData.taxPercentage ?? 0)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, taxPercentage: val === '' ? '' as any : Number(val) });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -419,6 +455,54 @@ export const FeeHeadsView: React.FC = () => {
                           className="w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500"
                         />
                         <span className="truncate">{formatClassDisplayName(cls)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Applicable Branches Configuration */}
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <label className="font-extrabold text-slate-800 dark:text-slate-200">
+                    Applicable Branches ({(formData.applicableBranches || []).includes('All Branches') ? 'All' : (formData.applicableBranches || []).length})
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 p-1">
+                  {branchOptions.map((br) => {
+                    const isAll = br === 'All Branches';
+                    const currentBranches = formData.applicableBranches || ['All Branches'];
+                    const isChecked = currentBranches.includes(br) || (isAll && currentBranches.length === 0);
+                    return (
+                      <label
+                        key={br}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-semibold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (isAll) {
+                              setFormData({ ...formData, applicableBranches: ['All Branches'] });
+                            } else {
+                              let next = currentBranches.filter(b => b !== 'All Branches');
+                              if (e.target.checked) {
+                                next.push(br);
+                              } else {
+                                next = next.filter(b => b !== br);
+                              }
+                              if (next.length === 0) next = ['All Branches'];
+                              setFormData({ ...formData, applicableBranches: next });
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500"
+                        />
+                        <span>{br}</span>
                       </label>
                     );
                   })}

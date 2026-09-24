@@ -77,14 +77,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   // Dynamic School Info State loaded from API / localStorage with no hardcoded fallback text or logos
   const [schoolInfo, setSchoolInfo] = useState<DynamicSchoolInfo>(() => {
     return {
-      name: localStorage.getItem('school_name') || '',
+      name: localStorage.getItem('school_name') || 'Pirnav School',
       logoUrl: localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
-      address: localStorage.getItem('school_address') || '',
-      email: localStorage.getItem('school_email') || '',
-      phone: localStorage.getItem('school_phone') || '',
-      website: localStorage.getItem('school_website') || '',
-      tagline: localStorage.getItem('school_tagline') || '',
-      affiliation: localStorage.getItem('school_affiliation') || '',
+      address: localStorage.getItem('school_address') || 'Main Campus, Education City, Hyderabad',
+      email: localStorage.getItem('school_email') || 'contact@pirnavschool.edu.in',
+      phone: localStorage.getItem('school_phone') || '+91 98765 43210',
+      website: localStorage.getItem('school_website') || 'www.pirnavschool.edu.in',
+      tagline: localStorage.getItem('school_tagline') || 'Nurturing character, academic excellence, and ethical leadership in every student.',
+      affiliation: localStorage.getItem('school_affiliation') || 'CBSE Affiliated',
     };
   });
 
@@ -140,14 +140,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             const effectiveLogo = backendLogo || savedLogo || schoolInfo.logoUrl;
 
             const updated: DynamicSchoolInfo = {
-              name: data.schoolName || data.name || savedName || '',
+              name: data.schoolName || data.name || savedName || 'Pirnav School',
               logoUrl: effectiveLogo,
-              address: data.address || data.schoolAddress || savedAddr || '',
-              email: data.email || data.contactEmail || '',
-              phone: data.phone || data.contactPhone || '',
-              website: data.website || '',
-              tagline: data.tagline || data.motto || '',
-              affiliation: data.affiliation || data.board || '',
+              address: data.address || data.schoolAddress || savedAddr || 'Main Campus, Education City, Hyderabad',
+              email: data.email || data.contactEmail || 'contact@pirnavschool.edu.in',
+              phone: data.phone || data.contactPhone || '+91 98765 43210',
+              website: data.website || 'www.pirnavschool.edu.in',
+              tagline: data.tagline || data.motto || 'Nurturing character, academic excellence, and ethical leadership in every student.',
+              affiliation: data.affiliation || data.board || 'CBSE Affiliated',
             };
             setSchoolInfo(updated);
             if (updated.name) localStorage.setItem('school_name', updated.name);
@@ -1138,7 +1138,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   Nurturing Character & Academic Excellence
                 </h2>
                 <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                  At {schoolInfo.name}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
+                  At {schoolInfo.name || 'Pirnav School'}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -1222,7 +1222,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 {schoolInfo.logoUrl ? (
                   <img
                     src={schoolInfo.logoUrl}
-                    alt={schoolInfo.name}
+                    alt={schoolInfo.name || 'Pirnav School Logo'}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
@@ -1233,34 +1233,44 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 )}
               </div>
               <span className="font-extrabold text-sm sm:text-base text-white tracking-tight">
-                {schoolInfo.name}
+                {schoolInfo.name || 'Pirnav School'}
               </span>
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-              {schoolInfo.tagline}
+              {schoolInfo.tagline || 'Nurturing character, academic excellence, and ethical leadership in every student.'}
             </p>
 
             {/* Dynamic Address & Contact */}
-            <div className="pt-0.5 text-xs text-slate-300 space-y-1.5">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-                <span className="leading-tight">{schoolInfo.address}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                <span>{schoolInfo.phone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                <span>{schoolInfo.email}</span>
-              </div>
-              {schoolInfo.website && (
-                <div className="flex items-center gap-2">
-                  <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>{schoolInfo.website}</span>
+            <div className="pt-1 text-xs text-slate-300 space-y-2.5">
+              <div className="flex items-start gap-2.5" title="School Location / Address">
+                <MapPin className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" aria-label="School Location Icon" />
+                <div className="leading-tight">
+                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Location</span>
+                  <span className="text-slate-200">{schoolInfo.address || 'Main Campus, Education City, Hyderabad'}</span>
                 </div>
-              )}
+              </div>
+              <div className="flex items-center gap-2.5" title="School Contact Phone">
+                <Phone className="w-4 h-4 text-sky-400 shrink-0" aria-label="School Phone Icon" />
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Phone</span>
+                  <span className="text-slate-200">{schoolInfo.phone || '+91 98765 43210'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5" title="School Contact Email">
+                <Mail className="w-4 h-4 text-sky-400 shrink-0" aria-label="School Email Icon" />
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Email</span>
+                  <span className="text-slate-200">{schoolInfo.email || 'contact@pirnavschool.edu.in'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5" title="School Official Website">
+                <Globe className="w-4 h-4 text-sky-400 shrink-0" aria-label="School Website Icon" />
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Website</span>
+                  <span className="text-slate-200">{schoolInfo.website || 'www.pirnavschool.edu.in'}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1345,7 +1355,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
         {/* Dynamic Copyright Footer */}
         <div className="max-w-7xl mx-auto mt-5 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-2">
-          <p>© {new Date().getFullYear()} {schoolInfo.name}. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {schoolInfo.name || 'Pirnav School'}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-slate-400">
             <span className="hover:text-slate-300 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-300 cursor-pointer">Terms of Service</span>

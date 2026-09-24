@@ -7,10 +7,11 @@ import { useAuth } from '../../../context/AuthContext';
 import { matchesClassName } from '../../../utils/classSorter';
 
 interface DueFeesViewProps {
-  onCollectStudentFee: (student: Student) => void;
+  onCollectStudentFee?: (student: Student) => void;
+  onCollectClick?: (studentId: any) => void;
 }
 
-export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee }) => {
+export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee, onCollectClick }) => {
   const {
     students,
     getStudentFeeLedger,
@@ -361,7 +362,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button
-                          onClick={() => onCollectStudentFee(st)}
+                          onClick={() => onCollectStudentFee?.(st)}
                           className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto cursor-pointer transition-all"
                         >
                           <IndianRupee className="w-3.5 h-3.5" /> Collect

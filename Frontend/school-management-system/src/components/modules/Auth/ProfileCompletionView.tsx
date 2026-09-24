@@ -756,7 +756,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                   onChange={e => updatePersonal('religion', e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm outline-none text-slate-900 dark:text-white"
                 >
-                  <option value="">Select Religion</option>
+                  <option value="">Select</option>
                   {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
                 </select>
               </div>

@@ -6,7 +6,7 @@ export const fetchAdmissionsApi = async () => {
   });
 };
  
-export const fetchAdmissionByIdApi = async (id: number) => {
+export const fetchAdmissionByIdApi = async (id: number | string) => {
   return apiClient(`/api/admissions/${id}`, {
     method: 'GET'
   });
@@ -19,26 +19,26 @@ export const createAdmissionApi = async (payload: any) => {
   });
 };
  
-export const updateAdmissionApi = async (id: number, payload: any) => {
+export const updateAdmissionApi = async (id: number | string, payload: any) => {
   return apiClient(`/api/admissions/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   });
 };
  
-export const deleteAdmissionApi = async (id: number) => {
+export const deleteAdmissionApi = async (id: number | string) => {
   return apiClient(`/api/admissions/${id}`, {
     method: 'DELETE'
   });
 };
  
-export const rejectAdmissionApi = async (id: number) => {
+export const rejectAdmissionApi = async (id: number | string) => {
   return apiClient(`/api/admissions/${id}/reject`, {
     method: 'POST'
   });
 };
  
-export const enrollAdmissionApi = async (id: number) => {
+export const enrollAdmissionApi = async (id: number | string) => {
   return apiClient(`/api/admissions/${id}/enroll`, {
     method: 'POST'
   });

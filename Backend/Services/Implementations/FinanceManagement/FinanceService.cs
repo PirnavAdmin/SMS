@@ -25,6 +25,7 @@ public class FinanceService : IFinanceService
         public bool? mandatory { get; set; }
         public int? displayOrder { get; set; }
         public decimal? taxPercentage { get; set; }
+        public string? academicYear { get; set; }
         public List<string>? applicableClasses { get; set; }
         public List<string>? applicableBranches { get; set; }
     }
@@ -40,19 +41,21 @@ public class FinanceService : IFinanceService
             {
                 Id = x.Id,
                 Name = x.Name,
-                Code = $"FH-{x.Id:D3}",
+                Code = string.IsNullOrWhiteSpace(x.Code) ? $"FH-{x.Id:D3}" : x.Code,
                 Category = x.Category,
                 Frequency = x.Frequency,
                 DefaultAmount = x.DefaultAmount,
+                Amount = x.DefaultAmount,
+                Mandatory = x.Mandatory,
                 IsRefundable = x.IsRefundable,
                 IsTaxable = x.IsTaxable,
                 Status = x.Status ?? "Active",
                 Description = x.Description ?? "",
-                Mandatory = true,
-                DisplayOrder = x.Id,
-                TaxPercentage = 0,
+                DisplayOrder = x.DisplayOrder > 0 ? x.DisplayOrder : x.Id,
+                TaxPercentage = x.TaxPercentage,
+                AcademicYear = "All",
                 ApplicableClasses = new List<string> { "Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10" },
-                ApplicableBranches = new List<string> { "Main Campus" }
+                ApplicableBranches = new List<string> { "All Branches" }
             };
 
             if (!string.IsNullOrEmpty(x.Description) && x.Description.Trim().StartsWith("{"))
@@ -66,6 +69,7 @@ public class FinanceService : IFinanceService
                         if (meta.mandatory.HasValue) dto.Mandatory = meta.mandatory.Value;
                         if (meta.displayOrder.HasValue) dto.DisplayOrder = meta.displayOrder.Value;
                         if (meta.taxPercentage.HasValue) dto.TaxPercentage = meta.taxPercentage.Value;
+                        if (!string.IsNullOrEmpty(meta.academicYear)) dto.AcademicYear = meta.academicYear;
                         if (meta.applicableClasses != null && meta.applicableClasses.Count > 0) dto.ApplicableClasses = meta.applicableClasses;
                         if (meta.applicableBranches != null && meta.applicableBranches.Count > 0) dto.ApplicableBranches = meta.applicableBranches;
                     }
@@ -81,24 +85,65 @@ public class FinanceService : IFinanceService
 
     public async Task<FeeHeadDto> CreateFeeHeadAsync(FeeHeadDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new InvalidOperationException("Fee Head name is required.");
+        if (string.IsNullOrWhiteSpace(dto.Code))
+            throw new InvalidOperationException("Fee Head code is required.");
+
+        var existingList = await _repo.GetFeeHeadsAsync();
+        string cleanCode = dto.Code.Trim().ToLower();
+        string cleanName = dto.Name.Trim().ToLower();
+        string cleanCategory = (dto.Category ?? "").Trim().ToLower();
+
+        foreach (var item in existingList)
+        {
+            string itemCode = "";
+            if (!string.IsNullOrEmpty(item.Description) && item.Description.Trim().StartsWith("{"))
+            {
+                try
+                {
+                    var metaObj = JsonSerializer.Deserialize<FeeHeadMetadata>(item.Description);
+                    if (metaObj != null && !string.IsNullOrEmpty(metaObj.code)) itemCode = metaObj.code.Trim().ToLower();
+                }
+                catch { }
+            }
+            if (string.IsNullOrEmpty(itemCode)) itemCode = !string.IsNullOrWhiteSpace(item.Code) ? item.Code.Trim().ToLower() : $"fh-{item.Id:d3}";
+
+            if (!string.IsNullOrEmpty(cleanCode) && itemCode == cleanCode)
+            {
+                throw new InvalidOperationException($"Duplicate Error: A Fee Head with code '{dto.Code}' already exists.");
+            }
+            if (!string.IsNullOrEmpty(cleanName) && item.Name.Trim().ToLower() == cleanName && (item.Category ?? "").Trim().ToLower() == cleanCategory)
+            {
+                throw new InvalidOperationException($"Duplicate Error: A Fee Head with name '{dto.Name}' in category '{dto.Category}' already exists.");
+            }
+        }
+
+        decimal effectiveAmount = dto.DefaultAmount > 0 ? dto.DefaultAmount : dto.Amount;
+
         var meta = new FeeHeadMetadata
         {
             code = string.IsNullOrEmpty(dto.Code) ? $"FH-{Random.Shared.Next(100, 999)}" : dto.Code,
             mandatory = dto.Mandatory,
             displayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : 1,
             taxPercentage = dto.TaxPercentage,
+            academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
             applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = dto.ApplicableBranches ?? new List<string> { "Main Campus" }
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" }
         };
 
         var model = new FeeHead
         {
+            Code = meta.code,
             Name = dto.Name,
             Category = dto.Category,
             Frequency = dto.Frequency,
-            DefaultAmount = dto.DefaultAmount,
+            DefaultAmount = effectiveAmount,
+            Mandatory = dto.Mandatory,
             IsRefundable = dto.IsRefundable,
             IsTaxable = dto.IsTaxable || dto.TaxPercentage > 0,
+            TaxPercentage = dto.TaxPercentage,
+            DisplayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : 1,
             Status = dto.Status ?? "Active",
             Description = JsonSerializer.Serialize(meta)
         };
@@ -106,36 +151,86 @@ public class FinanceService : IFinanceService
         var res = await _repo.CreateFeeHeadAsync(model);
         dto.Id = res.Id;
         dto.Code = meta.code;
+        dto.DefaultAmount = effectiveAmount;
+        dto.Amount = effectiveAmount;
+        dto.AcademicYear = meta.academicYear;
         return dto;
     }
 
     public async Task<FeeHeadDto> UpdateFeeHeadAsync(int id, FeeHeadDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            throw new InvalidOperationException("Fee Head name is required.");
+        if (string.IsNullOrWhiteSpace(dto.Code))
+            throw new InvalidOperationException("Fee Head code is required.");
+
+        var existingList = await _repo.GetFeeHeadsAsync();
+        string cleanCode = dto.Code.Trim().ToLower();
+        string cleanName = dto.Name.Trim().ToLower();
+        string cleanCategory = (dto.Category ?? "").Trim().ToLower();
+
+        foreach (var item in existingList)
+        {
+            if (item.Id == id) continue;
+
+            string itemCode = "";
+            if (!string.IsNullOrEmpty(item.Description) && item.Description.Trim().StartsWith("{"))
+            {
+                try
+                {
+                    var metaObj = JsonSerializer.Deserialize<FeeHeadMetadata>(item.Description);
+                    if (metaObj != null && !string.IsNullOrEmpty(metaObj.code)) itemCode = metaObj.code.Trim().ToLower();
+                }
+                catch { }
+            }
+            if (string.IsNullOrEmpty(itemCode)) itemCode = !string.IsNullOrWhiteSpace(item.Code) ? item.Code.Trim().ToLower() : $"fh-{item.Id:d3}";
+
+            if (!string.IsNullOrEmpty(cleanCode) && itemCode == cleanCode)
+            {
+                throw new InvalidOperationException($"Duplicate Error: A Fee Head with code '{dto.Code}' already exists.");
+            }
+            if (!string.IsNullOrEmpty(cleanName) && item.Name.Trim().ToLower() == cleanName && (item.Category ?? "").Trim().ToLower() == cleanCategory)
+            {
+                throw new InvalidOperationException($"Duplicate Error: A Fee Head with name '{dto.Name}' in category '{dto.Category}' already exists.");
+            }
+        }
+
+        decimal effectiveAmount = dto.DefaultAmount > 0 ? dto.DefaultAmount : dto.Amount;
+
         var meta = new FeeHeadMetadata
         {
             code = string.IsNullOrEmpty(dto.Code) ? $"FH-{id:D3}" : dto.Code,
             mandatory = dto.Mandatory,
             displayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : id,
             taxPercentage = dto.TaxPercentage,
+            academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
             applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = dto.ApplicableBranches ?? new List<string> { "Main Campus" }
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" }
         };
 
         var model = new FeeHead
         {
             Id = id,
+            Code = meta.code,
             Name = dto.Name,
             Category = dto.Category,
             Frequency = dto.Frequency,
-            DefaultAmount = dto.DefaultAmount,
+            DefaultAmount = effectiveAmount,
+            Mandatory = dto.Mandatory,
             IsRefundable = dto.IsRefundable,
             IsTaxable = dto.IsTaxable || dto.TaxPercentage > 0,
+            TaxPercentage = dto.TaxPercentage,
+            DisplayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : id,
             Status = dto.Status ?? "Active",
             Description = JsonSerializer.Serialize(meta)
         };
 
         await _repo.UpdateFeeHeadAsync(model);
         dto.Id = id;
+        dto.Code = meta.code;
+        dto.DefaultAmount = effectiveAmount;
+        dto.Amount = effectiveAmount;
+        dto.AcademicYear = meta.academicYear;
         return dto;
     }
 

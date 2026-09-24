@@ -12,7 +12,11 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
 
-export const TransactionsMasterLedgerView: React.FC = () => {
+interface TransactionsMasterLedgerViewProps {
+  filterType?: string;
+}
+
+export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerViewProps> = ({ filterType }) => {
   const {
     financeTransactions, addFinanceTransaction, reverseFinanceTransaction, cancelFinanceTransaction,
     financialAccounts, addFinancialAccount, updateFinancialAccount,
@@ -30,7 +34,9 @@ export const TransactionsMasterLedgerView: React.FC = () => {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('All');
-  const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>('All');
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>(
+    filterType === 'Expense' ? 'Expense' : filterType === 'Income' ? 'Income' : 'All'
+  );
   const [sourceModuleFilter, setSourceModuleFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');
@@ -773,24 +779,26 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                         </td>
 
                         {/* Actions */}
-                        <td className="p-4 text-right space-x-1">
-                          <button
-                            onClick={() => setSelectedTxnForDetail(txn)}
-                            className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 border border-sky-200 dark:border-sky-800"
-                            title="View Transaction Details"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-
-                          {txn.status !== 'Reversed' && (
+                        <td className="p-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => setTxnToReverse(txn)}
-                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 border border-rose-200 dark:border-rose-800"
-                              title="Reverse Transaction"
+                              onClick={() => setSelectedTxnForDetail(txn)}
+                              className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 border border-sky-200 dark:border-sky-800 transition-colors"
+                              title="View Transaction Details"
                             >
-                              <RotateCcw className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5" />
                             </button>
-                          )}
+
+                            {txn.status !== 'Reversed' && (
+                              <button
+                                onClick={() => setTxnToReverse(txn)}
+                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 border border-rose-200 dark:border-rose-800 transition-colors"
+                                title="Reverse Transaction"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))

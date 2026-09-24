@@ -30,8 +30,13 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     academicClasses = [],
     exams = [],
     fetchDailyAttendance,
+    fetchStudentAttendanceData,
     teacherAssignments = []
   } = useData();
+
+  useEffect(() => {
+    fetchStudentAttendanceData?.();
+  }, [fetchStudentAttendanceData]);
 
   // 1. Dynamic Teacher Profile Resolution
   const teacher = useMemo(() => {

@@ -70,7 +70,7 @@ export const HostelReportsView: React.FC = () => {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(8);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Reset tab-specific filters when tab changes
   useEffect(() => {

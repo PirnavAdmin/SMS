@@ -52,6 +52,8 @@ export const Pagination: React.FC<PaginationProps> = ({
     return pages;
   };
 
+  const effectiveOptions = Array.from(new Set([itemsPerPage, ...itemsPerPageOptions])).sort((a, b) => a - b);
+
   return (
     <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 pb-1 select-none border-t border-slate-200/80 dark:border-slate-800/80 no-print print:hidden ${className}`}>
       {/* Left side: Showing X to Y of Z records */}
@@ -76,7 +78,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                 style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 className="appearance-none pl-3 pr-7 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors focus:ring-2 focus:ring-sky-500/20"
               >
-                {itemsPerPageOptions.map(opt => (
+                {effectiveOptions.map(opt => (
                   <option key={opt} value={opt}>
                     {opt} {label}
                   </option>
