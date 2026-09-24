@@ -12,7 +12,11 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
 
-export const TransactionsMasterLedgerView: React.FC = () => {
+interface TransactionsMasterLedgerViewProps {
+  filterType?: string;
+}
+
+export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerViewProps> = ({ filterType }) => {
   const {
     financeTransactions, addFinanceTransaction, reverseFinanceTransaction, cancelFinanceTransaction,
     financialAccounts, addFinancialAccount, updateFinancialAccount,
@@ -30,7 +34,9 @@ export const TransactionsMasterLedgerView: React.FC = () => {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('All');
-  const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>('All');
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>(
+    filterType === 'Expense' ? 'Expense' : filterType === 'Income' ? 'Income' : 'All'
+  );
   const [sourceModuleFilter, setSourceModuleFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');

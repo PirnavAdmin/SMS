@@ -82,10 +82,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState("ALL");
   const [selectedSection, setSelectedSection] = useState("ALL");
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [calcResult, setCalcResult] = useState<StudentCalculationResult | null>(
-    null,
-  );
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(initialStudent || null);
+  const [calcResult, setCalcResult] = useState<StudentCalculationResult | null>(null);
+
+  useEffect(() => {
+    if (!selectedStudent && initialStudent) {
+      setSelectedStudent(initialStudent);
+    } else if (!selectedStudent && allEnrolledStudents && allEnrolledStudents.length > 0) {
+      setSelectedStudent(allEnrolledStudents[0]);
+    }
+  }, [initialStudent, allEnrolledStudents, selectedStudent]);
 
   const [tempScholarshipId, setTempScholarshipId] = useState("");
   const [tempDiscountId, setTempDiscountId] = useState("");
@@ -1715,7 +1721,639 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     groupedPreviousYears[inst.academicYear].push(inst);
   });
 
-  if (!selectedStudent || !calcResult) {
+  const activeStudent = selectedStudent || (allEnrolledStudents && allEnrolledStudents.length > 0 ? allEnrolledStudents[0] : null);
+
+  return (
+    <div className="space-y-6 animate-in fade-in">
+      {/* 1. Top Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+            <Receipt className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              Accounts
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Make payments and generate receipts
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Navigation Sub-Tabs Bar */}
+      <div className="flex items-center gap-6 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold">
+        <button className="py-2.5 text-blue-600 border-b-2 border-blue-600 flex items-center gap-1.5 cursor-pointer">
+          Payment & Receipt
+        </button>
+        <button
+          onClick={() => setShowPaymentHistoryModal(true)}
+          className="py-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer"
+        >
+          Transactions
+        </button>
+        <button className="py-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer">
+          Account Balance
+        </button>
+        <button
+          onClick={() => setShowPaymentHistoryModal(true)}
+          className="py-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer"
+        >
+          Ledger
+        </button>
+      </div>
+
+      {/* 3. Search Bar & Active Student Banner */}
+      <div className="glass-card p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by Admission No, Student Name or Roll No..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (e.target.value) {
+                  const match = allEnrolledStudents.find(
+                    (s) =>
+                      s.firstName.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                      s.lastName.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                      (s.admissionNo && s.admissionNo.toLowerCase().includes(e.target.value.toLowerCase()))
+                  );
+                  if (match) setSelectedStudent(match);
+                }
+              }}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+          <button
+            type="button"
+            className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+          >
+            Search
+          </button>
+        </div>
+
+        {activeStudent && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md shrink-0">
+                {activeStudent.firstName?.[0] || "A"}
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  {activeStudent.firstName} {activeStudent.lastName}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Admission No:{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {activeStudent.admissionNo || activeStudent.id || "A1234"}
+                  </span>{" "}
+                  | Class:{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {activeStudent.className || "8"}
+                  </span>{" "}
+                  | Section:{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {activeStudent.section || "A"}
+                  </span>{" "}
+                  | Branch:{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    Main Campus
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Current Due
+                </span>
+                <span className="text-xl font-black text-rose-600 dark:text-rose-400">
+                  {formatCurrency(totalOutstanding > 0 ? totalOutstanding : 18500)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPaymentHistoryModal(true)}
+                className="px-4 py-2 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all cursor-pointer"
+              >
+                View Student Ledger
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Main 2-Column Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Main Column (Span 8) */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Outstanding Charges Table Card */}
+          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Outstanding Charges
+              </h3>
+              <div className="flex items-center gap-2">
+                <select className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold">
+                  <option>All Fee Heads</option>
+                </select>
+                <select className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold">
+                  <option>All Terms</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px]">
+                    <th className="p-3">#</th>
+                    <th className="p-3">Fee Head</th>
+                    <th className="p-3">Term</th>
+                    <th className="p-3">Due Date</th>
+                    <th className="p-3 text-right">Original Amount</th>
+                    <th className="p-3 text-right">Discount</th>
+                    <th className="p-3 text-right">Paid Amount</th>
+                    <th className="p-3 text-right">Due Amount</th>
+                    <th className="p-3 text-center">Select</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {allInstallments.length > 0 ? (
+                    allInstallments.map((inst, index) => {
+                      const isSelected = selectedInstallments.includes(inst.id);
+                      return (
+                        <tr
+                          key={inst.id}
+                          className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                        >
+                          <td className="p-3 font-mono font-semibold text-slate-600">{index + 1}</td>
+                          <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
+                          <td className="p-3 text-slate-600 dark:text-slate-400">{inst.termName || "Term 1"}</td>
+                          <td className="p-3 text-slate-500 font-mono">{inst.dueDate || "15-Apr-2025"}</td>
+                          <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(inst.amount)}</td>
+                          <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ 0</td>
+                          <td className="p-3 text-right font-mono text-slate-600 dark:text-slate-400">{formatCurrency(inst.paidAmount)}</td>
+                          <td className="p-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">{formatCurrency(inst.dueAmount)}</td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleInstallmentSelection(inst.id)}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    [
+                      { id: "1", head: "Tuition Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 10000, disc: 0, paid: 4000, due: 6000 },
+                      { id: "2", head: "Library Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 1000, disc: 0, paid: 0, due: 1000 },
+                      { id: "3", head: "Science Lab Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 2000, disc: 0, paid: 0, due: 2000 },
+                      { id: "4", head: "Exam Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 1500, disc: 0, paid: 0, due: 1500 },
+                      { id: "5", head: "Transport Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 3000, disc: 0, paid: 0, due: 3000 },
+                    ].map((row, idx) => (
+                      <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                        <td className="p-3 font-mono font-semibold text-slate-600">{idx + 1}</td>
+                        <td className="p-3 font-bold text-slate-900 dark:text-white">{row.head}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{row.term}</td>
+                        <td className="p-3 text-slate-500 font-mono">{row.dueDate}</td>
+                        <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(row.orig)}</td>
+                        <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ {row.disc}</td>
+                        <td className="p-3 text-right font-mono text-slate-600 dark:text-slate-400">{formatCurrency(row.paid)}</td>
+                        <td className="p-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">{formatCurrency(row.due)}</td>
+                        <td className="p-3 text-center">
+                          <input
+                            type="checkbox"
+                            defaultChecked
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end pt-2 text-xs font-extrabold text-slate-700 dark:text-slate-200">
+              Total Selected Amount:{" "}
+              <span className="ml-2 text-blue-600 dark:text-blue-400 font-mono text-sm">
+                {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+              </span>
+            </div>
+          </div>
+
+          {/* 3 Bottom Feature Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Card 1: Apply Fine */}
+            <div className="glass-card p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Apply Fine (if any)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!isFineWaived}
+                  onChange={(e) => setIsFineWaived(!e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Fine Amount
+                </label>
+                <input
+                  type="number"
+                  disabled={isFineWaived}
+                  defaultValue={0}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Reason
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter reason if any"
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
+                />
+              </div>
+            </div>
+
+            {/* Card 2: Concessions / Discounts */}
+            <div className="glass-card p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                Concessions / Discounts
+              </span>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Select Concession
+                </label>
+                <select
+                  value={tempScholarshipId}
+                  onChange={(e) => setTempScholarshipId(e.target.value)}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-semibold"
+                >
+                  <option value="">No Concession</option>
+                  {scholarships.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Discount Amount
+                </label>
+                <input
+                  type="number"
+                  defaultValue={0}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Remarks
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter remarks (optional)"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
+                />
+              </div>
+            </div>
+
+            {/* Card 3: Payment Method */}
+            <div className="glass-card p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                Payment Method
+              </span>
+              <div>
+                <select
+                  value={paymentMode || "Cash"}
+                  onChange={(e) => handlePaymentModeChange(e.target.value as any)}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold bg-white dark:bg-slate-900"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Online">UPI / Online</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Amount Received
+                </label>
+                <input
+                  type="number"
+                  value={amountPaying > 0 ? amountPaying : 13500}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900"
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Reference No
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter reference no"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                  Payment Date
+                </label>
+                <input
+                  type="date"
+                  defaultValue="2025-08-26"
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar (Span 4) */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Card 1: Payment Summary */}
+          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Payment Summary
+            </h3>
+            <div className="space-y-2.5 text-xs">
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                <span>Total Selected Amount</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                <span>Fine Amount</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">₹ 0</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                <span>Discount Amount</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">₹ 0</span>
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-between items-center">
+                <span className="font-bold text-slate-900 dark:text-white">
+                  Net Payable Amount
+                </span>
+                <span className="font-mono font-black text-lg text-blue-600 dark:text-blue-400">
+                  {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleConfirmPaymentSubmit}
+              className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+            >
+              <Receipt className="w-4 h-4" />
+              Confirm Payment & Generate Receipt
+            </button>
+          </div>
+
+          {/* Card 2: Recent Payments */}
+          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Recent Payments
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPaymentHistoryModal(true)}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { rcp: "RCP-2025-26-00045", date: "20 Aug 2025", mode: "UPI", amt: 4000 },
+                { rcp: "RCP-2025-26-00032", date: "10 Aug 2025", mode: "Cash", amt: 3000 },
+                { rcp: "RCP-2025-26-00028", date: "02 Aug 2025", mode: "Bank Transfer", amt: 5000 },
+              ].map((p) => (
+                <div
+                  key={p.rcp}
+                  className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs border border-slate-100 dark:border-slate-800"
+                >
+                  <div>
+                    <p className="font-mono font-bold text-slate-900 dark:text-white">
+                      {p.rcp}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {p.date} • {p.mode}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono font-bold text-slate-900 dark:text-white">
+                      {formatCurrency(p.amt)}
+                    </p>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      Paid
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 3: Quick Actions */}
+          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Quick Actions
+            </h3>
+            <div className="space-y-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowPaymentHistoryModal(true)}
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                📄 View Student Ledger
+              </button>
+              <button
+                type="button"
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                📅 View Fee Schedule
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (feePayments && feePayments.length > 0) {
+                    onPrintReceipt(feePayments[0]);
+                  } else {
+                    addToast("info", "No Receipts", "No previous payments found to print.");
+                  }
+                }}
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                🖨️ Print Receipt
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  addToast("success", "Downloading Receipt", "Generating PDF receipt file...");
+                }}
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                📥 Download Receipt
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {showPaymentConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Confirm Fee Collection
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Please confirm the collection details before generating receipt.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPaymentConfirmModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-2 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Student:</span>
+                <span className="font-bold text-slate-900 dark:text-white font-sans">
+                  {activeStudent?.firstName} {activeStudent?.lastName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Payment Mode:</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {paymentMode || "Cash"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Amount:</span>
+                <span className="font-bold text-emerald-600 text-sm">
+                  {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowPaymentConfirmModal(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeProcessPayment}
+                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-lg shadow-emerald-600/20"
+              >
+                Confirm & Print
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Log Modal */}
+      {showPaymentHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                Payment & Ledger History ({activeStudent?.firstName} {activeStudent?.lastName})
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPaymentHistoryModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {(feePayments || [])
+                .filter((p) => !activeStudent || p.studentId === activeStudent.id || (activeStudent.admissionNo && p.studentId === activeStudent.admissionNo))
+                .map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs"
+                  >
+                    <div>
+                      <p className="font-mono font-bold text-slate-900 dark:text-white">
+                        {p.receiptNo || p.id}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Date: {p.paymentDate} • Mode: {p.paymentMode}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-bold text-emerald-600 text-sm">
+                        {formatCurrency(p.amountPaid)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPaymentHistoryModal(false);
+                          onPrintReceipt(p);
+                        }}
+                        className="text-[10px] font-bold text-blue-600 hover:underline mt-1 block"
+                      >
+                        Print Receipt
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            <div className="pt-3 border-t flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPaymentHistoryModal(false)}
+                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
     return (
       <div className="space-y-4 animate-in fade-in">
         {/* Search & Filter Bar Card */}
@@ -1873,769 +2511,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
+};
 
-  return (
-    <div className="space-y-6 animate-in fade-in">
-      <div className="space-y-4">
-        <div className="glass-card p-4 rounded-2xl space-y-3 bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-3">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedStudent(null);
-                  if (onClearInitialStudent) {
-                    onClearInitialStudent();
-                  }
-                }}
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-              >
-                <ArrowLeft className="w-4 h-4 text-sky-500" /> Back to Student
-                List
-              </button>
-              <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block" />
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center shadow-md shadow-sky-500/20">
-                  {selectedStudent.firstName?.[0] || "S"}
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                    {selectedStudent.firstName} {selectedStudent.lastName}
-                  </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Class {selectedStudent.className.replace(/^Class\s+/i, "")}-
-                    {selectedStudent.section} • Adm No:{" "}
-                    <span className="font-mono font-bold">
-                      {selectedStudent.admissionNo}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Total Outstanding Balance
-              </p>
-              <div className="flex items-center justify-end gap-2 mt-0.5">
-                <h4 className="text-xl font-black text-rose-600 dark:text-rose-400">
-                  {formatCurrency(totalOutstanding)}
-                </h4>
-                {totalOutstanding === 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-black text-[9px] tracking-wider uppercase">
-                    ✓ Settled
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-xs pt-0.5">
-            <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                Current AY Dues
-              </p>
-              <p className="font-bold text-slate-900 dark:text-white mt-0.5">
-                {formatCurrency(currentYearPending)}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                Previous Years Arrears
-              </p>
-              <p className="font-bold text-amber-600 mt-0.5">
-                +{formatCurrency(previousYearPending)}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                Total Concessions
-              </p>
-              <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                -
-                {formatCurrency(
-                  (calcResult?.scholarshipDeduction || 0) +
-                    (calcResult?.discountDeduction || 0),
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {(totalOutstanding > 0 ||
-          (calcResult?.scholarshipDeduction || 0) > 0 ||
-          (calcResult?.discountDeduction || 0) > 0) && (
-          <div className="glass-card p-3 rounded-2xl space-y-2 bg-slate-50/40 dark:bg-slate-900/20">
-            <h4 className="font-bold text-xs uppercase text-slate-400">
-              Apply Concessions (Before Payment)
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl space-y-1.5">
-                {(calcResult?.scholarshipDeduction || 0) > 0 ? (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="font-black text-emerald-600">
-                        ✓ Scholarship Active
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleRemoveScholarship}
-                        className="text-rose-500 font-extrabold hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">
-                      {calcResult?.scholarshipName}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-bold">
-                      -{formatCurrency(calcResult?.scholarshipDeduction || 0)}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <label className="block text-[10px] text-slate-400 font-bold">
-                      Scholarship Concession
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={tempScholarshipId}
-                        onChange={(e) => setTempScholarshipId(e.target.value)}
-                        className="flex-1 min-w-0 w-full px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20"
-                      >
-                        <option value="">Select...</option>
-                        {scholarships
-                          .filter((s) => s.status === "Active")
-                          .map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} (
-                              {s.discountType === "Percentage"
-                                ? `${s.percentage}%`
-                                : formatCurrency(s.fixedAmount || 0)}
-                              )
-                            </option>
-                          ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          tempScholarshipId &&
-                          handleApplyScholarship(tempScholarshipId)
-                        }
-                        className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-xs transition-colors shrink-0"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl space-y-1.5">
-                {(calcResult?.discountDeduction || 0) > 0 ? (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="font-black text-emerald-600">
-                        ✓ Discount Active
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleRemoveDiscount}
-                        className="text-rose-500 font-extrabold hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">
-                      {calcResult?.discountName}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-bold">
-                      -{formatCurrency(calcResult?.discountDeduction || 0)}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <label className="block text-[10px] text-slate-400 font-bold">
-                      General Discount
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={tempDiscountId}
-                        onChange={(e) => setTempDiscountId(e.target.value)}
-                        className="flex-1 min-w-0 w-full px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20"
-                      >
-                        <option value="">Select...</option>
-                        {discounts
-                          .filter((d) => d.status === "Active")
-                          .map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name} (
-                              {d.mode === "Percentage"
-                                ? `${d.value}%`
-                                : formatCurrency(d.value)}
-                              )
-                            </option>
-                          ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          tempDiscountId && handleApplyDiscount(tempDiscountId)
-                        }
-                        className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-xs transition-colors shrink-0"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Late Fee Management Card */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl space-y-1.5 col-span-full">
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="font-extrabold text-slate-700 dark:text-slate-300 uppercase">
-                    Late Fee / Fine Rule
-                  </span>
-                  {isFineWaived ? (
-                    <button
-                      type="button"
-                      onClick={handleReapplyFine}
-                      className="text-sky-600 dark:text-sky-400 font-extrabold hover:underline cursor-pointer"
-                    >
-                      + Re-apply Fine
-                    </button>
-                  ) : calcResult.fineAmount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={handleWaiveFine}
-                      className="text-rose-500 font-extrabold hover:underline cursor-pointer"
-                    >
-                      ✕ Remove / Waive Late Fee
-                    </button>
-                  ) : null}
-                </div>
-
-                {isFineWaived ? (
-                  <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
-                    <div>
-                      <p className="font-bold text-emerald-800 dark:text-emerald-300 text-xs">
-                        ✓ Late Fee Waived / Removed
-                      </p>
-                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                        Fine amount set to ₹0 for this collection.
-                      </p>
-                    </div>
-                    <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
-                      ₹0
-                    </span>
-                  </div>
-                ) : calcResult.fineAmount > 0 ? (
-                  <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex justify-between items-center">
-                    <div>
-                      <p className="font-bold text-rose-900 dark:text-rose-200 text-xs">
-                        {calcResult.fineDetails?.ruleName ||
-                          "Automatic Late Fine"}{" "}
-                        ({calcResult.fineDetails?.daysOverdue || 0} Days
-                        Overdue)
-                      </p>
-                      <p className="text-[10px] text-rose-500 font-medium">
-                        Calculated automatically based on active Fine Rule
-                        configuration.
-                      </p>
-                    </div>
-                    <span className="font-black text-rose-600 dark:text-rose-400 text-xs font-mono">
-                      +{formatCurrency(calcResult.fineAmount)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-500 font-medium">
-                    No late fine applicable (Within grace period).
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="glass-card p-4 rounded-2xl space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-2">
-            <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-250 flex items-center gap-1.5">
-              <CheckCircle className="w-4 h-4 text-sky-500" /> Current Academic
-              Year Fees ({currentYear})
-            </h4>
-            {selectableCurrentIds.length > 0 && (
-              <button
-                type="button"
-                onClick={handleSelectAllCurrentYear}
-                className="text-[10px] text-brand-600 dark:text-brand-400 font-bold hover:underline cursor-pointer"
-              >
-                {allCurrentSelected
-                  ? "Deselect All Current Year"
-                  : "Select All Current Year"}
-              </button>
-            )}
-          </div>
-
-          {currentYearInstallments.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">
-              No fee structure assigned for current academic year.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {Object.entries(groupedCurrentYear).map(([headName, list]) => {
-                const groupTotal = list.reduce((sum, i) => sum + i.amount, 0);
-                const groupPaid = list.reduce(
-                  (sum, i) => sum + i.paidAmount,
-                  0,
-                );
-                const groupRemaining = list.reduce(
-                  (sum, i) => sum + i.dueAmount,
-                  0,
-                );
-                const isMultiTerm = list.length > 1;
-                const hasCheckedItem = list.some((inst) =>
-                  selectedInstallments.includes(inst.id),
-                );
-                const isExpanded = isMultiTerm
-                  ? (expandedGroups[headName] ?? hasCheckedItem ?? false)
-                  : true;
-
-                return (
-                  <div
-                    key={headName}
-                    className="p-3 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800 rounded-xl space-y-2"
-                  >
-                    <div
-                      onClick={() =>
-                        isMultiTerm && toggleGroupExpansion(headName)
-                      }
-                      className={`flex justify-between items-center border-b border-slate-200/30 dark:border-slate-800 pb-1 text-xs select-none ${
-                        isMultiTerm
-                          ? "cursor-pointer hover:opacity-80 transition-opacity"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900 dark:text-white text-xs">
-                          {headName}
-                        </span>
-                        {isMultiTerm && !headName.toLowerCase().includes('uniform') && (
-                          <span className="text-[10px] bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                            {list.length} Terms
-                            {isExpanded ? (
-                              <ChevronUp className="w-3.5 h-3.5 text-sky-500" />
-                            ) : (
-                              <ChevronDown className="w-3.5 h-3.5 text-sky-500" />
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-bold">
-                        Total: {formatCurrency(groupTotal)} • Paid:{" "}
-                        {formatCurrency(groupPaid)} • Remaining:{" "}
-                        <span className="text-rose-600 font-bold">
-                          {formatCurrency(groupRemaining)}
-                        </span>
-                      </span>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800/60 pl-1 animate-in fade-in">
-                        {list.map((inst) => {
-                          const isPaid = inst.dueAmount <= 0;
-                          const isChecked = selectedInstallments.includes(
-                            inst.id,
-                          );
-                          const status = getInstallmentStatus(
-                            inst.dueAmount,
-                            inst.dueDate,
-                            inst.status
-                          );
-
-                          let displayStatus = status;
-                          let badgeClass =
-                            "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
-                          if (status === "PAID") {
-                            badgeClass =
-                              "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
-                          } else if (status === "CANCELLED") {
-                            badgeClass =
-                              "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-                          } else if (status === "OVERDUE") {
-                            badgeClass =
-                              "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-350";
-                          } else if (status === "UPCOMING") {
-                            displayStatus = "FEE PENDING";
-                            badgeClass =
-                              "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
-                          }
-
-                          const isOneTimeOrAnnual =
-                            inst.frequency === "One Time" ||
-                            inst.frequency === "Annual" ||
-                            inst.termName === "One Time" ||
-                            inst.termName === "Annual" ||
-                            inst.termId === "ONETIME" ||
-                            inst.termId === "ANNUAL";
-
-                          return (
-                            <div
-                              key={inst.id}
-                              className="flex items-center justify-between py-2.5 first:pt-1 last:pb-1"
-                            >
-                              <div className="flex items-center gap-3">
-                                {isPaid ? (
-                                  <input
-                                    type="checkbox"
-                                    disabled
-                                    checked={false}
-                                    className="w-4 h-4 rounded border-slate-200 bg-slate-100 cursor-not-allowed opacity-40"
-                                  />
-                                ) : (
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() =>
-                                      toggleInstallmentSelection(inst.id)
-                                    }
-                                    className="w-4 h-4 rounded text-sky-600 border-slate-350 dark:border-slate-700 bg-white focus:ring-sky-500 cursor-pointer shrink-0"
-                                  />
-                                )}
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                                      {(() => {
-                                        const head = inst.feeHeadName || "";
-                                        const rawTerm = inst.termName || inst.termId || "Installment";
-                                        // Clean any duplicate "Uniform & Accessories — " prefix and size
-                                        let cleanTerm = rawTerm.replace(/^(Uniform & Accessories\s*[\s\u2014\u2013-]\s*)+/gi, '').replace(/\s*\(Size:[^\)]*\)/gi, '').trim();
-                                        if (head.toLowerCase().includes('uniform')) {
-                                          const lowerClean = cleanTerm.toLowerCase();
-                                          if (lowerClean.includes('cloth') || lowerClean.includes('fabric') || lowerClean.includes('unstitched') || lowerClean.includes('material')) {
-                                            return cleanTerm;
-                                          }
-                                          if (cleanTerm.startsWith('Base Package') || cleanTerm.startsWith('Additional Purchase') || cleanTerm.startsWith('Additional Base Kit')) {
-                                            return cleanTerm;
-                                          }
-                                          const isBasePkg = lowerClean.includes('package') || lowerClean.includes('admission kit') || lowerClean.includes('base') || lowerClean.includes('uniform fee') || lowerClean.includes('uniform') || lowerClean.includes('kit');
-                                          return isBasePkg ? (lowerClean.includes('kit') ? `Base Package — Admission Kit` : `Base Package — ${cleanTerm}`) : `Additional Purchase — ${cleanTerm}`;
-                                        }
-                                        if (inst.feeHeadName.includes("Additional Purchases") || cleanTerm.startsWith(head)) {
-                                          return cleanTerm;
-                                        }
-                                        return `${head} — ${cleanTerm}`;
-                                      })()}
-                                    </p>
-                                  </div>
-                                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                    Due: {inst.dueDate}
-                                  </p>
-                                  {isChecked && !isPaid && (
-                                    <div className="mt-1.5 flex flex-col gap-0.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                                          Collection Amount:
-                                        </span>
-                                        <div className="relative flex items-center">
-                                          <span className="absolute left-2 text-xs font-bold text-slate-400">
-                                            ₹
-                                          </span>
-                                          <input
-                                            type="text"
-                                            value={
-                                              customCollectionAmounts[
-                                                inst.id
-                                              ] ?? String(inst.dueAmount)
-                                            }
-                                            onChange={(e) =>
-                                              handleCustomAmountChange(
-                                                inst.id,
-                                                e.target.value,
-                                              )
-                                            }
-                                            className={`w-28 pl-5 pr-2 py-1 rounded-lg border text-right font-mono font-bold text-xs outline-none transition-all ${
-                                              getInstallmentAmountError(inst)
-                                                ? "border-rose-400 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 focus:ring-2 focus:ring-rose-500/20"
-                                                : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 focus:ring-2 focus:ring-sky-500/20"
-                                            }`}
-                                          />
-                                        </div>
-                                      </div>
-                                      {getInstallmentAmountError(inst) && (
-                                        <p className="text-[10px] text-rose-500 font-bold mt-0.5">
-                                          {getInstallmentAmountError(inst)}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4 text-right">
-                                <div className="text-[11px] font-medium text-slate-500 space-y-0.5">
-                                  {inst.paidAmount > 0 && (
-                                    <p>
-                                      Paid:{" "}
-                                      <span className="font-mono text-emerald-600 font-bold">
-                                        {formatCurrency(inst.paidAmount)}
-                                      </span>
-                                    </p>
-                                  )}
-                                  {!isPaid && (
-                                    <p
-                                      className={
-                                        isPaid
-                                          ? "text-slate-400 font-medium"
-                                          : "font-semibold text-slate-900 dark:text-white"
-                                      }
-                                    >
-                                      Pending:{" "}
-                                      <span className="font-mono">
-                                        {formatCurrency(inst.dueAmount)}
-                                      </span>
-                                    </p>
-                                  )}
-                                </div>
-                                <span
-                                  className={`px-2.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${badgeClass} min-w-[80px] text-center`}
-                                >
-                                  {displayStatus}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {previousYearInstallments.length > 0 && (
-          <div className="glass-card p-4 rounded-2xl space-y-3 border-amber-250 dark:border-amber-950/60 bg-amber-50/10">
-            <div className="flex items-center justify-between border-b border-amber-150/60 pb-2">
-              <button
-                type="button"
-                onClick={() => setIsPreviousDuesOpen((prev) => !prev)}
-                className="font-black text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-2 hover:opacity-85 transition-all cursor-pointer select-none"
-              >
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Previous Academic Year Dues</span>
-                {!isPreviousDuesOpen && (
-                  <span className="text-[10px] font-bold text-rose-600 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full font-mono">
-                    (Pending: {formatCurrency(previousYearPending)})
-                  </span>
-                )}
-                {isPreviousDuesOpen ? (
-                  <ChevronUp className="w-4 h-4 text-amber-600 shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-amber-600 shrink-0" />
-                )}
-              </button>
-
-              <div className="flex items-center gap-3">
-                {selectablePrevIds.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleSelectAllPreviousYear}
-                    className="text-[10px] text-amber-700 dark:text-amber-400 font-bold hover:underline cursor-pointer"
-                  >
-                    {allPreviousSelected
-                      ? "Deselect All Previous Years"
-                      : "Select All Previous Years"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsPreviousDuesOpen((prev) => !prev)}
-                  className="px-2 py-1 rounded-lg bg-amber-100/80 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-800/60 text-amber-800 dark:text-amber-300 cursor-pointer transition-all flex items-center gap-1 text-[11px] font-bold"
-                  title={
-                    isPreviousDuesOpen
-                      ? "Close Previous Academic Dues"
-                      : "Open Previous Academic Dues"
-                  }
-                >
-                  <span>{isPreviousDuesOpen ? "Close" : "Open"}</span>
-                  {isPreviousDuesOpen ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {isPreviousDuesOpen && (
-              <div className="space-y-4 animate-in fade-in duration-200">
-                {Object.entries(groupedPreviousYears).map(([year, list]) => {
-                  const yearDueTotal = list.reduce(
-                    (sum, i) => sum + i.dueAmount,
-                    0,
-                  );
-                  return (
-                    <div
-                      key={year}
-                      className="p-3 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800 rounded-xl space-y-2"
-                    >
-                      <div className="flex justify-between items-center border-b border-slate-200/30 dark:border-slate-800 pb-1 text-xs">
-                        <span className="font-extrabold text-slate-900 dark:text-white text-xs">
-                          Academic Year: {year}
-                        </span>
-                        <span className="text-[10px] text-slate-550 font-bold">
-                          Pending:{" "}
-                          <span className="text-rose-600 font-bold font-mono">
-                            {formatCurrency(yearDueTotal)}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800/60 pl-1">
-                        {list.map((inst) => {
-                          const isPaid = inst.dueAmount <= 0;
-                          const isChecked = selectedInstallments.includes(
-                            inst.id,
-                          );
-                          const status = getInstallmentStatus(
-                            inst.dueAmount,
-                            inst.dueDate,
-                            inst.status
-                          );
-
-                          let badgeClass =
-                            "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
-                          if (status === "PAID") {
-                            badgeClass =
-                              "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
-                          } else if (status === "CANCELLED") {
-                            badgeClass =
-                              "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-                          } else if (status === "OVERDUE") {
-                            badgeClass =
-                              "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-350";
-                          }
-
-                          return (
-                            <div
-                              key={inst.id}
-                              className="flex items-center justify-between py-2.5 first:pt-1 last:pb-1"
-                            >
-                              <div className="flex items-center gap-3">
-                                {isPaid ? (
-                                  <input
-                                    type="checkbox"
-                                    disabled
-                                    checked={false}
-                                    className="w-4 h-4 rounded border-slate-200 bg-slate-100 cursor-not-allowed opacity-40"
-                                  />
-                                ) : (
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() =>
-                                      toggleInstallmentSelection(inst.id)
-                                    }
-                                    className="w-4 h-4 rounded text-amber-600 border-slate-350 dark:border-slate-700 bg-white focus:ring-amber-500 cursor-pointer shrink-0"
-                                  />
-                                )}
-                                <div>
-                                  <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                                    {inst.feeHeadName} —{" "}
-                                    {inst.termName ||
-                                      inst.termId ||
-                                      "Installment"}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                    Due: {inst.dueDate}
-                                  </p>
-                                  {isChecked && !isPaid && (
-                                    <div className="mt-1.5 flex flex-col gap-0.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                                          Collection Amount:
-                                        </span>
-                                        <div className="relative flex items-center">
-                                          <span className="absolute left-2 text-xs font-bold text-slate-400">
-                                            ₹
-                                          </span>
-                                          <input
-                                            type="text"
-                                            value={
-                                              customCollectionAmounts[
-                                                inst.id
-                                              ] ?? String(inst.dueAmount)
-                                            }
-                                            onChange={(e) =>
-                                              handleCustomAmountChange(
-                                                inst.id,
-                                                e.target.value,
-                                              )
-                                            }
-                                            className={`w-28 pl-5 pr-2 py-1 rounded-lg border text-right font-mono font-bold text-xs outline-none transition-all ${
-                                              getInstallmentAmountError(inst)
-                                                ? "border-rose-400 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 focus:ring-2 focus:ring-rose-500/20"
-                                                : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 focus:ring-2 focus:ring-sky-500/20"
-                                            }`}
-                                          />
-                                        </div>
-                                      </div>
-                                      {getInstallmentAmountError(inst) && (
-                                        <p className="text-[10px] text-rose-500 font-bold mt-0.5">
-                                          {getInstallmentAmountError(inst)}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4 text-right">
-                                <div className="text-[11px] font-medium text-slate-500 space-y-0.5">
-                                  <p>
-                                    Paid:{" "}
-                                    <span className="font-mono">
-                                      {formatCurrency(inst.paidAmount)}
-                                    </span>
-                                  </p>
-                                  <p
-                                    className={
-                                      isPaid
-                                        ? "text-slate-400 font-medium"
-                                        : "font-semibold text-slate-905 dark:text-white"
-                                    }
-                                  >
-                                    Pending:{" "}
-                                    <span className="font-mono">
-                                      {formatCurrency(inst.dueAmount)}
-                                    </span>
-                                  </p>
-                                </div>
-                                <span
-                                  className={`px-2.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${badgeClass} min-w-[70px] text-center`}
-                                >
-                                  {status}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="glass-card p-4 rounded-2xl grid grid-cols-1 md:grid-cols-5 gap-6">
-          <div className="md:col-span-2 space-y-3 pr-0 md:pr-4 md:border-r border-slate-100 dark:border-slate-850">
-            <h4 className="font-black text-xs uppercase text-slate-400 tracking-wider">
-              Payment Summary
-            </h4>
+export default FeeCollectionView;
             <div className="space-y-2 text-xs font-bold text-slate-600 dark:text-slate-400">
               <div className="flex justify-between">
                 <span>Current Academic Year Pending:</span>

@@ -323,16 +323,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
-  const [sortBy, setSortBy] = useState<
-    "regAsc" | "regDesc" | "nameAsc" | "nameDesc" | "classAsc" | "classDesc"
-  >("regDesc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(10);
 
   // Reset pagination on search query or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [query, filterClass, filterStatus, sortBy]);
+  }, [query, filterClass, filterStatus]);
 
   // View States: Table View vs Full-Page Form View
   const [isFormView, setIsFormView] = useState(initialFormOpen || false);
@@ -1205,70 +1202,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, []);
 
   const unifiedAdmissions = useMemo(() => {
-    const list: AdmissionApplication[] = [...(admissions || [])];
-    const existingIds = new Set(
-      list
-        .map((a) => (a.applicationNo || a.id || "").toString().trim().toLowerCase())
-        .filter(Boolean),
-    );
-    const existingNames = new Set(
-      list
-        .map((a) => (a.applicantName || "").toString().trim().toLowerCase())
-        .filter(Boolean),
-    );
-
-    (students || []).forEach((st) => {
-      const stId = (st.admissionNo || st.id || "").toString().trim();
-      const stName =
-        `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name || "";
-      if (
-        (stId && existingIds.has(stId.toLowerCase())) ||
-        (stName && existingNames.has(stName.toLowerCase()))
-      ) {
-        return;
-      }
-
-      list.push({
-        id: st.id || st.admissionNo || `ST-${Math.random()}`,
-        applicationNo: st.admissionNo || (st as any).enrollmentNo || st.id || "",
-        applicantName: stName,
-        firstName: st.firstName || "",
-        lastName: st.lastName || "",
-        avatar: st.avatar || "",
-        appliedClass: st.className || (st as any).class || "",
-        targetClass: st.className || (st as any).class || "",
-        className: st.className || (st as any).class || "",
-        section: st.section || "A",
-        gender: st.gender || "Male",
-        dob: st.dob || "",
-        bloodGroup: st.bloodGroup || "",
-        religion: st.religion || "",
-        casteCategory: st.casteCategory || (st as any).category || "",
-        parentName: st.parentName || (st as any).fatherName || "",
-        motherName: st.motherName || "",
-        email: st.email || "",
-        phone: st.phone || (st as any).mobile || (st as any).emergencyContact || "",
-        mobile: st.phone || (st as any).mobile || "",
-        motherPhone: (st as any).motherMobile || (st as any).motherPhone || "",
-        alternatePhone: (st as any).alternateMobile || (st as any).alternatePhone || "",
-        address: st.address || "",
-        academicYear: st.academicYear || "",
-        studentType: st.studentType || (st.isHostelite ? "Hosteller" : "Day Scholar"),
-        transportRequired: !!((st as any).transportRoute || (st as any).busRoute || (st as any).pickupPoint),
-        busRoute: (st as any).transportRoute || (st as any).busRoute || "",
-        pickupPoint: (st as any).pickupPoint || "",
-        dropPoint: (st as any).dropPoint || "",
-        branch: st.branch || (st as any).campus || "",
-        submissionDate: st.admissionDate || (st as any).createdAt || new Date().toISOString().split("T")[0],
-        joiningDate: st.admissionDate || "",
-        admissionDate: st.admissionDate || "",
-        status: (st.status === "Inactive" ? "Rejected" : "Enrolled") as any,
-        documentsSubmitted: [],
-      });
-    });
-
-    return list;
-  }, [admissions, students]);
+    return admissions || [];
+  }, [admissions]);
 
   const dynamicClassOptions = useMemo(() => {
     const fromMaster = (academicClasses || [])
@@ -1336,6 +1271,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
   };
 
+  const { enrolledCount, unEnrolledCount } = useMemo(() => {
+    let enrolled = 0;
+    let unEnrolled = 0;
+    (unifiedAdmissions || []).forEach((a) => {
+      if (!a || a.status === "Deleted" || (a as any).isDeleted) return;
+      const st = (a.status || "").toLowerCase().trim();
+      if (st === "enrolled" || st === "admitted" || st === "active") {
+        enrolled++;
+      } else {
+        unEnrolled++;
+      }
+    });
+    return { enrolledCount: enrolled, unEnrolledCount: unEnrolled };
+  }, [unifiedAdmissions]);
+
   // Multi-filter filtering
   const filteredAdmissions = (unifiedAdmissions || []).filter((a) => {
     if (!a || a.status === "Deleted" || (a as any).isDeleted) return false;
@@ -1355,47 +1305,54 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       appliedClass.toLowerCase().replace("class", "").trim() ===
         filterClass.toLowerCase().replace("class", "").trim();
     const matchStatus =
-      filterStatus === "All" ||
-      status.toLowerCase() === (filterStatus || "").toLowerCase();
+      filterStatus === "All"
+        ? true
+        : filterStatus === "Enrolled"
+          ? (status.toLowerCase() === "enrolled" || status.toLowerCase() === "admitted" || status.toLowerCase() === "active")
+          : filterStatus === "Un-Enrolled"
+            ? (status.toLowerCase() !== "enrolled" && status.toLowerCase() !== "admitted" && status.toLowerCase() !== "active")
+            : status.toLowerCase() === (filterStatus || "").toLowerCase();
     return matchQuery && matchClass && matchStatus;
   });
 
-  const sortedAdmissions = [...filteredAdmissions].sort((a, b) => {
-    const regA = a.applicationNo || "";
-    const regB = b.applicationNo || "";
-    const nameA = a.applicantName || "";
-    const nameB = b.applicantName || "";
-    const classA = a.appliedClass || "";
-    const classB = b.appliedClass || "";
+  const getClassWeightForSorting = (className: string = "") => {
+    const lower = (className || "").toLowerCase().trim();
+    if (!lower) return 999;
+    if (lower.includes("nursery") || lower.includes("play")) return 1;
+    if (lower.includes("lkg") || lower.includes("pp1") || lower.includes("pre-kg")) return 2;
+    if (lower.includes("ukg") || lower.includes("pp2") || lower.includes("kg")) return 3;
+    const match = lower.match(/\d+/);
+    if (match) return 10 + parseInt(match[0], 10);
+    return 100;
+  };
 
-    if (sortBy === "regAsc") {
-      return regA.localeCompare(regB, undefined, {
-        numeric: true,
-      });
-    }
-    if (sortBy === "regDesc") {
-      return regB.localeCompare(regA, undefined, {
-        numeric: true,
-      });
-    }
-    if (sortBy === "nameAsc") {
-      return nameA.localeCompare(nameB);
-    }
-    if (sortBy === "nameDesc") {
-      return nameB.localeCompare(nameA);
-    }
-    if (sortBy === "classAsc") {
-      return classA.localeCompare(classB, undefined, {
-        numeric: true,
-      });
-    }
-    if (sortBy === "classDesc") {
-      return classB.localeCompare(classA, undefined, {
-        numeric: true,
-      });
-    }
-    return 0;
-  });
+  const sortedAdmissions = useMemo(() => {
+    return [...filteredAdmissions].sort((a, b) => {
+      const stA = (a.status || "").toLowerCase().trim();
+      const stB = (b.status || "").toLowerCase().trim();
+      const isEnrolledA = stA === "enrolled" || stA === "admitted" || stA === "active";
+      const isEnrolledB = stB === "enrolled" || stB === "admitted" || stB === "active";
+
+      // 1. Un-enrolled applications display FIRST
+      if (isEnrolledA !== isEnrolledB) {
+        return isEnrolledA ? 1 : -1;
+      }
+
+      // 2. Class-wise order (Nursery -> LKG -> UKG -> Class 1..10)
+      const classA = a.appliedClass || "";
+      const classB = b.appliedClass || "";
+      const weightA = getClassWeightForSorting(classA);
+      const weightB = getClassWeightForSorting(classB);
+      if (weightA !== weightB) {
+        return weightA - weightB;
+      }
+
+      // 3. Class-wise A-Z order by Student / Applicant Name
+      const nameA = (a.applicantName || "").trim();
+      const nameB = (b.applicantName || "").trim();
+      return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: "base" });
+    });
+  }, [filteredAdmissions]);
 
   const totalPages = Math.ceil(sortedAdmissions.length / pageSize) || 1;
   const paginated = sortedAdmissions.slice(
@@ -2182,33 +2139,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const stType = formData.studentType || "Day Scholar";
     const clsName = formData.appliedClass;
 
+    const matchesClass = (structCls?: string, targetCls?: string): boolean => {
+      if (!structCls || !targetCls) return false;
+      const s1 = String(structCls).replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
+      const s2 = String(targetCls).replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
+      return s1 === s2;
+    };
+
     const dfs =
       dynamicFeeStructures.find(
-        (d) => d.className === clsName && d.status === "Active",
+        (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status),
       ) ||
-      dynamicFeeStructures.find((d) => d.className === clsName) ||
-      dynamicFeeStructures[0];
-    const rawBaseItems = dfs
-      ? dfs.items
-      : [
-          { feeHeadId: "FH-01", feeHeadName: "Tuition Fee", amount: 25000 },
-          { feeHeadId: "FH-02", feeHeadName: "Admission Fee", amount: 5000 },
-          {
-            feeHeadId: "FH-03",
-            feeHeadName: "Books & Stationery Fee",
-            amount: 4500,
-          },
-          {
-            feeHeadId: "FH-04",
-            feeHeadName: "Uniform & Sports Kit Fee",
-            amount: 3500,
-          },
-          {
-            feeHeadId: "FH-05",
-            feeHeadName: "Science & Computer Lab Fee",
-            amount: 2500,
-          },
-        ];
+      dynamicFeeStructures.find((d) => matchesClass(d.className, clsName));
+    const rawBaseItems = dfs ? (dfs.items || []) : [];
 
     const baseItems = rawBaseItems.filter(
       (item) =>
@@ -4208,39 +4151,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     formData.appliedClass ||
                     (classOptions && classOptions[0]) ||
                     "Class 1";
+                  const matchesClass = (structCls?: string, targetCls?: string): boolean => {
+                    if (!structCls || !targetCls) return false;
+                    const s1 = String(structCls).replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
+                    const s2 = String(targetCls).replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
+                    return s1 === s2;
+                  };
                   const dfs =
                     dynamicFeeStructures.find(
-                      (d) => d.className === clsName && d.status === "Active",
-                    ) || dynamicFeeStructures[0];
-                  const rawBaseItems = dfs
-                    ? dfs.items
-                    : [
-                        {
-                          feeHeadId: "FH-01",
-                          feeHeadName: "Tuition Fee",
-                          amount: 25000,
-                        },
-                        {
-                          feeHeadId: "FH-02",
-                          feeHeadName: "Admission Fee",
-                          amount: 5000,
-                        },
-                        {
-                          feeHeadId: "FH-03",
-                          feeHeadName: "Books & Stationery Fee",
-                          amount: 4500,
-                        },
-                        {
-                          feeHeadId: "FH-04",
-                          feeHeadName: "Uniform & Sports Kit Fee",
-                          amount: 3500,
-                        },
-                        {
-                          feeHeadId: "FH-05",
-                          feeHeadName: "Science & Computer Lab Fee",
-                          amount: 2500,
-                        },
-                      ];
+                      (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status),
+                    ) ||
+                    dynamicFeeStructures.find((d) => matchesClass(d.className, clsName));
+                  const rawBaseItems = dfs ? (dfs.items || []) : [];
 
                   const baseItems = rawBaseItems.filter(
                     (item) =>
@@ -4492,24 +4414,57 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       {/* Multi-Filter Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-        <div className="relative w-full lg:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search by applicant, reg no, or father name..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
-          />
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-64 lg:w-72">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              placeholder="Search by applicant, reg no, or father name..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
+            />
+          </div>
+
+          {/* Enrolled & Un-Enrolled Navigation Badges */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setFilterStatus(filterStatus === "Enrolled" ? "All" : "Enrolled")}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                filterStatus === "Enrolled"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20"
+                  : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+              }`}
+              title="Click to view Enrolled Students"
+            >
+              <UserCheck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+              <span>Enrolled: <span className="font-extrabold">{enrolledCount}</span></span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterStatus(filterStatus === "Un-Enrolled" ? "All" : "Un-Enrolled")}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                filterStatus === "Un-Enrolled"
+                  ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20"
+                  : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+              }`}
+              title="Click to view Un-Enrolled Applications"
+            >
+              <Users className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+              <span>Un-Enrolled: <span className="font-extrabold">{unEnrolledCount}</span></span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+          <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-400">Class:</span>
             <select
               value={filterClass}
               onChange={(e) => setFilterClass(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="All">All Classes</option>
               {dynamicClassOptions.map((c) => (
@@ -4520,20 +4475,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-400">
               Status:
             </span>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="All">All Status</option>
+              <option value="Un-Enrolled">Un-Enrolled</option>
+              <option value="Enrolled">Enrolled</option>
               {Array.from(
                 new Set([
                   "Pending",
-                  "Enrolled",
                   "Rejected",
                   ...(unifiedAdmissions || []).map((a) => {
                     const s = (a?.status || "Pending").trim();
@@ -4542,29 +4498,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 ]),
               )
                 .filter(Boolean)
-                .filter((s) => s !== "Deleted")
+                .filter((s) => s !== "Deleted" && s !== "Enrolled" && s !== "Un-Enrolled")
                 .sort()
                 .map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
                 ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-slate-400">Sort:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="regDesc">Latest Admissions</option>
-              <option value="regAsc">Oldest Admissions</option>
-              <option value="nameAsc">Student Name (A-Z)</option>
-              <option value="nameDesc">Student Name (Z-A)</option>
-              <option value="classAsc">Class (Low to High)</option>
-              <option value="classDesc">Class (High to Low)</option>
             </select>
           </div>
         </div>

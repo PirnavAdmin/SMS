@@ -287,7 +287,7 @@ export const LeaveManagementView: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [balanceCategoryFilter, setBalanceCategoryFilter] = useState<'All' | 'Teaching Staff' | 'Non-Teaching Staff'>('All');
   const [balanceCurrentPage, setBalanceCurrentPage] = useState(1);
-  const [balancePageSize, setBalancePageSize] = useState(8);
+  const [balancePageSize, setBalancePageSize] = useState(10);
 
   useEffect(() => {
     setBalanceCurrentPage(1);

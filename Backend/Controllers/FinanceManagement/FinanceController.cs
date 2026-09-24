@@ -41,10 +41,40 @@ public class FinanceController : ControllerBase
     }
     
     [HttpPost("fee-heads")]
-    public async Task<IActionResult> CreateFeeHead([FromBody] FeeHeadDto dto) => Ok(new { success = true, data = await _service.CreateFeeHeadAsync(dto) });
-    
+    public async Task<IActionResult> CreateFeeHead([FromBody] FeeHeadDto dto)
+    {
+        try
+        {
+            var data = await _service.CreateFeeHeadAsync(dto);
+            return Ok(new { success = true, data });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpPut("fee-heads/{id}")]
-    public async Task<IActionResult> UpdateFeeHead(int id, [FromBody] FeeHeadDto dto) => Ok(new { success = true, data = await _service.UpdateFeeHeadAsync(id, dto) });
+    public async Task<IActionResult> UpdateFeeHead(int id, [FromBody] FeeHeadDto dto)
+    {
+        try
+        {
+            var data = await _service.UpdateFeeHeadAsync(id, dto);
+            return Ok(new { success = true, data });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
     
     [HttpPatch("fee-heads/{id}/toggle-status")]
     public async Task<IActionResult> ToggleFeeHeadStatus(int id)

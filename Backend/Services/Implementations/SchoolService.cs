@@ -700,15 +700,9 @@ public class SchoolService : ISchoolService
 		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
 		var result = list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 
-		// Also unify with all active/enrolled students in Students table who don't already have an admission application entry
 		var existingRegNos = new HashSet<string>(
 			result.Where(r => !string.IsNullOrWhiteSpace(r.RegistrationNo))
 				  .Select(r => r.RegistrationNo.Trim().ToLowerInvariant()),
-			StringComparer.OrdinalIgnoreCase);
-
-		var existingNames = new HashSet<string>(
-			result.Where(r => !string.IsNullOrWhiteSpace(r.StudentName) && !string.IsNullOrWhiteSpace(r.FatherContact))
-				  .Select(r => $"{r.StudentName.Trim().ToLowerInvariant()}_{r.FatherContact.Trim()}"),
 			StringComparer.OrdinalIgnoreCase);
 
 		var studentQuery = _context.Students
@@ -764,9 +758,8 @@ public class SchoolService : ISchoolService
 		{
 			var regNo = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber.Trim() : $"STU-{s.StudentId:D4}";
 			var regKey = regNo.ToLowerInvariant();
-			var nameKey = $"{s.StudentName.Trim().ToLowerInvariant()}_{(s.FatherMobile ?? s.MobileNumber ?? "").Trim()}";
 
-			if (existingRegNos.Contains(regKey) || existingNames.Contains(nameKey))
+			if (existingRegNos.Contains(regKey))
 			{
 				continue;
 			}
@@ -804,7 +797,22 @@ public class SchoolService : ISchoolService
 			existingRegNos.Add(regKey);
 		}
 
-		return result.OrderByDescending(r => r.Id).ToList();
+		static int GetClassSortWeight(string? cls)
+		{
+			if (string.IsNullOrWhiteSpace(cls)) return 100;
+			var l = cls.ToLower().Trim();
+			if (l.Contains("nursery") || l.Contains("play")) return 1;
+			if (l.Contains("lkg") || l.Contains("pp1") || l.Contains("pre-kg")) return 2;
+			if (l.Contains("ukg") || l.Contains("pp2") || l.Contains("kg")) return 3;
+			var match = System.Text.RegularExpressions.Regex.Match(l, @"\d+");
+			if (match.Success && int.TryParse(match.Value, out var num)) return 10 + num;
+			return 100;
+		}
+
+		return result.OrderBy(r => string.Equals(r.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Admitted", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Active", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+					 .ThenBy(r => GetClassSortWeight(r.AppliedClassGrade))
+					 .ThenBy(r => r.StudentName)
+					 .ToList();
 	}
 
 	public async Task<AdmissionApplicationResponseDto> GetApplicationByIdAsync(int id)
@@ -859,6 +867,118 @@ public class SchoolService : ISchoolService
 
 		throw new NotFoundException($"Admission application with ID '{id}' not found.");
 	}
+
+	public async Task<bool> DeleteApplicationAsync(int id)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			app.Status = "Deleted";
+			app.IsDeleted = true;
+			await _schoolRepository.SaveChangesAsync();
+			await SyncToAdmissionsTableAsync(app, isDeleted: true);
+			return true;
+		}
+
+		if (id > 100000)
+		{
+			int studentId = id - 100000;
+			var st = await _context.Students.FindAsync(studentId);
+			if (st != null)
+			{
+				st.IsDeleted = true;
+				st.Status = "Inactive";
+				await _context.SaveChangesAsync();
+				return true;
+			}
+		}
+
+		return true;
+	}
+
+	public async Task<bool> RejectApplicationAsync(int id)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			app.Status = "Rejected";
+			await _schoolRepository.SaveChangesAsync();
+			await SyncToAdmissionsTableAsync(app);
+			return true;
+		}
+
+		if (id > 100000)
+		{
+			int studentId = id - 100000;
+			var st = await _context.Students.FindAsync(studentId);
+			if (st != null)
+			{
+				st.Status = "Rejected";
+				st.IsDeleted = true;
+				await _context.SaveChangesAsync();
+				return true;
+			}
+		}
+
+		return true;
+	}
+
+	public async Task<bool> EnrollStudentAsync(int id)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			if (app.Status != "Enrolled")
+			{
+				app.Status = "Enrolled";
+				await _schoolRepository.SaveChangesAsync();
+			}
+			await SyncToAdmissionsTableAsync(app);
+			return true;
+		}
+
+		if (id > 100000)
+		{
+			int studentId = id - 100000;
+			var st = await _context.Students.FindAsync(studentId);
+			if (st != null)
+			{
+				st.Status = "Enrolled";
+				st.IsDeleted = false;
+				await _context.SaveChangesAsync();
+				return true;
+			}
+		}
+
+		return true;
+	}
+
+	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id);
+		if (app != null)
+		{
+			app.Status = status;
+			await _schoolRepository.SaveChangesAsync();
+			await SyncToAdmissionsTableAsync(app, isDeleted: string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase));
+			return true;
+		}
+
+		if (id > 100000)
+		{
+			int studentId = id - 100000;
+			var st = await _context.Students.FindAsync(studentId);
+			if (st != null)
+			{
+				st.Status = status;
+				await _context.SaveChangesAsync();
+				return true;
+			}
+		}
+
+		return true;
+	}
+
 
 	public async Task<AdmissionApplicationResponseDto> SubmitApplicationAsync(SubmitAdmissionDto dto)
 	{
@@ -1084,54 +1204,6 @@ public class SchoolService : ISchoolService
 		return MapToAdmissionResponseDto(app);
 	}
 
-	public async Task<bool> DeleteApplicationAsync(int id)
-	{
-		var app = await _schoolRepository.GetApplicationByIdAsync(id)
-			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
-
-		app.Status = "Deleted";
-		app.IsDeleted = true;
-		await _schoolRepository.SaveChangesAsync();
-		await SyncToAdmissionsTableAsync(app, isDeleted: true);
-		return true;
-	}
-
-	public async Task<bool> RejectApplicationAsync(int id)
-	{
-		var app = await _schoolRepository.GetApplicationByIdAsync(id)
-			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
-
-		app.Status = "Rejected";
-		await _schoolRepository.SaveChangesAsync();
-		await SyncToAdmissionsTableAsync(app);
-		return true;
-	}
-
-	public async Task<bool> EnrollStudentAsync(int id)
-	{
-		var app = await _schoolRepository.GetApplicationByIdAsync(id)
-			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
-
-		if (app.Status != "Enrolled")
-		{
-			app.Status = "Enrolled";
-			await _schoolRepository.SaveChangesAsync();
-		}
-
-		await SyncToAdmissionsTableAsync(app);
-		return true;
-	}
-
-	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
-	{
-		var app = await _schoolRepository.GetApplicationByIdAsync(id)
-			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
-
-		app.Status = status;
-		await _schoolRepository.SaveChangesAsync();
-		await SyncToAdmissionsTableAsync(app, isDeleted: string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase));
-		return true;
-	}
 
 	private async Task SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
 	{

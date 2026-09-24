@@ -165,6 +165,13 @@ namespace SMS.Api.Data
         public DbSet<SMS.Api.Models.FinanceManagement.StudentScholarship> StudentScholarships { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.DiscountRule> Discounts { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.StudentDiscount> StudentDiscounts { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeCharge> FeeCharges { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.PaymentAllocation> PaymentAllocations { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.ConcessionRule> ConcessionRules { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.StudentConcession> StudentConcessions { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FinancialAccount> FinancialAccounts { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.LedgerEntry> LedgerEntries { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.Expense> Expenses { get; set; } = null!;
 
         //student
         public DbSet<Student> Students { get; set; } = null!;

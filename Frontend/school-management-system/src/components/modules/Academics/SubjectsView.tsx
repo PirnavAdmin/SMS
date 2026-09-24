@@ -50,9 +50,9 @@ export const SubjectsView: React.FC = () => {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(8);
-  const [deptPageSize, setDeptPageSize] = useState(8);
-  const [desigPageSize, setDesigPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(10);
+  const [deptPageSize, setDeptPageSize] = useState(10);
+  const [desigPageSize, setDesigPageSize] = useState(10);
 
   // Department State
   const [deptQuery, setDeptQuery] = useState('');

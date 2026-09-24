@@ -323,24 +323,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? []
       : [
           {
+            id: "finance-dashboard",
+            label: "Finance Dashboard",
+            icon: LayoutDashboard,
+          },
+          {
+            id: "finance-fee-setup",
+            label: "Fee Setup",
+            icon: SlidersHorizontal,
+          },
+          {
+            id: "finance-student-fees",
+            label: "Student Fees",
+            icon: Users,
+          },
+          {
             id: "finance-fee-collection",
             label: "Fee Collection",
             icon: IndianRupee,
           },
           {
-            id: "finance-masters",
-            label: "Finance Setup",
-            icon: SlidersHorizontal,
+            id: "finance-concessions",
+            label: "Concessions",
+            icon: Percent,
           },
           {
-            id: "finance-transactions",
-            label: "Transactions",
+            id: "finance-ledger",
+            label: "Finance Ledger",
             icon: FileSpreadsheet,
           },
           {
             id: "finance-reports",
             label: "Finance Reports",
-            icon: FileSpreadsheet,
+            icon: FileText,
           },
         ];
 

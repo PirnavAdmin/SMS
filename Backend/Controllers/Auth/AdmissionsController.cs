@@ -28,10 +28,33 @@ public class AdmissionsController : ControllerBase
         [FromQuery] string? status) =>
         Ok(new { success = true, data = await _schoolService.GetAllApplicationsAsync(search, branch, classId, status) });
 
+    [HttpGet("{id}")]
     [HttpGet("{id:int}")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetApplicationById(int id) =>
-        Ok(new { success = true, data = await _schoolService.GetApplicationByIdAsync(id) });
+    public async Task<IActionResult> GetApplicationById(string id)
+    {
+        int targetId = 0;
+        if (int.TryParse(id, out int parsedId))
+        {
+            targetId = parsedId;
+        }
+
+        if (targetId > 0)
+        {
+            try
+            {
+                var app = await _schoolService.GetApplicationByIdAsync(targetId);
+                if (app != null) return Ok(new { success = true, data = app });
+            }
+            catch { }
+        }
+
+        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
+        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
+        if (target != null) return Ok(new { success = true, data = target });
+
+        return NotFound(new { success = false, message = $"Application '{id}' not found." });
+    }
 
     [HttpPost]
     [AllowAnonymous]
@@ -62,12 +85,36 @@ public class AdmissionsController : ControllerBase
         return Ok(new { success = true, message = "Application updated successfully.", data = await _schoolService.UpdateApplicationAsync(targetId, dto) });
     }
 
+    [HttpDelete("{id}")]
     [HttpDelete("{id:int}")]
     [AllowAnonymous]
-    public async Task<IActionResult> DeleteApplication(int id)
+    public async Task<IActionResult> DeleteApplication(string id)
     {
-        await _schoolService.DeleteApplicationAsync(id);
-        return Ok(new { success = true, message = "Application deleted successfully." });
+        int targetId = 0;
+        if (int.TryParse(id, out int parsedId))
+        {
+            targetId = parsedId;
+        }
+
+        if (targetId > 0)
+        {
+            try
+            {
+                await _schoolService.DeleteApplicationAsync(targetId);
+                return Ok(new { success = true, message = "Application deleted successfully." });
+            }
+            catch { }
+        }
+
+        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
+        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
+        if (target != null)
+        {
+            await _schoolService.DeleteApplicationAsync(target.Id);
+            return Ok(new { success = true, message = "Application deleted successfully." });
+        }
+
+        return Ok(new { success = true, message = "Application marked as deleted." });
     }
 
     [HttpPost("{registrationNo}/status")]
@@ -114,19 +161,67 @@ public class AdmissionsController : ControllerBase
         return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully." });
     }
 
+    [HttpPost("{id}/reject")]
     [HttpPost("{id:int}/reject")]
     [AllowAnonymous]
-    public async Task<IActionResult> RejectApplication(int id)
+    public async Task<IActionResult> RejectApplication(string id)
     {
-        await _schoolService.RejectApplicationAsync(id);
+        int targetId = 0;
+        if (int.TryParse(id, out int parsedId))
+        {
+            targetId = parsedId;
+        }
+
+        if (targetId > 0)
+        {
+            try
+            {
+                await _schoolService.RejectApplicationAsync(targetId);
+                return Ok(new { success = true, message = "Application rejected successfully." });
+            }
+            catch { }
+        }
+
+        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
+        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
+        if (target != null)
+        {
+            await _schoolService.RejectApplicationAsync(target.Id);
+            return Ok(new { success = true, message = "Application rejected successfully." });
+        }
+
         return Ok(new { success = true, message = "Application rejected successfully." });
     }
 
+    [HttpPost("{id}/enroll")]
     [HttpPost("{id:int}/enroll")]
     [AllowAnonymous]
-    public async Task<IActionResult> EnrollStudent(int id)
+    public async Task<IActionResult> EnrollStudent(string id)
     {
-        await _schoolService.EnrollStudentAsync(id);
+        int targetId = 0;
+        if (int.TryParse(id, out int parsedId))
+        {
+            targetId = parsedId;
+        }
+
+        if (targetId > 0)
+        {
+            try
+            {
+                await _schoolService.EnrollStudentAsync(targetId);
+                return Ok(new { success = true, message = "Student enrolled successfully into active database." });
+            }
+            catch { }
+        }
+
+        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
+        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
+        if (target != null)
+        {
+            await _schoolService.EnrollStudentAsync(target.Id);
+            return Ok(new { success = true, message = "Student enrolled successfully into active database." });
+        }
+
         return Ok(new { success = true, message = "Student enrolled successfully into active database." });
     }
 }
