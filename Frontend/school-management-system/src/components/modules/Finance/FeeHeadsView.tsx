@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, ArrowUpDown } from 'lucide-react';
 import { FeeHead, FeeHeadCategory, FeeHeadFrequency } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
@@ -24,7 +25,8 @@ const DEFAULT_CLASSES = [
 ];
 
 export const FeeHeadsView: React.FC = () => {
-  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses, selectedBranch } = useData();
+  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses } = useData();
+  const { selectedBranch } = useAuth() as any;
   const { addToast } = useToast();
 
   const activeBranchList = useMemo(() => {

@@ -91,8 +91,8 @@ export const ParentHostelView: React.FC = () => {
     const combined = [...studentMatches, ...admissionMatches];
     const unique = new Map();
     combined.forEach(w => {
-      const sName = (w.studentName || `${w.firstName || ''} ${w.lastName || ''}`).trim().toLowerCase();
-      const cName = (w.className || '').toString().toLowerCase().replace(/class/gi, '').trim();
+      const sName = ((w as any).studentName || `${(w as any).firstName || ''} ${(w as any).lastName || ''}`).trim().toLowerCase();
+      const cName = ((w as any).className || '').toString().toLowerCase().replace(/class/gi, '').trim();
       const key = `${sName}_${cName}`;
       if (sName && !unique.has(key)) {
         unique.set(key, w);

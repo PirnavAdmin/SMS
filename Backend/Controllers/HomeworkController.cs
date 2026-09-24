@@ -33,14 +33,41 @@ public class HomeworkController : ControllerBase
     /// </summary>
     [HttpGet("options")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
-    public IActionResult GetHomeworkDropdownOptions()
+    public async Task<IActionResult> GetHomeworkDropdownOptions()
     {
-        var options = new HomeworkDropdownOptionsDto
+        var dbClasses = await _context.Classes
+            .AsNoTracking()
+            .Select(c => c.ClassName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .ToListAsync();
+
+        var dbSubjects = await _context.Subjects
+            .AsNoTracking()
+            .Select(s => s.SubjectName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .ToListAsync();
+
+        var classList = new List<string> { "All Classes" };
+        if (dbClasses.Any()) classList.AddRange(dbClasses);
+
+        var subjectList = new List<string> { "All Subjects" };
+        if (dbSubjects.Any()) subjectList.AddRange(dbSubjects);
+
+        var academicYears = await _context.AcademicYears
+            .AsNoTracking()
+            .Select(y => y.AcademicYearName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .ToListAsync();
+
+        var options = new
         {
-            Classes = new List<string> { "All Classes", "Class 10-A", "Class 10-B", "Class 9-A", "Class 9-B", "Class 8-A" },
-            Subjects = new List<string> { "All Subjects", "Mathematics", "English", "Physics", "Social Studies", "Chemistry", "Biology" },
-            Statuses = new List<string> { "All Statuses", "PUBLISHED", "DRAFT", "CLOSED", "ARCHIVED" },
-            AcademicYears = new List<string> { "2026-27", "2027-28", "2025-26" }
+            classes = classList,
+            subjects = subjectList,
+            statuses = new List<string> { "All Statuses", "PUBLISHED", "DRAFT", "CLOSED", "ARCHIVED" },
+            academicYears = academicYears.Any() ? academicYears : new List<string>()
         };
 
         return Ok(new
@@ -201,17 +228,17 @@ public class HomeworkController : ControllerBase
         var hw = new Homework
         {
             Title = dto.Title.Trim(),
-            ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : "Class 10-A",
-            ClassRoom = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : "Class 10-A",
-            SubjectName = !string.IsNullOrWhiteSpace(dto.SubjectName) ? dto.SubjectName.Trim() : "Mathematics",
-            Topic = dto.Topic?.Trim(),
-            Description = dto.Description?.Trim(),
+            ClassName = dto.ClassName?.Trim() ?? "",
+            ClassRoom = dto.ClassName?.Trim() ?? "",
+            SubjectName = dto.SubjectName?.Trim() ?? "",
+            Topic = dto.Topic?.Trim() ?? "",
+            Description = dto.Description?.Trim() ?? "",
             DueDate = due,
             PublishedTo = !string.IsNullOrWhiteSpace(dto.PublishedTo) ? dto.PublishedTo.Trim() : "Entire Class",
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpper() : "PUBLISHED",
             AttachmentFileName = dto.AttachmentFileName,
             AttachmentUrl = dto.AttachmentUrl,
-            TeacherName = !string.IsNullOrWhiteSpace(dto.TeacherName) ? dto.TeacherName.Trim() : "Jonathan Miller",
+            TeacherName = dto.TeacherName?.Trim() ?? "",
             SubmissionsCount = 0,
             CreatedAt = DateTime.UtcNow
         };
@@ -349,8 +376,8 @@ public class HomeworkController : ControllerBase
     {
         HomeworkId = h.HomeworkId,
         Title = h.Title ?? "",
-        ClassName = h.ClassName ?? "Class 10-A",
-        SubjectName = h.SubjectName ?? "Mathematics",
+        ClassName = h.ClassName ?? "",
+        SubjectName = h.SubjectName ?? "",
         Topic = h.Topic ?? "",
         Description = h.Description ?? "",
         DueDate = h.DueDate.ToString("yyyy-MM-dd"),
@@ -358,7 +385,7 @@ public class HomeworkController : ControllerBase
         Status = h.Status ?? "PUBLISHED",
         AttachmentFileName = h.AttachmentFileName,
         AttachmentUrl = h.AttachmentUrl,
-        TeacherName = h.TeacherName ?? "Jonathan Miller",
+        TeacherName = h.TeacherName ?? "",
         SubmissionsCount = h.SubmissionsCount,
         CreatedAt = h.CreatedAt.ToString("yyyy-MM-dd")
     };

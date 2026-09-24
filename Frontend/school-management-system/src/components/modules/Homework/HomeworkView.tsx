@@ -11,7 +11,7 @@ import { Homework, HomeworkAttachment, Student } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, students, schoolProfile, fetchHomeworkData } = useData();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, students, subjects = [], schoolProfile, fetchHomeworkData } = useData();
 
   useEffect(() => {
     if (fetchHomeworkData) {
@@ -74,22 +74,22 @@ export const HomeworkView: React.FC = () => {
 
       return {
         ...found,
-        department: found.department || 'English',
+        department: found.department || '',
         assignedSubjects: resolvedSubjects
       };
     }
 
-    const rawName = user?.name || 'Robert Teacher';
+    const rawName = user?.name || '';
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || 'STF-2026-0000',
-      empId: (user as any)?.empId || 'STF-2026-0000',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 4-A'],
-      assignedSubjects: ['English', 'Chemistry'],
-      department: 'English',
-      designation: 'Junior Teacher'
+      id: user?.id || '',
+      empId: (user as any)?.empId || user?.id || '',
+      firstName: nameParts[0] || (user as any)?.name || 'Teacher',
+      lastName: nameParts.slice(1).join(' ') || '',
+      assignedClasses: [],
+      assignedSubjects: [],
+      department: (user as any)?.department || '',
+      designation: (user as any)?.designation || 'Teacher'
     };
   }, [user, staff, teacherAssignments]);
 
@@ -106,24 +106,44 @@ export const HomeworkView: React.FC = () => {
         const tName = (dbTeacher.firstName || '').toLowerCase();
         return tName && taName.includes(tName);
       })
-      .map((ta: any) => ta.className.startsWith('Class ') ? ta.className : `Class ${ta.className}-${ta.section || 'A'}`);
+      .map((ta: any) => {
+        const c = (ta.className || '').trim();
+        const s = (ta.section || '').trim();
+        if (!c) return '';
+        return c.startsWith('Class ') ? (s ? `${c}-${s}` : c) : (s ? `Class ${c}-${s}` : `Class ${c}`);
+      })
+      .filter(Boolean);
 
-    const combined = Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...adminClasses]));
-    const list = combined.length > 0 ? combined : ['Class 10-A', 'Class 9-A', 'Class 8-A'];
+    const combined = Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...adminClasses])).filter(Boolean);
+    if (combined.length > 0) {
+      return combined.map((c: string) => {
+        let str = c.trim();
+        if (!str.toLowerCase().startsWith('class') && !str.toLowerCase().startsWith('grade')) str = `Class ${str}`;
+        return str;
+      });
+    }
 
-    const cleaned = list.map((c: string) => {
-      let str = c.trim();
-      if (!str.toLowerCase().startsWith('class')) str = `Class ${str}`;
-      return str;
-    }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
+    if (academicClasses && academicClasses.length > 0) {
+      return academicClasses.flatMap(ac => {
+        const secs = (ac.sections && ac.sections.length > 0) ? ac.sections : [''];
+        return secs.map(s => s ? `${ac.name}-${s}` : ac.name);
+      });
+    }
 
-    return cleaned.length > 0 ? cleaned : ['Class 10-A', 'Class 9-A', 'Class 8-A'];
-  }, [dbTeacher, teacherAssignments]);
+    if (students && students.length > 0) {
+      const set = new Set<string>();
+      students.forEach(s => {
+        if (s.className) set.add(s.section ? `${s.className}-${s.section}` : s.className);
+      });
+      if (set.size > 0) return Array.from(set);
+    }
+
+    return [];
+  }, [dbTeacher, teacherAssignments, academicClasses, students]);
 
   const assignedSubjects = useMemo(() => {
-    const defaultSubject = dbTeacher.department || (dbTeacher as any).primarySubject || 'General';
-    const rawSubs = (dbTeacher as any)?.assignedSubjects?.length > 0 ? (dbTeacher as any).assignedSubjects : [defaultSubject];
-    const dept = (dbTeacher.department || defaultSubject).toLowerCase().trim();
+    const defaultSubject = dbTeacher.department || (dbTeacher as any).primarySubject || '';
+    const rawSubs = (dbTeacher as any)?.assignedSubjects?.length > 0 ? (dbTeacher as any).assignedSubjects : (defaultSubject ? [defaultSubject] : []);
 
     const adminSubs = (teacherAssignments || [])
       .filter((ta: any) => {
@@ -138,24 +158,36 @@ export const HomeworkView: React.FC = () => {
       .map((ta: any) => ta.subject)
       .filter(Boolean);
 
-    const merged = Array.from(new Set([...rawSubs, ...adminSubs]));
+    const merged = Array.from(new Set([...rawSubs, ...adminSubs])).filter(Boolean);
+    if (merged.length > 0) return merged;
 
-    return merged.length > 0 ? merged : [defaultSubject];
-  }, [dbTeacher, teacherAssignments]);
+    if (subjects && subjects.length > 0) {
+      return subjects.map((s: any) => s.name || s.subjectName).filter(Boolean);
+    }
+
+    return [];
+  }, [dbTeacher, teacherAssignments, subjects]);
 
   const classOptions = useMemo(() => {
     const set = new Set<string>();
-    teacherAssignedClasses.forEach(ac => {
-      let mainCls = ac.split('-')[0].trim();
-      if (!mainCls.toLowerCase().startsWith('class')) {
-        mainCls = `Class ${mainCls}`;
-      }
-      if (!mainCls.toLowerCase().includes('nursery') && !mainCls.toLowerCase().includes('lkg') && !mainCls.toLowerCase().includes('ukg')) {
-        set.add(mainCls);
-      }
-    });
+    if (teacherAssignedClasses.length > 0) {
+      teacherAssignedClasses.forEach(ac => {
+        let mainCls = ac.split('-')[0].trim();
+        if (mainCls) set.add(mainCls);
+      });
+    }
+    if (academicClasses && academicClasses.length > 0) {
+      academicClasses.forEach(ac => {
+        if (ac.name) set.add(ac.name);
+      });
+    }
+    if (students && students.length > 0) {
+      students.forEach(s => {
+        if (s.className) set.add(s.className);
+      });
+    }
     return Array.from(set);
-  }, [teacherAssignedClasses]);
+  }, [teacherAssignedClasses, academicClasses, students]);
 
   const subjectOptions = assignedSubjects;
 
@@ -172,7 +204,7 @@ export const HomeworkView: React.FC = () => {
   };
 
   const formatClassRoom = (hw: { className?: string; section?: string }) => {
-    let cls = (hw?.className || 'Class 9').trim();
+    let cls = (hw?.className || '').trim();
     let sec = (hw?.section || '').trim();
 
     if (cls.includes('-')) {
@@ -181,12 +213,11 @@ export const HomeworkView: React.FC = () => {
       if (!sec && parts[1]) sec = parts[1].trim();
     }
 
-    if (!cls.toLowerCase().startsWith('class') && !cls.toLowerCase().startsWith('grade')) {
+    if (cls && !cls.toLowerCase().startsWith('class') && !cls.toLowerCase().startsWith('grade')) {
       cls = `Class ${cls}`;
     }
 
-    const displaySec = sec || 'A';
-    return `${cls}-${displaySec}`;
+    return sec ? `${cls}-${sec}` : cls;
   };
 
   const rbacHomework = useMemo(() => {
@@ -246,10 +277,10 @@ export const HomeworkView: React.FC = () => {
   // Form State
   const [formData, setFormData] = useState<Partial<Homework>>({
     title: '',
-    className: 'Class 9',
-    section: 'A',
-    subject: assignedSubjects[0] || dbTeacher.department || (dbTeacher as any).primarySubject || 'General',
-    teacherName: `${teacher.firstName} ${teacher.lastName}`,
+    className: '',
+    section: '',
+    subject: '',
+    teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
     assignedDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
     description: '',
@@ -274,10 +305,10 @@ export const HomeworkView: React.FC = () => {
   // Load students for target class/section
   const formClassStudents = useMemo(() => {
     const targetCls = cleanClassName(formData.className || '');
-    const targetSec = cleanSectionName(formData.section || 'A');
+    const targetSec = cleanSectionName(formData.section || '');
     return enrolledStudents.filter(s => {
       const sCls = cleanClassName(s.className || '');
-      const sSec = cleanSectionName(s.section || 'A');
+      const sSec = cleanSectionName(s.section || '');
       return (sCls === targetCls || !targetCls) && (sSec === targetSec || !targetSec);
     });
   }, [enrolledStudents, formData.className, formData.section]);
@@ -324,9 +355,9 @@ export const HomeworkView: React.FC = () => {
     setStudentSearchQuery('');
     setFormData({
       title: '',
-      className: classOptions[0] || 'Class 10',
-      section: teacherAssignedClasses[0]?.split('-')[1] || 'A',
-      subject: formSubjectOptions[0] || 'Social Studies',
+      className: classOptions[0] || (academicClasses?.[0]?.name || ''),
+      section: formSectionOptions[0] || (academicClasses?.[0]?.sections?.[0] || ''),
+      subject: formSubjectOptions[0] || assignedSubjects[0] || '',
       teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
       assignedDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
@@ -413,8 +444,8 @@ export const HomeworkView: React.FC = () => {
 
     const dataToSave = { 
       ...formData, 
-      className: (formData.className || 'Class 9').trim(),
-      section: (formData.section || 'A').trim(),
+      className: (formData.className || '').trim(),
+      section: (formData.section || '').trim(),
       attachments,
       status: statusMode,
       publishedStudentIds: formData.publishToType === 'Students' ? selectedStudentIds : []
@@ -536,9 +567,7 @@ export const HomeworkView: React.FC = () => {
     const set = new Set<string>();
 
     const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
-    const tDept = (dbTeacher.department || (dbTeacher as any).primarySubject || '').toLowerCase().trim();
     const tId = String(dbTeacher.id || (dbTeacher as any).empId || '');
-    const isMathTeacher = tDept.includes('math');
 
     // 1. Filter teacherAssignments for target class & section matching teacher
     (teacherAssignments || []).forEach((ta: any) => {
@@ -558,8 +587,7 @@ export const HomeworkView: React.FC = () => {
     });
 
     if (set.size > 0) {
-      const res = Array.from(set);
-      return isMathTeacher ? res : res.filter(s => !s.toLowerCase().includes('math'));
+      return Array.from(set);
     }
 
     // 2. Filter existing homework entries for target class & section matching teacher
@@ -578,15 +606,13 @@ export const HomeworkView: React.FC = () => {
     });
 
     if (set.size > 0) {
-      const res = Array.from(set);
-      return isMathTeacher ? res : res.filter(s => !s.toLowerCase().includes('math'));
+      return Array.from(set);
     }
 
     // 3. Fallback to teacher's assigned subjects
     if (assignedSubjects.length > 0) {
       const res = assignedSubjects.filter(s => Boolean(s));
-      const filtered = isMathTeacher ? res : res.filter(s => !s.toLowerCase().includes('math'));
-      if (filtered.length > 0) return filtered;
+      if (res.length > 0) return res;
     }
 
     // 4. Fallback to academicClasses for targetCls
@@ -594,12 +620,16 @@ export const HomeworkView: React.FC = () => {
     if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
       const rawSubs = clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.subjectName || s.name || s.subjectCode || ''));
       const clean = rawSubs.filter(Boolean);
-      const filtered = clean.filter((s: string) => isMathTeacher || !s.toLowerCase().includes('math'));
-      if (filtered.length > 0) return Array.from(new Set<string>(filtered));
+      if (clean.length > 0) return Array.from(new Set<string>(clean));
     }
 
-    return ['Social Studies'];
-  }, [formData.className, formData.section, dbTeacher, teacherAssignments, homework, assignedSubjects, academicClasses, role]);
+    // 5. Dynamic fallback to system subjects
+    if (subjects && subjects.length > 0) {
+      return subjects.map((s: any) => s.name || s.subjectName).filter(Boolean);
+    }
+
+    return [];
+  }, [formData.className, formData.section, dbTeacher, teacherAssignments, homework, assignedSubjects, academicClasses, subjects, role]);
 
   useEffect(() => {
     if (formSubjectOptions.length > 0 && !formSubjectOptions.includes(formData.subject)) {

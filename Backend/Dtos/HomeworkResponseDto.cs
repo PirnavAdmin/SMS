@@ -20,7 +20,7 @@ namespace SMS.Api.Dtos
         public string ClassName { get; set; } = string.Empty;
 
         [JsonPropertyName("classRoom")]
-        public string ClassRoom => !string.IsNullOrWhiteSpace(ClassName) ? ClassName : "Class 10-A";
+        public string ClassRoom => ClassName;
 
         [JsonPropertyName("class")]
         public string Class => ClassRoom;
@@ -53,10 +53,10 @@ namespace SMS.Api.Dtos
         public string? AttachmentUrl { get; set; }
 
         [JsonPropertyName("teacherName")]
-        public string TeacherName { get; set; } = "Jonathan Miller";
+        public string TeacherName { get; set; } = string.Empty;
 
         [JsonPropertyName("submissionsCount")]
-        public int SubmissionsCount { get; set; } = 24;
+        public int SubmissionsCount { get; set; } = 0;
 
         [JsonPropertyName("createdAt")]
         public string CreatedAt { get; set; } = string.Empty;

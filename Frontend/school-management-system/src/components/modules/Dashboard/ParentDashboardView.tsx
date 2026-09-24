@@ -577,18 +577,36 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const wardAttendance = wardAttendanceStats.wardAttendance;
   const attPercentage = wardAttendanceStats.presentPct;
 
-  const normClsP = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
-  const wClsNormP = normClsP(currentWard?.className);
-  const wSecNormP = normClsP(currentWard?.section);
+  const normalizeClassNum = (str?: string) => {
+    if (!str) return '';
+    const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').replace(/\s+/g, '').trim();
+    if (clean.includes('-')) return clean.split('-')[0].trim();
+    return clean;
+  };
+
+  const normalizeSection = (secStr?: string, fullClsStr?: string) => {
+    if (secStr && secStr.trim()) {
+      return secStr.toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    if (fullClsStr && fullClsStr.includes('-')) {
+      const parts = fullClsStr.split('-');
+      return parts[1].toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    return '';
+  };
+
+  const wardClassNumP = normalizeClassNum(currentWard?.className);
+  const wardSecP = normalizeSection(currentWard?.section, currentWard?.className);
 
   const pendingHomework = (homework || []).filter(h => {
-    if (!currentWard) return false;
-    const hClsNorm = normClsP(h.className);
-    const hSecNorm = normClsP(h.section);
-    const matchesClass = hClsNorm === wClsNormP || hClsNorm.includes(wClsNormP) || wClsNormP.includes(hClsNorm);
-    const matchesSec = !wSecNormP || !hSecNorm || hSecNorm === wSecNormP;
-    const isFutureOrToday = !h.dueDate || new Date(h.dueDate) >= new Date();
-    return matchesClass && matchesSec && isFutureOrToday;
+    if (!currentWard || !h) return false;
+    const hClassNum = normalizeClassNum(h.className || (h as any).classRoom || (h as any).class);
+    const hSec = normalizeSection(h.section, h.className || (h as any).classRoom || (h as any).class);
+    const matchesClass = !wardClassNumP || !hClassNum || hClassNum === wardClassNumP || hClassNum.includes(wardClassNumP) || wardClassNumP.includes(hClassNum);
+    const matchesSec = !hSec || hSec === 'all' || !wardSecP || hSec === wardSecP;
+    const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
+    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending'].includes(hStatus);
+    return matchesClass && matchesSec && isPublished;
   }).length;
 
   // Real data for notices

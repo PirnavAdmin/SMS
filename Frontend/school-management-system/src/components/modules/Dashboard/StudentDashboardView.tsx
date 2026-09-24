@@ -209,16 +209,36 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const attPercentage = wardAttendance.length > 0 ? Math.round((presentDays / wardAttendance.length) * 100) : 100;
 
   // Homework (Pending tasks)
-  const normCls = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
-  const wardClsNormHw = normCls(currentWard?.className);
-  const wardSecNormHw = normCls(currentWard?.section);
+  const normalizeClassNumHw = (str?: string) => {
+    if (!str) return '';
+    const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').replace(/\s+/g, '').trim();
+    if (clean.includes('-')) return clean.split('-')[0].trim();
+    return clean;
+  };
+
+  const normalizeSectionHw = (secStr?: string, fullClsStr?: string) => {
+    if (secStr && secStr.trim()) {
+      return secStr.toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    if (fullClsStr && fullClsStr.includes('-')) {
+      const parts = fullClsStr.split('-');
+      return parts[1].toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    return '';
+  };
+
+  const wardClsNormHw = normalizeClassNumHw(currentWard?.className);
+  const wardSecNormHw = normalizeSectionHw(currentWard?.section, currentWard?.className);
 
   const pendingHomework = (homework || []).filter(h => {
-    const hClsNorm = normCls(h.className);
-    const hSecNorm = normCls(h.section);
-    const matchesClass = hClsNorm === wardClsNormHw || hClsNorm.includes(wardClsNormHw) || wardClsNormHw.includes(hClsNorm);
-    const matchesSec = !wardSecNormHw || !hSecNorm || hSecNorm === wardSecNormHw;
-    return matchesClass && matchesSec;
+    if (!currentWard || !h) return false;
+    const hClassNum = normalizeClassNumHw(h.className || (h as any).classRoom || (h as any).class);
+    const hSec = normalizeSectionHw(h.section, h.className || (h as any).classRoom || (h as any).class);
+    const matchesClass = !wardClsNormHw || !hClassNum || hClassNum === wardClsNormHw || hClassNum.includes(wardClsNormHw) || wardClsNormHw.includes(hClassNum);
+    const matchesSec = !hSec || hSec === 'all' || !wardSecNormHw || hSec === wardSecNormHw;
+    const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
+    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending'].includes(hStatus);
+    return matchesClass && matchesSec && isPublished;
   });
   
   // Timetable
@@ -435,10 +455,10 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
                 <div key={idx} className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-start gap-2.5">
                   <input type="checkbox" className="mt-0.5 w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500 border-slate-300 cursor-pointer" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{item.title}</p>
+                    <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{item.title || (item as any).homeworkTitle || (item as any).topic || 'Homework'}</p>
                     <div className="flex items-center justify-between mt-1 text-[10px]">
-                      <span className="font-bold text-slate-400 uppercase">{getSubjectName(item.subjectId || item.subject)}</span>
-                      <span className="font-semibold text-amber-600 dark:text-amber-400">Due: {item.dueDate}</span>
+                      <span className="font-bold text-slate-400 uppercase">{getSubjectName(item.subjectId || item.subject || (item as any).subjectName || 'General')}</span>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">Due: {item.dueDate || (item as any).assignedDate || 'Upcoming'}</span>
                     </div>
                   </div>
                 </div>
