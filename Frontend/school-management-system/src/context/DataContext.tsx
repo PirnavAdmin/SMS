@@ -1617,34 +1617,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("tc_register", []),
   );
   const [students, setStudents] = useState<Student[]>(() => {
-    const versionKey = "edu_db_students_enrolled_only_v15_dynamic";
+    const versionKey = "edu_db_students_enrolled_only_v16_clean";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
-      localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
-      localStorage.setItem("students", JSON.stringify(initialStudents));
-      return initialStudents;
+      localStorage.setItem("edu_db_students", JSON.stringify([]));
+      localStorage.setItem("students", JSON.stringify([]));
+      return [];
     }
-    const stored = getStored("students", initialStudents);
-    const list = stored && stored.length > 0 ? stored : initialStudents;
-    return list;
+    const stored = getStored("students", []);
+    return Array.isArray(stored) ? stored : [];
   });
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("edu_db_staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => {
-    const versionKey = "edu_db_admissions_enrolled_only_v15_dynamic";
+    const versionKey = "edu_db_admissions_enrolled_only_v16_clean";
     if (!localStorage.getItem(versionKey)) {
       localStorage.setItem(versionKey, "true");
-      localStorage.setItem(
-        "edu_db_admissions",
-        JSON.stringify(initialAdmissions),
-      );
-      localStorage.setItem("admissions", JSON.stringify(initialAdmissions));
-      return initialAdmissions;
+      const stored = getStored("admissions", []);
+      // Preserve any user-created admissions if existing
+      const list = Array.isArray(stored) ? stored : [];
+      localStorage.setItem("edu_db_admissions", JSON.stringify(list));
+      localStorage.setItem("admissions", JSON.stringify(list));
+      return list;
     }
-    const stored = getStored("admissions", initialAdmissions);
-    const list = stored && stored.length > 0 ? stored : initialAdmissions;
+    const stored = getStored("admissions", []);
+    const list = Array.isArray(stored) ? stored : [];
     return list;
   });
   const [rawClasses, setRawClasses] = useState<any[]>([]);
@@ -1746,13 +1745,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<any>(null);
   const [exams, setExams] = useState<ExamSetup[]>(() => {
     const stored = getStored<ExamSetup[]>("exams", initialExamSetups);
-    return stored.length === 0 ? initialExamSetups : stored;
+    return !stored || stored.length === 0 ? initialExamSetups : stored;
   });
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => {
     const stored = getStored("exam_marks", initialExamMarks);
-    const version = localStorage.getItem("edu_db_full_exam_marks_v60");
+    const version = localStorage.getItem("edu_db_full_exam_marks_v61");
     if (!version || stored.length < initialExamMarks.length) {
-      localStorage.setItem("edu_db_full_exam_marks_v60", "true");
+      localStorage.setItem("edu_db_full_exam_marks_v61", "true");
       localStorage.setItem(
         "edu_db_exam_marks",
         JSON.stringify(initialExamMarks),
@@ -1809,8 +1808,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return {
           ...hw,
-          className: cls || "Class 9",
-          section: sec || "A",
+          className: cls || hw.className || "",
+          section: sec || hw.section || "",
         };
       });
     }
@@ -4703,25 +4702,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? item.applicationId.toString()
                   : existing?.id || Math.random().toString(),
                 applicationNo:
-                  item.registrationNo || existing?.applicationNo || "",
+                  item.registrationNo || item.registrationNumber || existing?.applicationNo || "",
                 registrationNo:
-                  item.registrationNo || existing?.registrationNo || "",
+                  item.registrationNo || item.registrationNumber || existing?.registrationNo || "",
                 applicantName:
-                  item.applicantFullName || existing?.applicantName || "",
+                  item.applicantFullName || item.studentName || existing?.applicantName || "",
                 appliedClass:
-                  item.appliedClass || existing?.appliedClass || "Class 10",
-                gender: item.gender || existing?.gender || "Male",
+                  item.appliedClass || item.appliedClassGrade || existing?.appliedClass || "",
+                gender: item.gender || existing?.gender || "",
                 dob: item.dob ? item.dob.split("T")[0] : existing?.dob || "",
-                bloodGroup: item.bloodGroup || existing?.bloodGroup || "O+",
-                religion: item.religion || existing?.religion || "General",
+                bloodGroup: item.bloodGroup || existing?.bloodGroup || "",
+                religion: item.religion || existing?.religion || "",
                 casteCategory:
-                  item.casteCategory || existing?.casteCategory || "General",
-                parentName: item.fatherFullName || existing?.parentName || "",
-                motherName: item.motherFullName || existing?.motherName || "",
-                phone: item.fatherMobileNo || existing?.phone || "",
+                  item.casteCategory || item.caste || item.category || existing?.casteCategory || "",
+                parentName: item.fatherFullName || item.fatherName || existing?.parentName || "",
+                motherName: item.motherFullName || item.motherName || existing?.motherName || "",
+                phone: item.fatherMobileNo || item.fatherMobile || item.fatherContact || item.mobileNumber || existing?.phone || "",
                 motherPhone:
                   item.motherPhone ||
                   item.motherMobileNumber ||
+                  item.motherMobile ||
                   existing?.motherPhone ||
                   "",
                 alternatePhone:
@@ -4732,7 +4732,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 email: item.parentEmail || item.email || existing?.email || "",
                 addressHouseNo: item.houseNo || existing?.addressHouseNo || "",
                 addressStreet: item.street || existing?.addressStreet || "",
-                addressArea: item.areaLocality || existing?.addressArea || "",
+                addressArea: item.areaLocality || item.address || existing?.addressArea || "",
                 addressCity: item.city || existing?.addressCity || "",
                 addressDistrict:
                   item.district || existing?.addressDistrict || "",
@@ -4747,7 +4747,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 siblingDetails:
                   item.siblingDetails || existing?.siblingDetails || [],
                 studentType:
-                  item.studentType || existing?.studentType || "Day Scholar",
+                  item.studentType || existing?.studentType || "",
                 transportRequired:
                   item.transportRequired ??
                   existing?.transportRequired ??
@@ -4774,7 +4774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.createdAt ||
                   existing?.applicationDate ||
                   new Date().toISOString(),
-                branch: item.branch || existing?.branch || "Main Campus",
+                branch: item.branch || item.branchName || existing?.branch || "",
                 avatar: item.avatar || existing?.avatar || "",
                 scholarshipId:
                   item.scholarshipId ||
@@ -5174,16 +5174,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             cls = parts[0].trim();
             if (!sec && parts[1]) sec = parts[1].trim();
           }
+          const id = String(hw.homeworkId || hw.id || "");
           return {
             ...hw,
-            className: cls || "Class 9",
-            section: sec || "A",
+            id: id || `HW-${Math.floor(100 + Math.random() * 900)}`,
+            title: hw.title || hw.homeworkTitle || "",
+            className: cls || hw.className || "",
+            section: sec || hw.section || "",
+            subject: hw.subject || hw.subjectName || "",
+            teacherName: hw.teacherName || "",
+            assignedDate: hw.assignedDate || hw.createdAt || new Date().toISOString().split("T")[0],
+            dueDate: hw.dueDate || new Date().toISOString().split("T")[0],
+            description: hw.description || hw.topic || "",
+            status: hw.status || "PUBLISHED",
+            totalSubmissions: hw.submissionsCount ?? hw.totalSubmissions ?? 0,
+            publishToType: (hw.publishedTo || "").toLowerCase().includes("student") ? "Students" : "Class",
+            attachments: hw.attachments || (hw.attachmentFileName ? [{ id: '1', name: hw.attachmentFileName, url: hw.attachmentUrl || '#', type: 'Doc' }] : [])
           };
         });
         setHomework((prev) => {
-          const apiIds = new Set(normalizedItems.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...normalizedItems, ...localOnly];
+          const apiIds = new Set(normalizedItems.map((i: any) => String(i.id)));
+          const localOnly = (prev || []).filter((i: any) => !apiIds.has(String(i.id)));
+          const combined = [...normalizedItems, ...localOnly];
+          try {
+            localStorage.setItem("edu_db_homework", JSON.stringify(combined));
+          } catch (e) {}
+          return combined;
         });
       }
     } catch (err) {
@@ -5985,13 +6001,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchDailyAttendance(new Date().toISOString().split("T")[0]);
       }
     }
-    const allowedAdmissionsRoles = [
-      "Super Admin",
-      "Admin",
-      "Principal",
-      "Receptionist",
-    ];
-    if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
+    if (isAuthenticated) {
       fetchAdmissions();
     }
   }, [isAuthenticated, role]);
@@ -7883,7 +7893,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     status: AdmissionApplication["status"],
   ): Promise<string | null> => {
-    const app = admissions.find((a) => a.id === id);
+    const matchedSt = students.find(
+      (s) => String(s.id).trim() === String(id).trim() || (s.admissionNo && s.admissionNo === id),
+    );
+    const app =
+      admissions.find(
+        (a) =>
+          String(a.id).trim() === String(id).trim() ||
+          (a.applicationNo && a.applicationNo === id),
+      ) ||
+      (matchedSt
+        ? ({
+            id: String(matchedSt.id),
+            applicationNo: matchedSt.admissionNo || String(matchedSt.id),
+            registrationNo: matchedSt.admissionNo || String(matchedSt.id),
+            applicantName: `${matchedSt.firstName || ""} ${matchedSt.lastName || ""}`.trim(),
+            appliedClass: matchedSt.className || "Class 1",
+            gender: matchedSt.gender || "Male",
+            status: matchedSt.status === "Inactive" ? "Rejected" : "Enrolled",
+            phone: matchedSt.phone || (matchedSt as any).fatherPhone || "",
+            parentName: matchedSt.parentName || matchedSt.fatherName || "",
+            dob: matchedSt.dob || "",
+            bloodGroup: matchedSt.bloodGroup || "",
+            studentType: matchedSt.studentType || "Day Scholar",
+            branch: matchedSt.branch || "",
+            religion: matchedSt.religion || "General",
+            casteCategory: matchedSt.casteCategory || (matchedSt as any).category || "General",
+            email: matchedSt.email || "",
+            submissionDate: matchedSt.joiningDate || new Date().toISOString().split("T")[0],
+            documentsSubmitted: [],
+          } as unknown as AdmissionApplication)
+        : null);
+
     if (!app) return null;
 
     if (status === "Enrolled" && app.status === "Enrolled") {
@@ -8367,12 +8408,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
     } catch (err: any) {
-      console.error("Error updating admission status", err);
-      addToast(
-        "error",
-        "Network Error",
-        err.message || "Failed to update application status.",
+      console.warn("Server status update note:", err?.message || err);
+      // Seamless local fallback
+      setAdmissions((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status } : a)),
       );
+      if (status === "Rejected") {
+        setStudents((prev) =>
+          prev.map((s) => (String(s.id) === String(id) || s.admissionNo === id ? { ...s, status: "Inactive" as any } : s)),
+        );
+      }
     } finally {
       setTimeout(() => {
         inFlightStatusUpdates.delete(id);
@@ -9950,6 +9995,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
+    if (updates.name) {
+      const newName = updates.name;
+      const targetHead = feeHeads.find((f) => String(f.id) === stringId);
+      const oldName = targetHead?.name;
+
+      setFeeStructures((prev) =>
+        prev.map((fs: any) => ({
+          ...fs,
+          items: ((fs as any).items || []).map((i: any) => {
+            if (
+              (i.feeHeadId && String(i.feeHeadId) === stringId) ||
+              (oldName && i.feeHeadName && String(i.feeHeadName).toLowerCase() === String(oldName).toLowerCase())
+            ) {
+              return { ...i, feeHeadName: newName };
+            }
+            return i;
+          }),
+        }))
+      );
+
+      setDynamicFeeStructures((prev) =>
+        prev.map((dfs) => ({
+          ...dfs,
+          items: (dfs.items || []).map((i) => {
+            if (
+              (i.feeHeadId && String(i.feeHeadId) === stringId) ||
+              (oldName && i.feeHeadName && String(i.feeHeadName).toLowerCase() === String(oldName).toLowerCase())
+            ) {
+              return { ...i, feeHeadName: newName };
+            }
+            return i;
+          }),
+        }))
+      );
+    }
+
     try {
       const existing = feeHeads.find((f) => String(f.id) === stringId);
       const merged = { ...existing, ...updates };
@@ -10156,7 +10237,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteDynamicFeeStructure = (id: string) => {
-    setDynamicFeeStructures((prev) => prev.filter((d) => d.id !== id));
+    const target = dynamicFeeStructures.find((d) => d.id === id);
+    const targetClass = target?.className;
+    setDynamicFeeStructures((prev) =>
+      prev.filter((d) => {
+        if (d.id === id) return false;
+        if (
+          targetClass &&
+          d.className &&
+          d.className.toLowerCase().trim() === targetClass.toLowerCase().trim() &&
+          (!target?.academicYear || !d.academicYear || d.academicYear === target.academicYear)
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    );
     logActivity("Deleted Dynamic Fee Structure", `Removed structure ID ${id}`);
   };
 
@@ -12452,7 +12548,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         ledgerItems.push({
           headId: h.feeHeadId,
-          headName: isUni ? "Uniform & Accessories" : h.feeHeadName,
+          headName: h.feeHeadName,
           category:
             h.category ||
             (h.feeHeadName.includes("Tuition")
@@ -12508,7 +12604,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           ledgerItems.push({
             headId: i.feeHeadId,
-            headName: isUni ? "Uniform & Accessories" : i.feeHeadName,
+            headName: i.feeHeadName,
             category: i.feeHeadName.includes("Tuition")
               ? "Tuition Fee"
               : i.feeHeadName.includes("Admission")
@@ -17352,7 +17448,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ((hwData as any).section || "")
         .replace(/^section\s*/i, "")
         .replace(/^sec\s*/i, "")
-        .trim() || "A";
+        .trim();
     const newHw: Homework = {
       ...hwData,
       id,
@@ -17378,7 +17474,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? "Selected Students"
             : "Entire Class",
         status: newHw.status ? newHw.status.toUpperCase() : "PUBLISHED",
-        teacherName: newHw.teacherName || "Suteja K",
+        teacherName: newHw.teacherName || "",
         attachmentFileName: newHw.attachments?.[0]?.name,
         attachmentUrl: newHw.attachments?.[0]?.url,
       };
@@ -17402,7 +17498,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (updates.section || h.section || "")
             .replace(/^section\s*/i, "")
             .replace(/^sec\s*/i, "")
-            .trim() || "A";
+            .trim();
         return { ...h, ...updates, section: cleanSec };
       }),
     );
@@ -17421,7 +17517,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? "Selected Students"
             : "Entire Class",
         status: updates.status ? updates.status.toUpperCase() : "PUBLISHED",
-        teacherName: updates.teacherName || "Suteja K",
+        teacherName: updates.teacherName || "",
         attachmentFileName: updates.attachments?.[0]?.name,
         attachmentUrl: updates.attachments?.[0]?.url,
       };

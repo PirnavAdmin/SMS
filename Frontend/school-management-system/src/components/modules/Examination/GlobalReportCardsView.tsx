@@ -44,7 +44,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     subjects, 
     academicClasses, 
     schoolProfile, 
-    processedResults: contextResults,
+    processedResults: contextResults = [],
     examMarks,
     gradeConfigurations
   } = useData();
@@ -92,11 +92,12 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
 
   // Determine released exams
   const releasedExams = useMemo(() => {
+    const safeResults = Array.isArray(contextResults) ? contextResults : [];
     return (exams || []).filter(e => 
       e.publishStatus === 'Published' || 
       e.status === 'Results Published' || 
       e.status === 'Published' ||
-      contextResults.some(r => r.examId === e.id && (r.status === 'Published' || r.status === 'Approved' || !!r.publishedAt))
+      safeResults.some(r => r.examId === e.id && (r.status === 'Published' || r.status === 'Approved' || !!r.publishedAt))
     );
   }, [exams, contextResults]);
 

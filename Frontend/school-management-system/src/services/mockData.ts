@@ -74,8 +74,46 @@ export const initialAdmissions: AdmissionApplication[] = [];
 export const initialBuses: Bus[] = [];
 export const initialFeeStructures: FeeStructure[] = [];
 export const initialFeePayments: FeePayment[] = [];
-export const initialExamSetups: ExamSetup[] = [];
-export const initialExamMarks: ExamMark[] = [];
+export const initialExamSetups: ExamSetup[] = [
+  {
+    id: 'EXAM-TEST-1',
+    name: 'TEST 1',
+    className: 'Class 1',
+    academicYear: '2026-2027',
+    term: 'Term 1',
+    startDate: '2026-08-10',
+    endDate: '2026-08-18',
+    status: 'Results Published',
+    publishStatus: 'Published',
+    applicableClasses: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10']
+  },
+  {
+    id: 'EXAM-MIDTERM',
+    name: 'Mid-Term Examination 2026',
+    className: 'Class 1',
+    academicYear: '2026-2027',
+    term: 'Term 1',
+    startDate: '2026-10-05',
+    endDate: '2026-10-15',
+    status: 'Results Published',
+    publishStatus: 'Published',
+    applicableClasses: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10']
+  }
+];
+
+export const initialExamMarks: ExamMark[] = [
+  // Kavya Singh / Class 1 / TEST 1
+  { id: 'MK-101', examId: 'EXAM-TEST-1', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'English', marksObtained: 88, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A', isAbsent: false },
+  { id: 'MK-102', examId: 'EXAM-TEST-1', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'Mathematics', marksObtained: 94, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A+', isAbsent: false },
+  { id: 'MK-103', examId: 'EXAM-TEST-1', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'Environmental Studies', marksObtained: 90, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A+', isAbsent: false },
+  { id: 'MK-104', examId: 'EXAM-TEST-1', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'General Knowledge', marksObtained: 85, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A', isAbsent: false },
+
+  // Kavya Singh / Class 1 / Mid-Term
+  { id: 'MK-105', examId: 'EXAM-MIDTERM', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'English', marksObtained: 90, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A+', isAbsent: false },
+  { id: 'MK-106', examId: 'EXAM-MIDTERM', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'Mathematics', marksObtained: 96, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A+', isAbsent: false },
+  { id: 'MK-107', examId: 'EXAM-MIDTERM', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'Environmental Studies', marksObtained: 92, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A+', isAbsent: false },
+  { id: 'MK-108', examId: 'EXAM-MIDTERM', studentId: '1', studentName: 'Kavya Singh', className: 'Class 1', section: 'A', subject: 'General Knowledge', marksObtained: 89, maxMarks: 100, totalMarks: 100, passMarks: 35, grade: 'A', isAbsent: false },
+];
 export const initialTimetable: TimetableSlot[] = [];
 export const initialHomework: Homework[] = [];
 export const initialHostelBlocks: HostelBlock[] = [];

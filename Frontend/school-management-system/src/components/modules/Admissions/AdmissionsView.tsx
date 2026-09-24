@@ -268,6 +268,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 }) => {
   const {
     admissions,
+    fetchAdmissions,
     addAdmission,
     updateAdmission,
     deleteAdmission,
@@ -300,6 +301,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   } = useData();
   const { addToast } = useToast();
   const { selectedBranch, selectedAcademicYear } = useAuth();
+
+  useEffect(() => {
+    if (typeof fetchAdmissions === "function") {
+      fetchAdmissions();
+    }
+  }, [selectedBranch, selectedAcademicYear]);
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
@@ -1197,9 +1204,116 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     return yesterday.toISOString().split("T")[0];
   }, []);
 
-  const classOptions = (academicClasses || []).map(
-    (cls) => cls.name || (cls as any).className || "",
-  );
+  const unifiedAdmissions = useMemo(() => {
+    const list: AdmissionApplication[] = [...(admissions || [])];
+    const existingIds = new Set(
+      list
+        .map((a) => (a.applicationNo || a.id || "").toString().trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const existingNames = new Set(
+      list
+        .map((a) => (a.applicantName || "").toString().trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+    (students || []).forEach((st) => {
+      const stId = (st.admissionNo || st.id || "").toString().trim();
+      const stName =
+        `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name || "";
+      if (
+        (stId && existingIds.has(stId.toLowerCase())) ||
+        (stName && existingNames.has(stName.toLowerCase()))
+      ) {
+        return;
+      }
+
+      list.push({
+        id: st.id || st.admissionNo || `ST-${Math.random()}`,
+        applicationNo: st.admissionNo || (st as any).enrollmentNo || st.id || "",
+        applicantName: stName,
+        firstName: st.firstName || "",
+        lastName: st.lastName || "",
+        avatar: st.avatar || "",
+        appliedClass: st.className || (st as any).class || "",
+        targetClass: st.className || (st as any).class || "",
+        className: st.className || (st as any).class || "",
+        section: st.section || "A",
+        gender: st.gender || "Male",
+        dob: st.dob || "",
+        bloodGroup: st.bloodGroup || "",
+        religion: st.religion || "",
+        casteCategory: st.casteCategory || (st as any).category || "",
+        parentName: st.parentName || (st as any).fatherName || "",
+        motherName: st.motherName || "",
+        email: st.email || "",
+        phone: st.phone || (st as any).mobile || (st as any).emergencyContact || "",
+        mobile: st.phone || (st as any).mobile || "",
+        motherPhone: (st as any).motherMobile || (st as any).motherPhone || "",
+        alternatePhone: (st as any).alternateMobile || (st as any).alternatePhone || "",
+        address: st.address || "",
+        academicYear: st.academicYear || "",
+        studentType: st.studentType || (st.isHostelite ? "Hosteller" : "Day Scholar"),
+        transportRequired: !!((st as any).transportRoute || (st as any).busRoute || (st as any).pickupPoint),
+        busRoute: (st as any).transportRoute || (st as any).busRoute || "",
+        pickupPoint: (st as any).pickupPoint || "",
+        dropPoint: (st as any).dropPoint || "",
+        branch: st.branch || (st as any).campus || "",
+        submissionDate: st.admissionDate || (st as any).createdAt || new Date().toISOString().split("T")[0],
+        joiningDate: st.admissionDate || "",
+        admissionDate: st.admissionDate || "",
+        status: (st.status === "Inactive" ? "Rejected" : "Enrolled") as any,
+        documentsSubmitted: [],
+      });
+    });
+
+    return list;
+  }, [admissions, students]);
+
+  const dynamicClassOptions = useMemo(() => {
+    const fromMaster = (academicClasses || [])
+      .map((cls) => cls.name || (cls as any).className || "")
+      .filter(Boolean);
+    const fromAdmissions = (unifiedAdmissions || [])
+      .map((a) => a.appliedClass || (a as any).className || "")
+      .filter(Boolean);
+    const fromStudents = (students || [])
+      .map((s) => s.className || (s as any).class || "")
+      .filter(Boolean);
+
+    const combined = Array.from(
+      new Set([...fromMaster, ...fromAdmissions, ...fromStudents]),
+    ).filter(Boolean);
+
+    const getClassWeight = (name: string) => {
+      const lower = name.toLowerCase().trim();
+      if (lower.includes("nursery") || lower.includes("play")) return 1;
+      if (
+        lower.includes("lkg") ||
+        lower.includes("pp1") ||
+        lower.includes("pre-kg")
+      )
+        return 2;
+      if (
+        lower.includes("ukg") ||
+        lower.includes("pp2") ||
+        lower.includes("kg")
+      )
+        return 3;
+      const match = lower.match(/\d+/);
+      if (match) return 10 + parseInt(match[0], 10);
+      return 100;
+    };
+
+    return combined.sort((a, b) => {
+      const wA = getClassWeight(a);
+      const wB = getClassWeight(b);
+      if (wA !== wB) return wA - wB;
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+    });
+  }, [academicClasses, unifiedAdmissions, students]);
+
+  const classOptions = dynamicClassOptions;
 
   const handleEmailChange = (val: string) => {
     setFormData((prev) => ({ ...prev, email: val }));
@@ -1223,7 +1337,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   // Multi-filter filtering
-  const filteredAdmissions = (admissions || []).filter((a) => {
+  const filteredAdmissions = (unifiedAdmissions || []).filter((a) => {
     if (!a || a.status === "Deleted" || (a as any).isDeleted) return false;
     const applicantName = a.applicantName || "";
     const applicationNo = a.applicationNo || "";
@@ -1235,7 +1349,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       applicantName.toLowerCase().includes((query || "").toLowerCase()) ||
       applicationNo.toLowerCase().includes((query || "").toLowerCase()) ||
       parentName.toLowerCase().includes((query || "").toLowerCase());
-    const matchClass = filterClass === "All" || appliedClass === filterClass;
+    const matchClass =
+      filterClass === "All" ||
+      appliedClass.toLowerCase().trim() === filterClass.toLowerCase().trim() ||
+      appliedClass.toLowerCase().replace("class", "").trim() ===
+        filterClass.toLowerCase().replace("class", "").trim();
     const matchStatus =
       filterStatus === "All" ||
       status.toLowerCase() === (filterStatus || "").toLowerCase();
@@ -2139,7 +2257,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         lowerName.includes("uniform") || lowerName.includes("kit");
       if (isUniform) {
         amt = uniFeeAmount > 0 ? uniFeeAmount : i.amount;
-        itemName = "Uniform & Accessories";
       }
 
       const fh = (feeHeads || []).find(
@@ -2147,6 +2264,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
           (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
       );
+      if (fh?.name) {
+        itemName = fh.name;
+      }
 
       const detectedFreq =
         i.frequency ||
@@ -2189,9 +2309,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         ? computedItem.adjustedAmount
         : i.amount;
       const lateRemarks = computedItem ? computedItem.remarks : undefined;
+      const fh = (feeHeads || []).find(
+        (h) =>
+          (i.feeHeadId && h.id && String(h.id).toLowerCase() === String(i.feeHeadId).toLowerCase()) ||
+          (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
+      );
+      const dynamicName = fh?.name || i.feeHeadName;
 
       items.push({
-        name: i.feeHeadName,
+        name: dynamicName,
         amount: isSelected ? adjustedAmount : i.amount,
         isApplicable: isSelected,
         remarks: isSelected ? lateRemarks : "Optional Fee Not Selected",
@@ -4163,7 +4289,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           const gnd = formData.gender || "Unisex";
                           const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
                           const displayAmount = isUniform && currentUniFeeAmount > 0 ? currentUniFeeAmount : item.amount;
-                          const displayName = isUniform ? "Uniform & Accessories" : item.feeHeadName;
+                          const matchedHead = (feeHeads || []).find(
+                            (h) =>
+                              (item.feeHeadId && h.id && String(h.id).toLowerCase() === String(item.feeHeadId).toLowerCase()) ||
+                              (h.name && item.feeHeadName && String(h.name || "").toLowerCase().trim() === String(item.feeHeadName || "").toLowerCase().trim()),
+                          );
+                          const displayName = matchedHead?.name || item.feeHeadName;
 
                           return (
                             <label
@@ -4394,16 +4525,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Classes</option>
-              {Array.from(
-                new Set((admissions || []).map((a) => a?.appliedClass || "")),
-              )
-                .filter(Boolean)
-                .sort()
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+              {dynamicClassOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -4422,7 +4548,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   "Pending",
                   "Enrolled",
                   "Rejected",
-                  ...(admissions || []).map((a) => {
+                  ...(unifiedAdmissions || []).map((a) => {
                     const s = (a?.status || "Pending").trim();
                     return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
                   }),
@@ -5083,7 +5209,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           );
           const adm =
             feeSummaryApp ||
-            admissions.find(
+            unifiedAdmissions.find(
               (a) =>
                 String(a.id).trim() === String(feeSummaryStudentId).trim() ||
                 (a.applicationNo && String(a.applicationNo).trim() === String(feeSummaryStudentId).trim()) ||

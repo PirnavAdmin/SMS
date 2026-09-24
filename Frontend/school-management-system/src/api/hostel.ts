@@ -112,76 +112,7 @@ export interface DashboardMetrics {
 // Persistent Local Storage Sync Layer for Hostel Blocks
 const HOSTEL_BLOCKS_STORE_KEY = 'edu_db_hostel_blocks';
 
-export const defaultHostelBlocks: HostelBlock[] = [
-  {
-    hostelId: 1,
-    hostelName: 'Ramachandra Bhavan (Block A)',
-    hostelCode: 'HST-001',
-    hostelType: 'Boys Hostel',
-    wardenName: 'VaraPrasad',
-    primaryMobileNumber: '+91 9876543210',
-    alternateMobileNumber: '+91 9876543211',
-    email: 'warden@school.com',
-    status: 'Active',
-    address: 'Campus East Wing, Near Sports Complex',
-    createdAt: new Date().toISOString(),
-    totalRooms: 40,
-    occupiedBeds: 72,
-    totalCapacity: 120,
-    totalFloors: 4
-  },
-  {
-    hostelId: 2,
-    hostelName: 'Block B - Girls Junior Hostel',
-    hostelCode: 'HST-002',
-    hostelType: 'Girls Hostel',
-    wardenName: 'Savitri Devi',
-    primaryMobileNumber: '+91 9876543212',
-    alternateMobileNumber: '+91 9876543213',
-    email: 'savitri.warden@stxaviers.edu',
-    status: 'Active',
-    address: 'Campus West Wing, Near Main Library',
-    createdAt: new Date().toISOString(),
-    totalRooms: 35,
-    occupiedBeds: 58,
-    totalCapacity: 100,
-    totalFloors: 3
-  },
-  {
-    hostelId: 3,
-    hostelName: 'Vidyarthi Nilayam - Senior Girls Wing',
-    hostelCode: 'HST-003',
-    hostelType: 'Girls Hostel',
-    wardenName: 'Dr. Eleanor Vance',
-    primaryMobileNumber: '+91 9876543214',
-    alternateMobileNumber: '+91 9876543215',
-    email: 'eleanor.vance@stxaviers.edu',
-    status: 'Active',
-    address: 'Academic Square North',
-    createdAt: new Date().toISOString(),
-    totalRooms: 25,
-    occupiedBeds: 40,
-    totalCapacity: 80,
-    totalFloors: 3
-  },
-  {
-    hostelId: 4,
-    hostelName: 'Block D - International Student Hostel',
-    hostelCode: 'HST-004',
-    hostelType: 'Co-ed / International',
-    wardenName: 'Vikram Singh',
-    primaryMobileNumber: '+91 9876543216',
-    alternateMobileNumber: '+91 9876543217',
-    email: 'vikram.warden@stxaviers.edu',
-    status: 'Active',
-    address: 'South Quadrangle',
-    createdAt: new Date().toISOString(),
-    totalRooms: 20,
-    occupiedBeds: 30,
-    totalCapacity: 50,
-    totalFloors: 2
-  }
-];
+export const defaultHostelBlocks: HostelBlock[] = [];
 
 const DELETED_BLOCKS_STORE_KEY = 'edu_db_deleted_hostel_ids';
 
@@ -207,15 +138,14 @@ export const addDeletedHostelKey = (key: string) => {
 const getStoredHostelBlocks = (): HostelBlock[] => {
   if (typeof window === 'undefined') return defaultHostelBlocks;
   const stored = localStorage.getItem(HOSTEL_BLOCKS_STORE_KEY);
-  if (stored) {
+  if (stored !== null) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch (e) {
       // Ignored
     }
   }
-  // Initialize with defaults if empty
   localStorage.setItem(HOSTEL_BLOCKS_STORE_KEY, JSON.stringify(defaultHostelBlocks));
   return defaultHostelBlocks;
 };
@@ -261,7 +191,7 @@ export const getHostelBlocks = async (search?: string, type?: string, signal?: A
 
     let hostelName = String(b?.hostelName || b?.name || b?.blockName || '').trim();
     if (!hostelName || !isNaN(Number(hostelName)) || hostelName.includes('undefined') || hostelName.includes('Block A - Boys') || hostelName === 'Block A (Boys)') {
-      hostelName = hostelId === 1 ? 'Ramachandra Bhavan (Block A)' : `Hostel Block #${hostelId}`;
+      hostelName = `Hostel Block #${hostelId}`;
     }
 
     let hostelType = String(b?.hostelType || b?.type || b?.genderType || '').trim();
@@ -446,12 +376,13 @@ const DEFAULT_INITIAL_ROOM_TYPES: RoomType[] = [
 const getStoredRoomTypes = (): RoomType[] => {
   if (typeof window === 'undefined') return DEFAULT_INITIAL_ROOM_TYPES;
   const stored = localStorage.getItem(ROOM_TYPES_STORE_KEY);
-  if (stored) {
+  if (stored !== null) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch (e) {}
   }
+  localStorage.setItem(ROOM_TYPES_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ROOM_TYPES));
   return DEFAULT_INITIAL_ROOM_TYPES;
 };
 
@@ -538,22 +469,29 @@ export const deleteRoomType = async (id: number) => {
 // Persistent Local Storage Sync Layer for Rooms
 const ROOMS_STORE_KEY = 'edu_db_hostel_rooms';
 
-const DEFAULT_INITIAL_ROOMS: HostelRoom[] = [
-  { roomId: 201, hostelId: 1, hostelName: 'Ramachandra Bhavan Block', hostelCode: 'HST-001', roomTypeId: 4, roomTypeSpecification: 'Four Bedded Standard', bedCapacity: 4, capacity: 4, monthlyFee: 5000, floorLevel: '1st Floor', roomNumber: '101', status: 'Active', occupiedBeds: 2, vacantBeds: 2, createdAt: '2026-01-01' },
-  { roomId: 202, hostelId: 1, hostelName: 'Ramachandra Bhavan Block', hostelCode: 'HST-001', roomTypeId: 4, roomTypeSpecification: 'Four Bedded Standard', bedCapacity: 4, capacity: 4, monthlyFee: 5000, floorLevel: '1st Floor', roomNumber: '102', status: 'Active', occupiedBeds: 1, vacantBeds: 3, createdAt: '2026-01-01' },
-  { roomId: 203, hostelId: 1, hostelName: 'Ramachandra Bhavan Block', hostelCode: 'HST-001', roomTypeId: 2, roomTypeSpecification: 'Double Sharing Non-AC', bedCapacity: 2, capacity: 2, monthlyFee: 6500, floorLevel: '2nd Floor', roomNumber: '201', status: 'Active', occupiedBeds: 0, vacantBeds: 2, createdAt: '2026-01-01' },
-  { roomId: 301, hostelId: 6, hostelName: 'Girls Block A', hostelCode: 'HST-006', roomTypeId: 4, roomTypeSpecification: 'Four Bedded Standard', bedCapacity: 4, capacity: 4, monthlyFee: 5500, floorLevel: '1st Floor', roomNumber: 'G-101', status: 'Active', occupiedBeds: 1, vacantBeds: 3, createdAt: '2026-01-01' }
-];
+const DEFAULT_INITIAL_ROOMS: HostelRoom[] = [];
 
 const getStoredRooms = (): HostelRoom[] => {
   if (typeof window === 'undefined') return DEFAULT_INITIAL_ROOMS;
   const stored = localStorage.getItem(ROOMS_STORE_KEY);
-  if (stored) {
+  if (stored !== null) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const blocks = getStoredHostelBlocks();
+        parsed.forEach((r: HostelRoom) => {
+          if (r && r.hostelId) {
+            const matchBlk = blocks.find(b => String(b.hostelId) === String(r.hostelId));
+            if (matchBlk && matchBlk.hostelName) {
+              r.hostelName = matchBlk.hostelName;
+            }
+          }
+        });
+        return parsed;
+      }
     } catch (e) {}
   }
+  localStorage.setItem(ROOMS_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ROOMS));
   return DEFAULT_INITIAL_ROOMS;
 };
 
@@ -748,12 +686,13 @@ const DEFAULT_INITIAL_WARDENS: WardenRecord[] = [
 const getStoredWardens = (): WardenRecord[] => {
   if (typeof window === 'undefined') return DEFAULT_INITIAL_WARDENS;
   const stored = localStorage.getItem(WARDENS_STORE_KEY);
-  if (stored) {
+  if (stored !== null) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch (e) {}
   }
+  localStorage.setItem(WARDENS_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_WARDENS));
   return DEFAULT_INITIAL_WARDENS;
 };
 
@@ -879,72 +818,59 @@ export const deleteWarden = async (id: number) => {
 // Persistent Local Storage Sync Layer for Hostel Allocations
 const HOSTEL_ALLOCATIONS_STORE_KEY = 'edu_db_hostel_allocations';
 
-const DEFAULT_INITIAL_ALLOCATIONS: BedAllocation[] = [
-  {
-    allocationId: 101,
-    studentId: "STF-2026-0001",
-    studentName: "Rajesh Kumar",
-    admissionNo: "ADM-2026-101",
-    hostelId: 1,
-    hostelName: "Ramachandra Bhavan Block",
-    roomId: 201,
-    roomNumber: "101",
-    bedNumber: "BED-1",
-    joiningDate: "2026-06-01",
-    status: "Active"
-  },
-  {
-    allocationId: 102,
-    studentId: "STF-2026-0002",
-    studentName: "Surya Teja",
-    admissionNo: "ADM-2026-102",
-    hostelId: 1,
-    hostelName: "Ramachandra Bhavan Block",
-    roomId: 201,
-    roomNumber: "101",
-    bedNumber: "BED-2",
-    joiningDate: "2026-06-01",
-    status: "Active"
-  },
-  {
-    allocationId: 103,
-    studentId: "STF-2026-0003",
-    studentName: "Dhanush Y",
-    admissionNo: "ADM-2026-103",
-    hostelId: 2,
-    hostelName: "Hostel Block #2",
-    roomId: 202,
-    roomNumber: "102",
-    bedNumber: "BED-1",
-    joiningDate: "2026-06-05",
-    status: "Active"
-  },
-  {
-    allocationId: 104,
-    studentId: "STF-2026-0006",
-    studentName: "Ananya Roy",
-    admissionNo: "ADM-2026-106",
-    hostelId: 6,
-    hostelName: "Girls Block A",
-    roomId: 301,
-    roomNumber: "G-101",
-    bedNumber: "BED-1",
-    joiningDate: "2026-06-10",
-    status: "Active"
-  }
-];
+const DEFAULT_INITIAL_ALLOCATIONS: BedAllocation[] = [];
 
 const getStoredAllocations = (): BedAllocation[] => {
   if (typeof window === 'undefined') return DEFAULT_INITIAL_ALLOCATIONS;
   const stored = localStorage.getItem(HOSTEL_ALLOCATIONS_STORE_KEY);
-  if (stored) {
+  if (stored !== null) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const blocks = getStoredHostelBlocks();
+        const rooms = getStoredRooms();
+        
+        const deduplicated: BedAllocation[] = [];
+        const seen = new Set<string>();
+
+        // Process in reverse (newest allocations first) to keep the latest allocation
+        const reversed = [...parsed].reverse();
+        reversed.forEach((a: BedAllocation) => {
+          if (!a || a.status === 'Vacated' || a.status === 'Inactive') return;
+
+          if (a.hostelId) {
+            const matchBlk = blocks.find(b => String(b.hostelId) === String(a.hostelId));
+            if (matchBlk && matchBlk.hostelName) {
+              a.hostelName = matchBlk.hostelName;
+            }
+          }
+          if (a.roomId) {
+            const matchRm = rooms.find(r => String(r.roomId) === String(a.roomId));
+            if (matchRm && matchRm.roomNumber) {
+              a.roomNumber = matchRm.roomNumber;
+            }
+          }
+
+          const sName = String(a.studentName || '').toLowerCase().trim();
+          const sAdm = String(a.admissionNo || '').toLowerCase().trim();
+          const sId = String(a.studentId || '').toLowerCase().trim();
+
+          const key = sName || sAdm || sId;
+          if (key && !seen.has(key)) {
+            if (sName) seen.add(sName);
+            if (sAdm) seen.add(sAdm);
+            if (sId) seen.add(sId);
+            deduplicated.push(a);
+          }
+        });
+
+        return deduplicated.reverse();
+      }
     } catch (e) {
       // Ignored
     }
   }
+  localStorage.setItem(HOSTEL_ALLOCATIONS_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ALLOCATIONS));
   return DEFAULT_INITIAL_ALLOCATIONS;
 };
 
@@ -1028,13 +954,11 @@ export const updateStudentAllocationBlock = async (
 
 export const vacateStudentAllocation = async (studentId: string | number, admissionNo: string, allocationId?: number | string) => {
   const current = getStoredAllocations();
-  const updated = current.map(a => {
-    if ((allocationId && String(a.allocationId) === String(allocationId)) ||
-        String(a.studentId) === String(studentId) ||
-        (a.admissionNo && a.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())) {
-      return { ...a, status: 'Vacated' as const };
-    }
-    return a;
+  const updated = current.filter(a => {
+    const isTarget = (allocationId && String(a.allocationId) === String(allocationId)) ||
+      (studentId && String(a.studentId) === String(studentId)) ||
+      (admissionNo && a.admissionNo && a.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase());
+    return !isTarget;
   });
 
   saveStoredAllocations(updated);
@@ -1093,14 +1017,18 @@ export const getAllocations = async (): Promise<BedAllocation[]> => {
 
   // Add server allocations first
   serverAllocs.forEach(a => {
-    const key = String(a.allocationId || `${a.studentId}_${a.hostelId}`);
-    allocMap.set(key, a);
+    if (a && a.status !== 'Vacated' && a.status !== 'Inactive') {
+      const key = String(a.allocationId || `${a.studentId}_${a.hostelId}`);
+      allocMap.set(key, a);
+    }
   });
 
   // Add local allocations (local blocks take priority)
   localAllocs.forEach(a => {
-    const key = String(a.allocationId || `${a.studentId}_${a.hostelId}`);
-    allocMap.set(key, a);
+    if (a && a.status !== 'Vacated' && a.status !== 'Inactive') {
+      const key = String(a.allocationId || `${a.studentId}_${a.hostelId}`);
+      allocMap.set(key, a);
+    }
   });
 
   return Array.from(allocMap.values());
@@ -1110,21 +1038,75 @@ export const createAllocation = async (data: Partial<BedAllocation>) => {
   const current = getStoredAllocations();
   const nextId = current.length > 0 ? Math.max(...current.map(a => Number(a.allocationId) || 0)) + 1 : 101;
   
+  let resolvedHostelName = data.hostelName;
+  if (!resolvedHostelName || resolvedHostelName === 'Ramachandra Bhavan Block') {
+    const blocks = getStoredHostelBlocks();
+    const matchBlk = blocks.find(b => String(b.hostelId) === String(data.hostelId));
+    if (matchBlk && matchBlk.hostelName) {
+      resolvedHostelName = matchBlk.hostelName;
+    }
+  }
+
+  let resolvedRoomNumber = data.roomNumber;
+  if (!resolvedRoomNumber || resolvedRoomNumber === '101') {
+    const rooms = getStoredRooms();
+    const matchRm = rooms.find(r => String(r.roomId) === String(data.roomId));
+    if (matchRm && matchRm.roomNumber) {
+      resolvedRoomNumber = matchRm.roomNumber;
+    }
+  }
+
+  let resolvedStudentName = data.studentName;
+  let resolvedAdmissionNo = data.admissionNo;
+  if (!resolvedStudentName || resolvedStudentName === 'Student') {
+    try {
+      const storedSt = localStorage.getItem('edu_db_students');
+      if (storedSt) {
+        const parsedSt = JSON.parse(storedSt);
+        if (Array.isArray(parsedSt)) {
+          const matchSt = parsedSt.find((s: any) => String(s.id || s.studentId) === String(data.studentId));
+          if (matchSt) {
+            resolvedStudentName = `${matchSt.firstName || ''} ${matchSt.lastName || ''}`.trim() || matchSt.name;
+            resolvedAdmissionNo = matchSt.admissionNo || matchSt.registrationNumber || resolvedAdmissionNo;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
   const newAlloc: BedAllocation = {
     allocationId: nextId,
     studentId: data.studentId || `STF-2026-000${nextId}`,
-    studentName: data.studentName || 'Student',
-    admissionNo: data.admissionNo || `ADM-2026-${nextId}`,
+    studentName: resolvedStudentName || 'Student',
+    admissionNo: resolvedAdmissionNo || `ADM-2026-${nextId}`,
     hostelId: Number(data.hostelId) || 1,
-    hostelName: data.hostelName || 'Ramachandra Bhavan Block',
+    hostelName: resolvedHostelName || 'Hostel Block',
     roomId: Number(data.roomId) || 201,
-    roomNumber: data.roomNumber || '101',
+    roomNumber: resolvedRoomNumber || '101',
     bedNumber: data.bedNumber || 'BED-1',
     joiningDate: data.joiningDate || new Date().toISOString().split('T')[0],
     status: data.status || 'Active'
   };
 
-  const updated = [newAlloc, ...current.filter(a => String(a.studentId) !== String(newAlloc.studentId))];
+  const newName = String(newAlloc.studentName || '').toLowerCase().trim();
+  const newAdm = String(newAlloc.admissionNo || '').toLowerCase().trim();
+  const newId = String(newAlloc.studentId || '').toLowerCase().trim();
+
+  const updated = [
+    newAlloc,
+    ...current.filter(a => {
+      if (!a) return false;
+      const sName = String(a.studentName || '').toLowerCase().trim();
+      const sAdm = String(a.admissionNo || '').toLowerCase().trim();
+      const sId = String(a.studentId || '').toLowerCase().trim();
+
+      const sameName = newName && sName && newName === sName;
+      const sameAdm = newAdm && sAdm && newAdm === sAdm;
+      const sameId = newId && sId && newId === sId;
+
+      return !sameName && !sameAdm && !sameId;
+    })
+  ];
   saveStoredAllocations(updated);
 
   try {

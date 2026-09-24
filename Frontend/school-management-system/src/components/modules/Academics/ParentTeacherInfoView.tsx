@@ -582,78 +582,100 @@ export const ParentTeacherInfoView: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredTeachers.map(teacher => (
-            <div 
-              key={teacher.id} 
-              className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-0.5 transition-all duration-300 group"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-11 h-11 rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 flex items-center justify-center text-sm font-extrabold border border-sky-200 dark:border-sky-800 group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-2xs">
-                  {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0) || teacher.firstName.charAt(1) || 'T'}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 items-stretch">
+          {filteredTeachers.map(teacher => {
+            const isCT = teacher.isClassTeacher;
+            return (
+              <div 
+                key={teacher.id} 
+                className={`rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-300 group ${
+                  isCT 
+                    ? 'bg-gradient-to-br from-amber-50/40 via-white to-sky-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-850 border-2 border-amber-300 dark:border-amber-700/80 hover:border-amber-400' 
+                    : 'bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700'
+                }`}
+              >
+                <div>
+                  {/* Top Profile Header */}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0 shadow-2xs group-hover:scale-105 transition-transform duration-300 ${
+                      isCT 
+                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-2 border-amber-300 dark:border-amber-700' 
+                        : 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                    }`}>
+                      {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0) || teacher.firstName.charAt(1) || 'T'}
+                    </div>
+
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                          {teacher.firstName} {teacher.lastName}
+                        </h3>
+                        {isCT && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded-md text-[9.5px] font-black uppercase tracking-wider shrink-0 shadow-2xs">
+                            <GraduationCap className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            Class Teacher
+                          </span>
+                        )}
+                      </div>
+
+                      {teacher.subject && (
+                        <div className="flex items-center gap-1.5 mt-1 text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                          <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                          <span className="truncate">{teacher.subject}</span>
+                          {teacher.subjectCode && <span className="opacity-70 text-[10.5px] whitespace-nowrap font-mono">({teacher.subjectCode})</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base truncate">
-                      {teacher.firstName} {teacher.lastName}
-                    </h3>
-                    {teacher.isClassTeacher && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0 shadow-2xs">
-                        <GraduationCap className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
-                        Class Teacher
-                      </span>
+
+                {/* Class Teacher Contact Details ONLY */}
+                {isCT && (
+                  <div className="flex flex-col gap-1.5 pt-3 mt-3 border-t border-amber-200/70 dark:border-amber-900/40 text-left">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
+                      Class Teacher Contact
+                    </div>
+                    {teacher.phone ? (
+                      <a 
+                        href={`tel:${teacher.phone}`} 
+                        className="flex items-center gap-2.5 p-1.5 -mx-1 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 border border-amber-200/60 dark:border-slate-700/60"
+                      >
+                        <div className="w-6.5 h-6.5 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-300/80 dark:border-amber-800">
+                          <Phone className="w-3 h-3" />
+                        </div>
+                        <span className="text-xs font-bold font-mono">{teacher.phone}</span>
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-2.5 p-1 -mx-1 text-slate-400">
+                        <div className="w-6.5 h-6.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+                          <Phone className="w-3 h-3" />
+                        </div>
+                        <span className="text-xs font-medium italic">No phone provided</span>
+                      </div>
+                    )}
+                    {teacher.email ? (
+                      <a 
+                        href={`mailto:${teacher.email}`} 
+                        className="flex items-center gap-2.5 p-1.5 -mx-1 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 border border-amber-200/60 dark:border-slate-700/60"
+                      >
+                        <div className="w-6.5 h-6.5 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-300/80 dark:border-amber-800">
+                          <Mail className="w-3 h-3" />
+                        </div>
+                        <span className="text-xs font-bold truncate">{teacher.email}</span>
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-2.5 p-1 -mx-1 text-slate-400">
+                        <div className="w-6.5 h-6.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+                          <Mail className="w-3 h-3" />
+                        </div>
+                        <span className="text-xs font-medium italic">No email provided</span>
+                      </div>
                     )}
                   </div>
-                  {teacher.subject && (
-                    <div className="flex items-center gap-1.5 mt-0.5 text-slate-500 dark:text-slate-400 text-xs font-semibold">
-                      <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                      <span className="truncate">{teacher.subject}</span>
-                      {teacher.subjectCode && <span className="opacity-70 text-[10.5px] whitespace-nowrap">({teacher.subjectCode})</span>}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-1.5 pt-3 mt-3 border-t border-sky-100 dark:border-sky-900/40 text-left">
-                {teacher.phone ? (
-                  <a 
-                    href={`tel:${teacher.phone}`} 
-                    className="flex items-center gap-2.5 p-1 -mx-1 rounded-xl hover:bg-sky-50/60 dark:hover:bg-slate-800/60 transition-colors text-slate-600 dark:text-slate-300"
-                  >
-                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
-                      <Phone className="w-3 h-3" />
-                    </div>
-                    <span className="text-xs font-bold font-mono">{teacher.phone}</span>
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-2.5 p-1 -mx-1 text-slate-400">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
-                      <Phone className="w-3 h-3" />
-                    </div>
-                    <span className="text-xs font-medium italic">No phone provided</span>
-                  </div>
-                )}
-                {teacher.email ? (
-                  <a 
-                    href={`mailto:${teacher.email}`} 
-                    className="flex items-center gap-2.5 p-1 -mx-1 rounded-xl hover:bg-sky-50/60 dark:hover:bg-slate-800/60 transition-colors text-slate-600 dark:text-slate-300"
-                  >
-                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
-                      <Mail className="w-3 h-3" />
-                    </div>
-                    <span className="text-xs font-bold truncate">{teacher.email}</span>
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-2.5 p-1 -mx-1 text-slate-400">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
-                      <Mail className="w-3 h-3" />
-                    </div>
-                    <span className="text-xs font-medium italic">No email provided</span>
-                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {filteredTeachers.length === 0 && (
             <div className="col-span-full py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 shadow-xs">

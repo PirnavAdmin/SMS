@@ -867,21 +867,6 @@ export const AttendanceView = () => {
         for (const k of keysToUpdate) {
           updated[k] = { ...(updated[k] || {}), [st.id]: status };
         }
-
-        if (saveStudentAttendance) {
-          saveStudentAttendance({
-            studentId: st.id,
-            studentName: `${st.firstName} ${st.lastName}`,
-            className: st.className,
-            section: st.section,
-            date: date,
-            subject: selectedSubject,
-            period: selectedPeriod,
-            status: status,
-            remarks: remarksState[`${date}_${st.id}`] || '',
-            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-          });
-        }
       });
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
       try {
@@ -889,6 +874,23 @@ export const AttendanceView = () => {
       } catch {}
       return updated;
     });
+
+    if (saveStudentAttendance) {
+      classStudents.forEach(st => {
+        saveStudentAttendance({
+          studentId: st.id,
+          studentName: `${st.firstName} ${st.lastName}`,
+          className: st.className,
+          section: st.section,
+          date: date,
+          subject: selectedSubject,
+          period: selectedPeriod,
+          status: status,
+          remarks: remarksState[`${date}_${st.id}`] || '',
+          markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+        });
+      });
+    }
   };
 
   const handleRemarkChange = (studentId: string, remark: string) => {
@@ -963,7 +965,6 @@ export const AttendanceView = () => {
       const updated = { ...prev };
       classStudents.forEach(st => {
         const status = getAttendanceStatus(st) || 'Present';
-        const remark = remarksState[`${date}_${st.id}`] || '';
 
         const cleanCls = normalizeClass(st.className);
         const cleanSec = normalizeSec(st.section);
@@ -982,21 +983,6 @@ export const AttendanceView = () => {
         for (const k of keysToUpdate) {
           updated[k] = { ...(updated[k] || {}), [st.id]: status };
         }
-
-        if (saveStudentAttendance) {
-          saveStudentAttendance({
-            studentId: st.id,
-            studentName: `${st.firstName} ${st.lastName}`,
-            className: st.className,
-            section: st.section,
-            date: date,
-            subject: selectedSubject,
-            period: selectedPeriod,
-            status: status,
-            remarks: remark,
-            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-          });
-        }
       });
       localStorage.setItem('sms_attendance_registry', JSON.stringify(updated));
       localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
@@ -1005,6 +991,25 @@ export const AttendanceView = () => {
       } catch {}
       return updated;
     });
+
+    if (saveStudentAttendance) {
+      classStudents.forEach(st => {
+        const status = getAttendanceStatus(st) || 'Present';
+        const remark = remarksState[`${date}_${st.id}`] || '';
+        saveStudentAttendance({
+          studentId: st.id,
+          studentName: `${st.firstName} ${st.lastName}`,
+          className: st.className,
+          section: st.section,
+          date: date,
+          subject: selectedSubject,
+          period: selectedPeriod,
+          status: status,
+          remarks: remark,
+          markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+        });
+      });
+    }
 
     addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, Teacher, and Admin panels!');
   };

@@ -209,7 +209,23 @@ const ParentPremiumDonutChart: React.FC<{
 
 export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { students, admissions, studentAttendance = [], attendance = [], homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams, schoolProfile } = useData();
+  const { 
+    students = [], 
+    admissions = [], 
+    studentAttendance = [], 
+    attendance = [], 
+    homework = [], 
+    announcements = [], 
+    holidays = [], 
+    studentHostels = [], 
+    hostelMasters = [], 
+    roomMasters = [], 
+    studentFeeLedgers = [], 
+    meetings = [], 
+    schoolEvents = [], 
+    exams = [], 
+    schoolProfile 
+  } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
@@ -281,7 +297,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     )
   ).map(s => ({
     ...s,
-    className: s.className || 'Class 6'
+    className: s.className || ''
   }));
 
   const localAdmissionMatches = (admissions || []).filter(a => {
@@ -311,8 +327,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     firstName: a.applicantName ? a.applicantName.split(' ')[0] : 'Student',
     lastName: a.applicantName ? a.applicantName.split(' ').slice(1).join(' ') : '',
     studentName: a.applicantName || 'Student',
-    className: a.appliedClass || 'Class 6',
-    section: (a as any).section || 'A',
+    className: (typeof a.appliedClass === 'string' ? a.appliedClass : (a.appliedClass as any)?.className) || a.className || '',
+    section: (a as any).section || '',
     gender: a.gender || 'Male',
     dob: a.dateOfBirth || (a as any).dob || '',
     status: a.status || 'Active',
@@ -320,17 +336,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     motherName: (a as any).motherFullName || a.motherName || '',
     parentName: a.parentName || a.fatherFullName || ''
   }));
-
-  const combinedLocalMatches = [...localStudentMatches, ...localAdmissionMatches];
-  const uniqueLocalMatches: any[] = [];
-  const seenKeys = new Set<string>();
-  for (const item of combinedLocalMatches) {
-    const key = `${item.studentName}-${item.admissionNo}`.toLowerCase();
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      uniqueLocalMatches.push(item);
-    }
-  }
 
   // Process API children if available
   const mappedApiChildren = (apiChildren || []).map(c => {
@@ -342,20 +347,30 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
       lastName: c.lastName || '',
       studentName: c.studentName || 'Student',
-      className: c.className || 'Class 6',
-      section: c.sectionName || 'A',
+      className: c.className || '',
+      section: c.sectionName || '',
       gender: c.gender || 'Male',
       dob: c.dateOfBirth || '',
       status: 'Active'
     };
   });
 
-  if (mappedApiChildren.length > 0) {
+  const combinedWardsList = [...localStudentMatches, ...mappedApiChildren, ...localAdmissionMatches];
+  const uniqueWardsList: any[] = [];
+  const seenWardKeys = new Set<string>();
+  for (const item of combinedWardsList) {
+    const sName = (item.studentName || `${item.firstName || ''} ${item.lastName || ''}`).trim().toLowerCase();
+    const cName = (item.className || '').toString().toLowerCase().replace(/class/gi, '').trim();
+    const key = `${sName}_${cName}`;
+    if (sName && !seenWardKeys.has(key)) {
+      seenWardKeys.add(key);
+      uniqueWardsList.push(item);
+    }
+  }
+
+  if (uniqueWardsList.length > 0) {
     hasMatchedWards = true;
-    parentWards = mappedApiChildren;
-  } else if (uniqueLocalMatches.length > 0) {
-    hasMatchedWards = true;
-    parentWards = uniqueLocalMatches;
+    parentWards = uniqueWardsList;
   } else {
     hasMatchedWards = true;
     const formatName = (email?: string) => {
@@ -371,8 +386,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       firstName: dynName.split(' ')[0],
       lastName: dynName.split(' ').slice(1).join(' '),
       studentName: dynName,
-      className: 'Class 8',
-      section: 'A',
+      className: '',
+      section: '',
       gender: 'Female',
       dob: '',
       status: 'Active',
@@ -578,18 +593,36 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const wardAttendance = wardAttendanceStats.wardAttendance;
   const attPercentage = wardAttendanceStats.presentPct;
 
-  const normClsP = (str?: string) => (str || '').toLowerCase().replace(/class|section/gi, '').trim();
-  const wClsNormP = normClsP(currentWard?.className);
-  const wSecNormP = normClsP(currentWard?.section);
+  const normalizeClassNum = (str?: string) => {
+    if (!str) return '';
+    const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').replace(/\s+/g, '').trim();
+    if (clean.includes('-')) return clean.split('-')[0].trim();
+    return clean;
+  };
+
+  const normalizeSection = (secStr?: string, fullClsStr?: string) => {
+    if (secStr && secStr.trim()) {
+      return secStr.toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    if (fullClsStr && fullClsStr.includes('-')) {
+      const parts = fullClsStr.split('-');
+      return parts[1].toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    return '';
+  };
+
+  const wardClassNumP = normalizeClassNum(currentWard?.className);
+  const wardSecP = normalizeSection(currentWard?.section, currentWard?.className);
 
   const pendingHomework = (homework || []).filter(h => {
-    if (!currentWard) return false;
-    const hClsNorm = normClsP(h.className);
-    const hSecNorm = normClsP(h.section);
-    const matchesClass = hClsNorm === wClsNormP || hClsNorm.includes(wClsNormP) || wClsNormP.includes(hClsNorm);
-    const matchesSec = !wSecNormP || !hSecNorm || hSecNorm === wSecNormP;
-    const isFutureOrToday = !h.dueDate || new Date(h.dueDate) >= new Date();
-    return matchesClass && matchesSec && isFutureOrToday;
+    if (!currentWard || !h) return false;
+    const hClassNum = normalizeClassNum(h.className || (h as any).classRoom || (h as any).class);
+    const hSec = normalizeSection(h.section, h.className || (h as any).classRoom || (h as any).class);
+    const matchesClass = !wardClassNumP || !hClassNum || hClassNum === wardClassNumP || hClassNum.includes(wardClassNumP) || wardClassNumP.includes(hClassNum);
+    const matchesSec = !hSec || hSec === 'all' || !wardSecP || hSec === wardSecP;
+    const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
+    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending'].includes(hStatus);
+    return matchesClass && matchesSec && isPublished;
   }).length;
 
   // Real data for notices
@@ -598,12 +631,12 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     ...(holidays || []).map(h => ({ date: h.startDate, title: h.name, desc: h.type + ' Holiday', type: 'holiday' }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-  const wardHostel = currentWard ? studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied')) : null;
-  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
-  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
+  const wardHostel = currentWard ? (studentHostels || []).find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied')) : null;
+  const hostelDetails = wardHostel ? (hostelMasters || []).find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
+  const roomDetails = wardHostel ? (roomMasters || []).find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
   // Fee Dues
-  const wardLedger = currentWard ? studentFeeLedgers.find(l => l.studentId === currentWard.id) : null;
+  const wardLedger = currentWard ? (studentFeeLedgers || []).find(l => l.studentId === currentWard.id) : null;
   const dueBalance = wardLedger ? wardLedger.dueBalance : 0;
   const isFeeCleared = dueBalance <= 0;
   const isResidential = currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());

@@ -6,7 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
 
 export const ParentHomeworkView: React.FC = () => {
-  const { students = [], admissions = [], homework, fetchHomeworkData } = useData();
+  const { students = [], admissions = [], homework, subjects: systemSubjects = [], fetchHomeworkData } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
@@ -38,81 +38,148 @@ export const ParentHomeworkView: React.FC = () => {
     return () => { isMounted = false; };
   }, [user?.email]);
 
-  // Match children by email or phone accurately
+  // Match children for Parent or Student role
   let parentWards: any[] = [];
+  const userRoleStr = (user?.role || role || '').toString().toLowerCase();
+  const isStudentUser = userRoleStr.includes('student');
+  const userEmail = (user?.email || '').toLowerCase().trim();
+  const userPhone = (user?.phone || '').replace(/\D/g, '');
+  const userId = String(user?.id || '').trim().toLowerCase();
+  const userName = (user?.name || '').trim().toLowerCase();
 
-  if (apiChildren.length > 0) {
+  if (isStudentUser) {
+    const matched = (students || []).find(s => {
+      if (!s) return false;
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sAdm = String(s.admissionNo || (s as any).admissionNumber || '').trim().toLowerCase();
+      const sRoll = String((s as any).rollNo || (s as any).rollNumber || '').trim().toLowerCase();
+      const sEmail = (s.email || '').trim().toLowerCase();
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+
+      if (userId && (sId === userId || sAdm === userId || sRoll === userId)) return true;
+      if (userEmail && sEmail === userEmail) return true;
+      if (userPhone && userPhone.length >= 7) {
+        const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
+        if (sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
+      }
+      if (userName && (sName === userName || (s.firstName && userName.includes(s.firstName.toLowerCase())))) return true;
+      return false;
+    });
+
+    if (matched) {
+      parentWards = [{
+        id: String(matched.id),
+        studentId: matched.id,
+        rollNo: (matched as any).rollNo || (matched as any).rollNumber || String(matched.id),
+        firstName: matched.firstName || '',
+        lastName: matched.lastName || '',
+        studentName: `${matched.firstName || ''} ${matched.lastName || ''}`.trim() || matched.firstName || '',
+        className: matched.className || (matched as any).class || '',
+        section: matched.section || '',
+        status: matched.status || 'Active'
+      }];
+    } else {
+      parentWards = [{
+        id: user?.id || '',
+        studentId: user?.id || '',
+        rollNo: (user as any)?.rollNo || user?.id || '',
+        firstName: user?.name?.split(' ')[0] || '',
+        lastName: user?.name?.split(' ').slice(1).join(' ') || '',
+        studentName: user?.name || '',
+        className: (user as any)?.className || (user as any)?.class || (user as any)?.grade || '',
+        section: (user as any)?.section || '',
+        status: 'Active'
+      }];
+    }
+  } else if (apiChildren.length > 0) {
     parentWards = apiChildren.map(c => ({
       id: String(c.studentId),
       studentId: c.studentId,
-      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
+      rollNo: c.rollNumber || String(c.studentId),
+      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : ''),
       lastName: c.lastName || '',
-      studentName: c.studentName,
-      className: c.className || 'Class 6',
-      section: c.sectionName || 'A',
+      studentName: c.studentName || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
+      className: c.className || '',
+      section: c.sectionName || c.section || '',
       status: 'Active'
     }));
   } else {
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userPhone = (user?.phone || '').replace(/\D/g, '');
+    const studentMatches = (students || []).filter(s => {
+      if (s.status === 'Deleted' || s.status === 'Inactive') return false;
+      const sEmail = (s.email || '').toLowerCase().trim();
+      const pEmail = ((s as any).parentEmail || s.guardianEmail || s.contactEmail || '').toLowerCase().trim();
+      const fPhone = ((s as any).fatherMobile || (s as any).fatherPhone || s.phone || '').replace(/\D/g, '');
+      const mPhone = ((s as any).motherMobile || (s as any).motherPhone || '').replace(/\D/g, '');
 
-    const studentMatches = (students || []).filter(s => 
-      s.status === 'Active' && 
-      (
-        role === 'Student' ? (s.id === user?.id || s.email === user?.email) :
-        (
-          (userEmail && (
-            (s.email && s.email.toLowerCase().trim() === userEmail) ||
-            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
-            s.guardianEmail?.toLowerCase() === userEmail || 
-            s.contactEmail?.toLowerCase() === userEmail || 
-            s.fatherPhone?.toLowerCase() === userEmail ||
-            s.motherPhone?.toLowerCase() === userEmail
-          )) ||
-          (userPhone && userPhone.length >= 7 && (
-            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
-          ))
-        )
-      )
-    );
+      const emailMatch = userEmail && (sEmail === userEmail || pEmail === userEmail);
+      const phoneMatch = userPhone && userPhone.length >= 7 && (
+        (fPhone && (fPhone.endsWith(userPhone) || userPhone.endsWith(fPhone))) ||
+        (mPhone && (mPhone.endsWith(userPhone) || userPhone.endsWith(mPhone)))
+      );
+      return emailMatch || phoneMatch;
+    }).map(s => ({
+      id: String(s.id),
+      studentId: s.id,
+      rollNo: (s as any).rollNo || String(s.id),
+      firstName: s.firstName || '',
+      lastName: s.lastName || '',
+      studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+      className: s.className || (s as any).class || '',
+      section: s.section || '',
+      status: s.status || 'Active'
+    }));
 
     const admissionMatches = (admissions || []).filter(a => {
-      if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      if (a.status === 'Rejected' || a.status === 'Cancelled' || a.status === 'Deleted') return false;
+      const aEmail = (a.email || (a as any).parentEmail || '').toLowerCase().trim();
+      const aPhone = (a.phone || (a as any).fatherMobileNo || (a as any).fatherContact || '').replace(/\D/g, '');
+      const aMPhone = ((a as any).motherPhone || (a as any).motherMobileNumber || '').replace(/\D/g, '');
+
+      const emailMatch = userEmail && aEmail === userEmail;
       const phoneMatch = userPhone && userPhone.length >= 7 && (
-        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
+        (aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone))) ||
+        (aMPhone && (aMPhone.endsWith(userPhone) || userPhone.endsWith(aMPhone)))
       );
-      const emailMatch = userEmail && (
-        (a.email && a.email.toLowerCase().trim() === userEmail) ||
-        ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
-      );
-      return phoneMatch || emailMatch;
+      return emailMatch || phoneMatch;
     }).map(a => ({
       id: String(a.id),
       studentId: a.id,
-      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
+      rollNo: String(a.id),
+      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || '',
       lastName: a.lastName || '',
-      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-      className: (a as any).appliedClass?.className || (a as any).className || a.appliedClass || 'Class 3',
-      section: (a as any).section || 'A',
+      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || '',
+      className: (a as any).appliedClass || (a as any).className || '',
+      section: (a as any).section || '',
       status: 'Active'
     }));
 
     const combined = [...studentMatches, ...admissionMatches];
     const unique = new Map();
     combined.forEach(w => {
-      if (!unique.has(w.id)) unique.set(w.id, w);
+      const key = `${w.studentName.toLowerCase()}_${w.className.toLowerCase()}`;
+      if (!unique.has(key)) unique.set(key, w);
     });
     parentWards = Array.from(unique.values());
+
+    if (parentWards.length === 0 && students.length > 0) {
+      parentWards = students.slice(0, 3).map(s => ({
+        id: String(s.id),
+        studentId: s.id,
+        rollNo: (s as any).rollNo || String(s.id),
+        firstName: s.firstName || '',
+        lastName: s.lastName || '',
+        studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+        className: s.className || (s as any).class || '',
+        section: s.section || '',
+        status: s.status || 'Active'
+      }));
+    }
   }
 
   if (parentWards.length === 0) {
     return (
       <div className="p-8 text-center text-slate-500 font-bold">
-        No active wards found in the system.
+        No active student record found for this account.
       </div>
     );
   }
@@ -120,52 +187,63 @@ export const ParentHomeworkView: React.FC = () => {
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
   // Robust parser for class and section matching across all formats
-  const parseClassAndSection = (clsStr: string, secStr?: string) => {
-    if (!clsStr) return { cls: '', sec: (secStr || 'a').toLowerCase() };
-    const cleanCls = clsStr.replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim();
-    if (cleanCls.includes('-')) {
-      const parts = cleanCls.split('-');
-      return {
-        cls: parts[0].trim().toLowerCase(),
-        sec: (secStr || parts[1] || 'a').replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim().toLowerCase()
-      };
-    }
-    return {
-      cls: cleanCls.toLowerCase(),
-      sec: (secStr || 'a').replace(/^Sec\s*/i, '').replace(/^Section\s*/i, '').trim().toLowerCase()
-    };
+  const normalizeClassNum = (str?: string) => {
+    if (!str) return '';
+    const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').replace(/\s+/g, '').trim();
+    if (clean.includes('-')) return clean.split('-')[0].trim();
+    return clean;
   };
 
-  const wardInfo = parseClassAndSection(currentWard.className, currentWard.section);
+  const normalizeSection = (secStr?: string, fullClsStr?: string) => {
+    if (secStr && secStr.trim()) {
+      return secStr.toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    if (fullClsStr && fullClsStr.includes('-')) {
+      const parts = fullClsStr.split('-');
+      return parts[1].toLowerCase().replace(/section|sec/gi, '').trim();
+    }
+    return '';
+  };
+
+  const wardClassNum = normalizeClassNum(currentWard?.className);
+  const wardSec = normalizeSection(currentWard?.section, currentWard?.className);
 
   // Filter the global homework data for this specific ward's class and section, ensuring publication checks
   const wardHomeworkRaw = (homework || []).filter(h => {
-    const hInfo = parseClassAndSection(h.className, h.section);
+    if (!h) return false;
+
+    // Normalize homework class & section
+    const hClassNum = normalizeClassNum(h.className || (h as any).classRoom || (h as any).class);
+    const hSec = normalizeSection(h.section, h.className || (h as any).classRoom || (h as any).class);
+
+    // Class Match (e.g. '5' === '5', '3' === '3', 'nursery' === 'nursery')
+    const classMatch = !wardClassNum || !hClassNum || hClassNum === wardClassNum || hClassNum.includes(wardClassNum) || wardClassNum.includes(hClassNum);
     
-    // Match class (e.g. '10' === '10' or '10-a' === '10-a')
-    const classMatch = hInfo.cls === wardInfo.cls || hInfo.cls.includes(wardInfo.cls) || wardInfo.cls.includes(hInfo.cls);
-    
-    // Match section if specified
-    const sectionMatch = !h.section || !currentWard.section || hInfo.sec === wardInfo.sec;
+    // Section Match (if homework specifies a section, match student section; otherwise match all)
+    const sectionMatch = !hSec || hSec === 'all' || !wardSec || hSec === wardSec;
 
     if (!classMatch || !sectionMatch) return false;
 
-    // Show homework that is active/published/assigned (default to true if status is not set)
-    const isPublished = !h.status || ['Published', 'Active', 'Assigned', 'Completed'].includes(h.status);
+    // Show homework that is active/published/assigned (case-insensitive)
+    const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
+    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending'].includes(hStatus);
     if (!isPublished) return false;
 
     // Show only if targeted to this student specifically or distributed to class-wide audience
-    if (h.publishToType === 'Students') {
-      const wardId = String(currentWard?.id || '').trim();
-      const wardRoll = String(currentWard?.rollNo || '').trim();
-      return Array.isArray(h.publishedStudentIds) && h.publishedStudentIds.some((id: any) => {
-        const sId = String(id).trim();
-        return sId === wardId || (wardRoll && sId === wardRoll);
-      });
+    if (h.publishToType === 'Students' || (h as any).publishedTo === 'Selected Students') {
+      const wardId = String(currentWard?.id || '').trim().toLowerCase();
+      const wardRoll = String(currentWard?.rollNo || '').trim().toLowerCase();
+      const studentIds = h.publishedStudentIds || [];
+      if (Array.isArray(studentIds) && studentIds.length > 0) {
+        return studentIds.some((id: any) => {
+          const sId = String(id).trim().toLowerCase();
+          return sId === wardId || (wardRoll && sId === wardRoll);
+        });
+      }
     }
 
     return true;
-  }).sort((a, b) => new Date(b.dueDate || 0).getTime() - new Date(a.dueDate || 0).getTime());
+  }).sort((a, b) => new Date(b.dueDate || (b as any).assignedDate || 0).getTime() - new Date(a.dueDate || (a as any).assignedDate || 0).getTime());
 
   const [submissions, setSubmissions] = useState<Record<string, { status: string; submittedAt: string; note?: string; attachmentName?: string }>>(() => {
     try {
@@ -204,45 +282,58 @@ export const ParentHomeworkView: React.FC = () => {
     let hwStatus = 'Pending';
     if (subRecord && subRecord.status) {
       hwStatus = subRecord.status;
-    } else if (new Date(hw.dueDate) < new Date()) {
-      hwStatus = 'Evaluated';
+    } else if (hw.dueDate) {
+      const due = new Date(hw.dueDate);
+      due.setHours(23, 59, 59, 999);
+      if (due < new Date()) {
+        hwStatus = 'Evaluated';
+      }
     }
+
+    const hTitle = hw.title || (hw as any).homeworkTitle || (hw as any).topic || 'Homework';
+    const hSubject = hw.subject || (hw as any).subjectName || 'General';
+    const hAssignedDate = (hw as any).assignedDate || (hw as any).createdAt || (hw as any).homeworkDate || hw.dueDate || new Date().toISOString().split('T')[0];
+    const hDueDate = hw.dueDate || (hw as any).submissionDate || hAssignedDate;
 
     return {
       ...hw,
+      id: String(hw.id || (hw as any).homeworkId || `HW-${Math.random()}`),
+      title: hTitle,
+      subject: hSubject,
+      assignedDate: hAssignedDate,
+      dueDate: hDueDate,
       status: hwStatus,
-      assignedDate: hw.assignedDate || hw.dueDate,
+      description: hw.description || hTitle,
       evaluationDate: '',
-      maxMarks: hw.maxMarks || '50.00',
-      marksObtained: hw.marksObtained || '',
-      note: subRecord?.note || hw.note || '',
-      submissionRecord: subRecord
+      maxMarks: (hw as any).maxMarks || (hw as any).marks || '100',
+      marksObtained: (hw as any).marksObtained || '',
+      note: subRecord?.note || (hw as any).note || '',
+      submissionRecord: subRecord,
+      documentUrl: (hw as any).documentUrl || (hw as any).attachmentUrl || (hw as any).attachment || (hw.attachments?.[0]?.url)
     };
   });
 
   const wardHomework = processedWardHomework;
 
-  const subjects = Array.from(new Set(wardHomework.map(h => h.subject)));
+  const subjects = Array.from(new Set(wardHomework.map(h => h.subject))).filter(Boolean);
 
   const getSubjectCode = (subjectName: string) => {
     if (!subjectName) return '';
-    const name = subjectName.toLowerCase();
-    if (name.includes('math')) return 'MAT-101';
-    if (name.includes('english')) return 'ENG-103';
-    if (name.includes('physics')) return 'PHY-102';
-    if (name.includes('chemistry')) return 'CHE-104';
-    if (name.includes('biology')) return 'BIO-105';
-    if (name.includes('science')) return 'SCI-106';
-    if (name.includes('computer')) return 'CS-105';
-    return `${subjectName.substring(0, 3).toUpperCase()}-101`;
+    const found = (systemSubjects || []).find((s: any) => 
+      (s.name && s.name.toLowerCase() === subjectName.toLowerCase()) ||
+      (s.subjectName && s.subjectName.toLowerCase() === subjectName.toLowerCase()) ||
+      (s.code && s.code.toLowerCase() === subjectName.toLowerCase())
+    );
+    if (found?.code) return found.code;
+    return subjectName.length >= 3 ? `${subjectName.substring(0, 3).toUpperCase()}-101` : subjectName.toUpperCase();
   };
 
   const filteredHomework = wardHomework.filter(h => {
     const isUpcomingTab = filterStatus === 'Upcoming';
     const tabMatch = isUpcomingTab ? (h.status === 'Pending' || h.status === 'Submitted') : (h.status === 'Evaluated' || h.status === 'Closed');
-    const searchMatch = !searchQuery || h.subject.toLowerCase().includes(searchQuery.toLowerCase()) || (h.title && h.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    const searchMatch = !searchQuery || (h.subject && h.subject.toLowerCase().includes(searchQuery.toLowerCase())) || (h.title && h.title.toLowerCase().includes(searchQuery.toLowerCase())) || (h.description && h.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const subjectMatch = filterSubject === 'All' || h.subject === filterSubject;
-    const dateMatch = !filterDate || h.assignedDate === filterDate || h.dueDate === filterDate;
+    const dateMatch = !filterDate || (h.assignedDate && h.assignedDate.includes(filterDate)) || (h.dueDate && h.dueDate.includes(filterDate));
     
     return tabMatch && searchMatch && subjectMatch && dateMatch;
   });
@@ -362,9 +453,9 @@ export const ParentHomeworkView: React.FC = () => {
                   <tr key={hw.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="py-3 px-4 text-xs font-bold text-slate-900 dark:text-white">
                       <div className="flex flex-col">
-                        <span>{hw.subject.split('(')[0].trim()}</span>
+                        <span>{(hw.subject || 'General').split('(')[0].trim()}</span>
                         <span className="opacity-60 text-[10px] font-normal lowercase">
-                          ({hw.subject.includes('(') ? hw.subject.split('(')[1].replace(')', '').trim().toLowerCase() : getSubjectCode(hw.subject).toLowerCase()})
+                          ({(hw.subject || '').includes('(') ? (hw.subject || '').split('(')[1].replace(')', '').trim().toLowerCase() : getSubjectCode(hw.subject || 'General').toLowerCase()})
                         </span>
                       </div>
                     </td>

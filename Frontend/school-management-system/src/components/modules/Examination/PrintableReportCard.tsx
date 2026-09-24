@@ -52,17 +52,34 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   if (!student || !exam) return null;
 
   // Find processed result for aggregate values
-  const result = propProcessedResult || allProcessedResults.find(r => r.examId === exam.id && r.studentId === student.id);
+  const result = propProcessedResult || allProcessedResults.find(r => 
+    r.examId === exam.id && 
+    (
+      String(r.studentId) === String(student.id) ||
+      (student.rollNo && String(r.rollNo) === String(student.rollNo)) ||
+      (student.admissionNo && String(r.admissionNo) === String(student.admissionNo))
+    )
+  );
   const isReleased = exam.publishStatus === 'Published' || exam.status === 'Results Published' || result?.status === 'Published';
 
   // Get student marks list
-  const marks = propExamMarks || allExamMarks.filter(m => m.examId === exam.id && m.studentId === student.id);
+  const marks = (propExamMarks && propExamMarks.length > 0)
+    ? propExamMarks
+    : allExamMarks.filter(m => 
+        m.examId === exam.id && 
+        (
+          String(m.studentId) === String(student.id) ||
+          (student.rollNo && String((m as any).rollNo) === String(student.rollNo)) ||
+          (student.admissionNo && String((m as any).admissionNo) === String(student.admissionNo))
+        )
+      );
   const classSchedules = examSchedules.filter(s => s.examId === exam.id && s.className === student.className);
 
   // Compute subjects list
   const subjectsList = Array.from(new Set([
     ...classSchedules.map(s => s.subject),
-    ...marks.map(m => m.subject)
+    ...marks.map(m => m.subject),
+    ...(result?.subjectMarks || []).map((sm: any) => sm.subject)
   ])).filter(Boolean);
 
   // Get custom subject wise specs (max & pass marks)
@@ -71,7 +88,30 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     subjectWiseMap[s.subject] = { maxMarks: s.maxMarks || 100, passMarks: s.passMarks || 35 };
   });
 
-  const res = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap);
+  const res: any = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap);
+
+  // If res.subjectMarks is empty BUT result.subjectMarks exists, use result's subjectMarks & aggregates!
+  if ((!res.subjectMarks || res.subjectMarks.length === 0) && result?.subjectMarks && result.subjectMarks.length > 0) {
+    res.subjectMarks = result.subjectMarks;
+    res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? 0;
+    res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? (result.subjectMarks.length * 100);
+    res.percentage = result.percentage ?? (res.totalMax > 0 ? (res.totalObtained / res.totalMax) * 100 : 0);
+    res.finalGrade = result.finalGrade || result.overallGrade || 'N/A';
+    res.passStatus = result.passStatus || (result.percentage >= 35 ? 'Pass' : 'Fail');
+  } else if (result) {
+    if (result.totalObtainedMarks !== undefined || (result as any).totalObtained !== undefined) {
+      res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? res.totalObtained;
+    }
+    if (result.totalMaxMarks !== undefined || (result as any).totalMax !== undefined) {
+      res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? res.totalMax;
+    }
+    if (result.percentage !== undefined) {
+      res.percentage = result.percentage;
+    }
+    if (result.finalGrade || result.overallGrade) {
+      res.finalGrade = result.finalGrade || result.overallGrade;
+    }
+  }
 
   // Calculate Rank in Class Section (using standard competition ranking)
   const classStudents = students.filter(s => s.className === student.className && (!s.section || s.section === student.section));
@@ -82,7 +122,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   });
   
   const ranksMap = calculateCompetitionRanks(studentScores);
-  const rank = ranksMap[student.id] || 1;
+  const rank = result?.rank || ranksMap[student.id] || 1;
 
   // Attendance stats
   const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === student.id) || { workingDays: 220, presentDays: 205 };
@@ -220,7 +260,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                 <td colSpan={6} className="p-4 text-center text-slate-400 italic">No subject marks recorded for this examination.</td>
               </tr>
             ) : (
-              res.subjectMarks.map((sub, index) => {
+              res.subjectMarks.map((sub: any, index: number) => {
                 const isAbsent = sub.obtainedMarks === 'AB';
                 return (
                   <tr key={`${sub.subject}-${index}`} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50">
