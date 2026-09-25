@@ -20,14 +20,22 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
         _context = context;
     }
 
-    public async Task<List<NewStudentExamResult>> GetExamResultsAsync(string className, string sectionName)
+    public async Task<List<NewStudentExamResult>> GetExamResultsAsync(string? className = null, string? sectionName = null)
     {
         try
         {
-            var dbResults = await _context.NewStudentExamResults
-                .AsNoTracking()
-                .Where(r => r.ClassName == className && r.SectionName == sectionName)
-                .ToListAsync();
+            var query = _context.NewStudentExamResults.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(r => r.ClassName == className);
+            }
+            if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                string cleanSec = sectionName.Replace("Section ", "").Trim();
+                query = query.Where(r => r.SectionName == sectionName || r.SectionName == cleanSec || r.SectionName == "Section " + cleanSec);
+            }
+
+            var dbResults = await query.ToListAsync();
 
             if (dbResults != null && dbResults.Any())
                 return dbResults;
@@ -37,10 +45,19 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
             // Fallback
         }
 
-        return _inMemoryResults
-            .Where(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                        r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var memQuery = _inMemoryResults.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            memQuery = memQuery.Where(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+        }
+        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanSec = sectionName.Replace("Section ", "").Trim();
+            memQuery = memQuery.Where(r => r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                                           r.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                                           r.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
+        }
+        return memQuery.ToList();
     }
 
     public async Task<bool> SaveExamResultsAsync(string className, string sectionName, List<NewStudentExamResult> results)
@@ -59,6 +76,7 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
             foreach (var r in results)
             {
                 r.ResultId = 0; // Reset ResultId for AUTO_INCREMENT
+                r.CalculatedAt = DateTime.UtcNow;
             }
 
             await _context.NewStudentExamResults.AddRangeAsync(results);
@@ -72,6 +90,52 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
         _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
                                         r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
         _inMemoryResults.AddRange(results);
+
+        return true;
+    }
+
+    public async Task<bool> SaveBulkResultsAsync(List<NewStudentExamResult> results)
+    {
+        if (results == null || !results.Any()) return true;
+
+        try
+        {
+            var studentIds = results.Select(r => r.StudentId).Distinct().ToList();
+            var examIds = results.Select(r => r.ExamId).Distinct().ToList();
+            var classNames = results.Select(r => r.ClassName).Distinct().ToList();
+
+            var existingDb = await _context.NewStudentExamResults
+                .Where(r => examIds.Contains(r.ExamId) && (studentIds.Contains(r.StudentId) || classNames.Contains(r.ClassName)))
+                .ToListAsync();
+
+            if (existingDb.Any())
+            {
+                var toRemove = existingDb.Where(e => results.Any(r => r.ExamId == e.ExamId && (r.StudentId == e.StudentId || (r.ClassName == e.ClassName && r.RollNo == e.RollNo)))).ToList();
+                if (toRemove.Any())
+                {
+                    _context.NewStudentExamResults.RemoveRange(toRemove);
+                }
+            }
+
+            foreach (var r in results)
+            {
+                r.ResultId = 0;
+                r.CalculatedAt = DateTime.UtcNow;
+            }
+
+            await _context.NewStudentExamResults.AddRangeAsync(results);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Fallback to in-memory
+        }
+
+        foreach (var r in results)
+        {
+            _inMemoryResults.RemoveAll(m => m.ExamId == r.ExamId && (m.StudentId == r.StudentId || (m.ClassName.Equals(r.ClassName, StringComparison.OrdinalIgnoreCase) && m.RollNo.Equals(r.RollNo, StringComparison.OrdinalIgnoreCase))));
+            _inMemoryResults.Add(r);
+        }
 
         return true;
     }

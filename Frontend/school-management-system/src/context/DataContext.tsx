@@ -15,6 +15,7 @@ import {
   fetchStudentAttendanceAllApi,
   saveBulkStudentAttendanceApi,
 } from "../api/attendance";
+import { fetchReportCardsApi, publishExamResultsApi } from "../api/examination";
 import {
   createAcademicYearApi,
   updateAcademicYearApi,
@@ -6264,7 +6265,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
     };
+
+    const loadReleasedExamResultsFromDb = async () => {
+      try {
+        const res: any = await fetchReportCardsApi();
+        const cards = res?.data || res;
+        if (Array.isArray(cards) && cards.length > 0) {
+          setProcessedResults((prev) => {
+            const mapped: ProcessedResult[] = cards.map((r: any) => {
+              const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
+              const obtained = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
+              const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtained / maxMarks) * 100 : 0));
+              const grade = r.finalGrade || r.overallGrade || r.grade || "";
+              const passFail = r.resultStatus || r.passStatus || "";
+              const rankVal = r.rank ? Number(r.rank) : 0;
+
+              return {
+                id: String(r.id || r.resultId || `API-${r.studentId}`),
+                examId: String(r.examId || ""),
+                studentId: String(r.studentId || ""),
+                studentName: r.studentName || "",
+                className: r.className || "",
+                section: r.sectionName || r.section || "",
+                rollNo: r.rollNumber || r.rollNo || "",
+                admissionNo: r.admissionNumber || r.admissionNo || String(r.studentId || ""),
+                totalMaxMarks: maxMarks,
+                totalObtainedMarks: obtained,
+                percentage: pct,
+                gpa: Number(r.gpa || 0),
+                finalGrade: grade,
+                overallGrade: grade,
+                subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : [],
+                passStatus: passFail as "Pass" | "Fail",
+                status: "Published",
+                rank: rankVal,
+                publishedAt: new Date().toISOString().split("T")[0]
+              };
+            });
+
+            const seen = new Set(mapped.map((m) => `${m.examId}_${m.studentId}_${m.className}`));
+            const remaining = prev.filter((p) => !seen.has(`${p.examId}_${p.studentId}_${p.className}`));
+            return [...remaining, ...mapped];
+          });
+        }
+      } catch (err) {
+        console.warn('Initial released exam results load note:', err);
+      }
+    };
+
     loadSchoolSettingsFromDb();
+    loadReleasedExamResultsFromDb();
 
     const handleProfileUpdate = () => {
       try {
@@ -17889,6 +17939,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           : e,
       ),
     );
+    if (status === "Published") {
+      try {
+        const targetResults = processedResults.filter((r) => {
+          const rSec = (r.section || "")
+            .replace("Section ", "")
+            .trim()
+            .toUpperCase();
+          return (
+            r.examId === examId &&
+            r.className === className &&
+            (!section ||
+              section === "All" ||
+              rSec === cleanSec ||
+              r.section === section)
+          );
+        });
+
+        if (targetResults.length > 0) {
+          publishExamResultsApi({
+            examId: Number(examId) || 0,
+            className,
+            sectionName: section && section !== "All" ? section : "",
+            results: targetResults.map((r) => ({
+              studentId: Number(r.studentId) || 0,
+              rollNo: r.rollNo || "",
+              studentName: r.studentName || "",
+              admissionNo: r.admissionNo || "",
+              className: r.className || className,
+              sectionName: r.section || section,
+              totalMarksObtained: Number(r.totalObtainedMarks || (r as any).totalMarksObtained || 0),
+              totalMaxMarks: Number(r.totalMaxMarks || 0),
+              percentage: Number(r.percentage || 0),
+              grade: r.finalGrade || r.overallGrade || (r as any).grade || "",
+              rank: Number(r.rank || 0),
+              resultStatus: r.passStatus || (r as any).resultStatus || "",
+            })),
+          }).catch((err) => {
+            console.warn("Backend publish exam results sync error:", err);
+          });
+        }
+      } catch (err) {
+        console.warn("Backend publish exam results sync error:", err);
+      }
+    }
+
     logActivity(
       "Updated Results Status",
       `Set results for ${examId} (${className}-${section}) to ${status}`,

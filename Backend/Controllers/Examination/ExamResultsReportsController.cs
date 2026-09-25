@@ -63,6 +63,32 @@ public class ExamResultsReportsController : ControllerBase
     }
 
     /// <summary>
+    /// Save & Publish calculated exam results in bulk to the database
+    /// </summary>
+    [HttpPost("publish")]
+    [HttpPost("save-bulk")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> PublishResults([FromBody] BulkSaveExamResultsDto request)
+    {
+        try
+        {
+            if (request == null || request.Results == null || !request.Results.Any())
+                return BadRequest(new { success = false, message = "Results list is required." });
+
+            var success = await _service.SaveBulkResultsAsync(request);
+            return Ok(new { 
+                success = true, 
+                message = "Results published and saved successfully to database.", 
+                saved = success 
+            });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to publish results.", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Update calculated result details for a student (PUT /api/examination-new/results-reports/update-results)
     /// </summary>
     [HttpPut("update-results")]
@@ -96,8 +122,8 @@ public class ExamResultsReportsController : ControllerBase
     [HttpGet("report-cards")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetReportCardsList(
-        [FromQuery] string className = "",
-        [FromQuery] string sectionName = "",
+        [FromQuery] string? className = null,
+        [FromQuery] string? sectionName = null,
         [FromQuery] string? search = null,
         [FromQuery] string? statusFilter = "All")
     {

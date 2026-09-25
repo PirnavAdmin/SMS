@@ -7,19 +7,19 @@ public class NewStudentExamResult
 {
     [Key]
     public int ResultId { get; set; }
-    public int ExamId { get; set; } = 1;
+    public int ExamId { get; set; }
     public string ClassName { get; set; } = string.Empty;
     public string SectionName { get; set; } = string.Empty;
     public int StudentId { get; set; }
     public string RollNo { get; set; } = string.Empty;
     public string StudentName { get; set; } = string.Empty;
     public string AdmissionNo { get; set; } = string.Empty;
-    public decimal TotalMarksObtained { get; set; } = 0;
-    public decimal TotalMaxMarks { get; set; } = 600;
-    public decimal Percentage { get; set; } = 0;
-    public string Grade { get; set; } = "A+";
-    public int Rank { get; set; } = 1;
-    public string ResultStatus { get; set; } = "Pass"; // "Pass", "Fail"
+    public decimal TotalMarksObtained { get; set; }
+    public decimal TotalMaxMarks { get; set; }
+    public decimal Percentage { get; set; }
+    public string Grade { get; set; } = string.Empty;
+    public int Rank { get; set; }
+    public string ResultStatus { get; set; } = string.Empty;
     public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
 }
 
