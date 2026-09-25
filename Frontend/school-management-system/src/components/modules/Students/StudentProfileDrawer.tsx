@@ -311,34 +311,38 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                   <>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Assigned Hostel Block:</span>
-                      <span className="font-bold text-slate-900 dark:text-white text-sm">{student.hostelBlock || 'Block A - Boys Residency'}</span>
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">{student.hostelBlock && student.hostelBlock !== 'N/A' && student.hostelBlock !== 'None' ? student.hostelBlock : 'Not Assigned'}</span>
                     </div>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Room & Bed Allocation:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.hostelBed || 'Room #204 (Bed #2)'}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                      <span className="text-slate-500 font-semibold">Hostel Warden Contact:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">Dr. Robert Vance (+1 555-019-9922)</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-semibold">Mess / Meal Plan:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Full Board (Breakfast, Lunch, Snacks, Dinner)</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.hostelRoom || student.hostelBed ? `${student.hostelRoom ? `Room ${student.hostelRoom}` : ''} ${student.hostelBed ? `(${student.hostelBed})` : ''}`.trim() : 'Not Assigned'}</span>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500 font-semibold">Transport Facility:</span>
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">
+                        {student.transportRequired || (student.busRoute && student.busRoute !== 'N/A' && student.busRoute !== 'None') ? 'Opted (School Bus)' : 'Not Opted (Self Transport)'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Assigned Bus Route:</span>
-                      <span className="font-bold text-slate-900 dark:text-white text-sm">{student.busRoute || 'Route 4 - Central City Express'}</span>
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">
+                        {(student.transportRequired || student.busRoute) && student.busRoute && student.busRoute !== 'N/A' && student.busRoute !== 'None' ? student.busRoute : 'Not Assigned'}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Pickup Point:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.pickupPoint || 'Main Campus Stop A'}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {(student.transportRequired || student.pickupPoint) && student.pickupPoint && student.pickupPoint !== 'N/A' && student.pickupPoint !== 'None' ? student.pickupPoint : 'Not Assigned'}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 font-semibold">Drop Point:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.dropPoint || 'Greenwood Circle Stop B'}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {(student.transportRequired || student.dropPoint) && student.dropPoint && student.dropPoint !== 'N/A' && student.dropPoint !== 'None' ? student.dropPoint : 'Not Assigned'}
+                      </span>
                     </div>
                   </>
                 )}

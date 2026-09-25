@@ -2,6 +2,8 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import http from 'http';
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
 
 const httpAgent = new http.Agent({
   keepAlive: true,
@@ -55,12 +57,29 @@ export default defineConfig(({ mode }) => {
           headers: {
             'ngrok-skip-browser-warning': 'true',
           },
+          bypass: (req) => {
+            try {
+              const urlPath = (req.url || '').split('?')[0];
+              const localPath = path.resolve(__dirname, 'public', urlPath.replace(/^\/+/, ''));
+              if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
+                return req.url; // Bypasses proxy and lets Vite serve directly from public/
+              }
+            } catch { }
+            return undefined;
+          },
           configure: (proxy, _options) => {
-            proxy.on('error', (_err, _req, res) => {
+            proxy.on('error', (_err, req, res) => {
               const httpRes = res as any;
               if (httpRes && !httpRes.headersSent && typeof httpRes.writeHead === 'function') {
-                httpRes.writeHead(404, { 'Content-Type': 'text/plain' });
-                httpRes.end('File not found or backend offline');
+                const reqUrl = ((req && req.url) || '').toLowerCase();
+                if (reqUrl.includes('.webp') || reqUrl.includes('.png') || reqUrl.includes('.jpg') || reqUrl.includes('.jpeg') || reqUrl.includes('.svg')) {
+                  const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="100%" height="100%" fill="#e2e8f0" rx="64"/><circle cx="64" cy="48" r="24" fill="#94a3b8"/><path d="M24 108c0-22.091 17.909-40 40-40s40 17.909 40 40" fill="#94a3b8"/></svg>`;
+                  httpRes.writeHead(200, { 'Content-Type': 'image/svg+xml' });
+                  httpRes.end(fallbackSvg);
+                } else {
+                  httpRes.writeHead(404, { 'Content-Type': 'text/plain' });
+                  httpRes.end('File not found or backend offline');
+                }
               }
             });
           }

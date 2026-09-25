@@ -47,7 +47,19 @@ namespace SMS.Api.Controllers
                 return PhysicalFile(fileInContentRoot, contentType);
             }
 
-            // 3. Fallback for missing avatar/image uploads to prevent 404 console errors
+            // 3. Check in Frontend public /uploads
+            try
+            {
+                var frontendPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Frontend", "school-management-system", "public", "uploads", cleanPath));
+                if (System.IO.File.Exists(frontendPath))
+                {
+                    var contentType = GetContentType(frontendPath);
+                    return PhysicalFile(frontendPath, contentType);
+                }
+            }
+            catch { }
+
+            // 4. Fallback for missing avatar/image uploads to prevent 404 console errors
             var lowerPath = subpath.ToLowerInvariant();
             if (lowerPath.Contains("profile") || lowerPath.Contains("avatar") || lowerPath.EndsWith(".jpg") || lowerPath.EndsWith(".png") || lowerPath.EndsWith(".jpeg") || lowerPath.EndsWith(".webp") || lowerPath.EndsWith(".svg"))
             {

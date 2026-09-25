@@ -56,10 +56,10 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     feeCalculationMethod: 'Term-wise',
     branch: 'Main Campus',
     studentType: 'Day Scholar',
-    busRoute: transportRoutes[0]?.routeName || 'Route A - North Suburbs',
+    busRoute: '',
     transportType: 'AC',
-    pickupPoint: 'North Suburbs Stop 4',
-    dropPoint: 'Academy Main Gate',
+    pickupPoint: '',
+    dropPoint: '',
     hostelBlock: hostelBlocks[0]?.id || '',
     hostelRoom: hostelRooms[0]?.id || '',
     hostelBed: '',
@@ -86,10 +86,10 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [houseNo, setHouseNo] = useState('');
   const [street, setStreet] = useState('');
   const [area, setArea] = useState('');
-  const [city, setCity] = useState('New York');
-  const [district, setDistrict] = useState('Knowledge City');
-  const [stateName, setStateName] = useState('NY');
-  const [pinCode, setPinCode] = useState('10001');
+  const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [pinCode, setPinCode] = useState('');
 
   const [dobError, setDobError] = useState<string>('');
   const [phoneError, setPhoneError] = useState<string>('');

@@ -7705,14 +7705,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         siblingStudentId: "N/A",
         studentType: appData.studentType || "Day Scholar",
         transportRequired: !!appData.transportRequired,
-        transportType: appData.transportType || "N/A",
-        busRoute: appData.busRoute || "N/A",
-        pickupPoint: appData.pickupPoint || "N/A",
-        dropPoint: appData.dropPoint || "N/A",
-        hostelBlock: appData.hostelBlock || "N/A",
-        hostelRoom: appData.hostelRoom || "N/A",
+        transportType: appData.transportRequired ? (appData.transportType || "AC") : "",
+        busRoute: appData.transportRequired ? (appData.busRoute || "") : "",
+        pickupPoint: appData.transportRequired ? (appData.pickupPoint || "") : "",
+        dropPoint: appData.transportRequired ? (appData.dropPoint || "") : "",
+        hostelBlock: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBlock || "") : "",
+        hostelRoom: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
-        allocatedBedId: appData.hostelBed || "N/A",
+        allocatedBedId: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
         branch: appData.branch || selectedBranch || "Main Campus",
         status: appData.status || "Enrolled",
         section: (appData as any).section || "A",
@@ -7934,12 +7934,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         siblingStudentId: "N/A",
         studentType: appData.studentType || "Day Scholar",
         transportRequired: !!appData.transportRequired,
-        transportType: appData.transportType || "N/A",
-        busRoute: appData.busRoute || "N/A",
-        pickupPoint: appData.pickupPoint || "N/A",
-        hostelBlock: appData.hostelBlock || "N/A",
-        hostelRoom: appData.hostelRoom || "N/A",
-        availableBed: appData.hostelBed || "N/A",
+        transportType: appData.transportRequired ? (appData.transportType || "AC") : "",
+        busRoute: appData.transportRequired ? (appData.busRoute || "") : "",
+        pickupPoint: appData.transportRequired ? (appData.pickupPoint || "") : "",
+        dropPoint: appData.transportRequired ? (appData.dropPoint || "") : "",
+        hostelBlock: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBlock || "") : "",
+        hostelRoom: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelRoom || "") : "",
+        floorLevel: "N/A",
+        availableBed: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
         scholarship:
           (appData as any).scholarship || appData.scholarshipId || "None",
         discount: (appData as any).discount || appData.discountId || "None",
@@ -7981,12 +7983,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           if (isMatch) {
             return {
               ...s,
+              firstName: appData.applicantName ? appData.applicantName.split(" ")[0] : s.firstName,
+              lastName: appData.applicantName ? appData.applicantName.split(" ").slice(1).join(" ") : s.lastName,
               className: appData.appliedClass || s.className,
               gender: (appData.gender as any) || s.gender,
               parentName: appData.parentName || s.parentName,
+              fatherName: appData.parentName || s.fatherName,
+              motherName: appData.motherName || s.motherName,
               phone: appData.phone || s.phone,
               email: appData.email || (appData as any).parentEmail || s.email,
               studentType: appData.studentType || s.studentType,
+              transportRequired: !!appData.transportRequired,
+              busRoute: appData.transportRequired ? (appData.busRoute || "") : "",
+              pickupPoint: appData.transportRequired ? (appData.pickupPoint || "") : "",
+              dropPoint: appData.transportRequired ? (appData.dropPoint || "") : "",
+              hostelBlock: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBlock || "") : "",
+              hostelRoom: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelRoom || "") : "",
+              hostelBed: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
             };
           }
           return s;
@@ -8111,10 +8124,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const fullAddress =
             addressParts.length > 0
               ? addressParts.join(", ")
-              : "Main Campus Area";
+              : (app.address || "");
 
           // --- DYNAMIC FEE CALCULATION & ASSIGNMENT SETUP ---
-          const clsName = app.appliedClass || (app as any).className || "Nursery";
+          const clsName = app.appliedClass || (app as any).className || "";
           const dfs =
             dynamicFeeStructures.find(
               (d) => matchesClassName(d.className, clsName) && (d.status === "Active" || !d.status),
@@ -8325,56 +8338,55 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             {
               admissionNo:
                 app.applicationNo ||
-                "ADM2026-" + Math.floor(100 + Math.random() * 900),
-              rollNo: "",
+                (app as any).registrationNo ||
+                (app.id ? `ADM-${app.id}` : ""),
+              rollNo: (app as any).rollNo || "",
               firstName: (() => {
                 const parts = (app.applicantName || "").trim().split(" ");
-                return app.firstName || parts[0] || "Enrolled";
+                return app.firstName || parts[0] || "";
               })(),
               lastName: (() => {
                 const parts = (app.applicantName || "").trim().split(" ");
                 return app.lastName || parts.slice(1).join(" ") || "";
               })(),
-              gender: app.gender || "Male",
-              dob: app.dob || "15/08/2012",
-              bloodGroup: app.bloodGroup || "O+",
-              religion: app.religion || "General",
-              casteCategory: app.casteCategory || "General",
-              className: app.appliedClass || "Class 1",
-              section: "",
-              category: app.casteCategory || "General",
+              gender: (app.gender as any) || "",
+              dob: app.dob || "",
+              bloodGroup: app.bloodGroup || "",
+              religion: app.religion || "",
+              casteCategory: app.casteCategory || "",
+              className: app.appliedClass || (app as any).className || "",
+              section: (app as any).section || "",
+              category: app.casteCategory || "",
               status: "Active",
-              avatar:
-                app.avatar ||
-                "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+              avatar: app.avatar || "",
               joiningDate:
                 app.joiningDate ||
                 app.admissionDate ||
                 app.submissionDate ||
-                new Date().toISOString().split("T")[0],
+                "",
               isLateAdmission: !!app.isLateAdmission,
               feeCalculationMethod: app.feeCalculationMethod || "Term-wise",
-              branch: app.branch || "Main Campus",
-              studentType: app.studentType || "Day Scholar",
-              transportRequired: app.transportRequired,
-              routeId: app.routeId,
-              busRoute: app.busRoute || "Route A - North Suburbs",
-              transportType: app.transportType || "AC",
-              pickupPointId: app.pickupPointId,
-              pickupPoint: app.pickupPoint || "",
-              dropPoint: app.dropPoint || "",
-              hostelBlock: app.hostelBlock || "",
-              hostelRoom: app.hostelRoom || "",
-              hostelBed: app.hostelBed || "",
-              boardType: "CBSE",
-              fatherName: app.parentName || "Father Name",
-              fatherPhone: app.phone || "9876543210",
-              fatherOccupation: "Business",
-              motherName: app.motherName || "Mother Name",
-              motherPhone: app.phone || "9876543210",
-              email: app.email,
-              phone: app.phone,
-              alternatePhone: app.alternatePhone,
+              branch: app.branch || selectedBranch || "",
+              studentType: app.studentType || "",
+              transportRequired: !!app.transportRequired,
+              routeId: app.transportRequired ? (app.routeId || "") : "",
+              busRoute: app.transportRequired ? (app.busRoute || "") : "",
+              transportType: app.transportRequired ? ((app.transportType as any) || "AC") : undefined,
+              pickupPointId: app.transportRequired ? (app.pickupPointId || "") : "",
+              pickupPoint: app.transportRequired ? (app.pickupPoint || "") : "",
+              dropPoint: app.transportRequired ? (app.dropPoint || "") : "",
+              hostelBlock: app.studentType === "Hosteller" || app.studentType === "Residential" ? (app.hostelBlock || "") : "",
+              hostelRoom: app.studentType === "Hosteller" || app.studentType === "Residential" ? (app.hostelRoom || "") : "",
+              hostelBed: app.studentType === "Hosteller" || app.studentType === "Residential" ? (app.hostelBed || "") : "",
+              boardType: (schoolProfile?.boardType as any) || "CBSE",
+              fatherName: app.parentName || (app as any).fatherName || "",
+              fatherPhone: app.phone || (app as any).fatherMobile || "",
+              fatherOccupation: (app as any).fatherOccupation || "",
+              motherName: app.motherName || (app as any).motherFullName || "",
+              motherPhone: (app as any).motherPhone || "",
+              email: app.email || "",
+              phone: app.phone || "",
+              alternatePhone: app.alternatePhone || "",
               address: fullAddress,
               siblingsCount: app.siblingsCount || 0,
               totalFee: calculatedTotalFee,
@@ -8440,15 +8452,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ? (pObj.monthlyFee ?? 0)
                 : ftc
                   ? ftc.feeAmount
-                  : 5500;
+                  : 0;
             assignStudentTransport({
               studentId: newStudent.id,
               studentName: `${newStudent.firstName} ${newStudent.lastName}`,
               admissionNo: newStudent.admissionNo,
-              routeId: rObj?.id || "RM-01",
-              routeName: rObj?.routeName || app.busRoute || "Route A",
-              pickupPoint:
-                pObj?.pickupName || app.pickupPoint || "Miyapur Junction",
+              routeId: rObj?.id || app.routeId || "",
+              routeName: rObj?.routeName || app.busRoute || "",
+              pickupPoint: pObj?.pickupName || app.pickupPoint || "",
               feePlan: (ftc?.feePlan || "Quarterly") as any,
               feeAmount: trpFee,
               effectiveFrom: new Date().toISOString().split("T")[0],
