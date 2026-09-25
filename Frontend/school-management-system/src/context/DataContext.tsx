@@ -1755,9 +1755,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => {
     const stored = getStored("exam_marks", initialExamMarks);
-    const version = localStorage.getItem("edu_db_full_exam_marks_v61");
-    if (!version || stored.length < initialExamMarks.length) {
-      localStorage.setItem("edu_db_full_exam_marks_v61", "true");
+    if (!stored || stored.length === 0) {
       localStorage.setItem(
         "edu_db_exam_marks",
         JSON.stringify(initialExamMarks),
@@ -9672,7 +9670,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    createFeePaymentApi(newPayment).catch((err) => {
+    FinanceAPI.createFeePaymentApi(newPayment).catch((err: any) => {
       console.warn("Backend create fee payment fallback to local state", err);
     });
 

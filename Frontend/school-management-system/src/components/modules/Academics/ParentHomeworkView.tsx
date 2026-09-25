@@ -3,13 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, Menu } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
-import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
+import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
 
 export const ParentHomeworkView: React.FC = () => {
-  const { students = [], admissions = [], homework, subjects: systemSubjects = [], fetchHomeworkData } = useData();
-  const { user, role } = useAuth();
+  const { homework, subjects: systemSubjects = [], fetchHomeworkData } = useData();
+  const { role } = useAuth();
+  const parentWards = useParentWards();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
-  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
   const [filterSubject, setFilterSubject] = useState('All');
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Closed'>('Upcoming');
@@ -22,159 +22,10 @@ export const ParentHomeworkView: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchChildren = async () => {
-      try {
-        const children = await getParentChildren(user?.email);
-        if (isMounted) {
-          setApiChildren(children || []);
-        }
-      } catch (err) {
-        console.warn('Failed to load parent children in homework view:', err);
-      }
-    };
-    fetchChildren();
-    return () => { isMounted = false; };
-  }, [user?.email]);
 
-  // Match children for Parent or Student role
-  let parentWards: any[] = [];
-  const userRoleStr = (user?.role || role || '').toString().toLowerCase();
-  const isStudentUser = userRoleStr.includes('student');
-  const userEmail = (user?.email || '').toLowerCase().trim();
-  const userPhone = (user?.phone || '').replace(/\D/g, '');
-  const userId = String(user?.id || '').trim().toLowerCase();
-  const userName = (user?.name || '').trim().toLowerCase();
 
-  if (isStudentUser) {
-    const matched = (students || []).find(s => {
-      if (!s) return false;
-      const sId = String(s.id || '').trim().toLowerCase();
-      const sAdm = String(s.admissionNo || (s as any).admissionNumber || '').trim().toLowerCase();
-      const sRoll = String((s as any).rollNo || (s as any).rollNumber || '').trim().toLowerCase();
-      const sEmail = (s.email || '').trim().toLowerCase();
-      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
 
-      if (userId && (sId === userId || sAdm === userId || sRoll === userId)) return true;
-      if (userEmail && sEmail === userEmail) return true;
-      if (userPhone && userPhone.length >= 7) {
-        const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
-        if (sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
-      }
-      if (userName && (sName === userName || (s.firstName && userName.includes(s.firstName.toLowerCase())))) return true;
-      return false;
-    });
 
-    if (matched) {
-      parentWards = [{
-        id: String(matched.id),
-        studentId: matched.id,
-        rollNo: (matched as any).rollNo || (matched as any).rollNumber || String(matched.id),
-        firstName: matched.firstName || '',
-        lastName: matched.lastName || '',
-        studentName: `${matched.firstName || ''} ${matched.lastName || ''}`.trim() || matched.firstName || '',
-        className: matched.className || (matched as any).class || '',
-        section: matched.section || '',
-        status: matched.status || 'Active'
-      }];
-    } else {
-      parentWards = [{
-        id: user?.id || '',
-        studentId: user?.id || '',
-        rollNo: (user as any)?.rollNo || user?.id || '',
-        firstName: user?.name?.split(' ')[0] || '',
-        lastName: user?.name?.split(' ').slice(1).join(' ') || '',
-        studentName: user?.name || '',
-        className: (user as any)?.className || (user as any)?.class || (user as any)?.grade || '',
-        section: (user as any)?.section || '',
-        status: 'Active'
-      }];
-    }
-  } else if (apiChildren.length > 0) {
-    parentWards = apiChildren.map(c => ({
-      id: String(c.studentId),
-      studentId: c.studentId,
-      rollNo: c.rollNumber || String(c.studentId),
-      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : ''),
-      lastName: c.lastName || '',
-      studentName: c.studentName || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
-      className: c.className || '',
-      section: c.sectionName || c.section || '',
-      status: 'Active'
-    }));
-  } else {
-    const studentMatches = (students || []).filter(s => {
-      if (s.status === 'Deleted' || s.status === 'Inactive') return false;
-      const sEmail = (s.email || '').toLowerCase().trim();
-      const pEmail = ((s as any).parentEmail || s.guardianEmail || s.contactEmail || '').toLowerCase().trim();
-      const fPhone = ((s as any).fatherMobile || (s as any).fatherPhone || s.phone || '').replace(/\D/g, '');
-      const mPhone = ((s as any).motherMobile || (s as any).motherPhone || '').replace(/\D/g, '');
-
-      const emailMatch = userEmail && (sEmail === userEmail || pEmail === userEmail);
-      const phoneMatch = userPhone && userPhone.length >= 7 && (
-        (fPhone && (fPhone.endsWith(userPhone) || userPhone.endsWith(fPhone))) ||
-        (mPhone && (mPhone.endsWith(userPhone) || userPhone.endsWith(mPhone)))
-      );
-      return emailMatch || phoneMatch;
-    }).map(s => ({
-      id: String(s.id),
-      studentId: s.id,
-      rollNo: (s as any).rollNo || String(s.id),
-      firstName: s.firstName || '',
-      lastName: s.lastName || '',
-      studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim(),
-      className: s.className || (s as any).class || '',
-      section: s.section || '',
-      status: s.status || 'Active'
-    }));
-
-    const admissionMatches = (admissions || []).filter(a => {
-      if (a.status === 'Rejected' || a.status === 'Cancelled' || a.status === 'Deleted') return false;
-      const aEmail = (a.email || (a as any).parentEmail || '').toLowerCase().trim();
-      const aPhone = (a.phone || (a as any).fatherMobileNo || (a as any).fatherContact || '').replace(/\D/g, '');
-      const aMPhone = ((a as any).motherPhone || (a as any).motherMobileNumber || '').replace(/\D/g, '');
-
-      const emailMatch = userEmail && aEmail === userEmail;
-      const phoneMatch = userPhone && userPhone.length >= 7 && (
-        (aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone))) ||
-        (aMPhone && (aMPhone.endsWith(userPhone) || userPhone.endsWith(aMPhone)))
-      );
-      return emailMatch || phoneMatch;
-    }).map(a => ({
-      id: String(a.id),
-      studentId: a.id,
-      rollNo: String(a.id),
-      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || '',
-      lastName: a.lastName || '',
-      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || '',
-      className: (a as any).appliedClass || (a as any).className || '',
-      section: (a as any).section || '',
-      status: 'Active'
-    }));
-
-    const combined = [...studentMatches, ...admissionMatches];
-    const unique = new Map();
-    combined.forEach(w => {
-      const key = `${w.studentName.toLowerCase()}_${w.className.toLowerCase()}`;
-      if (!unique.has(key)) unique.set(key, w);
-    });
-    parentWards = Array.from(unique.values());
-
-    if (parentWards.length === 0 && students.length > 0) {
-      parentWards = students.slice(0, 3).map(s => ({
-        id: String(s.id),
-        studentId: s.id,
-        rollNo: (s as any).rollNo || String(s.id),
-        firstName: s.firstName || '',
-        lastName: s.lastName || '',
-        studentName: `${s.firstName || ''} ${s.lastName || ''}`.trim(),
-        className: s.className || (s as any).class || '',
-        section: s.section || '',
-        status: s.status || 'Active'
-      }));
-    }
-  }
 
   if (parentWards.length === 0) {
     return (
@@ -369,23 +220,11 @@ export const ParentHomeworkView: React.FC = () => {
       </div>
 
       {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
-      {role !== 'Student' && (
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max overflow-x-auto max-w-full">
-          {parentWards.map((ward, idx) => (
-            <button
-              key={ward.id}
-              onClick={() => setSelectedChildIdx(idx)}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-                selectedChildIdx === idx
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              {ward.firstName} {ward.lastName} <span className="text-[10px] font-medium opacity-70 ml-1">({ward.className}-{ward.section})</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <ParentStudentSelector
+        wards={parentWards}
+        selectedIndex={selectedChildIdx}
+        onSelect={setSelectedChildIdx}
+      />
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         
