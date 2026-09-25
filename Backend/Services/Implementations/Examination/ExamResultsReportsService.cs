@@ -71,12 +71,63 @@ public class ExamResultsReportsService : IExamResultsReportsService
             CalculatedAt = DateTime.UtcNow
         }).ToList();
 
+        // Also save all subject marks to new_student_marks_entries
+        var markEntries = new List<NewStudentMarksEntry>();
+        foreach (var r in request.Results)
+        {
+            if (r.SubjectMarks != null && r.SubjectMarks.Any())
+            {
+                foreach (var sub in r.SubjectMarks)
+                {
+                    decimal obtained = 0;
+                    string attendanceStatus = "Present";
+                    if (sub.ObtainedMarks != null)
+                    {
+                        string obtStr = sub.ObtainedMarks.ToString() ?? "";
+                        if (obtStr.Equals("AB", StringComparison.OrdinalIgnoreCase) || obtStr.Equals("Absent", StringComparison.OrdinalIgnoreCase))
+                        {
+                            attendanceStatus = "Absent";
+                        }
+                        else
+                        {
+                            decimal.TryParse(obtStr, out obtained);
+                        }
+                    }
+
+                    markEntries.Add(new NewStudentMarksEntry
+                    {
+                        ExamId = r.ExamId > 0 ? r.ExamId : request.ExamId,
+                        ClassName = !string.IsNullOrWhiteSpace(r.ClassName) ? r.ClassName : request.ClassName,
+                        SectionName = !string.IsNullOrWhiteSpace(r.SectionName) ? r.SectionName : request.SectionName,
+                        SubjectCode = !string.IsNullOrWhiteSpace(sub.SubjectCode) ? sub.SubjectCode : sub.Subject,
+                        SubjectName = sub.Subject,
+                        RollNo = r.RollNo ?? string.Empty,
+                        StudentName = r.StudentName ?? string.Empty,
+                        AdmissionNo = r.AdmissionNo ?? string.Empty,
+                        AttendanceStatus = attendanceStatus,
+                        MarksObtained = obtained,
+                        MaxMarks = sub.MaxMarks > 0 ? sub.MaxMarks : 100,
+                        Grade = sub.Grade ?? string.Empty,
+                        EvaluatorRemarks = string.Empty,
+                        Status = "Submitted",
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+        }
+
+        if (markEntries.Any())
+        {
+            await _marksRepository.SaveBulkMarksEntriesAsync(markEntries);
+        }
+
         return await _repository.SaveBulkResultsAsync(entities);
     }
 
     public async Task<List<StudentReportCardRowDto>> GetReportCardsListAsync(string? className, string? sectionName, string? search, string? statusFilter)
     {
         var results = await _repository.GetExamResultsAsync(className, sectionName);
+        var allMarks = await _marksRepository.GetAllMarksForClassSectionAsync(className, sectionName);
 
         var query = results.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(search))
@@ -91,22 +142,43 @@ public class ExamResultsReportsService : IExamResultsReportsService
             query = query.Where(r => r.ResultStatus.Equals(statusFilter, StringComparison.OrdinalIgnoreCase));
         }
 
-        return query.Select(r => new StudentReportCardRowDto
+        return query.Select(r =>
         {
-            ResultId = r.ResultId,
-            StudentId = r.StudentId,
-            ExamId = r.ExamId,
-            ClassName = r.ClassName,
-            SectionName = r.SectionName,
-            RollNo = r.RollNo,
-            StudentName = r.StudentName,
-            AdmissionNo = r.AdmissionNo,
-            TotalMarksObtained = r.TotalMarksObtained,
-            TotalMaxMarks = r.TotalMaxMarks,
-            Percentage = r.Percentage,
-            Grade = r.Grade,
-            Rank = r.Rank,
-            ResultStatus = r.ResultStatus
+            var stMarks = allMarks.Where(m =>
+                (!string.IsNullOrWhiteSpace(r.RollNo) && m.RollNo.Equals(r.RollNo, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(r.AdmissionNo) && m.AdmissionNo.Equals(r.AdmissionNo, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(r.StudentName) && m.StudentName.Equals(r.StudentName, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            var subjectMarks = stMarks.Select(m => new StudentReportSubjectMarkDto
+            {
+                Subject = !string.IsNullOrWhiteSpace(m.SubjectName) ? m.SubjectName : m.SubjectCode,
+                SubjectCode = m.SubjectCode,
+                MaxMarks = m.MaxMarks,
+                PassMarks = 0,
+                ObtainedMarks = m.AttendanceStatus.Equals("Absent", StringComparison.OrdinalIgnoreCase) ? "AB" : (object)m.MarksObtained,
+                Grade = m.Grade ?? string.Empty,
+                Status = m.AttendanceStatus.Equals("Absent", StringComparison.OrdinalIgnoreCase) ? "Absent" : (m.Status ?? string.Empty)
+            }).ToList();
+
+            return new StudentReportCardRowDto
+            {
+                ResultId = r.ResultId,
+                StudentId = r.StudentId,
+                ExamId = r.ExamId,
+                ClassName = r.ClassName,
+                SectionName = r.SectionName,
+                RollNo = r.RollNo,
+                StudentName = r.StudentName,
+                AdmissionNo = r.AdmissionNo,
+                TotalMarksObtained = r.TotalMarksObtained,
+                TotalMaxMarks = r.TotalMaxMarks,
+                Percentage = r.Percentage,
+                Grade = r.Grade,
+                Rank = r.Rank,
+                ResultStatus = r.ResultStatus,
+                SubjectMarks = subjectMarks
+            };
         }).ToList();
     }
 
@@ -125,7 +197,23 @@ public class ExamResultsReportsService : IExamResultsReportsService
 
         if (studentResult == null) return null;
 
-        var scores = new List<SubjectMarksConfigItemDto>();
+        var allMarks = await _marksRepository.GetAllMarksForClassSectionAsync(studentResult.ClassName, studentResult.SectionName);
+        var stMarks = allMarks.Where(m =>
+            (!string.IsNullOrWhiteSpace(studentResult.RollNo) && m.RollNo.Equals(studentResult.RollNo, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(studentResult.AdmissionNo) && m.AdmissionNo.Equals(studentResult.AdmissionNo, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(studentResult.StudentName) && m.StudentName.Equals(studentResult.StudentName, StringComparison.OrdinalIgnoreCase))
+        ).ToList();
+
+        var scores = stMarks.Select(m => new StudentReportSubjectMarkDto
+        {
+            Subject = !string.IsNullOrWhiteSpace(m.SubjectName) ? m.SubjectName : m.SubjectCode,
+            SubjectCode = m.SubjectCode,
+            MaxMarks = m.MaxMarks,
+            PassMarks = 0,
+            ObtainedMarks = m.AttendanceStatus.Equals("Absent", StringComparison.OrdinalIgnoreCase) ? "AB" : (object)m.MarksObtained,
+            Grade = m.Grade ?? string.Empty,
+            Status = m.AttendanceStatus.Equals("Absent", StringComparison.OrdinalIgnoreCase) ? "Absent" : (m.Status ?? string.Empty)
+        }).ToList();
 
         return new ReportCardPrintDetailDto
         {
@@ -143,7 +231,8 @@ public class ExamResultsReportsService : IExamResultsReportsService
             Grade = studentResult.Grade,
             ResultStatus = studentResult.ResultStatus,
             OverallResult = studentResult.ResultStatus,
-            SubjectScores = scores
+            SubjectScores = scores,
+            SubjectMarks = scores
         };
     }
 

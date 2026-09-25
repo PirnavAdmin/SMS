@@ -15,13 +15,13 @@ public class TimetableSlotItemDto
     public int SlotId { get; set; }
     public string SubjectCode { get; set; } = string.Empty;
     public string SubjectName { get; set; } = string.Empty;
-    public int TotalMarks { get; set; } = 100;
-    public string SubjectDisplay => $"{SubjectName} ({SubjectCode} • {TotalMarks}M)";
-    public string ExamDate { get; set; } = "2026-08-09";
-    public string TimeSlot { get; set; } = "09:00 - 12:00";
-    public string Duration { get; set; } = "3h";
-    public string RoomHall { get; set; } = "TBA";
-    public string InvigilatorFaculty { get; set; } = "Unassigned";
+    public int TotalMarks { get; set; }
+    public string SubjectDisplay => TotalMarks > 0 ? $"{SubjectName} ({SubjectCode} • {TotalMarks}M)" : $"{SubjectName} ({SubjectCode})";
+    public string ExamDate { get; set; } = string.Empty;
+    public string TimeSlot { get; set; } = string.Empty;
+    public string Duration { get; set; } = string.Empty;
+    public string RoomHall { get; set; } = string.Empty;
+    public string InvigilatorFaculty { get; set; } = string.Empty;
 }
 
 public class ClassSectionScheduleResponseDto

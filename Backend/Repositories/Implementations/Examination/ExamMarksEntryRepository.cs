@@ -44,6 +44,45 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             .ToList();
     }
 
+    public async Task<List<NewStudentMarksEntry>> GetAllMarksForClassSectionAsync(string? className = null, string? sectionName = null)
+    {
+        try
+        {
+            var query = _context.NewStudentMarksEntries.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(m => m.ClassName == className);
+            }
+            if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                string cleanSec = sectionName.Replace("Section ", "").Trim();
+                query = query.Where(m => m.SectionName == sectionName || m.SectionName == cleanSec || m.SectionName == "Section " + cleanSec);
+            }
+
+            var dbEntries = await query.ToListAsync();
+            if (dbEntries != null && dbEntries.Any())
+                return dbEntries;
+        }
+        catch
+        {
+            // Fallback
+        }
+
+        var memQuery = _inMemoryMarks.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            memQuery = memQuery.Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+        }
+        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanSec = sectionName.Replace("Section ", "").Trim();
+            memQuery = memQuery.Where(m => m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                                           m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                                           m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
+        }
+        return memQuery.ToList();
+    }
+
     public async Task<bool> SaveMarksEntriesAsync(string className, string sectionName, string subjectCode, List<NewStudentMarksEntry> entries, bool isFinalSubmit)
     {
         string statusText = isFinalSubmit ? "Submitted" : "Draft";
@@ -80,6 +119,55 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
                                       m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
                                       m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
         _inMemoryMarks.AddRange(entries);
+
+        return true;
+    }
+
+    public async Task<bool> SaveBulkMarksEntriesAsync(List<NewStudentMarksEntry> entries)
+    {
+        if (entries == null || !entries.Any()) return true;
+
+        try
+        {
+            var classNames = entries.Select(e => e.ClassName).Distinct().ToList();
+            var sectionNames = entries.Select(e => e.SectionName).Distinct().ToList();
+            var subjectCodes = entries.Select(e => e.SubjectCode).Distinct().ToList();
+
+            var existingDb = await _context.NewStudentMarksEntries
+                .Where(m => classNames.Contains(m.ClassName) && sectionNames.Contains(m.SectionName) && subjectCodes.Contains(m.SubjectCode))
+                .ToListAsync();
+
+            if (existingDb.Any())
+            {
+                var toRemove = existingDb.Where(ex => entries.Any(e => e.ClassName == ex.ClassName && e.SectionName == ex.SectionName && e.SubjectCode == ex.SubjectCode && (e.RollNo == ex.RollNo || e.AdmissionNo == ex.AdmissionNo))).ToList();
+                if (toRemove.Any())
+                {
+                    _context.NewStudentMarksEntries.RemoveRange(toRemove);
+                }
+            }
+
+            foreach (var e in entries)
+            {
+                e.EntryId = 0;
+                e.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.NewStudentMarksEntries.AddRangeAsync(entries);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Fallback
+        }
+
+        foreach (var e in entries)
+        {
+            _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(e.ClassName, StringComparison.OrdinalIgnoreCase) &&
+                                          m.SectionName.Equals(e.SectionName, StringComparison.OrdinalIgnoreCase) &&
+                                          m.SubjectCode.Equals(e.SubjectCode, StringComparison.OrdinalIgnoreCase) &&
+                                          (m.RollNo.Equals(e.RollNo, StringComparison.OrdinalIgnoreCase) || m.AdmissionNo.Equals(e.AdmissionNo, StringComparison.OrdinalIgnoreCase)));
+            _inMemoryMarks.Add(e);
+        }
 
         return true;
     }

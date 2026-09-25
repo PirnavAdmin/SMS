@@ -10,6 +10,17 @@ public class ResultsReportsOptionsDto
     public List<string> RankOrders { get; set; } = new List<string> { "Ascending", "Descending" };
 }
 
+public class StudentReportSubjectMarkDto
+{
+    public string Subject { get; set; } = string.Empty;
+    public string SubjectCode { get; set; } = string.Empty;
+    public decimal MaxMarks { get; set; }
+    public decimal PassMarks { get; set; }
+    public object? ObtainedMarks { get; set; }
+    public string Grade { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+}
+
 public class StudentReportCardRowDto
 {
     public int ResultId { get; set; }
@@ -28,6 +39,7 @@ public class StudentReportCardRowDto
     public string PercentageDisplay => $"{Percentage:F1}%";
     public string Grade { get; set; } = string.Empty;
     public string ResultStatus { get; set; } = string.Empty;
+    public List<StudentReportSubjectMarkDto> SubjectMarks { get; set; } = new List<StudentReportSubjectMarkDto>();
 }
 
 public class BulkSaveExamResultsDto
@@ -54,7 +66,8 @@ public class ReportCardPrintDetailDto
     public string Grade { get; set; } = string.Empty;
     public string ResultStatus { get; set; } = string.Empty;
     public string OverallResult { get; set; } = string.Empty;
-    public List<SubjectMarksConfigItemDto> SubjectScores { get; set; } = new List<SubjectMarksConfigItemDto>();
+    public List<StudentReportSubjectMarkDto> SubjectScores { get; set; } = new List<StudentReportSubjectMarkDto>();
+    public List<StudentReportSubjectMarkDto> SubjectMarks { get; set; } = new List<StudentReportSubjectMarkDto>();
 }
 
 public class CalculateResultsRequestDto

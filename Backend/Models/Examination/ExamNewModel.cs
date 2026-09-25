@@ -29,7 +29,7 @@ public class NewExamSubjectConfig
     public string SubjectCode { get; set; } = string.Empty;
     public string SubjectName { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
-    public decimal MaxMarks { get; set; } = 100;
-    public decimal PassMarks { get; set; } = 35;
+    public decimal MaxMarks { get; set; }
+    public decimal PassMarks { get; set; }
 }
 
