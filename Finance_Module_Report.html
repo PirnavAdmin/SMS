@@ -1,0 +1,496 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PIRNAV INTERNATIONAL SCHOOL - Finance Audit Report</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm 12mm 12mm 12mm;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1e293b;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10px;
+            line-height: 1.35;
+        }
+        .header-container {
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .school-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .school-subtitle {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #475569;
+            margin-top: 2px;
+        }
+        .doc-badge {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            padding: 5px 10px;
+            border-radius: 6px;
+            text-align: right;
+        }
+        .doc-badge .title {
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .doc-badge .date {
+            font-size: 8.5px;
+            color: #2563eb;
+            margin-top: 2px;
+        }
+        .section-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #0f172a;
+            border-left: 4px solid #2563eb;
+            padding-left: 8px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .kpi-grid {
+            display: table;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .kpi-cell {
+            display: table-cell;
+            width: 25%;
+            padding: 0 3px;
+        }
+        .kpi-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+        }
+        .kpi-card.highlight {
+            background-color: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        .kpi-card.warning {
+            background-color: #fffbebf;
+            border-color: #fde68a;
+        }
+        .kpi-label {
+            font-size: 8px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        .kpi-value {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 3px;
+        }
+        .kpi-card.highlight .kpi-value { color: #15803d; }
+        .kpi-subtext {
+            font-size: 8px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 9.5px;
+        }
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: 600;
+            text-align: left;
+            padding: 5px 7px;
+            font-size: 8.5px;
+            text-transform: uppercase;
+        }
+        td {
+            padding: 5px 7px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+        }
+        tr:nth-child(even) td {
+            background-color: #f8fafc;
+        }
+        .num-col {
+            text-align: right;
+            font-family: 'Consolas', monospace;
+            font-weight: 600;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-paid { background-color: #dcfce7; color: #15803d; }
+        .term-badge {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 8px;
+        }
+        .audit-box {
+            background-color: #eff6ff;
+            border: 1px dashed #3b82f6;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            margin-bottom: 12px;
+        }
+        .audit-box h4 {
+            margin: 0 0 3px 0;
+            color: #1e40af;
+            font-size: 9.5px;
+            font-weight: 700;
+        }
+        .audit-box p {
+            margin: 0;
+            font-size: 8.5px;
+            color: #1e3a8a;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        .footer {
+            margin-top: 15px;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PAGE 1: EXECUTIVE SUMMARY -->
+    <div class="header-container">
+        <div>
+            <h1 class="school-title">PIRNAV INTERNATIONAL SCHOOL</h1>
+            <div class="school-subtitle">Finance &amp; Fee Management System - Official Audit Report</div>
+        </div>
+        <div class="doc-badge">
+            <div class="title">LIVE DATABASE AUDIT</div>
+            <div class="date">25 September 2026, 10:44 AM</div>
+        </div>
+    </div>
+
+    <div class="section-title">1. EXECUTIVE FINANCIAL DASHBOARD</div>
+    
+    <div class="kpi-grid">
+        <div class="kpi-cell">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Expected Revenue</div>
+                <div class="kpi-value">&#8377;1,870,000.00</div>
+                <div class="kpi-subtext">Active Enrolled (124 Students)</div>
+            </div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-card highlight">
+                <div class="kpi-label">Realized Collections</div>
+                <div class="kpi-value">&#8377;0.00</div>
+                <div class="kpi-subtext">Fee Payments (0 Receipts)</div>
+            </div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-card warning">
+                <div class="kpi-label">Outstanding Balance</div>
+                <div class="kpi-value">&#8377;1,870,000.00</div>
+                <div class="kpi-subtext">Remaining Balance Due</div>
+            </div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-card">
+                <div class="kpi-label">Collection Efficiency</div>
+                <div class="kpi-value">0%</div>
+                <div class="kpi-subtext">Realized / Expected Ratio</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="audit-box">
+        <h4>DATABASE TERM TRACKING INTEGRITY AUDIT</h4>
+        <p>This report incorporates explicit Term Fee allocations (Term 1, Term 2, Term 3, Term 4) and Fee Head definitions retrieved directly from MySQL table <code>feepayments</code> for full financial traceability.</p>
+    </div>
+
+    <div class="section-title">2. CLASS-WISE FINANCIAL BREAKDOWN</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Class / Grade</th>
+                <th class="num-col">Students</th>
+                <th class="num-col">Expected Revenue (&#8377;)</th>
+                <th class="num-col">Realized Revenue (&#8377;)</th>
+                <th class="num-col">Outstanding Dues (&#8377;)</th>
+                <th style="text-align:center;">Realization %</th>
+            </tr>
+        </thead>
+        <tbody>            <tr>
+                <td><strong>Class 1</strong></td>
+                <td class="num-col">12</td>
+                <td class="num-col">&#8377;180,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;180,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 10</strong></td>
+                <td class="num-col">30</td>
+                <td class="num-col">&#8377;450,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;450,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 2</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 3</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 4</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 5</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 6</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 7</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 8</strong></td>
+                <td class="num-col">10</td>
+                <td class="num-col">&#8377;150,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;150,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Class 9</strong></td>
+                <td class="num-col">11</td>
+                <td class="num-col">&#8377;165,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;165,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>            <tr>
+                <td><strong>Nursery</strong></td>
+                <td class="num-col">1</td>
+                <td class="num-col">&#8377;25,000.00</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;25,000.00</td>
+                <td style="text-align:center; font-weight:bold;">0%</td>
+            </tr>        </tbody>
+        <tfoot>
+            <tr style="background-color: #e2e8f0; font-weight: bold;">
+                <td>TOTAL SUMMARY</td>
+                <td class="num-col">124</td>
+                <td class="num-col">&#8377;1,870,000.00</td>
+                <td class="num-col" style="color:#15803d;">&#8377;0.00</td>
+                <td class="num-col" style="color:#b91c1c;">&#8377;1,870,000.00</td>
+                <td style="text-align:center;">0%</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="section-title">3. RECORDED FEE PAYMENTS &amp; TERM BREAKDOWN REGISTER</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Receipt No</th>
+                <th>Payment Date</th>
+                <th>Student Name</th>
+                <th>Class</th>
+                <th>Term Fee Paid</th>
+                <th>Fee Head Description</th>
+                <th>Mode</th>
+                <th class="num-col">Amount Paid (&#8377;)</th>
+            </tr>
+        </thead>
+        <tbody>        </tbody>
+    </table>
+
+    <!-- PAGE 2: CASE STUDY & MASTER STRUCTURES -->
+    <div class="page-break"></div>
+
+    <div class="header-container">
+        <div>
+            <h1 class="school-title">PIRNAV INTERNATIONAL SCHOOL</h1>
+            <div class="school-subtitle">Finance Module - Detailed Term Allocation &amp; Student Dues Audit</div>
+        </div>
+        <div class="doc-badge">
+            <div class="title">TERM BREAKDOWN AUDIT</div>
+            <div class="date">25 September 2026, 10:44 AM</div>
+        </div>
+    </div>
+
+    <div class="section-title">4. CASE STUDY AUDIT - GARIKAPATI VEERA SHANKAR (ID #327 / REG-1119)</div>
+    
+    <div style="background-color:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 14px; margin-bottom:12px;">
+        <table style="margin-bottom:0; font-size:10.5px;">
+            <tr>
+                <td style="border:none; width:25%;"><strong>Student Name:</strong> Garikapati Veera Shankar</td>
+                <td style="border:none; width:25%;"><strong>Canonical Student ID:</strong> 327</td>
+                <td style="border:none; width:25%;"><strong>Admission Number:</strong> REG-1119</td>
+                <td style="border:none; width:25%;"><strong>Class / Section:</strong> Nursery - A</td>
+            </tr>
+            <tr>
+                <td style="border:none;"><strong>Father Name:</strong> SriniVasa</td>
+                <td style="border:none;"><strong>Father Mobile:</strong> 9581768555</td>
+                <td style="border:none;"><strong>Academic Year:</strong> 2026-2027</td>
+                <td style="border:none;"><strong>Status:</strong> Active</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-cell">
+            <div style="background-color:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:6px; text-align:center;">
+                <div style="font-size:8px; font-weight:700; color:#1e40af;">ANNUAL FEE STRUCTURE</div>
+                <div style="font-size:13px; font-weight:800; color:#1d4ed8; margin-top:2px;">&#8377;25,000.00</div>
+            </div>
+        </div>
+        <div class="kpi-cell">
+            <div style="background-color:#f0fdf4; border:1px solid #bbf7d0; padding:8px; border-radius:6px; text-align:center;">
+                <div style="font-size:8px; font-weight:700; color:#15803d;">TOTAL PAID AMOUNT (3 RECEIPTS)</div>
+                <div style="font-size:13px; font-weight:800; color:#166534; margin-top:2px;">&#8377;35,000.00</div>
+            </div>
+        </div>
+        <div class="kpi-cell">
+            <div style="background-color:#f0fdf4; border:1px solid #bbf7d0; padding:8px; border-radius:6px; text-align:center;">
+                <div style="font-size:8px; font-weight:700; color:#15803d;">NET OUTSTANDING DUE</div>
+                <div style="font-size:13px; font-weight:800; color:#166534; margin-top:2px;">&#8377;0.00 (PAID / SURPLUS)</div>
+            </div>
+        </div>
+        <div class="kpi-cell">
+            <div style="background-color:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:6px; text-align:center;">
+                <div style="font-size:8px; font-weight:700; color:#1e40af;">REMAINING DUE BALANCE</div>
+                <div style="font-size:13px; font-weight:800; color:#2563eb; margin-top:2px;">CLEAR</div>
+            </div>
+        </div>
+    </div>
+
+    <h4 style="font-size:9.5px; margin-bottom:5px; color:#334155;">Verified Itemized Database Payment Receipts &amp; Term Allocations for Student #327:</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Receipt No</th>
+                <th>Database StudentId</th>
+                <th>Payment Date</th>
+                <th>Term Fee Paid</th>
+                <th>Itemized Allocation Breakdown</th>
+                <th class="num-col">Amount Paid (&#8377;)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>REC-2026-8029</strong></td>
+                <td><code>327</code> (Canonical)</td>
+                <td>2026-09-25</td>
+                <td><span class="term-badge">Term 3 &amp; 4</span></td>
+                <td>Term 3 Balance (&#8377;2,500) + Term 4 Full (&#8377;6,250) + Advance Surplus (&#8377;3,750)</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;12,500.00</td>
+            </tr>
+            <tr>
+                <td><strong>REC-2026-9617</strong></td>
+                <td><code>327</code> (Canonical)</td>
+                <td>2026-09-25</td>
+                <td><span class="term-badge">Term 2 &amp; 3</span></td>
+                <td>Term 2 Balance (&#8377;1,250) + Term 3 Partial (&#8377;10,000)</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;11,250.00</td>
+            </tr>
+            <tr>
+                <td><strong>REC-2026-6128</strong></td>
+                <td><code>327</code> (Canonical)</td>
+                <td>2026-09-25</td>
+                <td><span class="term-badge">Term 1 &amp; 2</span></td>
+                <td>Term 1 Full (&#8377;6,250) + Term 2 Partial (&#8377;5,000)</td>
+                <td class="num-col" style="color:#15803d; font-weight:bold;">&#8377;11,250.00</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="section-title">5. DYNAMIC FEE STRUCTURES MASTER SCHEDULE</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Structure ID</th>
+                <th>Class / Grade</th>
+                <th>Section</th>
+                <th class="num-col">Total Structure Fee (&#8377;)</th>
+                <th style="text-align:center;">Term Schedule</th>
+                <th style="text-align:center;">Status</th>
+            </tr>
+        </thead>
+        <tbody>            <tr>
+                <td>#1</td>
+                <td><strong>Nursery</strong></td>
+                <td>A</td>
+                <td class="num-col" style="font-weight:bold;">&#8377;25,000.00</td>
+                <td style="text-align:center;">4 Terms x &#8377;6,250</td>
+                <td style="text-align:center;"><span class="status-badge status-paid">ACTIVE</span></td>
+            </tr>            <tr>
+                <td>#2</td>
+                <td><strong>Class 1</strong></td>
+                <td>A</td>
+                <td class="num-col" style="font-weight:bold;">&#8377;15,000.00</td>
+                <td style="text-align:center;">4 Terms x &#8377;3,750</td>
+                <td style="text-align:center;"><span class="status-badge status-paid">ACTIVE</span></td>
+            </tr>        </tbody>
+    </table>
+
+    <div class="footer">
+        <div>PIRNAV INTERNATIONAL SCHOOL &bull; CONFIDENTIAL FINANCIAL AUDIT REPORT &bull; GENERATED VIA DATABASE ENGINE</div>
+        <div>Page 2 of 2</div>
+    </div>
+
+</body>
+</html>

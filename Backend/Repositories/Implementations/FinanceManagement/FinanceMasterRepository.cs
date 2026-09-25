@@ -192,39 +192,92 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     // 2. BANK ACCOUNTS & CATEGORIES
     // =========================================================================
 
-    public Task<List<FinancialAccountDto>> GetAccountsAsync()
+    public async Task<List<FinancialAccountDto>> GetAccountsAsync()
     {
-        return Task.FromResult(_accounts.ToList());
+        try
+        {
+            var dbAccounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
+            if (dbAccounts != null && dbAccounts.Count > 0)
+            {
+                return dbAccounts.Select(a => new FinancialAccountDto
+                {
+                    Id = a.Id,
+                    AccountName = a.Name ?? "",
+                    AccountType = a.Type ?? "Bank",
+                    AccountNumber = a.AccountNumberMasked ?? "",
+                    BankName = a.BankName ?? "",
+                    BranchName = "Main Campus",
+                    CurrentBalance = a.CurrentBalance,
+                    Status = a.Status ?? "Active"
+                }).ToList();
+            }
+        }
+        catch
+        {
+            // Table may not exist or query failed; fallback safely to empty list
+        }
+        return _accounts.ToList();
     }
 
-    public Task<FinancialAccountDto> CreateAccountAsync(FinancialAccountDto account)
+    public async Task<FinancialAccountDto> CreateAccountAsync(FinancialAccountDto account)
     {
-        account.Id = _accounts.Count + 1;
-        _accounts.Add(account);
-        return Task.FromResult(account);
+        var entity = new FinancialAccount
+        {
+            Name = account.AccountName,
+            Type = account.AccountType ?? "Bank",
+            AccountNumberMasked = account.AccountNumber ?? "",
+            BankName = account.BankName ?? "",
+            OpeningBalance = account.CurrentBalance,
+            CurrentBalance = account.CurrentBalance,
+            Status = account.Status ?? "Active"
+        };
+        _context.FinancialAccounts.Add(entity);
+        await _context.SaveChangesAsync();
+        account.Id = entity.Id;
+        return account;
     }
 
-    public Task<bool> UpdateAccountAsync(int id, FinancialAccountDto account)
+    public async Task<bool> UpdateAccountAsync(int id, FinancialAccountDto account)
     {
-        var existing = _accounts.FirstOrDefault(a => a.Id == id);
-        if (existing == null) return Task.FromResult(false);
+        var existing = await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == id);
+        if (existing == null)
+        {
+            var mem = _accounts.FirstOrDefault(a => a.Id == id);
+            if (mem == null) return false;
+            mem.AccountName = account.AccountName;
+            mem.AccountType = account.AccountType;
+            mem.AccountNumber = account.AccountNumber;
+            mem.BankName = account.BankName;
+            mem.BranchName = account.BranchName;
+            mem.CurrentBalance = account.CurrentBalance;
+            mem.Status = account.Status;
+            return true;
+        }
 
-        existing.AccountName = account.AccountName;
-        existing.AccountType = account.AccountType;
-        existing.AccountNumber = account.AccountNumber;
-        existing.BankName = account.BankName;
-        existing.BranchName = account.BranchName;
+        existing.Name = account.AccountName;
+        existing.Type = account.AccountType ?? existing.Type;
+        existing.AccountNumberMasked = account.AccountNumber ?? existing.AccountNumberMasked;
+        existing.BankName = account.BankName ?? existing.BankName;
         existing.CurrentBalance = account.CurrentBalance;
-        existing.Status = account.Status;
-        return Task.FromResult(true);
+        existing.Status = account.Status ?? existing.Status;
+        await _context.SaveChangesAsync();
+        return true;
     }
 
-    public Task<bool> DeleteAccountAsync(int id)
+    public async Task<bool> DeleteAccountAsync(int id)
     {
-        var existing = _accounts.FirstOrDefault(a => a.Id == id);
-        if (existing == null) return Task.FromResult(false);
-        _accounts.Remove(existing);
-        return Task.FromResult(true);
+        var existing = await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == id);
+        if (existing == null)
+        {
+            var mem = _accounts.FirstOrDefault(a => a.Id == id);
+            if (mem == null) return false;
+            _accounts.Remove(mem);
+            return true;
+        }
+
+        _context.FinancialAccounts.Remove(existing);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type)

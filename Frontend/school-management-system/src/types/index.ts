@@ -602,6 +602,7 @@ export interface FeePayment {
   id: string;
   receiptNo: string;
   studentId: string;
+  admissionNo?: string;
   studentName: string;
   className: string;
   amountPaid: number;
@@ -632,6 +633,8 @@ export interface FeePayment {
   selectedInstallmentIds?: string[];
   amount?: number;
   feeHeadName?: string;
+  termName?: string;
+  paidItemsJson?: string;
   notes?: string;
 }
 

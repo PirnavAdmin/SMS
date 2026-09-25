@@ -98,8 +98,18 @@ public class FeeService : IFeeService
 
         var sidStr = student.StudentId.ToString();
         var admNo = student.AdmissionNumber ?? string.Empty;
+
+        var matchedAdmissions = await _context.Admissions.AsNoTracking()
+            .Where(a => (!string.IsNullOrEmpty(admNo) && a.ApplicationNo == admNo) || a.ApplicationNo == sidStr)
+            .Select(a => a.AdmissionId.ToString())
+            .ToListAsync();
+
+        var allStudentKeys = new HashSet<string> { sidStr };
+        if (!string.IsNullOrEmpty(admNo)) allStudentKeys.Add(admNo);
+        foreach (var id in matchedAdmissions) allStudentKeys.Add(id);
+
         var payments = await _context.FeePayments.AsNoTracking()
-            .Where(p => p.StudentId == sidStr || (!string.IsNullOrEmpty(admNo) && p.StudentId == admNo))
+            .Where(p => allStudentKeys.Contains(p.StudentId))
             .ToListAsync();
 
         decimal paid = payments.Sum(p => p.Amount);

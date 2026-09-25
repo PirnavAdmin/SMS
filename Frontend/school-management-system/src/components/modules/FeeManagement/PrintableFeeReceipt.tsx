@@ -5,6 +5,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { formatCurrency } from '../../../utils/currency';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import { numberToWords } from '../../../utils/numberToWords';
 
 interface PrintableFeeReceiptProps {
   payment: FeePayment | null;
@@ -13,283 +14,260 @@ interface PrintableFeeReceiptProps {
 }
 
 export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ payment, isOpen, onClose }) => {
-  const { schoolProfile, students, getStudentFeeLedger, studentFeeLedgers, financeSettings } = useData();
+  const { schoolProfile, students, admissions, financeSettings } = useData();
   const { selectedAcademicYear } = useAuth();
 
   if (!isOpen || !payment) return null;
 
-  const student = students.find(s => s.id === payment.studentId || String(s.id) === String(payment.studentId) || s.admissionNo === payment.studentId || (s.admissionNo && (payment.studentId && s.admissionNo.includes(payment.studentId))) || s.admissionNo === (payment as any).admissionNo);
+  // Resolve Student Info
+  const student =
+    students.find(s => s.id === payment.studentId || String(s.id) === String(payment.studentId) || s.admissionNo === payment.studentId || (s.admissionNo && payment.studentId && s.admissionNo.includes(payment.studentId)) || s.admissionNo === (payment as any).admissionNo) ||
+    (admissions || []).find(a => a.id === payment.studentId || String(a.id) === String(payment.studentId) || a.applicationNo === payment.studentId || (a as any).registrationNo === payment.studentId || a.applicationNo === (payment as any).admissionNo || (a as any).registrationNo === (payment as any).admissionNo);
 
-  const studentName = student
-    ? `${student.firstName} ${student.lastName || ''}`.trim()
+  const rawStudentName = student
+    ? `${(student as any).firstName || (student as any).applicantName || ''} ${(student as any).lastName || ''}`.trim()
     : (payment.studentName && payment.studentName !== "Enrolled Student" ? payment.studentName : (payment.studentId ? `Student #${payment.studentId}` : "Enrolled Student"));
 
-  const className = student
-    ? `${student.className?.toLowerCase().startsWith("class") ? student.className : `Class ${student.className}`}${student.section ? `-${student.section}` : ''}`
-    : (payment.className && payment.className !== "—" ? payment.className : "Class 10-A");
+  const studentNameUpper = (rawStudentName || 'STUDENT').toUpperCase();
 
-  const admissionNo = student ? student.admissionNo : ((payment as any).admissionNo || (payment.studentId ? `REG-${payment.studentId}` : "REG-1001"));
-  const currentAY = selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+  const rawClass = student ? ((student as any).className || (student as any).appliedClass || "Nursery") : (payment.className && payment.className !== "—" ? payment.className : "Nursery");
+  const rawSec = student ? (student.section || "A") : "A";
+  const formattedClass = rawClass.toLowerCase().includes("nursery") || rawClass.toLowerCase().includes("lkg") || rawClass.toLowerCase().includes("ukg")
+    ? rawClass
+    : (rawClass.toLowerCase().startsWith("class") ? rawClass : `Class ${rawClass}`);
+  const classNameDisplay = `${formattedClass} - ${rawSec}`;
 
-  // Compute student's ledgers and installments across all academic years
-  const studentLedgers = student ? studentFeeLedgers.filter(l => l.studentId === student.id) : [];
-  const years = Array.from(new Set(studentLedgers.map(l => l.academicYear)));
+  const admissionNo = student ? (student.admissionNo || (student as any).applicationNo || (student as any).registrationNo) : ((payment as any).admissionNo || (payment.studentId ? `REG-${payment.studentId}` : "140516"));
+  const currentAY = payment.academicYear || selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
-  const allStudentInstallments = student
-    ? years.flatMap(yr => getStudentFeeLedger(student.id, yr)?.installments || [])
-    : [];
+  // Build fee table rows
+  let feeRows: Array<{ slNo: number; description: string; due: number; con: number; paid: number }> = [];
 
-  // Determine current remaining due amounts after payment
-  let currentYearDueAfter = allStudentInstallments
-    .filter(i => i.academicYear === currentAY)
-    .reduce((sum, i) => sum + (i.dueAmount || 0), 0);
-
-  let previousYearDueAfter = allStudentInstallments
-    .filter(i => i.academicYear !== currentAY)
-    .reduce((sum, i) => sum + (i.dueAmount || 0), 0);
-
-  // If payment object has stored previousDue value, ensure fallback
-  if (payment.previousDue && previousYearDueAfter < payment.previousDue) {
-    const allocToPrev = (payment.paymentAllocation || [])
-      .filter(a => a.academicYear !== currentAY)
-      .reduce((sum, a) => sum + a.amount, 0);
-    previousYearDueAfter = Math.max(0, payment.previousDue - allocToPrev);
+  if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
+    feeRows = payment.paymentAllocation.map((alloc, idx) => {
+      const paid = alloc.amount || 0;
+      const con = 0; // Concession allocated if applicable
+      const due = paid + con;
+      const desc = alloc.feeHeadName || alloc.termName || `Fee Item ${idx + 1}`;
+      return { slNo: idx + 1, description: desc, due, con, paid };
+    });
+  } else {
+    const paid = payment.amountPaid || payment.amount || 0;
+    const con = payment.discount || payment.discountAmount || 0;
+    const due = payment.grossAmount || (paid + con);
+    const desc = payment.feeHeadName || payment.notes || "Tuition / Academic Fees";
+    feeRows = [{ slNo: 1, description: desc, due, con, paid }];
   }
 
-  // Calculate allocation amounts in this transaction
-  const allocToCurrentYear = (payment.paymentAllocation || [])
-    .filter(a => a.academicYear === currentAY)
-    .reduce((sum, a) => sum + a.amount, 0);
+  // Determine Installment Label
+  let installmentLabel = "ANNUAL";
+  if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
+    const terms = Array.from(new Set(payment.paymentAllocation.map(a => a.termName).filter(Boolean)));
+    if (terms.length > 0) {
+      installmentLabel = terms.join(', ').toUpperCase();
+    }
+  } else if (payment.notes && payment.notes.trim() !== '') {
+    installmentLabel = payment.notes.toUpperCase();
+  }
 
-  const allocToPreviousYear = (payment.paymentAllocation || [])
-    .filter(a => a.academicYear !== currentAY)
-    .reduce((sum, a) => sum + a.amount, 0);
+  const schoolName = schoolProfile?.name || "Delhi Public School";
+  const schoolAddress = schoolProfile?.address || "Site No.1, Sector-45, Urban Estate, Gurgaon, Haryana";
+  const schoolPhone = schoolProfile?.phone ? ` • Ph: ${schoolProfile.phone}` : "";
 
-  // Calculate "Before Payment" totals
-  const currentYearPendingBefore = currentYearDueAfter + allocToCurrentYear;
-  const previousYearPendingBefore = previousYearDueAfter + allocToPreviousYear;
+  const receiptNo = payment.receiptNo || "43358";
+  const paymentDate = payment.paymentDate || new Date().toLocaleDateString('en-GB');
+  const payMode = payment.paymentMode || "Cash";
+  const bankName = payment.bankName || "-";
+  const transactionNumber = payment.chequeNo || payment.transactionId || "-";
+  const counterNo = (payment as any).receivedBy || "DPS-RECEIPT";
+  const remarksNote = payment.remarks || (payment as any).receiptNo || "356";
 
-  const totalOutstandingBefore = currentYearPendingBefore + previousYearPendingBefore;
-  const amountPaidNow = payment.amountPaid;
-  const totalPendingBalanceAfter = Math.max(0, totalOutstandingBefore - amountPaidNow);
+  const totalAmountPaid = payment.amountPaid || payment.amount || 0;
+  const amountWords = numberToWords(totalAmountPaid);
 
-  const receiptStatus = totalPendingBalanceAfter <= 0 ? 'PAID' : (payment.status || 'PARTIAL');
-  const gross = payment.grossAmount || (payment.amountPaid + (payment.discount || 0) - (payment.fine || 0));
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(receiptNo)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-receipt-modal, #printable-receipt-modal * {
+            visibility: visible !important;
+          }
+          #printable-receipt-modal {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 10mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: Arial, Helvetica, ui-sans-serif, system-ui, sans-serif !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Top Control Bar */}
-        <div className="p-4 bg-slate-100 dark:bg-slate-800 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
-          <h3 className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fee Payment Receipt ({payment.receiptNo})
+        <div className="p-4 bg-slate-100 dark:bg-slate-800 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 no-print">
+          <h3 className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-2 font-sans">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Printable Fee Receipt ({receiptNo})
           </h3>
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition-all"
+              className="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow cursor-pointer transition-all font-sans"
             >
-              <Printer className="w-3.5 h-3.5" /> Print / PDF
+              <Printer className="w-4 h-4" /> Print Receipt
             </button>
-            <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
+            <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Printable Area */}
-        <div id="printable-content" className="p-8 space-y-6 text-slate-900 dark:text-slate-100 text-xs bg-white dark:bg-slate-900 overflow-y-auto">
-          {/* Header */}
-          <div className="text-center space-y-1.5 pb-4 border-b border-slate-200 dark:border-slate-800">
-            {schoolProfile.logoUrl && (
-              <img
-                src={resolveMediaUrl(schoolProfile.logoUrl)}
-                alt="School Logo"
-                className="w-14 h-14 mx-auto object-contain mb-1"
-              />
-            )}
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">{schoolProfile.name}</h1>
-            <p className="text-[10px] text-slate-500">{schoolProfile.address} • Ph: {schoolProfile.phone}</p>
-            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 font-bold uppercase tracking-wider text-[10px]">
-              OFFICIAL FEE PAYMENT RECEIPT
-            </span>
-          </div>
+        {/* Printable Receipt Card Body */}
+        <div className="p-6 overflow-y-auto bg-white text-black font-sans text-xs leading-tight">
+          <div id="printable-receipt-modal" className="w-full mx-auto space-y-0 text-black font-sans">
+            {/* Main Receipt Outer Border Box */}
+            <div className="border border-black bg-white p-3 space-y-2 font-sans">
+              
+              {/* Header: Logo + School Info */}
+              <div className="flex items-center justify-center relative pb-2">
+                {schoolProfile?.logoUrl && (
+                  <img
+                    src={resolveMediaUrl(schoolProfile.logoUrl)}
+                    alt="School Logo"
+                    className="w-14 h-14 object-contain absolute left-1 top-0"
+                  />
+                )}
+                <div className="text-center px-12">
+                  <h1 className="text-2xl font-bold tracking-tight text-black font-sans">{schoolName}</h1>
+                  <p className="text-[11px] text-gray-800 font-sans mt-0.5">{schoolAddress}{schoolPhone}</p>
+                </div>
+              </div>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-            <div>
-              <p className="text-slate-400 font-medium">Receipt Number:</p>
-              <p className="font-mono font-bold text-sm text-slate-900 dark:text-white">{payment.receiptNo}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">Payment Date:</p>
-              <p className="font-bold text-slate-900 dark:text-white">{payment.paymentDate}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">Student Name:</p>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">{studentName}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">Class & Section:</p>
-              <p className="font-bold text-slate-900 dark:text-white">{className}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">Payment Mode:</p>
-              <p className="font-bold text-slate-900 dark:text-white">{payment.paymentMode} {payment.transactionId ? `(${payment.transactionId})` : ''}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">Status:</p>
-              <span className={`font-extrabold uppercase ${receiptStatus === 'PAID' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                {receiptStatus}
-              </span>
-            </div>
-          </div>
+              {/* Banner 1: FEE RECEIPT */}
+              <div className="bg-gray-200 text-black border-y border-black py-1 text-center font-bold text-sm tracking-wider uppercase font-sans">
+                FEE RECEIPT
+              </div>
 
-          {/* Uniformly Aligned Receipt Table */}
-          <table className="w-full text-left border-collapse border border-slate-200 dark:border-slate-700 table-fixed">
-            <thead>
-              <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px]">
-                <th className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 align-middle">
-                  DESCRIPTION
-                </th>
-                <th className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right align-middle">
-                  AMOUNT (₹)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-xs">
-              {/* Itemized Payment Allocations */}
-              {payment.paymentAllocation && payment.paymentAllocation.length > 0 ? (
-                payment.paymentAllocation.map((alloc, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                    <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 align-middle break-words">
-                      <span className="text-slate-400 font-medium mr-1 font-mono">[{alloc.academicYear}]</span>
-                      {alloc.feeHeadName} {alloc.termName ? `— ${alloc.termName}` : ''}
-                    </td>
-                    <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono text-slate-900 dark:text-white align-middle whitespace-nowrap">
-                      {formatCurrency(alloc.amount)}
-                    </td>
+              {/* Metadata Key-Value Table */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 py-1 text-[12px] font-sans">
+                <div className="space-y-1">
+                  <div className="flex"><span className="w-24 font-bold">Receipt No</span><span className="font-sans">: {receiptNo}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Adm No</span><span className="font-sans">: {admissionNo}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Name</span><span className="font-sans">: {studentNameUpper}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Installment</span><span className="font-sans">: {installmentLabel}</span></div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex"><span className="w-24 font-bold">Date</span><span className="font-sans">: {paymentDate}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Session</span><span className="font-sans">: {currentAY}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Class</span><span className="font-sans">: {classNameDisplay}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">CounterNo</span><span className="font-sans">: {counterNo}</span></div>
+                </div>
+              </div>
+
+              {/* Itemized Fee Table */}
+              <table className="w-full border-collapse border border-black text-[11px] font-sans">
+                <thead>
+                  <tr className="bg-gray-200 border-b border-black font-bold">
+                    <th className="border-r border-black px-2 py-1 text-center w-12">Sl.No</th>
+                    <th className="border-r border-black px-2 py-1 text-left">Description</th>
+                    <th className="border-r border-black px-2 py-1 text-right w-20">Due</th>
+                    <th className="border-r border-black px-2 py-1 text-right w-16">Con</th>
+                    <th className="px-2 py-1 text-right w-20">Paid</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 align-middle break-words">
-                    Gross Amount (Fee Structure & Opted Services)
-                  </td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono text-slate-900 dark:text-white align-middle whitespace-nowrap">
-                    {formatCurrency(gross)}
-                  </td>
-                </tr>
-              )}
+                </thead>
+                <tbody>
+                  {feeRows.map((row) => (
+                    <tr key={row.slNo} className="border-b border-gray-300">
+                      <td className="border-r border-black px-2 py-1 text-center font-sans">{row.slNo}</td>
+                      <td className="border-r border-black px-2 py-1 font-sans">{row.description}</td>
+                      <td className="border-r border-black px-2 py-1 text-right font-sans">{row.due}</td>
+                      <td className="border-r border-black px-2 py-1 text-right font-sans">{row.con}</td>
+                      <td className="px-2 py-1 text-right font-sans font-medium">{row.paid}</td>
+                    </tr>
+                  ))}
+                  {/* Empty buffer rows to maintain table height like reference */}
+                  {feeRows.length < 5 && Array.from({ length: 5 - feeRows.length }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="border-b border-gray-200">
+                      <td className="border-r border-black px-2 py-1 text-center">&nbsp;</td>
+                      <td className="border-r border-black px-2 py-1">&nbsp;</td>
+                      <td className="border-r border-black px-2 py-1 text-right">&nbsp;</td>
+                      <td className="border-r border-black px-2 py-1 text-right">&nbsp;</td>
+                      <td className="px-2 py-1 text-right">&nbsp;</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-              {/* Scholarships / Discounts */}
-              {payment.scholarshipAmount && payment.scholarshipAmount > 0 ? (
-                <tr className="text-emerald-600 dark:text-emerald-400">
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 align-middle break-words">
-                    <p className="font-bold">Scholarship: {payment.scholarshipName}</p>
-                    {payment.scholarshipDescription && (
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{payment.scholarshipDescription}</p>
-                    )}
-                  </td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono align-middle whitespace-nowrap">
-                    -{formatCurrency(payment.scholarshipAmount)}
-                  </td>
-                </tr>
-              ) : null}
+              {/* Banner 2: PAY MODE INFORMATION */}
+              <div className="bg-gray-200 text-black border-y border-black py-1 text-center font-bold text-sm tracking-wider uppercase font-sans">
+                PAY MODE INFORMATION
+              </div>
 
-              {payment.discountAmount && payment.discountAmount > 0 ? (
-                <tr className="text-emerald-600 dark:text-emerald-400">
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 align-middle break-words">
-                    <p className="font-bold">Discount: {payment.discountName}</p>
-                    {payment.discountDescription && (
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{payment.discountDescription}</p>
-                    )}
-                  </td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono align-middle whitespace-nowrap">
-                    -{formatCurrency(payment.discountAmount)}
-                  </td>
-                </tr>
-              ) : null}
+              {/* Pay Mode Grid */}
+              <div className="space-y-1 text-[12px] font-sans py-1">
+                <div className="grid grid-cols-2 gap-x-6">
+                  <div className="flex"><span className="w-24 font-bold">Pay Mode</span><span className="font-sans">{payMode}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Date</span><span className="font-sans">{paymentDate}</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-6">
+                  <div className="flex"><span className="w-24 font-bold">Bank</span><span className="font-sans">{bankName}</span></div>
+                  <div className="flex"><span className="w-24 font-bold">Number</span><span className="font-sans">{transactionNumber}</span></div>
+                </div>
 
-              {!payment.scholarshipAmount && !payment.discountAmount && payment.discount && payment.discount > 0 ? (
-                <tr className="text-emerald-600 dark:text-emerald-400">
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 font-medium align-middle break-words">Scholarship / Merit Discount</td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono align-middle whitespace-nowrap">-{formatCurrency(payment.discount)}</td>
-                </tr>
-              ) : null}
+                {/* Total Bar Row inside Pay Mode */}
+                <div className="bg-gray-300 border-y border-black py-1 px-2 flex justify-between items-center font-bold text-xs mt-1 font-sans">
+                  <span>Total</span>
+                  <span className="font-sans">{totalAmountPaid}</span>
+                </div>
+              </div>
 
-              {payment.fine && payment.fine > 0 ? (
-                <tr className="text-rose-500">
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 font-medium align-middle break-words">Late Payment Fine</td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono align-middle whitespace-nowrap">+{formatCurrency(payment.fine)}</td>
-                </tr>
-              ) : null}
+              {/* Total & Amount In Words Section */}
+              <div className="border-t border-black pt-2 space-y-1 font-sans text-[12px]">
+                <div className="flex justify-between items-center font-bold text-sm px-1">
+                  <span>Total :</span>
+                  <span className="font-sans">{totalAmountPaid}</span>
+                </div>
+                <div className="border-t border-black pt-1 px-1 font-semibold text-[11px] leading-snug font-sans">
+                  Total in Words: {amountWords}
+                </div>
+              </div>
 
-              {/* Previous Academic Year Due Row */}
-              {previousYearPendingBefore > 0 && (
-                <tr className="text-rose-600 dark:text-rose-400">
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 font-bold align-middle break-words">
-                    Previous Academic Year Due
-                  </td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono align-middle whitespace-nowrap">
-                    +{formatCurrency(previousYearPendingBefore)}
-                  </td>
-                </tr>
-              )}
+              {/* Receipt Footer with QR Code & Computer Generated Note */}
+              <div className="border-t border-black pt-2 flex items-center justify-between text-[10px] font-sans">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={qrCodeUrl}
+                    alt="Receipt QR Code"
+                    className="w-16 h-16 object-contain border border-gray-300"
+                  />
+                  <div>
+                    <p className="font-bold text-xs font-sans">Note :{remarksNote}</p>
+                  </div>
+                </div>
+                <div className="text-right font-bold text-gray-800 max-w-[260px] font-sans">
+                  This is a computer generated Receipt. Does not require signature.
+                </div>
+              </div>
 
-              {/* Current Academic Year Pending Row */}
-              {currentYearPendingBefore > 0 && (
-                <tr className="text-slate-700 dark:text-slate-300">
-                  <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 font-bold align-middle break-words">
-                    Current Academic Year Pending
-                  </td>
-                  <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold font-mono align-middle whitespace-nowrap">
-                    {formatCurrency(currentYearPendingBefore)}
-                  </td>
-                </tr>
-              )}
-
-              {/* Total Outstanding Before Payment */}
-              <tr className="bg-slate-50 dark:bg-slate-800/80 font-extrabold border-t-2 border-slate-300 dark:border-slate-600">
-                <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white align-middle break-words">
-                  Total Outstanding Before Payment
-                </td>
-                <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-mono text-slate-900 dark:text-white align-middle whitespace-nowrap">
-                  {formatCurrency(totalOutstandingBefore)}
-                </td>
-              </tr>
-
-              {/* Total Net Amount Paid */}
-              <tr className="bg-emerald-50/50 dark:bg-emerald-950/40 font-extrabold text-emerald-800 dark:text-emerald-300">
-                <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 align-middle break-words">
-                  Total Net Amount Paid
-                </td>
-                <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-mono text-emerald-600 dark:text-emerald-400 text-sm align-middle whitespace-nowrap">
-                  {formatCurrency(amountPaidNow)}
-                </td>
-              </tr>
-
-              {/* Total Pending Balance */}
-              <tr className="bg-slate-100 dark:bg-slate-800 font-extrabold text-slate-900 dark:text-white text-xs">
-                <td className="w-[75%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 align-middle break-words">
-                  Total Pending Balance
-                </td>
-                <td className="w-[25%] px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-right font-mono text-slate-900 dark:text-white align-middle whitespace-nowrap">
-                  {formatCurrency(totalPendingBalanceAfter)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Signature Footer */}
-          <div className="pt-8 flex items-end justify-between text-slate-400">
-            <div>
-              <p className="text-[10px]">Computer Generated Receipt</p>
-              <p className="text-[9px]">Valid without physical signature</p>
             </div>
-            <div className="text-center space-y-1">
-              <div className="w-32 h-0.5 bg-slate-300 dark:bg-slate-700 mb-1" />
-              <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">Accounts Officer</p>
+
+            {/* Sub-Footer Parent Copy Label */}
+            <div className="text-center pt-2 font-bold text-gray-500 uppercase tracking-widest text-xs font-sans">
+              PARENT COPY
             </div>
           </div>
         </div>

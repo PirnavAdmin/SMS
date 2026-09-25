@@ -68,7 +68,8 @@ public class FinanceService : IFinanceService
                         if (!string.IsNullOrEmpty(meta.code)) dto.Code = meta.code;
                         if (meta.mandatory.HasValue) dto.Mandatory = meta.mandatory.Value;
                         if (meta.displayOrder.HasValue) dto.DisplayOrder = meta.displayOrder.Value;
-                        if (meta.taxPercentage.HasValue) dto.TaxPercentage = meta.taxPercentage.Value;
+                        if (meta.taxPercentage.HasValue && dto.TaxPercentage == 0) dto.TaxPercentage = meta.taxPercentage.Value;
+                        if (dto.TaxPercentage > 0) dto.IsTaxable = true;
                         if (!string.IsNullOrEmpty(meta.academicYear)) dto.AcademicYear = meta.academicYear;
                         if (meta.applicableClasses != null && meta.applicableClasses.Count > 0) dto.ApplicableClasses = meta.applicableClasses;
                         if (meta.applicableBranches != null && meta.applicableBranches.Count > 0) dto.ApplicableBranches = meta.applicableBranches;
@@ -512,7 +513,11 @@ public class FinanceService : IFinanceService
             PaymentMethod = x.PaymentMethod,
             TransactionId = x.TransactionId,
             PaymentDate = x.PaymentDate,
-            Status = x.Status
+            Status = x.Status,
+            TermName = x.TermName,
+            FeeHeadName = x.FeeHeadName,
+            Remarks = x.Remarks,
+            PaidItemsJson = x.PaidItemsJson
         });
     }
 
@@ -529,7 +534,11 @@ public class FinanceService : IFinanceService
             PaymentMethod = dto.PaymentMethod,
             TransactionId = dto.TransactionId,
             PaymentDate = dto.PaymentDate == default ? DateTime.UtcNow : dto.PaymentDate,
-            Status = dto.Status
+            Status = dto.Status,
+            TermName = dto.TermName,
+            FeeHeadName = dto.FeeHeadName,
+            Remarks = dto.Remarks,
+            PaidItemsJson = dto.PaidItemsJson
         };
         var res = await _repo.CreateFeePaymentAsync(model);
         dto.Id = res.Id;

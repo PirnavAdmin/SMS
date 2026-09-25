@@ -154,18 +154,28 @@ export const fetchFeePaymentsApi = async () => {
       id: item.id?.toString() || "",
       receiptNo: item.receiptNo || "",
       studentId: item.studentId || "",
+      admissionNo: item.admissionNo || item.registrationNo || item.applicationNo || "",
       studentName: item.studentName || "",
       className: item.className || "",
-      amountPaid: Number(item.amount ?? item.amountPaid ?? 0),
+      amountPaid: Number(item.amountPaid ?? item.amount ?? 0),
+      amount: Number(item.amount ?? item.amountPaid ?? 0),
       discount: Number(item.discountAmount ?? item.discount ?? 0),
       fine: Number(item.fineAmount ?? item.fine ?? 0),
       transportFee: Number(item.transportFee ?? 0),
-      paymentMode: item.paymentMethod || item.paymentMode || "Cash",
+      paymentMode: item.paymentMode || item.paymentMethod || "Cash",
       transactionId: item.transactionId || "",
+      chequeNo: item.chequeNo || "",
+      chequeDate: item.chequeDate || "",
+      bankName: item.bankName || "",
       paymentDate: item.paymentDate || "",
       academicYear: item.academicYear || "2026-2027",
-      status: item.status || "Completed",
-      remarks: item.remarks || ""
+      status: item.status || "Paid",
+      remarks: item.remarks || "",
+      termName: item.termName || "",
+      feeHeadName: item.feeHeadName || "",
+      paidItemsJson: item.paidItemsJson || "",
+      selectedInstallmentIds: item.selectedInstallmentIds || [],
+      paymentAllocation: item.paymentAllocation || item.allocations || []
     }));
   }
   return [];
@@ -175,14 +185,29 @@ export const createFeePaymentApi = async (data: Omit<FeePayment, 'id' | 'receipt
   const payload = {
     receiptNo: (data as any).receiptNo || "",
     studentId: data.studentId || "",
+    admissionNo: (data as any).admissionNo || "",
+    studentName: data.studentName || "",
+    className: data.className || "",
     amount: data.amountPaid ?? (data as any).amount ?? 0,
+    amountPaid: data.amountPaid ?? (data as any).amount ?? 0,
     discountAmount: data.discount ?? (data as any).discountAmount ?? 0,
     fineAmount: data.fine ?? (data as any).fineAmount ?? 0,
     transportFee: data.transportFee ?? 0,
     transactionId: data.transactionId || "",
+    chequeNo: (data as any).chequeNo || "",
+    chequeDate: (data as any).chequeDate || "",
+    bankName: (data as any).bankName || "",
     paymentDate: data.paymentDate || new Date().toISOString(),
     paymentMethod: data.paymentMode || (data as any).paymentMethod || "Cash",
-    status: data.status || "Completed"
+    paymentMode: data.paymentMode || "Cash",
+    status: data.status || "Paid",
+    academicYear: data.academicYear || "2026-2027",
+    remarks: data.remarks || "",
+    termName: (data as any).termName || "",
+    feeHeadName: (data as any).feeHeadName || "",
+    paidItemsJson: (data as any).paidItemsJson || (data.paymentAllocation ? JSON.stringify(data.paymentAllocation) : ""),
+    selectedInstallmentIds: data.selectedInstallmentIds || [],
+    paymentAllocation: data.paymentAllocation || []
   };
   return apiClient('/api/finance/fee-payments', {
     method: 'POST',

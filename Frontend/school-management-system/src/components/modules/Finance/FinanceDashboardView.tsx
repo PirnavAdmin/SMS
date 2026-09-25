@@ -19,6 +19,7 @@ import {
 import { useData } from "../../../context/DataContext";
 import * as FinanceAPI from "../../../api/finance";
 import { useToast } from "../../../context/ToastContext";
+import { matchesClassName } from "../../../utils/classSorter";
 
 interface FinanceDashboardViewProps {
   onNavigate?: (tab: string) => void;
@@ -33,6 +34,8 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     studentScholarships,
     feeHeads,
     academicClasses,
+    dynamicFeeStructures,
+    studentFeeAssignments,
     fetchFinanceData,
   } = useData();
 
@@ -78,10 +81,42 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     return () => clearInterval(interval);
   }, [loadDashboardData]);
 
-  // Calculations purely from live stats
-  const totalCollected = Number(apiStats?.totalCollectedRevenue || 0);
-  const totalPending = Number(apiStats?.totalOutstandingDues || 0);
-  const totalExpected = Number(apiStats?.totalExpectedRevenue || 0);
+  const computedExpected = React.useMemo(() => {
+    if (apiStats && Number(apiStats?.totalExpectedRevenue || 0) > 0) {
+      return Number(apiStats.totalExpectedRevenue);
+    }
+    let expected = 0;
+    (students || []).forEach((st) => {
+      const assignment = (studentFeeAssignments || []).find(
+        (a) => (String(a.studentId) === String(st.id) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) && (a.status === 'Active' || !a.status)
+      );
+      if (assignment) {
+        expected += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
+      } else {
+        const dfs = (dynamicFeeStructures || []).find(
+          (d) => matchesClassName(d.className, st.className) && (d.status === 'Active' || !d.status)
+        );
+        if (dfs) {
+          expected += Number(dfs.totalAmount || 0);
+        }
+      }
+    });
+    return expected;
+  }, [apiStats, students, studentFeeAssignments, dynamicFeeStructures]);
+
+  const computedCollected = React.useMemo(() => {
+    if (apiStats && Number(apiStats?.totalCollectedRevenue || 0) > 0) {
+      return Number(apiStats.totalCollectedRevenue);
+    }
+    return (feePayments || []).reduce(
+      (sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0),
+      0
+    );
+  }, [apiStats, feePayments]);
+
+  const totalCollected = computedCollected;
+  const totalExpected = computedExpected;
+  const totalPending = Math.max(0, totalExpected - totalCollected);
   const todaysCollection = Number(apiStats?.todayCollectionAmount || 0);
   const transportCollection = Number(apiStats?.transportRevenue || 0);
   const hostelCollection = Number(apiStats?.hostelRevenue || 0);

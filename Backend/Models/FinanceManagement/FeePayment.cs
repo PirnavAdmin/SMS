@@ -15,4 +15,8 @@ public class FeePayment
     public System.DateTime PaymentDate { get; set; }
     public string PaymentMethod { get; set; } = string.Empty;
     public string Status { get; set; } = "Completed";
+    public string? TermName { get; set; }
+    public string? FeeHeadName { get; set; }
+    public string? Remarks { get; set; }
+    public string? PaidItemsJson { get; set; }
 }

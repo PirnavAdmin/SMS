@@ -410,60 +410,80 @@ export const FeeStructuresView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-1.5 text-xs">
-                {s.items.map((item) => {
-                  const head = feeHeads.find(
+              {(() => {
+                const validItems = s.items.filter((item) =>
+                  activeFeeHeads.some(
                     (h) =>
                       h.id === item.feeHeadId ||
-                      h.name.toLowerCase().trim() ===
-                        item.feeHeadName.toLowerCase().trim(),
-                  );
-                  const isMandatory =
-                    head && head.mandatory !== undefined
-                      ? head.mandatory
-                      : item.feeHeadName.toLowerCase().includes("tuition") ||
-                        item.feeHeadName.toLowerCase().includes("admission") ||
-                        item.feeHeadName.toLowerCase().includes("book") ||
-                        item.feeHeadName.toLowerCase().includes("exam");
-                  const freq = head ? head.frequency : "Quarterly";
-                  const displayName = head ? head.name : item.feeHeadName;
+                      h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim(),
+                  ),
+                );
+                const cardTotal = validItems.reduce(
+                  (sum, item) => sum + (Number(item.amount) || 0),
+                  0,
+                );
 
+                if (validItems.length === 0) {
                   return (
-                    <div
-                      key={item.feeHeadId}
-                      className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-0.5"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          {displayName}
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
-                            isMandatory
-                              ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                              : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-                          }`}
-                        >
-                          {isMandatory ? "Mandatory" : "Optional"}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          ({freq})
-                        </span>
-                      </div>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white">
-                        {formatCurrency(item.amount)}
-                      </span>
+                    <div className="py-2 text-xs text-slate-400 dark:text-slate-500 italic">
+                      No configured fee heads found for this structure. Edit to select fee heads.
                     </div>
                   );
-                })}
-              </div>
+                }
 
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
-                <span>Total Standard Base Fee:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(s.totalAmount)}
-                </span>
-              </div>
+                return (
+                  <>
+                    <div className="space-y-1.5 text-xs">
+                      {validItems.map((item) => {
+                        const head = activeFeeHeads.find(
+                          (h) =>
+                            h.id === item.feeHeadId ||
+                            h.name.toLowerCase().trim() ===
+                              item.feeHeadName.toLowerCase().trim(),
+                        );
+                        const isMandatory = head ? head.mandatory !== false : true;
+                        const freq = head ? head.frequency : "Quarterly";
+                        const displayName = head ? head.name : item.feeHeadName;
+
+                        return (
+                          <div
+                            key={item.feeHeadId || displayName}
+                            className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-0.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900 dark:text-white">
+                                {displayName}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
+                                  isMandatory
+                                    ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                    : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                                }`}
+                              >
+                                {isMandatory ? "Mandatory" : "Optional"}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                ({freq})
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white">
+                              {formatCurrency(item.amount)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
+                      <span>Total Standard Base Fee:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(cardTotal)}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           ))}
         </div>

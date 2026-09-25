@@ -21,23 +21,32 @@ public class FinanceController : ControllerBase
         [FromQuery] string? frequency,
         [FromQuery] string? status)
     {
-        var result = await _service.GetFeeHeadsAsync();
-        if (!string.IsNullOrWhiteSpace(search))
+        try
         {
-            string s = search.Trim().ToLower();
-            result = result.Where(h => h.Name.ToLower().Contains(s) || h.Code.ToLower().Contains(s));
-        }
-        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-            result = result.Where(h => h.Category.Equals(category, System.StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrWhiteSpace(frequency) && !frequency.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-            result = result.Where(h => h.Frequency.Equals(frequency, System.StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-        {
-            string cleanStatus = status.Replace(" Only", "", System.StringComparison.OrdinalIgnoreCase).Trim();
-            result = result.Where(h => h.Status.Equals(cleanStatus, System.StringComparison.OrdinalIgnoreCase));
-        }
+            var result = await _service.GetFeeHeadsAsync();
+            if (result == null) return Ok(new { success = true, data = new List<FeeHeadDto>() });
 
-        return Ok(new { success = true, data = result });
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string s = search.Trim().ToLower();
+                result = result.Where(h => (h.Name != null && h.Name.ToLower().Contains(s)) || (h.Code != null && h.Code.ToLower().Contains(s)));
+            }
+            if (!string.IsNullOrWhiteSpace(category) && !category.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+                result = result.Where(h => h.Category != null && h.Category.Equals(category, System.StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(frequency) && !frequency.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+                result = result.Where(h => h.Frequency != null && h.Frequency.Equals(frequency, System.StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string cleanStatus = status.Replace(" Only", "", System.StringComparison.OrdinalIgnoreCase).Trim();
+                result = result.Where(h => h.Status != null && h.Status.Equals(cleanStatus, System.StringComparison.OrdinalIgnoreCase));
+            }
+
+            return Ok(new { success = true, data = result });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { success = true, data = new List<FeeHeadDto>(), message = ex.Message });
+        }
     }
     
     [HttpPost("fee-heads")]
@@ -93,18 +102,27 @@ public class FinanceController : ControllerBase
         [FromQuery] string? className,
         [FromQuery] string? academicYear)
     {
-        var list = await _service.GetDynamicFeeStructuresAsync();
-        if (!string.IsNullOrWhiteSpace(search))
+        try
         {
-            string s = search.Trim().ToLower();
-            list = list.Where(x => x.Name.ToLower().Contains(s) || x.ClassName.ToLower().Contains(s));
-        }
-        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-            list = list.Where(x => x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-            list = list.Where(x => string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, System.StringComparison.OrdinalIgnoreCase));
+            var list = await _service.GetDynamicFeeStructuresAsync();
+            if (list == null) return Ok(new { success = true, data = new List<DynamicFeeStructureDto>() });
 
-        return Ok(new { success = true, data = list });
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string s = search.Trim().ToLower();
+                list = list.Where(x => (x.Name != null && x.Name.ToLower().Contains(s)) || (x.ClassName != null && x.ClassName.ToLower().Contains(s)));
+            }
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+                list = list.Where(x => x.ClassName != null && x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+                list = list.Where(x => string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, System.StringComparison.OrdinalIgnoreCase));
+
+            return Ok(new { success = true, data = list });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { success = true, data = new List<DynamicFeeStructureDto>(), message = ex.Message });
+        }
     }
 
     [HttpGet("fee-structures/{id:int}")]

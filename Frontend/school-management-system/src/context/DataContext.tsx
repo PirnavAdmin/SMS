@@ -5208,12 +5208,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!uniqueMap.has(dedupeKey)) {
             uniqueMap.set(dedupeKey, item);
           }
-        setHomework((prev) => {
-          const apiIds = new Set(normalizedItems.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          const updated = [...normalizedItems, ...localOnly];
-          if (JSON.stringify(prev) === JSON.stringify(updated)) return prev;
-          return updated;
         });
 
         const deduplicated = Array.from(uniqueMap.values());
@@ -5743,16 +5737,76 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: (h.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
           academicYear: h.academicYear || "All",
         }));
-        setFeeHeads((prev) => {
-          const combined = deduplicateFeeHeads([...mappedHeads, ...prev]);
+        if (headsRes.status === "fulfilled") {
+          const cleanHeads = deduplicateFeeHeads(mappedHeads);
+          setFeeHeads(cleanHeads);
           try {
-            localStorage.setItem("fee_heads", JSON.stringify(combined));
+            localStorage.setItem("fee_heads", JSON.stringify(cleanHeads));
+            localStorage.setItem("edu_db_fee_heads", JSON.stringify(cleanHeads));
           } catch (e) {}
-          return combined;
-        });
-        setDynamicFeeStructures(structs);
+        }
+        if (structsRes.status === "fulfilled") {
+          setDynamicFeeStructures(structs);
+          try {
+            localStorage.setItem("dynamic_fee_structures", JSON.stringify(structs));
+            localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(structs));
+          } catch (e) {}
+        }
         setDbAssignments(assignments);
-        setFeePayments(payments);
+        if (paymentsRes.status === "fulfilled") {
+          const freshPayments = Array.isArray(payments) ? payments : [];
+          setFeePayments((prev) => {
+            if (freshPayments.length === 0) return [];
+            return freshPayments.map((p: any) => {
+              const amountPaidVal = Number(p.amountPaid ?? p.amount ?? 0);
+              const paymentModeVal = p.paymentMode || p.paymentMethod || "Cash";
+
+              let allocs = p.paymentAllocation || p.allocations;
+              if ((!allocs || allocs.length === 0) && p.paidItemsJson) {
+                try {
+                  const parsed = JSON.parse(p.paidItemsJson);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    allocs = parsed.map((item: any) => ({
+                      academicYear: item.academicYear || p.academicYear || "2026-2027",
+                      amount: Number(item.amount ?? item.Amount ?? item.finalAmount ?? 0),
+                      installmentId: item.installmentId || item.id || item.TermId || item.feeHeadId || item.FeeHeadId,
+                      feeHeadName: item.feeHeadName || item.HeadName || p.feeHeadName || "",
+                      termName: item.termName || item.TermName || p.termName || "",
+                    }));
+                  }
+                } catch {}
+              }
+
+              const existing = prev.find(
+                (x) =>
+                  String(x.id) === String(p.id) ||
+                  (x.receiptNo && p.receiptNo && x.receiptNo === p.receiptNo),
+              );
+
+              return {
+                ...p,
+                id: String(p.id),
+                studentId: String(p.studentId),
+                amountPaid: amountPaidVal,
+                amount: amountPaidVal,
+                paymentMode: paymentModeVal,
+                admissionNo: p.admissionNo || existing?.admissionNo,
+                paymentAllocation:
+                  allocs && allocs.length > 0
+                    ? allocs
+                    : existing?.paymentAllocation || [],
+                selectedInstallmentIds:
+                  p.selectedInstallmentIds && p.selectedInstallmentIds.length > 0
+                    ? p.selectedInstallmentIds
+                    : existing?.selectedInstallmentIds || [],
+              };
+            });
+          });
+          try {
+            localStorage.setItem("fee_payments", JSON.stringify(freshPayments));
+            localStorage.setItem("edu_db_fee_payments", JSON.stringify(freshPayments));
+          } catch (e) {}
+        }
 
         setFinanceHostelConfigs(
           hostelFees.map((apiItem: any) => ({
@@ -7998,8 +8052,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             documentsSubmitted: [],
           } as unknown as AdmissionApplication)
         : null);
-
-    const app = admissions.find((a) => a.id === id || (a as any).registrationNo === id || a.applicationNo === id);
     if (!app) return null;
 
     if (status === "Enrolled" && app.status === "Enrolled") {
@@ -9329,6 +9381,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         console.warn("Fee payment API failed, continuing with local state", err);
       });
 
+    const targetStudentId = paymentData.studentId;
+    const targetAdmissionNo = (paymentData as any).admissionNo;
+
+    const resolvedStudent =
+      students.find(
+        (s) =>
+          s.id === targetStudentId ||
+          s.admissionNo === targetStudentId ||
+          (targetAdmissionNo && (s.id === targetAdmissionNo || s.admissionNo === targetAdmissionNo)),
+      ) ||
+      admissions.find(
+        (a) =>
+          a.id === targetStudentId ||
+          a.applicationNo === targetStudentId ||
+          (a as any).registrationNo === targetStudentId ||
+          (targetAdmissionNo &&
+            (a.id === targetAdmissionNo ||
+              a.applicationNo === targetAdmissionNo ||
+              (a as any).registrationNo === targetAdmissionNo)),
+      );
+
+    const isMatchForPayment = (stId: string) => {
+      if (!stId) return false;
+      const s = String(stId).trim().toLowerCase();
+      const pSid = String(targetStudentId).trim().toLowerCase();
+      const pAdm = targetAdmissionNo ? String(targetAdmissionNo).trim().toLowerCase() : "";
+      if (s === pSid || (pAdm && s === pAdm)) return true;
+      if (resolvedStudent) {
+        const ids = [
+          resolvedStudent.id ? String(resolvedStudent.id).trim().toLowerCase() : "",
+          (resolvedStudent as Student).admissionNo ? String((resolvedStudent as Student).admissionNo).trim().toLowerCase() : "",
+          (resolvedStudent as AdmissionApplication).applicationNo ? String((resolvedStudent as AdmissionApplication).applicationNo).trim().toLowerCase() : "",
+          (resolvedStudent as any).registrationNo ? String((resolvedStudent as any).registrationNo).trim().toLowerCase() : "",
+        ].filter(Boolean);
+        return ids.includes(s);
+      }
+      return false;
+    };
+
     let remainingAmountToAllocate = paymentData.amountPaid;
     const allocations: PaymentAllocationItem[] = [];
 
@@ -9341,12 +9432,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ) {
       // 1. EXPLICIT CUSTOM ALLOCATION PER INSTALLMENT
       paymentData.paymentAllocation.forEach((allocItem) => {
-        const instIndex = nextInstallments.findIndex(
+        let instIndex = nextInstallments.findIndex(
           (i) => i.id === allocItem.installmentId,
         );
+        if (instIndex === -1 && allocItem.feeHeadName) {
+          instIndex = nextInstallments.findIndex(
+            (i) =>
+              isMatchForPayment(i.studentId) &&
+              i.dueAmount > 0 &&
+              (i.feeHeadName?.toLowerCase().trim() === allocItem.feeHeadName?.toLowerCase().trim() ||
+                (allocItem.termName && i.termName?.toLowerCase().trim() === allocItem.termName?.toLowerCase().trim())),
+          );
+        }
+
         if (instIndex !== -1) {
           const inst = { ...nextInstallments[instIndex] };
-          const allocAmount = Math.min(inst.dueAmount, allocItem.amount);
+          const allocAmount = Math.min(inst.dueAmount > 0 ? inst.dueAmount : allocItem.amount, allocItem.amount);
           remainingAmountToAllocate -= allocAmount;
 
           inst.paidAmount += allocAmount;
@@ -9358,7 +9459,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const ledgerIndex = nextLedgers.findIndex(
             (l) =>
-              l.studentId === paymentData.studentId &&
+              isMatchForPayment(l.studentId) &&
               l.academicYear === inst.academicYear,
           );
 
@@ -9386,7 +9487,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             academicYear: inst.academicYear,
             ledgerId: nextLedgers.find(
               (l) =>
-                l.studentId === paymentData.studentId &&
+                isMatchForPayment(l.studentId) &&
                 l.academicYear === inst.academicYear,
             )?.id,
             amount: allocAmount,
@@ -9404,7 +9505,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const selectedInsts = nextInstallments
         .filter(
           (i) =>
-            i.studentId === paymentData.studentId &&
+            isMatchForPayment(i.studentId) &&
             paymentData.selectedInstallmentIds?.includes(i.id),
         )
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate)); // Pay chronologically if there's any overflow/partial
@@ -9418,13 +9519,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         // Apply allocation to installment
         inst.paidAmount += allocAmount;
         inst.dueAmount -= allocAmount;
-        inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+        inst.status = inst.dueAmount <= 0 ? "Paid" : "Partial";
         inst.updatedAt = new Date().toISOString();
 
         // Find parent ledger for this installment
         const ledgerIndex = nextLedgers.findIndex(
           (l) =>
-            l.studentId === paymentData.studentId &&
+            isMatchForPayment(l.studentId) &&
             l.academicYear === inst.academicYear,
         );
 
@@ -9453,7 +9554,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           academicYear: inst.academicYear,
           ledgerId: nextLedgers.find(
             (l) =>
-              l.studentId === paymentData.studentId &&
+              isMatchForPayment(l.studentId) &&
               l.academicYear === inst.academicYear,
           )?.id,
           amount: allocAmount,
@@ -9471,7 +9572,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // 2. FIFO ALLOCATION FALLBACK
       // Find all ledgers for the student
       const studentLedgers = studentFeeLedgers
-        .filter((l) => l.studentId === paymentData.studentId)
+        .filter((l) => isMatchForPayment(l.studentId))
         .sort((a, b) => a.academicYear.localeCompare(b.academicYear));
 
       studentLedgers.forEach((ledger) => {
@@ -9482,7 +9583,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (insts.length === 0) {
           const assignment = studentFeeAssignments.find(
             (a) =>
-              a.studentId === ledger.studentId &&
+              isMatchForPayment(a.studentId) &&
               a.academicYear === ledger.academicYear &&
               a.status === "Active",
           );
@@ -9569,6 +9670,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const next = [newPayment, ...prev];
       localStorage.setItem("edu_db_fee_payments", JSON.stringify(next));
       return next;
+    });
+
+    createFeePaymentApi(newPayment).catch((err) => {
+      console.warn("Backend create fee payment fallback to local state", err);
     });
 
     const student = students.find(
@@ -10368,11 +10473,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     logActivity("Updated Dynamic Fee Structure", `Updated structure ID ${id}`);
   };
 
-  const deleteDynamicFeeStructure = (id: string) => {
+  const deleteDynamicFeeStructure = async (id: string) => {
     const target = dynamicFeeStructures.find((d) => d.id === id);
     const targetClass = target?.className;
-    setDynamicFeeStructures((prev) =>
-      prev.filter((d) => {
+    setDynamicFeeStructures((prev) => {
+      const filtered = prev.filter((d) => {
         if (d.id === id) return false;
         if (
           targetClass &&
@@ -10383,11 +10488,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return false;
         }
         return true;
-      }),
-    );
-  const deleteDynamicFeeStructure = async (id: string) => {
-    setDynamicFeeStructures((prev) => {
-      const filtered = prev.filter((d) => d.id !== id);
+      });
       try {
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(filtered));
       } catch (e) {}
@@ -12091,13 +12192,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // overlay existing payments allocations
     const isPaymentForThisStudent = (p: FeePayment) => {
-      if (!p) return false;
+      if (!p || !studentId) return false;
       const pSid = String(p.studentId || "").trim().toLowerCase();
+      const pAdm = p.admissionNo ? String(p.admissionNo).trim().toLowerCase() : "";
       const sId = String(studentId || "").trim().toLowerCase();
-      if (pSid === sId) return true;
-      const st = students.find((s) => s.id === studentId || (s.admissionNo && s.admissionNo.toLowerCase() === studentId.toLowerCase()));
-      if (st?.id && pSid === String(st.id).trim().toLowerCase()) return true;
-      if (st?.admissionNo && pSid === String(st.admissionNo).trim().toLowerCase()) return true;
+      if (!sId) return false;
+      if (pSid === sId || (pAdm && pAdm === sId)) return true;
+
+      const stStudent =
+        (student ? (student as Student) : undefined) ||
+        students.find(
+          (s) =>
+            String(s.id).trim().toLowerCase() === sId ||
+            (s.admissionNo && String(s.admissionNo).trim().toLowerCase() === sId),
+        );
+
+      const stAdmission =
+        admissions.find(
+          (a) =>
+            String(a.id).trim().toLowerCase() === sId ||
+            (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sId) ||
+            ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sId) ||
+            (stStudent?.admissionNo && (
+              String(a.id).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase() ||
+              (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase()) ||
+              ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase())
+            )),
+        );
+
+      const allIds = new Set<string>();
+      allIds.add(sId);
+      if (student?.id) allIds.add(String(student.id).trim().toLowerCase());
+      if (student?.admissionNo) allIds.add(String(student.admissionNo).trim().toLowerCase());
+
+      if (stStudent) {
+        if (stStudent.id) allIds.add(String(stStudent.id).trim().toLowerCase());
+        if (stStudent.admissionNo) allIds.add(String(stStudent.admissionNo).trim().toLowerCase());
+      }
+
+      if (stAdmission) {
+        if (stAdmission.id) allIds.add(String(stAdmission.id).trim().toLowerCase());
+        if (stAdmission.applicationNo) allIds.add(String(stAdmission.applicationNo).trim().toLowerCase());
+        if ((stAdmission as any).registrationNo) allIds.add(String((stAdmission as any).registrationNo).trim().toLowerCase());
+      }
+
+      if (allIds.has(pSid) || (pAdm && allIds.has(pAdm))) return true;
+
+      const stName = `${(stStudent || stAdmission || student)?.firstName || (stAdmission as any)?.applicantName || ''} ${(stStudent || student)?.lastName || ''}`.trim().toLowerCase();
+      const pName = String(p.studentName || '').trim().toLowerCase();
+      if (stName && pName && (stName === pName || stName.includes(pName) || pName.includes(stName))) return true;
+
       return false;
     };
 
@@ -12112,23 +12256,85 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime(),
       );
 
+    const matchTermNameStr = (instTermRaw?: string, allocTermRaw?: string): boolean => {
+      if (!instTermRaw || !allocTermRaw) return false;
+      const t1 = instTermRaw.toLowerCase().trim();
+      const t2 = allocTermRaw.toLowerCase().trim();
+      if (t1 === t2 || t1.includes(t2) || t2.includes(t1)) return true;
+      const m1 = t1.match(/(?:q|term|h|m)[\s-]*(\d+)/i) || t1.match(/(\d+)/);
+      const m2 = t2.match(/(?:q|term|h|m)[\s-]*(\d+)/i) || t2.match(/(\d+)/);
+      if (m1 && m2 && m1[1] === m2[1]) return true;
+      return false;
+    };
+
+    const matchHeadNameStr = (instHeadRaw?: string, allocHeadRaw?: string): boolean => {
+      if (!allocHeadRaw) return true;
+      if (!instHeadRaw) return false;
+      const h1 = instHeadRaw.toLowerCase().trim();
+      const h2 = allocHeadRaw.toLowerCase().trim();
+      if (h1 === h2 || h1.includes(h2) || h2.includes(h1)) return true;
+      return false;
+    };
+
     studentPayments.forEach((payment) => {
-      if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
-        payment.paymentAllocation.forEach((alloc) => {
+      let allocs: PaymentAllocationItem[] = payment.paymentAllocation || [];
+
+      if ((!allocs || allocs.length === 0) && (payment as any).paidItemsJson) {
+        try {
+          const parsed = JSON.parse((payment as any).paidItemsJson);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            allocs = parsed.map((item: any) => ({
+              academicYear: item.academicYear || payment.academicYear || academicYear,
+              amount: Number(item.amount ?? item.Amount ?? item.finalAmount ?? 0),
+              installmentId: item.installmentId || item.id || item.TermId || item.feeHeadId || item.FeeHeadId,
+              feeHeadName: item.feeHeadName || item.HeadName || payment.feeHeadName || "",
+              termName: item.termName || item.TermName || payment.termName || "",
+            }));
+          }
+        } catch {}
+      }
+
+      if ((!allocs || allocs.length === 0) && (payment.termName || payment.feeHeadName)) {
+        allocs = [
+          {
+            academicYear: payment.academicYear || academicYear,
+            amount: Number(payment.amountPaid ?? (payment as any).amount ?? 0),
+            installmentId: payment.selectedInstallmentIds?.[0],
+            feeHeadName: payment.feeHeadName || "",
+            termName: payment.termName || "",
+          },
+        ];
+      }
+
+      if (allocs && allocs.length > 0) {
+        allocs.forEach((alloc) => {
           if (alloc.academicYear === academicYear || !alloc.academicYear) {
-            let remaining = alloc.amount;
-            if (alloc.installmentId) {
-              const matchedInst = installments.find(
-                (inst) => inst.id === alloc.installmentId && inst.dueAmount > 0,
-              );
-              if (matchedInst) {
-                const pay = Math.min(matchedInst.dueAmount, remaining);
-                matchedInst.paidAmount += pay;
-                matchedInst.dueAmount -= pay;
-                matchedInst.status = matchedInst.dueAmount === 0 ? "Paid" : "Partial";
-                remaining -= pay;
+            let remaining = Number(alloc.amount) || 0;
+            if (remaining <= 0) return;
+
+            const matchedInst = installments.find((inst) => {
+              if (inst.dueAmount <= 0) return false;
+
+              if (alloc.installmentId && (inst.id === alloc.installmentId || inst.id.includes(alloc.installmentId))) return true;
+              if (payment.selectedInstallmentIds && payment.selectedInstallmentIds.includes(inst.id)) return true;
+
+              const headMatch = matchHeadNameStr(inst.feeHeadName, alloc.feeHeadName || payment.feeHeadName || "");
+              const termMatch = matchTermNameStr(inst.termName, alloc.termName || payment.termName || "");
+
+              if (alloc.termName || payment.termName) {
+                return headMatch && termMatch;
               }
+              return headMatch;
+            });
+
+            if (matchedInst) {
+              const pay = Math.min(matchedInst.dueAmount, remaining);
+              matchedInst.paidAmount += pay;
+              matchedInst.dueAmount = Math.max(0, matchedInst.dueAmount - pay);
+              matchedInst.status = matchedInst.dueAmount <= 0 ? "Paid" : "Partial";
+              remaining -= pay;
             }
+
             if (remaining > 0) {
               installments
                 .filter((inst) => inst.dueAmount > 0)
@@ -12136,8 +12342,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   if (remaining <= 0) return;
                   const pay = Math.min(inst.dueAmount, remaining);
                   inst.paidAmount += pay;
-                  inst.dueAmount -= pay;
-                  inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+                  inst.dueAmount = Math.max(0, inst.dueAmount - pay);
+                  inst.status = inst.dueAmount <= 0 ? "Paid" : "Partial";
                   remaining -= pay;
                 });
             }
@@ -12151,8 +12357,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             if (remaining <= 0) return;
             const pay = Math.min(inst.dueAmount, remaining);
             inst.paidAmount += pay;
-            inst.dueAmount -= pay;
-            inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+            inst.dueAmount = Math.max(0, inst.dueAmount - pay);
+            inst.status = inst.dueAmount <= 0 ? "Paid" : "Partial";
             remaining -= pay;
           });
       }
@@ -12830,8 +13036,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: "Pending",
         });
       } else {
-        // No assignment and no dynamic fee structure configured for this class in MySQL.
-        // Do NOT inject synthetic mock fee heads. Leave ledgerItems empty so dues remain 0.
+        // Fallback: If no custom dynamic fee structure or assignment exists for this class,
+        // build default fee items from active mandatory/tuition feeHeads matching the class
+        const applicableHeads = (feeHeads || []).filter(h =>
+          h.status === 'Active' &&
+          (h.mandatory || h.category === 'Tuition' || (h.applicableClasses && (h.applicableClasses.length === 0 || h.applicableClasses.some(c => matchesClassName(c, clsName)))))
+        );
+
+        if (applicableHeads.length > 0) {
+          applicableHeads.forEach(h => {
+            const amt = Number(h.defaultAmount || h.amount || 0);
+            if (amt > 0) {
+              ledgerItems.push({
+                headId: h.id,
+                headName: h.name,
+                category: h.category || 'Tuition Fee',
+                originalAmount: amt,
+                scholarshipDeduction: 0,
+                discountDeduction: 0,
+                fineAmount: 0,
+                finalAmount: amt,
+                isApplicable: true,
+                status: 'Pending',
+              });
+            }
+          });
+        }
       }
     }
 
@@ -13208,12 +13438,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     const isPaymentForThisStudent = (p: FeePayment) => {
-      if (!p) return false;
+      if (!p || !studentId) return false;
       const pSid = String(p.studentId || "").trim().toLowerCase();
+      const pAdm = p.admissionNo ? String(p.admissionNo).trim().toLowerCase() : "";
       const sId = String(studentId || "").trim().toLowerCase();
-      if (pSid === sId) return true;
-      if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
-      if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+      if (!sId) return false;
+      if (pSid === sId || (pAdm && pAdm === sId)) return true;
+
+      const stStudent =
+        (student ? (student as Student) : undefined) ||
+        students.find(
+          (s) =>
+            String(s.id).trim().toLowerCase() === sId ||
+            (s.admissionNo && String(s.admissionNo).trim().toLowerCase() === sId),
+        );
+
+      const stAdmission =
+        (admApp ? (admApp as any) : undefined) ||
+        admissions.find(
+          (a) =>
+            String(a.id).trim().toLowerCase() === sId ||
+            (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sId) ||
+            ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sId) ||
+            (stStudent?.admissionNo && (
+              String(a.id).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase() ||
+              (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase()) ||
+              ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase())
+            )),
+        );
+
+      const allIds = new Set<string>();
+      allIds.add(sId);
+      if (student?.id) allIds.add(String(student.id).trim().toLowerCase());
+      if (student?.admissionNo) allIds.add(String(student.admissionNo).trim().toLowerCase());
+
+      if (stStudent) {
+        if (stStudent.id) allIds.add(String(stStudent.id).trim().toLowerCase());
+        if (stStudent.admissionNo) allIds.add(String(stStudent.admissionNo).trim().toLowerCase());
+      }
+
+      if (stAdmission) {
+        if (stAdmission.id) allIds.add(String(stAdmission.id).trim().toLowerCase());
+        if (stAdmission.applicationNo) allIds.add(String(stAdmission.applicationNo).trim().toLowerCase());
+        if ((stAdmission as any).registrationNo) allIds.add(String((stAdmission as any).registrationNo).trim().toLowerCase());
+      }
+
+      if (allIds.has(pSid) || (pAdm && allIds.has(pAdm))) return true;
+
+      const stName = `${(stStudent || stAdmission || student)?.firstName || (stAdmission as any)?.applicantName || ''} ${(stStudent || student)?.lastName || ''}`.trim().toLowerCase();
+      const pName = String(p.studentName || '').trim().toLowerCase();
+      if (stName && pName && (stName === pName || stName.includes(pName) || pName.includes(stName))) return true;
+
       return false;
     };
 
@@ -13503,7 +13778,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               String(s.id).trim().toLowerCase() === sIdStr ||
               (s.admissionNo &&
                 String(s.admissionNo).trim().toLowerCase() === sIdStr),
-          );
+          ) ||
+          (admissions.find(
+            (a) =>
+              String(a.id).trim().toLowerCase() === sIdStr ||
+              (a.applicationNo &&
+                String(a.applicationNo).trim().toLowerCase() === sIdStr) ||
+              ((a as any).registrationNo &&
+                String((a as any).registrationNo).trim().toLowerCase() === sIdStr),
+          ) as unknown as Student);
 
     const existing = studentFeeLedgers.find(
       (l) =>
@@ -13586,7 +13869,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const student = optStudent && "className" in optStudent
         ? (optStudent as Student)
-        : students.find((s) => s.id === studentId || s.admissionNo === studentId);
+        : resolvedStudent || students.find((s) => s.id === studentId || s.admissionNo === studentId);
       const clsName = existing.className || student?.className || (optStudent as any)?.className || "";
       const dfs =
         dynamicFeeStructures.find(
@@ -13782,12 +14065,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         0,
       );
       const isPaymentForThisStudent = (p: FeePayment) => {
-        if (!p) return false;
+        if (!p || !studentId) return false;
         const pSid = String(p.studentId || "").trim().toLowerCase();
+        const pAdm = p.admissionNo ? String(p.admissionNo).trim().toLowerCase() : "";
         const sId = String(studentId || "").trim().toLowerCase();
-        if (pSid === sId) return true;
-        if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
-        if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+        if (!sId) return false;
+        if (pSid === sId || (pAdm && pAdm === sId)) return true;
+
+        const stStudent =
+          (student ? (student as Student) : undefined) ||
+          students.find(
+            (s) =>
+              String(s.id).trim().toLowerCase() === sId ||
+              (s.admissionNo && String(s.admissionNo).trim().toLowerCase() === sId),
+          );
+
+        const stAdmission =
+          admissions.find(
+            (a) =>
+              String(a.id).trim().toLowerCase() === sId ||
+              (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sId) ||
+              ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sId) ||
+              (stStudent?.admissionNo && (
+                String(a.id).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase() ||
+                (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase()) ||
+                ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase())
+              )),
+          );
+
+        const allIds = new Set<string>();
+        allIds.add(sId);
+        if (student?.id) allIds.add(String(student.id).trim().toLowerCase());
+        if (student?.admissionNo) allIds.add(String(student.admissionNo).trim().toLowerCase());
+
+        if (stStudent) {
+          if (stStudent.id) allIds.add(String(stStudent.id).trim().toLowerCase());
+          if (stStudent.admissionNo) allIds.add(String(stStudent.admissionNo).trim().toLowerCase());
+        }
+
+        if (stAdmission) {
+          if (stAdmission.id) allIds.add(String(stAdmission.id).trim().toLowerCase());
+          if (stAdmission.applicationNo) allIds.add(String(stAdmission.applicationNo).trim().toLowerCase());
+          if ((stAdmission as any).registrationNo) allIds.add(String((stAdmission as any).registrationNo).trim().toLowerCase());
+        }
+
+        if (allIds.has(pSid) || (pAdm && allIds.has(pAdm))) return true;
+
+        const stName = `${(stStudent || stAdmission || student)?.firstName || (stAdmission as any)?.applicantName || ''} ${(stStudent || student)?.lastName || ''}`.trim().toLowerCase();
+        const pName = String(p.studentName || '').trim().toLowerCase();
+        if (stName && pName && (stName === pName || stName.includes(pName) || pName.includes(stName))) return true;
+
         return false;
       };
 
@@ -13849,12 +14176,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
     const isPaymentForThisStudent = (p: FeePayment) => {
-      if (!p) return false;
+      if (!p || !studentId) return false;
       const pSid = String(p.studentId || "").trim().toLowerCase();
+      const pAdm = p.admissionNo ? String(p.admissionNo).trim().toLowerCase() : "";
       const sId = String(studentId || "").trim().toLowerCase();
-      if (pSid === sId) return true;
-      if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
-      if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+      if (!sId) return false;
+      if (pSid === sId || (pAdm && pAdm === sId)) return true;
+
+      const stStudent =
+        (student ? (student as Student) : undefined) ||
+        students.find(
+          (s) =>
+            String(s.id).trim().toLowerCase() === sId ||
+            (s.admissionNo && String(s.admissionNo).trim().toLowerCase() === sId),
+        );
+
+      const stAdmission =
+        admissions.find(
+          (a) =>
+            String(a.id).trim().toLowerCase() === sId ||
+            (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sId) ||
+            ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sId) ||
+            (stStudent?.admissionNo && (
+              String(a.id).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase() ||
+              (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase()) ||
+              ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase())
+            )),
+        );
+
+      const allIds = new Set<string>();
+      allIds.add(sId);
+      if (student?.id) allIds.add(String(student.id).trim().toLowerCase());
+      if (student?.admissionNo) allIds.add(String(student.admissionNo).trim().toLowerCase());
+
+      if (stStudent) {
+        if (stStudent.id) allIds.add(String(stStudent.id).trim().toLowerCase());
+        if (stStudent.admissionNo) allIds.add(String(stStudent.admissionNo).trim().toLowerCase());
+      }
+
+      if (stAdmission) {
+        if (stAdmission.id) allIds.add(String(stAdmission.id).trim().toLowerCase());
+        if (stAdmission.applicationNo) allIds.add(String(stAdmission.applicationNo).trim().toLowerCase());
+        if ((stAdmission as any).registrationNo) allIds.add(String((stAdmission as any).registrationNo).trim().toLowerCase());
+      }
+
+      if (allIds.has(pSid) || (pAdm && allIds.has(pAdm))) return true;
+
+      const stName = `${(stStudent || stAdmission || student)?.firstName || (stAdmission as any)?.applicantName || ''} ${(stStudent || student)?.lastName || ''}`.trim().toLowerCase();
+      const pName = String(p.studentName || '').trim().toLowerCase();
+      if (stName && pName && (stName === pName || stName.includes(pName) || pName.includes(stName))) return true;
+
       return false;
     };
 
@@ -16030,12 +16401,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const activeYr =
       selectedAcademicYear || financeSettings.academicYear || "2026-2027";
     const isPaymentForThisStudent = (p: FeePayment) => {
-      if (!p) return false;
+      if (!p || !studentId) return false;
       const pSid = String(p.studentId || "").trim().toLowerCase();
+      const pAdm = p.admissionNo ? String(p.admissionNo).trim().toLowerCase() : "";
       const sId = String(studentId || "").trim().toLowerCase();
-      if (pSid === sId) return true;
-      if (student?.id && pSid === String(student.id).trim().toLowerCase()) return true;
-      if (student?.admissionNo && pSid === String(student.admissionNo).trim().toLowerCase()) return true;
+      if (!sId) return false;
+      if (pSid === sId || (pAdm && pAdm === sId)) return true;
+
+      const stStudent =
+        (student ? (student as Student) : undefined) ||
+        students.find(
+          (s) =>
+            String(s.id).trim().toLowerCase() === sId ||
+            (s.admissionNo && String(s.admissionNo).trim().toLowerCase() === sId),
+        );
+
+      const stAdmission =
+        admissions.find(
+          (a) =>
+            String(a.id).trim().toLowerCase() === sId ||
+            (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sId) ||
+            ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sId) ||
+            (stStudent?.admissionNo && (
+              String(a.id).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase() ||
+              (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase()) ||
+              ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === String(stStudent.admissionNo).trim().toLowerCase())
+            )),
+        );
+
+      const allIds = new Set<string>();
+      allIds.add(sId);
+      if (student?.id) allIds.add(String(student.id).trim().toLowerCase());
+      if (student?.admissionNo) allIds.add(String(student.admissionNo).trim().toLowerCase());
+
+      if (stStudent) {
+        if (stStudent.id) allIds.add(String(stStudent.id).trim().toLowerCase());
+        if (stStudent.admissionNo) allIds.add(String(stStudent.admissionNo).trim().toLowerCase());
+      }
+
+      if (stAdmission) {
+        if (stAdmission.id) allIds.add(String(stAdmission.id).trim().toLowerCase());
+        if (stAdmission.applicationNo) allIds.add(String(stAdmission.applicationNo).trim().toLowerCase());
+        if ((stAdmission as any).registrationNo) allIds.add(String((stAdmission as any).registrationNo).trim().toLowerCase());
+      }
+
+      if (allIds.has(pSid) || (pAdm && allIds.has(pAdm))) return true;
+
+      const stName = `${(stStudent || stAdmission || student)?.firstName || (stAdmission as any)?.applicantName || ''} ${(stStudent || student)?.lastName || ''}`.trim().toLowerCase();
+      const pName = String(p.studentName || '').trim().toLowerCase();
+      if (stName && pName && (stName === pName || stName.includes(pName) || pName.includes(stName))) return true;
+
       return false;
     };
     const studentPaymentItems = (feePayments || []).filter(isPaymentForThisStudent);

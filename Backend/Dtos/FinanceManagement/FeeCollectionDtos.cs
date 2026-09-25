@@ -110,6 +110,8 @@ public class StudentPaymentReceiptSummaryDto
     public string Status { get; set; } = "Paid";
     public string TransactionId { get; set; } = string.Empty;
     public string Remarks { get; set; } = string.Empty;
+    public string TermName { get; set; } = string.Empty;
+    public string FeeHeadName { get; set; } = string.Empty;
     public List<string> PaidHeads { get; set; } = new();
 }
 

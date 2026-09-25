@@ -34,12 +34,16 @@ public class FinanceRepository : IFinanceRepository
         var existing = await _context.FeeHeads.FindAsync(feeHead.Id);
         if (existing != null)
         {
+            existing.Code = feeHead.Code;
             existing.Name = feeHead.Name;
             existing.Category = feeHead.Category;
             existing.Frequency = feeHead.Frequency;
             existing.DefaultAmount = feeHead.DefaultAmount;
+            existing.Mandatory = feeHead.Mandatory;
             existing.IsRefundable = feeHead.IsRefundable;
             existing.IsTaxable = feeHead.IsTaxable;
+            existing.TaxPercentage = feeHead.TaxPercentage;
+            existing.DisplayOrder = feeHead.DisplayOrder;
             existing.Status = feeHead.Status;
             existing.Description = feeHead.Description;
             await _context.SaveChangesAsync();
@@ -136,6 +140,24 @@ public class FinanceRepository : IFinanceRepository
 
     public async Task<FeePayment> CreateFeePaymentAsync(FeePayment payment)
     {
+        if (!string.IsNullOrEmpty(payment.StudentId) && int.TryParse(payment.StudentId, out int rawId))
+        {
+            bool existsInStudents = await _context.Students.AnyAsync(s => s.StudentId == rawId);
+            if (!existsInStudents)
+            {
+                var admission = await _context.Admissions.FirstOrDefaultAsync(a => a.AdmissionId == rawId);
+                if (admission != null && !string.IsNullOrEmpty(admission.ApplicationNo))
+                {
+                    var resolvedStudent = await _context.Students.FirstOrDefaultAsync(s =>
+                        s.AdmissionNumber == admission.ApplicationNo);
+                    if (resolvedStudent != null)
+                    {
+                        payment.StudentId = resolvedStudent.StudentId.ToString();
+                    }
+                }
+            }
+        }
+
         _context.FeePayments.Add(payment);
         await _context.SaveChangesAsync();
         return payment;

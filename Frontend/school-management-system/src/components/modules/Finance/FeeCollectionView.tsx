@@ -7,7 +7,7 @@ import {
   getItemFeeFromFinanceConfig,
   calculateClothOrItemPrice,
 } from "../../../utils/uniformUtils";
-import { matchesClassName } from "../../../utils/classSorter";
+import { matchesClassName, compareClassesAscending } from "../../../utils/classSorter";
 import {
   IndianRupee,
   Search,
@@ -85,14 +85,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(initialStudent || null);
   const [calcResult, setCalcResult] = useState<StudentCalculationResult | null>(null);
 
-  useEffect(() => {
-    if (!selectedStudent && initialStudent) {
-      setSelectedStudent(initialStudent);
-    } else if (!selectedStudent && allEnrolledStudents && allEnrolledStudents.length > 0) {
-      setSelectedStudent(allEnrolledStudents[0]);
-    }
-  }, [initialStudent, allEnrolledStudents, selectedStudent]);
-
   const [tempScholarshipId, setTempScholarshipId] = useState("");
   const [tempDiscountId, setTempDiscountId] = useState("");
   const [isFineWaived, setIsFineWaived] = useState(false);
@@ -131,7 +123,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   >({});
   const [paymentMode, setPaymentMode] = useState<
     FeePayment["paymentMode"] | ""
-  >("");
+  >("Cash");
   const [transactionId, setTransactionId] = useState("");
   const [chequeNo, setChequeNo] = useState("");
   const [chequeDate, setChequeDate] = useState("");
@@ -332,7 +324,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           address: adm.address || "",
           status: "Active",
           academicYear: adm.academicYear || "2026-2027",
-          branch: adm.branch || "Main Campus",
+          branch: adm.branch || selectedBranch || "Madhapur Branch",
           selectedOptionalFees: adm.selectedOptionalFees || []
         } as unknown as Student);
       });
@@ -363,12 +355,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     allEnrolledStudents.forEach((s) => {
       if (s.className) set.add(String(s.className).trim());
     });
-    return Array.from(set).sort((a, b) => {
-      const numA = parseInt(a.replace(/\D/g, ""), 10);
-      const numB = parseInt(b.replace(/\D/g, ""), 10);
-      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-      return a.localeCompare(b);
-    });
+    return Array.from(set).sort((a, b) => compareClassesAscending(a, b));
   }, [allEnrolledStudents]);
 
   const uniqueSections = React.useMemo(() => {
@@ -381,24 +368,52 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   const filteredStudents = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return allEnrolledStudents.filter((s) => {
-      const nameMatch =
-        !q ||
-        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-        (s.admissionNo || "").toLowerCase().includes(q) ||
-        (s.id || "").toLowerCase().includes(q);
+    return allEnrolledStudents
+      .filter((s) => {
+        const nameMatch =
+          !q ||
+          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+          (s.admissionNo || "").toLowerCase().includes(q) ||
+          (s.id || "").toLowerCase().includes(q);
 
-      const classMatch =
-        selectedClass === "ALL" ||
-        matchesClassName(s.className, selectedClass);
+        const classMatch =
+          selectedClass === "ALL" ||
+          matchesClassName(s.className, selectedClass);
 
-      const sectionMatch =
-        selectedSection === "ALL" ||
-        String(s.section || "").toLowerCase() === selectedSection.toLowerCase();
+        const sectionMatch =
+          selectedSection === "ALL" ||
+          String(s.section || "").toLowerCase() === selectedSection.toLowerCase();
 
-      return nameMatch && classMatch && sectionMatch;
-    });
+        return nameMatch && classMatch && sectionMatch;
+      })
+      .sort((a, b) => {
+        const classComp = compareClassesAscending(a.className, b.className);
+        if (classComp !== 0) return classComp;
+        const nameA = `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).studentName || a.name || '';
+        const nameB = `${b.firstName || ''} ${b.lastName || ''}`.trim() || (b as any).studentName || b.name || '';
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      });
   }, [allEnrolledStudents, searchQuery, selectedClass, selectedSection]);
+
+  const displayedRecentPayments = React.useMemo(() => {
+    if (!feePayments || feePayments.length === 0) return [];
+    if (!selectedStudent) return feePayments.slice(0, 3);
+    const sid = String(selectedStudent.id).toLowerCase().trim();
+    const adm = String(selectedStudent.admissionNo || '').toLowerCase().trim();
+    const app = String((selectedStudent as any).applicationNo || '').toLowerCase().trim();
+    const reg = String((selectedStudent as any).registrationNo || '').toLowerCase().trim();
+    const filtered = feePayments.filter((p) => {
+      const pid = String(p.studentId || '').toLowerCase().trim();
+      const padm = String((p as any).admissionNo || '').toLowerCase().trim();
+      return (
+        (sid && (pid === sid || padm === sid)) ||
+        (adm && (pid === adm || padm === adm)) ||
+        (app && (pid === app || padm === app)) ||
+        (reg && (pid === reg || padm === reg))
+      );
+    });
+    return filtered.slice(0, 3);
+  }, [feePayments, selectedStudent]);
 
   const updateCalculation = (
     studentId: string,
@@ -406,7 +421,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     ledgerOverride?: StudentFeeLedger,
   ) => {
     let calc = freshCalcResult;
-    const ledger = ledgerOverride || getStudentFeeLedger(studentId);
+    const ledger = ledgerOverride || getStudentFeeLedger(studentId, selectedStudent || undefined, currentYear);
 
     // Fallback fee calculation if freshCalcResult is null
     if (!calc) {
@@ -478,6 +493,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setTempDiscountId("");
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
+    setPaymentMode("Cash");
     updateCalculation(st.id);
   };
 
@@ -648,6 +664,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     const payment = addFeePayment({
       studentId: selectedStudent.id,
+      admissionNo: selectedStudent.admissionNo || (selectedStudent as any).registrationNo || (selectedStudent as any).applicationNo,
       studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
       className: `${selectedStudent.className}-${selectedStudent.section}`,
       amountPaid: numericAmount,
@@ -677,6 +694,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       grossAmount:
         calcResult.baseFee + calcResult.transportFee + calcResult.hostelFee,
       previousDue: previousYearPending,
+      totalOutstanding: totalOutstanding,
       selectedInstallmentIds: selectedInstallments,
       paymentAllocation: paymentAllocations,
     });
@@ -838,7 +856,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     if (!selectedStudent) return [];
 
     // 1. Fetch ledger from getStudentFeeLedger which handles dynamic generation & admissions lookup
-    const ledger = getStudentFeeLedger(selectedStudent.id, currentYear);
+    const ledger = getStudentFeeLedger(selectedStudent.id, selectedStudent, currentYear);
     let ledgerInstallments = ledger?.installments || [];
 
     // If ledgerInstallments is empty, construct installment checkboxes directly from ledger.feeItems
@@ -1510,6 +1528,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     return combined;
   }, [
     selectedStudent,
+    feePayments,
     studentFeeLedgers,
     studentFeeInstallments,
     studentUniformIssues,
@@ -1721,7 +1740,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     groupedPreviousYears[inst.academicYear].push(inst);
   });
 
-  const activeStudent = selectedStudent || (allEnrolledStudents && allEnrolledStudents.length > 0 ? allEnrolledStudents[0] : null);
+  const activeStudent = selectedStudent;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -1764,36 +1783,65 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         </button>
       </div>
 
-      {/* 3. Search Bar & Active Student Banner */}
+      {/* 3. Search Bar & Filter Controls */}
       <div className="glass-card p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[240px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by Admission No, Student Name or Roll No..."
+              placeholder="Search student by Name, Adm No, or Roll No..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                if (e.target.value) {
-                  const match = allEnrolledStudents.find(
-                    (s) =>
-                      s.firstName.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                      s.lastName.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                      (s.admissionNo && s.admissionNo.toLowerCase().includes(e.target.value.toLowerCase()))
-                  );
-                  if (match) setSelectedStudent(match);
-                }
               }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          <button
-            type="button"
-            className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-          >
-            Search
-          </button>
+
+          <div>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold cursor-pointer"
+            >
+              <option value="ALL">All Classes</option>
+              {uniqueClassNames.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold cursor-pointer"
+            >
+              <option value="ALL">All Sections</option>
+              {uniqueSections.map((sec) => (
+                <option key={sec} value={sec}>Section {sec}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={selectedStudent?.id || ""}
+              onChange={(e) => {
+                const s = filteredStudents.find((st) => st.id === e.target.value || st.admissionNo === e.target.value);
+                if (s) handleSelectStudent(s);
+              }}
+              className="px-3 py-2.5 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 text-xs font-bold cursor-pointer max-w-[280px] truncate"
+            >
+              <option value="">-- Select Student ({filteredStudents.length}) --</option>
+              {filteredStudents.map((st) => (
+                <option key={st.id || st.admissionNo} value={st.id}>
+                  {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} ({st.admissionNo})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {activeStudent && (
@@ -1821,19 +1869,19 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </span>{" "}
                   | Branch:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    Main Campus
+                    {activeStudent.branch || (activeStudent as any).campus || selectedBranch || "Madhapur Branch"}
                   </span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <div className="text-right">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">
                   Current Due
                 </span>
                 <span className="text-xl font-black text-rose-600 dark:text-rose-400">
-                  {formatCurrency(totalOutstanding > 0 ? totalOutstanding : 18500)}
+                  {formatCurrency(totalOutstanding)}
                 </span>
               </div>
               <button
@@ -1843,10 +1891,84 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               >
                 View Student Ledger
               </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStudent(null)}
+                className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
+              >
+                Change Student
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      {!activeStudent && (
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-blue-600" /> Select Student for Fee Collection ({filteredStudents.length} Students)
+            </h3>
+            <p className="text-xs text-slate-500 font-medium">
+              Showing students class-wise & alphabetically (A-Z)
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3 px-4">#</th>
+                  <th className="py-3 px-4">Class & Sec</th>
+                  <th className="py-3 px-4">Student Name</th>
+                  <th className="py-3 px-4">Adm No</th>
+                  <th className="py-3 px-4">Branch</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
+                      No students found matching search filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((st, idx) => (
+                    <tr key={st.id || st.admissionNo} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-3 px-4 text-slate-400 font-mono font-bold">{idx + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
+                        {st.className} - {st.section || 'A'}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">
+                          {st.firstName?.[0] || 'S'}
+                        </div>
+                        {st.firstName} {st.lastName}
+                      </td>
+                      <td className="py-3 px-4 font-mono font-semibold text-slate-600 dark:text-slate-300">
+                        {st.admissionNo || st.id}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500">
+                        {st.branch || selectedBranch || "Madhapur Branch"}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectStudent(st)}
+                          className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
+                        >
+                          Select Student →
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 4. Main 2-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1887,56 +2009,52 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   {allInstallments.length > 0 ? (
                     allInstallments.map((inst, index) => {
                       const isSelected = selectedInstallments.includes(inst.id);
+                      const isPaid = inst.dueAmount <= 0 || inst.status === "Paid";
+                      const displayPaidAmt = inst.paidAmount > 0 ? inst.paidAmount : (isPaid ? inst.amount : 0);
                       return (
                         <tr
                           key={inst.id}
-                          className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                          className={`transition-colors ${isPaid ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'}`}
                         >
                           <td className="p-3 font-mono font-semibold text-slate-600">{index + 1}</td>
                           <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
                           <td className="p-3 text-slate-600 dark:text-slate-400">{inst.termName || "Term 1"}</td>
-                          <td className="p-3 text-slate-500 font-mono">{inst.dueDate || "15-Apr-2025"}</td>
+                          <td className="p-3 text-slate-500 font-mono">{inst.dueDate || new Date().toISOString().split('T')[0]}</td>
                           <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(inst.amount)}</td>
                           <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ 0</td>
-                          <td className="p-3 text-right font-mono text-slate-600 dark:text-slate-400">{formatCurrency(inst.paidAmount)}</td>
-                          <td className="p-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">{formatCurrency(inst.dueAmount)}</td>
+                          <td className="p-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(displayPaidAmt)}
+                          </td>
+                          <td className="p-3 text-right font-mono font-bold">
+                            {isPaid ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">₹ 0</span>
+                            ) : (
+                              <span className="text-rose-600 dark:text-rose-400">{formatCurrency(inst.dueAmount)}</span>
+                            )}
+                          </td>
                           <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleInstallmentSelection(inst.id)}
-                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            />
+                            {isPaid ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                PAID
+                              </span>
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleInstallmentSelection(inst.id)}
+                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            )}
                           </td>
                         </tr>
                       );
                     })
                   ) : (
-                    [
-                      { id: "1", head: "Tuition Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 10000, disc: 0, paid: 4000, due: 6000 },
-                      { id: "2", head: "Library Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 1000, disc: 0, paid: 0, due: 1000 },
-                      { id: "3", head: "Science Lab Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 2000, disc: 0, paid: 0, due: 2000 },
-                      { id: "4", head: "Exam Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 1500, disc: 0, paid: 0, due: 1500 },
-                      { id: "5", head: "Transport Fee", term: "Term 1", dueDate: "15-Apr-2025", orig: 3000, disc: 0, paid: 0, due: 3000 },
-                    ].map((row, idx) => (
-                      <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                        <td className="p-3 font-mono font-semibold text-slate-600">{idx + 1}</td>
-                        <td className="p-3 font-bold text-slate-900 dark:text-white">{row.head}</td>
-                        <td className="p-3 text-slate-600 dark:text-slate-400">{row.term}</td>
-                        <td className="p-3 text-slate-500 font-mono">{row.dueDate}</td>
-                        <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(row.orig)}</td>
-                        <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ {row.disc}</td>
-                        <td className="p-3 text-right font-mono text-slate-600 dark:text-slate-400">{formatCurrency(row.paid)}</td>
-                        <td className="p-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">{formatCurrency(row.due)}</td>
-                        <td className="p-3 text-center">
-                          <input
-                            type="checkbox"
-                            defaultChecked
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </td>
-                      </tr>
-                    ))
+                    <tr>
+                      <td colSpan={9} className="p-6 text-center text-slate-500 dark:text-slate-400 font-medium">
+                        No outstanding fee heads found for this student.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -1945,7 +2063,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             <div className="flex justify-end pt-2 text-xs font-extrabold text-slate-700 dark:text-slate-200">
               Total Selected Amount:{" "}
               <span className="ml-2 text-blue-600 dark:text-blue-400 font-mono text-sm">
-                {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                {formatCurrency(amountPaying)}
               </span>
             </div>
           </div>
@@ -2042,7 +2160,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </span>
               <div>
                 <select
-                  value={paymentMode || "Cash"}
+                  value={paymentMode}
                   onChange={(e) => handlePaymentModeChange(e.target.value as any)}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold bg-white dark:bg-slate-900"
                 >
@@ -2058,7 +2176,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  value={amountPaying > 0 ? amountPaying : 13500}
+                  value={amountPaying}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900"
                   readOnly
                 />
@@ -2081,7 +2199,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </label>
                 <input
                   type="date"
-                  defaultValue="2025-08-26"
+                  defaultValue={new Date().toISOString().split('T')[0]}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
                 />
               </div>
@@ -2100,7 +2218,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span>Total Selected Amount</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                  {formatCurrency(amountPaying)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
@@ -2117,14 +2235,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   Net Payable Amount
                 </span>
                 <span className="font-mono font-black text-lg text-blue-600 dark:text-blue-400">
-                  {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                  {formatCurrency(amountPaying)}
                 </span>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={handleConfirmPaymentSubmit}
+              onClick={handleSubmitPayment}
               className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
             >
               <Receipt className="w-4 h-4" />
@@ -2148,33 +2266,33 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             </div>
 
             <div className="space-y-3">
-              {[
-                { rcp: "RCP-2025-26-00045", date: "20 Aug 2025", mode: "UPI", amt: 4000 },
-                { rcp: "RCP-2025-26-00032", date: "10 Aug 2025", mode: "Cash", amt: 3000 },
-                { rcp: "RCP-2025-26-00028", date: "02 Aug 2025", mode: "Bank Transfer", amt: 5000 },
-              ].map((p) => (
-                <div
-                  key={p.rcp}
-                  className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs border border-slate-100 dark:border-slate-800"
-                >
-                  <div>
-                    <p className="font-mono font-bold text-slate-900 dark:text-white">
-                      {p.rcp}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {p.date} • {p.mode}
-                    </p>
+              {(displayedRecentPayments && displayedRecentPayments.length > 0) ? (
+                displayedRecentPayments.map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs border border-slate-100 dark:border-slate-800"
+                  >
+                    <div>
+                      <p className="font-mono font-bold text-slate-900 dark:text-white">
+                        {p.receiptNo || p.id}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {p.paymentDate} • {p.paymentMode}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-bold text-slate-900 dark:text-white">
+                        {formatCurrency(p.amountPaid || (p as any).amount || 0)}
+                      </p>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                        Paid
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-mono font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(p.amt)}
-                    </p>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                      Paid
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 py-2">No recent payment receipts found.</p>
+              )}
             </div>
           </div>
 
@@ -2262,7 +2380,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <div className="flex justify-between">
                 <span className="text-slate-500">Total Amount:</span>
                 <span className="font-bold text-emerald-600 text-sm">
-                  {formatCurrency(amountPaying > 0 ? amountPaying : 13500)}
+                  {formatCurrency(amountPaying)}
                 </span>
               </div>
             </div>
@@ -2354,638 +2472,5 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     </div>
   );
 };
-    return (
-      <div className="space-y-4 animate-in fade-in">
-        {/* Search & Filter Bar Card */}
-        <div className="glass-card p-4 rounded-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="relative col-span-1 sm:col-span-2">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                placeholder="Search student by name, admission no, or roll no..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
-              />
-            </div>
-
-            <div>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
-              >
-                <option value="ALL">All Classes</option>
-                {uniqueClassNames.map((cls) => (
-                  <option key={cls} value={cls}>
-                    {cls.startsWith("Class") ? cls : `Class ${cls}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
-              >
-                <option value="ALL">All Sections</option>
-                {uniqueSections.map((sec) => (
-                  <option key={sec} value={sec}>
-                    Section {sec}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Full-Screen Student Table List */}
-        {filteredStudents.length === 0 ? (
-          <div className="glass-card p-12 text-center rounded-2xl space-y-3">
-            <Users className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">
-              No Students Found
-            </h3>
-            <p className="text-xs text-slate-400">
-              Try adjusting your search query or class/section filters.
-            </p>
-          </div>
-        ) : (
-          <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-100/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
-                  <th className="p-3.5 pl-4">Admission No</th>
-                  <th className="p-3.5">Student Name</th>
-                  <th className="p-3.5">Class & Section</th>
-                  <th className="p-3.5">Student Type</th>
-                  <th className="p-3.5 text-right font-mono">
-                    Total Outstanding
-                  </th>
-                  <th className="p-3.5 text-center pr-4">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {filteredStudents.map((st, stIdx) => {
-                  const isHosteller =
-                    st.studentType === "Hosteller" ||
-                    (st as any).studentType === "Residential" ||
-                    (st as any).residentialStatus === "Residential";
-
-                  const dueSummary = getStudentFeeOutstandingSummary
-                    ? getStudentFeeOutstandingSummary(st.id)
-                    : null;
-                  const dfs = (dynamicFeeStructures || []).find((d) =>
-                    matchesClassName(d.className, st.className),
-                  );
-                  const dueAmt = dueSummary !== null && dueSummary !== undefined
-                    ? dueSummary.totalOutstanding
-                    : (dfs?.totalAmount ?? 0);
-
-                  const displayClassStr = st.className
-                    ? st.className.toLowerCase().startsWith("class")
-                      ? `${st.className}-${st.section}`
-                      : `Class ${st.className}-${st.section}`
-                    : `Section ${st.section}`;
-
-                  return (
-                    <tr
-                      key={`${st.id}-${st.admissionNo || ''}-${stIdx}`}
-                      onClick={() => handleSelectStudent(st)}
-                      className="hover:bg-sky-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
-                    >
-                      <td className="p-3.5 pl-4 font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {st.admissionNo || st.id}
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500 to-brand-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            {st.firstName?.[0] || "S"}
-                          </div>
-                          <span className="font-extrabold text-slate-900 dark:text-white group-hover:text-sky-600 transition-colors">
-                            {st.firstName} {st.lastName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-3.5 font-bold text-slate-800 dark:text-slate-200">
-                        {displayClassStr}
-                      </td>
-                      <td className="p-3.5">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                            isHosteller
-                              ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                              : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-                          }`}
-                        >
-                          {isHosteller ? "Residential" : "Day Scholar"}
-                        </span>
-                      </td>
-                      <td
-                        className={`p-3.5 text-right font-mono text-xs ${
-                          dueAmt > 0
-                            ? "font-black text-rose-600 dark:text-rose-400"
-                            : "font-bold text-emerald-600 dark:text-emerald-400"
-                        }`}
-                      >
-                        {formatCurrency(dueAmt)}
-                      </td>
-                      <td className="p-3.5 text-center pr-4">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectStudent(st);
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 font-extrabold text-xs group-hover:bg-sky-600 group-hover:text-white transition-all inline-flex items-center gap-1 shadow-xs"
-                        >
-                          Collect Fee <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-      )}
-    </div>
-  );
-};
 
 export default FeeCollectionView;
-            <div className="space-y-2 text-xs font-bold text-slate-600 dark:text-slate-400">
-              <div className="flex justify-between">
-                <span>Current Academic Year Pending:</span>
-                <span className="font-mono text-slate-900 dark:text-white font-extrabold">
-                  {formatCurrency(currentYearPending)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Previous Academic Year Pending:</span>
-                <span className="font-mono text-slate-955 dark:text-white font-extrabold">
-                  {formatCurrency(previousYearPending)}
-                </span>
-              </div>
-              <hr className="border-slate-150 dark:border-slate-800" />
-              <div className="flex justify-between text-slate-905 dark:text-white font-extrabold">
-                <span>Total Outstanding:</span>
-                <span className="font-mono text-rose-600 font-black text-sm">
-                  {formatCurrency(totalOutstanding)}
-                </span>
-              </div>
-              <hr className="border-slate-150 dark:border-slate-800 border-dashed" />
-              {availableReturnCredit > 0 && (
-                <label className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300 cursor-pointer py-1">
-                  <span className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={applyReturnCredit}
-                      onChange={(e) => setApplyReturnCredit(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 border-emerald-300 dark:border-emerald-700 bg-white focus:ring-emerald-500 cursor-pointer shrink-0"
-                    />
-                    <span>Apply Return Credit</span>
-                  </span>
-                  <span className="font-mono font-extrabold text-emerald-700 dark:text-emerald-400">
-                    -{formatCurrency(availableReturnCredit)}
-                  </span>
-                </label>
-              )}
-              <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-400 mt-2 font-black text-[13px]">
-                <span>Selected for Collection:</span>
-                <span className="font-mono text-base font-black">
-                  {formatCurrency(
-                    Math.max(
-                      0,
-                      amountPaying -
-                        (applyReturnCredit ? availableReturnCredit : 0),
-                    ),
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="md:col-span-3">
-            <form
-              onSubmit={handleSubmitPayment}
-              className="space-y-3.5 text-xs"
-            >
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Payment Method <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <select
-                  value={paymentMode}
-                  onChange={(e) => {
-                    setPaymentMode(e.target.value as any);
-                    setTransactionId("");
-                    setChequeNo("");
-                    setChequeDate("");
-                    setBankName("");
-                  }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border font-bold text-slate-900 dark:text-white cursor-pointer outline-none focus:border-brand-500"
-                >
-                  <option value="">-- Select Payment Method --</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Card">Card</option>
-                  <option value="UPI">UPI / QR Scan</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Other">Other Configured Mode</option>
-                </select>
-              </div>
-              {(paymentMode === "Online" ||
-                paymentMode === "Card" ||
-                paymentMode === "UPI" ||
-                paymentMode === "Bank Transfer" ||
-                paymentMode === "Other") && (
-                <div className="animate-in slide-in-from-top-1">
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Transaction Ref / UTR No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter UTR reference code or Approval ID..."
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-850 border text-slate-900 dark:text-white font-mono outline-none"
-                  />
-                </div>
-              )}
-              {paymentMode === "Cheque" && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 animate-in slide-in-from-top-1">
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Cheque No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="6-digit No."
-                      value={chequeNo}
-                      onChange={(e) => setChequeNo(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-850 border text-slate-900 dark:text-white font-mono outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Cheque Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input
-                      type="date"
-                      required
-                      value={chequeDate}
-                      onChange={(e) => setChequeDate(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-850 border text-slate-900 dark:text-white outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Bank Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. SBI / ICICI"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-850 border text-slate-900 dark:text-white outline-none"
-                    />
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Payment Remarks (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Add internal verification notes..."
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-850 border text-slate-900 dark:text-white outline-none"
-                />
-              </div>
-              {!isFormValid && validationMessage && (
-                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-xl border border-amber-200/60 dark:border-amber-900/60 flex items-center gap-1.5 animate-pulse">
-                  ⚠️ {validationMessage}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={!isFormValid}
-                className={`w-full py-2.5 rounded-xl font-black text-xs shadow-md flex items-center justify-center gap-2 transition-all ${
-                  isFormValid
-                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 cursor-pointer"
-                    : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-650 cursor-not-allowed opacity-75"
-                }`}
-              >
-                <IndianRupee className="w-4 h-4" /> Collect Payment & Issue
-                Receipt
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <div className="glass-card p-3.5 rounded-2xl space-y-2.5">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <History className="w-4 h-4 text-sky-500" /> Recorded Payment
-              Receipts (
-              {
-                feePayments.filter((p) => p.studentId === selectedStudent.id)
-                  .length
-              }
-              )
-            </h4>
-          </div>
-          <div className="space-y-2 text-xs max-h-60 overflow-y-auto pr-0.5">
-            {feePayments.filter((p) => p.studentId === selectedStudent.id)
-              .length === 0 ? (
-              <p className="text-[11px] text-slate-400 italic">
-                No payment receipts recorded yet.
-              </p>
-            ) : (
-              feePayments
-                .filter((p) => p.studentId === selectedStudent.id)
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-xs">
-                          {p.receiptNo}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px]">
-                          ✓ PAID ({p.paymentMode})
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        Date: {p.paymentDate}{" "}
-                        {p.transactionId ? `• Ref: ${p.transactionId}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-black text-emerald-600 text-xs">
-                        {formatCurrency(p.amountPaid)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => onPrintReceipt(p)}
-                        className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm cursor-pointer"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> Print Receipt
-                      </button>
-                    </div>
-                  </div>
-                ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {showPaymentConfirmModal && selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400">
-                  <IndianRupee className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                    Confirm Official Receipt & Fee Payment
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Verify details before recording payment
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPaymentConfirmModal(false)}
-                className="p-1 rounded-lg text-slate-405 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-              <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
-                <span className="text-slate-500 font-medium">
-                  Student Name:
-                </span>
-                <span className="font-extrabold text-slate-900 dark:text-white">
-                  {selectedStudent.firstName} {selectedStudent.lastName} (
-                  {selectedStudent.admissionNo})
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
-                <span className="text-slate-500 font-medium">
-                  Class & Section:
-                </span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {selectedStudent.className}-{selectedStudent.section}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
-                <span className="text-slate-500 font-medium">
-                  Payment Mode / Type:
-                </span>
-                <span className="font-extrabold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
-                  {paymentMode}
-                </span>
-              </div>
-              {paymentMode !== "Cash" && transactionId && (
-                <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
-                  <span className="text-slate-500 font-medium">
-                    Transaction / UTR Ref:
-                  </span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                    {transactionId}
-                  </span>
-                </div>
-              )}
-              {remarks && (
-                <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
-                  <span className="text-slate-500 font-medium">
-                    Payment Remarks:
-                  </span>
-                  <span className="font-medium text-slate-700 dark:text-slate-300 italic">
-                    {remarks}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between items-center pt-1.5 font-black text-slate-900 dark:text-white text-sm">
-                <span>Total Amount to Collect:</span>
-                <span className="text-lg text-emerald-600 dark:text-emerald-400 font-mono font-black">
-                  {formatCurrency(amountPaying)}
-                </span>
-              </div>
-            </div>
-            <div className="p-3.5 bg-sky-50/60 dark:bg-sky-950/40 rounded-xl border border-sky-200/80 dark:border-sky-800/80 space-y-1.5 text-xs max-h-48 overflow-y-auto">
-              <p className="text-[10px] font-extrabold uppercase text-sky-900 dark:text-sky-200 tracking-wider border-b border-sky-100 dark:border-sky-900 pb-1 mb-1">
-                Payment Allocation Details
-              </p>
-              {(() => {
-                const selectedInstObjects = allInstallments.filter((i) =>
-                  selectedInstallments.includes(i.id),
-                );
-                const groupedByYear: {
-                  [year: string]: typeof selectedInstObjects;
-                } = {};
-                selectedInstObjects.forEach((inst) => {
-                  if (!groupedByYear[inst.academicYear]) {
-                    groupedByYear[inst.academicYear] = [];
-                  }
-                  groupedByYear[inst.academicYear].push(inst);
-                });
-                return Object.entries(groupedByYear).map(([year, list]) => (
-                  <div key={year} className="space-y-0.5">
-                    <p className="font-extrabold text-[10px] text-slate-500 uppercase">
-                      {year}
-                    </p>
-                    <ul className="list-disc list-inside space-y-0.5 pl-1 text-[11px] text-slate-700 dark:text-slate-300">
-                      {list.map((i) => (
-                        <li key={i.id}>
-                          {i.feeHeadName} {i.termName ? `— ${i.termName}` : ""}:{" "}
-                          <span className="font-mono font-extrabold">
-                            {formatCurrency(i.dueAmount)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ));
-              })()}
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowPaymentConfirmModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={executeProcessPayment}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Receipt className="w-4 h-4" /> Confirm & Record Payment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPaymentHistoryModal && selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[88vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
-                  <History className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base text-slate-900 dark:text-white">
-                    Fee Payment & Allocation History Log
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {selectedStudent.firstName} {selectedStudent.lastName} • Adm
-                    No:{" "}
-                    <span className="font-mono font-bold">
-                      {selectedStudent.admissionNo}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPaymentHistoryModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
-              {(() => {
-                const studentPayments = feePayments.filter(
-                  (p) => p.studentId === selectedStudent.id,
-                );
-                if (studentPayments.length === 0) {
-                  return (
-                    <div className="p-8 text-center text-slate-400 font-medium italic border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                      No historical fee payment receipts found for this student.
-                    </div>
-                  );
-                }
-                return (
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100 dark:bg-slate-800/80 font-extrabold uppercase text-[10px] text-slate-500 border-b border-slate-200 dark:border-slate-800">
-                          <th className="p-3">Receipt No</th>
-                          <th className="p-3">Payment Date</th>
-                          <th className="p-3">Mode / Ref</th>
-                          <th className="p-3 font-mono">Amount Paid</th>
-                          <th className="p-3 text-right">Receipt</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                        {studentPayments.map((p) => (
-                          <tr
-                            key={p.id}
-                            className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40"
-                          >
-                            <td className="p-3 font-mono font-bold text-sky-600 dark:text-sky-400">
-                              {p.receiptNo}
-                            </td>
-                            <td className="p-3 font-mono text-slate-600 dark:text-slate-300">
-                              {p.paymentDate}
-                            </td>
-                            <td className="p-3">
-                              <span className="font-bold text-slate-900 dark:text-white uppercase text-[11px]">
-                                {p.paymentMode}
-                              </span>
-                              {p.transactionId && (
-                                <span className="block text-[10px] text-slate-400 font-mono">
-                                  Ref: {p.transactionId}
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3 font-mono font-black text-emerald-600 dark:text-emerald-400">
-                              {formatCurrency(p.amountPaid)}
-                            </td>
-                            <td className="p-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => onPrintReceipt(p)}
-                                className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto text-[11px] border border-sky-200 dark:border-sky-800 transition-colors cursor-pointer"
-                              >
-                                <Printer className="w-3.5 h-3.5" /> Print
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowPaymentHistoryModal(false)}
-                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 text-xs hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                Close History Log
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};

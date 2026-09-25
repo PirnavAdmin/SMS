@@ -111,8 +111,20 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var studentIdsStr = students.Select(s => s.StudentId.ToString()).ToList();
         var admNos = students.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToList();
 
+        var matchedAdmissions = await _context.Admissions.AsNoTracking()
+            .Where(a => a.ApplicationNo != null && admNos.Contains(a.ApplicationNo))
+            .Select(a => new { Id = a.AdmissionId, a.ApplicationNo })
+            .ToListAsync();
+
+        var allStudentKeys = new HashSet<string>(studentIdsStr.Concat(admNos));
+        foreach (var a in matchedAdmissions)
+        {
+            allStudentKeys.Add(a.Id.ToString());
+            if (!string.IsNullOrEmpty(a.ApplicationNo)) allStudentKeys.Add(a.ApplicationNo);
+        }
+
         var payments = await _context.FeePayments.AsNoTracking()
-            .Where(p => studentIdsStr.Contains(p.StudentId) || admNos.Contains(p.StudentId))
+            .Where(p => allStudentKeys.Contains(p.StudentId))
             .ToListAsync();
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
@@ -200,6 +212,20 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Include(s => s.AcademicYear)
             .FirstOrDefaultAsync(s => s.StudentId == studentId);
 
+        if (student == null)
+        {
+            var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.AdmissionId == studentId);
+            if (admission != null && !string.IsNullOrEmpty(admission.ApplicationNo))
+            {
+                student = await _context.Students.AsNoTracking()
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .Include(s => s.Branch)
+                    .Include(s => s.AcademicYear)
+                    .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
+            }
+        }
+
         if (student == null) return null;
 
         string admNo = student.AdmissionNumber ?? $"REG-{student.StudentId}";
@@ -207,8 +233,16 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         string cName = student.ClassGrade?.ClassName ?? "Class 10";
         string sName = student.ClassSection?.SectionName ?? "A";
 
+        var matchedAdmissions = await _context.Admissions.AsNoTracking()
+            .Where(a => (a.ApplicationNo != null && a.ApplicationNo == admNo) || (a.ApplicationNo != null && a.ApplicationNo == studentIdStr))
+            .Select(a => a.AdmissionId.ToString())
+            .ToListAsync();
+
+        var allStudentKeys = new HashSet<string> { studentIdStr, admNo };
+        foreach (var id in matchedAdmissions) allStudentKeys.Add(id);
+
         var payments = await _context.FeePayments.AsNoTracking()
-            .Where(p => p.StudentId == studentIdStr || p.StudentId == admNo)
+            .Where(p => allStudentKeys.Contains(p.StudentId))
             .OrderByDescending(p => p.PaymentDate)
             .ToListAsync();
 
@@ -353,7 +387,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             AmountPaid = p.Amount,
             Status = p.Status ?? "Paid",
             TransactionId = p.TransactionId ?? "",
-            PaidHeads = new List<string> { "Tuition Fee", "Admission Fee" }
+            Remarks = p.Remarks ?? "",
+            TermName = p.TermName ?? "",
+            FeeHeadName = p.FeeHeadName ?? "",
+            PaidHeads = !string.IsNullOrEmpty(p.FeeHeadName) ? new List<string> { p.FeeHeadName } : new List<string> { "Tuition Fee" }
         }).ToList();
 
         return new StudentFeeProfileResponseDto
@@ -403,25 +440,55 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             throw new ArgumentException("A valid payment amount is required.");
         }
 
+        int canonicalStudentId = request.StudentId;
+        var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+        if (student == null)
+        {
+            var admission = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.AdmissionId == request.StudentId);
+            if (admission != null && !string.IsNullOrEmpty(admission.ApplicationNo))
+            {
+                var resolvedStudent = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == admission.ApplicationNo);
+                if (resolvedStudent != null)
+                {
+                    canonicalStudentId = resolvedStudent.StudentId;
+                }
+            }
+        }
+
+        string termName = request.SelectedItems != null && request.SelectedItems.Any()
+            ? string.Join(", ", request.SelectedItems.Select(i => i.TermName).Where(t => !string.IsNullOrEmpty(t)).Distinct())
+            : "";
+        string feeHeadName = request.SelectedItems != null && request.SelectedItems.Any()
+            ? string.Join(", ", request.SelectedItems.Select(i => i.HeadName).Where(h => !string.IsNullOrEmpty(h)).Distinct())
+            : "Tuition Fee";
+        string itemsJson = request.SelectedItems != null && request.SelectedItems.Any()
+            ? JsonSerializer.Serialize(request.SelectedItems)
+            : "";
+
         string receiptNo = $"REC-2026-{Random.Shared.Next(1000, 9999)}";
 
         var payment = new FeePayment
         {
             ReceiptNo = receiptNo,
-            StudentId = request.StudentId.ToString(),
+            StudentId = canonicalStudentId.ToString(),
             Amount = request.TotalAmountPaid,
             DiscountAmount = request.ConcessionDiscountAmount,
             FineAmount = request.IsFineWaived ? 0m : request.FineAmount,
             PaymentDate = DateTime.UtcNow,
             PaymentMethod = request.PaymentMethod ?? "Cash",
             TransactionId = !string.IsNullOrEmpty(request.TransactionId) ? request.TransactionId : request.ChequeNo ?? "",
-            Status = "Completed"
+            Status = "Completed",
+            TermName = !string.IsNullOrEmpty(termName) ? termName : "Term Fee",
+            FeeHeadName = !string.IsNullOrEmpty(feeHeadName) ? feeHeadName : "Tuition Fee",
+            Remarks = !string.IsNullOrEmpty(request.Remarks) ? request.Remarks : "Fee Collection Receipt",
+            PaidItemsJson = itemsJson
         };
 
         _context.FeePayments.Add(payment);
         await _context.SaveChangesAsync();
 
-        var profile = await GetStudentFeeProfileAsync(request.StudentId, request.AcademicYear);
+        var profile = await GetStudentFeeProfileAsync(canonicalStudentId, request.AcademicYear);
         decimal remaining = profile != null ? profile.TotalOutstandingBalance : 0m;
 
         return new CollectFeePaymentResponseDto
@@ -763,7 +830,34 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ToListAsync();
 
         var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
-        decimal totalExpected = assignments.Count > 0 ? assignments.Sum(a => a.TotalAmount) : 0m;
+        var dynamicStructures = await _context.DynamicFeeStructures.AsNoTracking().Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status)).ToListAsync();
+
+        var assignmentDict = assignments
+            .Where(a => a.Status == "Active" || string.IsNullOrEmpty(a.Status))
+            .GroupBy(a => a.StudentId.ToString())
+            .ToDictionary(g => g.Key, g => g.First().TotalAmount);
+
+        decimal totalExpected = 0m;
+        foreach (var s in activeStudents)
+        {
+            string sIdStr = s.StudentId.ToString();
+            if (assignmentDict.TryGetValue(sIdStr, out decimal assignedAmt))
+            {
+                totalExpected += assignedAmt;
+            }
+            else
+            {
+                var matchedDfs = dynamicStructures.FirstOrDefault(d => 
+                    !string.IsNullOrEmpty(d.ClassName) && 
+                    !string.IsNullOrEmpty(s.ClassGrade?.ClassName) && 
+                    MatchesClassName(d.ClassName, s.ClassGrade?.ClassName));
+                if (matchedDfs != null)
+                {
+                    totalExpected += matchedDfs.TotalAmount;
+                }
+            }
+        }
+
         decimal totalOutstanding = Math.Max(0m, totalExpected - totalCollected);
 
         DateTime today = DateTime.UtcNow.Date;
@@ -811,10 +905,26 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 .Where(p => studentIds.Contains(p.StudentId) || admNos.Contains(p.StudentId))
                 .Sum(p => p.Amount);
 
-            var classAssignments = assignments.Where(a => studentIds.Contains(a.StudentId.ToString())).ToList();
-            decimal classExpected = classAssignments.Count > 0 
-                ? classAssignments.Sum(a => a.TotalAmount)
-                : 0m;
+            decimal classExpected = 0m;
+            foreach (var st in grp)
+            {
+                string stIdStr = st.StudentId.ToString();
+                if (assignmentDict.TryGetValue(stIdStr, out decimal aAmt))
+                {
+                    classExpected += aAmt;
+                }
+                else
+                {
+                    var matchedDfs = dynamicStructures.FirstOrDefault(d => 
+                        !string.IsNullOrEmpty(d.ClassName) && 
+                        !string.IsNullOrEmpty(st.ClassGrade?.ClassName) && 
+                        MatchesClassName(d.ClassName, st.ClassGrade?.ClassName));
+                    if (matchedDfs != null)
+                    {
+                        classExpected += matchedDfs.TotalAmount;
+                    }
+                }
+            }
 
             classWiseList.Add(new ClassWiseCollectionShareDto
             {

@@ -4629,7 +4629,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         )}
 
                         {/* Strict Status Options */}
-                        {app.status === "Enrolled" ? (
+                        {app.status === "Enrolled" || app.status === "Active" || app.status === "Admitted" ? (
                           <span className="px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />{" "}
                             Enrolled

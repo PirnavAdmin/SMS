@@ -2342,15 +2342,37 @@ using (var scope = app.Services.CreateScope())
             await context.Database.ExecuteSqlRawAsync(@"
                 CREATE TABLE IF NOT EXISTS `feeheads` (
                     `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                    `Name` VARCHAR(255) NOT NULL,
                     `Code` VARCHAR(50) NOT NULL DEFAULT '',
+                    `Name` VARCHAR(255) NOT NULL DEFAULT '',
+                    `Description` LONGTEXT NULL,
                     `Category` VARCHAR(100) NOT NULL DEFAULT 'Tuition',
                     `Frequency` VARCHAR(50) NOT NULL DEFAULT 'Monthly',
-                    `IsMandatory` TINYINT(1) NOT NULL DEFAULT 1,
+                    `DefaultAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Mandatory` TINYINT(1) NOT NULL DEFAULT 1,
                     `IsRefundable` TINYINT(1) NOT NULL DEFAULT 0,
-                    `IsActive` TINYINT(1) NOT NULL DEFAULT 1,
-                    `Description` VARCHAR(500) NOT NULL DEFAULT ''
+                    `IsTaxable` TINYINT(1) NOT NULL DEFAULT 0,
+                    `TaxPercentage` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `DisplayOrder` INT NOT NULL DEFAULT 1,
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Active'
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
+
+            string[] feeHeadCols = new[]
+            {
+                "ALTER TABLE `feeheads` ADD COLUMN `Code` VARCHAR(50) NOT NULL DEFAULT ''",
+                "ALTER TABLE `feeheads` ADD COLUMN `DefaultAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00",
+                "ALTER TABLE `feeheads` ADD COLUMN `Mandatory` TINYINT(1) NOT NULL DEFAULT 1",
+                "ALTER TABLE `feeheads` ADD COLUMN `IsTaxable` TINYINT(1) NOT NULL DEFAULT 0",
+                "ALTER TABLE `feeheads` ADD COLUMN `TaxPercentage` DECIMAL(18,2) NOT NULL DEFAULT 0.00",
+                "ALTER TABLE `feeheads` ADD COLUMN `DisplayOrder` INT NOT NULL DEFAULT 1",
+                "ALTER TABLE `feeheads` ADD COLUMN `Status` VARCHAR(50) NOT NULL DEFAULT 'Active'"
+            };
+            foreach (var alterSql in feeHeadCols)
+            {
+                try { await context.Database.ExecuteSqlRawAsync(alterSql); } catch { }
+            }
+
+            await context.Database.ExecuteSqlRawAsync(@"
 
                 CREATE TABLE IF NOT EXISTS `dynamicfeestructures` (
                     `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

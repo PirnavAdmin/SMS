@@ -5,6 +5,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { FeePolicyType, FeeHeadAssignmentBreakdown, Student } from '../../../types';
+import { matchesClassName, compareClassesAscending } from '../../../utils/classSorter';
 
 export const StudentFeeAssignmentView: React.FC = () => {
   const {
@@ -24,8 +25,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedClass, setSelectedClass] = useState('All');
+  const [selectedSection, setSelectedSection] = useState('All');
   const [query, setQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [targetStructureId, setTargetStructureId] = useState<string>('');
@@ -48,15 +49,24 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const ayStartDate = currentAYObj?.startDate || `${activeAY.slice(0, 4)}-06-01`;
   const ayEndDate = currentAYObj?.endDate || `${parseInt(activeAY.slice(0, 4), 10) + 1}-05-31`;
 
-  const filteredStudents = students.filter((s) => {
-    if (!selectedClass || !selectedSection) return false;
-    const matchesClass = s.className === selectedClass;
-    const matchesSection = selectedSection === 'All' || s.section === selectedSection;
-    const matchesQuery =
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
-      s.admissionNo.toLowerCase().includes(query.toLowerCase());
-    return matchesClass && matchesSection && matchesQuery;
-  });
+  const filteredStudents = students
+    .filter((s) => {
+      const matchesClass = !selectedClass || selectedClass === 'All' || matchesClassName(s.className, selectedClass);
+      const matchesSection = !selectedSection || selectedSection === 'All' || String(s.section || '').toLowerCase() === selectedSection.toLowerCase();
+      const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+      const matchesQuery =
+        !query.trim() ||
+        fullName.toLowerCase().includes(query.toLowerCase()) ||
+        (s.admissionNo || '').toLowerCase().includes(query.toLowerCase());
+      return matchesClass && matchesSection && matchesQuery;
+    })
+    .sort((a, b) => {
+      const classComp = compareClassesAscending(a.className, b.className);
+      if (classComp !== 0) return classComp;
+      const nameA = `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).studentName || a.name || '';
+      const nameB = `${b.firstName || ''} ${b.lastName || ''}`.trim() || (b as any).studentName || b.name || '';
+      return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+    });
 
   const handleSelectAll = () => {
     if (selectedStudentIds.length === filteredStudents.length) {
@@ -384,11 +394,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
               value={selectedClass}
               onChange={(e) => {
                 setSelectedClass(e.target.value);
-                setSelectedSection('');
+                setSelectedSection('All');
               }}
               className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
-              <option value="">Select Class</option>
+              <option value="All">All Classes</option>
               {academicClasses.map((c) => (
                 <option key={c.id} value={c.name}>
                   {c.name}
@@ -403,13 +413,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value)}
               className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-              disabled={!selectedClass}
             >
-              <option value="">Select Section</option>
+              <option value="All">All Sections</option>
               <option value="A">Section A</option>
               <option value="B">Section B</option>
               <option value="C">Section C</option>
-              <option value="All">All Sections</option>
             </select>
           </div>
 
@@ -469,13 +477,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {!selectedClass || !selectedSection ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
-                    Please select a Class Grade and Section to view and allocate student fee assignments.
-                  </td>
-                </tr>
-              ) : filteredStudents.length === 0 ? (
+              {filteredStudents.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
                     No students found matching the selected class, section, or search criteria.
