@@ -32,8 +32,10 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
-  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
+  const rawBase = (import.meta.env.VITE_API_URL as string) || '';
+  const baseUrl = rawBase.trim().replace(/\/+$/, '');
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${cleanEndpoint}`;
 
   let response: Response;
   try {
@@ -41,10 +43,11 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       ...options,
       headers,
     });
-  } catch (fetchError) {
+  } catch (fetchError: any) {
     // If ngrok tunnel fails or hits limit on localhost, transparently fallback to direct backend port 5151
     if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
-      const localUrl = `http://127.0.0.1:5151${endpoint}`;
+      console.warn(`[API Client] Request to ngrok (${url}) failed (${fetchError?.message || fetchError}). Falling back to local backend port 5151.`);
+      const localUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
       try {
         response = await fetch(localUrl, {
           ...options,

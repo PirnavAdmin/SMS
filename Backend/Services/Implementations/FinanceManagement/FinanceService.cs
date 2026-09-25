@@ -149,6 +149,13 @@ public class FinanceService : IFinanceService
             Description = JsonSerializer.Serialize(meta)
         };
 
+        var existingList = await _repo.GetFeeHeadsAsync();
+        var existingHead = existingList.FirstOrDefault(h => h.Name.Trim().Equals(dto.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (existingHead != null)
+        {
+            return await UpdateFeeHeadAsync(existingHead.Id, dto);
+        }
+
         var res = await _repo.CreateFeeHeadAsync(model);
         dto.Id = res.Id;
         dto.Code = meta.code;
@@ -256,7 +263,18 @@ public class FinanceService : IFinanceService
     public async Task<IEnumerable<DynamicFeeStructureDto>> GetDynamicFeeStructuresAsync()
     {
         var list = await _repo.GetDynamicFeeStructuresAsync();
-        return list.Select(x => new DynamicFeeStructureDto
+        // Group and deduplicate by class name, academic year and branch to guarantee no duplicate fee structures are ever returned
+        var grouped = list
+            .GroupBy(x => new
+            {
+                ClassName = (x.ClassName ?? "").Trim().ToLowerInvariant(),
+                AcademicYear = (x.AcademicYear ?? "2026-2027").Trim().ToLowerInvariant(),
+                Branch = (x.Branch ?? "Main Campus").Trim().ToLowerInvariant()
+            })
+            .Select(g => g.OrderByDescending(x => x.Id).First())
+            .ToList();
+
+        return grouped.Select(x => new DynamicFeeStructureDto
         {
             Id = x.Id,
             Name = x.Name,
@@ -300,14 +318,32 @@ public class FinanceService : IFinanceService
 
     public async Task<DynamicFeeStructureDto> CreateDynamicFeeStructureAsync(DynamicFeeStructureDto dto)
     {
+        var academicYear = string.IsNullOrEmpty(dto.AcademicYear) ? "2026-2027" : dto.AcademicYear;
+        var branch = string.IsNullOrEmpty(dto.Branch) ? "Main Campus" : dto.Branch;
+        var className = (dto.ClassName ?? "").Trim();
+
+        // Check if a fee structure already exists for this class, academic year, and branch
+        var existingList = await _repo.GetDynamicFeeStructuresAsync();
+        var existing = existingList.FirstOrDefault(x =>
+            x.ClassName != null &&
+            x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase) &&
+            (string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(x.Branch) || x.Branch.Equals(branch, StringComparison.OrdinalIgnoreCase)));
+
+        if (existing != null)
+        {
+            // UPSERT: Update existing fee structure instead of creating a duplicate row
+            return (await UpdateDynamicFeeStructureAsync(existing.Id, dto))!;
+        }
+
         var model = new DynamicFeeStructure
         {
-            Name = string.IsNullOrEmpty(dto.Name) ? $"{dto.ClassName} Fee Structure" : dto.Name,
+            Name = string.IsNullOrEmpty(dto.Name) ? $"{className} Structure" : dto.Name,
             Description = dto.Description,
             TargetAudience = dto.TargetAudience,
-            AcademicYear = string.IsNullOrEmpty(dto.AcademicYear) ? "2026-2027" : dto.AcademicYear,
-            Branch = string.IsNullOrEmpty(dto.Branch) ? "Main Campus" : dto.Branch,
-            ClassName = dto.ClassName,
+            AcademicYear = academicYear,
+            Branch = branch,
+            ClassName = className,
             Section = string.IsNullOrEmpty(dto.Section) ? "All Sections" : dto.Section,
             StudentCategory = string.IsNullOrEmpty(dto.StudentCategory) ? "General" : dto.StudentCategory,
             TotalAmount = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount,

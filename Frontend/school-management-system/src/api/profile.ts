@@ -161,7 +161,8 @@ export const uploadUserProfileImageApi = async (file: File): Promise<{ success: 
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  const rawBase = (import.meta.env.VITE_API_URL as string) || '';
+  const baseUrl = rawBase.trim().replace(/\/+$/, '');
 
   // 1. Try dedicated profile upload on backend
   try {

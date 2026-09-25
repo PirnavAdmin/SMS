@@ -54,14 +54,26 @@ export const FeeStructuresView: React.FC = () => {
     return sum + val;
   }, 0);
 
-  // Sorted & Filtered Fee Structures (Displayed in ascending class order, filtered by academic year, and deduplicated by className)
-  const rawFilteredStructures = dynamicFeeStructures
+  // Deduplicate by class name + academic year + branch to guarantee no duplicates are displayed
+  const dedupedStructures = React.useMemo(() => {
+    const map = new Map<string, DynamicFeeStructure>();
+    for (const s of dynamicFeeStructures) {
+      const key = `${(s.className || "").trim().toLowerCase()}_${(s.academicYear || "").trim().toLowerCase()}_${(s.branch || "").trim().toLowerCase()}`;
+      if (!map.has(key) || (s.items && s.items.length > (map.get(key)!.items?.length || 0))) {
+        map.set(key, s);
+      }
+    }
+    return Array.from(map.values());
+  }, [dynamicFeeStructures]);
+
+  // Sorted & Filtered Fee Structures (Displayed in ascending class order and filtered by academic year)
+  const rawFilteredStructures = dedupedStructures
     .filter((s) => {
       const matchesYear =
         !selectedAcademicYear ||
         !s.academicYear ||
         s.academicYear === selectedAcademicYear;
-      const matchesQuery = s.className
+      const matchesQuery = (s.className || "")
         .toLowerCase()
         .includes(query.toLowerCase());
       const matchesClass =
@@ -88,18 +100,18 @@ export const FeeStructuresView: React.FC = () => {
   );
 
   // Filter out classes that already have a fee structure created for the current academic year (unless editing current one) & sort in ascending order
-  const existingFeeStructClasses = dynamicFeeStructures
+  const existingFeeStructClasses = dedupedStructures
     .filter(
       (s) =>
-        (!editingStruct || s.id !== editingStruct.id) &&
+        (!editingStruct || String(s.id) !== String(editingStruct.id)) &&
         (!selectedAcademicYear ||
           !s.academicYear ||
           s.academicYear === selectedAcademicYear),
     )
-    .map((s) => s.className);
+    .map((s) => (s.className || "").trim().toLowerCase());
 
   const availableClassesForModal = academicClasses
-    .filter((c) => !existingFeeStructClasses.includes(c.name))
+    .filter((c) => !existingFeeStructClasses.includes(c.name.trim().toLowerCase()))
     .sort((a, b) => compareClassesAscending(a.name, b.name));
 
   const handleOpenAdd = () => {
@@ -280,12 +292,25 @@ export const FeeStructuresView: React.FC = () => {
       status: "Active",
     };
 
+    const existing = dynamicFeeStructures.find(
+      (s) =>
+        (s.className || "").trim().toLowerCase() === className.trim().toLowerCase() &&
+        (!selectedAcademicYear || !s.academicYear || s.academicYear === selectedAcademicYear),
+    );
+
     if (editingStruct) {
       updateDynamicFeeStructure(editingStruct.id, payload);
       addToast(
         "success",
         "Fee Structure Updated",
         `Updated structure for ${className}`,
+      );
+    } else if (existing) {
+      updateDynamicFeeStructure(existing.id, payload);
+      addToast(
+        "success",
+        "Fee Structure Updated",
+        `Updated existing structure for ${className}`,
       );
     } else {
       addDynamicFeeStructure(payload);
@@ -517,14 +542,21 @@ export const FeeStructuresView: React.FC = () => {
                 <select
                   value={className}
                   onChange={(e) => handleClassChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+                  disabled={!!editingStruct}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                 >
-                  <option value="">Select Class</option>
-                  {availableClassesForModal.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {editingStruct ? (
+                    <option value={className}>{className}</option>
+                  ) : (
+                    <>
+                      <option value="">Select Class</option>
+                      {availableClassesForModal.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
 

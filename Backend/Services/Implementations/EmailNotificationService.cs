@@ -50,7 +50,7 @@ public class EmailNotificationService : IEmailNotificationService
 
             var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
                 ? portalUrl 
-                : "https://unison-guileless-managing.ngrok-free.dev";
+                : (_configuration["AppUrl"] ?? "https://roping-crumpled-exclude.ngrok-free.dev");
 
             var cleanName = string.IsNullOrWhiteSpace(recipientName) ? "User" : recipientName.Trim();
             var cleanRole = string.IsNullOrWhiteSpace(roleName) ? "Member" : roleName.Trim();

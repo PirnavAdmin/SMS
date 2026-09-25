@@ -84,7 +84,25 @@ public class FinanceRepository : IFinanceRepository
 
     public async Task<DynamicFeeStructure> UpdateDynamicFeeStructureAsync(DynamicFeeStructure structure)
     {
-        _context.DynamicFeeStructures.Update(structure);
+        var existing = await _context.DynamicFeeStructures.FindAsync(structure.Id);
+        if (existing != null)
+        {
+            existing.Name = structure.Name;
+            existing.Description = structure.Description;
+            existing.TargetAudience = structure.TargetAudience;
+            existing.AcademicYear = structure.AcademicYear;
+            existing.Branch = structure.Branch;
+            existing.ClassName = structure.ClassName;
+            existing.Section = structure.Section;
+            existing.StudentCategory = structure.StudentCategory;
+            existing.TotalAmount = structure.TotalAmount;
+            existing.Status = structure.Status;
+            existing.ItemsJson = structure.ItemsJson;
+            await _context.SaveChangesAsync();
+            return existing;
+        }
+
+        _context.DynamicFeeStructures.Add(structure);
         await _context.SaveChangesAsync();
         return structure;
     }

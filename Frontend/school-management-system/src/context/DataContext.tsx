@@ -9672,7 +9672,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    createFeePaymentApi(newPayment).catch((err) => {
+    FinanceAPI.createFeePaymentApi(newPayment).catch((err: any) => {
       console.warn("Backend create fee payment fallback to local state", err);
     });
 
@@ -10424,20 +10424,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: dfs.branch || selectedBranch || "Main Campus",
     };
     setDynamicFeeStructures((prev) => {
-      const idx = prev.findIndex(
+      const normClass = (newDfs.className || "").trim().toLowerCase();
+      const filtered = prev.filter(
         (d) =>
-          d.id === id ||
-          (d.className &&
-            newDfs.className &&
-            d.className.toLowerCase().trim() ===
-              newDfs.className.toLowerCase().trim()),
+          String(d.id) !== String(id) &&
+          (d.className || "").trim().toLowerCase() !== normClass,
       );
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = newDfs;
-        return next;
-      }
-      return [...prev, newDfs];
+      return [...filtered, newDfs];
     });
     applyFeeStructureToClassStudents(newDfs);
     logActivity(
@@ -10450,7 +10443,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<DynamicFeeStructure>,
   ) => {
-    const existing = dynamicFeeStructures.find((d) => d.id === id);
+    const existing = dynamicFeeStructures.find((d) => String(d.id) === String(id));
     const updatedDfs: DynamicFeeStructure = {
       ...(existing ||
         ({ id, className: "", items: [], totalAmount: 0 } as any)),
@@ -10458,7 +10451,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     setDynamicFeeStructures((prev) => {
-      const next = prev.map((d) => (d.id === id ? updatedDfs : d));
+      const next = prev.map((d) => (String(d.id) === String(id) ? updatedDfs : d));
       try {
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(next));
       } catch (e) {}
@@ -10474,11 +10467,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteDynamicFeeStructure = async (id: string) => {
-    const target = dynamicFeeStructures.find((d) => d.id === id);
+    const target = dynamicFeeStructures.find((d) => String(d.id) === String(id));
     const targetClass = target?.className;
     setDynamicFeeStructures((prev) => {
       const filtered = prev.filter((d) => {
-        if (d.id === id) return false;
+        if (String(d.id) === String(id)) return false;
         if (
           targetClass &&
           d.className &&

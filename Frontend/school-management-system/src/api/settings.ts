@@ -30,7 +30,8 @@ export const uploadSchoolLogoFileApi = async (file: File) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  const rawBase = (import.meta.env.VITE_API_URL as string) || '';
+  const baseUrl = rawBase.trim().replace(/\/+$/, '');
   const url = `${baseUrl}/api/Settings/logo/upload`;
 
   try {
