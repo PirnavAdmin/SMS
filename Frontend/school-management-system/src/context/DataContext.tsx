@@ -11829,6 +11829,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           paidAmount: 0,
           dueAmount: finalAmount,
           status: "Pending",
+          isApplicable: true,
           isLateAdmission,
           feeCalculationMethod: isLateAdmission
             ? feeCalculationMethod
@@ -11854,6 +11855,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           paidAmount: 0,
           dueAmount: finalAmount,
           status: "Pending",
+          isApplicable: true,
           isLateAdmission,
           feeCalculationMethod: isLateAdmission
             ? feeCalculationMethod
@@ -11879,6 +11881,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           paidAmount: 0,
           dueAmount: finalAmount,
           status: "Pending",
+          isApplicable: true,
           isLateAdmission,
           feeCalculationMethod: isLateAdmission
             ? feeCalculationMethod
@@ -11985,6 +11988,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             paidAmount: 0,
             dueAmount: amt,
             status: "Pending",
+            isApplicable: true,
             isLateAdmission,
             feeCalculationMethod: isLateAdmission
               ? feeCalculationMethod
@@ -12063,6 +12067,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   paidAmount: 0,
                   dueAmount: amt,
                   status: "Pending",
+                  isApplicable: true,
                   isLateAdmission,
                   feeCalculationMethod: "Monthly",
                   createdAt: new Date().toISOString(),
@@ -12102,6 +12107,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 paidAmount: 0,
                 dueAmount: amt,
                 status: "Pending",
+                isApplicable: true,
                 isLateAdmission,
                 feeCalculationMethod: "Remaining Terms",
                 createdAt: new Date().toISOString(),
@@ -12130,6 +12136,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               paidAmount: 0,
               dueAmount: amt,
               status: "Pending",
+              isApplicable: true,
               isLateAdmission: false,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
@@ -12172,6 +12179,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             paidAmount: 0,
             dueAmount: amt,
             status: "Pending",
+            isApplicable: true,
             isLateAdmission,
             feeCalculationMethod: isLateAdmission
               ? feeCalculationMethod

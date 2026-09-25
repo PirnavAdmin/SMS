@@ -149,7 +149,6 @@ public class FinanceService : IFinanceService
             Description = JsonSerializer.Serialize(meta)
         };
 
-        var existingList = await _repo.GetFeeHeadsAsync();
         var existingHead = existingList.FirstOrDefault(h => h.Name.Trim().Equals(dto.Name.Trim(), StringComparison.OrdinalIgnoreCase));
         if (existingHead != null)
         {

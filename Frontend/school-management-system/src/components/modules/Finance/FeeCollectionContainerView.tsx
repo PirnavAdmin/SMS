@@ -11,15 +11,24 @@ import { PromotedStudentsDuesView } from '../FeeManagement/PromotedStudentsDuesV
 interface FeeCollectionContainerViewProps {
   onPrintReceipt: (payment: FeePayment) => void;
   initialSubTab?: string;
+  initialStudent?: Student | null;
 }
 
 export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProps> = ({
   onPrintReceipt,
-  initialSubTab
+  initialSubTab,
+  initialStudent
 }) => {
   const { students, feePayments, getStudentFeeOutstandingSummary, getPromotedStudentsWithPreviousDues } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'collect' | 'due' | 'promoted_dues' | 'receipts'>('collect');
-  const [selectedStudentForCollection, setSelectedStudentForCollection] = useState<Student | null>(null);
+  const [selectedStudentForCollection, setSelectedStudentForCollection] = useState<Student | null>(initialStudent || null);
+
+  useEffect(() => {
+    if (initialStudent) {
+      setSelectedStudentForCollection(initialStudent);
+      setActiveSubTab('collect');
+    }
+  }, [initialStudent]);
 
   useEffect(() => {
     if (initialSubTab === 'promoted_dues' || initialSubTab === 'promoted-dues') {

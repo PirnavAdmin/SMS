@@ -979,7 +979,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         }
 
         // Rule 3: Hide non-applicable items (0 due amount & not applicable)
-        if (!inst.isApplicable && inst.dueAmount <= 0) {
+        if (inst.isApplicable === false && inst.dueAmount <= 0) {
           return false;
         }
 

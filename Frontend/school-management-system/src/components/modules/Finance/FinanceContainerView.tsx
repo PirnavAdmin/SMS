@@ -29,6 +29,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
   const normalizedTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
   const [receiptToPrint, setReceiptToPrint] = useState<FeePayment | null>(null);
+  const [selectedStudentForCollect, setSelectedStudentForCollect] = useState<any>(null);
 
   useEffect(() => {
     const cleanTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
@@ -40,6 +41,13 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     if (onTabChange) {
       onTabChange(`finance-${tab}`);
     }
+  };
+
+  const handleNavigateToCollect = (studentOrId?: any) => {
+    if (studentOrId) {
+      setSelectedStudentForCollect(studentOrId);
+    }
+    setActiveTab('fee-collection');
   };
 
   const renderTabContent = () => {
@@ -66,14 +74,19 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
         return (
           <StudentFeesView
             initialTab={activeTab === 'student-fees' || activeTab === 'student-assignment' ? 'assign' : 'dues'}
-            onNavigateToCollect={() => setActiveTab('fee-collection')}
+            onNavigateToCollect={handleNavigateToCollect}
           />
         );
 
       case 'fee-collection':
       case 'fees':
       case 'fee-receipts':
-        return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+        return (
+          <FeeCollectionContainerView
+            initialStudent={selectedStudentForCollect}
+            onPrintReceipt={(payment) => setReceiptToPrint(payment)}
+          />
+        );
 
       case 'concessions':
       case 'scholarships':
@@ -94,7 +107,12 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
         return <FinanceReportsView />;
 
       default:
-        return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+        return (
+          <FeeCollectionContainerView
+            initialStudent={selectedStudentForCollect}
+            onPrintReceipt={(payment) => setReceiptToPrint(payment)}
+          />
+        );
     }
   };
 
