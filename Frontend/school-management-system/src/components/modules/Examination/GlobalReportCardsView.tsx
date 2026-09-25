@@ -211,7 +211,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         gpa: Number(r.gpa || 0),
         finalGrade: grade,
         overallGrade: grade,
-        subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : [],
+        subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : (Array.isArray(r.subjectScores) ? r.subjectScores : []),
         passStatus: passFail as 'Pass' | 'Fail',
         status: 'Published',
         rank: rankVal

@@ -230,6 +230,15 @@ export const publishExamResultsApi = async (payload: {
     grade: string;
     rank: number;
     resultStatus: string;
+    subjectMarks?: Array<{
+      subject: string;
+      subjectCode?: string;
+      maxMarks?: number;
+      passMarks?: number;
+      obtainedMarks: number | string;
+      grade?: string;
+      status?: string;
+    }>;
   }>;
 }) => {
   return apiClient('/api/examination-new/results-reports/publish', {

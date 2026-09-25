@@ -4,18 +4,19 @@ import { calculateStudentResult } from '../utils/resultCalculation';
 import { calculateCompetitionRanks } from '../utils/ranking';
 
 export function useResults() {
-  const { 
-    processedResults, 
-    saveProcessedResults, 
-    updateResultStatus, 
-    examMarks, 
-    gradeConfigurations,
-    exams
+  const {
+    processedResults = [],
+    saveProcessedResults = () => { },
+    updateResultStatus = () => { },
+    examMarks = [],
+    gradeConfigurations = [],
+    exams = []
   } = useData();
 
   const getResultsForExamClass = (examId: string, className: string, section: string) => {
     const cleanSec = (section || '').replace('Section ', '').trim().toUpperCase();
-    return processedResults.filter(r => {
+    return (processedResults || []).filter(r => {
+      if (!r) return false;
       if (r.examId !== examId || r.className !== className) return false;
       if (!section || section === 'All') return true;
       const rSec = (r.section || '').replace('Section ', '').trim().toUpperCase();
@@ -31,9 +32,9 @@ export function useResults() {
     subjectsList: string[]
   ) => {
     const calculatedList: ProcessedResult[] = [];
-    
+
     const activeExam = (exams || []).find(e => e.id === examId) || null;
-    
+
     // Filter grade rules
     let filteredRules = gradeConfigurations || [];
     if (activeExam) {
@@ -42,8 +43,8 @@ export function useResults() {
         if (matched.length > 0) filteredRules = matched;
       } else if (activeExam.examType) {
         const typeStr = activeExam.examType;
-        const matched = (gradeConfigurations || []).filter(r => 
-          r.schemeName === typeStr || 
+        const matched = (gradeConfigurations || []).filter(r =>
+          r.schemeName === typeStr ||
           r.examType === typeStr ||
           (r.schemeName && r.schemeName.toLowerCase().includes(typeStr.toLowerCase()))
         );
@@ -55,9 +56,9 @@ export function useResults() {
     }
 
     // 1. Calculate scores student-by-student
-    const studentScores = classStudents.map(student => {
-      const studentMarks = examMarks.filter(
-        m => m.examId === examId && m.studentId === student.id
+    const studentScores = (classStudents || []).map(student => {
+      const studentMarks = (examMarks || []).filter(
+        m => m && m.examId === examId && m.studentId === student.id
       );
 
       const res = calculateStudentResult(studentMarks, subjectsList, filteredRules);

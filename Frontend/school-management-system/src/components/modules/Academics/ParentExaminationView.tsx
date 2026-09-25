@@ -107,50 +107,55 @@ export const ParentExaminationView: React.FC = () => {
       ? matchingResult.subjectMarks
       : marksForExam.map((sm: any) => ({
           subject: getSubjectName(sm.subject || sm.subjectName || sm.subjectId),
-          maxMarks: sm.maxMarks || 100,
-          passMarks: sm.passMarks || 35,
+          maxMarks: sm.maxMarks,
+          passMarks: sm.passMarks,
           obtainedMarks: sm.marksObtained !== undefined ? sm.marksObtained : sm.marks,
-          grade: sm.grade || 'A',
+          grade: sm.grade || '',
           isPass: sm.isPass !== false
         }));
 
     if (subjectMarksList.length === 0 && !matchingResult) return null;
 
-    const formattedSubjects = subjectMarksList.map((sub: any) => ({
-      name: sub.subject || getSubjectName(sub.name || sub.subjectId),
-      marks: sub.obtainedMarks !== undefined ? sub.obtainedMarks : (sub.marks !== undefined ? sub.marks : 0),
-      grade: sub.grade || 'A',
-      maxMarks: sub.maxMarks || 100,
-      passMarks: sub.passMarks || 35,
-      isPass: sub.isPass !== false
-    }));
+    const formattedSubjects = subjectMarksList.map((sub: any) => {
+      const marksVal = sub.obtainedMarks !== undefined ? sub.obtainedMarks : (sub.marks !== undefined ? sub.marks : 0);
+      return {
+        name: sub.subject || getSubjectName(sub.name || sub.subjectId),
+        marks: marksVal,
+        grade: sub.grade || '',
+        maxMarks: sub.maxMarks,
+        passMarks: sub.passMarks,
+        isPass: sub.isPass !== false
+      };
+    });
 
-    const totalObtained = matchingResult?.totalObtainedMarks ?? matchingResult?.totalObtained ?? formattedSubjects.reduce((sum: number, s: any) => sum + (typeof s.marks === 'number' ? s.marks : (parseInt(String(s.marks)) || 0)), 0);
-    const totalMax = matchingResult?.totalMaxMarks ?? matchingResult?.totalMax ?? (formattedSubjects.length * 100);
+    const totalObtained = matchingResult?.totalObtainedMarks ?? matchingResult?.totalObtained ?? (formattedSubjects.length > 0 ? formattedSubjects.reduce((sum: number, s: any) => sum + (typeof s.marks === 'number' ? s.marks : (parseInt(String(s.marks)) || 0)), 0) : 0);
+    const totalMax = matchingResult?.totalMaxMarks ?? matchingResult?.totalMax ?? (formattedSubjects.length > 0 ? formattedSubjects.reduce((sum: number, s: any) => sum + (Number(s.maxMarks) || 0), 0) : 0);
     const pct = matchingResult?.percentage ?? (totalMax > 0 ? (totalObtained / totalMax) * 100 : 0);
+
+    const overallG = matchingResult?.finalGrade || matchingResult?.overallGrade || '';
 
     return {
       examId: exam.id,
-      examName: exam.name || 'Half Yearly Examinations',
-      date: exam.date || '2026-09-24',
-      overallGrade: matchingResult?.finalGrade || matchingResult?.overallGrade || (pct >= 90 ? 'A+' : (pct >= 75 ? 'A' : 'B')),
+      examName: exam.name || '',
+      date: exam.date || matchingResult?.publishedAt || '',
+      overallGrade: overallG,
       percentage: typeof pct === 'number' ? pct.toFixed(1) + '%' : pct,
       rawPct: typeof pct === 'number' ? pct : parseFloat(String(pct)) || 0,
       totalObtained,
       totalMax,
-      rank: matchingResult?.rank || 1,
-      remarks: matchingResult?.remarks || `${currentWard?.firstName || 'Student'} has passed all evaluated subjects cleanly.`,
+      rank: matchingResult?.rank ?? '',
+      remarks: matchingResult?.remarks || '',
       subjects: formattedSubjects,
       resultObj: matchingResult
     };
   }).filter(Boolean);
 
   const childExams = dbChildExams;
-  const activeExam = childExams.find((e: any) => e.examName === selectedExamId) || childExams[0];
+  const activeExam = childExams.find((e: any) => e.examName === selectedExamId || e.examId === selectedExamId) || childExams[0];
 
   useEffect(() => {
     if (childExams.length > 0) {
-      if (!selectedExamId || !childExams.some((e: any) => e.examName === selectedExamId)) {
+      if (!selectedExamId || !childExams.some((e: any) => e.examName === selectedExamId || e.examId === selectedExamId)) {
         setSelectedExamId(childExams[0].examName);
       }
     } else {
@@ -167,16 +172,16 @@ export const ParentExaminationView: React.FC = () => {
   }
 
   const matchedExam: ExamSetup = (exams || []).find(e => e.id === activeExam?.examId || e.name === activeExam?.examName) || {
-    id: activeExam?.examId || 'term-1',
-    name: activeExam?.examName || 'HALF YEARLY EXAMINATIONS',
-    academicYear: '2026-2027',
-    term: activeExam?.examName || 'HALF YEARLY EXAMINATIONS',
-    startDate: activeExam?.date || '2026-09-24',
-    endDate: activeExam?.date || '2026-09-25',
+    id: activeExam?.examId || '',
+    name: activeExam?.examName || 'EXAMINATION',
+    academicYear: '',
+    term: activeExam?.examName || '',
+    startDate: activeExam?.date || '',
+    endDate: activeExam?.date || '',
     status: 'Results Published',
     publishStatus: 'Published',
-    applicableClasses: [currentWard?.className || 'Class 5'],
-    createdBy: 'Examination Controller'
+    applicableClasses: [currentWard?.className || ''],
+    createdBy: ''
   };
 
   const matchedMarks: ExamMark[] = activeExam?.subjects ? activeExam.subjects.map((sub: any, idx: number) => ({
@@ -185,14 +190,14 @@ export const ParentExaminationView: React.FC = () => {
     studentId: wardStudent.id,
     subject: sub.name,
     marksObtained: sub.marks,
-    maxMarks: sub.maxMarks || 100,
-    passMarks: sub.passMarks || 35,
-    grade: sub.grade,
+    maxMarks: sub.maxMarks,
+    passMarks: sub.passMarks,
+    grade: sub.grade || '',
     isPass: sub.isPass !== false,
     isAbsent: sub.marks === 'AB'
   })) : [];
 
-  const matchedProcessedResult: ProcessedResult = {
+  const matchedProcessedResult: ProcessedResult = activeExam?.resultObj || {
     id: `res-${matchedExam.id}-${wardStudent.id}`,
     examId: matchedExam.id,
     studentId: wardStudent.id,
@@ -201,23 +206,23 @@ export const ParentExaminationView: React.FC = () => {
     className: wardStudent.className,
     section: wardStudent.section,
     totalObtainedMarks: activeExam?.totalObtained ?? 0,
-    totalMaxMarks: activeExam?.totalMax ?? 100,
+    totalMaxMarks: activeExam?.totalMax ?? 0,
     totalObtained: activeExam?.totalObtained ?? 0,
-    totalMax: activeExam?.totalMax ?? 100,
+    totalMax: activeExam?.totalMax ?? 0,
     percentage: activeExam?.rawPct ?? 0,
-    finalGrade: activeExam?.overallGrade || 'A',
-    overallGrade: activeExam?.overallGrade || 'A',
+    finalGrade: activeExam?.overallGrade || '',
+    overallGrade: activeExam?.overallGrade || '',
     status: 'Published',
-    rank: activeExam?.rank || 1,
+    rank: activeExam?.rank ?? '',
     subjectMarks: activeExam?.subjects ? activeExam.subjects.map((sub: any) => ({
       subject: sub.name,
-      maxMarks: sub.maxMarks || 100,
-      passMarks: sub.passMarks || 35,
+      maxMarks: sub.maxMarks,
+      passMarks: sub.passMarks,
       obtainedMarks: sub.marks,
-      grade: sub.grade || 'A',
+      grade: sub.grade || '',
       isPass: sub.isPass !== false
     })) : [],
-    remarks: activeExam?.remarks || `${wardStudent.firstName || 'Student'} has completed this evaluation term.`
+    remarks: activeExam?.remarks || ''
   };
 
   return (
