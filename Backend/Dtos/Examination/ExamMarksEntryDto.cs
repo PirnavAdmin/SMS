@@ -23,9 +23,9 @@ public class StudentMarksRowDto
     public string StudentName { get; set; } = string.Empty;
     public string AdmissionNo { get; set; } = string.Empty;
     public string AttendanceStatus { get; set; } = "Present";
-    public decimal MarksObtained { get; set; } = 0;
-    public decimal MaxMarks { get; set; } = 100;
-    public string Grade { get; set; } = "A";
+    public decimal MarksObtained { get; set; }
+    public decimal MaxMarks { get; set; }
+    public string Grade { get; set; } = string.Empty;
     public string EvaluatorRemarks { get; set; } = string.Empty;
     public string Status { get; set; } = "Draft";
 }

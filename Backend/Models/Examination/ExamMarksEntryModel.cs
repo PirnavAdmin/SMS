@@ -7,7 +7,7 @@ public class NewStudentMarksEntry
 {
     [Key]
     public int EntryId { get; set; }
-    public int ExamId { get; set; } = 1;
+    public int ExamId { get; set; }
     public string ClassName { get; set; } = string.Empty;
     public string SectionName { get; set; } = string.Empty;
     public string SubjectCode { get; set; } = string.Empty;
@@ -16,9 +16,9 @@ public class NewStudentMarksEntry
     public string StudentName { get; set; } = string.Empty;
     public string AdmissionNo { get; set; } = string.Empty;
     public string AttendanceStatus { get; set; } = "Present"; // "Present", "Absent"
-    public decimal MarksObtained { get; set; } = 0;
-    public decimal MaxMarks { get; set; } = 100;
-    public string Grade { get; set; } = "A";
+    public decimal MarksObtained { get; set; }
+    public decimal MaxMarks { get; set; }
+    public string Grade { get; set; } = string.Empty;
     public string EvaluatorRemarks { get; set; } = string.Empty;
     public string Status { get; set; } = "Draft"; // "Draft", "Submitted"
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
