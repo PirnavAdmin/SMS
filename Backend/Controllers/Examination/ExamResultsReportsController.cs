@@ -23,7 +23,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Get dropdown options for Results & Reports (Classes, Sections, Exams, Status Filters)
     /// </summary>
     [HttpGet("options")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetOptions()
     {
         try
@@ -120,7 +120,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Sub-tab 2: Get Student Report Cards List (Report Cards tab - Screenshot 3 & 4)
     /// </summary>
     [HttpGet("report-cards")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetReportCardsList(
         [FromQuery] string? className = null,
         [FromQuery] string? sectionName = null,
@@ -142,7 +142,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Get Printable Individual Report Card by Student ID (Clicking "View / Print Card" - Screenshot 5)
     /// </summary>
     [HttpGet("print-card/{studentId:int}")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetPrintableReportCard(
         int studentId,
         [FromQuery] string? className = "",
