@@ -6307,6 +6307,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const remaining = prev.filter((p) => !seen.has(`${p.examId}_${p.studentId}_${p.className}`));
             return [...remaining, ...mapped];
           });
+
+          // Also populate examMarks for subject marks consistency
+          const newExamMarksList: any[] = [];
+          cards.forEach((card: any) => {
+            const subs = card.subjectMarks || card.subjectScores || [];
+            if (Array.isArray(subs)) {
+              subs.forEach((sub: any) => {
+                newExamMarksList.push({
+                  id: `EM-${card.examId || '1'}-${card.studentId}-${sub.subject}`,
+                  examId: String(card.examId || '1'),
+                  studentId: String(card.studentId || ''),
+                  studentName: card.studentName || '',
+                  rollNo: card.rollNo || '',
+                  admissionNo: card.admissionNo || '',
+                  className: card.className || '',
+                  section: card.sectionName || card.section || '',
+                  subject: sub.subject || sub.subjectName || '',
+                  maxMarks: Number(sub.maxMarks || 0),
+                  marksObtained: Number(sub.obtainedMarks || 0),
+                  grade: sub.grade || '',
+                  isLocked: true
+                });
+              });
+            }
+          });
+          if (newExamMarksList.length > 0) {
+            setExamMarks((prev) => {
+              const existingKeys = new Set(newExamMarksList.map((m) => `${m.examId}_${m.studentId}_${m.subject}`));
+              const remaining = prev.filter((p) => !existingKeys.has(`${p.examId}_${p.studentId}_${p.subject}`));
+              return [...remaining, ...newExamMarksList];
+            });
+          }
         }
       } catch (err) {
         console.warn('Initial released exam results load note:', err);
@@ -17975,6 +18007,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               grade: r.finalGrade || r.overallGrade || (r as any).grade || "",
               rank: Number(r.rank || 0),
               resultStatus: r.passStatus || (r as any).resultStatus || "",
+              subjectMarks: (r.subjectMarks || []).map((sm: any) => ({
+                subject: sm.subject || sm.subjectName || "",
+                subjectCode: sm.subjectCode || sm.code || sm.subject || "",
+                maxMarks: Number(sm.maxMarks || 100),
+                passMarks: Number(sm.passMarks || 35),
+                obtainedMarks: sm.obtainedMarks,
+                grade: sm.grade || "",
+                status: sm.status || (sm.isPass ? "Pass" : "Fail")
+              }))
             })),
           }).catch((err) => {
             console.warn("Backend publish exam results sync error:", err);

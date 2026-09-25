@@ -85,19 +85,21 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   // Get custom subject wise specs (max & pass marks)
   const subjectWiseMap: Record<string, { maxMarks: number; passMarks: number }> = {};
   classSchedules.forEach(s => {
-    subjectWiseMap[s.subject] = { maxMarks: s.maxMarks || 100, passMarks: s.passMarks || 35 };
+    if (s.subject) {
+      subjectWiseMap[s.subject] = { maxMarks: s.maxMarks, passMarks: s.passMarks };
+    }
   });
 
   const res: any = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap);
 
-  // If res.subjectMarks is empty BUT result.subjectMarks exists, use result's subjectMarks & aggregates!
-  if ((!res.subjectMarks || res.subjectMarks.length === 0) && result?.subjectMarks && result.subjectMarks.length > 0) {
+  // If result has official subjectMarks from the database/release, use result's subjectMarks!
+  if (result?.subjectMarks && Array.isArray(result.subjectMarks) && result.subjectMarks.length > 0) {
     res.subjectMarks = result.subjectMarks;
-    res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? 0;
-    res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? (result.subjectMarks.length * 100);
+    res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? res.totalObtained ?? 0;
+    res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? res.totalMax ?? (result.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks) || 0), 0));
     res.percentage = result.percentage ?? (res.totalMax > 0 ? (res.totalObtained / res.totalMax) * 100 : 0);
-    res.finalGrade = result.finalGrade || result.overallGrade || 'N/A';
-    res.passStatus = result.passStatus || (result.percentage >= 35 ? 'Pass' : 'Fail');
+    res.finalGrade = result.finalGrade || result.overallGrade || res.finalGrade || '';
+    res.passStatus = result.passStatus || (result as any).resultStatus || (result as any).status || '-';
   } else if (result) {
     if (result.totalObtainedMarks !== undefined || (result as any).totalObtained !== undefined) {
       res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? res.totalObtained;
@@ -122,22 +124,17 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   });
   
   const ranksMap = calculateCompetitionRanks(studentScores);
-  const rank = result?.rank || ranksMap[student.id] || 1;
+  const rank = result?.rank ?? ranksMap[student.id] ?? '';
 
   // Attendance stats
-  const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === student.id) || { workingDays: 220, presentDays: 205 };
-  const workingDays = Number(attData.workingDays) || 220;
-  const presentDays = Number(attData.presentDays) || 0;
+  const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === student.id) || null;
+  const workingDays = Number(attData?.workingDays) || 0;
+  const presentDays = Number(attData?.presentDays) || 0;
   const absentDays = Math.max(0, workingDays - presentDays);
   const attendanceRate = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(1) : '0.0';
 
   // Co-Scholastic parameters
-  const csData = propCoScholastic || contextData.coScholasticAssessments?.find((c: any) => c.studentId === student.id) || {
-    discipline: 'A',
-    sports: 'A',
-    artAndCraft: 'B+',
-    generalConduct: 'A'
-  };
+  const csData = propCoScholastic || contextData.coScholasticAssessments?.find((c: any) => c.studentId === student.id) || null;
 
   const handlePrint = () => {
     window.print();
@@ -232,7 +229,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Class & Section</span>
-          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{student.className} (Section {student.section || 'A'})</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{student.className}{student.section ? ` (Section ${student.section})` : ''}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Father / Guardian Name</span>
@@ -303,7 +300,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-center font-bold">
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">Class Rank</span>
-          <p className="text-sky-600 font-black text-base">#{rank}</p>
+          <p className="text-sky-600 font-black text-base">{rank ? `#${rank}` : '—'}</p>
         </div>
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">Aggregate Percentage</span>
@@ -311,23 +308,25 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">{res.gpa > 0 ? 'GPA / Grade' : 'Grade'}</span>
-          <p className="text-emerald-600 font-black text-base">{res.gpa > 0 ? `${res.gpa.toFixed(1)} / ` : ''}{res.overallGrade}</p>
+          <p className="text-emerald-600 font-black text-base">{res.gpa > 0 ? `${res.gpa.toFixed(1)} / ` : ''}{res.overallGrade || '—'}</p>
         </div>
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">Final Result</span>
-          <p className={`font-black text-base uppercase ${res.overallResult === 'PASS' ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {res.overallResult}
+          <p className={`font-black text-base uppercase ${res.overallResult === 'PASS' ? 'text-emerald-600' : res.overallResult === 'FAIL' ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>
+            {res.overallResult || '—'}
           </p>
         </div>
       </div>
 
       {/* Teacher Remarks Box */}
-      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-medium space-y-1">
-        <span className="block text-[10px] uppercase text-slate-400 font-black">Class Teacher Feedback & Remarks</span>
-        <p className="text-slate-850 dark:text-slate-200 italic font-semibold text-xs">
-          "{result?.remarks || 'Demonstrates strong subject comprehension and consistent academic performance. Keep working hard!'}"
-        </p>
-      </div>
+      {result?.remarks && (
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-medium space-y-1">
+          <span className="block text-[10px] uppercase text-slate-400 font-black">Class Teacher Feedback & Remarks</span>
+          <p className="text-slate-850 dark:text-slate-200 italic font-semibold text-xs">
+            "{result.remarks}"
+          </p>
+        </div>
+      )}
 
       {/* Bottom Official Signatures Block */}
       <div className="grid grid-cols-3 gap-6 items-center pt-5 border-t border-slate-200 dark:border-slate-800">
@@ -368,7 +367,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-xs uppercase tracking-tight">Academic Progress Report Card</h3>
-              <p className="text-[10px] text-slate-500 font-bold">{student.firstName} {student.lastName} ({student.className}-{student.section || 'A'})</p>
+              <p className="text-[10px] text-slate-500 font-bold">{student.firstName} {student.lastName} ({student.className}{student.section ? `-${student.section}` : ''})</p>
             </div>
           </div>
           

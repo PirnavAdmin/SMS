@@ -157,7 +157,16 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
           percentage: Number(r.percentage || 0),
           grade: r.finalGrade || r.overallGrade || (r as any).grade || '',
           rank: Number(r.rank || 0),
-          resultStatus: r.passStatus || (r as any).resultStatus || ''
+          resultStatus: r.passStatus || (r as any).resultStatus || '',
+          subjectMarks: (r.subjectMarks || []).map((sm: any) => ({
+            subject: sm.subject || sm.subjectName || '',
+            subjectCode: sm.subjectCode || sm.code || sm.subject || '',
+            maxMarks: Number(sm.maxMarks || 0),
+            passMarks: Number(sm.passMarks || 0),
+            obtainedMarks: sm.obtainedMarks,
+            grade: sm.grade || '',
+            status: sm.status || (sm.isPass ? 'Pass' : 'Fail')
+          }))
         }))
       });
     } catch (err) {
