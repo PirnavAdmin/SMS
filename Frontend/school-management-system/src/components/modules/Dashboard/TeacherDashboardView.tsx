@@ -674,8 +674,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
         {/* 4. Academic Tasks Card */}
         <div 
-          onClick={() => handleCardClick('examination')}
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group space-y-4"
+          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -684,13 +683,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
               </div>
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Academic Tasks</h3>
             </div>
-            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors shrink-0" />
           </div>
 
           <div className="space-y-2.5 flex-grow pt-2">
             <div 
-              onClick={() => handleCardClick('attendance')}
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/30 dark:hover:bg-slate-800/40 border border-slate-100 dark:border-slate-800/40 text-xs cursor-pointer transition-colors"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
               <span className="font-bold text-slate-500">Pending Attendance</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
@@ -701,8 +698,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
 
             <div 
-              onClick={() => handleCardClick('examination')}
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/30 dark:hover:bg-slate-800/40 border border-slate-100 dark:border-slate-800/40 text-xs cursor-pointer transition-colors"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
               <span className="font-bold text-slate-500">Pending Marks Entry</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
@@ -711,8 +707,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
 
             <div 
-              onClick={() => handleCardClick('homework')}
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/30 dark:hover:bg-slate-800/40 border border-slate-100 dark:border-slate-800/40 text-xs cursor-pointer transition-colors"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
               <span className="font-bold text-slate-500">Pending Assignment Grading</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
@@ -724,10 +719,9 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
             <span>Syllabus & Grading control</span>
             <span 
-              onClick={() => handleCardClick('examination')}
-              className="text-[10px] text-purple-500 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+              className="text-[10px] text-purple-500 font-bold flex items-center gap-0.5"
             >
-              Gradebook <ArrowRight className="w-3.5 h-3.5" />
+              Gradebook
             </span>
           </div>
         </div>

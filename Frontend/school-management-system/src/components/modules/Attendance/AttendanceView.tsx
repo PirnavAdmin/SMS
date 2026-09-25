@@ -929,10 +929,21 @@ export const AttendanceView = () => {
   };
 
   const handleSaveAttendance = () => {
+    const markedStudents = classStudents.filter(st => {
+      const s = getAttendanceStatus(st);
+      return s !== null && s !== undefined;
+    });
+
+    if (markedStudents.length === 0) {
+      addToast('warning', 'No Attendance Marked', 'Please mark attendance status for at least one student before saving.');
+      return;
+    }
+
     setAttendanceRegistry(prev => {
       const updated = { ...prev };
       classStudents.forEach(st => {
-        const status = getAttendanceStatus(st) || 'Present';
+        const status = getAttendanceStatus(st);
+        if (!status) return;
 
         const cleanCls = normalizeClass(st.className);
         const cleanSec = normalizeSec(st.section);
@@ -955,24 +966,27 @@ export const AttendanceView = () => {
       return updated;
     });
 
-    const recordsToSave = classStudents.map(st => {
-      const status = getAttendanceStatus(st) || 'Present';
-      const remark = remarksState[`${date}_${st.id}`] || '';
-      return {
-        studentId: st.id,
-        rollNo: st.rollNo,
-        admissionNo: st.admissionNo,
-        studentName: `${st.firstName} ${st.lastName}`.trim(),
-        className: st.className,
-        section: st.section,
-        date: date,
-        subject: selectedSubject,
-        period: selectedPeriod,
-        status: status,
-        remarks: remark,
-        markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-      };
-    });
+    const recordsToSave = classStudents
+      .map(st => {
+        const status = getAttendanceStatus(st);
+        if (!status) return null;
+        const remark = remarksState[`${date}_${st.id}`] || '';
+        return {
+          studentId: st.id,
+          rollNo: st.rollNo,
+          admissionNo: st.admissionNo,
+          studentName: `${st.firstName} ${st.lastName}`.trim(),
+          className: st.className,
+          section: st.section,
+          date: date,
+          subject: selectedSubject,
+          period: selectedPeriod,
+          status: status,
+          remarks: remark,
+          markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+        };
+      })
+      .filter(Boolean) as any[];
 
     if (saveBulkStudentAttendance) {
       saveBulkStudentAttendance({
@@ -991,7 +1005,7 @@ export const AttendanceView = () => {
       window.dispatchEvent(new Event('attendance_updated'));
     } catch {}
 
-    addToast('success', 'Attendance Register Saved', 'Student attendance entries saved and synced across Student, Parent, Teacher, and Admin panels!');
+    addToast('success', 'Attendance Register Saved', `Saved attendance entries for ${recordsToSave.length} student${recordsToSave.length === 1 ? '' : 's'}.`);
   };
 
   // Excel Exporter

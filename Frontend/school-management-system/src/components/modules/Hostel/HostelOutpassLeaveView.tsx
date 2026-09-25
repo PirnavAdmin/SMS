@@ -458,7 +458,12 @@ export const HostelOutpassLeaveView: React.FC = () => {
                   <input
                     type="datetime-local"
                     value={departureDate}
-                    onChange={e => setDepartureDate(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    onChange={e => {
+                      const newDep = e.target.value;
+                      setDepartureDate(newDep);
+                      if (returnDate < newDep) setReturnDate(newDep);
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-[11px]"
                     required
                   />
@@ -468,6 +473,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                   <input
                     type="datetime-local"
                     value={returnDate}
+                    min={departureDate || new Date().toISOString().slice(0, 16)}
                     onChange={e => setReturnDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-[11px]"
                     required
