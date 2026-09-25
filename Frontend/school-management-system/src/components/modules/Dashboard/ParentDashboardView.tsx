@@ -8,8 +8,7 @@ import { StatCard } from '../../common/StatCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
-import { Badge } from '../../common/Badge';
-import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
+import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
 
 interface ParentDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -248,162 +247,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadBackendChildren = async () => {
-      try {
-        const children = await getParentChildren(user?.email);
-        if (isMounted) {
-          setApiChildren(children || []);
-        }
-      } catch (err) {
-        console.warn('Failed to load parent children from API:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    loadBackendChildren();
-    return () => { isMounted = false; };
-  }, [user?.email]);
-
-  // Combined parent wards resolution for logged-in parent
-  let parentWards: any[] = [];
-  let hasMatchedWards = false;
-
-  const userEmail = (user?.email || '').toLowerCase().trim();
-  const userName = (user?.name || '').toLowerCase().trim();
-  const userPhone = (user?.phone || '').replace(/\D/g, '');
-  const hasCredential = !!(userEmail || userPhone);
-
-  const localStudentMatches = (students || []).filter(s => 
-    s.status === 'Active' && 
-    (
-      (userPhone && userPhone.length >= 7 && (
-        (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-        (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-        (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
-      )) ||
-      (userEmail && (
-        (s.email && s.email.toLowerCase().trim() === userEmail) ||
-        ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
-        s.guardianEmail?.toLowerCase() === userEmail || 
-        s.guardianPhone?.toLowerCase() === userEmail || 
-        s.contactEmail?.toLowerCase() === userEmail || 
-        s.contactPhone?.toLowerCase() === userEmail ||
-        s.fatherPhone?.toLowerCase() === userEmail ||
-        s.motherPhone?.toLowerCase() === userEmail
-      )) ||
-      (!hasCredential && userName && !['parent', 'user', 'administrator', 'admin'].includes(userName) && (
-        (s.fatherName && s.fatherName.toLowerCase() === userName) ||
-        (s.motherName && s.motherName.toLowerCase() === userName) ||
-        ((s as any).parentName && (s as any).parentName.toLowerCase() === userName) ||
-        (s.guardianName && s.guardianName.toLowerCase() === userName)
-      ))
-    )
-  ).map(s => ({
-    ...s,
-    className: s.className || ''
-  }));
-
-  const localAdmissionMatches = (admissions || []).filter(a => {
-    if (a.status === 'Rejected' || a.status === 'Cancelled') return false;
-    const phoneMatch = userPhone && userPhone.length >= 7 && (
-      (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-      ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
-      ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
-      ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
-    );
-    const emailMatch = userEmail && (
-      (a.email && a.email.toLowerCase().trim() === userEmail) ||
-      ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
-    );
-    const nameMatch = !hasCredential && userName && !['parent', 'user', 'administrator', 'admin'].includes(userName) && (
-      (a.fatherFullName && a.fatherFullName.toLowerCase() === userName) ||
-      (a.parentName && a.parentName.toLowerCase() === userName) ||
-      (a.motherName && a.motherName.toLowerCase() === userName) ||
-      ((a as any).motherFullName && (a as any).motherFullName.toLowerCase() === userName)
-    );
-    return phoneMatch || emailMatch || nameMatch;
-  }).map(a => ({
-    id: String(a.id),
-    studentId: a.id,
-    admissionNo: a.applicationNo || a.registrationNo || (a as any).admissionNo || `ADM-${a.id}`,
-    rollNo: a.registrationNo || a.applicationNo || `ROLL-${a.id}`,
-    firstName: a.applicantName ? a.applicantName.split(' ')[0] : 'Student',
-    lastName: a.applicantName ? a.applicantName.split(' ').slice(1).join(' ') : '',
-    studentName: a.applicantName || 'Student',
-    className: (typeof a.appliedClass === 'string' ? a.appliedClass : (a.appliedClass as any)?.className) || a.className || '',
-    section: (a as any).section || '',
-    gender: a.gender || 'Male',
-    dob: a.dateOfBirth || (a as any).dob || '',
-    status: a.status || 'Active',
-    fatherName: a.fatherFullName || a.parentName || '',
-    motherName: (a as any).motherFullName || a.motherName || '',
-    parentName: a.parentName || a.fatherFullName || ''
-  }));
-
-  // Process API children if available
-  const mappedApiChildren = (apiChildren || []).map(c => {
-    return {
-      id: String(c.studentId),
-      studentId: c.studentId,
-      admissionNo: c.admissionNumber || `ADM-${c.studentId}`,
-      rollNo: c.rollNumber || `ROLL-${c.studentId}`,
-      firstName: c.firstName || (c.studentName ? c.studentName.split(' ')[0] : 'Student'),
-      lastName: c.lastName || '',
-      studentName: c.studentName || 'Student',
-      className: c.className || '',
-      section: c.sectionName || '',
-      gender: c.gender || 'Male',
-      dob: c.dateOfBirth || '',
-      status: 'Active'
-    };
-  });
-
-  const combinedWardsList = [...localStudentMatches, ...mappedApiChildren, ...localAdmissionMatches];
-  const uniqueWardsList: any[] = [];
-  const seenWardKeys = new Set<string>();
-  for (const item of combinedWardsList) {
-    const sName = (item.studentName || `${item.firstName || ''} ${item.lastName || ''}`).trim().toLowerCase();
-    const cName = (item.className || '').toString().toLowerCase().replace(/class/gi, '').trim();
-    const key = `${sName}_${cName}`;
-    if (sName && !seenWardKeys.has(key)) {
-      seenWardKeys.add(key);
-      uniqueWardsList.push(item);
-    }
-  }
-
-  if (uniqueWardsList.length > 0) {
-    hasMatchedWards = true;
-    parentWards = uniqueWardsList;
-  } else {
-    hasMatchedWards = true;
-    const formatName = (email?: string) => {
-      if (!email || !email.includes('@')) return 'Student';
-      return email.split('@')[0].split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-    };
-    const dynName = (user?.name && !['parent', 'user', 'administrator', 'admin', 'student'].includes(user.name.toLowerCase())) ? user.name : formatName(userEmail);
-    const dynamicWard = {
-      id: `DYN-${userEmail || 'parent'}`,
-      studentId: `DYN-${userEmail || 'parent'}`,
-      admissionNo: 'REG-1957',
-      rollNo: 'ROLL-1957',
-      firstName: dynName.split(' ')[0],
-      lastName: dynName.split(' ').slice(1).join(' '),
-      studentName: dynName,
-      className: '',
-      section: '',
-      gender: 'Female',
-      dob: '',
-      status: 'Active',
-      fatherName: dynName,
-      motherName: '',
-      parentName: dynName
-    };
-    parentWards = [dynamicWard];
-  }
+  const parentWards = useParentWards();
+  const hasMatchedWards = parentWards.length > 0;
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
@@ -715,23 +560,11 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       )}
 
       {/* Ward Selector Tabs */}
-      {parentWards.length > 1 && (
-        <div className="flex p-1 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-2xl w-max shadow-xs">
-          {parentWards.map((ward, idx) => (
-            <button
-              key={ward.id}
-              onClick={() => setSelectedChildIdx(idx)}
-              className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${
-                selectedChildIdx === idx
-                  ? 'bg-sky-50 dark:bg-slate-800 text-sky-700 dark:text-sky-400 shadow-xs border border-sky-200 dark:border-sky-700'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-355'
-              }`}
-            >
-              {ward.firstName} <span className="text-[10px] font-bold opacity-60 ml-1">({ward.className}-{ward.section})</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <ParentStudentSelector
+        wards={parentWards}
+        selectedIndex={selectedChildIdx}
+        onSelect={setSelectedChildIdx}
+      />
 
       {/* 4 Stat Cards Grid (Identical UI to Reference Student Dashboard: left vertical colored border strip, flex icon+title, text-2xl font-black) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">

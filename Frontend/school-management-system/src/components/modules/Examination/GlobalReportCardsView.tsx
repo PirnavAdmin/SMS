@@ -152,16 +152,11 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   useEffect(() => {
     let isMounted = true;
     const loadReportCards = async () => {
-      if (!selectedClass) {
-        setApiReportCards(null);
-        setApiError(null);
-        return;
-      }
       setIsApiLoading(true);
       setApiError(null);
       try {
         const res = await fetchReportCardsApi(
-          selectedClass, 
+          selectedClass && selectedClass !== 'all' ? selectedClass : '', 
           selectedSection && selectedSection !== 'all' ? selectedSection : '', 
           statusFilter !== 'All' ? statusFilter : undefined,
           sortOrder
@@ -169,14 +164,16 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         if (isMounted) {
           if (res && res.success && Array.isArray(res.data)) {
             setApiReportCards(res.data);
+          } else if (res && Array.isArray(res)) {
+            setApiReportCards(res);
           } else {
-            setApiReportCards(null);
+            setApiReportCards([]);
           }
         }
       } catch (err: any) {
         if (isMounted) {
           console.warn('Report cards API request note (using local released data):', err);
-          setApiReportCards(null);
+          setApiReportCards([]);
         }
       } finally {
         if (isMounted) setIsApiLoading(false);
@@ -191,39 +188,59 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   const releasedResults = useMemo(() => {
     let resultsList: ProcessedResult[] = [];
 
-    if (apiReportCards && apiReportCards.length > 0) {
-      resultsList = apiReportCards.map((r: any) => ({
+    const apiMapped: ProcessedResult[] = (apiReportCards || []).map((r: any) => {
+      const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
+      const obtainedMarks = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
+      const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtainedMarks / maxMarks) * 100 : 0));
+      const grade = r.finalGrade || r.overallGrade || r.grade || '';
+      const passFail = r.resultStatus || r.passStatus || '';
+      const rankVal = r.rank ? Number(r.rank) : 0;
+
+      return {
         id: String(r.id || r.resultId || `API-${r.studentId}`),
-        examId: String(r.examId || selectedExamId || '1'),
+        examId: String(r.examId || (selectedExamId !== 'all' ? selectedExamId : '') || ''),
         studentId: String(r.studentId || ''),
         studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim(),
-        className: r.className || selectedClass,
-        section: r.sectionName || r.section || selectedSection,
+        className: r.className || selectedClass || '',
+        section: r.sectionName || r.section || selectedSection || '',
         rollNo: r.rollNumber || r.rollNo || '',
-        admissionNo: r.admissionNumber || r.admissionNo || r.studentId,
-        totalMaxMarks: Number(r.totalMaxMarks || r.maxMarks || 500),
-        totalObtainedMarks: Number(r.totalObtainedMarks || r.obtainedMarks || 0),
-        percentage: Number(r.percentage || (r.totalMaxMarks ? (r.totalObtainedMarks / r.totalMaxMarks) * 100 : 0)),
+        admissionNo: r.admissionNumber || r.admissionNo || String(r.studentId || ''),
+        totalMaxMarks: maxMarks,
+        totalObtainedMarks: obtainedMarks,
+        percentage: pct,
         gpa: Number(r.gpa || 0),
-        finalGrade: r.finalGrade || r.grade || 'A',
-        overallGrade: r.overallGrade || r.grade || 'A',
+        finalGrade: grade,
+        overallGrade: grade,
         subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : [],
-        passStatus: (r.passStatus || (r.percentage >= 35 ? 'Pass' : 'Fail')) as 'Pass' | 'Fail',
+        passStatus: passFail as 'Pass' | 'Fail',
         status: 'Published',
-        rank: Number(r.rank || 1)
-      }));
-    } else {
-      // Use DataContext results, filtering strictly for released ones
-      resultsList = (contextResults || []).filter(r => {
-        const matchingExam = (exams || []).find(e => e.id === r.examId);
-        const isExamReleased = matchingExam && (
-          matchingExam.publishStatus === 'Published' || 
-          matchingExam.status === 'Results Published' || 
-          matchingExam.status === 'Published'
-        );
-        const isResultReleased = r.status === 'Published' || r.status === 'Approved' || !!r.publishedAt;
-        return isExamReleased || isResultReleased;
-      });
+        rank: rankVal
+      };
+    });
+
+    const contextReleased = (contextResults || []).filter(r => {
+      const matchingExam = (exams || []).find(e => e.id === r.examId);
+      const isExamReleased = matchingExam && (
+        matchingExam.publishStatus === 'Published' || 
+        matchingExam.status === 'Results Published' || 
+        matchingExam.status === 'Published'
+      );
+      const isResultReleased = r.status === 'Published' || r.status === 'Approved' || !!r.publishedAt;
+      return isExamReleased || isResultReleased;
+    });
+
+    const seen = new Set<string>();
+    for (const item of apiMapped) {
+      const key = `${item.examId}_${item.studentId}_${item.className}`;
+      seen.add(key);
+      resultsList.push(item);
+    }
+    for (const item of contextReleased) {
+      const key = `${item.examId}_${item.studentId}_${item.className}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        resultsList.push(item);
+      }
     }
 
     // 2. Filter by Exam

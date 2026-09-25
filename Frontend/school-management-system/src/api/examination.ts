@@ -211,15 +211,46 @@ export const updateResultsReportsApi = async (payload: any) => {
   });
 };
 
+export const publishExamResultsApi = async (payload: {
+  examId?: number | string;
+  className?: string;
+  sectionName?: string;
+  results: Array<{
+    resultId?: number;
+    studentId: number | string;
+    examId?: number | string;
+    rollNo?: string;
+    studentName: string;
+    admissionNo?: string;
+    className?: string;
+    sectionName?: string;
+    totalMarksObtained: number;
+    totalMaxMarks: number;
+    percentage: number;
+    grade: string;
+    rank: number;
+    resultStatus: string;
+  }>;
+}) => {
+  return apiClient('/api/examination-new/results-reports/publish', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
 export const fetchReportCardsApi = async (
-  className: string,
-  sectionName: string,
+  className?: string,
+  sectionName?: string,
   resultStatus?: string,
   rankOrder?: string
 ) => {
-  const statusQ = resultStatus ? `&statusFilter=${encodeURIComponent(resultStatus)}` : '';
-  const rankQ = rankOrder ? `&search=${encodeURIComponent(rankOrder)}` : '';
-  return apiClient(`/api/examination-new/results-reports/report-cards?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}${statusQ}${rankQ}`, {
+  const clsQ = className && className !== 'all' ? `className=${encodeURIComponent(className)}&` : '';
+  const secQ = sectionName && sectionName !== 'all' ? `sectionName=${encodeURIComponent(sectionName)}&` : '';
+  const statusQ = resultStatus && resultStatus !== 'All' ? `statusFilter=${encodeURIComponent(resultStatus)}&` : '';
+  const rankQ = rankOrder ? `search=${encodeURIComponent(rankOrder)}` : '';
+  const qs = `${clsQ}${secQ}${statusQ}${rankQ}`.replace(/[?&]$/, '');
+  const url = qs ? `/api/examination-new/results-reports/report-cards?${qs}` : '/api/examination-new/results-reports/report-cards';
+  return apiClient(url, {
     method: 'GET'
   });
 };

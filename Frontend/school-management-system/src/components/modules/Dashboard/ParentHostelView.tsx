@@ -2,104 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Building2, AlertCircle, Home, MapPin, BedDouble, UserCircle, Phone } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
-import { getParentChildren, ParentChild } from '../../../api/parent/parentApi';
+import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
 
 export const ParentHostelView: React.FC = () => {
-  const { students = [], admissions = [], studentHostels = [], hostelMasters = [] } = useData();
-  const { user, role } = useAuth();
+  const { studentHostels = [], hostelMasters = [] } = useData();
+  const parentWards = useParentWards();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
-  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchChildren = async () => {
-      try {
-        const children = await getParentChildren(user?.email);
-        if (isMounted) {
-          setApiChildren(children || []);
-        }
-      } catch (err) {
-        console.warn('Failed to load parent children in hostel view:', err);
-      }
-    };
-    fetchChildren();
-    return () => { isMounted = false; };
-  }, [user?.email]);
-
-  const parentWards = useMemo(() => {
-    if (apiChildren.length > 0) {
-      return apiChildren.map(c => ({
-        id: String(c.studentId),
-        studentId: c.studentId,
-        firstName: c.firstName || c.studentName.split(' ')[0],
-        lastName: c.lastName || '',
-        studentName: c.studentName || 'Student',
-        className: c.className || '',
-        section: c.sectionName || '',
-        status: 'Active'
-      }));
-    }
-
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userPhone = (user?.phone || '').replace(/\D/g, '');
-
-    const studentMatches = (students || []).filter(s => 
-      s.status === 'Active' && 
-      (
-        role === 'Student' ? (s.id === user?.id || s.email === user?.email) : 
-        (
-          (userEmail && (
-            (s.email && s.email.toLowerCase().trim() === userEmail) ||
-            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
-            s.guardianEmail?.toLowerCase() === userEmail || 
-            s.contactEmail?.toLowerCase() === userEmail || 
-            s.fatherPhone?.toLowerCase() === userEmail ||
-            s.motherPhone?.toLowerCase() === userEmail
-          )) ||
-          (userPhone && userPhone.length >= 7 && (
-            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone))
-          ))
-        )
-      )
-    );
-
-    const admissionMatches = (admissions || []).filter(a => {
-      if ((a.status as any) === 'Rejected' || (a.status as any) === 'Cancelled') return false;
-      const phoneMatch = userPhone && userPhone.length >= 7 && (
-        (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).fatherMobileNo && (a as any).fatherMobileNo.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).fatherContact && (a as any).fatherContact.replace(/\D/g, '').endsWith(userPhone)) ||
-        ((a as any).alternateMobileNumber && (a as any).alternateMobileNumber.replace(/\D/g, '').endsWith(userPhone))
-      );
-      const emailMatch = userEmail && (
-        (a.email && a.email.toLowerCase().trim() === userEmail) ||
-        ((a as any).parentEmail && (a as any).parentEmail.toLowerCase().trim() === userEmail)
-      );
-      return phoneMatch || emailMatch;
-    }).map(a => ({
-      id: String(a.id),
-      studentId: a.id,
-      firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
-      lastName: a.lastName || '',
-      studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-      className: (a as any).appliedClass?.className || (a as any).className || (typeof a.appliedClass === 'string' ? a.appliedClass : '') || '',
-      section: (a as any).section || '',
-      status: 'Active'
-    }));
-
-    const combined = [...studentMatches, ...admissionMatches];
-    const unique = new Map();
-    combined.forEach(w => {
-      const sName = ((w as any).studentName || `${(w as any).firstName || ''} ${(w as any).lastName || ''}`).trim().toLowerCase();
-      const cName = ((w as any).className || '').toString().toLowerCase().replace(/class/gi, '').trim();
-      const key = `${sName}_${cName}`;
-      if (sName && !unique.has(key)) {
-        unique.set(key, w);
-      }
-    });
-    return Array.from(unique.values());
-  }, [students, admissions, user, role, apiChildren]);
 
   if (parentWards.length === 0) {
     return (
@@ -131,23 +39,11 @@ export const ParentHostelView: React.FC = () => {
 
 
       {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
-      {role !== 'Student' && (
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max">
-          {parentWards.map((ward, idx) => (
-            <button
-              key={ward.id}
-              onClick={() => setSelectedChildIdx(idx)}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                selectedChildIdx === idx
-                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              {ward.firstName} {ward.lastName} <span className="text-[10px] font-medium opacity-70 ml-1">({ward.className}-{ward.section})</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <ParentStudentSelector
+        wards={parentWards}
+        selectedIndex={selectedChildIdx}
+        onSelect={setSelectedChildIdx}
+      />
       
       {currentWard.studentType === 'Day Scholar' || currentWard.studentType === 'Non-Residential' ? (
         <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-center max-w-2xl mx-auto mt-10">

@@ -14,17 +14,28 @@ public class StudentReportCardRowDto
 {
     public int ResultId { get; set; }
     public int StudentId { get; set; }
+    public int ExamId { get; set; }
+    public string ClassName { get; set; } = string.Empty;
+    public string SectionName { get; set; } = string.Empty;
     public int Rank { get; set; }
     public string RollNo { get; set; } = string.Empty;
     public string StudentName { get; set; } = string.Empty;
     public string AdmissionNo { get; set; } = string.Empty;
     public decimal TotalMarksObtained { get; set; }
-    public decimal TotalMaxMarks { get; set; } = 600;
-    public string TotalMarksDisplay => $"{TotalMarksObtained:F0} / {TotalMaxMarks:F0}";
+    public decimal TotalMaxMarks { get; set; }
+    public string TotalMarksDisplay => TotalMaxMarks > 0 ? $"{TotalMarksObtained:F0} / {TotalMaxMarks:F0}" : $"{TotalMarksObtained:F0}";
     public decimal Percentage { get; set; }
     public string PercentageDisplay => $"{Percentage:F1}%";
-    public string Grade { get; set; } = "A+";
-    public string ResultStatus { get; set; } = "Pass";
+    public string Grade { get; set; } = string.Empty;
+    public string ResultStatus { get; set; } = string.Empty;
+}
+
+public class BulkSaveExamResultsDto
+{
+    public int ExamId { get; set; }
+    public string ClassName { get; set; } = string.Empty;
+    public string SectionName { get; set; } = string.Empty;
+    public List<StudentReportCardRowDto> Results { get; set; } = new List<StudentReportCardRowDto>();
 }
 
 public class ReportCardPrintDetailDto
@@ -35,14 +46,14 @@ public class ReportCardPrintDetailDto
     public string AdmissionNo { get; set; } = string.Empty;
     public string ClassName { get; set; } = string.Empty;
     public string SectionName { get; set; } = string.Empty;
-    public string AcademicYear { get; set; } = "2026-27";
+    public string AcademicYear { get; set; } = string.Empty;
     public decimal TotalMarksObtained { get; set; }
-    public decimal TotalMaxMarks { get; set; } = 600;
+    public decimal TotalMaxMarks { get; set; }
     public int Rank { get; set; }
     public decimal Percentage { get; set; }
-    public string Grade { get; set; } = "A+";
-    public string ResultStatus { get; set; } = "Pass";
-    public string OverallResult { get; set; } = "Pass";
+    public string Grade { get; set; } = string.Empty;
+    public string ResultStatus { get; set; } = string.Empty;
+    public string OverallResult { get; set; } = string.Empty;
     public List<SubjectMarksConfigItemDto> SubjectScores { get; set; } = new List<SubjectMarksConfigItemDto>();
 }
 

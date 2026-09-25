@@ -29,7 +29,7 @@ import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
-  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, applications = [], teacherAssignments = [], timetable = [] } = useData();
+  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, admissions = [], applications = [], teacherAssignments = [], timetable = [] } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
@@ -211,32 +211,63 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   // Dynamically map student record overlay for selected Academic Year without mutating master profile
   const displayStudents = useMemo(() => {
     // Merge admissions applications from main admin panel into student directory
-    const admittedFromApps: Student[] = (applications || [])
-      .filter(app => (app.status === 'Approved' || app.status === 'Admitted' || app.status === 'Enrolled'))
-      .map(app => ({
-        id: app.id || `ADM-${Date.now()}`,
-        firstName: app.studentName ? app.studentName.split(' ')[0] : (app.firstName || 'Student'),
-        lastName: app.studentName ? app.studentName.split(' ').slice(1).join(' ') : (app.lastName || ''),
-        className: app.applyingForClass || app.className || 'Class 1',
-        section: app.section || 'A',
-        rollNo: app.rollNo || app.applicationNumber?.replace(/\D/g, '').slice(-3) || '01',
-        admissionNo: app.applicationNumber || app.admissionNo || `ADM2026-${app.id?.slice(-4) || '001'}`,
-        fatherName: app.parentName || app.fatherName || 'Parent / Guardian',
-        fatherPhone: app.phone || app.parentPhone || '+91 9876543210',
-        email: app.email || '',
-        phone: app.phone || '',
-        address: app.address || '',
-        joiningDate: app.applicationDate || '2026-06-01',
-        status: 'Active',
-        dueFee: 0,
-        branch: app.branch || 'Main Campus',
-        gender: app.gender || 'Male',
-        dob: app.dob || '2012-01-01',
-        bloodGroup: app.bloodGroup || 'O+'
-      }));
+    const sourceApps = (admissions && admissions.length > 0 ? admissions : applications) || [];
+    const admittedFromApps: Student[] = sourceApps
+      .filter(app => {
+        const st = (app.status || '').toLowerCase();
+        return st === 'approved' || st === 'admitted' || st === 'enrolled' || st === 'active';
+      })
+      .map(app => {
+        const fullName = (app.applicantName || (app as any).studentName || `${app.firstName || ''} ${app.lastName || ''}`).trim();
+        const nameParts = fullName ? fullName.split(' ') : [];
+        const regNo = app.applicationNo || (app as any).registrationNo || (app as any).applicationNumber || (app as any).admissionNo || (app.id ? `ADM-${app.id}` : '');
+        return {
+          id: String(app.id || ''),
+          firstName: app.firstName || nameParts[0] || '',
+          lastName: app.lastName || nameParts.slice(1).join(' ') || '',
+          className: app.appliedClass || (app as any).applyingForClass || (app as any).className || '',
+          section: (app as any).section || '',
+          rollNo: (app as any).rollNo || (regNo ? regNo.replace(/\D/g, '').slice(-3) : ''),
+          admissionNo: regNo,
+          fatherName: app.parentName || (app as any).fatherName || '',
+          fatherPhone: app.phone || (app as any).fatherMobile || (app as any).parentPhone || '',
+          motherName: app.motherName || '',
+          motherPhone: app.motherPhone || '',
+          email: app.email || '',
+          phone: app.phone || '',
+          address: [app.addressHouseNo, app.addressStreet, app.addressArea, app.addressCity].filter(Boolean).join(', ') || app.address || '',
+          joiningDate: app.joiningDate || app.admissionDate || (app as any).submissionDate || (app as any).applicationDate || '',
+          status: 'Active',
+          dueFee: 0,
+          totalFee: 0,
+          paidFee: 0,
+          attendancePct: 100,
+          gpa: 4.0,
+          branch: app.branch || '',
+          gender: (app.gender as any) || '',
+          dob: app.dob || '',
+          bloodGroup: app.bloodGroup || '',
+          studentType: app.studentType || '',
+          transportRequired: !!app.transportRequired,
+          busRoute: app.transportRequired ? (app.busRoute || '') : '',
+          pickupPoint: app.transportRequired ? (app.pickupPoint || '') : '',
+          dropPoint: app.transportRequired ? (app.dropPoint || '') : '',
+          hostelBlock: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelBlock || '') : '',
+          hostelRoom: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelRoom || '') : '',
+          hostelBed: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelBed || '') : ''
+        };
+      });
 
-    const existingIds = new Set(students.map(s => s.id || s.admissionNo));
-    const newAdmissions = admittedFromApps.filter(s => !existingIds.has(s.id) && !existingIds.has(s.admissionNo));
+    const existingIds = new Set(
+      students.flatMap(s => [
+        String(s.id).trim().toLowerCase(),
+        (s.admissionNo || '').trim().toLowerCase()
+      ]).filter(Boolean)
+    );
+    const newAdmissions = admittedFromApps.filter(s => 
+      !existingIds.has(String(s.id).trim().toLowerCase()) && 
+      !existingIds.has((s.admissionNo || '').trim().toLowerCase())
+    );
     const allCombined = [...students, ...newAdmissions];
 
     const mapped = allCombined.map((s) => {
@@ -264,7 +295,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     }
 
     return mapped;
-  }, [students, applications, selectedAcademicYear, isWardenRole]);
+  }, [students, admissions, applications, selectedAcademicYear, isWardenRole]);
 
   // Overall Class Overview dataset dynamically computed from Class Management module & sorted in ascending order
   const classOverviewList = useMemo(() => {
@@ -336,20 +367,20 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
     // Sort classes in natural ascending order: Nursery -> LKG -> UKG -> Class 1 -> Class 2 ... Class 12
     return overviewItems.sort((a, b) => getClassOrderRank(a.className) - getClassOrderRank(b.className));
-  }, [academicClasses, apiStudents, selectedBranch]);
+  }, [academicClasses, displayStudents, selectedBranch]);
 
   // Global Summary Cards Metrics
   const summaryMetrics = useMemo(() => {
     const totalClasses = classOverviewList.length;
     const totalSections = classOverviewList.reduce((acc, c) => acc + c.totalSections, 0);
-    const activeApiStudents = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+    const activeApiStudents = displayStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
 
     const isFilteredBranch = selectedBranch && selectedBranch !== 'All Branches';
     const totalActiveStudents = isFilteredBranch 
       ? activeApiStudents.length 
       : classOverviewList.reduce((acc, c) => acc + c.totalClassStudents, 0);
 
-    const inactiveStudentsCount = apiStudents.filter(s => s.status === 'Inactive').length;
+    const inactiveStudentsCount = displayStudents.filter(s => s.status === 'Inactive').length;
     const newAdmissions = Math.round(totalActiveStudents * 0.045) || (totalActiveStudents > 0 ? Math.max(1, Math.round(totalActiveStudents * 0.08)) : 0);
 
     return {
@@ -359,7 +390,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       inactiveStudentsCount,
       newAdmissions
     };
-  }, [classOverviewList, apiStudents, selectedBranch]);
+  }, [classOverviewList, displayStudents, selectedBranch]);
 
   // Landing Page Filter States
   const [searchClassQuery, setSearchClassQuery] = useState('');

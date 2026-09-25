@@ -48,7 +48,33 @@ public class ExamResultsReportsService : IExamResultsReportsService
         return MapResponseDto(ordered);
     }
 
-    public async Task<List<StudentReportCardRowDto>> GetReportCardsListAsync(string className, string sectionName, string? search, string? statusFilter)
+    public async Task<bool> SaveBulkResultsAsync(BulkSaveExamResultsDto request)
+    {
+        if (request?.Results == null || !request.Results.Any()) return true;
+
+        var entities = request.Results.Select(r => new NewStudentExamResult
+        {
+            ResultId = 0,
+            ExamId = r.ExamId > 0 ? r.ExamId : request.ExamId,
+            ClassName = !string.IsNullOrWhiteSpace(r.ClassName) ? r.ClassName : request.ClassName,
+            SectionName = !string.IsNullOrWhiteSpace(r.SectionName) ? r.SectionName : request.SectionName,
+            StudentId = r.StudentId,
+            RollNo = r.RollNo ?? string.Empty,
+            StudentName = r.StudentName ?? string.Empty,
+            AdmissionNo = r.AdmissionNo ?? string.Empty,
+            TotalMarksObtained = r.TotalMarksObtained,
+            TotalMaxMarks = r.TotalMaxMarks,
+            Percentage = r.Percentage,
+            Grade = r.Grade ?? string.Empty,
+            Rank = r.Rank,
+            ResultStatus = r.ResultStatus ?? string.Empty,
+            CalculatedAt = DateTime.UtcNow
+        }).ToList();
+
+        return await _repository.SaveBulkResultsAsync(entities);
+    }
+
+    public async Task<List<StudentReportCardRowDto>> GetReportCardsListAsync(string? className, string? sectionName, string? search, string? statusFilter)
     {
         var results = await _repository.GetExamResultsAsync(className, sectionName);
 
@@ -69,6 +95,9 @@ public class ExamResultsReportsService : IExamResultsReportsService
         {
             ResultId = r.ResultId,
             StudentId = r.StudentId,
+            ExamId = r.ExamId,
+            ClassName = r.ClassName,
+            SectionName = r.SectionName,
             RollNo = r.RollNo,
             StudentName = r.StudentName,
             AdmissionNo = r.AdmissionNo,
