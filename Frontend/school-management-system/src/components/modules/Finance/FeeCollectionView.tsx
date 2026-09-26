@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { formatCurrency } from "../../../utils/currency";
 import {
   getUniformPackageFeeByClass,
@@ -88,6 +88,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [tempScholarshipId, setTempScholarshipId] = useState("");
   const [tempDiscountId, setTempDiscountId] = useState("");
   const [isFineWaived, setIsFineWaived] = useState(false);
+  const [fineAmountInput, setFineAmountInput] = useState<string>("0");
+  const [fineReason, setFineReason] = useState<string>("");
+  const [selectedConcessionId, setSelectedConcessionId] = useState<string>("");
+  const [discountAmountInput, setDiscountAmountInput] = useState<string>("0");
+  const [customAmountReceived, setCustomAmountReceived] = useState<string>("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroupExpansion = (headName: string) => {
@@ -132,6 +137,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPreviousDuesOpen, setIsPreviousDuesOpen] = useState(true);
   const [applyReturnCredit, setApplyReturnCredit] = useState(true);
 
@@ -631,36 +637,38 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       return;
     }
 
-    if (!paymentMode || paymentMode.trim() === "") {
-      addToast(
-        "warning",
-        "Payment Mode Required",
-        "Please select a Payment Mode before issuing receipt.",
-      );
-      return;
+    const activeMode = (paymentMode && paymentMode.trim() !== "") ? paymentMode : "Cash";
+    if (paymentMode !== activeMode) {
+      setPaymentMode(activeMode);
     }
 
     setShowPaymentConfirmModal(true);
   };
 
-  const executeProcessPayment = () => {
-    if (!selectedStudent || !calcResult) return;
+  const executeProcessPayment = async () => {
+    if (!selectedStudent || !calcResult || isProcessingPayment) return;
+    setIsProcessingPayment(true);
     setShowPaymentConfirmModal(false);
 
     const numericAmount = amountPaying;
 
+    let remainingPaid = numericAmount;
     const paymentAllocations = selectedInstallments.map((id) => {
       const inst = allInstallments.find((i: any) => i.id === id);
       const customAmt = inst ? getInstallmentCollectionAmount(inst) : 0;
+      const allocAmt = Math.min(customAmt, remainingPaid);
+      remainingPaid = Math.max(0, remainingPaid - allocAmt);
       return {
         academicYear: inst?.academicYear || currentYear,
         ledgerId: undefined,
-        amount: customAmt,
+        amount: allocAmt,
         installmentId: id,
         feeHeadName: inst?.feeHeadName || "Fee",
         termName: inst?.termName || inst?.termId || "Installment",
       };
     });
+
+    const activeMode = (paymentMode && paymentMode.trim() !== "") ? paymentMode : "Cash";
 
     const payment = addFeePayment({
       studentId: selectedStudent.id,
@@ -668,31 +676,30 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
       className: `${selectedStudent.className}-${selectedStudent.section}`,
       amountPaid: numericAmount,
-      discount: calcResult.scholarshipDeduction + calcResult.discountDeduction,
-      fine: isFineWaived ? 0 : calcResult.fineAmount,
-      paymentMode: paymentMode as FeePayment["paymentMode"],
+      discount: effectiveDiscountAmount,
+      fine: effectiveFineAmount,
+      paymentMode: activeMode as FeePayment["paymentMode"],
       transactionId:
-        paymentMode === "Cheque"
+        activeMode === "Cheque"
           ? chequeNo
-          : paymentMode !== "Cash"
+          : activeMode !== "Cash"
             ? transactionId
             : undefined,
-      chequeNo: paymentMode === "Cheque" ? chequeNo : undefined,
-      chequeDate: paymentMode === "Cheque" ? chequeDate : undefined,
-      bankName: paymentMode === "Cheque" ? bankName : undefined,
+      chequeNo: activeMode === "Cheque" ? chequeNo : undefined,
+      chequeDate: activeMode === "Cheque" ? chequeDate : undefined,
+      bankName: activeMode === "Cheque" ? bankName : undefined,
       paymentDate: new Date().toISOString().split("T")[0],
       status: numericAmount >= totalOutstanding ? "Paid" : "Partial",
-      remarks,
-      scholarshipId: calcResult.scholarshipId,
-      scholarshipName: calcResult.scholarshipName,
-      scholarshipDescription: calcResult.scholarshipDescription,
-      scholarshipAmount: calcResult.scholarshipDeduction,
-      discountId: calcResult.discountId,
-      discountName: calcResult.discountName,
-      discountDescription: calcResult.discountDescription,
-      discountAmount: calcResult.discountDeduction,
-      grossAmount:
-        calcResult.baseFee + calcResult.transportFee + calcResult.hostelFee,
+      remarks: remarks || fineReason || (selectedConcessionId ? "Concession Applied" : "Fee Collection Receipt"),
+      scholarshipId: selectedConcessionId,
+      scholarshipName: allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "",
+      scholarshipDescription: "",
+      scholarshipAmount: effectiveDiscountAmount,
+      discountId: selectedConcessionId,
+      discountName: allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "",
+      discountDescription: "",
+      discountAmount: effectiveDiscountAmount,
+      grossAmount: baseSelectedAmount,
       previousDue: previousYearPending,
       totalOutstanding: totalOutstanding,
       selectedInstallmentIds: selectedInstallments,
@@ -815,12 +822,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     updateCalculation(selectedStudent.id);
 
-    setPaymentMode("");
+    setPaymentMode("Cash");
     setTransactionId("");
     setChequeNo("");
     setChequeDate("");
     setBankName("");
     setRemarks("");
+    setFineAmountInput("0");
+    setFineReason("");
+    setSelectedConcessionId("");
+    setDiscountAmountInput("0");
+    setCustomAmountReceived("");
+    setIsProcessingPayment(false);
   };
 
   useEffect(() => {
@@ -1560,7 +1573,68 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     .filter((i) => selectedInstallments.includes(i.id))
     .reduce((sum, i) => sum + getInstallmentCollectionAmount(i), 0);
 
-  const amountPaying = selectedCurrentYearAmount + selectedPreviousYearAmount;
+  const baseSelectedAmount = selectedCurrentYearAmount + selectedPreviousYearAmount;
+
+  const allConcessionOptions = useMemo(() => {
+    const opts: Array<{ id: string; name: string; type: string; value: number }> = [];
+    (scholarships || []).forEach((s) => {
+      opts.push({
+        id: s.id,
+        name: `${s.name} (${s.discountType === 'Percentage' ? `${s.percentage || 0}%` : `₹${s.fixedAmount || 0}`})`,
+        type: s.discountType || 'Fixed Amount',
+        value: s.discountType === 'Percentage' ? (s.percentage || 0) : (s.fixedAmount || 0)
+      });
+    });
+    (discounts || []).forEach((d) => {
+      opts.push({
+        id: d.id,
+        name: `${d.name} (${d.mode === 'Percentage' ? `${d.value || 0}%` : `₹${d.value || 0}`})`,
+        type: d.mode || 'Fixed Amount',
+        value: d.value || 0
+      });
+    });
+    if (opts.length === 0) {
+      opts.push(
+        { id: "sch-merit", name: "Merit Scholarship (15%)", type: "Percentage", value: 15 },
+        { id: "sch-sports", name: "Sports Quota (20%)", type: "Percentage", value: 20 },
+        { id: "sch-ews", name: "EWS Special Grant (₹5,000 Flat)", type: "Fixed Amount", value: 5000 },
+        { id: "disc-sibling", name: "Sibling Discount (10%)", type: "Percentage", value: 10 },
+        { id: "disc-staff", name: "Staff Child Concession (50%)", type: "Percentage", value: 50 }
+      );
+    }
+    return opts;
+  }, [scholarships, discounts]);
+
+  useEffect(() => {
+    if (selectedConcessionId) {
+      const found = allConcessionOptions.find((c) => c.id === selectedConcessionId);
+      if (found) {
+        let computedDisc = 0;
+        if (found.type === "Percentage") {
+          computedDisc = Math.round(baseSelectedAmount * (found.value / 100));
+        } else {
+          computedDisc = Math.min(baseSelectedAmount > 0 ? baseSelectedAmount : found.value, found.value);
+        }
+        setDiscountAmountInput(String(computedDisc));
+      }
+    }
+  }, [selectedConcessionId, baseSelectedAmount, allConcessionOptions]);
+
+  const effectiveFineAmount = isFineWaived
+    ? 0
+    : (fineAmountInput !== "" && !isNaN(Number(fineAmountInput)))
+      ? Number(fineAmountInput)
+      : (calcResult?.fineAmount || 0);
+
+  const effectiveDiscountAmount = (discountAmountInput !== "" && !isNaN(Number(discountAmountInput)))
+    ? Number(discountAmountInput)
+    : 0;
+
+  const computedNetPayable = Math.max(0, baseSelectedAmount + effectiveFineAmount - effectiveDiscountAmount);
+
+  const amountPaying = (customAmountReceived !== "" && !isNaN(Number(customAmountReceived)) && Number(customAmountReceived) >= 0)
+    ? Number(customAmountReceived)
+    : computedNetPayable;
 
   const hasAnyAmountError = selectedInstallments.some((id) => {
     const inst = allInstallments.find((i: any) => i.id === id);
@@ -1613,23 +1687,42 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const isFormValid = isAmountValid && isModeSelected && isModeFieldsValid;
 
   const toggleInstallmentSelection = (id: string) => {
+    const targetIdx = allInstallments.findIndex((i: any) => i.id === id);
+    if (targetIdx === -1) return;
+
     setSelectedInstallments((prev) => {
       if (prev.includes(id)) {
+        // Unselect target and all subsequent installments
+        const toRemoveIds = new Set<string>();
+        for (let i = targetIdx; i < allInstallments.length; i++) {
+          toRemoveIds.add(allInstallments[i].id);
+        }
         setCustomCollectionAmounts((amtPrev) => {
           const copy = { ...amtPrev };
-          delete copy[id];
+          toRemoveIds.forEach((remId) => delete copy[remId]);
           return copy;
         });
-        return prev.filter((x) => x !== id);
+        return prev.filter((x) => !toRemoveIds.has(x));
       } else {
-        const inst = allInstallments.find((i: any) => i.id === id);
-        if (inst) {
-          setCustomCollectionAmounts((amtPrev) => ({
-            ...amtPrev,
-            [id]: String(inst.dueAmount),
-          }));
+        // Select target and all prior pending installments (with dueAmount > 0)
+        const toAddInsts: any[] = [];
+        for (let i = 0; i <= targetIdx; i++) {
+          const inst = allInstallments[i];
+          if (inst && inst.dueAmount > 0) {
+            toAddInsts.push(inst);
+          }
         }
-        return [...prev, id];
+        setCustomCollectionAmounts((amtPrev) => {
+          const copy = { ...amtPrev };
+          toAddInsts.forEach((inst) => {
+            if (!(inst.id in copy)) {
+              copy[inst.id] = String(inst.dueAmount);
+            }
+          });
+          return copy;
+        });
+        const toAddIds = toAddInsts.map((inst) => inst.id);
+        return Array.from(new Set([...prev, ...toAddIds]));
       }
     });
   };
@@ -2011,6 +2104,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                       const isSelected = selectedInstallments.includes(inst.id);
                       const isPaid = inst.dueAmount <= 0 || inst.status === "Paid";
                       const displayPaidAmt = inst.paidAmount > 0 ? inst.paidAmount : (isPaid ? inst.amount : 0);
+
+                      // Calculate cumulative prior arrears from preceding pending installments
+                      const priorArrears = allInstallments
+                        .slice(0, index)
+                        .filter((prevInst) => prevInst.dueAmount > 0 && prevInst.status !== "Paid" && prevInst.status !== "Cancelled")
+                        .reduce((sum, prevInst) => sum + prevInst.dueAmount, 0);
+
+                      const cumulativeDue = inst.dueAmount + priorArrears;
+
                       return (
                         <tr
                           key={inst.id}
@@ -2029,7 +2131,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                             {isPaid ? (
                               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">₹ 0</span>
                             ) : (
-                              <span className="text-rose-600 dark:text-rose-400">{formatCurrency(inst.dueAmount)}</span>
+                              <div>
+                                <span className="text-rose-600 dark:text-rose-400 block">{formatCurrency(cumulativeDue)}</span>
+                                {priorArrears > 0 && (
+                                  <span className="text-[9px] font-sans text-amber-600 dark:text-amber-400 block font-normal">
+                                    (incl. {formatCurrency(priorArrears)} prior arrears)
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="p-3 text-center">
@@ -2038,12 +2147,19 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                 PAID
                               </span>
                             ) : (
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleInstallmentSelection(inst.id)}
-                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                              />
+                              <div className="flex items-center justify-center gap-1.5">
+                                {inst.paidAmount > 0 && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                    PARTIAL
+                                  </span>
+                                )}
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleInstallmentSelection(inst.id)}
+                                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -2085,13 +2201,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Fine Amount
+                  Fine Amount (₹)
                 </label>
                 <input
                   type="number"
                   disabled={isFineWaived}
-                  defaultValue={0}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
+                  value={isFineWaived ? 0 : fineAmountInput}
+                  onChange={(e) => setFineAmountInput(e.target.value)}
+                  placeholder="0"
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono font-bold text-rose-600 dark:text-rose-400"
                 />
               </div>
               <div>
@@ -2101,6 +2219,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <input
                   type="text"
                   placeholder="Enter reason if any"
+                  value={fineReason}
+                  onChange={(e) => setFineReason(e.target.value)}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
                 />
               </div>
@@ -2116,27 +2236,31 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   Select Concession
                 </label>
                 <select
-                  value={tempScholarshipId}
-                  onChange={(e) => setTempScholarshipId(e.target.value)}
+                  value={selectedConcessionId}
+                  onChange={(e) => {
+                    setSelectedConcessionId(e.target.value);
+                    if (!e.target.value) setDiscountAmountInput("0");
+                  }}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-semibold"
                 >
                   <option value="">No Concession</option>
-                  {scholarships.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+                  {allConcessionOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Discount Amount
+                  Discount Amount (₹)
                 </label>
                 <input
                   type="number"
-                  defaultValue={0}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
-                  readOnly
+                  value={discountAmountInput}
+                  onChange={(e) => setDiscountAmountInput(e.target.value)}
+                  placeholder="0"
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono font-bold text-emerald-600 dark:text-emerald-400"
                 />
               </div>
               <div>
@@ -2160,7 +2284,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </span>
               <div>
                 <select
-                  value={paymentMode}
+                  value={paymentMode || "Cash"}
                   onChange={(e) => handlePaymentModeChange(e.target.value as any)}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold bg-white dark:bg-slate-900"
                 >
@@ -2172,13 +2296,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Amount Received
+                  Amount Received (₹ Custom / Full)
                 </label>
                 <input
                   type="number"
-                  value={amountPaying}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900"
-                  readOnly
+                  value={customAmountReceived}
+                  onChange={(e) => setCustomAmountReceived(e.target.value)}
+                  placeholder={String(computedNetPayable)}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400"
                 />
               </div>
               <div>
@@ -2218,16 +2343,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span>Total Selected Amount</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {formatCurrency(amountPaying)}
+                  {formatCurrency(baseSelectedAmount)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span>Fine Amount</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">₹ 0</span>
+                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                  {effectiveFineAmount > 0 ? `+ ${formatCurrency(effectiveFineAmount)}` : `₹ 0`}
+                </span>
               </div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span>Discount Amount</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">₹ 0</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {effectiveDiscountAmount > 0 ? `- ${formatCurrency(effectiveDiscountAmount)}` : `₹ 0`}
+                </span>
               </div>
 
               <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-between items-center">
@@ -2395,10 +2524,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </button>
               <button
                 type="button"
+                disabled={isProcessingPayment}
                 onClick={executeProcessPayment}
-                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-lg shadow-emerald-600/20"
+                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-emerald-600/20"
               >
-                Confirm & Print
+                {isProcessingPayment ? "Processing..." : "Confirm & Print"}
               </button>
             </div>
           </div>

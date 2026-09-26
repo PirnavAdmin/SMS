@@ -14,7 +14,7 @@ interface PrintableFeeReceiptProps {
 }
 
 export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ payment, isOpen, onClose }) => {
-  const { schoolProfile, students, admissions, financeSettings } = useData();
+  const { schoolProfile, students, admissions, financeSettings, studentFeeInstallments } = useData();
   const { selectedAcademicYear } = useAuth();
 
   if (!isOpen || !payment) return null;
@@ -46,9 +46,10 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
   if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
     feeRows = payment.paymentAllocation.map((alloc, idx) => {
       const paid = alloc.amount || 0;
-      const con = 0; // Concession allocated if applicable
-      const due = paid + con;
-      const desc = alloc.feeHeadName || alloc.termName || `Fee Item ${idx + 1}`;
+      const con = (payment.discount || payment.discountAmount || 0) / payment.paymentAllocation!.length;
+      const inst = alloc.installmentId ? (studentFeeInstallments || []).find(i => i.id === alloc.installmentId) : null;
+      const due = inst?.amount || (payment.grossAmount && payment.paymentAllocation ? Math.round(payment.grossAmount / payment.paymentAllocation.length) : (paid + con));
+      const desc = alloc.termName || alloc.feeHeadName || `Fee Item ${idx + 1}`;
       return { slNo: idx + 1, description: desc, due, con, paid };
     });
   } else {

@@ -229,6 +229,48 @@ export function normalizeToISODate(dateStr?: string | null): string {
 
   return trimmed;
 }
+
+export function normalizeAcademicYear(dateOrAy?: string | null): string {
+  if (!dateOrAy || typeof dateOrAy !== "string") return "2026-2027";
+  const trimmed = dateOrAy.trim();
+  if (!trimmed) return "2026-2027";
+  const match = trimmed.match(/^(\d{4})[-/](\d{2,4})$/);
+  if (match) {
+    const startYear = parseInt(match[1], 10);
+    let endYear = parseInt(match[2], 10);
+    if (endYear < 100) {
+      const century = Math.floor(startYear / 100) * 100;
+      endYear = century + endYear;
+    }
+    return `${startYear}-${endYear}`;
+  }
+  return trimmed;
+}
+
+export function matchesAcademicYear(ay1?: string | null, ay2?: string | null): boolean {
+  if (!ay1 || !ay2) return true;
+  return normalizeAcademicYear(ay1) === normalizeAcademicYear(ay2);
+}
+
+export function normalizeInstId(id?: string | null): string {
+  if (!id) return "";
+  let norm = id.replace(/(\d{4})-(\d{2})(?!\d)/g, (match, p1, p2) => {
+    const start = parseInt(p1, 10);
+    const end = parseInt(p2, 10);
+    const century = Math.floor(start / 100) * 100;
+    return `${start}-${century + end}`;
+  });
+  return norm.toLowerCase().trim();
+}
+
+export function matchesInstallmentId(id1?: string | null, id2?: string | null): boolean {
+  if (!id1 || !id2) return false;
+  const n1 = normalizeInstId(id1);
+  const n2 = normalizeInstId(id2);
+  if (n1 === n2) return true;
+  if (n1.length > 5 && n2.length > 5 && (n1.includes(n2) || n2.includes(n1))) return true;
+  return false;
+}
 import {
   initialCertificateTemplates,
   initialStudents,
@@ -9491,6 +9533,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ) {
       // 1. EXPLICIT CUSTOM ALLOCATION PER INSTALLMENT
       paymentData.paymentAllocation.forEach((allocItem) => {
+        if (remainingAmountToAllocate <= 0) return;
         let instIndex = nextInstallments.findIndex(
           (i) => i.id === allocItem.installmentId,
         );
@@ -9506,7 +9549,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (instIndex !== -1) {
           const inst = { ...nextInstallments[instIndex] };
-          const allocAmount = Math.min(inst.dueAmount > 0 ? inst.dueAmount : allocItem.amount, allocItem.amount);
+          const maxTarget = inst.dueAmount > 0 ? inst.dueAmount : allocItem.amount;
+          const allocAmount = Math.min(maxTarget, allocItem.amount, remainingAmountToAllocate);
           remainingAmountToAllocate -= allocAmount;
 
           inst.paidAmount += allocAmount;
@@ -9721,7 +9765,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       receiptNo,
       academicYear: paymentData.academicYear || activeAY,
-      paymentAllocation: paymentData.paymentAllocation || allocations,
+      paymentAllocation: allocations.length > 0 ? allocations : (paymentData.paymentAllocation || []),
       branch: (paymentData as any).branch || selectedBranch || "Main Campus",
     } as any;
 
@@ -12309,12 +12353,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       .filter(
         (p) =>
           isPaymentForThisStudent(p) &&
-          (p.academicYear === academicYear || !p.academicYear),
+          (!p.academicYear || matchesAcademicYear(p.academicYear, academicYear)),
       )
       .sort(
         (a, b) =>
           new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime(),
       );
+
+    // Deduplicate fee payments by receipt number to prevent applying duplicate database payment rows
+    const uniqueStudentPayments: FeePayment[] = [];
+    const seenReceiptKeys = new Set<string>();
+    for (const p of studentPayments) {
+      const rKey = (p.receiptNo || String(p.id || "")).toLowerCase().trim();
+      if (rKey && seenReceiptKeys.has(rKey)) continue;
+      if (rKey) seenReceiptKeys.add(rKey);
+      uniqueStudentPayments.push(p);
+    }
 
     const matchTermNameStr = (instTermRaw?: string, allocTermRaw?: string): boolean => {
       if (!instTermRaw || !allocTermRaw) return false;
@@ -12336,7 +12390,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     };
 
-    studentPayments.forEach((payment) => {
+    uniqueStudentPayments.forEach((payment) => {
       let allocs: PaymentAllocationItem[] = payment.paymentAllocation || [];
 
       if ((!allocs || allocs.length === 0) && (payment as any).paidItemsJson) {
@@ -12368,15 +12422,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (allocs && allocs.length > 0) {
         allocs.forEach((alloc) => {
-          if (alloc.academicYear === academicYear || !alloc.academicYear) {
+          if (!alloc.academicYear || matchesAcademicYear(alloc.academicYear, academicYear)) {
             let remaining = Number(alloc.amount) || 0;
             if (remaining <= 0) return;
 
             const matchedInst = installments.find((inst) => {
               if (inst.dueAmount <= 0) return false;
 
-              if (alloc.installmentId && (inst.id === alloc.installmentId || inst.id.includes(alloc.installmentId))) return true;
-              if (payment.selectedInstallmentIds && payment.selectedInstallmentIds.includes(inst.id)) return true;
+              if (alloc.installmentId && matchesInstallmentId(inst.id, alloc.installmentId)) return true;
+              if (payment.selectedInstallmentIds && payment.selectedInstallmentIds.some((sId) => matchesInstallmentId(inst.id, sId))) return true;
 
               const headMatch = matchHeadNameStr(inst.feeHeadName, alloc.feeHeadName || payment.feeHeadName || "");
               const termMatch = matchTermNameStr(inst.termName, alloc.termName || payment.termName || "");

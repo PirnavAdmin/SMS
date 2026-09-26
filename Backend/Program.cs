@@ -2357,20 +2357,35 @@ using (var scope = app.Services.CreateScope())
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
 
-            string[] feeHeadCols = new[]
+            var feeDbConn = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
+            var feeDbName = feeDbConn.Database;
+            var feeWasOpen = feeDbConn.State == System.Data.ConnectionState.Open;
+            if (!feeWasOpen) await feeDbConn.OpenAsync();
+
+            var feeHeadColsCheck = new (string colName, string colDef)[]
             {
-                "ALTER TABLE `feeheads` ADD COLUMN `Code` VARCHAR(50) NOT NULL DEFAULT ''",
-                "ALTER TABLE `feeheads` ADD COLUMN `DefaultAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00",
-                "ALTER TABLE `feeheads` ADD COLUMN `Mandatory` TINYINT(1) NOT NULL DEFAULT 1",
-                "ALTER TABLE `feeheads` ADD COLUMN `IsTaxable` TINYINT(1) NOT NULL DEFAULT 0",
-                "ALTER TABLE `feeheads` ADD COLUMN `TaxPercentage` DECIMAL(18,2) NOT NULL DEFAULT 0.00",
-                "ALTER TABLE `feeheads` ADD COLUMN `DisplayOrder` INT NOT NULL DEFAULT 1",
-                "ALTER TABLE `feeheads` ADD COLUMN `Status` VARCHAR(50) NOT NULL DEFAULT 'Active'"
+                ("Code", "VARCHAR(50) NOT NULL DEFAULT ''"),
+                ("DefaultAmount", "DECIMAL(18,2) NOT NULL DEFAULT 0.00"),
+                ("Mandatory", "TINYINT(1) NOT NULL DEFAULT 1"),
+                ("IsTaxable", "TINYINT(1) NOT NULL DEFAULT 0"),
+                ("TaxPercentage", "DECIMAL(18,2) NOT NULL DEFAULT 0.00"),
+                ("DisplayOrder", "INT NOT NULL DEFAULT 1"),
+                ("Status", "VARCHAR(50) NOT NULL DEFAULT 'Active'")
             };
-            foreach (var alterSql in feeHeadCols)
+
+            foreach (var (colName, colDef) in feeHeadColsCheck)
             {
-                try { await context.Database.ExecuteSqlRawAsync(alterSql); } catch { }
+                using var cmd = feeDbConn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{feeDbName}' AND TABLE_NAME = 'feeheads' AND COLUMN_NAME = '{colName}';";
+                var colExists = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (colExists == 0)
+                {
+                    cmd.CommandText = $"ALTER TABLE `feeheads` ADD COLUMN `{colName}` {colDef};";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
+
+            if (!feeWasOpen) await feeDbConn.CloseAsync();
 
             await context.Database.ExecuteSqlRawAsync(@"
 
@@ -2411,6 +2426,7 @@ using (var scope = app.Services.CreateScope())
                     `Id` VARCHAR(100) NOT NULL PRIMARY KEY,
                     `AcademicYear` VARCHAR(50) NOT NULL,
                     `NumberOfTerms` INT NOT NULL DEFAULT 4,
+                    `DueDateOffsetDays` INT NOT NULL DEFAULT 45,
                     `Status` VARCHAR(50) NOT NULL DEFAULT 'Published',
                     `AnnualDueDate` VARCHAR(50) NOT NULL DEFAULT '2026-04-15',
                     `OneTimeDueDate` VARCHAR(50) NOT NULL DEFAULT '2026-04-15',
@@ -2431,6 +2447,8 @@ using (var scope = app.Services.CreateScope())
                     `StartDate` VARCHAR(50) NOT NULL,
                     `EndDate` VARCHAR(50) NOT NULL,
                     `DueDate` VARCHAR(50) NOT NULL,
+                    `DueDateMode` VARCHAR(20) NOT NULL DEFAULT 'AUTO',
+                    `DueDateOffsetDays` INT NOT NULL DEFAULT 45,
                     `PercentageShare` DECIMAL(5,2) NOT NULL DEFAULT 25.00,
                     `Status` VARCHAR(50) NOT NULL DEFAULT 'Active',
                     `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2517,6 +2535,30 @@ using (var scope = app.Services.CreateScope())
                     `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
+
+            if (!feeWasOpen) await feeDbConn.OpenAsync();
+
+            var feeScheduleCols = new (string table, string colName, string colDef)[]
+            {
+                ("fee_schedules", "DueDateOffsetDays", "INT NOT NULL DEFAULT 45"),
+                ("fee_schedule_terms", "DueDateMode", "VARCHAR(20) NOT NULL DEFAULT 'AUTO'"),
+                ("fee_schedule_terms", "DueDateOffsetDays", "INT NOT NULL DEFAULT 45")
+            };
+
+            foreach (var (table, colName, colDef) in feeScheduleCols)
+            {
+                using var cmd = feeDbConn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{feeDbName}' AND TABLE_NAME = '{table}' AND COLUMN_NAME = '{colName}';";
+                var colExists = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (colExists == 0)
+                {
+                    cmd.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{colName}` {colDef};";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+
+            if (!feeWasOpen) await feeDbConn.CloseAsync();
+
             Console.WriteLine("[Finance Init] Verified finance tables in MySQL database.");
         }
         catch (Exception finEx)

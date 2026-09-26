@@ -2620,8 +2620,11 @@ export interface FeeScheduleTerm {
   startDate: string;
   endDate: string;
   dueDate: string;
+  dueDateMode?: 'AUTO' | 'MANUAL';
+  dueDateOffsetDays?: number;
   sequence: number;
   status: 'Active' | 'Inactive';
+  percentageShare?: number;
 }
 
 export interface MonthDueDateItem {
@@ -2640,6 +2643,7 @@ export interface AcademicYearFeeSchedule {
   id: string;
   academicYear: string;
   numberOfTerms: number;
+  dueDateOffsetDays?: number;
   terms: FeeScheduleTerm[];
   status: 'Active' | 'Inactive';
 

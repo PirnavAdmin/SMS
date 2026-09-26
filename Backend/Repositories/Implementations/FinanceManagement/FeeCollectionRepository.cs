@@ -123,9 +123,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             if (!string.IsNullOrEmpty(a.ApplicationNo)) allStudentKeys.Add(a.ApplicationNo);
         }
 
-        var payments = await _context.FeePayments.AsNoTracking()
+        var rawPayments = await _context.FeePayments.AsNoTracking()
             .Where(p => allStudentKeys.Contains(p.StudentId))
             .ToListAsync();
+
+        var payments = rawPayments
+            .GroupBy(p => !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : p.Id.ToString())
+            .Select(g => g.First())
+            .ToList();
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
 
@@ -241,10 +246,15 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var allStudentKeys = new HashSet<string> { studentIdStr, admNo };
         foreach (var id in matchedAdmissions) allStudentKeys.Add(id);
 
-        var payments = await _context.FeePayments.AsNoTracking()
+        var rawPayments = await _context.FeePayments.AsNoTracking()
             .Where(p => allStudentKeys.Contains(p.StudentId))
             .OrderByDescending(p => p.PaymentDate)
             .ToListAsync();
+
+        var payments = rawPayments
+            .GroupBy(p => !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : p.Id.ToString())
+            .Select(g => g.First())
+            .ToList();
 
         decimal totalPaid = payments.Sum(p => p.Amount);
         decimal totalDiscounts = payments.Sum(p => p.DiscountAmount);

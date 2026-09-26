@@ -33,6 +33,11 @@ public class FeeScheduleTerm
     [MaxLength(50)]
     public string DueDate { get; set; } = "2026-04-15";
 
+    [MaxLength(20)]
+    public string DueDateMode { get; set; } = "AUTO";
+
+    public int DueDateOffsetDays { get; set; } = 45;
+
     [Column(TypeName = "decimal(5,2)")]
     public decimal PercentageShare { get; set; } = 25.00m;
 
