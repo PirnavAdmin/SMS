@@ -268,12 +268,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       try {
         setLoading(true);
         await Promise.all([
-          loadSummaryData(selectedBranch, selectedAcademicYear),
-          fetchStudents(),
+          typeof loadSummaryData === 'function' ? loadSummaryData(selectedBranch, selectedAcademicYear) : Promise.resolve(),
+          typeof fetchStudents === 'function' ? fetchStudents() : Promise.resolve(),
           typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
-          fetchAdmissions(),
-          fetchAcademicClasses(),
-          fetchTodayStudentAttendanceSummary()
+          typeof fetchAdmissions === 'function' ? fetchAdmissions() : Promise.resolve(),
+          typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses() : Promise.resolve(),
+          typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary() : Promise.resolve()
         ]);
       } catch (err) {
         console.error("Error loading dashboard data:", err);
@@ -282,7 +282,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     };
     loadDashboardData();
-  }, [userRole, selectedAcademicYear, selectedBranch]);
+  }, [userRole, selectedAcademicYear, selectedBranch, fetchStudents, fetchAdmissions, fetchAcademicClasses, fetchTodayStudentAttendanceSummary]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;

@@ -40,16 +40,10 @@ export function calculateGrade(
       return value >= min && value <= max;
     });
 
-    if (matched) return matched.gradeName || matched.grade || 'A';
+    if (matched) return matched.gradeName || matched.grade || '-';
   }
 
-  // Fallbacks based on percentage
-  if (value >= 90) return 'A+';
-  if (value >= 80) return 'A';
-  if (value >= 70) return 'B';
-  if (value >= 60) return 'C';
-  if (value >= 33) return 'D';
-  return 'F';
+  return '-';
 }
 
 export function calculateGpa(
@@ -72,11 +66,6 @@ export function calculateGpa(
     if (matched) return matched.gradePoints ?? matched.gradePoint ?? 0;
   }
 
-  if (percentage >= 90) return 10;
-  if (percentage >= 80) return 9;
-  if (percentage >= 70) return 8;
-  if (percentage >= 60) return 7;
-  if (percentage >= 33) return 6;
   return 0;
 }
 
@@ -96,24 +85,24 @@ export function calculateStudentResult(
 
   subjectsList.forEach(subject => {
     const m = marks.find(mark => mark.subject === subject);
-    const config = subjectWiseConfig?.[subject] || { maxMarks: 100, passMarks: 35 };
-    const maxM = m?.maxMarks || config.maxMarks || 100;
-    const passM = m?.passMarks || config.passMarks || 35;
+    const config = subjectWiseConfig?.[subject] || { maxMarks: 0, passMarks: 0 };
+    const maxM = m?.maxMarks || config.maxMarks || 0;
+    const passM = m?.passMarks || config.passMarks || 0;
     
     let obtained: number | 'AB' | 'EX' = 0;
     let isPass = true;
-    let grade = 'F';
+    let grade = '-';
 
     if (m) {
       hasActiveMarks = true;
       if (m.isAbsent) {
         obtained = 'AB';
         isPass = false;
-        grade = 'F';
+        grade = '-';
       } else {
         allAbsent = false;
         obtained = m.marksObtained;
-        isPass = obtained >= passM;
+        isPass = passM > 0 ? obtained >= passM : true;
         if (!isPass) hasFail = true;
         
         const pct = maxM > 0 ? (obtained / maxM) * 100 : 0;
@@ -123,7 +112,7 @@ export function calculateStudentResult(
     } else {
       obtained = 'AB';
       isPass = false;
-      grade = 'F';
+      grade = '-';
     }
 
     totalMax += maxM;
