@@ -229,19 +229,30 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       return isExamReleased || isResultReleased;
     });
 
-    const seen = new Set<string>();
-    for (const item of apiMapped) {
-      const key = `${item.examId}_${item.studentId}_${item.className}`;
-      seen.add(key);
-      resultsList.push(item);
-    }
-    for (const item of contextReleased) {
-      const key = `${item.examId}_${item.studentId}_${item.className}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        resultsList.push(item);
+    const uniqueMap = new Map<string, ProcessedResult>();
+    const getDedupeKey = (item: ProcessedResult) => {
+      const nameKey = (item.studentName || `${(item as any).firstName || ''} ${(item as any).lastName || ''}`).toLowerCase().trim().replace(/\s+/g, ' ');
+      const admKey = (item.admissionNo || (item as any).admissionNumber || '').toLowerCase().trim();
+      const rollKey = (item.rollNo || (item as any).rollNumber || '').toLowerCase().trim();
+      return `${item.examId || ''}_${item.className || ''}_${nameKey || admKey || rollKey || String(item.studentId || item.id || '').trim().toLowerCase()}`;
+    };
+
+    for (const item of [...apiMapped, ...contextReleased]) {
+      const key = getDedupeKey(item);
+      const existing = uniqueMap.get(key);
+      if (!existing) {
+        uniqueMap.set(key, item);
+      } else {
+        const itemMax = item.totalMaxMarks || 0;
+        const exMax = existing.totalMaxMarks || 0;
+        const itemSubj = Array.isArray(item.subjectMarks) ? item.subjectMarks.length : 0;
+        const exSubj = Array.isArray(existing.subjectMarks) ? existing.subjectMarks.length : 0;
+        if (itemMax > exMax || (itemMax === exMax && itemSubj > exSubj) || (itemMax === exMax && (item.totalObtainedMarks || 0) > (existing.totalObtainedMarks || 0))) {
+          uniqueMap.set(key, item);
+        }
       }
     }
+    resultsList = Array.from(uniqueMap.values());
 
     // 2. Filter by Exam
     if (selectedExamId && selectedExamId !== 'all') {
