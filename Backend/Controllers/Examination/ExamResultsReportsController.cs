@@ -41,7 +41,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Sub-tab 1: Calculate Results for a Class, Section & Exam (Clicking "Calculate Results" button - Screenshot 1 & 2)
     /// </summary>
     [HttpPost("calculate")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> CalculateResults([FromBody] CalculateResultsRequestDto request)
     {
         try
@@ -67,7 +67,7 @@ public class ExamResultsReportsController : ControllerBase
     /// </summary>
     [HttpPost("publish")]
     [HttpPost("save-bulk")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> PublishResults([FromBody] BulkSaveExamResultsDto request)
     {
         try
@@ -92,7 +92,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Update calculated result details for a student (PUT /api/examination-new/results-reports/update-results)
     /// </summary>
     [HttpPut("update-results")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> UpdateResult(
         [FromBody] StudentReportCardRowDto request,
         [FromQuery] string className = "",
@@ -164,7 +164,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Clear calculated results for a Class & Section (DELETE /api/examination-new/results-reports/clear-results)
     /// </summary>
     [HttpDelete("clear-results")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> ClearResults([FromQuery] string className, [FromQuery] string sectionName)
     {
         try
