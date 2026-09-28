@@ -14,6 +14,11 @@ public class AdmissionApplicationResponseDto
     [JsonPropertyName("registrationNumber")]
     public string RegistrationNumber => RegistrationNo;
 
+    public string? AdmissionNo { get; set; }
+
+    [JsonPropertyName("admissionNumber")]
+    public string? AdmissionNumber => AdmissionNo;
+
     public string? ProfilePhotoUrl { get; set; }
 
     [JsonPropertyName("avatar")]

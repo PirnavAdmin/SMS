@@ -1294,6 +1294,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!a || a.status === "Deleted" || (a as any).isDeleted) return false;
     const applicantName = a.applicantName || "";
     const applicationNo = a.applicationNo || "";
+    const regNo = (a as any).registrationNo || "";
+    const admNo = (a as any).admissionNo || "";
     const parentName = a.parentName || "";
     const appliedClass = a.appliedClass || "";
     const status = a.status || "";
@@ -1301,6 +1303,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const matchQuery =
       applicantName.toLowerCase().includes((query || "").toLowerCase()) ||
       applicationNo.toLowerCase().includes((query || "").toLowerCase()) ||
+      regNo.toLowerCase().includes((query || "").toLowerCase()) ||
+      admNo.toLowerCase().includes((query || "").toLowerCase()) ||
       parentName.toLowerCase().includes((query || "").toLowerCase());
     const matchClass =
       filterClass === "All" ||
@@ -4536,7 +4540,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           <table className="w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                <th className="py-3.5 px-4">Application Reg No</th>
+                <th className="py-3.5 px-4">Admission / Reg No</th>
                 <th className="py-3.5 px-4">Applicant Student</th>
                 <th className="py-3.5 px-4">Applied Class</th>
                 <th className="py-3.5 px-4">Student Type</th>
@@ -4563,7 +4567,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100"
                   >
                     <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                      {app.applicationNo}
+                      {(app.status === "Enrolled" || app.status === "Active" || app.status === "Admitted") && ((app as any).admissionNo || (app.applicationNo && !app.applicationNo.startsWith("REG-"))) ? (
+                        <div>
+                          <span className="text-sky-700 dark:text-sky-400 font-extrabold block">
+                            {(app as any).admissionNo || app.applicationNo}
+                          </span>
+                          {(app.registrationNo || (app.applicationNo && app.applicationNo.startsWith("REG-"))) && (
+                            <span className="block text-[10px] text-slate-400 dark:text-slate-500 font-normal">
+                              Reg: {app.registrationNo || app.applicationNo}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200">
+                          {app.registrationNo || app.applicationNo}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">

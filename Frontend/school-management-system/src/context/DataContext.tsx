@@ -4715,8 +4715,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: item.applicationId
                   ? item.applicationId.toString()
                   : existing?.id || Math.random().toString(),
+                admissionNo:
+                  item.admissionNo || item.admissionNumber || existing?.admissionNo || "",
                 applicationNo:
-                  item.registrationNo || item.registrationNumber || existing?.applicationNo || "",
+                  (item.status === "Enrolled" || item.status === "Active" || item.status === "Approved")
+                    ? (item.admissionNo || item.admissionNumber || item.registrationNo || item.registrationNumber || existing?.applicationNo || "")
+                    : (item.registrationNo || item.registrationNumber || item.admissionNo || existing?.applicationNo || ""),
                 registrationNo:
                   item.registrationNo || item.registrationNumber || existing?.registrationNo || "",
                 applicantName:
@@ -7780,11 +7784,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
       });
-      const generatedRegNo = (appData as any).registrationNo || (appData as any).applicationNo || `REG-${maxRegSeq + 1}`;
+      const customProvidedRegNo = (appData as any).registrationNo || (appData as any).applicationNo;
+      const generatedRegNo = customProvidedRegNo ? String(customProvidedRegNo).trim() : "";
 
       const payload: any = {
-        registrationNo: generatedRegNo,
-        applicationNo: generatedRegNo,
+        registrationNo: generatedRegNo || undefined,
+        applicationNo: generatedRegNo || undefined,
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
         appliedClassId: appliedClassId,
@@ -7841,15 +7846,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const json = await createAdmissionApi(payload);
 
       const resolvedStatus = appData.status || (json?.data?.status) || "Pending";
-      const assignedRegNo = json?.data?.registrationNo || generatedRegNo;
+      const assignedRegNo = json?.data?.registrationNo || generatedRegNo || `REG-${maxRegSeq + 1}`;
+      const assignedAdmNo = json?.data?.admissionNo || json?.data?.admissionNumber || (appData as any).admissionNo || "";
+      const effectiveAppNo = (resolvedStatus === "Enrolled" && assignedAdmNo) ? assignedAdmNo : (assignedRegNo || ("ADM-" + Date.now()));
 
       const createdApp: AdmissionApplication = {
         id:
           json?.data?.applicationId?.toString() ||
           json?.data?.id?.toString() ||
           "ADM-" + Date.now(),
-        applicationNo: assignedRegNo,
+        applicationNo: effectiveAppNo,
         registrationNo: assignedRegNo,
+        admissionNo: assignedAdmNo,
         applicantName: appData.applicantName,
         appliedClass: appData.appliedClass,
         gender: appData.gender || "Male",
@@ -8193,6 +8201,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (json && json.success !== false) {
         let enrolledStudentId: string | null = null;
+        let assignedAdmissionNo: string = json?.admissionNo || json?.data?.admissionNumber || "";
         if (status === "Enrolled" && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : "",
@@ -8420,6 +8429,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             json?.admissionNo ||
             json?.data?.admissionNumber ||
             generateNextAdmissionNo(students);
+          assignedAdmissionNo = resolvedAdmissionNo;
 
           const newStudent = addStudent(
             {
@@ -8623,8 +8633,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Update state to match API success
+        const admNoToAssign = assignedAdmissionNo || json?.admissionNo;
         setAdmissions((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status } : a)),
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status,
+                  admissionNo: (status === "Enrolled" ? (admNoToAssign || a.admissionNo) : a.admissionNo),
+                  applicationNo: (status === "Enrolled" && (admNoToAssign || a.admissionNo))
+                    ? (admNoToAssign || a.admissionNo!)
+                    : a.applicationNo,
+                }
+              : a,
+          ),
         );
         logActivity(
           "Updated Application Status",
