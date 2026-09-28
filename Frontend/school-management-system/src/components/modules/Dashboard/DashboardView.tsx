@@ -273,11 +273,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     let isMounted = true;
     const loadDashboardData = async () => {
       try {
-<<<<<<< HEAD
-        setLoading(true);
-        // Load summary API first for instant Dashboard rendering
-        await loadSummaryData(selectedBranch, selectedAcademicYear);
-=======
         if (isMounted && (students || []).length === 0 && (staff || []).length === 0) {
           setLoading(true);
         }
@@ -289,7 +284,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses() : Promise.resolve(),
           typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary() : Promise.resolve()
         ]);
->>>>>>> 4b4a64470cefb9c2c08b1f6c7a9f4d05f4642b08
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
@@ -297,22 +291,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           setLoading(false);
         }
       }
-
-      // Background prefetch remaining details asynchronously without blocking UI render
-      Promise.all([
-        typeof fetchStudents === 'function' ? fetchStudents() : Promise.resolve(),
-        typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
-        typeof fetchAdmissions === 'function' ? fetchAdmissions() : Promise.resolve(),
-        typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses() : Promise.resolve(),
-        typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary() : Promise.resolve()
-      ]).catch(e => console.warn("Background prefetch warning:", e));
     };
 
     loadDashboardData();
-<<<<<<< HEAD
-=======
     return () => { isMounted = false; };
->>>>>>> 4b4a64470cefb9c2c08b1f6c7a9f4d05f4642b08
   }, [userRole, selectedAcademicYear, selectedBranch]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
