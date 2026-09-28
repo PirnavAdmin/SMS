@@ -25,7 +25,9 @@ export const fetchLeaveApplicationsApi = async () => {
 
 export const createLeaveApplicationApi = async (payload: {
   staffId: number;
+  employeeId?: string;
   leaveTypeId: number;
+  leaveTypeCode?: string;
   fromDate: string;
   toDate: string;
   isHalfDay?: boolean;

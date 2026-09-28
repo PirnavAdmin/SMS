@@ -39,6 +39,11 @@ export const LeaveManagementView: React.FC = () => {
     if (fetchLeaveBalances) fetchLeaveBalances();
   }, []);
 
+  useEffect(() => {
+    if (fetchLeaveApplications) fetchLeaveApplications();
+    if (fetchLeaveBalances) fetchLeaveBalances();
+  }, [activeTab, selectedBranch]);
+
   const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
 
   const { user, role, selectedBranch } = useAuth();

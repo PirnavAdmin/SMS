@@ -19772,22 +19772,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (
           response &&
           response.success &&
-          Array.isArray(response.data) &&
-          response.data.length > 0
+          Array.isArray(response.data)
         ) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
             id:
               item.leaveApplicationId?.toString() || item.id?.toString() || "",
             employeeId: item.staffId?.toString() || item.id?.toString() || "",
             employeeName: item.staffName || item.employeeName || "Staff Member",
-            empId: item.empId || item.employeeId,
-            department: item.department || "Transport Dept",
+            empId: item.employeeId || item.empId,
+            department: item.department || "Academic Dept",
             designation: item.designation || "Staff",
             branchId:
+              item.branchId ||
               (selectedBranch as any)?.id ||
               (typeof selectedBranch === "string" ? selectedBranch : "") ||
               "BR-001",
-            branch: item.branch || "Main Campus",
+            branch: item.branch || item.branchName || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
             leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
@@ -19806,17 +19806,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
-          setLeaveApplications((prev) => {
-            const apiIds = new Set(mapped.map((m) => m.id));
-            const localOnly = prev.filter((p) => !apiIds.has(p.id));
-            const merged = [...mapped, ...localOnly];
-            localStorage.setItem(
-              "edu_db_leave_applications",
-              JSON.stringify(merged),
-            );
-            localStorage.setItem("leave_applications", JSON.stringify(merged));
-            return merged;
-          });
+          setLeaveApplications(mapped);
+          localStorage.setItem(
+            "edu_db_leave_applications",
+            JSON.stringify(mapped),
+          );
+          localStorage.setItem("leave_applications", JSON.stringify(mapped));
+          localStorage.setItem("sms_leave_applications", JSON.stringify(mapped));
         }
       } catch (err) {
         console.warn("Failed to fetch leave applications from API", err);
@@ -19950,6 +19946,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Leave Applications CRUD
   const addLeaveApplication = async (appData: Omit<LeaveApplication, "id">) => {
+    let staffIdNum = 0;
+    const staffMatch = staff.find(
+      (s) =>
+        s.id === appData.employeeId ||
+        s.empId === appData.empId ||
+        s.empId === appData.employeeId ||
+        (s.email && (appData as any).email && s.email.toLowerCase() === (appData as any).email.toLowerCase()) ||
+        (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (appData.employeeName || "").trim().toLowerCase()),
+    );
+    if (staffMatch) {
+      staffIdNum = parseInt(staffMatch.id, 10) || 0;
+    }
+    if (!staffIdNum) {
+      const rawNum = parseInt((appData.employeeId || "").replace(/\D/g, ""), 10);
+      staffIdNum = isNaN(rawNum) ? 0 : rawNum;
+    }
+
+    let leaveTypeIdNum = 0;
+    const typeMatch = leaveTypes.find(
+      (t) =>
+        t.id === appData.leaveTypeId ||
+        t.name.toLowerCase() === (appData.leaveTypeName || "").toLowerCase() ||
+        (t.code && appData.leaveTypeName && t.code.toLowerCase() === appData.leaveTypeName.toLowerCase()),
+    );
+    if (typeMatch) {
+      leaveTypeIdNum = parseInt(String(typeMatch.id).replace(/\D/g, ""), 10) || 0;
+    }
+    if (!leaveTypeIdNum) {
+      const rawNum = parseInt(String(appData.leaveTypeId || "").replace(/\D/g, ""), 10);
+      leaveTypeIdNum = isNaN(rawNum) ? 0 : rawNum;
+    }
+
+    const payload = {
+      staffId: staffIdNum,
+      employeeId: staffMatch?.empId || appData.empId || appData.employeeId,
+      leaveTypeId: leaveTypeIdNum,
+      leaveTypeCode: typeMatch?.code || (appData as any).leaveTypeCode || "",
+      fromDate: appData.fromDate,
+      toDate: appData.toDate,
+      isHalfDay: !!appData.isHalfDay,
+      reason: appData.reason,
+    };
+
+    try {
+      const res = await createLeaveApplicationApi(payload);
+      if (res && res.success) {
+        addToast("success", "Request Filed", "Leave application submitted successfully.");
+        await fetchLeaveApplications();
+        await fetchLeaveBalances();
+        return;
+      }
+    } catch (err: any) {
+      console.warn("API error during leave submission (saving to local state fallback):", err);
+    }
+
     const newId = `LA-${Date.now()}`;
     const newApp: LeaveApplication = {
       id: newId,
@@ -19958,7 +20009,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (selectedBranch as any)?.id ||
         (typeof selectedBranch === "string" ? selectedBranch : "") ||
         "BR-001",
-      branch: (appData as any).branch || "Main Campus",
+      branch: (appData as any).branch || staffMatch?.branchName || "Main Campus",
       status: appData.status || "Pending",
       appliedDate:
         appData.appliedDate || new Date().toISOString().split("T")[0],
@@ -19974,29 +20025,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
       return updated;
     });
-
-    try {
-      const parsedStaffId =
-        parseInt(appData.employeeId.replace(/\D/g, "")) || 1;
-      const parsedLeaveTypeId =
-        parseInt(appData.leaveTypeId.replace(/\D/g, "")) || 1;
-
-      const payload = {
-        staffId: parsedStaffId,
-        leaveTypeId: parsedLeaveTypeId,
-        fromDate: appData.fromDate,
-        toDate: appData.toDate,
-        isHalfDay: appData.isHalfDay,
-        reason: appData.reason,
-      };
-
-      await createLeaveApplicationApi(payload);
-    } catch (err: any) {
-      console.warn(
-        "API error during leave submission (saved to local state):",
-        err,
-      );
-    }
   };
   const updateLeaveApplication = (
     id: string,
@@ -20902,6 +20930,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const payload = {
         status: status,
+        approverRemarks: remarks || "",
+        approvedBy: approvedBy || "Admin",
       };
 
       const parsedId = parseInt(id.replace(/\D/g, "")) || 1;
@@ -20913,6 +20943,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "Status Updated",
           `Leave application status updated to ${status}.`,
         );
+        await fetchLeaveApplications();
+        await fetchLeaveBalances();
       }
     } catch (err: any) {
       console.warn("API warning during status update (saved locally):", err);
