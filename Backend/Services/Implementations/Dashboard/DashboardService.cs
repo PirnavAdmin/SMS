@@ -100,7 +100,11 @@ public class DashboardService : IDashboardService
         }
 
         var unmappedAdmissions = await admissionAppsQuery
+<<<<<<< HEAD
             .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == a.RegistrationNo.ToLower()))
+=======
+            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber == a.RegistrationNo))
+>>>>>>> 4b4a64470cefb9c2c08b1f6c7a9f4d05f4642b08
             .CountAsync(cancellationToken);
 
         totalStudents += unmappedAdmissions;
@@ -114,8 +118,18 @@ public class DashboardService : IDashboardService
             staffQuery = staffQuery.Where(s => s.BranchName != null && s.BranchName.ToLower() == targetBranchName.ToLower());
         }
 
-        int teachingStaff = await staffQuery.CountAsync(s => s.Department == "Teaching" || s.EmployeeCategory == "Teaching Staff" || s.EmployeeCategory == "Teacher", cancellationToken);
-        int nonTeachingStaff = await staffQuery.CountAsync(s => s.Department != "Teaching" && s.EmployeeCategory != "Teaching Staff" && s.EmployeeCategory != "Teacher", cancellationToken);
+        var staffInfo = await staffQuery
+            .Select(s => new
+            {
+                s.StaffId,
+                IsTeaching = s.Department == "Teaching" || s.EmployeeCategory == "Teaching Staff" || s.EmployeeCategory == "Teacher"
+            })
+            .ToListAsync(cancellationToken);
+
+        var teachingStaffIds = staffInfo.Where(s => s.IsTeaching).Select(s => s.StaffId).ToHashSet();
+        var nonTeachingStaffIds = staffInfo.Where(s => !s.IsTeaching).Select(s => s.StaffId).ToHashSet();
+        int teachingStaff = teachingStaffIds.Count;
+        int nonTeachingStaff = nonTeachingStaffIds.Count;
 
         // 3. Total Active Classes
         var classQuery = _context.Classes.AsNoTracking()
@@ -137,16 +151,28 @@ public class DashboardService : IDashboardService
             admQuery = admQuery.Where(a => a.BranchName == targetBranchName);
         }
 
-        int totalAdmissions = await admQuery.CountAsync(cancellationToken);
-        int pendingAdmissions = await admQuery.CountAsync(a => a.Status == "Pending" || a.Status == "pending", cancellationToken);
-        int enrolledAdmissions = await admQuery.CountAsync(a => a.Status == "Enrolled" || a.Status == "enrolled" || a.Status == "Admitted", cancellationToken);
-        int rejectedAdmissions = await admQuery.CountAsync(a => a.Status == "Rejected" || a.Status == "rejected", cancellationToken);
+        var admStatusCounts = await admQuery
+            .GroupBy(a => a.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        int totalAdmissions = admStatusCounts.Sum(x => x.Count);
+        int pendingAdmissions = admStatusCounts
+            .Where(x => string.Equals(x.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+            .Sum(x => x.Count);
+        int enrolledAdmissions = admStatusCounts
+            .Where(x => string.Equals(x.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) || string.Equals(x.Status, "Admitted", StringComparison.OrdinalIgnoreCase))
+            .Sum(x => x.Count);
+        int rejectedAdmissions = admStatusCounts
+            .Where(x => string.Equals(x.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+            .Sum(x => x.Count);
         int otherAdmissions = Math.Max(0, totalAdmissions - (pendingAdmissions + enrolledAdmissions + rejectedAdmissions));
 
         // 5. Student Attendance (Today)
-        var today = DateTime.UtcNow.Date;
+        var todayStart = DateTime.UtcNow.Date;
+        var tomorrowStart = todayStart.AddDays(1);
         var sessionQuery = _context.StudentAttendanceSessions.AsNoTracking()
-            .Where(sas => sas.AttendanceDate.Date == today);
+            .Where(sas => sas.AttendanceDate >= todayStart && sas.AttendanceDate < tomorrowStart);
 
         if (targetBranchId.HasValue)
         {
@@ -158,15 +184,17 @@ public class DashboardService : IDashboardService
         var studentAttendanceSummary = new StudentAttendanceSummaryDto();
         if (sessionIds.Count > 0)
         {
-            var records = await _context.StudentAttendances.AsNoTracking()
+            var statusCounts = await _context.StudentAttendances.AsNoTracking()
                 .Where(sa => sessionIds.Contains(sa.AttendanceSessionId))
+                .GroupBy(sa => sa.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync(cancellationToken);
 
-            studentAttendanceSummary.Present = records.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase));
-            studentAttendanceSummary.Absent = records.Count(r => r.Status.Equals("Absent", StringComparison.OrdinalIgnoreCase));
-            studentAttendanceSummary.Late = records.Count(r => r.Status.Equals("Late", StringComparison.OrdinalIgnoreCase));
-            studentAttendanceSummary.HalfDay = records.Count(r => r.Status.Equals("Half Day", StringComparison.OrdinalIgnoreCase) || r.Status.Equals("HalfDay", StringComparison.OrdinalIgnoreCase));
-            studentAttendanceSummary.Total = records.Count;
+            studentAttendanceSummary.Present = statusCounts.Where(r => string.Equals(r.Status, "Present", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Count);
+            studentAttendanceSummary.Absent = statusCounts.Where(r => string.Equals(r.Status, "Absent", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Count);
+            studentAttendanceSummary.Late = statusCounts.Where(r => string.Equals(r.Status, "Late", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Count);
+            studentAttendanceSummary.HalfDay = statusCounts.Where(r => string.Equals(r.Status, "Half Day", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "HalfDay", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Count);
+            studentAttendanceSummary.Total = statusCounts.Sum(r => r.Count);
             studentAttendanceSummary.PresentPct = studentAttendanceSummary.Total > 0
                 ? (int)Math.Round((double)studentAttendanceSummary.Present / studentAttendanceSummary.Total * 100)
                 : 0;
@@ -174,7 +202,7 @@ public class DashboardService : IDashboardService
 
         // 6. Staff Attendance (Today)
         var staffAttQuery = _context.StaffAttendances.AsNoTracking()
-            .Where(sa => sa.Date.Date == today);
+            .Where(sa => sa.Date >= todayStart && sa.Date < tomorrowStart);
 
         if (targetBranchId.HasValue)
         {
@@ -186,16 +214,6 @@ public class DashboardService : IDashboardService
         }
 
         var staffRecords = await staffAttQuery.ToListAsync(cancellationToken);
-
-        var teachingStaffIds = await staffQuery
-            .Where(s => s.Department == "Teaching" || s.EmployeeCategory == "Teaching Staff" || s.EmployeeCategory == "Teacher")
-            .Select(s => s.StaffId)
-            .ToListAsync(cancellationToken);
-
-        var nonTeachingStaffIds = await staffQuery
-            .Where(s => s.Department != "Teaching" && s.EmployeeCategory != "Teaching Staff" && s.EmployeeCategory != "Teacher")
-            .Select(s => s.StaffId)
-            .ToListAsync(cancellationToken);
 
         // Overall Staff Attendance
         var staffAttendanceSummary = new StaffAttendanceSummaryDto();
@@ -243,8 +261,7 @@ public class DashboardService : IDashboardService
 
         // 7. Class-wise Student Strength
         var rawClassStrengths = await studentQuery
-            .Include(s => s.ClassGrade)
-            .GroupBy(s => s.ClassGrade.ClassName)
+            .GroupBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "Unassigned")
             .Select(g => new
             {
                 ClassName = g.Key ?? "Unassigned",
@@ -255,8 +272,15 @@ public class DashboardService : IDashboardService
         var dictStrengths = rawClassStrengths.ToDictionary(x => x.ClassName, x => x.StudentCount, StringComparer.OrdinalIgnoreCase);
 
         var admissionClasses = await admissionAppsQuery
+<<<<<<< HEAD
             .Include(a => a.AppliedClass)
             .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == a.RegistrationNo.ToLower()) && a.AppliedClass != null && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
+=======
+            .Where(a => a.RegistrationNo != null 
+                && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber == a.RegistrationNo)
+                && a.AppliedClass != null 
+                && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
+>>>>>>> 4b4a64470cefb9c2c08b1f6c7a9f4d05f4642b08
             .GroupBy(a => a.AppliedClass!.ClassName)
             .Select(g => new { ClassName = g.Key, StudentCount = g.Count() })
             .ToListAsync(cancellationToken);

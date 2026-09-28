@@ -125,7 +125,38 @@ export const initialBookIssues: BookIssue[] = [];
 export const initialTransportRoutes: TransportRoute[] = [];
 export const initialInventory: InventoryItem[] = [];
 export const initialAnnouncements: Announcement[] = [];
-export const initialHolidays: Holiday[] = [];
+export const initialHolidays: Holiday[] = [
+  { id: 'HOL-2026-01', name: 'New Year\'s Day', type: 'Festival', startDate: '2026-01-01', endDate: '2026-01-01', branch: 'All Branches', description: 'Global New Year Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-02', name: 'Makar Sankranti / Pongal Break', type: 'Festival', startDate: '2026-01-14', endDate: '2026-01-16', branch: 'All Branches', description: 'Traditional Harvest Festival Vacation', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-03', name: 'Republic Day', type: 'National', startDate: '2026-01-26', endDate: '2026-01-26', branch: 'All Branches', description: 'National Republic Day Flag Hoisting & Celebrations', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-04', name: 'Maha Shivratri', type: 'Festival', startDate: '2026-02-15', endDate: '2026-02-15', branch: 'All Branches', description: 'Maha Shivratri Observance', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-05', name: 'Holi - Festival of Colors', type: 'Festival', startDate: '2026-03-04', endDate: '2026-03-04', branch: 'All Branches', description: 'Holi Color Festival Celebration', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-06', name: 'Ugadi / Gudi Padwa', type: 'Festival', startDate: '2026-03-19', endDate: '2026-03-19', branch: 'All Branches', description: 'Telugu & Kannada New Year Festival', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-07', name: 'Good Friday', type: 'Gazetted', startDate: '2026-04-03', endDate: '2026-04-03', branch: 'All Branches', description: 'Good Friday Gazetted Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-08', name: 'Dr. B.R. Ambedkar Jayanti', type: 'Gazetted', startDate: '2026-04-14', endDate: '2026-04-14', branch: 'All Branches', description: 'Dr. B.R. Ambedkar Jayanti National Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-09', name: 'Id-ul-Fitr (Ramzan Eid)', type: 'Festival', startDate: '2026-04-20', endDate: '2026-04-20', branch: 'All Branches', description: 'Id-ul-Fitr Festival Celebration', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-10', name: 'Annual Summer Vacation', type: 'Vacation', startDate: '2026-05-01', endDate: '2026-06-07', branch: 'All Branches', description: 'Official 5-Week Summer Break for Students & Teachers', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-11', name: 'Bakrid / Id-ul-Adha', type: 'Festival', startDate: '2026-05-27', endDate: '2026-05-27', branch: 'All Branches', description: 'Id-ul-Adha Festival Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-12', name: 'Bonalu Festival', type: 'Festival', startDate: '2026-07-20', endDate: '2026-07-20', branch: 'All Branches', description: 'State Bonalu Festival Celebration', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-13', name: 'Independence Day', type: 'National', startDate: '2026-08-15', endDate: '2026-08-15', branch: 'All Branches', description: 'National Holiday celebrating Indian Independence Day', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-14', name: 'Raksha Bandhan', type: 'Festival', startDate: '2026-08-28', endDate: '2026-08-28', branch: 'All Branches', description: 'Raksha Bandhan Festival', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-15', name: 'Sri Krishna Janmashtami', type: 'Festival', startDate: '2026-09-04', endDate: '2026-09-04', branch: 'All Branches', description: 'Lord Krishna Jayanti Festival', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-16', name: 'Ganesh Chaturthi / Vinayaka Chavithi', type: 'Festival', startDate: '2026-09-14', endDate: '2026-09-14', branch: 'All Branches', description: 'Ganesh Chaturthi Festival Celebration', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-17', name: 'Milad-un-Nabi', type: 'Gazetted', startDate: '2026-09-25', endDate: '2026-09-25', branch: 'All Branches', description: 'Milad-un-Nabi Observance', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-18', name: 'Mahatma Gandhi Jayanti', type: 'National', startDate: '2026-10-02', endDate: '2026-10-02', branch: 'All Branches', description: 'Father of the Nation Birthday National Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-19', name: 'Bathukamma & Dussehra Vacation', type: 'Vacation', startDate: '2026-10-16', endDate: '2026-10-22', branch: 'All Branches', description: '7-Day Term Break for Dussehra & Vijayadashami', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-20', name: 'Diwali / Deepavali Vacation', type: 'Festival', startDate: '2026-11-07', endDate: '2026-11-11', branch: 'All Branches', description: '5-Day Festival Break for Diwali Lights Celebration', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-21', name: 'Guru Nanak Jayanti', type: 'Gazetted', startDate: '2026-11-24', endDate: '2026-11-24', branch: 'All Branches', description: 'Guru Nanak Dev Ji Prakash Purab', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2026-22', name: 'Christmas & Winter Vacation', type: 'Vacation', startDate: '2026-12-24', endDate: '2027-01-01', branch: 'All Branches', description: 'Official Winter Vacation & Christmas Break', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-23', name: 'Makar Sankranti / Pongal 2027', type: 'Festival', startDate: '2027-01-14', endDate: '2027-01-15', branch: 'All Branches', description: 'Harvest Festival Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-24', name: 'Republic Day 2027', type: 'National', startDate: '2027-01-26', endDate: '2027-01-26', branch: 'All Branches', description: 'Indian Constitution & Republic Day Flag Hoisting', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-25', name: 'Maha Shivratri 2027', type: 'Festival', startDate: '2027-03-06', endDate: '2027-03-06', branch: 'All Branches', description: 'Maha Shivratri Observance', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-26', name: 'Holi Festival 2027', type: 'Festival', startDate: '2027-03-22', endDate: '2027-03-22', branch: 'All Branches', description: 'Holi Festival Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-27', name: 'Good Friday 2027', type: 'Gazetted', startDate: '2027-03-26', endDate: '2027-03-26', branch: 'All Branches', description: 'Good Friday Gazetted Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-28', name: 'Ugadi Festival 2027', type: 'Festival', startDate: '2027-04-07', endDate: '2027-04-07', branch: 'All Branches', description: 'Ugadi New Year Celebration', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-29', name: 'Id-ul-Fitr 2027', type: 'Festival', startDate: '2027-04-09', endDate: '2027-04-09', branch: 'All Branches', description: 'Ramzan Eid Festival Holiday', status: 'Active', applicableTo: 'All' },
+  { id: 'HOL-2027-30', name: 'Annual Summer Vacation 2027', type: 'Vacation', startDate: '2027-05-01', endDate: '2027-06-05', branch: 'All Branches', description: 'Annual Summer Vacation Break', status: 'Active', applicableTo: 'All' }
+];
 export const initialBirthdays: Birthday[] = [];
 export const initialAuditLogs: AuditLog[] = [];
 export const initialCustomRoles: CustomRole[] = [];

@@ -340,8 +340,8 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
       localStorage.setItem("school_logo", "");
       localStorage.setItem("logoUrl", "");
       localStorage.setItem("schoolLogo", "");
-      await uploadSchoolLogoApi('');
       window.dispatchEvent(new Event("school_profile_updated"));
+      await uploadSchoolLogoApi('');
     } catch (err) {
       console.warn("Backend logo clear note:", err);
     }
@@ -570,21 +570,28 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                   Live Top-Left Sidebar Header Container Auto-Fit
                 </span>
                 <div className="flex items-center gap-3 bg-slate-100/40 dark:bg-slate-900/60 p-3 rounded-2xl border border-white/10">
-                  {meta && Math.abs(meta.width / meta.height - 1) < 0.3 ? (
-                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 shadow-md border border-sky-100 dark:border-sky-900 flex items-center justify-center p-1.5 transition-all">
-                      <img
-                        src={value}
-                        alt="School Crest Logo"
-                        className="max-h-9 max-w-9 object-contain"
-                      />
-                    </div>
+                  {value ? (
+                    meta && Math.abs(meta.width / meta.height - 1) < 0.3 ? (
+                      <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 shadow-md border border-sky-100 dark:border-sky-900 flex items-center justify-center p-1.5 transition-all">
+                        <img
+                          src={value}
+                          alt="School Crest Logo"
+                          className="max-h-9 max-w-9 object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl bg-white dark:bg-slate-900 shadow-md border border-sky-100 dark:border-sky-900 flex items-center justify-center transition-all">
+                        <img
+                          src={value}
+                          alt="School Wide Logo"
+                          className="max-h-9 max-w-full w-auto object-contain"
+                        />
+                      </div>
+                    )
                   ) : (
-                    <div className="h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl bg-white dark:bg-slate-900 shadow-md border border-sky-100 dark:border-sky-900 flex items-center justify-center transition-all">
-                      <img
-                        src={value}
-                        alt="School Wide Logo"
-                        className="max-h-9 max-w-full w-auto object-contain"
-                      />
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                      <FileImage className="w-5 h-5 text-slate-400" />
+                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500">No Logo Set</span>
                     </div>
                   )}
                   <div className="border-l border-slate-300/40 dark:border-slate-700/60 pl-3 text-left">
@@ -592,24 +599,30 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
                       Auto-Fit Container
                     </div>
                     <div className="text-[10px] font-bold text-sky-400">
-                      {meta && Math.abs(meta.width / meta.height - 1) < 0.3
+                      {value ? (meta && Math.abs(meta.width / meta.height - 1) < 0.3
                         ? "Square / Circle Crest (Zero Side Margin)"
-                        : "Wide Banner (Horizontal Fill)"}
+                        : "Wide Banner (Horizontal Fill)") : "Default / Text Only"}
                     </div>
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : value ? (
               <img
                 src={value}
                 alt="School Logo Preview"
                 className="max-h-28 max-w-full object-contain filter drop-shadow-sm transition-all"
               />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-4 text-center text-slate-400 dark:text-slate-500">
+                <FileImage className="w-10 h-10 mb-1.5 opacity-40 text-slate-400" />
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No School Logo</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Click "Upload Logo" or drag a file to add a logo</p>
+              </div>
             )}
           </div>
 
           {/* Real-time Pixel & Format Inspection Grid */}
-          {meta && (
+          {value && meta && (
             <div className="space-y-2">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                 <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
@@ -673,16 +686,22 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
               onClick={() => fileInputRef.current?.click()}
               className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Upload className="w-3.5 h-3.5 text-sky-600" /> Change Image
+              <Upload className="w-3.5 h-3.5 text-sky-600" /> {value ? "Change Image" : "Upload Logo"}
             </button>
 
-            <button
-              type="button"
-              onClick={handleClear}
-              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Remove Logo
-            </button>
+            {value ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Remove Logo
+              </button>
+            ) : (
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 italic">
+                Logo Removed (Empty)
+              </span>
+            )}
           </div>
         </div>
       )}

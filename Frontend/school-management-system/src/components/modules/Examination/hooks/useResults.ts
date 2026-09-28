@@ -15,13 +15,66 @@ export function useResults() {
 
   const getResultsForExamClass = (examId: string, className: string, section: string) => {
     const cleanSec = (section || '').replace('Section ', '').trim().toUpperCase();
-    return (processedResults || []).filter(r => {
+    const rawMatches = (processedResults || []).filter(r => {
       if (!r) return false;
-      if (r.examId !== examId || r.className !== className) return false;
+      const matchExam = !examId || examId === 'all' || !r.examId || r.examId === 'all' ||
+        String(r.examId) === String(examId) ||
+        (Number(r.examId) > 0 && Number(r.examId) === Number(examId)) ||
+        (String(r.examId).includes(String(examId)) || String(examId).includes(String(r.examId)));
+      const matchClass = !className || className === 'all' || r.className === className;
+      if (!matchExam || !matchClass) return false;
       if (!section || section === 'All') return true;
       const rSec = (r.section || '').replace('Section ', '').trim().toUpperCase();
       return rSec === cleanSec || r.section === section;
     });
+
+    const studentMap = new Map<string, ProcessedResult>();
+    for (const r of rawMatches) {
+      const nameKey = (r.studentName || `${(r as any).firstName || ''} ${(r as any).lastName || ''}`).toLowerCase().trim().replace(/\s+/g, ' ');
+      const admKey = (r.admissionNo || (r as any).admissionNumber || '').toLowerCase().trim();
+      const rollKey = (r.rollNo || (r as any).rollNumber || '').toLowerCase().trim();
+      const studentKey = nameKey || admKey || rollKey || String(r.studentId || r.id || '').trim().toLowerCase();
+      if (!studentKey) continue;
+
+      const existing = studentMap.get(studentKey);
+      if (!existing) {
+        studentMap.set(studentKey, r);
+      } else {
+        const rMax = r.totalMaxMarks || 0;
+        const exMax = existing.totalMaxMarks || 0;
+        const rSubjCount = Array.isArray(r.subjectMarks) ? r.subjectMarks.length : 0;
+        const exSubjCount = Array.isArray(existing.subjectMarks) ? existing.subjectMarks.length : 0;
+
+        if (rMax > exMax || (rMax === exMax && rSubjCount > exSubjCount) || (rMax === exMax && (r.totalObtainedMarks || 0) > (existing.totalObtainedMarks || 0))) {
+          studentMap.set(studentKey, r);
+        }
+      }
+    }
+
+    const dedupedList = Array.from(studentMap.values());
+
+    // Re-calculate ranks cleanly for deduplicated roster
+    const sortedByScore = [...dedupedList].sort((a, b) => {
+      const pctA = a.percentage ?? (a.totalMaxMarks ? (a.totalObtainedMarks / a.totalMaxMarks) * 100 : 0);
+      const pctB = b.percentage ?? (b.totalMaxMarks ? (b.totalObtainedMarks / b.totalMaxMarks) * 100 : 0);
+      if (pctB !== pctA) return pctB - pctA;
+      return (b.totalObtainedMarks || 0) - (a.totalObtainedMarks || 0);
+    });
+
+    let currentRank = 1;
+    sortedByScore.forEach((r, idx) => {
+      if (idx > 0) {
+        const prev = sortedByScore[idx - 1];
+        const prevPct = prev.percentage ?? (prev.totalMaxMarks ? (prev.totalObtainedMarks / prev.totalMaxMarks) * 100 : 0);
+        const currPct = r.percentage ?? (r.totalMaxMarks ? (r.totalObtainedMarks / r.totalMaxMarks) * 100 : 0);
+        if (currPct < prevPct) {
+          currentRank = idx + 1;
+        }
+      }
+      r.rank = currentRank;
+    });
+
+    return dedupedList;
   };
 
   const calculateClassResults = (
@@ -77,7 +130,7 @@ export function useResults() {
 
     // 3. Assemble full ProcessedResult objects
     studentScores.forEach(({ student, res }) => {
-      const rank = ranksMap[student.id] || 1;
+      const rank = ranksMap[student.id] ?? 0;
       calculatedList.push({
         id: `RES-${examId}-${student.id}`,
         examId,

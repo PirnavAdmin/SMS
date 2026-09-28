@@ -23,7 +23,7 @@ public class ExamMarksEntryController : ControllerBase
     /// Get dropdown options for Marks Entry (Classes, Sections, Exam Subjects)
     /// </summary>
     [HttpGet("options")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetMarksEntryOptions()
     {
         try
@@ -41,7 +41,7 @@ public class ExamMarksEntryController : ControllerBase
     /// Get Student Marks Sheet for a selected Class, Section, and Exam Subject (Screenshots 1, 2, 3 & 4)
     /// </summary>
     [HttpGet("students")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetStudentMarksSheet(
         [FromQuery] string className = "",
         [FromQuery] string sectionName = "",
@@ -63,7 +63,7 @@ public class ExamMarksEntryController : ControllerBase
     /// Save Draft marks entry (Clicking "Save Draft")
     /// </summary>
     [HttpPost("save-draft")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> SaveDraft([FromBody] SaveMarksSheetRequestDto request)
     {
         try
@@ -89,7 +89,7 @@ public class ExamMarksEntryController : ControllerBase
     /// Submit Marks Entry final (Clicking "Submit Marks" -> Redirects to Results & Reports)
     /// </summary>
     [HttpPost("submit-marks")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> SubmitMarks([FromBody] SaveMarksSheetRequestDto request)
     {
         try
@@ -102,7 +102,7 @@ public class ExamMarksEntryController : ControllerBase
             return Ok(new { 
                 success = true, 
                 message = "Student marks submitted successfully. Proceeding to Results & Reports.", 
-                redirectTo = "ResultsAndReports",
+                redirectTo = "ResultsAndReports", 
                 data = success 
             });
         }
@@ -116,7 +116,7 @@ public class ExamMarksEntryController : ControllerBase
     /// Update Student Marks entry (PUT /api/examination-new/marks-entry/update-marks)
     /// </summary>
     [HttpPut("update-marks")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> UpdateMarks([FromBody] SaveMarksSheetRequestDto request)
     {
         try
@@ -141,7 +141,7 @@ public class ExamMarksEntryController : ControllerBase
     /// Clear Marks Entry sheet for a Class, Section, and Subject (DELETE /api/examination-new/marks-entry/clear-marks)
     /// </summary>
     [HttpDelete("clear-marks")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> ClearMarksEntries(
         [FromQuery] string className,
         [FromQuery] string sectionName,
