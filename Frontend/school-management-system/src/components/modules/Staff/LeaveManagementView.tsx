@@ -39,11 +39,6 @@ export const LeaveManagementView: React.FC = () => {
     if (fetchLeaveBalances) fetchLeaveBalances();
   }, []);
 
-  useEffect(() => {
-    if (fetchLeaveApplications) fetchLeaveApplications();
-    if (fetchLeaveBalances) fetchLeaveBalances();
-  }, [activeTab, selectedBranch]);
-
   const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
 
   const { user, role, selectedBranch } = useAuth();
@@ -62,6 +57,11 @@ export const LeaveManagementView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>(
     hasApprovalPermission ? 'queue' : 'applications'
   );
+
+  useEffect(() => {
+    if (fetchLeaveApplications) fetchLeaveApplications();
+    if (fetchLeaveBalances) fetchLeaveBalances();
+  }, [activeTab, selectedBranch]);
 
   // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors) for teachers
   const teachingStaff = (staff || []).filter(s => {
