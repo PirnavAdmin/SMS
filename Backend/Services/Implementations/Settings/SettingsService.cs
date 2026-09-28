@@ -466,11 +466,11 @@ namespace SMS.Api.Services.Implementations.Settings
                     .Select(a => a.ApplicationNo)
                     .ToListAsync();
 
-                var appRegNos = await _context.AdmissionApplications
-                    .Select(a => a.RegistrationNo)
+                var appAdmissionNos = await _context.AdmissionApplications
+                    .Select(a => a.AdmissionNo)
                     .ToListAsync();
 
-                maxExisting = ExtractMaxNumber(studentAdmissions.Concat(appAdmissions).Concat(appRegNos), prefix);
+                maxExisting = ExtractMaxNumber(studentAdmissions.Concat(appAdmissions).Concat(appAdmissionNos), prefix);
             }
             else if (normType == "teaching" || normType == "teacher" || normType == "teachingstaff")
             {

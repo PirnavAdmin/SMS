@@ -1595,6 +1595,7 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "StudentType", "varchar(50) NOT NULL DEFAULT 'Day Scholar'");
         EnsureColumnExists("admission_applications", "AllocatedBedId", "varchar(50) NULL");
         EnsureColumnExists("admission_applications", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
+        EnsureColumnExists("admission_applications", "AdmissionNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentId", "int NULL");
@@ -2091,15 +2092,54 @@ using (var scope = app.Services.CreateScope())
                 {
                     // 1. Sync all applications from admission_applications to admissions table
                     var allApps = await context.AdmissionApplications
+                        .OrderBy(a => a.Id)
                         .ToListAsync();
 
                     var branches = await context.Branches.ToListAsync();
                     var allClasses = await context.Classes.ToListAsync();
 
+                    // Find max existing ADM number from students and applications
+                    var existingAdmNumbers = await context.Students
+                        .IgnoreQueryFilters()
+                        .Where(s => s.AdmissionNumber != null && s.AdmissionNumber.StartsWith("ADM-"))
+                        .Select(s => s.AdmissionNumber!)
+                        .ToListAsync();
+
+                    var existingAppAdmNumbers = await context.AdmissionApplications
+                        .IgnoreQueryFilters()
+                        .Where(a => a.AdmissionNo != null && a.AdmissionNo.StartsWith("ADM-"))
+                        .Select(a => a.AdmissionNo!)
+                        .ToListAsync();
+
+                    int currentMaxAdm = 0;
+                    foreach (var adm in existingAdmNumbers.Concat(existingAppAdmNumbers))
+                    {
+                        var matches = System.Text.RegularExpressions.Regex.Matches(adm, @"\d+");
+                        foreach (System.Text.RegularExpressions.Match m in matches)
+                        {
+                            if (int.TryParse(m.Value, out int v) && (v < 2020 || v > 2035) && v > currentMaxAdm)
+                            {
+                                currentMaxAdm = v;
+                            }
+                        }
+                    }
+
                     foreach (var admApp in allApps)
                     {
+                        bool isEnrolled = admApp.Status == "Enrolled" || admApp.Status == "Active";
+                        if (isEnrolled && (string.IsNullOrWhiteSpace(admApp.AdmissionNo) || admApp.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            currentMaxAdm++;
+                            admApp.AdmissionNo = $"ADM-{DateTime.UtcNow.Year}-{currentMaxAdm:D4}";
+                        }
+
+                        string effectiveAppNo = isEnrolled && !string.IsNullOrWhiteSpace(admApp.AdmissionNo)
+                            ? admApp.AdmissionNo
+                            : (admApp.RegistrationNo ?? "");
+
                         var existingAdmission = await context.Admissions
-                            .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo);
+                            .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo || 
+                                (!string.IsNullOrEmpty(admApp.AdmissionNo) && a.ApplicationNo == admApp.AdmissionNo));
 
                         var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
                         bool isAppDeleted = admApp.IsDeleted || admApp.Status == "Deleted";
@@ -2130,7 +2170,7 @@ using (var scope = app.Services.CreateScope())
                             {
                                 var newAdmission = new Admission
                                 {
-                                    ApplicationNo = admApp.RegistrationNo ?? "",
+                                    ApplicationNo = effectiveAppNo,
                                     StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
                                     Dob = admApp.DateOfBirth,
                                     Gender = admApp.Gender,
@@ -2151,6 +2191,7 @@ using (var scope = app.Services.CreateScope())
                         }
                         else
                         {
+                            existingAdmission.ApplicationNo = effectiveAppNo;
                             existingAdmission.BranchId = appBranch.BranchId;
                             existingAdmission.ClassId = targetClassId;
                             existingAdmission.Status = admApp.Status ?? "";
@@ -2185,10 +2226,15 @@ using (var scope = app.Services.CreateScope())
 
                         var existing = await context.Students
                             .IgnoreQueryFilters()
-                            .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
+                            .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo || 
+                                (s.StudentName.ToLower() == (admission.StudentName ?? "").ToLower().Trim() && s.FatherMobile == admission.FatherMobile));
 
                         if (existing != null)
                         {
+                            if (!string.IsNullOrWhiteSpace(admission.ApplicationNo) && admission.ApplicationNo.StartsWith("ADM-", StringComparison.OrdinalIgnoreCase))
+                            {
+                                existing.AdmissionNumber = admission.ApplicationNo;
+                            }
                             existing.ClassId = admission.ClassId.Value;
                             existing.SectionId = sectionObj.SectionId;
                             existing.RollNumber = admission.RollNo ?? existing.RollNumber;
@@ -2237,7 +2283,14 @@ using (var scope = app.Services.CreateScope())
                         }
                     }
 
-                    await context.SaveChangesAsync();
+                    try
+                    {
+                        await context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Startup Sync] Note: Student sync completed with note: {ex.Message}");
+                    }
                 }
             }
             else

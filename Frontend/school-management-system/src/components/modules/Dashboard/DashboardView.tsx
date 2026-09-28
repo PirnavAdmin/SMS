@@ -378,11 +378,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     const enrolledStudents = (students || []).filter(s => 
       isBranchMatch(s) && (s.status === 'Active' || s.status === 'Enrolled' || !s.status)
     );
-    const existingAdmNos = new Set(students.map(s => String(s.admissionNo || s.id || '').trim().toLowerCase()));
+    const existingAdmNos = new Set(
+      students.flatMap(s => [
+        String(s.admissionNo || '').trim().toLowerCase(),
+        String(s.id || '').trim().toLowerCase(),
+        String((s as any).admissionNumber || '').trim().toLowerCase(),
+        String((s as any).rollNumber || '').trim().toLowerCase(),
+        String(s.name || '').trim().toLowerCase()
+      ]).filter(Boolean)
+    );
     const enrolledAdmissions = (admissions || []).filter(a =>
       (a.status === 'Enrolled' || a.status === 'Admitted') &&
       isBranchMatch(a) &&
-      !existingAdmNos.has(String(a.applicationNo || a.id || '').trim().toLowerCase())
+      !existingAdmNos.has(String(a.applicationNo || '').trim().toLowerCase()) &&
+      !existingAdmNos.has(String((a as any).admissionNo || '').trim().toLowerCase()) &&
+      !existingAdmNos.has(String(a.registrationNo || '').trim().toLowerCase()) &&
+      !existingAdmNos.has(String(a.applicantName || '').trim().toLowerCase())
     );
     const liveEnrolledCount = enrolledStudents.length + enrolledAdmissions.length;
     if (liveEnrolledCount > 0) return liveEnrolledCount;

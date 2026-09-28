@@ -100,11 +100,10 @@ public class DashboardService : IDashboardService
         }
 
         var unmappedAdmissions = await admissionAppsQuery
-<<<<<<< HEAD
-            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == a.RegistrationNo.ToLower()))
-=======
-            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber == a.RegistrationNo))
->>>>>>> 4b4a64470cefb9c2c08b1f6c7a9f4d05f4642b08
+            .Where(a => (a.RegistrationNo != null || a.AdmissionNo != null) && 
+                        !_context.Students.Any(s => !s.IsDeleted && 
+                            (s.AdmissionNumber == a.RegistrationNo || 
+                             (!string.IsNullOrEmpty(a.AdmissionNo) && s.AdmissionNumber == a.AdmissionNo))))
             .CountAsync(cancellationToken);
 
         totalStudents += unmappedAdmissions;
@@ -272,15 +271,10 @@ public class DashboardService : IDashboardService
         var dictStrengths = rawClassStrengths.ToDictionary(x => x.ClassName, x => x.StudentCount, StringComparer.OrdinalIgnoreCase);
 
         var admissionClasses = await admissionAppsQuery
-<<<<<<< HEAD
-            .Include(a => a.AppliedClass)
-            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == a.RegistrationNo.ToLower()) && a.AppliedClass != null && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
-=======
             .Where(a => a.RegistrationNo != null 
                 && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber == a.RegistrationNo)
                 && a.AppliedClass != null 
                 && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
->>>>>>> 4b4a64470cefb9c2c08b1f6c7a9f4d05f4642b08
             .GroupBy(a => a.AppliedClass!.ClassName)
             .Select(g => new { ClassName = g.Key, StudentCount = g.Count() })
             .ToListAsync(cancellationToken);
