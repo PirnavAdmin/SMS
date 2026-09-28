@@ -17910,11 +17910,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveProcessedResults = (results: ProcessedResult[]) => {
     setProcessedResults((prev) => {
-      const newKeys = results.map((r) => `${r.examId}_${r.studentId}`);
-      const filtered = prev.filter(
-        (p) => !newKeys.includes(`${p.examId}_${p.studentId}`),
-      );
-      return [...filtered, ...results];
+      const cleanMap = new Map<string, ProcessedResult>();
+      for (const r of results || []) {
+        if (!r) continue;
+        const k = `${String(r.examId || '').trim()}_${String(r.studentId || r.admissionNo || '').trim()}`.toLowerCase();
+        cleanMap.set(k, r);
+      }
+      const cleanIncoming = Array.from(cleanMap.values());
+      const incomingKeys = new Set(cleanIncoming.map(r => `${String(r.examId || '').trim()}_${String(r.studentId || r.admissionNo || '').trim()}`.toLowerCase()));
+
+      const filtered = prev.filter(p => {
+        if (!p) return false;
+        const pKey = `${String(p.examId || '').trim()}_${String(p.studentId || p.admissionNo || '').trim()}`.toLowerCase();
+        return !incomingKeys.has(pKey);
+      });
+      return [...filtered, ...cleanIncoming];
     });
 
     if (results && results.length > 0) {

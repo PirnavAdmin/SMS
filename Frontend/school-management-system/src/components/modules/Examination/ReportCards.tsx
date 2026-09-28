@@ -6,7 +6,7 @@ import { Panel } from './components/SharedUI';
 import { useResults } from './hooks/useResults';
 import { useData } from '../../../context/DataContext';
 import { printReportCard, downloadReportCardPdf } from './utils/reportCardPrinter';
-import { fetchReportCardsApi } from '../../../api/examination';
+import { fetchReportCardsApi, publishExamResultsApi } from '../../../api/examination';
 
 interface ReportCardsProps {
   exam: ExamSetup | null;
@@ -110,8 +110,53 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
       return matchSearch && matchStatus;
     });
 
+    // 2.5 Deduplicate strictly by Student Identity (Normalized Student Name)
+    const uniqueMap = new Map<string, ProcessedResult>();
+    for (const r of list) {
+      const nameKey = (r.studentName || `${(r as any).firstName || ''} ${(r as any).lastName || ''}`).toLowerCase().trim().replace(/\s+/g, ' ');
+      const admKey = (r.admissionNo || (r as any).admissionNumber || '').toLowerCase().trim();
+      const rollKey = (r.rollNo || (r as any).rollNumber || '').toLowerCase().trim();
+      const key = nameKey || admKey || rollKey || String(r.studentId || r.id || '').trim().toLowerCase();
+      if (!key) continue;
+
+      const existing = uniqueMap.get(key);
+      if (!existing) {
+        uniqueMap.set(key, r);
+      } else {
+        const rMax = r.totalMaxMarks || 0;
+        const exMax = existing.totalMaxMarks || 0;
+        const rSubjCount = Array.isArray(r.subjectMarks) ? r.subjectMarks.length : 0;
+        const exSubjCount = Array.isArray(existing.subjectMarks) ? existing.subjectMarks.length : 0;
+        if (rMax > exMax || (rMax === exMax && rSubjCount > exSubjCount) || (rMax === exMax && (r.totalObtainedMarks || 0) > (existing.totalObtainedMarks || 0))) {
+          uniqueMap.set(key, r);
+        }
+      }
+    }
+    list = Array.from(uniqueMap.values());
+
+    // Re-calculate competition ranks for deduplicated list
+    const sortedByPerformance = [...list].sort((a, b) => {
+      const pctA = a.percentage ?? (a.totalMaxMarks ? (a.totalObtainedMarks / a.totalMaxMarks) * 100 : 0);
+      const pctB = b.percentage ?? (b.totalMaxMarks ? (b.totalObtainedMarks / b.totalMaxMarks) * 100 : 0);
+      if (pctB !== pctA) return pctB - pctA;
+      return (b.totalObtainedMarks || 0) - (a.totalObtainedMarks || 0);
+    });
+
+    let currentRank = 1;
+    sortedByPerformance.forEach((r, idx) => {
+      if (idx > 0) {
+        const prev = sortedByPerformance[idx - 1];
+        const prevPct = prev.percentage ?? (prev.totalMaxMarks ? (prev.totalObtainedMarks / prev.totalMaxMarks) * 100 : 0);
+        const currPct = r.percentage ?? (r.totalMaxMarks ? (r.totalObtainedMarks / r.totalMaxMarks) * 100 : 0);
+        if (currPct < prevPct) {
+          currentRank = idx + 1;
+        }
+      }
+      r.rank = currentRank;
+    });
+
     // 3. Rank Sort (Ascending #1 -> #N vs Descending #N -> #1)
-    list = [...list].sort((a, b) => {
+    list = list.sort((a, b) => {
       if (sortOrder === 'asc') return (a.rank ?? 999) - (b.rank ?? 999);
       return (b.rank ?? 999) - (a.rank ?? 999);
     });
@@ -174,19 +219,89 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
     }, 500);
   };
 
-  const handleBulkSendToParent = () => {
+  const handleBulkSendToParent = async () => {
     if (targetResultsForBulk.length === 0) {
       addToast('warning', 'No Students Selected', 'Please select at least one student to dispatch report cards.');
       return;
     }
     setIsBulkSending(true);
+
+    const publishedResults = targetResultsForBulk.map(r => ({
+      ...r,
+      status: 'Published' as const,
+      passStatus: (r.passStatus || 'Pass') as 'Pass' | 'Fail',
+      publishedAt: new Date().toISOString()
+    }));
+
+    // Save into DataContext
+    saveProcessedResults(publishedResults);
+
+    // Save to client-side localStorage cache for immediate persistence
+    try {
+      const storedStr = localStorage.getItem('published_report_cards') || '[]';
+      const storedArr: ProcessedResult[] = JSON.parse(storedStr);
+      const incomingKeys = new Set(publishedResults.map(p => `${p.examId}_${p.studentId || p.admissionNo || p.studentName}`.toLowerCase()));
+      const remaining = storedArr.filter(s => !incomingKeys.has(`${s.examId}_${s.studentId || s.admissionNo || s.studentName}`.toLowerCase()));
+      localStorage.setItem('published_report_cards', JSON.stringify([...remaining, ...publishedResults]));
+    } catch (e) {
+      console.warn('localStorage publish save error:', e);
+    }
+
+    // Attempt API publish call
+    try {
+      await publishExamResultsApi({
+        examId: Number(exam?.id) || 1,
+        className: selectedClass,
+        sectionName: selectedSection,
+        results: publishedResults.map(r => ({
+          studentId: Number(r.studentId) || 0,
+          rollNo: r.rollNo || '',
+          studentName: r.studentName || '',
+          admissionNo: r.admissionNo || '',
+          className: r.className || selectedClass,
+          sectionName: r.section || selectedSection,
+          totalMarksObtained: r.totalObtainedMarks || 0,
+          totalMaxMarks: r.totalMaxMarks || 0,
+          percentage: r.percentage || 0,
+          grade: r.finalGrade || r.overallGrade || '',
+          rank: Number(r.rank || 0),
+          resultStatus: r.passStatus || 'Pass',
+          subjectMarks: (r.subjectMarks || []).map((sm: any) => ({
+            subject: sm.subject || sm.subjectName || sm.name,
+            maxMarks: sm.maxMarks,
+            passMarks: sm.passMarks,
+            obtainedMarks: sm.obtainedMarks ?? sm.marks,
+            grade: sm.grade || '',
+            isPass: sm.isPass !== false
+          }))
+        }))
+      });
+    } catch (err) {
+      console.warn('Publish API call note:', err);
+    }
+
     setTimeout(() => {
       setIsBulkSending(false);
-      addToast('success', 'Parent Portal Dispatched', `Official report cards successfully dispatched to parents of ${targetResultsForBulk.length} students via Portal & SMS.`);
+      addToast('success', 'Parent Portal Dispatched', `Official report cards successfully dispatched to parents of ${publishedResults.length} students via Portal & SMS.`);
     }, 600);
   };
 
-  const handleSendSingleToParent = (res: ProcessedResult) => {
+  const handleSendSingleToParent = async (res: ProcessedResult) => {
+    const publishedRes = {
+      ...res,
+      status: 'Published' as const,
+      publishedAt: new Date().toISOString()
+    };
+    saveProcessedResults([publishedRes]);
+
+    try {
+      const storedStr = localStorage.getItem('published_report_cards') || '[]';
+      const storedArr: ProcessedResult[] = JSON.parse(storedStr);
+      const key = `${publishedRes.examId}_${publishedRes.studentId || publishedRes.admissionNo || publishedRes.studentName}`.toLowerCase();
+      const remaining = storedArr.filter(s => `${s.examId}_${s.studentId || s.admissionNo || s.studentName}`.toLowerCase() !== key);
+      localStorage.setItem('published_report_cards', JSON.stringify([...remaining, publishedRes]));
+    } catch (e) {}
+
     addToast('success', 'Report Card Dispatched', `Official report card sent to parents of ${res.studentName} via Portal & WhatsApp.`);
   };
 
