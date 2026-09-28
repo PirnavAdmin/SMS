@@ -232,9 +232,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const fetchStaff = (useData() as any).fetchStaff || (async () => {});
 
   const userRole = user?.role?.toLowerCase() || '';
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    return (students || []).length === 0 && (staff || []).length === 0 && (academicClasses || []).length === 0;
+  });
   const [summaryData, setSummaryData] = useState<DashboardSummaryResponse | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState<boolean>(true);
+  const [summaryLoading, setSummaryLoading] = useState<boolean>(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const loadSummaryData = async (branch?: string, ay?: string) => {
@@ -250,8 +252,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         setSummaryData(res as any);
       }
     } catch (err: any) {
-      console.error("Error loading real-time dashboard summary:", err);
-      setSummaryError("Failed to fetch real-time dashboard summary.");
+      console.warn("Real-time dashboard summary backend notice:", err);
+      if (!students || students.length === 0) {
+        setSummaryError("Failed to fetch real-time dashboard summary.");
+      } else {
+        setSummaryError(null);
+      }
     } finally {
       setSummaryLoading(false);
     }
@@ -264,11 +270,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       return;
     }
 
+    let isMounted = true;
     const loadDashboardData = async () => {
       try {
-        setLoading(true);
+        if (isMounted && (students || []).length === 0 && (staff || []).length === 0) {
+          setLoading(true);
+        }
         await Promise.all([
-          typeof loadSummaryData === 'function' ? loadSummaryData(selectedBranch, selectedAcademicYear) : Promise.resolve(),
+          loadSummaryData(selectedBranch, selectedAcademicYear),
           typeof fetchStudents === 'function' ? fetchStudents() : Promise.resolve(),
           typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
           typeof fetchAdmissions === 'function' ? fetchAdmissions() : Promise.resolve(),
@@ -278,11 +287,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     loadDashboardData();
-  }, [userRole, selectedAcademicYear, selectedBranch, fetchStudents, fetchAdmissions, fetchAcademicClasses, fetchTodayStudentAttendanceSummary]);
+    return () => { isMounted = false; };
+  }, [userRole, selectedAcademicYear, selectedBranch]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
@@ -884,12 +896,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>{summaryError} (Displaying latest session state)</span>
           </div>
-          <button
-            onClick={loadSummaryData}
-            className="flex items-center gap-1 font-bold text-amber-700 dark:text-amber-400 hover:underline shrink-0"
-          >
-            <RefreshCw className="w-3 h-3" /> Retry
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => loadSummaryData(selectedBranch, selectedAcademicYear)}
+              className="flex items-center gap-1 font-bold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" /> Retry
+            </button>
+            <button
+              onClick={() => setSummaryError(null)}
+              className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-200 cursor-pointer font-bold px-1 text-sm"
+              title="Dismiss warning"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
