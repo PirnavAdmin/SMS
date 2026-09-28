@@ -15,7 +15,7 @@ import {
   fetchStudentAttendanceAllApi,
   saveBulkStudentAttendanceApi,
 } from "../api/attendance";
-import { fetchReportCardsApi, publishExamResultsApi } from "../api/examination";
+import { fetchReportCardsApi, publishExamResultsApi, saveMarksEntryDraftApi, submitMarksEntryApi } from "../api/examination";
 import {
   createAcademicYearApi,
   updateAcademicYearApi,
@@ -1134,6 +1134,7 @@ interface DataContextType {
     reason: string,
     updatedBy: string,
   ) => void;
+  refreshReleasedExamResults?: () => Promise<void>;
 
   timetable: TimetableSlot[];
   addTimetableSlot: (slot: Omit<TimetableSlot, "id">) => Promise<void>;
@@ -1639,9 +1640,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() =>
-    getStored("profile", initialSchoolProfile),
-  );
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
+    const profile = getStored("profile", initialSchoolProfile);
+    const storedLogo =
+      localStorage.getItem("school_logo") ??
+      localStorage.getItem("logoUrl") ??
+      localStorage.getItem("schoolLogo");
+    if (storedLogo !== null) {
+      return { ...profile, logoUrl: storedLogo };
+    }
+    return profile;
+  });
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() =>
     getStored("academic_years", []),
   );
@@ -1881,10 +1890,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const stored = getStored("holidays", initialHolidays);
-    const rawList = !stored || stored.length <= 1 ? initialHolidays : stored;
+    const combined = Array.isArray(stored) && stored.length > 0 ? [...stored, ...initialHolidays] : initialHolidays;
     const seen = new Set<string>();
     const unique: Holiday[] = [];
-    rawList.forEach((h: any) => {
+    combined.forEach((h: any) => {
+      if (!h || !h.name || !h.startDate) return;
       const cleanName = (h.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
       const key = `${cleanName}_${h.startDate}`;
       if (!seen.has(key)) {
@@ -6205,15 +6215,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         localStorage.setItem("edu_db_profile", JSON.stringify(next));
         localStorage.setItem("profile", JSON.stringify(next));
-        if (next.logoUrl) {
-          localStorage.setItem("school_logo", next.logoUrl);
-          localStorage.setItem("logoUrl", next.logoUrl);
-          localStorage.setItem("schoolLogo", next.logoUrl);
-        } else {
-          localStorage.removeItem("school_logo");
-          localStorage.removeItem("logoUrl");
-          localStorage.removeItem("schoolLogo");
-        }
+        const logoVal = next.logoUrl ?? "";
+        localStorage.setItem("school_logo", logoVal);
+        localStorage.setItem("logoUrl", logoVal);
+        localStorage.setItem("schoolLogo", logoVal);
       } catch (e) {}
 
       // Asynchronously persist to database table
@@ -6241,6 +6246,85 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
+  const loadReleasedExamResultsFromDb = useCallback(async () => {
+    try {
+      const res: any = await fetchReportCardsApi();
+      const cards = res?.data || res;
+      if (Array.isArray(cards) && cards.length > 0) {
+        setProcessedResults((prev) => {
+          const mapped: ProcessedResult[] = cards.map((r: any) => {
+            const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
+            const obtained = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
+            const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtained / maxMarks) * 100 : 0));
+            const grade = r.finalGrade || r.overallGrade || r.grade || "";
+            const passFail = r.resultStatus || r.passStatus || "";
+            const rankVal = r.rank ? Number(r.rank) : 0;
+
+            return {
+              id: String(r.id || r.resultId || `API-${r.studentId}`),
+              examId: String(r.examId || (exams.length > 0 ? exams[0].id : "1")),
+              studentId: String(r.studentId || ""),
+              studentName: r.studentName || "",
+              className: r.className || "",
+              section: r.sectionName || r.section || "",
+              rollNo: r.rollNumber || r.rollNo || "",
+              admissionNo: r.admissionNumber || r.admissionNo || String(r.studentId || ""),
+              totalMaxMarks: maxMarks,
+              totalObtainedMarks: obtained,
+              percentage: pct,
+              gpa: Number(r.gpa || 0),
+              finalGrade: grade,
+              overallGrade: grade,
+              subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : [],
+              passStatus: passFail as "Pass" | "Fail",
+              status: "Published",
+              rank: rankVal,
+              publishedAt: r.calculatedAt || new Date().toISOString().split("T")[0]
+            };
+          });
+
+          const seen = new Set(mapped.map((m) => `${m.examId}_${m.studentId}_${m.className}`));
+          const remaining = prev.filter((p) => !seen.has(`${p.examId}_${p.studentId}_${p.className}`));
+          return [...remaining, ...mapped];
+        });
+
+        // Also populate examMarks for subject marks consistency
+        const newExamMarksList: any[] = [];
+        cards.forEach((card: any) => {
+          const subs = card.subjectMarks || card.subjectScores || [];
+          if (Array.isArray(subs)) {
+            subs.forEach((sub: any) => {
+              newExamMarksList.push({
+                id: `EM-${card.examId || '1'}-${card.studentId}-${sub.subject}`,
+                examId: String(card.examId || '1'),
+                studentId: String(card.studentId || ''),
+                studentName: card.studentName || '',
+                rollNo: card.rollNo || '',
+                admissionNo: card.admissionNo || '',
+                className: card.className || '',
+                section: card.sectionName || card.section || '',
+                subject: sub.subject || sub.subjectName || '',
+                maxMarks: Number(sub.maxMarks || 0),
+                marksObtained: Number(sub.obtainedMarks || 0),
+                grade: sub.grade || '',
+                isLocked: true
+              });
+            });
+          }
+        });
+        if (newExamMarksList.length > 0) {
+          setExamMarks((prev) => {
+            const existingKeys = new Set(newExamMarksList.map((m) => `${m.examId}_${m.studentId}_${m.subject}`));
+            const remaining = prev.filter((p) => !existingKeys.has(`${p.examId}_${p.studentId}_${p.subject}`));
+            return [...remaining, ...newExamMarksList];
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Initial released exam results load note:', err);
+    }
+  }, [exams]);
+
   useEffect(() => {
     const loadSchoolSettingsFromDb = async () => {
       try {
@@ -6252,17 +6336,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             data.logoUrl !== undefined ||
             data.address !== undefined)
         ) {
-          const localCustomLogo =
-            localStorage.getItem("school_logo") ||
-            localStorage.getItem("logoUrl") ||
-            localStorage.getItem("schoolLogo") ||
-            "";
+          const localLogoRaw =
+            localStorage.getItem("school_logo") ??
+            localStorage.getItem("logoUrl") ??
+            localStorage.getItem("schoolLogo");
 
           const currentProfile = schoolProfile || initialSchoolProfile;
-          const effectiveLogo =
-            (data.logoUrl && data.logoUrl.trim() !== '')
-              ? data.logoUrl
-              : (localCustomLogo || currentProfile.logoUrl || initialSchoolProfile.logoUrl);
+          let effectiveLogo = currentProfile.logoUrl ?? "";
+          if (data.logoUrl !== undefined && data.logoUrl !== null) {
+            effectiveLogo = data.logoUrl;
+          } else if (localLogoRaw !== null) {
+            effectiveLogo = localLogoRaw;
+          }
 
           const next: SchoolProfile = {
             ...initialSchoolProfile,
@@ -6288,11 +6373,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           try {
             localStorage.setItem("edu_db_profile", JSON.stringify(next));
             localStorage.setItem("profile", JSON.stringify(next));
-            if (next.logoUrl) {
-              localStorage.setItem("school_logo", next.logoUrl);
-              localStorage.setItem("logoUrl", next.logoUrl);
-              localStorage.setItem("schoolLogo", next.logoUrl);
-            }
+            localStorage.setItem("school_logo", next.logoUrl || "");
+            localStorage.setItem("logoUrl", next.logoUrl || "");
+            localStorage.setItem("schoolLogo", next.logoUrl || "");
           } catch (e) {}
 
           setSchoolProfile(next);
@@ -6310,95 +6393,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
 
-    const loadReleasedExamResultsFromDb = async () => {
-      try {
-        const res: any = await fetchReportCardsApi();
-        const cards = res?.data || res;
-        if (Array.isArray(cards) && cards.length > 0) {
-          setProcessedResults((prev) => {
-            const mapped: ProcessedResult[] = cards.map((r: any) => {
-              const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
-              const obtained = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
-              const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtained / maxMarks) * 100 : 0));
-              const grade = r.finalGrade || r.overallGrade || r.grade || "";
-              const passFail = r.resultStatus || r.passStatus || "";
-              const rankVal = r.rank ? Number(r.rank) : 0;
-
-              return {
-                id: String(r.id || r.resultId || `API-${r.studentId}`),
-                examId: String(r.examId || ""),
-                studentId: String(r.studentId || ""),
-                studentName: r.studentName || "",
-                className: r.className || "",
-                section: r.sectionName || r.section || "",
-                rollNo: r.rollNumber || r.rollNo || "",
-                admissionNo: r.admissionNumber || r.admissionNo || String(r.studentId || ""),
-                totalMaxMarks: maxMarks,
-                totalObtainedMarks: obtained,
-                percentage: pct,
-                gpa: Number(r.gpa || 0),
-                finalGrade: grade,
-                overallGrade: grade,
-                subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : [],
-                passStatus: passFail as "Pass" | "Fail",
-                status: "Published",
-                rank: rankVal,
-                publishedAt: new Date().toISOString().split("T")[0]
-              };
-            });
-
-            const seen = new Set(mapped.map((m) => `${m.examId}_${m.studentId}_${m.className}`));
-            const remaining = prev.filter((p) => !seen.has(`${p.examId}_${p.studentId}_${p.className}`));
-            return [...remaining, ...mapped];
-          });
-
-          // Also populate examMarks for subject marks consistency
-          const newExamMarksList: any[] = [];
-          cards.forEach((card: any) => {
-            const subs = card.subjectMarks || card.subjectScores || [];
-            if (Array.isArray(subs)) {
-              subs.forEach((sub: any) => {
-                newExamMarksList.push({
-                  id: `EM-${card.examId || '1'}-${card.studentId}-${sub.subject}`,
-                  examId: String(card.examId || '1'),
-                  studentId: String(card.studentId || ''),
-                  studentName: card.studentName || '',
-                  rollNo: card.rollNo || '',
-                  admissionNo: card.admissionNo || '',
-                  className: card.className || '',
-                  section: card.sectionName || card.section || '',
-                  subject: sub.subject || sub.subjectName || '',
-                  maxMarks: Number(sub.maxMarks || 0),
-                  marksObtained: Number(sub.obtainedMarks || 0),
-                  grade: sub.grade || '',
-                  isLocked: true
-                });
-              });
-            }
-          });
-          if (newExamMarksList.length > 0) {
-            setExamMarks((prev) => {
-              const existingKeys = new Set(newExamMarksList.map((m) => `${m.examId}_${m.studentId}_${m.subject}`));
-              const remaining = prev.filter((p) => !existingKeys.has(`${p.examId}_${p.studentId}_${p.subject}`));
-              return [...remaining, ...newExamMarksList];
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('Initial released exam results load note:', err);
-      }
-    };
-
     loadSchoolSettingsFromDb();
     loadReleasedExamResultsFromDb();
 
     const handleProfileUpdate = () => {
       try {
-        const schoolLogo =
-          localStorage.getItem("school_logo") ||
-          localStorage.getItem("logoUrl") ||
-          localStorage.getItem("schoolLogo") ||
-          "";
+        const storedLogo =
+          localStorage.getItem("school_logo") ??
+          localStorage.getItem("logoUrl") ??
+          localStorage.getItem("schoolLogo");
 
         const stored =
           localStorage.getItem("edu_db_profile") ||
@@ -6407,11 +6410,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setSchoolProfile((prev) => {
           const base = prev || initialSchoolProfile;
+          const effectiveLogo =
+            storedLogo !== null
+              ? storedLogo
+              : (parsed?.logoUrl !== undefined ? parsed.logoUrl : (base?.logoUrl ?? ""));
           return {
             ...initialSchoolProfile,
             ...base,
             ...(parsed || {}),
-            logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed?.logoUrl || base?.logoUrl || initialSchoolProfile.logoUrl),
+            logoUrl: effectiveLogo,
           };
         });
       } catch (e) {}
@@ -6420,13 +6427,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     window.addEventListener("school_profile_updated", handleProfileUpdate);
     window.addEventListener("storage", handleProfileUpdate);
     window.addEventListener("focus", loadSchoolSettingsFromDb);
+    window.addEventListener("focus", loadReleasedExamResultsFromDb);
+    window.addEventListener("refresh_released_results", loadReleasedExamResultsFromDb);
+    window.addEventListener("results_published", loadReleasedExamResultsFromDb);
 
-    const syncInterval = setInterval(loadSchoolSettingsFromDb, 60000);
+    const syncInterval = setInterval(() => {
+      loadSchoolSettingsFromDb();
+      loadReleasedExamResultsFromDb();
+    }, 60000);
 
     return () => {
       window.removeEventListener("school_profile_updated", handleProfileUpdate);
       window.removeEventListener("storage", handleProfileUpdate);
       window.removeEventListener("focus", loadSchoolSettingsFromDb);
+      window.removeEventListener("focus", loadReleasedExamResultsFromDb);
+      window.removeEventListener("refresh_released_results", loadReleasedExamResultsFromDb);
+      window.removeEventListener("results_published", loadReleasedExamResultsFromDb);
       clearInterval(syncInterval);
     };
   }, []);
@@ -17454,6 +17470,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       return [...filtered, ...newMarks];
     });
+
+    // Directly persist marks entries to backend database API
+    try {
+      const groups: Record<string, typeof newMarks> = {};
+      newMarks.forEach((m) => {
+        const key = `${m.examId || 1}__${m.className || ''}__${m.section || ''}__${m.subject || ''}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(m);
+      });
+      Object.entries(groups).forEach(([_, group]) => {
+        const first = group[0];
+        const isFinal = group.every((m) => m.isLocked);
+        const payload = {
+          examId: Number(first.examId) || 1,
+          className: first.className || "",
+          sectionName: first.section || "",
+          subjectCode: first.subject || "",
+          students: group.map((m) => {
+            const student = students.find((s) => s.id === m.studentId);
+            return {
+              entryId: 0,
+              rollNo: (m as any).rollNo || student?.rollNo || "",
+              studentName: (m as any).studentName || (student ? `${student.firstName} ${student.lastName}` : ""),
+              admissionNo: (m as any).admissionNo || student?.admissionNo || "",
+              attendanceStatus: m.isAbsent ? "Absent" : ((m as any).attendanceStatus || "Present"),
+              marksObtained: Number(m.marksObtained || 0),
+              maxMarks: Number(m.maxMarks || m.totalMarks || 100),
+              grade: m.grade || "",
+              evaluatorRemarks: m.remarks || "",
+              status: m.isLocked ? "Submitted" : "Draft"
+            };
+          }),
+          isFinalSubmit: isFinal
+        };
+        if (isFinal) {
+          submitMarksEntryApi(payload).catch((err) => console.warn("Backend save marks error:", err));
+        } else {
+          saveMarksEntryDraftApi(payload).catch((err) => console.warn("Backend save marks error:", err));
+        }
+      });
+    } catch (err) {
+      console.warn("Backend auto save marks sync error:", err);
+    }
+
     logActivity(
       "Saved Exam Marks",
       `Entered marks for ${newMarks.length} records`,
@@ -17921,6 +17981,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       return [...filtered, ...results];
     });
+
+    if (results && results.length > 0) {
+      try {
+        const first = results[0];
+        publishExamResultsApi({
+          examId: Number(first.examId) || 1,
+          className: first.className,
+          sectionName: first.section,
+          results: results.map((r) => ({
+            studentId: Number(r.studentId) || 0,
+            rollNo: r.rollNo || "",
+            studentName: r.studentName || "",
+            admissionNo: r.admissionNo || "",
+            className: r.className,
+            sectionName: r.section,
+            totalMarksObtained: Number(r.totalObtainedMarks || (r as any).totalMarksObtained || 0),
+            totalMaxMarks: Number(r.totalMaxMarks || 0),
+            percentage: Number(r.percentage || 0),
+            grade: r.finalGrade || r.overallGrade || (r as any).grade || "",
+            rank: Number(r.rank || 0),
+            resultStatus: r.passStatus || (r as any).resultStatus || "",
+            subjectMarks: (r.subjectMarks || []).map((sm: any) => ({
+              subject: sm.subject || sm.subjectName || "",
+              subjectCode: sm.subjectCode || sm.code || sm.subject || "",
+              maxMarks: Number(sm.maxMarks || 100),
+              passMarks: Number(sm.passMarks || 35),
+              obtainedMarks: sm.obtainedMarks,
+              grade: sm.grade || "",
+              status: sm.status || (sm.isPass ? "Pass" : "Fail")
+            }))
+          }))
+        }).catch((err) => {
+          console.warn("Backend auto save processed results sync error:", err);
+        });
+      } catch (err) {
+        console.warn("Backend auto save processed results error:", err);
+      }
+    }
+
     logActivity(
       "Processed Exam Results",
       `Calculated grades & percentages for ${results.length} students`,
@@ -21011,7 +21110,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }), [studentUniformIssues, selectedBranch, selectedAcademicYear]);
   const filteredFinanceUniformConfigs = useMemo(() => filterByBranch(financeUniformConfigs), [financeUniformConfigs, selectedBranch, selectedAcademicYear]);
   const filteredLeaveApplications = useMemo(() => filterByBranch(leaveApplications), [leaveApplications, selectedBranch, selectedAcademicYear]);
-  const filteredHolidays = useMemo(() => filterByBranch(holidays), [holidays, selectedBranch, selectedAcademicYear]);
+  const filteredHolidays = useMemo(() => {
+    return (holidays || []).filter((h) => {
+      if (!h) return false;
+      const b = (h.branch || "").toLowerCase().trim();
+      const typeStr = (h.type || "").toLowerCase().trim();
+      const isGlobal =
+        !b ||
+        b === "all" ||
+        b === "all branches" ||
+        b === "global" ||
+        b === "main campus" ||
+        ["national", "festival", "gazetted", "vacation"].includes(typeStr);
+      if (isGlobal) return true;
+      if (
+        !selectedBranch ||
+        selectedBranch === "All" ||
+        selectedBranch === "All Branches"
+      )
+        return true;
+      const selB = selectedBranch.toLowerCase().trim();
+      return b.includes(selB) || selB.includes(b);
+    });
+  }, [holidays, selectedBranch, selectedAcademicYear]);
   const filteredPayslips = useMemo(() => filterByBranch(payslips), [payslips, selectedBranch, selectedAcademicYear]);
   const filteredPayrollConfigurations = useMemo(() => filterByBranch(payrollConfigurations), [payrollConfigurations, selectedBranch, selectedAcademicYear]);
   const filteredPayrollComponents = useMemo(() => filterByBranch(payrollComponents), [payrollComponents, selectedBranch, selectedAcademicYear]);
@@ -21820,6 +21941,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         saveProcessedResults,
         updateResultStatus,
         applyGraceOrRevaluation,
+        refreshReleasedExamResults: loadReleasedExamResultsFromDb,
         studentAttendance,
         saveStudentAttendance,
         coScholasticAssessments,

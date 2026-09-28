@@ -709,9 +709,10 @@ export const SettingsView: React.FC = () => {
     try {
       localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
       localStorage.setItem("profile", JSON.stringify(profileForm));
-      if (profileForm.logoUrl) {
-        localStorage.setItem("school_logo", profileForm.logoUrl);
-      }
+      const logoVal = profileForm.logoUrl ?? "";
+      localStorage.setItem("school_logo", logoVal);
+      localStorage.setItem("logoUrl", logoVal);
+      localStorage.setItem("schoolLogo", logoVal);
     } catch (err) {}
     window.dispatchEvent(new Event("school_profile_updated"));
     addToast(

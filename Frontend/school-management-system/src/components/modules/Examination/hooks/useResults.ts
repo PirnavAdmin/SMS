@@ -17,7 +17,12 @@ export function useResults() {
     const cleanSec = (section || '').replace('Section ', '').trim().toUpperCase();
     return (processedResults || []).filter(r => {
       if (!r) return false;
-      if (r.examId !== examId || r.className !== className) return false;
+      const matchExam = !examId || examId === 'all' || !r.examId || r.examId === 'all' ||
+        String(r.examId) === String(examId) ||
+        (Number(r.examId) > 0 && Number(r.examId) === Number(examId)) ||
+        (String(r.examId).includes(String(examId)) || String(examId).includes(String(r.examId)));
+      const matchClass = !className || className === 'all' || r.className === className;
+      if (!matchExam || !matchClass) return false;
       if (!section || section === 'All') return true;
       const rSec = (r.section || '').replace('Section ', '').trim().toUpperCase();
       return rSec === cleanSec || r.section === section;
@@ -77,7 +82,7 @@ export function useResults() {
 
     // 3. Assemble full ProcessedResult objects
     studentScores.forEach(({ student, res }) => {
-      const rank = ranksMap[student.id] || 1;
+      const rank = ranksMap[student.id] ?? 0;
       calculatedList.push({
         id: `RES-${examId}-${student.id}`,
         examId,

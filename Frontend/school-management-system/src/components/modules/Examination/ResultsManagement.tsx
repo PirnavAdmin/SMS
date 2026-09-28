@@ -34,12 +34,18 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
   onGotoSetup
 }) => {
   const { processedResults, updateResultStatus, getResultsForExamClass, calculateClassResults, saveProcessedResults } = useResults();
-  const { examMarks, academicClasses } = useData();
+  const { examMarks, academicClasses, refreshReleasedExamResults } = useData();
 
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
   const [isCalculated, setIsCalculated] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+
+  useEffect(() => {
+    if (refreshReleasedExamResults) {
+      refreshReleasedExamResults().catch(() => {});
+    }
+  }, [selectedClass, selectedSection]);
 
   // Dynamic sections from academicClasses
   const availableSections = useMemo(() => {
@@ -172,6 +178,11 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     } catch (err) {
       console.warn('Backend publish results sync note:', err);
     }
+
+    try {
+      window.dispatchEvent(new Event('results_published'));
+      window.dispatchEvent(new Event('refresh_released_results'));
+    } catch (e) {}
 
     addToast('success', 'Results Released', 'Results have been published and saved to database. Now visible on all machines.');
   };
