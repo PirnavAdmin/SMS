@@ -267,22 +267,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        await Promise.all([
-          typeof loadSummaryData === 'function' ? loadSummaryData(selectedBranch, selectedAcademicYear) : Promise.resolve(),
-          typeof fetchStudents === 'function' ? fetchStudents() : Promise.resolve(),
-          typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
-          typeof fetchAdmissions === 'function' ? fetchAdmissions() : Promise.resolve(),
-          typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses() : Promise.resolve(),
-          typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary() : Promise.resolve()
-        ]);
+        // Load summary API first for instant Dashboard rendering
+        await loadSummaryData(selectedBranch, selectedAcademicYear);
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
         setLoading(false);
       }
+
+      // Background prefetch remaining details asynchronously without blocking UI render
+      Promise.all([
+        typeof fetchStudents === 'function' ? fetchStudents() : Promise.resolve(),
+        typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
+        typeof fetchAdmissions === 'function' ? fetchAdmissions() : Promise.resolve(),
+        typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses() : Promise.resolve(),
+        typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary() : Promise.resolve()
+      ]).catch(e => console.warn("Background prefetch warning:", e));
     };
+
     loadDashboardData();
-  }, [userRole, selectedAcademicYear, selectedBranch, fetchStudents, fetchAdmissions, fetchAcademicClasses, fetchTodayStudentAttendanceSummary]);
+  }, [userRole, selectedAcademicYear, selectedBranch]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;

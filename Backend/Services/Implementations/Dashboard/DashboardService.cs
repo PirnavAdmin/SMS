@@ -91,11 +91,6 @@ public class DashboardService : IDashboardService
         int totalStudents = await studentQuery.CountAsync(cancellationToken);
 
         // Also check if there are any enrolled/admitted applications in AdmissionApplications not yet in Students table
-        var existingAdmNos = await _context.Students.AsNoTracking()
-            .Where(s => !s.IsDeleted && s.AdmissionNumber != null)
-            .Select(s => s.AdmissionNumber.ToLower())
-            .ToListAsync(cancellationToken);
-
         var admissionAppsQuery = _context.AdmissionApplications.AsNoTracking()
             .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted"));
 
@@ -105,7 +100,7 @@ public class DashboardService : IDashboardService
         }
 
         var unmappedAdmissions = await admissionAppsQuery
-            .Where(a => a.RegistrationNo != null && !existingAdmNos.Contains(a.RegistrationNo.ToLower()))
+            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == a.RegistrationNo.ToLower()))
             .CountAsync(cancellationToken);
 
         totalStudents += unmappedAdmissions;
@@ -261,7 +256,7 @@ public class DashboardService : IDashboardService
 
         var admissionClasses = await admissionAppsQuery
             .Include(a => a.AppliedClass)
-            .Where(a => a.RegistrationNo != null && !existingAdmNos.Contains(a.RegistrationNo.ToLower()) && a.AppliedClass != null && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
+            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == a.RegistrationNo.ToLower()) && a.AppliedClass != null && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
             .GroupBy(a => a.AppliedClass!.ClassName)
             .Select(g => new { ClassName = g.Key, StudentCount = g.Count() })
             .ToListAsync(cancellationToken);
